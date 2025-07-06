@@ -1,0 +1,50 @@
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import os
+from dotenv import load_dotenv
+import stripe
+from typing import Optional
+import uvicorn
+
+# Load environment variables
+load_dotenv()
+
+# Initialize FastAPI app
+app = FastAPI(title="FinancialExtract API", version="1.0.0")
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:5000"],  # Next.js dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Initialize Stripe
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+if not stripe.api_key:
+    raise ValueError("STRIPE_SECRET_KEY environment variable is required")
+
+# Security
+security = HTTPBearer(auto_error=False)
+
+@app.get("/")
+async def root():
+    return {"message": "FinancialExtract API is running"}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
+
+# Import routes
+from .routes import auth, stripe_routes, extraction
+
+# Include routers
+app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
+app.include_router(stripe_routes.router, prefix="/api/stripe", tags=["stripe"])
+app.include_router(extraction.router, prefix="/api/extraction", tags=["extraction"])
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
