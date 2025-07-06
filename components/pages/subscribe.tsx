@@ -1,3 +1,5 @@
+'use client'
+
 import { useStripe, Elements, PaymentElement, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { useEffect, useState } from 'react';
@@ -9,10 +11,10 @@ import { Check, Loader2 } from "lucide-react";
 
 // Make sure to call `loadStripe` outside of a component's render to avoid
 // recreating the `Stripe` object on every render.
-if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
-  throw new Error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
+if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+  throw new Error('Missing required Stripe key: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY');
 }
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
 const SubscribeForm = ({ plan }: { plan: any }) => {
   const stripe = useStripe();
@@ -118,7 +120,7 @@ export default function Subscribe() {
       basic: {
         name: 'Basic',
         price: '$9.99',
-        priceId: import.meta.env.VITE_STRIPE_PRICE_ID_BASIC,
+        priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_BASIC || "price_basic",
         features: [
           'Up to 100 pages per month',
           'Basic extraction templates',
@@ -129,7 +131,7 @@ export default function Subscribe() {
       professional: {
         name: 'Professional',
         price: '$49.99',
-        priceId: import.meta.env.VITE_STRIPE_PRICE_ID_PROFESSIONAL,
+        priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_PROFESSIONAL || "price_professional",
         features: [
           'Up to 1,000 pages per month',
           'Advanced custom templates',
@@ -144,8 +146,8 @@ export default function Subscribe() {
     const selectedPlan = plans[planType as keyof typeof plans] || plans.basic;
     console.log('Selected plan:', selectedPlan);
     console.log('Environment variables:', {
-      basic: import.meta.env.VITE_STRIPE_PRICE_ID_BASIC,
-      professional: import.meta.env.VITE_STRIPE_PRICE_ID_PROFESSIONAL
+      basic: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_BASIC || "price_basic",
+      professional: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_PROFESSIONAL || "price_professional"
     });
     
     setPlan(selectedPlan);

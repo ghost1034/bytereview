@@ -1,3 +1,5 @@
+'use client'
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +22,7 @@ export default function Pricing() {
     basic: {
       name: "Basic",
       price: "$9.99",
-      priceId: import.meta.env.VITE_STRIPE_PRICE_ID_BASIC,
+      priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_BASIC || "price_basic",
       features: [
         "Up to 100 pages per month",
         "Basic extraction templates",
@@ -31,7 +33,7 @@ export default function Pricing() {
     professional: {
       name: "Professional", 
       price: "$49.99",
-      priceId: import.meta.env.VITE_STRIPE_PRICE_ID_PROFESSIONAL,
+      priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_PROFESSIONAL || "price_professional",
       features: [
         "Up to 1,000 pages per month",
         "Advanced custom templates",

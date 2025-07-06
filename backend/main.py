@@ -39,7 +39,7 @@ async def health_check():
     return {"status": "healthy"}
 
 # Import routes
-from .routes import auth, stripe_routes, extraction
+from routes import auth, stripe_routes, extraction
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
