@@ -26,7 +26,7 @@ class FirebaseConfig:
         """Initialize Firebase Admin SDK once"""
         if not firebase_admin._apps:
             try:
-                service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
+                service_account_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
                 if service_account_path and os.path.exists(service_account_path):
                     cred = credentials.Certificate(service_account_path)
                     firebase_admin.initialize_app(cred)
