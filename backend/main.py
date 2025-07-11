@@ -39,12 +39,13 @@ async def health_check():
     return {"status": "healthy"}
 
 # Import routes
-from routes import auth, stripe_routes, extraction
+from routes import users, stripe_routes, extraction, templates
 
 # Include routers
-app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
+app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(stripe_routes.router, prefix="/api/stripe", tags=["stripe"])
 app.include_router(extraction.router, prefix="/api/extraction", tags=["extraction"])
+app.include_router(templates.router, prefix="/api/templates", tags=["templates"])
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

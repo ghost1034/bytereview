@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,12 +14,15 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const router = useRouter();
   const [isDragOver, setIsDragOver] = useState(false);
+  const { user } = useAuth();
 
-  const handleAuth = () => {
-    // Simulate Auth0 authentication
-    alert("Redirecting to Auth0 login...");
-    // After successful auth, redirect to authenticated demo page
-    router.push("/demo?authenticated=true");
+  const handleGetStarted = () => {
+    // Redirect based on authentication status
+    if (user) {
+      router.push("/dashboard");
+    } else {
+      router.push("/demo");
+    }
   };
 
   const handleFileUpload = (files: FileList | null) => {
@@ -125,7 +129,7 @@ export default function Home() {
                     className="flex-1"
                   />
                   <Button 
-                    onClick={handleAuth}
+                    onClick={handleGetStarted}
                     className="lido-green hover:lido-green-dark text-white px-6"
                   >
                     Get started for free →

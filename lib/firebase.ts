@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithRedirect, signInWithPopup, getRedirectResult, GoogleAuthProvider, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth, signInWithRedirect, signInWithPopup, getRedirectResult, GoogleAuthProvider, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -59,6 +59,11 @@ export const signOutUser = () => {
 export const signUpWithEmail = (email: string, password: string) => {
   console.log('Creating account with email:', email);
   return createUserWithEmailAndPassword(auth, email, password);
+};
+
+// Update user profile
+export const updateUserProfile = (user: any, profile: { displayName?: string; photoURL?: string }) => {
+  return updateProfile(user, profile);
 };
 
 export const signInWithEmail = (email: string, password: string) => {

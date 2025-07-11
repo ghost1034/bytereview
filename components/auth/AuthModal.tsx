@@ -36,7 +36,7 @@ export default function AuthModal({ isOpen, onClose, redirectTo }: AuthModalProp
   
   // Form states
   const [signInData, setSignInData] = useState({ email: "", password: "" });
-  const [signUpData, setSignUpData] = useState({ email: "", password: "", confirmPassword: "" });
+  const [signUpData, setSignUpData] = useState({ email: "", password: "", confirmPassword: "", displayName: "" });
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
@@ -84,7 +84,7 @@ export default function AuthModal({ isOpen, onClose, redirectTo }: AuthModalProp
     }
     
     try {
-      await signUpWithEmailAndPassword(signUpData.email, signUpData.password);
+      await signUpWithEmailAndPassword(signUpData.email, signUpData.password, signUpData.displayName);
       onClose();
     } catch (error: any) {
       setError(error.message || "Failed to create account");
@@ -177,6 +177,21 @@ export default function AuthModal({ isOpen, onClose, redirectTo }: AuthModalProp
             {/* Sign Up Tab */}
             <TabsContent value="signup" className="space-y-4">
               <form onSubmit={handleEmailSignUp} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-name">Full Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="signup-name"
+                      type="text"
+                      placeholder="Enter your full name"
+                      value={signUpData.displayName}
+                      onChange={(e) => setSignUpData({ ...signUpData, displayName: e.target.value })}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
                   <div className="relative">

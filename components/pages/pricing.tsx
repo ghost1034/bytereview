@@ -8,7 +8,7 @@ import { Check } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import AuthModal from "@/components/AuthModal";
+import AuthModal from "@/components/auth/AuthModal";
 // import SubscriptionModal from "@/components/SubscriptionModal";
 
 export default function Pricing() {

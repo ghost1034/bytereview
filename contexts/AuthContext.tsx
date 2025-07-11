@@ -3,14 +3,15 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import { auth, signInWithGoogle, signOutUser, handleRedirectResult, onAuthStateChange, signInWithEmail, signUpWithEmail } from '@/lib/firebase';
+import { auth, signInWithGoogle, signOutUser, handleRedirectResult, onAuthStateChange, signInWithEmail, signUpWithEmail, updateUserProfile } from '@/lib/firebase';
+import { apiClient } from '@/lib/api';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   signIn: () => Promise<void>;
   signInWithEmailAndPassword: (email: string, password: string) => Promise<void>;
-  signUpWithEmailAndPassword: (email: string, password: string) => Promise<void>;
+  signUpWithEmailAndPassword: (email: string, password: string, displayName?: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -36,7 +37,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     // Set up auth state listener
-    const unsubscribe = onAuthStateChange((firebaseUser) => {
+    const unsubscribe = onAuthStateChange(async (firebaseUser) => {
       console.log('Auth state changed:', { 
         previousUser: user?.email, 
         newUser: firebaseUser?.email, 
@@ -47,6 +48,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       setUser(firebaseUser);
       setLoading(false);
+      
+      // Sync with backend when user signs in
+      if (firebaseUser && wasSignedIn) {
+        try {
+          // This will create the user in Firestore if they don't exist
+          await apiClient.getCurrentUser();
+          console.log('User synced with backend');
+        } catch (error) {
+          console.error('Failed to sync user with backend:', error);
+        }
+      }
       
       // Don't auto-redirect - let components handle their own redirect logic
       if (wasSignedIn && !hasRedirected) {
@@ -98,10 +110,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const signUpWithEmailAndPassword = async (email: string, password: string) => {
+  const signUpWithEmailAndPassword = async (email: string, password: string, displayName?: string) => {
     try {
       const result = await signUpWithEmail(email, password);
       if (result && result.user) {
+        // Update display name if provided
+        if (displayName) {
+          await updateUserProfile(result.user, { displayName });
+        }
+        
         console.log('Email sign-up successful, redirecting to dashboard');
         setUser(result.user);
         setHasRedirected(true);

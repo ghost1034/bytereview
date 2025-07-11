@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 import stripe
 from typing import Optional
-from .auth import verify_firebase_token
+from dependencies.auth import verify_firebase_token, get_current_user_email
 
 router = APIRouter()
 

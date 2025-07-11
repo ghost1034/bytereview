@@ -1,285 +1,189 @@
 'use client'
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, CloudUpload, Play, FileText, Receipt, CreditCard, Check, Loader2, Download, FileSpreadsheet, Plus, Trash2, User, Save, Settings, X, Edit, Copy, Star, Zap } from "lucide-react";
-import Link from "next/link";
+import { AlertCircle, Play, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import SubscriptionManager from "@/components/SubscriptionManager";
+import SubscriptionManager from "@/components/subscription/SubscriptionManager";
+import { useExtractData, useTemplates } from "@/hooks/useExtraction";
 
-interface ColumnConfig {
-  id: string;
-  customName: string;
-  dataFormat: string;
-  prompt: string;
-}
+// Import new components
+import UsageStats from "@/components/subscription/UsageStats";
+import FileUpload from "@/components/extraction/FileUpload";
+import FieldConfiguration, { type ColumnConfig } from "@/components/extraction/FieldConfiguration";
+import TemplateSelection from "@/components/extraction/TemplateSelection";
+import SaveTemplate from "@/components/extraction/SaveTemplate";
+import ExtractionResults from "@/components/extraction/ExtractionResults";
+import TemplateLibrary from "@/components/templates/TemplateLibrary";
 
-interface Template {
-  id: string;
-  name: string;
-  description: string;
-  columns: ColumnConfig[];
-  createdAt: string;
-  lastUsed?: string;
-  isPublic: boolean;
-  usageCount: number;
-}
-
-const dataFormats = [
-  "Text", "Number", "Currency", "Date (MM/DD/YYYY)", "Date (DD/MM/YYYY)", 
-  "Date (YYYY-MM-DD)", "Percentage", "Email", "Phone Number", "Boolean (Yes/No)",
-  "Address", "Name", "Invoice Number", "Tax ID", "SKU/Product Code", 
-  "Decimal (2 places)", "Integer", "Time (HH:MM)", "URL"
-];
+// ColumnConfig is now imported from FieldConfiguration component
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showResults, setShowResults] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
-  const [templateName, setTemplateName] = useState("");
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState("custom");
   const [extractMultipleRows, setExtractMultipleRows] = useState(false);
+  const [extractionResults, setExtractionResults] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("extract");
   const [columnConfigs, setColumnConfigs] = useState<ColumnConfig[]>([
-    { id: "1", customName: "Invoice Number", dataFormat: "Invoice Number", prompt: "Extract the invoice or reference number from the document" },
-    { id: "2", customName: "Date", dataFormat: "Date (MM/DD/YYYY)", prompt: "Find the invoice date or transaction date" },
-    { id: "3", customName: "Total Amount", dataFormat: "Currency", prompt: "Extract the total amount due or invoice total" }
+    { id: "1", customName: "", dataFormat: "Text", prompt: "" }
   ]);
 
-  // Subscription data state
-  const [subscriptionData, setSubscriptionData] = useState({
-    plan: "Free",
-    pagesUsed: 3,
-    pagesLimit: 10,
-    nextBilling: "Upgrade to increase limit",
-    status: "active"
-  });
+  // Hooks for API calls
+  const extractDataMutation = useExtractData();
+  const { data: templatesData } = useTemplates();
 
-  // Fetch user subscription data on component mount
-  useEffect(() => {
-    if (!user) {
-      setSubscriptionData({
-        plan: "No Plan",
-        pagesUsed: 0,
-        pagesLimit: 0,
-        nextBilling: "N/A",
-        status: "inactive"
-      });
+  // Template functions
+  const handleTemplateSelect = (templateId: string) => {
+    setSelectedTemplate(templateId);
+    
+    if (templateId === "custom") {
+      // Reset to empty custom configuration
+      setColumnConfigs([
+        { id: "1", customName: "", dataFormat: "Text", prompt: "" }
+      ]);
+    } else {
+      // Load template configuration
+      loadTemplateById(templateId);
+    }
+  };
+
+  const loadTemplateById = (templateId: string) => {
+    try {
+      // Find the template in the cached data
+      const template = templatesData?.templates?.find(t => t.id === templateId);
+      
+      if (!template) {
+        alert('Template not found');
+        return;
+      }
+      
+      // Convert template fields to column configs
+      const configs = template.fields.map((field: any, index: number) => ({
+        id: (index + 1).toString(),
+        customName: field.name,
+        dataFormat: field.data_type,
+        prompt: field.prompt
+      }));
+      
+      setColumnConfigs(configs);
+      setActiveTab("extract"); // Switch to Extract Data tab
+      alert(`Template "${template.name}" loaded successfully!`);
+      
+    } catch (error: any) {
+      console.error('Failed to load template:', error);
+      alert(`Failed to load template: ${error.message}`);
+    }
+  };
+
+  const getAuthToken = async () => {
+    try {
+      const { auth } = await import('@/lib/firebase');
+      const user = auth.currentUser;
+      if (user) {
+        return await user.getIdToken();
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting auth token:', error);
+      return null;
+    }
+  };
+
+  // These functions are now handled by the individual components
+
+  // Removed subscription and template mock data - now handled by components and hooks
+
+  const handleExtract = async () => {
+    if (uploadedFiles.length === 0) {
+      alert("Please upload at least one file first.");
       return;
     }
 
-    // Fetch real subscription data from API
-    const checkSubscription = async () => {
-      try {
-        const response = await fetch('/api/subscription-status');
-        if (response.ok) {
-          const data = await response.json();
-          setSubscriptionData(data);
-        } else {
-          // Fallback to free plan if API fails
-          setSubscriptionData({
-            plan: "Free",
-            pagesUsed: 3,
-            pagesLimit: 10,
-            nextBilling: "Upgrade to increase limit",
-            status: "active"
-          });
-        }
-      } catch (error) {
-        console.error('Error checking subscription:', error);
-        // Fallback to free plan if API fails
-        setSubscriptionData({
-          plan: "Free",
-          pagesUsed: 3,
-          pagesLimit: 10,
-          nextBilling: "Upgrade to increase limit",
-          status: "active"
-        });
-      }
-    };
-
-    checkSubscription();
-  }, [user]);
-
-  const userSubscription = subscriptionData;
-
-  // Mock saved templates
-  const [savedTemplates, setSavedTemplates] = useState<Template[]>([
-    {
-      id: "1",
-      name: "Invoice Processing",
-      description: "Standard invoice data extraction",
-      columns: [
-        { id: "1", customName: "Invoice Number", dataFormat: "Invoice Number", prompt: "Extract the invoice or reference number" },
-        { id: "2", customName: "Date", dataFormat: "Date (MM/DD/YYYY)", prompt: "Find the invoice date" },
-        { id: "3", customName: "Total Amount", dataFormat: "Currency", prompt: "Extract the total amount" },
-        { id: "4", customName: "Vendor Name", dataFormat: "Text", prompt: "Find the vendor or supplier name" }
-      ],
-      createdAt: "2024-01-10",
-      lastUsed: "2024-01-20",
-      isPublic: false,
-      usageCount: 15
-    },
-    {
-      id: "2", 
-      name: "Receipt Scanner",
-      description: "Retail receipt data extraction",
-      columns: [
-        { id: "1", customName: "Store Name", dataFormat: "Text", prompt: "Extract the store or merchant name" },
-        { id: "2", customName: "Date", dataFormat: "Date (MM/DD/YYYY)", prompt: "Find the purchase date" },
-        { id: "3", customName: "Total", dataFormat: "Currency", prompt: "Extract the total amount" },
-        { id: "4", customName: "Tax Amount", dataFormat: "Currency", prompt: "Find the tax amount if present" }
-      ],
-      createdAt: "2024-01-08",
-      lastUsed: "2024-01-18",
-      isPublic: true,
-      usageCount: 8
+    if (columnConfigs.length === 0) {
+      alert("Please add at least one field to extract.");
+      return;
     }
-  ]);
 
-  const handleExtract = () => {
     setIsProcessing(true);
     setProgress(0);
-    
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsProcessing(false);
-          setShowResults(true);
-          return 100;
-        }
-        return prev + 25;
+    setShowResults(false);
+    setExtractionResults(null);
+
+    // Simulate progress updates
+    const progressInterval = setInterval(() => {
+      setProgress(prev => Math.min(prev + Math.random() * 10, 90));
+    }, 500);
+
+    try {
+      // Convert column configs to field configs
+      const fields = columnConfigs.map(config => ({
+        name: config.customName,
+        data_type: config.dataFormat,
+        prompt: config.prompt
+      }));
+
+      // Call the extraction API with multiple files
+      const result = await extractDataMutation.mutateAsync({
+        files: uploadedFiles,
+        fields,
+        extractMultipleRows
       });
-    }, 1000);
-  };
 
-  const saveTemplate = () => {
-    if (!templateName.trim()) return;
-    
-    const newTemplate: Template = {
-      id: Date.now().toString(),
-      name: templateName,
-      description: `Custom template with ${columnConfigs.length} columns`,
-      columns: [...columnConfigs],
-      createdAt: new Date().toISOString().split('T')[0],
-      isPublic: false,
-      usageCount: 0
-    };
-    
-    setSavedTemplates(prev => [newTemplate, ...prev]);
-    setTemplateName("");
-  };
+      setProgress(100);
+      setExtractionResults(result);
+      setShowResults(true);
 
-  const loadTemplate = (template: Template) => {
-    setColumnConfigs(template.columns);
-    setSelectedTemplate(template.id);
-  };
-
-  const deleteTemplate = (templateId: string) => {
-    setSavedTemplates(prev => prev.filter(t => t.id !== templateId));
-  };
-
-  const addNewColumn = () => {
-    const newId = (columnConfigs.length + 1).toString();
-    setColumnConfigs([...columnConfigs, {
-      id: newId,
-      customName: "",
-      dataFormat: "Text",
-      prompt: ""
-    }]);
-  };
-
-  const removeColumn = (id: string) => {
-    if (columnConfigs.length > 1) {
-      setColumnConfigs(columnConfigs.filter(col => col.id !== id));
+      if (!result.success) {
+        alert(`Extraction failed: ${result.error}`);
+      }
+    } catch (error: any) {
+      console.error("Processing failed:", error);
+      console.error("Full error object:", error);
+      
+      // Show more detailed error message
+      let errorMessage = "Processing failed";
+      if (error.message) {
+        errorMessage += `: ${error.message}`;
+      }
+      if (error.response?.data?.detail) {
+        errorMessage += ` - ${error.response.data.detail}`;
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setIsProcessing(false);
+      clearInterval(progressInterval);
     }
   };
-
-  const updateColumn = (id: string, field: keyof ColumnConfig, value: string) => {
-    setColumnConfigs(columnConfigs.map(col => 
-      col.id === id ? { ...col, [field]: value } : col
-    ));
-  };
-
-  // Check if user is approaching limit
-  const isApproachingLimit = userSubscription.pagesUsed / userSubscription.pagesLimit > 0.8;
-  const isOverLimit = userSubscription.pagesUsed >= userSubscription.pagesLimit;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Upgrade Banner for Free Users */}
-        {userSubscription.plan === "Free" && (isApproachingLimit || isOverLimit) && (
-          <div className="mb-6">
-            <Card className="border-orange-200 bg-gradient-to-r from-orange-50 to-yellow-50">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Zap className="w-6 h-6 text-orange-500" />
-                    <div>
-                      <h3 className="font-semibold text-orange-900">
-                        {isOverLimit ? "Page limit reached!" : "Almost at your page limit"}
-                      </h3>
-                      <p className="text-sm text-orange-700">
-                        {isOverLimit 
-                          ? "Upgrade to continue extracting data from your PDFs"
-                          : `You've used ${userSubscription.pagesUsed} of ${userSubscription.pagesLimit} free pages this month`
-                        }
-                      </p>
-                    </div>
-                  </div>
-                  <Link href="/pricing">
-                    <Button className="lido-green hover:lido-green-dark text-white">
-                      Upgrade Now
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
         {/* User Profile Header */}
         <div className="mb-8">
           <Card className="bg-gradient-to-r from-blue-50 to-green-50 border-blue-200">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between">
                 <div className="flex items-center space-x-4">
                   <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center">
-                    <User className="w-8 h-8 text-white" />
+                    <span className="text-white text-xl font-bold">
+                      {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                    </span>
                   </div>
                   <div>
                     <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user?.displayName || 'User'}!</h1>
                     <p className="text-gray-600">{user?.email}</p>
-                    <div className="flex items-center space-x-3 mt-2">
-                      <Badge variant="default" className="bg-green-500">{userSubscription.plan} Plan</Badge>
-                      <Badge variant={userSubscription.status === 'active' ? 'default' : 'secondary'}>
-                        {userSubscription.status === 'active' ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-sm text-gray-500">Pages Used This Month</p>
-                      <div className="flex items-center space-x-2">
-                        <Progress value={(userSubscription.pagesUsed / userSubscription.pagesLimit) * 100} className="w-32" />
-                        <span className="text-sm font-medium">{userSubscription.pagesUsed}/{userSubscription.pagesLimit}</span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500">Next billing: {userSubscription.nextBilling}</p>
-                  </div>
+                <div className="min-w-0 flex-1 max-w-sm ml-6">
+                  <UsageStats />
                 </div>
               </div>
             </CardContent>
@@ -287,7 +191,7 @@ export default function Dashboard() {
         </div>
 
         {/* Main Dashboard Tabs */}
-        <Tabs defaultValue="extract" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="extract">Extract Data</TabsTrigger>
             <TabsTrigger value="templates">Template Library</TabsTrigger>
@@ -300,31 +204,13 @@ export default function Dashboard() {
               {/* Upload Section */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <CloudUpload className="w-5 h-5" />
-                    <span>Upload Documents</span>
-                  </CardTitle>
+                  <CardTitle>Upload Documents</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer">
-                    <CloudUpload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-lg font-medium text-gray-900 mb-2">Drop files here or click to upload</p>
-                    <p className="text-sm text-gray-500">Supports PDF, PNG, JPG files up to 10MB</p>
-                  </div>
-                  
-                  {uploadedFiles.length > 0 && (
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-gray-900">Uploaded Files:</h4>
-                      {uploadedFiles.map((file, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                          <span className="text-sm">{file}</span>
-                          <Button variant="ghost" size="sm">
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <CardContent>
+                  <FileUpload 
+                    uploadedFiles={uploadedFiles}
+                    setUploadedFiles={setUploadedFiles}
+                  />
                 </CardContent>
               </Card>
 
@@ -333,114 +219,36 @@ export default function Dashboard() {
                 <CardHeader>
                   <CardTitle>Template Selection</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Choose Template</label>
-                    <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a template" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="custom">Custom Configuration</SelectItem>
-                        {savedTemplates.map(template => (
-                          <SelectItem key={template.id} value={template.id}>
-                            {template.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium text-gray-900">Save as Template</h4>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Input
-                        placeholder="Template name..."
-                        value={templateName}
-                        onChange={(e) => setTemplateName(e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button onClick={saveTemplate} disabled={!templateName.trim()}>
-                        <Save className="w-4 h-4 mr-2" />
-                        Save
-                      </Button>
-                    </div>
-                  </div>
+                <CardContent>
+                  <TemplateSelection 
+                    selectedTemplate={selectedTemplate}
+                    onTemplateSelect={handleTemplateSelect}
+                  />
                 </CardContent>
               </Card>
             </div>
 
-            {/* Column Configuration */}
+            {/* Field Configuration */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>Column Configuration</span>
-                  <Button onClick={addNewColumn} variant="outline" size="sm">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Column
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {columnConfigs.map((column, index) => (
-                    <div key={column.id} className="p-4 border border-gray-200 rounded-lg space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium text-gray-900">Column {index + 1}</h4>
-                        {columnConfigs.length > 1 && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => removeColumn(column.id)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Column Name</label>
-                          <Input
-                            value={column.customName}
-                            onChange={(e) => updateColumn(column.id, 'customName', e.target.value)}
-                            placeholder="e.g., Invoice Number"
-                          />
-                        </div>
-                        
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Data Format</label>
-                          <Select value={column.dataFormat} onValueChange={(value) => updateColumn(column.id, 'dataFormat', value)}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {dataFormats.map(format => (
-                                <SelectItem key={format} value={format}>{format}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Extraction Prompt</label>
-                        <Textarea
-                          value={column.prompt}
-                          onChange={(e) => updateColumn(column.id, 'prompt', e.target.value)}
-                          placeholder="Describe what data to extract for this column..."
-                          rows={2}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              <CardContent className="p-6">
+                <FieldConfiguration 
+                  columnConfigs={columnConfigs}
+                  setColumnConfigs={setColumnConfigs}
+                />
+              </CardContent>
+            </Card>
 
-                {/* Extract Multiple Rows Checkbox */}
-                <div className="mt-6 flex items-center space-x-2">
+            {/* Save Template */}
+            <Card>
+              <CardContent className="p-6">
+                <SaveTemplate columnConfigs={columnConfigs} />
+              </CardContent>
+            </Card>
+
+            {/* Extract Multiple Rows Checkbox */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-2">
                   <Checkbox 
                     id="extractMultipleRows"
                     checked={extractMultipleRows}
@@ -458,7 +266,7 @@ export default function Dashboard() {
                   <Button 
                     onClick={handleExtract} 
                     disabled={isProcessing || uploadedFiles.length === 0}
-                    className="lido-green hover:lido-green-dark text-white px-8"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-8"
                   >
                     {isProcessing ? (
                       <>
@@ -476,7 +284,12 @@ export default function Dashboard() {
 
                 {isProcessing && (
                   <div className="mt-4">
-                    <Progress value={progress} className="w-full" />
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                        style={{ width: `${progress}%` }}
+                      ></div>
+                    </div>
                     <p className="text-center mt-2 text-sm text-gray-600">Processing documents... {progress}%</p>
                   </div>
                 )}
@@ -485,129 +298,21 @@ export default function Dashboard() {
 
             {/* Results Section */}
             {showResults && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span>Extraction Results</span>
-                    <div className="flex space-x-2">
-                      <Button variant="outline" size="sm">
-                        <Download className="w-4 h-4 mr-2" />
-                        Export CSV
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <FileSpreadsheet className="w-4 h-4 mr-2" />
-                        Export Excel
-                      </Button>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="w-full border border-gray-200 rounded-lg">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          {columnConfigs.map(column => (
-                            <th key={column.id} className="px-4 py-2 text-left font-medium text-gray-900">
-                              {column.customName}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="border-t">
-                          <td className="px-4 py-2">INV-2024-001</td>
-                          <td className="px-4 py-2">01/15/2024</td>
-                          <td className="px-4 py-2">$1,250.00</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
+              <ExtractionResults 
+                extractionResults={extractionResults}
+                columnConfigs={columnConfigs}
+              />
             )}
           </TabsContent>
 
           {/* Template Library Tab */}
           <TabsContent value="templates" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>My Template Library</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {savedTemplates.map(template => (
-                    <Card key={template.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h3 className="font-semibold text-gray-900 mb-1">{template.name}</h3>
-                            <p className="text-sm text-gray-600">{template.description}</p>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            {template.isPublic && <Star className="w-4 h-4 text-yellow-500" />}
-                            <Button variant="ghost" size="sm" onClick={() => deleteTemplate(template.id)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2 text-xs text-gray-500 mb-3">
-                          <p>Columns: {template.columns.length}</p>
-                          <p>Created: {template.createdAt}</p>
-                          <p>Used: {template.usageCount} times</p>
-                        </div>
-                        
-                        <div className="flex space-x-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="flex-1"
-                            onClick={() => loadTemplate(template)}
-                          >
-                            <Edit className="w-4 h-4 mr-1" />
-                            Use
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Copy className="w-4 h-4 mr-1" />
-                            Copy
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <TemplateLibrary onTemplateSelect={handleTemplateSelect} />
           </TabsContent>
 
           {/* Account Settings Tab */}
           <TabsContent value="account" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <SubscriptionManager />
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Usage Statistics</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <span className="text-gray-700">Pages Used</span>
-                      <span className="text-gray-900">{userSubscription.pagesUsed}/{userSubscription.pagesLimit}</span>
-                    </div>
-                    <Progress value={(userSubscription.pagesUsed / userSubscription.pagesLimit) * 100} />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-700">Templates Created</span>
-                    <span className="text-gray-900">{savedTemplates.length}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-700">Total Extractions</span>
-                    <span className="text-gray-900">42</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <SubscriptionManager />
           </TabsContent>
         </Tabs>
       </div>

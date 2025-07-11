@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Menu, X, TrendingUp, Calculator, LogOut, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import AuthModal from "@/components/AuthModal";
+import AuthModal from "@/components/auth/AuthModal";
 
 export default function Header() {
   const pathname = usePathname();
@@ -42,7 +42,7 @@ export default function Header() {
                 </Link>
               ) : (
                 <Link href="/demo" className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === '/demo' ? 'text-lido-blue' : ''}`}>
-                  Try it
+                  Try Demo
                 </Link>
               )}
               <Link href="/pricing" className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === '/pricing' ? 'text-lido-blue' : ''}`}>
