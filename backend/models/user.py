@@ -26,3 +26,6 @@ class UserResponse(BaseModel):
 
 class UserInDB(UserResponse):
     pass
+
+class UpdateProfileRequest(BaseModel):
+    display_name: Optional[str] = None

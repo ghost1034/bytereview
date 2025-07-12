@@ -9,6 +9,7 @@ import { AlertCircle, Play, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import SubscriptionManager from "@/components/subscription/SubscriptionManager";
 import { useExtractData, useTemplates } from "@/hooks/useExtraction";
+import { apiClient } from "@/lib/api";
 
 // Import new components
 import UsageStats from "@/components/subscription/UsageStats";
@@ -26,11 +27,12 @@ export default function Dashboard() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showResults, setShowResults] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState("custom");
-  const [extractMultipleRows, setExtractMultipleRows] = useState(false);
-  const [extractionResults, setExtractionResults] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState("extract");
+  const [uploadedFileIds, setUploadedFileIds] = useState<{file_id: string, filename: string, size_bytes: number}[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState("custom")
+  const [extractMultipleRows, setExtractMultipleRows] = useState(false)
+  const [extractionResults, setExtractionResults] = useState<any>(null)
+  const [activeTab, setActiveTab] = useState("extract")
+  const [isUploading, setIsUploading] = useState(false)
   const [columnConfigs, setColumnConfigs] = useState<ColumnConfig[]>([
     { id: "1", customName: "", dataFormat: "Text", prompt: "" }
   ]);
@@ -101,7 +103,7 @@ export default function Dashboard() {
   // Removed subscription and template mock data - now handled by components and hooks
 
   const handleExtract = async () => {
-    if (uploadedFiles.length === 0) {
+    if (uploadedFileIds.length === 0) {
       alert("Please upload at least one file first.");
       return;
     }
@@ -122,6 +124,9 @@ export default function Dashboard() {
     }, 500);
 
     try {
+      // Extract data from uploaded files (files are already in cloud storage)
+      setProgress(20);
+      
       // Convert column configs to field configs
       const fields = columnConfigs.map(config => ({
         name: config.customName,
@@ -129,16 +134,20 @@ export default function Dashboard() {
         prompt: config.prompt
       }));
 
-      // Call the extraction API with multiple files
-      const result = await extractDataMutation.mutateAsync({
-        files: uploadedFiles,
+      // Call the extraction API with uploaded file IDs
+      const fileIds = uploadedFileIds.map(file => file.file_id);
+      const result = await apiClient.extractFromUploadedFiles(
+        fileIds,
         fields,
         extractMultipleRows
-      });
+      );
 
       setProgress(100);
       setExtractionResults(result);
       setShowResults(true);
+
+      // Clear uploaded file IDs after successful extraction
+      setUploadedFileIds([]);
 
       if (!result.success) {
         alert(`Extraction failed: ${result.error}`);
@@ -208,8 +217,9 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <FileUpload 
-                    uploadedFiles={uploadedFiles}
-                    setUploadedFiles={setUploadedFiles}
+                    uploadedFiles={uploadedFileIds}
+                    onFileUploaded={(fileInfo) => setUploadedFileIds(prev => [...prev, fileInfo])}
+                    onFileRemoved={(file_id) => setUploadedFileIds(prev => prev.filter(f => f.file_id !== file_id))}
                   />
                 </CardContent>
               </Card>
@@ -265,7 +275,7 @@ export default function Dashboard() {
                 <div className="mt-6 flex justify-center">
                   <Button 
                     onClick={handleExtract} 
-                    disabled={isProcessing || uploadedFiles.length === 0}
+                    disabled={isProcessing || uploadedFileIds.length === 0}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-8"
                   >
                     {isProcessing ? (
@@ -290,7 +300,9 @@ export default function Dashboard() {
                         style={{ width: `${progress}%` }}
                       ></div>
                     </div>
-                    <p className="text-center mt-2 text-sm text-gray-600">Processing documents... {progress}%</p>
+                    <p className="text-center mt-2 text-sm text-gray-600">
+                      Processing documents... {progress}%
+                    </p>
                   </div>
                 )}
               </CardContent>

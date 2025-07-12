@@ -1,18 +1,16 @@
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
 import stripe
 from typing import Optional
 from dependencies.auth import verify_firebase_token, get_current_user_email
+from models.stripe import (
+    CreateCheckoutSessionRequest, 
+    CreatePortalSessionRequest,
+    SubscriptionStatus,
+    CheckoutSessionResponse,
+    PortalSessionResponse
+)
 
 router = APIRouter()
-
-class CreateCheckoutSessionRequest(BaseModel):
-    price_id: str
-    success_url: str
-    cancel_url: str
-
-class CreatePortalSessionRequest(BaseModel):
-    return_url: str
 
 @router.post("/create-checkout-session")
 async def create_checkout_session(
@@ -49,7 +47,7 @@ async def create_checkout_session(
             metadata={"firebase_uid": token_data["uid"]}
         )
 
-        return {"checkout_url": session.url}
+        return CheckoutSessionResponse(checkout_url=session.url)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -77,21 +75,21 @@ async def create_portal_session(
             return_url=request.return_url,
         )
 
-        return {"portal_url": session.url}
+        return PortalSessionResponse(portal_url=session.url)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/subscription-status")
+@router.get("/subscription-status", response_model=SubscriptionStatus)
 async def get_subscription_status(token_data: dict = Depends(verify_firebase_token)):
     """Get user's subscription status"""
     try:
         customer_email = token_data.get("email")
         if not customer_email:
-            return {"has_subscription": False, "plan": "free"}
+            return SubscriptionStatus(has_subscription=False, plan="free")
 
         customers = stripe.Customer.list(email=customer_email, limit=1)
         if not customers.data:
-            return {"has_subscription": False, "plan": "free"}
+            return SubscriptionStatus(has_subscription=False, plan="free")
 
         customer = customers.data[0]
         subscriptions = stripe.Subscription.list(customer=customer.id, status="active")
@@ -109,13 +107,13 @@ async def get_subscription_status(token_data: dict = Depends(verify_firebase_tok
             
             plan = plan_mapping.get(price_id, "unknown")
             
-            return {
-                "has_subscription": True,
-                "plan": plan,
-                "status": subscription.status,
-                "current_period_end": subscription.current_period_end
-            }
+            return SubscriptionStatus(
+                has_subscription=True,
+                plan=plan,
+                status=subscription.status,
+                current_period_end=subscription.current_period_end
+            )
 
-        return {"has_subscription": False, "plan": "free"}
+        return SubscriptionStatus(has_subscription=False, plan="free")
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

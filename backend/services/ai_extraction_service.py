@@ -99,7 +99,7 @@ class AIExtractionService:
         
         return schema
 
-    async def extract_data_from_files(self, files_data: List[Dict], fields: List[FieldConfig], extract_multiple_rows: bool = False) -> ExtractionResult:
+    async def extract_data_from_files(self, files_data: List[Dict], fields: List[FieldConfig], extract_multiple_rows: bool = False, processed_files: List = None) -> ExtractionResult:
         """Extract structured data from PDF files using AI with JSON schema - process each file separately"""
         if not hasattr(self, 'base_model_name'):
             return ExtractionResult(
@@ -147,7 +147,7 @@ Extract the first/primary instance of each field. If a field is not found, use n
             all_data = []
             total_rows = 0
             
-            for file_data in files_data:
+            for i, file_data in enumerate(files_data):
                 try:
                     logger.info(f"Processing file: {file_data['filename']}")
                     
@@ -180,12 +180,25 @@ Extract the first/primary instance of each field. If a field is not found, use n
                         extracted_data = json.loads(response.text.strip())
                         logger.info(f"Successfully extracted data from {file_data['filename']}")
                         
-                        # Store individual document result
+                        # Get metadata from processed_files if available
+                        metadata = {}
+                        size_bytes = None
+                        if processed_files and i < len(processed_files):
+                            processed_file = processed_files[i]
+                            if hasattr(processed_file, 'metadata') and processed_file.metadata:
+                                metadata = processed_file.metadata
+                            if hasattr(processed_file, 'size_bytes'):
+                                size_bytes = processed_file.size_bytes
+                        
+                        # Store individual document result with metadata
                         document_results.append({
                             'filename': file_data['filename'],
                             'success': True,
                             'data': extracted_data,
-                            'error': None
+                            'error': None,
+                            'original_path': metadata.get('original_path', file_data['filename']),
+                            'source_zip': metadata.get('source_zip'),
+                            'size_bytes': size_bytes or metadata.get('size_bytes')
                         })
                         
                         # Add to combined data
@@ -198,20 +211,48 @@ Extract the first/primary instance of each field. If a field is not found, use n
                             
                     except json.JSONDecodeError as e:
                         logger.error(f"Failed to parse JSON for {file_data['filename']}: {e}")
+                        
+                        # Get metadata for failed files too
+                        metadata = {}
+                        size_bytes = None
+                        if processed_files and i < len(processed_files):
+                            processed_file = processed_files[i]
+                            if hasattr(processed_file, 'metadata') and processed_file.metadata:
+                                metadata = processed_file.metadata
+                            if hasattr(processed_file, 'size_bytes'):
+                                size_bytes = processed_file.size_bytes
+                        
                         document_results.append({
                             'filename': file_data['filename'],
                             'success': False,
                             'error': f'Failed to parse AI response: {str(e)}',
-                            'data': None
+                            'data': None,
+                            'original_path': metadata.get('original_path', file_data['filename']),
+                            'source_zip': metadata.get('source_zip'),
+                            'size_bytes': size_bytes or metadata.get('size_bytes')
                         })
                         
                 except Exception as e:
                     logger.error(f"Failed to process file {file_data['filename']}: {e}")
+                    
+                    # Get metadata for failed files too
+                    metadata = {}
+                    size_bytes = None
+                    if processed_files and i < len(processed_files):
+                        processed_file = processed_files[i]
+                        if hasattr(processed_file, 'metadata') and processed_file.metadata:
+                            metadata = processed_file.metadata
+                        if hasattr(processed_file, 'size_bytes'):
+                            size_bytes = processed_file.size_bytes
+                    
                     document_results.append({
                         'filename': file_data['filename'],
                         'success': False,
                         'error': f'Processing failed: {str(e)}',
-                        'data': None
+                        'data': None,
+                        'original_path': metadata.get('original_path', file_data['filename']),
+                        'source_zip': metadata.get('source_zip'),
+                        'size_bytes': size_bytes or metadata.get('size_bytes')
                     })
             
             # Check if any documents were successfully processed

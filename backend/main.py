@@ -20,7 +20,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
-app = FastAPI(title="FinancialExtract API", version="1.0.0")
+app = FastAPI(
+    title="FinancialExtract API", 
+    version="1.0.0",
+    description="AI-powered PDF data extraction service with field configuration and template management",
+    openapi_url="/api/openapi.json",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc"
+)
 
 # Configure CORS
 app.add_middleware(

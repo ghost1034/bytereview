@@ -1,0 +1,1411 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FinancialExtract API",
+    "description": "AI-powered PDF data extraction service with field configuration and template management",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Root",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Get Current User",
+        "description": "Get current user information and create if doesn't exist",
+        "operationId": "get_current_user_api_users_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Update Current User",
+        "description": "Update current user's profile",
+        "operationId": "update_current_user_api_users_me_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/users/usage": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Get User Usage",
+        "description": "Get user's usage statistics",
+        "operationId": "get_user_usage_api_users_usage_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageStats"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/stripe/create-checkout-session": {
+      "post": {
+        "tags": [
+          "stripe"
+        ],
+        "summary": "Create Checkout Session",
+        "description": "Create a Stripe checkout session",
+        "operationId": "create_checkout_session_api_stripe_create_checkout_session_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCheckoutSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/stripe/create-portal-session": {
+      "post": {
+        "tags": [
+          "stripe"
+        ],
+        "summary": "Create Portal Session",
+        "description": "Create a Stripe customer portal session",
+        "operationId": "create_portal_session_api_stripe_create_portal_session_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePortalSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/stripe/subscription-status": {
+      "get": {
+        "tags": [
+          "stripe"
+        ],
+        "summary": "Get Subscription Status",
+        "description": "Get user's subscription status",
+        "operationId": "get_subscription_status_api_stripe_subscription_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/extraction/upload": {
+      "post": {
+        "tags": [
+          "extraction"
+        ],
+        "summary": "Upload Files",
+        "description": "Upload files temporarily to server storage",
+        "operationId": "upload_files_api_extraction_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_files_api_extraction_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/extraction/extract-from-uploaded": {
+      "post": {
+        "tags": [
+          "extraction"
+        ],
+        "summary": "Extract Data From Uploaded Files",
+        "description": "Extract data from previously uploaded files",
+        "operationId": "extract_data_from_uploaded_files_api_extraction_extract_from_uploaded_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_extract_data_from_uploaded_files_api_extraction_extract_from_uploaded_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/extraction/extract": {
+      "post": {
+        "tags": [
+          "extraction"
+        ],
+        "summary": "Extract Data From Pdfs",
+        "description": "Extract structured data from PDF files using AI",
+        "operationId": "extract_data_from_pdfs_api_extraction_extract_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_extract_data_from_pdfs_api_extraction_extract_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/extraction/export/csv": {
+      "post": {
+        "tags": [
+          "extraction"
+        ],
+        "summary": "Export Results To Csv",
+        "description": "Export extraction results to CSV format",
+        "operationId": "export_results_to_csv_api_extraction_export_csv_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Extraction Data"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/extraction/export/excel": {
+      "post": {
+        "tags": [
+          "extraction"
+        ],
+        "summary": "Export Results To Excel",
+        "description": "Export extraction results to Excel format",
+        "operationId": "export_results_to_excel_api_extraction_export_excel_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Extraction Data"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/extraction/cleanup-temp-files": {
+      "post": {
+        "tags": [
+          "extraction"
+        ],
+        "summary": "Cleanup Temp Files",
+        "description": "Manually trigger cleanup of old temporary files (admin endpoint - GCS lifecycle policies handle automatic cleanup)",
+        "operationId": "cleanup_temp_files_api_extraction_cleanup_temp_files_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "max_age_hours",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 24,
+              "title": "Max Age Hours"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/templates/": {
+      "get": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "Get User Templates",
+        "description": "Get user's extraction templates",
+        "operationId": "get_user_templates_api_templates__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "Create Template",
+        "description": "Create a new extraction template",
+        "operationId": "create_template_api_templates__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/templates/{template_id}": {
+      "get": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "Get Template",
+        "description": "Get a specific template",
+        "operationId": "get_template_api_templates__template_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Template Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "Update Template",
+        "description": "Update an existing template",
+        "operationId": "update_template_api_templates__template_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Template Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "Delete Template",
+        "description": "Delete a template",
+        "operationId": "delete_template_api_templates__template_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Template Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/templates/public/all": {
+      "get": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "Get Public Templates",
+        "description": "Get publicly available templates",
+        "operationId": "get_public_templates_api_templates_public_all_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_extract_data_from_pdfs_api_extraction_extract_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string",
+              "format": "binary"
+            },
+            "type": "array",
+            "title": "Files",
+            "description": "PDF files to process"
+          },
+          "fields": {
+            "type": "string",
+            "title": "Fields",
+            "description": "JSON string of field configurations"
+          },
+          "extract_multiple_rows": {
+            "type": "boolean",
+            "title": "Extract Multiple Rows",
+            "description": "Extract multiple rows",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "files",
+          "fields"
+        ],
+        "title": "Body_extract_data_from_pdfs_api_extraction_extract_post"
+      },
+      "Body_extract_data_from_uploaded_files_api_extraction_extract_from_uploaded_post": {
+        "properties": {
+          "file_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "File Ids"
+          },
+          "fields": {
+            "type": "string",
+            "title": "Fields"
+          },
+          "extract_multiple_rows": {
+            "type": "boolean",
+            "title": "Extract Multiple Rows",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_ids",
+          "fields"
+        ],
+        "title": "Body_extract_data_from_uploaded_files_api_extraction_extract_from_uploaded_post"
+      },
+      "Body_upload_files_api_extraction_upload_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string",
+              "format": "binary"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files"
+        ],
+        "title": "Body_upload_files_api_extraction_upload_post"
+      },
+      "CreateCheckoutSessionRequest": {
+        "properties": {
+          "price_id": {
+            "type": "string",
+            "title": "Price Id",
+            "description": "Stripe price ID for the subscription"
+          },
+          "success_url": {
+            "type": "string",
+            "maxLength": 2083,
+            "minLength": 1,
+            "format": "uri",
+            "title": "Success Url",
+            "description": "URL to redirect to on successful payment"
+          },
+          "cancel_url": {
+            "type": "string",
+            "maxLength": 2083,
+            "minLength": 1,
+            "format": "uri",
+            "title": "Cancel Url",
+            "description": "URL to redirect to on cancelled payment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "price_id",
+          "success_url",
+          "cancel_url"
+        ],
+        "title": "CreateCheckoutSessionRequest",
+        "description": "Request to create a Stripe checkout session"
+      },
+      "CreatePortalSessionRequest": {
+        "properties": {
+          "return_url": {
+            "type": "string",
+            "maxLength": 2083,
+            "minLength": 1,
+            "format": "uri",
+            "title": "Return Url",
+            "description": "URL to return to from the portal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "return_url"
+        ],
+        "title": "CreatePortalSessionRequest",
+        "description": "Request to create a Stripe customer portal session"
+      },
+      "ExtractionResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "files_processed": {
+            "items": {
+              "$ref": "#/components/schemas/ProcessedFile"
+            },
+            "type": "array",
+            "title": "Files Processed"
+          },
+          "extraction_result": {
+            "$ref": "#/components/schemas/ExtractionResult"
+          },
+          "pages_used": {
+            "type": "integer",
+            "title": "Pages Used"
+          },
+          "total_processing_time": {
+            "type": "number",
+            "title": "Total Processing Time"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "files_processed",
+          "extraction_result",
+          "pages_used",
+          "total_processing_time"
+        ],
+        "title": "ExtractionResponse"
+      },
+      "ExtractionResult": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "data": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "rows_extracted": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rows Extracted"
+          },
+          "ai_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Model"
+          },
+          "raw_response": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Response"
+          },
+          "processing_time": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processing Time"
+          },
+          "by_document": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Document"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ExtractionResult"
+      },
+      "FieldConfig": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the field to extract"
+          },
+          "data_type": {
+            "type": "string",
+            "title": "Data Type",
+            "description": "Expected data type (Text, Number, Date, etc.)"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt",
+            "description": "Instruction for AI on what to extract"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "data_type",
+          "prompt"
+        ],
+        "title": "FieldConfig"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ProcessedFile": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          },
+          "num_pages": {
+            "type": "integer",
+            "title": "Num Pages"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "size_bytes",
+          "num_pages"
+        ],
+        "title": "ProcessedFile"
+      },
+      "SubscriptionStatus": {
+        "properties": {
+          "has_subscription": {
+            "type": "boolean",
+            "title": "Has Subscription"
+          },
+          "plan": {
+            "type": "string",
+            "title": "Plan",
+            "description": "Plan name (free, starter, professional, enterprise)"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status",
+            "description": "Stripe subscription status"
+          },
+          "current_period_end": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Period End",
+            "description": "Unix timestamp of period end"
+          }
+        },
+        "type": "object",
+        "required": [
+          "has_subscription",
+          "plan"
+        ],
+        "title": "SubscriptionStatus",
+        "description": "User's subscription status information"
+      },
+      "TemplateCreateRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldConfig"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "is_public": {
+            "type": "boolean",
+            "title": "Is Public",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "fields"
+        ],
+        "title": "TemplateCreateRequest"
+      },
+      "TemplateUpdateRequest": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FieldConfig"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fields"
+          },
+          "is_public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Public"
+          }
+        },
+        "type": "object",
+        "title": "TemplateUpdateRequest"
+      },
+      "UpdateProfileRequest": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          }
+        },
+        "type": "object",
+        "title": "UpdateProfileRequest"
+      },
+      "UsageStats": {
+        "properties": {
+          "pages_used": {
+            "type": "integer",
+            "title": "Pages Used"
+          },
+          "pages_limit": {
+            "type": "integer",
+            "title": "Pages Limit"
+          },
+          "subscription_status": {
+            "type": "string",
+            "title": "Subscription Status"
+          },
+          "usage_percentage": {
+            "type": "number",
+            "title": "Usage Percentage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pages_used",
+          "pages_limit",
+          "subscription_status",
+          "usage_percentage"
+        ],
+        "title": "UsageStats",
+        "description": "User usage statistics"
+      },
+      "UserResponse": {
+        "properties": {
+          "uid": {
+            "type": "string",
+            "title": "Uid"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Url"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "stripe_customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripe Customer Id"
+          },
+          "subscription_status": {
+            "type": "string",
+            "title": "Subscription Status",
+            "default": "free"
+          },
+          "pages_used": {
+            "type": "integer",
+            "title": "Pages Used",
+            "default": 0
+          },
+          "pages_limit": {
+            "type": "integer",
+            "title": "Pages Limit",
+            "default": 10
+          }
+        },
+        "type": "object",
+        "required": [
+          "uid",
+          "email",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "UserResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

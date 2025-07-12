@@ -40,36 +40,61 @@ storage_service = get_storage_service()
 # In-memory cache for uploaded file metadata with extracted files info
 uploaded_files_cache = {}
 
-class UploadedFileInfo:
-    def __init__(self, file_id: str, original_filename: str, size_bytes: int, upload_time: float):
-        self.file_id = file_id
-        self.original_filename = original_filename
-        self.size_bytes = size_bytes
-        self.upload_time = upload_time
-        self.extracted_files = []  # For ZIP files - stores file_ids of extracted PDFs
+# Import the proper models
+from models.upload import UploadedFileInfo, FileUploadResponse
 
-def cleanup_temp_file(file_id: str):
+def cleanup_temp_file(file_id: str, user_id: str = None):
     """Clean up temporary file from storage and remove from cache"""
-    if file_id in uploaded_files_cache:
-        file_info = uploaded_files_cache[file_id]
+    file_info = None
+    
+    # Find file info in user-grouped cache
+    if user_id and user_id in uploaded_files_cache:
+        if file_id in uploaded_files_cache[user_id]:
+            file_info = uploaded_files_cache[user_id][file_id]
+    else:
+        # Fallback: search all users for backward compatibility
+        for uid in uploaded_files_cache:
+            if file_id in uploaded_files_cache[uid]:
+                file_info = uploaded_files_cache[uid][file_id]
+                user_id = uid  # Set user_id for cleanup
+                break
+    
+    if file_info:
         try:
             # Delete main file from storage
-            storage_service.delete_temp_file(file_id)
+            storage_service.delete_temp_file(file_id, user_id)
             
             # Clean up extracted files if any
             for extracted_file in file_info.extracted_files:
-                storage_service.delete_temp_file(extracted_file['file_id'])
+                storage_service.delete_temp_file(extracted_file['file_id'], user_id)
                 
         except Exception as e:
             logger.warning(f"Failed to cleanup temp file {file_id}: {e}")
         finally:
-            del uploaded_files_cache[file_id]
+            # Remove from cache
+            if user_id and user_id in uploaded_files_cache:
+                if file_id in uploaded_files_cache[user_id]:
+                    del uploaded_files_cache[user_id][file_id]
+                    # Clean up empty user cache
+                    if not uploaded_files_cache[user_id]:
+                        del uploaded_files_cache[user_id]
 
-def get_uploaded_file(file_id: str) -> UploadedFileInfo:
+def get_uploaded_file(file_id: str, user_id: str = None) -> UploadedFileInfo:
     """Get uploaded file info, raise 404 if not found"""
-    if file_id not in uploaded_files_cache:
-        raise HTTPException(status_code=404, detail=f"File {file_id} not found or expired")
-    return uploaded_files_cache[file_id]
+    # Search in user's cache first if user_id provided
+    if user_id and user_id in uploaded_files_cache:
+        if file_id in uploaded_files_cache[user_id]:
+            return uploaded_files_cache[user_id][file_id]
+    
+    # Fallback: search all users for backward compatibility
+    for uid in uploaded_files_cache:
+        if file_id in uploaded_files_cache[uid]:
+            # Security check: if user_id provided, verify ownership
+            if user_id and uid != user_id:
+                raise HTTPException(status_code=403, detail=f"Access denied to file {file_id}")
+            return uploaded_files_cache[uid][file_id]
+    
+    raise HTTPException(status_code=404, detail=f"File {file_id} not found or expired")
 
 def extract_files_from_zip(zip_content: bytes, filename: str) -> List[dict]:
     """Extract PDF files from ZIP archive"""
@@ -100,11 +125,11 @@ def extract_files_from_zip(zip_content: bytes, filename: str) -> List[dict]:
     
     return extracted_files
 
-@router.post("/upload")
+@router.post("/upload", response_model=FileUploadResponse)
 async def upload_files(
     files: List[UploadFile] = File(...),
     user_id: str = Depends(get_current_user_id)
-):
+) -> FileUploadResponse:
     """Upload files temporarily to server storage"""
     try:
         uploaded_file_ids = []
@@ -133,7 +158,7 @@ async def upload_files(
             
             # Upload to storage service (GCS or local)
             try:
-                file_id = storage_service.upload_temp_file(file_content, file.filename)
+                file_id = storage_service.upload_temp_file(file_content, file.filename, user_id)
             except Exception as e:
                 raise HTTPException(
                     status_code=500,
@@ -143,9 +168,12 @@ async def upload_files(
             # Create file info object
             file_info = UploadedFileInfo(
                 file_id=file_id,
-                original_filename=file.filename,
+                filename=file.filename,
                 size_bytes=len(file_content),
-                upload_time=time.time()
+                is_zip=file.filename.lower().endswith('.zip'),
+                extracted_count=1,
+                upload_time=time.time(),
+                extracted_files=[]
             )
             
             # Handle ZIP file extraction
@@ -166,7 +194,8 @@ async def upload_files(
                             # Upload extracted PDF to storage
                             extracted_file_id = storage_service.upload_temp_file(
                                 extracted_file['content'], 
-                                extracted_file['filename']
+                                extracted_file['filename'],
+                                user_id
                             )
                             
                             file_info.extracted_files.append({
@@ -188,6 +217,13 @@ async def upload_files(
                             detail=f"Failed to store any extracted files from ZIP: {file.filename}"
                         )
                     
+                    # Delete the original ZIP file since we only need the extracted PDFs
+                    try:
+                        storage_service.delete_temp_file(file_id, user_id)
+                        logger.info(f"Deleted original ZIP file {file.filename} after extraction")
+                    except Exception as e:
+                        logger.warning(f"Failed to delete original ZIP file {file_id}: {e}")
+                    
                     logger.info(f"Extracted and stored {len(file_info.extracted_files)} PDF files from {file.filename}")
                     
                 except Exception as e:
@@ -197,8 +233,10 @@ async def upload_files(
                         detail=f"Failed to process ZIP file {file.filename}: {str(e)}"
                     )
             
-            # Store in cache
-            uploaded_files_cache[file_id] = file_info
+            # Store in cache (grouped by user)
+            if user_id not in uploaded_files_cache:
+                uploaded_files_cache[user_id] = {}
+            uploaded_files_cache[user_id][file_id] = file_info
             uploaded_file_ids.append({
                 'file_id': file_id,
                 'filename': file.filename,
@@ -209,12 +247,22 @@ async def upload_files(
             
             logger.info(f"Uploaded file {file.filename} with ID {file_id}")
         
-        return {
-            'success': True,
-            'uploaded_files': uploaded_file_ids,
-            'total_files': len(uploaded_file_ids),
-            'message': f"Successfully uploaded {len(uploaded_file_ids)} files"
-        }
+        return FileUploadResponse(
+            success=True,
+            uploaded_files=[
+                UploadedFileInfo(
+                    file_id=file_info['file_id'],
+                    filename=file_info['filename'],
+                    size_bytes=file_info['size_bytes'],
+                    is_zip=file_info['is_zip'],
+                    extracted_count=file_info['extracted_count'],
+                    upload_time=time.time(),
+                    extracted_files=[]
+                ) for file_info in uploaded_file_ids
+            ],
+            total_files=len(uploaded_file_ids),
+            message=f"Successfully uploaded {len(uploaded_file_ids)} files"
+        )
         
     except HTTPException:
         raise
@@ -257,7 +305,7 @@ async def extract_data_from_uploaded_files(
         print(f"DEBUG: Starting extraction for {len(file_ids)} uploaded file(s)")
         
         for file_id in file_ids:
-            file_info = get_uploaded_file(file_id)
+            file_info = get_uploaded_file(file_id, user_id)
             print(f"DEBUG: Processing file: {file_info.original_filename} (ZIP: {file_info.original_filename.lower().endswith('.zip')})")
             
             if file_info.original_filename.lower().endswith('.zip'):
@@ -265,7 +313,7 @@ async def extract_data_from_uploaded_files(
                 print(f"DEBUG: ZIP file contains {len(file_info.extracted_files)} extracted PDFs")
                 for extracted_file in file_info.extracted_files:
                     # Download file content from storage
-                    file_content = storage_service.download_temp_file(extracted_file['file_id'])
+                    file_content = storage_service.download_temp_file(extracted_file['file_id'], user_id)
                     
                     if file_content is None:
                         logger.warning(f"Could not download extracted file {extracted_file['filename']}")
@@ -323,7 +371,7 @@ async def extract_data_from_uploaded_files(
         
         # Process with AI
         extraction_result = await ai_service.extract_data_from_files(
-            files_data, field_configs, extract_multiple_rows
+            files_data, field_configs, extract_multiple_rows, processed_files
         )
         
         # Update user usage
@@ -427,7 +475,8 @@ async def extract_data_from_pdfs(
         extraction_result = await ai_service.extract_data_from_files(
             files_data, 
             field_configs, 
-            extract_multiple_rows
+            extract_multiple_rows,
+            processed_files
         )
         
         # Update user's page usage
@@ -501,8 +550,8 @@ async def export_results_to_csv(
             output = io.StringIO()
             writer = csv.writer(output)
             
-            # Write header with source document column
-            headers = ['source_document'] + field_names
+            # Write header with source document and folder info columns
+            headers = ['source_document', 'folder_path'] + field_names
             writer.writerow(headers)
             
             # Write data from all successful documents
@@ -510,8 +559,9 @@ async def export_results_to_csv(
                 if doc.get('success') and doc.get('data'):
                     data = doc['data']
                     rows = data if isinstance(data, list) else [data]
+                    folder_path = doc.get('original_path', doc['filename'])
                     for row in rows:
-                        csv_row = [doc['filename']] + [row.get(field, '') for field in field_names]
+                        csv_row = [doc['filename'], folder_path] + [row.get(field, '') for field in field_names]
                         writer.writerow(csv_row)
             
             csv_content = output.getvalue()
@@ -590,8 +640,8 @@ async def export_results_to_excel(
             ws_combined = wb.active
             ws_combined.title = "All Results"
             
-            # Write header with source document column
-            headers = ['source_document'] + field_names
+            # Write header with source document and folder info columns
+            headers = ['source_document', 'folder_path'] + field_names
             ws_combined.append(headers)
             
             # Write combined data
@@ -599,8 +649,9 @@ async def export_results_to_excel(
                 if doc.get('success') and doc.get('data'):
                     data = doc['data']
                     rows = data if isinstance(data, list) else [data]
+                    folder_path = doc.get('original_path', doc['filename'])
                     for row in rows:
-                        excel_row = [doc['filename']] + [row.get(field, '') for field in field_names]
+                        excel_row = [doc['filename'], folder_path] + [row.get(field, '') for field in field_names]
                         ws_combined.append(excel_row)
             
             # Individual sheets for each document
@@ -678,5 +729,51 @@ async def cleanup_temp_files(
     except Exception as e:
         logger.error(f"Manual cleanup failed: {e}")
         raise HTTPException(status_code=500, detail=f"Manual cleanup failed: {str(e)}")
+
+@router.delete("/cleanup/{file_id}")
+async def cleanup_uploaded_file(
+    file_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    """Delete a specific uploaded file from storage and cache"""
+    try:
+        cleanup_temp_file(file_id, user_id)
+        return {
+            'success': True,
+            'message': f"File {file_id} deleted successfully"
+        }
+    except Exception as e:
+        logger.error(f"Failed to cleanup file {file_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to cleanup file: {str(e)}")
+
+@router.delete("/cleanup-multiple")
+async def cleanup_multiple_files(
+    file_ids: List[str],
+    user_id: str = Depends(get_current_user_id)
+):
+    """Delete multiple uploaded files from storage and cache"""
+    try:
+        deleted_count = 0
+        errors = []
+        
+        for file_id in file_ids:
+            try:
+                cleanup_temp_file(file_id, user_id)
+                deleted_count += 1
+            except Exception as e:
+                errors.append(f"Failed to delete {file_id}: {str(e)}")
+                logger.error(f"Failed to cleanup file {file_id}: {e}")
+        
+        return {
+            'success': True,
+            'deleted_count': deleted_count,
+            'total_requested': len(file_ids),
+            'errors': errors if errors else None,
+            'message': f"Deleted {deleted_count} of {len(file_ids)} files"
+        }
+    except Exception as e:
+        logger.error(f"Failed to cleanup multiple files: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to cleanup files: {str(e)}")
+
 
 # Template routes have been moved to routes/templates.py

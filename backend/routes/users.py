@@ -2,17 +2,14 @@
 User management routes - handles all user CRUD operations
 """
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
 from typing import Optional
 from services.user_service import UserService
-from models.user import UserResponse, UserUpdate
+from models.user import UserResponse, UserUpdate, UpdateProfileRequest
+from models.common import UsageStats
 from dependencies.auth import verify_firebase_token, get_current_user_id
 
 router = APIRouter()
 user_service = UserService()
-
-class UpdateProfileRequest(BaseModel):
-    display_name: Optional[str] = None
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(token_data: dict = Depends(verify_firebase_token)):
@@ -44,7 +41,7 @@ async def update_current_user(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating user: {str(e)}")
 
-@router.get("/usage")
+@router.get("/usage", response_model=UsageStats)
 async def get_user_usage(user_id: str = Depends(get_current_user_id)):
     """Get user's usage statistics"""
     try:
@@ -52,11 +49,11 @@ async def get_user_usage(user_id: str = Depends(get_current_user_id)):
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
-        return {
-            "pages_used": user.pages_used,
-            "pages_limit": user.pages_limit,
-            "subscription_status": user.subscription_status,
-            "usage_percentage": (user.pages_used / user.pages_limit) * 100 if user.pages_limit > 0 else 0
-        }
+        return UsageStats(
+            pages_used=user.pages_used,
+            pages_limit=user.pages_limit,
+            subscription_status=user.subscription_status,
+            usage_percentage=(user.pages_used / user.pages_limit) * 100 if user.pages_limit > 0 else 0
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting usage: {str(e)}")

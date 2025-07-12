@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "backend": "cd backend && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+    "backend": "cd backend && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "generate-types": "cd backend && npm run generate-types",
+    "dev:with-types": "npm run generate-types && npm run dev"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -50,6 +52,7 @@
     "firebase": "^11.9.1",
     "framer-motion": "^11.13.1",
     "input-otp": "^1.4.2",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.453.0",
     "next": "14.0.0",
     "next-themes": "^0.4.6",
@@ -69,14 +72,16 @@
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.15",
     "@types/file-saver": "^2.0.7",
+    "@types/jszip": "^3.4.0",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.4.20",
     "eslint": "^8",
     "eslint-config-next": "14.0.0",
+    "openapi-typescript": "^7.8.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5"
+    "typescript": "^5.8.3"
   }
 }

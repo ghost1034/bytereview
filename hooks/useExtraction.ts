@@ -1,36 +1,8 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiClient } from '@/lib/api'
+import { apiClient, type TemplatesResponse, type ExtractionResponse, type FieldConfig } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
-
-export interface FieldConfig {
-  name: string
-  data_type: string
-  prompt: string
-}
-
-export interface ExtractionResult {
-  success: boolean
-  files_processed: Array<{
-    filename: string
-    size_bytes: number
-    num_pages: number
-    text_length: number
-    metadata?: any
-  }>
-  extraction_result: {
-    success: boolean
-    data: any
-    error?: string
-    rows_extracted?: number
-    ai_model?: string
-    processing_time?: number
-  }
-  pages_used: number
-  total_processing_time: number
-  error?: string
-}
 
 export function useExtractData() {
   const queryClient = useQueryClient()
@@ -44,8 +16,8 @@ export function useExtractData() {
       files: File[]
       fields: FieldConfig[]
       extractMultipleRows?: boolean
-    }): Promise<ExtractionResult> => {
-      return apiClient.extractData(files, fields, extractMultipleRows)
+    }): Promise<ExtractionResponse> => {
+      return apiClient.extractFromFiles(files, fields, extractMultipleRows)
     },
     onSuccess: () => {
       // Invalidate user usage data after successful extraction
@@ -54,19 +26,31 @@ export function useExtractData() {
   })
 }
 
-export interface Template {
-  id: string
-  name: string
-  description?: string
-  fields: FieldConfig[]
-  created_at: string
-  updated_at: string
-  is_public: boolean
-  usage_count?: number
+export function useExtractFromUploaded() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async ({
+      fileIds,
+      fields,
+      extractMultipleRows = false
+    }: {
+      fileIds: string[]
+      fields: FieldConfig[]
+      extractMultipleRows?: boolean
+    }): Promise<ExtractionResponse> => {
+      return apiClient.extractFromUploadedFiles(fileIds, fields, extractMultipleRows)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user-usage'] })
+    },
+  })
 }
 
-export interface TemplatesResponse {
-  templates: Template[]
+export function useUploadFiles() {
+  return useMutation({
+    mutationFn: (files: File[]) => apiClient.uploadFiles(files),
+  })
 }
 
 export function useTemplates() {
@@ -74,10 +58,10 @@ export function useTemplates() {
   
   return useQuery<TemplatesResponse>({
     queryKey: ['templates', user?.uid],
-    queryFn: () => apiClient.getTemplates() as Promise<TemplatesResponse>,
+    queryFn: () => apiClient.getTemplates(),
     enabled: !!user,
-    staleTime: 5 * 60 * 1000, // 5 minutes - templates don't change frequently
-    refetchOnWindowFocus: false, // Don't refetch when user switches back to tab
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -85,7 +69,7 @@ export function usePublicTemplates() {
   return useQuery({
     queryKey: ['public-templates'],
     queryFn: () => apiClient.getPublicTemplates(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   })
 }
 
@@ -111,8 +95,15 @@ export function useUpdateTemplate() {
   const { user } = useAuth()
   
   return useMutation({
-    mutationFn: ({ templateId, templateData }: { templateId: string; templateData: any }) =>
-      apiClient.updateTemplate(templateId, templateData),
+    mutationFn: ({ templateId, templateData }: { 
+      templateId: string
+      templateData: {
+        name?: string
+        description?: string
+        fields?: FieldConfig[]
+        is_public?: boolean
+      }
+    }) => apiClient.updateTemplate(templateId, templateData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['templates', user?.uid] })
     },
@@ -130,3 +121,18 @@ export function useDeleteTemplate() {
     },
   })
 }
+
+export function useExportToCSV() {
+  return useMutation({
+    mutationFn: (extractionData: any) => apiClient.exportToCSV(extractionData),
+  })
+}
+
+export function useExportToExcel() {
+  return useMutation({
+    mutationFn: (extractionData: any) => apiClient.exportToExcel(extractionData),
+  })
+}
+
+// Re-export types for convenience
+export type { FieldConfig, ExtractionResponse, TemplatesResponse } from '@/lib/api'

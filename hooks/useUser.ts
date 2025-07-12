@@ -1,13 +1,13 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiClient } from '@/lib/api'
+import { apiClient, type UserResponse, type UsageStats } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 
 export function useUser() {
   const { user } = useAuth()
   
-  return useQuery({
+  return useQuery<UserResponse>({
     queryKey: ['user', user?.uid],
     queryFn: () => apiClient.getCurrentUser(),
     enabled: !!user,
@@ -28,23 +28,18 @@ export function useUpdateProfile() {
   })
 }
 
-interface UserUsageData {
-  pages_used: number
-  pages_limit: number
-  subscription_status: string
-  usage_percentage: number
-}
-
 export function useUserUsage() {
   const { user } = useAuth()
   
-  return useQuery<UserUsageData>({
+  return useQuery<UsageStats>({
     queryKey: ['user-usage', user?.uid],
-    queryFn: () => apiClient.getUserUsage() as Promise<UserUsageData>,
+    queryFn: () => apiClient.getUserUsage(),
     enabled: !!user,
-    staleTime: 5 * 60 * 1000, // 5 minutes - data is considered fresh for 5 minutes
-    refetchOnWindowFocus: false, // Don't refetch when user switches back to tab
-    refetchOnMount: true, // Only refetch when component mounts
-    // Remove automatic refetch interval - only update when needed
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
   })
 }
+
+// Re-export types for convenience
+export type { UserResponse, UsageStats } from '@/lib/api'

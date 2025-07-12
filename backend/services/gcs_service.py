@@ -46,7 +46,7 @@ class GCSService:
         """Check if GCS is available and configured"""
         return self.client is not None and self.bucket is not None
     
-    def upload_temp_file(self, file_content: bytes, original_filename: str) -> str:
+    def upload_temp_file(self, file_content: bytes, original_filename: str, user_id: str = None) -> str:
         """
         Upload file content to GCS temporary storage
         Returns: file_id for later retrieval
@@ -60,7 +60,11 @@ class GCSService:
             
             # Create blob path with timestamp for auto-cleanup
             timestamp = int(time.time())
-            blob_name = f"{self.temp_folder_prefix}/{timestamp}_{file_id}_{original_filename}"
+            if user_id:
+                blob_name = f"{self.temp_folder_prefix}/{user_id}/{timestamp}_{file_id}_{original_filename}"
+            else:
+                # Fallback for backward compatibility
+                blob_name = f"{self.temp_folder_prefix}/{timestamp}_{file_id}_{original_filename}"
             
             # Upload to GCS
             blob = self.bucket.blob(blob_name)
@@ -74,7 +78,8 @@ class GCSService:
                 'file_id': file_id,
                 'original_filename': original_filename,
                 'upload_time': str(timestamp),
-                'size_bytes': str(len(file_content))
+                'size_bytes': str(len(file_content)),
+                'user_id': user_id or 'unknown'
             }
             blob.patch()
             
@@ -85,7 +90,7 @@ class GCSService:
             logger.error(f"Failed to upload file {original_filename} to GCS: {e}")
             raise Exception(f"GCS upload failed: {str(e)}")
     
-    def download_temp_file(self, file_id: str) -> Optional[bytes]:
+    def download_temp_file(self, file_id: str, user_id: str = None) -> Optional[bytes]:
         """
         Download file content from GCS by file_id
         Returns: file content as bytes or None if not found
@@ -94,11 +99,23 @@ class GCSService:
             raise Exception("GCS not available")
         
         try:
-            # Find blob by file_id (search in temp folder)
-            blobs = self.bucket.list_blobs(prefix=f"{self.temp_folder_prefix}/")
+            # Find blob by file_id (search in user's folder first if user_id provided)
+            if user_id:
+                blobs = self.bucket.list_blobs(prefix=f"{self.temp_folder_prefix}/{user_id}/")
+                for blob in blobs:
+                    if blob.metadata and blob.metadata.get('file_id') == file_id:
+                        content = blob.download_as_bytes()
+                        logger.info(f"Downloaded file with ID {file_id} from GCS (user: {user_id})")
+                        return content
             
+            # Fallback: search all temp files for backward compatibility
+            blobs = self.bucket.list_blobs(prefix=f"{self.temp_folder_prefix}/")
             for blob in blobs:
                 if blob.metadata and blob.metadata.get('file_id') == file_id:
+                    # Security check: if user_id provided, verify ownership
+                    if user_id and blob.metadata.get('user_id') != user_id:
+                        logger.warning(f"User {user_id} attempted to access file {file_id} owned by {blob.metadata.get('user_id')}")
+                        continue
                     content = blob.download_as_bytes()
                     logger.info(f"Downloaded file with ID {file_id} from GCS")
                     return content
@@ -138,7 +155,7 @@ class GCSService:
             logger.error(f"Failed to get file info {file_id} from GCS: {e}")
             return None
     
-    def delete_temp_file(self, file_id: str) -> bool:
+    def delete_temp_file(self, file_id: str, user_id: str = None) -> bool:
         """
         Delete temporary file from GCS by file_id
         Returns: True if deleted, False if not found
@@ -147,11 +164,23 @@ class GCSService:
             return False
         
         try:
-            # Find and delete blob by file_id
-            blobs = self.bucket.list_blobs(prefix=f"{self.temp_folder_prefix}/")
+            # Find and delete blob by file_id (search user's folder first if user_id provided)
+            if user_id:
+                blobs = self.bucket.list_blobs(prefix=f"{self.temp_folder_prefix}/{user_id}/")
+                for blob in blobs:
+                    if blob.metadata and blob.metadata.get('file_id') == file_id:
+                        blob.delete()
+                        logger.info(f"Deleted temp file {file_id} from GCS (user: {user_id})")
+                        return True
             
+            # Fallback: search all temp files for backward compatibility
+            blobs = self.bucket.list_blobs(prefix=f"{self.temp_folder_prefix}/")
             for blob in blobs:
                 if blob.metadata and blob.metadata.get('file_id') == file_id:
+                    # Security check: if user_id provided, verify ownership
+                    if user_id and blob.metadata.get('user_id') != user_id:
+                        logger.warning(f"User {user_id} attempted to delete file {file_id} owned by {blob.metadata.get('user_id')}")
+                        continue
                     blob.delete()
                     logger.info(f"Deleted temp file {file_id} from GCS")
                     return True
@@ -162,6 +191,47 @@ class GCSService:
         except Exception as e:
             logger.error(f"Failed to delete file {file_id} from GCS: {e}")
             return False
+
+    def get_user_temp_files(self, user_id: str) -> List[Dict]:
+        """
+        Get all temp files for a specific user
+        Returns: list of file info dictionaries
+        """
+        try:
+            user_files = []
+            
+            # List blobs in user's temp folder
+            blobs = self.bucket.list_blobs(prefix=f"{self.temp_folder_prefix}/{user_id}/")
+            
+            for blob in blobs:
+                try:
+                    if blob.metadata:
+                        file_id = blob.metadata.get('file_id')
+                        filename = blob.metadata.get('original_filename')
+                        
+                        # Skip files with missing essential data
+                        if not file_id or not filename:
+                            logger.warning(f"Skipping blob {blob.name} - missing file_id or filename")
+                            continue
+                            
+                        file_info = {
+                            'file_id': file_id,
+                            'filename': filename,  # Always use 'filename' as the key
+                            'size_bytes': int(blob.metadata.get('size_bytes', 0)),
+                            'upload_time': float(blob.metadata.get('upload_time', 0)),
+                            'user_id': blob.metadata.get('user_id')
+                        }
+                        user_files.append(file_info)
+                except Exception as e:
+                    logger.error(f"Failed to process blob {blob.name}: {e}")
+                    continue
+            
+            logger.info(f"Found {len(user_files)} temp files for user {user_id}")
+            return user_files
+            
+        except Exception as e:
+            logger.error(f"Failed to get user temp files for {user_id}: {e}")
+            return []
     
     def cleanup_old_files(self, max_age_hours: int = 24) -> int:
         """
@@ -222,7 +292,12 @@ class LocalStorageService:
         file_id = str(uuid.uuid4())
         timestamp = int(time.time())
         
-        file_path = self.temp_dir / f"{timestamp}_{file_id}_{original_filename}"
+        if user_id:
+            user_dir = self.temp_dir / user_id
+            user_dir.mkdir(exist_ok=True)
+            file_path = user_dir / f"{timestamp}_{file_id}_{original_filename}"
+        else:
+            file_path = self.temp_dir / f"{timestamp}_{file_id}_{original_filename}"
         
         with open(file_path, 'wb') as f:
             f.write(file_content)
