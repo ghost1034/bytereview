@@ -7,7 +7,7 @@ interface FileNode {
   name: string
   path: string
   isDirectory: boolean
-  children?: FileNode[]
+  children?: { [key: string]: FileNode }
   size?: number
 }
 
@@ -63,7 +63,7 @@ export default function FolderStructureView({ files, className = '', onFileSelec
       return Object.values(obj)
         .map(node => ({
           ...node,
-          children: node.children ? convertToArray(node.children) : undefined
+          children: node.children
         }))
         .sort((a, b) => {
           // Directories first, then files

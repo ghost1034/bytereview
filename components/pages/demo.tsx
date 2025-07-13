@@ -169,11 +169,13 @@ export default function Demo() {
 
   const saveTemplate = () => {
     if (!templateName.trim()) {
-      alert("Please enter a template name");
+      // Note: This is demo code, but we'll use console.log instead of alert
+      console.log("Please enter a template name");
       return;
     }
     // Simulate saving template
-    alert(`Template "${templateName}" saved successfully!`);
+    // Note: This is demo code, but we'll use console.log instead of alert
+    console.log(`Template "${templateName}" saved successfully!`);
     setTemplateName("");
   };
 

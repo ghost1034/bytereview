@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Play, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import SubscriptionManager from "@/components/subscription/SubscriptionManager";
 import { useExtractData, useTemplates } from "@/hooks/useExtraction";
 import { apiClient } from "@/lib/api";
@@ -24,6 +25,7 @@ import TemplateLibrary from "@/components/templates/TemplateLibrary";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showResults, setShowResults] = useState(false);
@@ -59,10 +61,14 @@ export default function Dashboard() {
   const loadTemplateById = (templateId: string) => {
     try {
       // Find the template in the cached data
-      const template = templatesData?.templates?.find(t => t.id === templateId);
+      const template = (templatesData as any)?.templates?.find((t: any) => t.id === templateId);
       
       if (!template) {
-        alert('Template not found');
+        toast({
+          title: "Template not found",
+          description: "The selected template could not be found.",
+          variant: "destructive"
+        });
         return;
       }
       
@@ -76,11 +82,18 @@ export default function Dashboard() {
       
       setColumnConfigs(configs);
       setActiveTab("extract"); // Switch to Extract Data tab
-      alert(`Template "${template.name}" loaded successfully!`);
+      toast({
+        title: "Template loaded",
+        description: `Template "${template.name}" loaded successfully!`
+      });
       
     } catch (error: any) {
       console.error('Failed to load template:', error);
-      alert(`Failed to load template: ${error.message}`);
+      toast({
+        title: "Failed to load template",
+        description: error.message,
+        variant: "destructive"
+      });
     }
   };
 
@@ -104,12 +117,20 @@ export default function Dashboard() {
 
   const handleExtract = async () => {
     if (uploadedFileIds.length === 0) {
-      alert("Please upload at least one file first.");
+      toast({
+        title: "No files uploaded",
+        description: "Please upload at least one file first.",
+        variant: "destructive"
+      });
       return;
     }
 
     if (columnConfigs.length === 0) {
-      alert("Please add at least one field to extract.");
+      toast({
+        title: "No fields configured",
+        description: "Please add at least one field to extract.",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -149,8 +170,12 @@ export default function Dashboard() {
       // Clear uploaded file IDs after successful extraction
       setUploadedFileIds([]);
 
-      if (!result.success) {
-        alert(`Extraction failed: ${result.error}`);
+      if (!(result as any).success) {
+        toast({
+          title: "Extraction failed",
+          description: (result as any).error,
+          variant: "destructive"
+        });
       }
     } catch (error: any) {
       console.error("Processing failed:", error);
@@ -165,7 +190,11 @@ export default function Dashboard() {
         errorMessage += ` - ${error.response.data.detail}`;
       }
       
-      alert(errorMessage);
+      toast({
+        title: "Processing failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
     } finally {
       setIsProcessing(false);
       clearInterval(progressInterval);

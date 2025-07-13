@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useToast } from "@/hooks/use-toast"
 import { Download, FileSpreadsheet, FileText, Archive, Loader2, Folder } from "lucide-react"
 import { apiClient } from '@/lib/api'
 import type { ColumnConfig } from './FieldConfiguration'
@@ -26,6 +27,7 @@ interface ExtractionResultsProps {
 export default function ExtractionResults({ extractionResults, columnConfigs }: ExtractionResultsProps) {
   const [selectedDocumentIndex, setSelectedDocumentIndex] = useState<number>(0)
   const [exportLoading, setExportLoading] = useState<string | null>(null)
+  const { toast } = useToast()
 
   // Parse results by document
   const getDocumentResults = (): DocumentResult[] => {
@@ -103,7 +105,11 @@ export default function ExtractionResults({ extractionResults, columnConfigs }: 
       downloadFile(blob, filename)
     } catch (error: any) {
       console.error('CSV export failed:', error)
-      alert(`Export failed: ${error.message}`)
+      toast({
+        title: "Export failed",
+        description: error.message,
+        variant: "destructive"
+      })
     } finally {
       setExportLoading(null)
     }
@@ -124,7 +130,11 @@ export default function ExtractionResults({ extractionResults, columnConfigs }: 
       downloadFile(blob, filename)
     } catch (error: any) {
       console.error('Excel export failed:', error)
-      alert(`Export failed: ${error.message}`)
+      toast({
+        title: "Export failed",
+        description: error.message,
+        variant: "destructive"
+      })
     } finally {
       setExportLoading(null)
     }
@@ -143,7 +153,11 @@ export default function ExtractionResults({ extractionResults, columnConfigs }: 
       downloadFile(blob, filename)
     } catch (error: any) {
       console.error('CSV export failed:', error)
-      alert(`Export failed: ${error.message}`)
+      toast({
+        title: "Export failed",
+        description: error.message,
+        variant: "destructive"
+      })
     } finally {
       setExportLoading(null)
     }
@@ -162,7 +176,11 @@ export default function ExtractionResults({ extractionResults, columnConfigs }: 
       downloadFile(blob, filename)
     } catch (error: any) {
       console.error('Excel export failed:', error)
-      alert(`Export failed: ${error.message}`)
+      toast({
+        title: "Export failed",
+        description: error.message,
+        variant: "destructive"
+      })
     } finally {
       setExportLoading(null)
     }
@@ -311,7 +329,7 @@ export default function ExtractionResults({ extractionResults, columnConfigs }: 
                     return {
                       filename: doc.filename,
                       original_path: doc.original_path,
-                      size_bytes: doc.size_bytes,
+                      size_bytes: doc.size_bytes || 0,
                       source_zip: doc.source_zip
                     }
                   })}

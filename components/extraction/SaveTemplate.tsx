@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useCreateTemplate } from "@/hooks/useExtraction"
+import { useToast } from "@/hooks/use-toast"
 import { Save, Loader2 } from "lucide-react"
 import type { ColumnConfig } from './FieldConfiguration'
 
@@ -17,10 +18,15 @@ export default function SaveTemplate({ columnConfigs }: SaveTemplateProps) {
   const [saveTemplateName, setSaveTemplateName] = useState("")
   const [saveTemplateDescription, setSaveTemplateDescription] = useState("")
   const createTemplateMutation = useCreateTemplate()
+  const { toast } = useToast()
 
   const handleSaveTemplate = async () => {
     if (!saveTemplateName.trim()) {
-      alert("Please enter a template name")
+      toast({
+        title: "Template name required",
+        description: "Please enter a template name",
+        variant: "destructive"
+      })
       return
     }
 
@@ -42,9 +48,16 @@ export default function SaveTemplate({ columnConfigs }: SaveTemplateProps) {
       setSaveTemplateName("")
       setSaveTemplateDescription("")
       setShowSaveTemplate(false)
-      alert("Template saved successfully!")
+      toast({
+        title: "Template saved",
+        description: "Template saved successfully!"
+      })
     } catch (error: any) {
-      alert(`Failed to save template: ${error.message}`)
+      toast({
+        title: "Failed to save template",
+        description: error.message,
+        variant: "destructive"
+      })
     }
   }
 

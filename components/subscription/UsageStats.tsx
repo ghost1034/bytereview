@@ -26,7 +26,7 @@ export default function UsageStats({ className = '' }: UsageStatsProps) {
       
       <div className="flex items-center justify-between">
         <span className="text-sm text-gray-600">Templates Created</span>
-        <span className="text-sm font-medium text-gray-900">{templatesData?.templates?.length || 0}</span>
+        <span className="text-sm font-medium text-gray-900">{(templatesData as any)?.templates?.length || 0}</span>
       </div>
       
       <div className="flex items-center justify-between">

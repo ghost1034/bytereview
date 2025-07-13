@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/hooks/use-toast"
 import { CloudUpload, X, FileText, FolderOpen, Archive, Loader2 } from "lucide-react"
 import { apiClient } from '@/lib/api'
 import JSZip from 'jszip'
@@ -15,6 +16,7 @@ interface FileUploadProps {
 export default function FileUpload({ uploadedFiles, onFileUploaded, onFileRemoved }: FileUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const { toast } = useToast()
 
   const isValidFile = (file: File) => {
     return file.type === 'application/pdf' || 
@@ -42,7 +44,11 @@ export default function FileUpload({ uploadedFiles, onFileUploaded, onFileRemove
       
     } catch (error: any) {
       console.error('Upload failed:', error)
-      alert(`Upload failed: ${error.message}`)
+      toast({
+        title: "Upload failed",
+        description: error.message,
+        variant: "destructive"
+      })
     } finally {
       setIsUploading(false)
     }
@@ -93,7 +99,11 @@ export default function FileUpload({ uploadedFiles, onFileUploaded, onFileRemove
     if (files.length > 0) {
       await uploadFilesImmediately(files)
     } else {
-      alert('Please upload PDF files, ZIP files, or folders containing PDF files.')
+      toast({
+        title: "Invalid file type",
+        description: "Please upload PDF files, ZIP files, or folders containing PDF files.",
+        variant: "destructive"
+      })
     }
   }
 
@@ -180,7 +190,11 @@ export default function FileUpload({ uploadedFiles, onFileUploaded, onFileRemove
           const zipFile = await createZipFromFiles(validFiles, folderName)
           await uploadFilesImmediately([zipFile])
         } else {
-          alert('No PDF files found in the selected folder.')
+          toast({
+            title: "No PDF files found",
+            description: "No PDF files found in the selected folder.",
+            variant: "destructive"
+          })
         }
       } else {
         // Regular file selection
@@ -188,7 +202,11 @@ export default function FileUpload({ uploadedFiles, onFileUploaded, onFileRemove
         if (validFiles.length > 0) {
           await uploadFilesImmediately(validFiles)
         } else {
-          alert('Please upload PDF or ZIP files.')
+          toast({
+            title: "Invalid file type",
+            description: "Please upload PDF or ZIP files.",
+            variant: "destructive"
+          })
         }
       }
     }
@@ -206,7 +224,11 @@ export default function FileUpload({ uploadedFiles, onFileUploaded, onFileRemove
       console.error('Failed to delete file from storage:', error)
       // Still remove from UI even if storage deletion fails
       onFileRemoved(file_id)
-      alert(`Warning: File removed from list but may still be in storage: ${error.message}`)
+      toast({
+        title: "Warning",
+        description: `File removed from list but may still be in storage: ${error.message}`,
+        variant: "destructive"
+      })
     }
   }
 
@@ -323,7 +345,11 @@ export default function FileUpload({ uploadedFiles, onFileUploaded, onFileRemove
                   console.error('Failed to delete files from storage:', error)
                   // Still remove from UI even if storage deletion fails
                   uploadedFiles.forEach(file => onFileRemoved(file.file_id))
-                  alert(`Warning: Files removed from list but may still be in storage: ${error.message}`)
+                  toast({
+                    title: "Warning",
+                    description: `Files removed from list but may still be in storage: ${error.message}`,
+                    variant: "destructive"
+                  })
                 }
               }}
               className="text-gray-400 hover:text-red-500"

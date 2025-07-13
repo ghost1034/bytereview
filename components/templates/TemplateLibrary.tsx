@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
 import {
   useTemplates,
   useDeleteTemplate,
@@ -19,6 +20,7 @@ export default function TemplateLibrary({
   const { data: templatesData } = useTemplates();
   const deleteTemplateMutation = useDeleteTemplate();
   const typedTemplatesData = templatesData as TemplatesResponse | undefined;
+  const { toast } = useToast();
 
   const handleDeleteTemplate = async (templateId: string) => {
     if (!confirm("Are you sure you want to delete this template?")) {
@@ -27,9 +29,16 @@ export default function TemplateLibrary({
 
     try {
       await deleteTemplateMutation.mutateAsync(templateId);
-      alert("Template deleted successfully!");
+      toast({
+        title: "Template deleted",
+        description: "Template deleted successfully!"
+      });
     } catch (error: any) {
-      alert(`Failed to delete template: ${error.message}`);
+      toast({
+        title: "Failed to delete template",
+        description: error.message,
+        variant: "destructive"
+      });
     }
   };
 
@@ -45,9 +54,9 @@ export default function TemplateLibrary({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {typedTemplatesData?.templates &&
-        typedTemplatesData.templates.length > 0 ? (
-          typedTemplatesData.templates.map((template) => (
+        {(typedTemplatesData as any)?.templates &&
+        (typedTemplatesData as any).templates.length > 0 ? (
+          (typedTemplatesData as any).templates.map((template: any) => (
             <Card
               key={template.id}
               className="hover:shadow-md transition-shadow"
