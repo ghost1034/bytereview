@@ -27,7 +27,6 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [showResults, setShowResults] = useState(false);
   const [uploadedFileIds, setUploadedFileIds] = useState<{file_id: string, filename: string, size_bytes: number}[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState("custom")
@@ -135,19 +134,10 @@ export default function Dashboard() {
     }
 
     setIsProcessing(true);
-    setProgress(0);
     setShowResults(false);
     setExtractionResults(null);
 
-    // Simulate progress updates
-    const progressInterval = setInterval(() => {
-      setProgress(prev => Math.min(prev + Math.random() * 10, 90));
-    }, 500);
-
     try {
-      // Extract data from uploaded files (files are already in cloud storage)
-      setProgress(20);
-      
       // Convert column configs to field configs
       const fields = columnConfigs.map(config => ({
         name: config.customName,
@@ -157,13 +147,13 @@ export default function Dashboard() {
 
       // Call the extraction API with uploaded file IDs
       const fileIds = uploadedFileIds.map(file => file.file_id);
+      
       const result = await apiClient.extractFromUploadedFiles(
         fileIds,
         fields,
         extractMultipleRows
       );
 
-      setProgress(100);
       setExtractionResults(result);
       setShowResults(true);
 
@@ -197,7 +187,6 @@ export default function Dashboard() {
       });
     } finally {
       setIsProcessing(false);
-      clearInterval(progressInterval);
     }
   };
 
@@ -321,19 +310,7 @@ export default function Dashboard() {
                   </Button>
                 </div>
 
-                {isProcessing && (
-                  <div className="mt-4">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                        style={{ width: `${progress}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-center mt-2 text-sm text-gray-600">
-                      Processing documents... {progress}%
-                    </p>
-                  </div>
-                )}
+
               </CardContent>
             </Card>
 

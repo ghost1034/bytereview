@@ -217,12 +217,8 @@ async def upload_files(
                             detail=f"Failed to store any extracted files from ZIP: {file.filename}"
                         )
                     
-                    # Delete the original ZIP file since we only need the extracted PDFs
-                    try:
-                        storage_service.delete_temp_file(file_id, user_id)
-                        logger.info(f"Deleted original ZIP file {file.filename} after extraction")
-                    except Exception as e:
-                        logger.warning(f"Failed to delete original ZIP file {file_id}: {e}")
+                    # Keep the original ZIP file for now - it will be cleaned up at the end
+                    logger.info(f"Extracted {len(extracted_files)} PDF files from {file.filename}")
                     
                     logger.info(f"Extracted and stored {len(file_info.extracted_files)} PDF files from {file.filename}")
                     
@@ -306,9 +302,9 @@ async def extract_data_from_uploaded_files(
         
         for file_id in file_ids:
             file_info = get_uploaded_file(file_id, user_id)
-            print(f"DEBUG: Processing file: {file_info.original_filename} (ZIP: {file_info.original_filename.lower().endswith('.zip')})")
+            print(f"DEBUG: Processing file: {file_info.filename} (ZIP: {file_info.filename.lower().endswith('.zip')})")
             
-            if file_info.original_filename.lower().endswith('.zip'):
+            if file_info.filename.lower().endswith('.zip'):
                 # Process extracted files from ZIP (don't count the ZIP itself)
                 print(f"DEBUG: ZIP file contains {len(file_info.extracted_files)} extracted PDFs")
                 for extracted_file in file_info.extracted_files:
@@ -329,7 +325,7 @@ async def extract_data_from_uploaded_files(
                         size_bytes=extracted_file['size_bytes'],
                         num_pages=1,
                         metadata={
-                            'source_zip': file_info.original_filename,
+                            'source_zip': file_info.filename,
                             'original_path': extracted_file['original_path']
                         }
                     )
@@ -341,16 +337,16 @@ async def extract_data_from_uploaded_files(
                 file_content = storage_service.download_temp_file(file_id)
                 
                 if file_content is None:
-                    logger.warning(f"Could not download file {file_info.original_filename}")
+                    logger.warning(f"Could not download file {file_info.filename}")
                     continue
                 
                 files_data.append({
-                    'filename': file_info.original_filename,
+                    'filename': file_info.filename,
                     'content': file_content
                 })
                 
                 processed_file = ProcessedFile(
-                    filename=file_info.original_filename,
+                    filename=file_info.filename,
                     size_bytes=file_info.size_bytes,
                     num_pages=1,
                     metadata={}
@@ -498,6 +494,10 @@ async def extract_data_from_pdfs(
         raise
     except Exception as e:
         logger.error(f"Extraction failed: {e}")
+        # Update progress to failed
+        if 'extraction_id' in locals():
+            extraction_progress[extraction_id]["status"] = "failed"
+            extraction_progress[extraction_id]["error"] = str(e)
         raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}")
 
 @router.post("/export/csv")
@@ -774,6 +774,7 @@ async def cleanup_multiple_files(
     except Exception as e:
         logger.error(f"Failed to cleanup multiple files: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to cleanup files: {str(e)}")
+
 
 
 # Template routes have been moved to routes/templates.py

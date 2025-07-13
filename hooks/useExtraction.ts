@@ -39,7 +39,7 @@ export function useExtractFromUploaded() {
       fields: FieldConfig[]
       extractMultipleRows?: boolean
     }): Promise<ExtractionResponse> => {
-      return apiClient.extractFromUploadedFiles(fileIds, fields, extractMultipleRows)
+      return apiClient.extractFromUploadedFiles(fileIds, fields, extractMultipleRows) as any
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-usage'] })
@@ -83,7 +83,10 @@ export function useCreateTemplate() {
       description?: string
       fields: FieldConfig[]
       is_public?: boolean
-    }) => apiClient.createTemplate(templateData),
+    }) => apiClient.createTemplate({
+      ...templateData,
+      is_public: templateData.is_public ?? false
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['templates', user?.uid] })
     },

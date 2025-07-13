@@ -78,6 +78,7 @@ export class ApiClient {
     return this.request(`/api/templates/${templateId}`)
   }
 
+
   async updateTemplate(
     templateId: string,
     data: ApiRequest<ApiPaths['/api/templates/{template_id}']['put']>

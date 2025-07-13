@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Prevent all layout shifts by keeping scrollbar always visible */
+html {
+  overflow-y: scroll;
+}
+
+/* Prevent main content from shifting when dropdowns open */
+body {
+  width: 100%;
+  overflow-x: hidden;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

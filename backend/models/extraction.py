@@ -48,7 +48,6 @@ class ExtractionTemplate(BaseModel):
     created_at: datetime
     updated_at: datetime
     is_public: bool = False
-    usage_count: int = 0
 
 class TemplateCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)

@@ -92,7 +92,6 @@ export default function TemplateLibrary({
                     Created:{" "}
                     {new Date(template.created_at).toLocaleDateString()}
                   </p>
-                  <p>Used: {template.usage_count || 0} times</p>
                 </div>
 
                 <div className="flex space-x-2">

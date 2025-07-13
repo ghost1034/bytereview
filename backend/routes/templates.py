@@ -70,6 +70,7 @@ async def get_template(
         logger.error(f"Failed to get template {template_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get template: {str(e)}")
 
+
 @router.put("/{template_id}")
 async def update_template(
     template_id: str,

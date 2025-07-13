@@ -43,7 +43,6 @@ class TemplateService:
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),
                 is_public=is_public,
-                usage_count=0
             )
 
         try:
@@ -57,7 +56,6 @@ class TemplateService:
                 'created_at': datetime.utcnow(),
                 'updated_at': datetime.utcnow(),
                 'is_public': is_public,
-                'usage_count': 0
             }
             
             self.templates_collection.document(template_id).set(template_data)
@@ -200,7 +198,7 @@ class TemplateService:
                 template_data['fields'] = [FieldConfig(**field) for field in template_data['fields']]
                 templates.append(ExtractionTemplate(**template_data))
             
-            return sorted(templates, key=lambda t: t.usage_count, reverse=True)
+            return sorted(templates, key=lambda t: t.created_at, reverse=True)
         except Exception as e:
             logger.error(f"Error getting public templates: {e}")
             raise
