@@ -1,5 +1,5 @@
 """
-Template management routes - handles extraction template CRUD operations
+Template management routes - PostgreSQL-only implementation
 """
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List

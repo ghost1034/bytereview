@@ -19,15 +19,30 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Import database initialization
+from core.database import init_database
+
 # Initialize FastAPI app
 app = FastAPI(
-    title="FinancialExtract API", 
-    version="1.0.0",
-    description="AI-powered PDF data extraction service with field configuration and template management",
+    title="ByteReview API", 
+    version="2.0.0",
+    description="AI-powered document data extraction service with asynchronous job processing",
     openapi_url="/api/openapi.json",
     docs_url="/api/docs",
     redoc_url="/api/redoc"
 )
+
+# Initialize database on startup
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database and other startup tasks"""
+    try:
+        logger.info("Initializing database...")
+        init_database()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        raise  # Fail fast if database is unavailable
 
 # Configure CORS
 app.add_middleware(
@@ -48,17 +63,18 @@ security = HTTPBearer(auto_error=False)
 
 @app.get("/")
 async def root():
-    return {"message": "FinancialExtract API is running"}
+    return {"message": "ByteReview API is running"}
 
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
 
 # Import routes
-from routes import users, stripe_routes, extraction, templates
+from routes import users, jobs, stripe_routes, extraction, templates
 
 # Include routers
 app.include_router(users.router, prefix="/api/users", tags=["users"])
+app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
 app.include_router(stripe_routes.router, prefix="/api/stripe", tags=["stripe"])
 app.include_router(extraction.router, prefix="/api/extraction", tags=["extraction"])
 app.include_router(templates.router, prefix="/api/templates", tags=["templates"])

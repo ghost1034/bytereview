@@ -3,25 +3,17 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Play, Loader2 } from "lucide-react";
+import { Plus, History, Settings } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import SubscriptionManager from "@/components/subscription/SubscriptionManager";
-import { useExtractData, useTemplates } from "@/hooks/useExtraction";
-import { apiClient } from "@/lib/api";
+import { useJobs } from "@/hooks/useJobs";
 
-// Import new components
+// Import new workflow components
 import UsageStats from "@/components/subscription/UsageStats";
-import FileUpload from "@/components/extraction/FileUpload";
-import FieldConfiguration, { type ColumnConfig } from "@/components/extraction/FieldConfiguration";
-import TemplateSelection from "@/components/extraction/TemplateSelection";
-import SaveTemplate from "@/components/extraction/SaveTemplate";
-import ExtractionResults from "@/components/extraction/ExtractionResults";
+import JobWorkflow from "@/components/workflow/JobWorkflow";
 import TemplateLibrary from "@/components/templates/TemplateLibrary";
-
-// ColumnConfig is now imported from FieldConfiguration component
 
 export default function Dashboard() {
   const { user } = useAuth();

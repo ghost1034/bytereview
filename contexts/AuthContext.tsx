@@ -4,7 +4,6 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { auth, signInWithGoogle, signOutUser, handleRedirectResult, onAuthStateChange, signInWithEmail, signUpWithEmail, updateUserProfile } from '@/lib/firebase';
-import { apiClient } from '@/lib/api';
 
 interface AuthContextType {
   user: User | null;
@@ -49,16 +48,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(firebaseUser);
       setLoading(false);
       
-      // Sync with backend when user signs in
-      if (firebaseUser && wasSignedIn) {
-        try {
-          // This will create the user in Firestore if they don't exist
-          await apiClient.getCurrentUser();
-          console.log('User synced with backend');
-        } catch (error) {
-          console.error('Failed to sync user with backend:', error);
-        }
-      }
+      // Removed sync logic - now handled by React Query in useUserProfile hook
       
       // Don't auto-redirect - let components handle their own redirect logic
       if (wasSignedIn && !hasRedirected) {

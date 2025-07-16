@@ -32,7 +32,7 @@ if [ -f "lib/api-types.ts" ]; then
     
     # Check if TypeScript can compile the types
     echo "🔍 Validating TypeScript compilation..."
-    npx tsc --noEmit lib/api-types.ts lib/typed-api.ts hooks/useExtraction.ts hooks/useUser.ts
+    npx tsc --noEmit lib/api-types.ts lib/typed-api.ts hooks/useExtraction.ts hooks/useUserProfile.ts
     
     if [ $? -eq 0 ]; then
         echo "✅ All types compile successfully!"
@@ -57,4 +57,4 @@ echo "🔗 Key files:"
 echo "  - lib/api-types.ts (generated types)"
 echo "  - lib/typed-api.ts (typed API client)"
 echo "  - hooks/useExtraction.ts (typed extraction hooks)"
-echo "  - hooks/useUser.ts (typed user hooks)"
+echo "  - hooks/useUserProfile.ts (React Query user hooks)"

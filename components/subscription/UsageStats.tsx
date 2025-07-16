@@ -1,38 +1,29 @@
+/**
+ * Placeholder UsageStats component
+ * Will be replaced with actual usage tracking when Stripe billing is implemented
+ */
 'use client'
 
-import { Progress } from "@/components/ui/progress"
-import { useUserUsage, type UsageStats } from "@/hooks/useUser"
-import { useTemplates, type TemplatesResponse } from "@/hooks/useExtraction"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 
-interface UsageStatsProps {
-  className?: string
-}
-
-export default function UsageStats({ className = '' }: UsageStatsProps) {
-  const { data: usageData } = useUserUsage()
-  const { data: templatesData } = useTemplates()
-  
-  // Data is now properly typed from the hooks
-
+export default function UsageStats() {
   return (
-    <div className={`space-y-3 ${className}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-gray-600">Pages Used This Month</span>
-        <div className="flex items-center space-x-2">
-          <Progress value={((usageData?.pages_used || 0) / (usageData?.pages_limit || 10)) * 100} className="w-24 h-2" />
-          <span className="text-sm font-medium text-gray-900">{usageData?.pages_used || 0}/{usageData?.pages_limit || 10}</span>
+    <Card className="w-full max-w-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Usage</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Plan</span>
+          <Badge variant="secondary">Free</Badge>
         </div>
-      </div>
-      
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-gray-600">Templates Created</span>
-        <span className="text-sm font-medium text-gray-900">{(templatesData as any)?.templates?.length || 0}</span>
-      </div>
-      
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-gray-600">Total Extractions</span>
-        <span className="text-sm font-medium text-gray-900">{usageData?.pages_used || 0}</span>
-      </div>
-    </div>
+        <div className="text-center py-4">
+          <p className="text-sm text-muted-foreground">
+            Usage tracking will be available when billing is implemented
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

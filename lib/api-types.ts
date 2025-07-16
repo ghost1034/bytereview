@@ -62,6 +62,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/users/me/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync User Profile
+         * @description Sync user profile from Firebase Auth to our database
+         *     This is the explicit endpoint for user creation/sync
+         */
+        post: operations["sync_user_profile_api_users_me_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/usage": {
         parameters: {
             query?: never;
@@ -74,6 +95,106 @@ export interface paths {
          * @description Get user's usage statistics
          */
         get: operations["get_user_usage_api_users_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/initiate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Initiate Job
+         * @description Step 1: Initiate a new extraction job and get pre-signed upload URLs
+         */
+        post: operations["initiate_job_api_jobs_initiate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Job
+         * @description Step 2: Start job processing with field configuration and task definitions
+         */
+        post: operations["start_job_api_jobs__job_id__start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Job Details
+         * @description Get detailed information about a specific job
+         */
+        get: operations["get_job_details_api_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Jobs
+         * @description List jobs for the current user with pagination and filtering
+         */
+        get: operations["list_jobs_api_jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Job Progress
+         * @description Get job progress information for real-time updates
+         */
+        get: operations["get_job_progress_api_jobs__job_id__progress_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -503,26 +624,277 @@ export interface components {
             prompt: string;
         };
         /**
-         * FileUploadResponse
-         * @description Response from file upload endpoint
+         * FileUploadInfo
+         * @description Information about a file to be uploaded
          */
-        FileUploadResponse: {
-            /** Success */
-            success: boolean;
-            /** Uploaded Files */
-            uploaded_files: components["schemas"]["UploadedFileInfo"][];
-            /** Total Files */
-            total_files: number;
-            /** Message */
-            message: string;
-            /** Error */
-            error?: string | null;
+        FileUploadInfo: {
+            /**
+             * Filename
+             * @description Original filename
+             */
+            filename: string;
+            /**
+             * Path
+             * @description Relative path within upload structure
+             */
+            path: string;
+            /**
+             * Size
+             * @description File size in bytes
+             */
+            size: number;
+            /**
+             * Type
+             * @description MIME type
+             */
+            type: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * JobDetailsResponse
+         * @description Detailed job information
+         */
+        JobDetailsResponse: {
+            /**
+             * Id
+             * @description Job identifier
+             */
+            id: string;
+            /**
+             * Name
+             * @description Job name
+             */
+            name?: string | null;
+            /** @description Current job status */
+            status: components["schemas"]["JobStatus"];
+            /**
+             * Persist Data
+             * @description Data persistence setting
+             */
+            persist_data: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             * @description Creation timestamp
+             */
+            created_at: string;
+            /**
+             * Completed At
+             * @description Completion timestamp
+             */
+            completed_at?: string | null;
+            /**
+             * Job Fields
+             * @description Field configuration
+             */
+            job_fields: components["schemas"]["JobFieldInfo"][];
+        };
+        /**
+         * JobFieldConfig
+         * @description Field configuration for a job (snapshot from template)
+         */
+        JobFieldConfig: {
+            /**
+             * Field Name
+             * @description Name of the field
+             */
+            field_name: string;
+            /**
+             * Data Type Id
+             * @description Data type identifier
+             */
+            data_type_id: string;
+            /**
+             * Ai Prompt
+             * @description AI extraction prompt
+             */
+            ai_prompt: string;
+            /**
+             * Display Order
+             * @description Display order
+             * @default 0
+             */
+            display_order: number;
+        };
+        /**
+         * JobFieldInfo
+         * @description Information about a job field
+         */
+        JobFieldInfo: {
+            /**
+             * Field Name
+             * @description Field name
+             */
+            field_name: string;
+            /**
+             * Data Type Id
+             * @description Data type
+             */
+            data_type_id: string;
+            /**
+             * Ai Prompt
+             * @description AI prompt
+             */
+            ai_prompt: string;
+            /**
+             * Display Order
+             * @description Display order
+             */
+            display_order: number;
+        };
+        /**
+         * JobInitiateRequest
+         * @description Request to initiate a new job
+         */
+        JobInitiateRequest: {
+            /**
+             * Files
+             * @description List of files to upload
+             */
+            files: components["schemas"]["FileUploadInfo"][];
+        };
+        /**
+         * JobInitiateResponse
+         * @description Response for job initiation
+         */
+        JobInitiateResponse: {
+            /**
+             * Job Id
+             * @description Unique job identifier
+             */
+            job_id: string;
+            /**
+             * Files
+             * @description Upload URLs for each file
+             */
+            files: components["schemas"]["models__job__FileUploadResponse"][];
+        };
+        /**
+         * JobListItem
+         * @description Job list item for job listing
+         */
+        JobListItem: {
+            /**
+             * Id
+             * @description Job identifier
+             */
+            id: string;
+            /**
+             * Name
+             * @description Job name
+             */
+            name?: string | null;
+            /** @description Job status */
+            status: components["schemas"]["JobStatus"];
+            /**
+             * Created At
+             * Format: date-time
+             * @description Creation timestamp
+             */
+            created_at: string;
+            /**
+             * File Count
+             * @description Number of files
+             */
+            file_count: number;
+        };
+        /**
+         * JobListResponse
+         * @description Response for job listing
+         */
+        JobListResponse: {
+            /**
+             * Jobs
+             * @description List of jobs
+             */
+            jobs: components["schemas"]["JobListItem"][];
+            /**
+             * Total
+             * @description Total number of jobs
+             */
+            total: number;
+        };
+        /**
+         * JobProgressResponse
+         * @description Job progress information
+         */
+        JobProgressResponse: {
+            /**
+             * Total Tasks
+             * @description Total number of tasks
+             */
+            total_tasks: number;
+            /**
+             * Completed
+             * @description Completed tasks
+             */
+            completed: number;
+            /**
+             * Failed
+             * @description Failed tasks
+             */
+            failed: number;
+            /** @description Overall job status */
+            status: components["schemas"]["JobStatus"];
+        };
+        /**
+         * JobStartRequest
+         * @description Request to start job processing
+         */
+        JobStartRequest: {
+            /**
+             * Name
+             * @description User-friendly job name
+             */
+            name?: string | null;
+            /**
+             * Template Id
+             * @description Template ID to use
+             */
+            template_id?: string | null;
+            /**
+             * Persist Data
+             * @description Whether to persist data
+             * @default true
+             */
+            persist_data: boolean;
+            /**
+             * Fields
+             * @description Field configuration
+             */
+            fields: components["schemas"]["JobFieldConfig"][];
+            /**
+             * Task Definitions
+             * @description Processing definitions
+             */
+            task_definitions: components["schemas"]["TaskDefinition"][];
+        };
+        /**
+         * JobStartResponse
+         * @description Response for job start
+         */
+        JobStartResponse: {
+            /**
+             * Message
+             * @description Success message
+             */
+            message: string;
+            /**
+             * Job Id
+             * @description Job identifier
+             */
+            job_id: string;
+        };
+        /**
+         * JobStatus
+         * @description Job status enumeration
+         * @enum {string}
+         */
+        JobStatus: "pending_configuration" | "processing" | "completed" | "failed" | "cancelled";
         /** ProcessedFile */
         ProcessedFile: {
             /** Filename */
@@ -536,6 +908,12 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /**
+         * ProcessingMode
+         * @description File processing mode enumeration
+         * @enum {string}
+         */
+        ProcessingMode: "individual" | "combined";
         /**
          * SubscriptionStatus
          * @description User's subscription status information
@@ -558,6 +936,19 @@ export interface components {
              * @description Unix timestamp of period end
              */
             current_period_end?: number | null;
+        };
+        /**
+         * TaskDefinition
+         * @description Definition of how files should be processed
+         */
+        TaskDefinition: {
+            /**
+             * Path
+             * @description Folder path to process
+             */
+            path: string;
+            /** @description Processing mode for this path */
+            mode: components["schemas"]["ProcessingMode"];
         };
         /** TemplateCreateRequest */
         TemplateCreateRequest: {
@@ -678,6 +1069,38 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /**
+         * FileUploadResponse
+         * @description Response for file upload preparation
+         */
+        models__job__FileUploadResponse: {
+            /**
+             * Original Path
+             * @description Original file path
+             */
+            original_path: string;
+            /**
+             * Upload Url
+             * @description Pre-signed URL for upload
+             */
+            upload_url: string;
+        };
+        /**
+         * FileUploadResponse
+         * @description Response from file upload endpoint
+         */
+        models__upload__FileUploadResponse: {
+            /** Success */
+            success: boolean;
+            /** Uploaded Files */
+            uploaded_files: components["schemas"]["UploadedFileInfo"][];
+            /** Total Files */
+            total_files: number;
+            /** Message */
+            message: string;
+            /** Error */
+            error?: string | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -780,6 +1203,26 @@ export interface operations {
             };
         };
     };
+    sync_user_profile_api_users_me_sync_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+        };
+    };
     get_user_usage_api_users_usage_get: {
         parameters: {
             query?: never;
@@ -796,6 +1239,172 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UsageStats"];
+                };
+            };
+        };
+    };
+    initiate_job_api_jobs_initiate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobInitiateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobInitiateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_job_api_jobs__job_id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobStartRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobStartResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_job_details_api_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDetailsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_jobs_api_jobs_get: {
+        parameters: {
+            query?: {
+                /** @description Number of jobs to return */
+                limit?: number;
+                /** @description Number of jobs to skip */
+                offset?: number;
+                /** @description Filter by job status */
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_job_progress_api_jobs__job_id__progress_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobProgressResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -905,7 +1514,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FileUploadResponse"];
+                    "application/json": components["schemas"]["models__upload__FileUploadResponse"];
                 };
             };
             /** @description Validation Error */

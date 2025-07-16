@@ -47,6 +47,13 @@ export class ApiClient {
     return this.request('/api/users/me')
   }
 
+  async syncUserProfile(profileData?: { display_name?: string; photo_url?: string }): Promise<ApiResponse<ApiPaths['/api/users/me/sync']['post']>> {
+    return this.request('/api/users/me/sync', {
+      method: 'POST',
+      body: JSON.stringify(profileData || {})
+    })
+  }
+
   async updateProfile(
     data: ApiRequest<ApiPaths['/api/users/me']['put']>
   ): Promise<ApiResponse<ApiPaths['/api/users/me']['put']>> {

@@ -1,11 +1,12 @@
 """
-User management routes - handles all user CRUD operations
+User management routes for ByteReview
+PostgreSQL-only implementation
 """
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional
 from services.user_service import UserService
 from models.user import UserResponse, UserUpdate, UpdateProfileRequest
-from models.common import UsageStats
+# Usage tracking imports will be added when billing is implemented
 from dependencies.auth import verify_firebase_token, get_current_user_id
 
 router = APIRouter()
@@ -13,18 +14,45 @@ user_service = UserService()
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(token_data: dict = Depends(verify_firebase_token)):
-    """Get current user information and create if doesn't exist"""
+    """Get current user information - returns existing user or creates minimal profile"""
     try:
-        # Get or create user in Firestore
+        # Just get or create user with minimal data from token
+        # Frontend will call /me/sync with complete profile data
         user = await user_service.get_or_create_user(
             uid=token_data["uid"],
             email=token_data.get("email"),
-            display_name=token_data.get("name"),
-            photo_url=token_data.get("picture")
+            display_name=None,  # Will be updated via /me/sync
+            photo_url=None
         )
         return user
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting user: {str(e)}")
+
+from pydantic import BaseModel
+
+class UserSyncRequest(BaseModel):
+    display_name: Optional[str] = None
+    photo_url: Optional[str] = None
+
+@router.post("/me/sync", response_model=UserResponse)
+async def sync_user_profile(
+    sync_data: UserSyncRequest,
+    token_data: dict = Depends(verify_firebase_token)
+):
+    """
+    Sync user profile with data from frontend
+    Frontend sends complete user profile data
+    """
+    try:
+        user = await user_service.sync_user_profile(
+            uid=token_data["uid"],
+            email=token_data.get("email"),
+            display_name=sync_data.display_name,
+            photo_url=sync_data.photo_url
+        )
+        return user
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error syncing user: {str(e)}")
 
 @router.put("/me", response_model=UserResponse)
 async def update_current_user(
@@ -41,19 +69,6 @@ async def update_current_user(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating user: {str(e)}")
 
-@router.get("/usage", response_model=UsageStats)
-async def get_user_usage(user_id: str = Depends(get_current_user_id)):
-    """Get user's usage statistics"""
-    try:
-        user = await user_service.get_user(user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        return UsageStats(
-            pages_used=user.pages_used,
-            pages_limit=user.pages_limit,
-            subscription_status=user.subscription_status,
-            usage_percentage=(user.pages_used / user.pages_limit) * 100 if user.pages_limit > 0 else 0
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting usage: {str(e)}")
+# Usage tracking endpoints will be added when Stripe billing is implemented
+
+# Migration endpoint removed - no longer needed since we're PostgreSQL-only

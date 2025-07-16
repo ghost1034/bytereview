@@ -1,4 +1,4 @@
-import Dashboard from '@/components/pages/dashboard'
+import Dashboard from '@/components/pages/dashboard-v2'
 import AuthGuard from '@/components/auth/AuthGuard'
 
 export default function DashboardPage() {

@@ -1,8 +1,12 @@
 """
-Template management service - handles extraction template CRUD operations
+PostgreSQL-only template service for ByteReview
+Clean implementation without Firestore dependencies
 """
-from core.firebase_config import firebase_config
 from models.extraction import ExtractionTemplate, FieldConfig, TemplateUpdateRequest
+from models.db_models import Template as DBTemplate, TemplateField as DBTemplateField, DataType
+from core.database import db_config
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime
 from typing import List, Optional
 import logging
@@ -11,16 +15,25 @@ import uuid
 logger = logging.getLogger(__name__)
 
 class TemplateService:
+    """
+    Template service that uses only PostgreSQL
+    Clean implementation for the new ByteReview architecture
+    """
+    
     def __init__(self):
+        """Initialize with PostgreSQL connection"""
         try:
-            self.db = firebase_config.firestore
-            self.templates_collection = self.db.collection('extraction_templates') if self.db else None
-            if not self.templates_collection:
-                logger.warning("Firestore not available, using mock mode")
+            # Test connection
+            db = db_config.get_session()
+            db.close()
+            logger.info("PostgreSQL template service initialized")
         except Exception as e:
-            logger.warning(f"Template service initialization failed: {e}. Using mock mode.")
-            self.db = None
-            self.templates_collection = None
+            logger.error(f"Failed to initialize template service: {e}")
+            raise
+
+    def _get_session(self) -> Session:
+        """Get PostgreSQL session"""
+        return db_config.get_session()
 
     async def create_template(
         self, 
@@ -31,189 +44,217 @@ class TemplateService:
         is_public: bool = False
     ) -> ExtractionTemplate:
         """Create a new extraction template"""
-        if not self.templates_collection:
-            # Mock mode
-            template_id = str(uuid.uuid4())
+        db = self._get_session()
+        try:
+            # Create template
+            template = DBTemplate(
+                user_id=user_id,
+                name=name
+            )
+            db.add(template)
+            db.flush()  # Get the ID
+            
+            # Create template fields
+            for i, field in enumerate(fields):
+                template_field = DBTemplateField(
+                    template_id=template.id,
+                    field_name=field.name,
+                    data_type_id=field.data_type,
+                    ai_prompt=field.prompt,
+                    display_order=i
+                )
+                db.add(template_field)
+            
+            db.commit()
+            db.refresh(template)
+            
+            logger.info(f"Created template {template.id} for user {user_id}")
+            
+            # Convert to response format
             return ExtractionTemplate(
-                id=template_id,
-                name=name,
+                id=str(template.id),
+                name=template.name,
                 description=description,
                 fields=fields,
                 created_by=user_id,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-                is_public=is_public,
+                created_at=template.created_at,
+                updated_at=template.updated_at,
+                is_public=is_public
             )
-
-        try:
-            template_id = str(uuid.uuid4())
-            template_data = {
-                'id': template_id,
-                'name': name,
-                'description': description,
-                'fields': [field.dict() for field in fields],
-                'created_by': user_id,
-                'created_at': datetime.utcnow(),
-                'updated_at': datetime.utcnow(),
-                'is_public': is_public,
-            }
             
-            self.templates_collection.document(template_id).set(template_data)
-            logger.info(f"Created template {template_id} for user {user_id}")
-            
-            return ExtractionTemplate(**template_data)
-        except Exception as e:
-            logger.error(f"Error creating template: {e}")
+        except SQLAlchemyError as e:
+            logger.error(f"Failed to create template: {e}")
+            db.rollback()
             raise
+        finally:
+            db.close()
 
     async def get_user_templates(self, user_id: str) -> List[ExtractionTemplate]:
-        """Get all templates created by a user"""
-        if not self.templates_collection:
-            return []
-
+        """Get all templates for a user"""
+        db = self._get_session()
         try:
-            query = self.templates_collection.where('created_by', '==', user_id)
-            docs = query.stream()
+            templates = db.query(DBTemplate).filter(DBTemplate.user_id == user_id).all()
             
-            templates = []
-            for doc in docs:
-                template_data = doc.to_dict()
-                # Convert field dicts back to FieldConfig objects
-                template_data['fields'] = [FieldConfig(**field) for field in template_data['fields']]
-                templates.append(ExtractionTemplate(**template_data))
+            result = []
+            for template in templates:
+                # Get template fields
+                fields = db.query(DBTemplateField).filter(
+                    DBTemplateField.template_id == template.id
+                ).order_by(DBTemplateField.display_order).all()
+                
+                field_configs = [
+                    FieldConfig(
+                        name=field.field_name,
+                        data_type=field.data_type_id,
+                        prompt=field.ai_prompt
+                    )
+                    for field in fields
+                ]
+                
+                result.append(ExtractionTemplate(
+                    id=str(template.id),
+                    name=template.name,
+                    description=None,  # TODO: Add to schema
+                    fields=field_configs,
+                    created_by=user_id,
+                    created_at=template.created_at,
+                    updated_at=template.updated_at,
+                    is_public=False  # TODO: Add to schema
+                ))
             
-            return sorted(templates, key=lambda t: t.updated_at, reverse=True)
-        except Exception as e:
-            logger.error(f"Error getting user templates: {e}")
+            return result
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting templates for user {user_id}: {e}")
             raise
+        finally:
+            db.close()
 
     async def get_template(self, template_id: str, user_id: str) -> Optional[ExtractionTemplate]:
-        """Get a specific template (must be owned by user or public)"""
-        if not self.templates_collection:
-            return None
-
+        """Get a specific template"""
+        db = self._get_session()
         try:
-            doc = self.templates_collection.document(template_id).get()
-            if not doc.exists:
+            template = db.query(DBTemplate).filter(
+                DBTemplate.id == template_id,
+                DBTemplate.user_id == user_id
+            ).first()
+            
+            if not template:
                 return None
             
-            template_data = doc.to_dict()
+            # Get template fields
+            fields = db.query(DBTemplateField).filter(
+                DBTemplateField.template_id == template.id
+            ).order_by(DBTemplateField.display_order).all()
             
-            # Check if user has access (owner or public template)
-            if template_data['created_by'] != user_id and not template_data.get('is_public', False):
-                return None
+            field_configs = [
+                FieldConfig(
+                    name=field.field_name,
+                    data_type=field.data_type_id,
+                    prompt=field.ai_prompt
+                )
+                for field in fields
+            ]
             
-            # Convert field dicts back to FieldConfig objects
-            template_data['fields'] = [FieldConfig(**field) for field in template_data['fields']]
+            return ExtractionTemplate(
+                id=str(template.id),
+                name=template.name,
+                description=None,
+                fields=field_configs,
+                created_by=user_id,
+                created_at=template.created_at,
+                updated_at=template.updated_at,
+                is_public=False
+            )
             
-            return ExtractionTemplate(**template_data)
-        except Exception as e:
+        except SQLAlchemyError as e:
             logger.error(f"Error getting template {template_id}: {e}")
             raise
+        finally:
+            db.close()
 
     async def update_template(
-        self, 
-        template_id: str, 
-        user_id: str, 
+        self,
+        template_id: str,
+        user_id: str,
         update_data: TemplateUpdateRequest
     ) -> Optional[ExtractionTemplate]:
-        """Update a template (must be owned by user)"""
-        if not self.templates_collection:
-            return None
-
+        """Update an existing template"""
+        db = self._get_session()
         try:
-            doc_ref = self.templates_collection.document(template_id)
-            doc = doc_ref.get()
+            template = db.query(DBTemplate).filter(
+                DBTemplate.id == template_id,
+                DBTemplate.user_id == user_id
+            ).first()
             
-            if not doc.exists:
+            if not template:
                 return None
             
-            template_data = doc.to_dict()
+            # Update template name if provided
+            if update_data.name:
+                template.name = update_data.name
             
-            # Check ownership
-            if template_data['created_by'] != user_id:
-                return None
+            template.updated_at = datetime.utcnow()
             
-            # Update fields
-            update_dict = {'updated_at': datetime.utcnow()}
+            # Update fields if provided
+            if update_data.fields:
+                # Delete existing fields
+                db.query(DBTemplateField).filter(
+                    DBTemplateField.template_id == template.id
+                ).delete()
+                
+                # Add new fields
+                for i, field in enumerate(update_data.fields):
+                    template_field = DBTemplateField(
+                        template_id=template.id,
+                        field_name=field.name,
+                        data_type_id=field.data_type,
+                        ai_prompt=field.prompt,
+                        display_order=i
+                    )
+                    db.add(template_field)
             
-            if update_data.name is not None:
-                update_dict['name'] = update_data.name
-            if update_data.description is not None:
-                update_dict['description'] = update_data.description
-            if update_data.fields is not None:
-                update_dict['fields'] = [field.dict() for field in update_data.fields]
-            if update_data.is_public is not None:
-                update_dict['is_public'] = update_data.is_public
+            db.commit()
+            db.refresh(template)
             
-            doc_ref.update(update_dict)
+            logger.info(f"Updated template {template_id}")
             
-            # Get updated document
-            updated_doc = doc_ref.get()
-            updated_data = updated_doc.to_dict()
-            updated_data['fields'] = [FieldConfig(**field) for field in updated_data['fields']]
+            # Return updated template
+            return await self.get_template(template_id, user_id)
             
-            return ExtractionTemplate(**updated_data)
-        except Exception as e:
-            logger.error(f"Error updating template {template_id}: {e}")
+        except SQLAlchemyError as e:
+            logger.error(f"Failed to update template {template_id}: {e}")
+            db.rollback()
             raise
+        finally:
+            db.close()
 
     async def delete_template(self, template_id: str, user_id: str) -> bool:
-        """Delete a template (must be owned by user)"""
-        if not self.templates_collection:
-            return False
-
+        """Delete a template"""
+        db = self._get_session()
         try:
-            doc_ref = self.templates_collection.document(template_id)
-            doc = doc_ref.get()
+            template = db.query(DBTemplate).filter(
+                DBTemplate.id == template_id,
+                DBTemplate.user_id == user_id
+            ).first()
             
-            if not doc.exists:
+            if not template:
                 return False
             
-            template_data = doc.to_dict()
+            db.delete(template)
+            db.commit()
             
-            # Check ownership
-            if template_data['created_by'] != user_id:
-                return False
-            
-            doc_ref.delete()
             logger.info(f"Deleted template {template_id}")
             return True
-        except Exception as e:
-            logger.error(f"Error deleting template {template_id}: {e}")
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Failed to delete template {template_id}: {e}")
+            db.rollback()
             raise
+        finally:
+            db.close()
 
-    async def get_public_templates(self, limit: int = 50) -> List[ExtractionTemplate]:
+    async def get_public_templates(self) -> List[ExtractionTemplate]:
         """Get publicly available templates"""
-        if not self.templates_collection:
-            return []
-
-        try:
-            query = self.templates_collection.where('is_public', '==', True).limit(limit)
-            docs = query.stream()
-            
-            templates = []
-            for doc in docs:
-                template_data = doc.to_dict()
-                template_data['fields'] = [FieldConfig(**field) for field in template_data['fields']]
-                templates.append(ExtractionTemplate(**template_data))
-            
-            return sorted(templates, key=lambda t: t.created_at, reverse=True)
-        except Exception as e:
-            logger.error(f"Error getting public templates: {e}")
-            raise
-
-    async def increment_usage_count(self, template_id: str):
-        """Increment the usage count for a template"""
-        if not self.templates_collection:
-            return
-
-        try:
-            doc_ref = self.templates_collection.document(template_id)
-            doc = doc_ref.get()
-            
-            if doc.exists:
-                current_count = doc.to_dict().get('usage_count', 0)
-                doc_ref.update({'usage_count': current_count + 1})
-        except Exception as e:
-            logger.error(f"Error incrementing usage count for template {template_id}: {e}")
+        # TODO: Implement when public templates are added to schema
+        return []

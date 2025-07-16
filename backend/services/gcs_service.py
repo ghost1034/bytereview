@@ -266,6 +266,49 @@ class GCSService:
             logger.error(f"Failed to cleanup old files from GCS: {e}")
             return 0
     
+    async def generate_presigned_put_url(self, gcs_object_name: str, expiration_minutes: int = 60) -> str:
+        """
+        Generate a pre-signed URL for PUT operations (file uploads)
+        """
+        if not self.is_available():
+            raise Exception("GCS not available")
+            
+        try:
+            from datetime import timedelta
+            
+            blob = self.bucket.blob(gcs_object_name)
+            
+            # Generate a signed URL for PUT operations
+            url = blob.generate_signed_url(
+                version="v4",
+                expiration=timedelta(minutes=expiration_minutes),
+                method="PUT",
+                content_type="application/octet-stream"  # Generic content type
+            )
+            
+            logger.info(f"Generated pre-signed PUT URL for: {gcs_object_name}")
+            return url
+            
+        except Exception as e:
+            logger.error(f"Failed to generate pre-signed URL for {gcs_object_name}: {e}")
+            raise
+
+    async def download_file(self, gcs_object_name: str, local_path: str) -> None:
+        """
+        Download a file from GCS to local path
+        """
+        if not self.is_available():
+            raise Exception("GCS not available")
+            
+        try:
+            blob = self.bucket.blob(gcs_object_name)
+            blob.download_to_filename(local_path)
+            logger.info(f"Downloaded {gcs_object_name} to {local_path}")
+            
+        except Exception as e:
+            logger.error(f"Failed to download {gcs_object_name}: {e}")
+            raise
+
     def _get_content_type(self, filename: str) -> str:
         """Get content type based on file extension"""
         if filename.lower().endswith('.pdf'):
@@ -286,6 +329,18 @@ class LocalStorageService:
     
     def is_available(self) -> bool:
         return True
+    
+    async def generate_presigned_put_url(self, gcs_object_name: str, expiration_minutes: int = 60) -> str:
+        """
+        Local storage doesn't support pre-signed URLs, raise an error
+        """
+        raise Exception("Pre-signed URLs not supported with local storage fallback")
+    
+    async def download_file(self, gcs_object_name: str, local_path: str) -> None:
+        """
+        Local storage doesn't support downloading from GCS object names
+        """
+        raise Exception("File download not supported with local storage fallback")
     
     def upload_temp_file(self, file_content: bytes, original_filename: str) -> str:
         """Upload file to local temporary storage"""

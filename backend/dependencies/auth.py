@@ -1,20 +1,43 @@
 """
-Authentication dependencies - centralized auth logic for all routes
+Authentication dependencies - Firebase token verification only
 """
 from fastapi import HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from core.firebase_config import firebase_config
+from firebase_admin import auth as firebase_auth, credentials, initialize_app
 from typing import Dict
 import logging
+import os
 
 logger = logging.getLogger(__name__)
+
+# Initialize Firebase Admin SDK
+def init_firebase():
+    """Initialize Firebase Admin SDK"""
+    try:
+        # Check if already initialized
+        import firebase_admin
+        if not firebase_admin._apps:
+            service_account_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+            if service_account_path and os.path.exists(service_account_path):
+                cred = credentials.Certificate(service_account_path)
+                initialize_app(cred)
+                logger.info("Firebase initialized with service account")
+            else:
+                # Use default credentials for development
+                initialize_app()
+                logger.info("Firebase initialized with default credentials")
+    except Exception as e:
+        logger.warning(f"Firebase initialization failed: {e}")
+        raise
+
+# Initialize on import
+init_firebase()
 
 security = HTTPBearer()
 
 async def verify_firebase_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict:
     """
-    Centralized Firebase token verification dependency
-    Can be used by any route that needs authentication
+    Firebase token verification dependency
     """
     if not credentials:
         logger.error("No authorization header provided")
@@ -22,8 +45,8 @@ async def verify_firebase_token(credentials: HTTPAuthorizationCredentials = Depe
     
     try:
         logger.info(f"Verifying token: {credentials.credentials[:20]}...")
-        # Verify the ID token using centralized Firebase config
-        decoded_token = firebase_config.auth.verify_id_token(credentials.credentials)
+        # Verify the ID token using Firebase Admin SDK
+        decoded_token = firebase_auth.verify_id_token(credentials.credentials)
         logger.info(f"Token verified for user: {decoded_token.get('uid', 'unknown')}")
         return decoded_token
     except Exception as e:

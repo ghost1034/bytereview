@@ -34,7 +34,7 @@ ai_service = AIExtractionService()
 user_service = UserService()
 template_service = TemplateService()
 
-# Initialize storage service (GCS or local fallback)
+# Initialize storage service
 storage_service = get_storage_service()
 
 # In-memory cache for uploaded file metadata with extracted files info

@@ -19,10 +19,7 @@ class UserResponse(BaseModel):
     photo_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-    stripe_customer_id: Optional[str] = None
-    subscription_status: str = "free"
-    pages_used: int = 0
-    pages_limit: int = 10  # Free tier limit
+    # Stripe and usage fields will be added when billing is implemented  # Free tier limit
 
 class UserInDB(UserResponse):
     pass
