@@ -2,15 +2,19 @@
 Job management routes for ByteReview
 New asynchronous job-based extraction workflow
 """
-from fastapi import APIRouter, HTTPException, Depends, Query
-from typing import Optional
+from fastapi import APIRouter, HTTPException, Depends, Query, File, UploadFile
+from fastapi.responses import StreamingResponse
+from typing import Optional, List
+import json
+import asyncio
 from dependencies.auth import get_current_user_id
 from services.job_service import JobService
 from models.job import (
     JobInitiateRequest, JobInitiateResponse,
     JobStartRequest, JobStartResponse,
     JobDetailsResponse, JobListResponse,
-    JobProgressResponse, JobResultsResponse
+    JobProgressResponse, JobResultsResponse,
+    JobFilesResponse, FileStatus
 )
 import logging
 
@@ -110,12 +114,115 @@ async def get_job_progress(
         logger.error(f"Failed to get job progress for {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get job progress: {str(e)}")
 
-# TODO: Implement additional endpoints for Phase 2
-# @router.get("/{job_id}/files")
-# async def get_job_files(job_id: str, user_id: str = Depends(get_current_user_id)):
-#     """Get list of files in a job"""
-#     pass
+@router.post("/{job_id}/files")
+async def add_files_to_job(
+    job_id: str,
+    files: List[UploadFile] = File(...),
+    user_id: str = Depends(get_current_user_id)
+):
+    """
+    Add more files to an existing job
+    Immediately extracts ZIP files via ARQ workers
+    """
+    try:
+        logger.info(f"Received request to add {len(files)} files to job {job_id} for user {user_id}")
+        
+        # Log file details
+        for i, file in enumerate(files):
+            logger.info(f"File {i+1}: {file.filename}, size: {file.size if hasattr(file, 'size') else 'unknown'}, type: {file.content_type}")
+        
+        uploaded_files = await job_service.add_files_to_job(user_id, job_id, files)
+        
+        logger.info(f"Successfully added {len(uploaded_files)} files to job {job_id}")
+        return {"files": uploaded_files, "message": f"Added {len(uploaded_files)} files"}
+    except ValueError as e:
+        logger.warning(f"Invalid add files request for {job_id}: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to add files to job {job_id}: {e}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        logger.error(f"Exception args: {e.args}")
+        raise HTTPException(status_code=500, detail=f"Failed to add files: {str(e)}")
 
+@router.get("/{job_id}/files", response_model=JobFilesResponse)
+async def get_job_files(
+    job_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    """Get flat list of files in a job"""
+    try:
+        files = await job_service.get_job_files(user_id, job_id)
+        return JobFilesResponse(files=files)
+    except ValueError as e:
+        logger.warning(f"Job {job_id} not found for user {user_id}: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to get files for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get files: {str(e)}")
+
+@router.delete("/{job_id}/files/{file_id}")
+async def remove_file_from_job(
+    job_id: str,
+    file_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    """Remove a file from a job (synchronous deletion for now)"""
+    try:
+        logger.info(f"Removing file {file_id} from job {job_id}")
+        await job_service.remove_file_from_job(user_id, job_id, file_id)
+        return {"message": "File removed successfully"}
+    except ValueError as e:
+        logger.warning(f"File {file_id} not found in job {job_id}: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to remove file {file_id} from job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to remove file: {str(e)}")
+
+@router.get("/{job_id}/events")
+async def stream_job_events(
+    job_id: str,
+    token: str = Query(...)
+):
+    """Simplified Server-Sent Events stream for real-time job updates"""
+    try:
+        # Verify the token and get user_id
+        from dependencies.auth import verify_token_string
+        user_id = await verify_token_string(token)
+        
+        # Verify user has access to this job
+        await job_service.verify_job_access(user_id, job_id)
+        
+        async def event_generator():
+            try:
+                # Get SSE manager and listen for events
+                from services.sse_service import sse_manager
+                
+                async for event in sse_manager.listen_for_job_events(job_id):
+                    yield f"data: {json.dumps(event)}\n\n"
+                    
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                logger.error(f"Error in SSE stream for job {job_id}: {e}")
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+                return
+
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Cache-Control"
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to start SSE stream for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to start event stream: {str(e)}")
+
+# TODO: Implement additional endpoints for Phase 3
 # @router.get("/{job_id}/results")
 # async def get_job_results(job_id: str, user_id: str = Depends(get_current_user_id)):
 #     """Get extraction results for a completed job"""
@@ -129,9 +236,4 @@ async def get_job_progress(
 # @router.delete("/{job_id}")
 # async def delete_job(job_id: str, user_id: str = Depends(get_current_user_id)):
 #     """Delete a job and all its data"""
-#     pass
-
-# @router.get("/{job_id}/stream-status")
-# async def stream_job_status(job_id: str, user_id: str = Depends(get_current_user_id)):
-#     """Server-Sent Events stream for real-time job status updates"""
 #     pass

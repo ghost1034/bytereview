@@ -309,6 +309,54 @@ class GCSService:
             logger.error(f"Failed to download {gcs_object_name}: {e}")
             raise
 
+    async def upload_file(self, local_path: str, gcs_object_name: str) -> None:
+        """
+        Upload a file from local path to GCS
+        """
+        if not self.is_available():
+            raise Exception("GCS not available")
+            
+        try:
+            blob = self.bucket.blob(gcs_object_name)
+            blob.upload_from_filename(local_path)
+            logger.info(f"Uploaded {local_path} to {gcs_object_name}")
+            
+        except Exception as e:
+            logger.error(f"Failed to upload {local_path} to {gcs_object_name}: {e}")
+            raise
+
+    async def upload_file_content(self, file_content: bytes, gcs_object_name: str) -> None:
+        """
+        Upload file content (bytes) directly to GCS
+        """
+        if not self.is_available():
+            raise Exception("GCS not available")
+            
+        try:
+            blob = self.bucket.blob(gcs_object_name)
+            blob.upload_from_string(file_content)
+            logger.info(f"Uploaded content to {gcs_object_name}")
+            
+        except Exception as e:
+            logger.error(f"Failed to upload content to {gcs_object_name}: {e}")
+            raise
+
+    async def delete_file(self, gcs_object_name: str) -> None:
+        """
+        Delete a file from GCS
+        """
+        if not self.is_available():
+            raise Exception("GCS not available")
+            
+        try:
+            blob = self.bucket.blob(gcs_object_name)
+            blob.delete()
+            logger.info(f"Deleted {gcs_object_name} from GCS")
+            
+        except Exception as e:
+            logger.error(f"Failed to delete {gcs_object_name}: {e}")
+            raise
+
     def _get_content_type(self, filename: str) -> str:
         """Get content type based on file extension"""
         if filename.lower().endswith('.pdf'):
@@ -317,6 +365,26 @@ class GCSService:
             return 'application/zip'
         else:
             return 'application/octet-stream'
+
+def normalize_path(path: str) -> str:
+    """
+    Normalize file path for consistent storage
+    Replace backslashes with forward slashes and remove leading/trailing slashes
+    """
+    if not path:
+        return ""
+    
+    # Replace backslashes with forward slashes
+    normalized = path.replace('\\', '/')
+    
+    # Remove leading and trailing slashes
+    normalized = normalized.strip('/')
+    
+    # Handle empty path
+    if not normalized:
+        return ""
+    
+    return normalized
 
 # Fallback local storage for when GCS is not available
 class LocalStorageService:
@@ -342,7 +410,7 @@ class LocalStorageService:
         """
         raise Exception("File download not supported with local storage fallback")
     
-    def upload_temp_file(self, file_content: bytes, original_filename: str) -> str:
+    def upload_temp_file(self, file_content: bytes, original_filename: str, user_id: str = None) -> str:
         """Upload file to local temporary storage"""
         file_id = str(uuid.uuid4())
         timestamp = int(time.time())

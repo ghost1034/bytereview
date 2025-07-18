@@ -63,10 +63,6 @@ export class ApiClient {
     })
   }
 
-  async getUserUsage(): Promise<ApiResponse<ApiPaths['/api/users/usage']['get']>> {
-    return this.request('/api/users/usage')
-  }
-
   // Template endpoints
   async getTemplates(): Promise<ApiResponse<ApiPaths['/api/templates/']['get']>> {
     return this.request('/api/templates/')
@@ -295,16 +291,218 @@ export class ApiClient {
     return response.json()
   }
 
+  // Job-based workflow endpoints
+  async initiateJob(request: ApiRequest<ApiPaths['/api/jobs/initiate']['post']>): Promise<ApiResponse<ApiPaths['/api/jobs/initiate']['post']>> {
+    return this.request('/api/jobs/initiate', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    })
+  }
+
+  async startJob(jobId: string, request: ApiRequest<ApiPaths['/api/jobs/{job_id}/start']['post']>): Promise<ApiResponse<ApiPaths['/api/jobs/{job_id}/start']['post']>> {
+    return this.request(`/api/jobs/${jobId}/start`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    })
+  }
+
+  async getJobDetails(jobId: string): Promise<ApiResponse<ApiPaths['/api/jobs/{job_id}']['get']>> {
+    return this.request(`/api/jobs/${jobId}`)
+  }
+
+  async listJobs(params?: { limit?: number; offset?: number; status?: string }): Promise<ApiResponse<ApiPaths['/api/jobs']['get']>> {
+    const searchParams = new URLSearchParams()
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    if (params?.offset) searchParams.set('offset', params.offset.toString())
+    if (params?.status) searchParams.set('status', params.status)
+    
+    const query = searchParams.toString()
+    return this.request(`/api/jobs${query ? `?${query}` : ''}`)
+  }
+
+  async getJobProgress(jobId: string): Promise<ApiResponse<ApiPaths['/api/jobs/{job_id}/progress']['get']>> {
+    return this.request(`/api/jobs/${jobId}/progress`)
+  }
+
+  async getJobFiles(jobId: string): Promise<ApiResponse<ApiPaths['/api/jobs/{job_id}/files']['get']>> {
+    return this.request(`/api/jobs/${jobId}/files`)
+  }
+
+  async addFilesToJob(
+    jobId: string, 
+    files: File[], 
+    onProgress?: (filePath: string, progress: number) => void,
+    onFileComplete?: (fileData: any, filePath: string) => void
+  ): Promise<{ files: any[] }> {
+    const token = await this.getAuthToken()
+    
+    // Upload files one by one to get real progress for each
+    const uploadedFiles: any[] = []
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const filePath = (file as any).webkitRelativePath || file.name
+      console.log(`Uploading file ${i + 1}/${files.length}: ${filePath}`)
+      
+      // Initialize progress for this file
+      if (onProgress) {
+        onProgress(filePath, 0)
+      }
+      
+      const formData = new FormData()
+      formData.append('files', file)
+
+      // Create XMLHttpRequest for progress tracking
+      const uploadPromise = new Promise<any>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable && onProgress) {
+            const progress = (event.loaded / event.total) * 100
+            onProgress(filePath, progress)
+          }
+        })
+        
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const result = JSON.parse(xhr.responseText)
+              resolve(result)
+            } catch (e) {
+              reject(new Error('Invalid response format'))
+            }
+          } else {
+            reject(new Error(`Upload failed with status ${xhr.status}`))
+          }
+        })
+        
+        xhr.addEventListener('error', () => {
+          reject(new Error('Network error during upload'))
+        })
+        
+        xhr.open('POST', `${this.baseURL}/api/jobs/${jobId}/files`)
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+        xhr.send(formData)
+      })
+      
+      try {
+        const result = await uploadPromise
+        uploadedFiles.push(...result.files)
+        
+        // Mark as 100% complete and notify completion
+        if (onProgress) {
+          onProgress(filePath, 100)
+        }
+        
+        // Notify that this file is complete
+        if (onFileComplete && result.files.length > 0) {
+          onFileComplete(result.files[0], filePath)
+        }
+        
+      } catch (error) {
+        console.error(`Failed to upload ${filePath}:`, error)
+        throw error
+      }
+    }
+    
+    return { files: uploadedFiles }
+  }
+
+  async removeFileFromJob(jobId: string, fileId: string): Promise<void> {
+    await this.request(`/api/jobs/${jobId}/files/${fileId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  /**
+   * Get auth token for SSE connections (public method)
+   */
+  async getAuthTokenForSSE(): Promise<string> {
+    const user = auth.currentUser
+    if (!user) throw new Error('Not authenticated')
+    return await user.getIdToken()
+  }
+
+  async verifyJobAccess(jobId: string): Promise<void> {
+    // This will throw if user doesn't have access
+    await this.getJobDetails(jobId)
+  }
+
 }
 
 export const apiClient = new ApiClient()
 
 // Export commonly used types
 export type UserResponse = ApiResponse<ApiPaths['/api/users/me']['get']>
-export type UsageStats = ApiResponse<ApiPaths['/api/users/usage']['get']>
 export type TemplatesResponse = ApiResponse<ApiPaths['/api/templates/']['get']>
 export type ExtractionResponse = ApiResponse<ApiPaths['/api/extraction/extract']['post']>
 export type SubscriptionStatus = ApiResponse<ApiPaths['/api/stripe/subscription-status']['get']>
+
+// Job-related types
+export type JobInitiateResponse = ApiResponse<ApiPaths['/api/jobs/initiate']['post']>
+export type JobStartResponse = ApiResponse<ApiPaths['/api/jobs/{job_id}/start']['post']>
+export type JobDetailsResponse = ApiResponse<ApiPaths['/api/jobs/{job_id}']['get']>
+export type JobListResponse = ApiResponse<ApiPaths['/api/jobs']['get']>
+export type JobProgressResponse = ApiResponse<ApiPaths['/api/jobs/{job_id}/progress']['get']>
+export type JobFilesResponse = ApiResponse<ApiPaths['/api/jobs/{job_id}/files']['get']>
+
+// Additional workflow types
+export type JobStatus = 
+  | 'pending_configuration'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+
+export type ProcessingMode = 'individual' | 'combined'
+
+export interface FileUploadInfo {
+  filename: string
+  path: string
+  size: number
+  type: string
+}
+
+export interface TaskDefinition {
+  path: string
+  mode: ProcessingMode
+}
+
+export interface JobFieldConfig {
+  field_name: string
+  data_type_id: string
+  ai_prompt: string
+  display_order: number
+}
+
+// Frontend-specific types for the multi-step workflow
+export interface UploadedFile {
+  file: File
+  path: string
+  uploadUrl?: string
+  uploaded: boolean
+  error?: string
+}
+
+export interface WorkflowStep {
+  id: string
+  title: string
+  description: string
+  completed: boolean
+  current: boolean
+}
+
+export interface JobWorkflowState {
+  currentStep: number
+  jobId?: string
+  files: UploadedFile[]
+  fields: JobFieldConfig[]
+  taskDefinitions: TaskDefinition[]
+  jobName?: string
+  templateId?: string
+  persistData: boolean
+}
 
 // Export field configuration type from the generated types
 export type FieldConfig = {

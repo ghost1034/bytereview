@@ -130,7 +130,7 @@ export default function JobWorkflow({ onJobComplete }: JobWorkflowProps) {
     
     toast({
       title: "Files uploaded successfully",
-      description: `${files.length} files ready for processing`
+      description: `${files.length} files ready for analysis`
     })
     
     nextStep()

@@ -5,21 +5,36 @@ Background worker system for asynchronous job processing
 import os
 import asyncio
 import logging
+import uuid
+import mimetypes
+import tempfile
+import zipfile
+import shutil
 from typing import Dict, Any
+from datetime import datetime
+from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables first
 load_dotenv()
+
+import sys
+import os
+from pathlib import Path
+
+# Add the backend directory to Python path
+backend_dir = Path(__file__).parent.parent  # Go up to backend/ directory
+sys.path.insert(0, str(backend_dir))
 
 from arq import create_pool
 from arq.connections import RedisSettings
 from sqlalchemy.orm import Session
 from core.database import db_config
 from models.db_models import ExtractionTask, ExtractionResult, SourceFile, JobField, SystemPrompt, SourceFileToTask, ExtractionJob
+from models.job import FileStatus
 from services.ai_extraction_service import AIExtractionService
 from services.gcs_service import get_storage_service
 import json
-import tempfile
 
 logger = logging.getLogger(__name__)
 
@@ -224,19 +239,168 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str
 async def unpack_zip_file_task(ctx: Dict[str, Any], source_file_id: str) -> Dict[str, Any]:
     """
     Unpack a ZIP file and register its contents as individual source files
+    This task runs in the high-memory ZIP worker pool
     """
     logger.info(f"Unpacking ZIP file: {source_file_id}")
     
-    # TODO: Implement ZIP unpacking logic
-    # This would:
-    # 1. Download ZIP from GCS
-    # 2. Extract to temporary directory
-    # 3. Upload individual files back to GCS
-    # 4. Create SourceFile records for each extracted file
-    # 5. Update original ZIP status to "unpacked"
-    # 6. Clean up temporary files
-    
-    return {"success": True, "source_file_id": source_file_id, "files_extracted": 0}
+    db = db_config.get_session()
+    try:
+        # Get the ZIP source file from database
+        zip_file = db.query(SourceFile).filter(SourceFile.id == source_file_id).first()
+        if not zip_file:
+            raise ValueError(f"Source file {source_file_id} not found")
+        
+        # Update status to indicate unpacking has started
+        zip_file.status = FileStatus.UNPACKING.value
+        db.commit()
+        
+        # Initialize services
+        storage_service = get_storage_service()
+        
+        temp_dir = None
+        files_extracted = 0
+        
+        try:
+            # Create temporary directory
+            temp_dir = tempfile.mkdtemp(prefix=f"zip_extract_{source_file_id}_")
+            logger.info(f"Created temporary directory: {temp_dir}")
+            
+            # Download ZIP file from GCS to temporary location
+            zip_temp_path = os.path.join(temp_dir, "archive.zip")
+            await storage_service.download_file(zip_file.gcs_object_name, zip_temp_path)
+            logger.info(f"Downloaded ZIP file to: {zip_temp_path}")
+            
+            # Extract ZIP contents
+            extract_dir = os.path.join(temp_dir, "extracted")
+            os.makedirs(extract_dir, exist_ok=True)
+            
+            with zipfile.ZipFile(zip_temp_path, 'r') as zip_ref:
+                zip_ref.extractall(extract_dir)
+                logger.info(f"Extracted ZIP contents to: {extract_dir}")
+            
+            # Process extracted files
+            for root, dirs, files in os.walk(extract_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    
+                    # Skip hidden files and directories
+                    if file.startswith('.'):
+                        continue
+                    
+                    # Calculate relative path from extraction root
+                    rel_path = os.path.relpath(file_path, extract_dir)
+                    
+                    # Normalize path separators
+                    from services.gcs_service import normalize_path
+                    normalized_path = normalize_path(rel_path)
+                    
+                    # Generate new GCS object name for extracted file
+                    job_id = zip_file.job_id
+                    file_extension = os.path.splitext(file)[1]
+                    new_gcs_name = f"jobs/{job_id}/extracted/{uuid.uuid4()}{file_extension}"
+                    
+                    # Upload extracted file to GCS
+                    await storage_service.upload_file(file_path, new_gcs_name)
+                    logger.info(f"Uploaded extracted file: {normalized_path} -> {new_gcs_name}")
+                    
+                    # Get file size
+                    file_size = os.path.getsize(file_path)
+                    
+                    # Determine MIME type
+                    mime_type, _ = mimetypes.guess_type(file)
+                    if not mime_type:
+                        mime_type = "application/octet-stream"
+                    
+                    # Create new SourceFile record for extracted file
+                    extracted_file = SourceFile(
+                        job_id=job_id,
+                        original_filename=file,
+                        original_path=normalized_path,
+                        gcs_object_name=new_gcs_name,
+                        file_type=mime_type,
+                        file_size_bytes=file_size,
+                        status=FileStatus.UPLOADED.value  # Mark as uploaded since it's ready for processing
+                    )
+                    
+                    db.add(extracted_file)
+                    files_extracted += 1
+            
+            # Update original ZIP file status to "unpacked"
+            zip_file.status = FileStatus.UNPACKED.value
+            db.commit()
+            
+            # Send SSE events for extracted files
+            try:
+                from services.sse_service import sse_manager
+            except ImportError:
+                # Fallback for import issues
+                import importlib.util
+                spec = importlib.util.spec_from_file_location("sse_service", backend_dir / "services" / "sse_service.py")
+                sse_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(sse_module)
+                sse_manager = sse_module.sse_manager
+            
+            # Query the extracted files that were just added to the database
+            extracted_files = db.query(SourceFile).filter(
+                SourceFile.job_id == zip_file.job_id,
+                SourceFile.status == "uploaded",
+                SourceFile.id != zip_file.id  # Exclude the original ZIP file
+            ).all()
+            
+            # Convert extracted files to dict format for SSE
+            files_data = []
+            for extracted_file in extracted_files:
+                files_data.append({
+                    "id": str(extracted_file.id),
+                    "filename": extracted_file.original_filename,
+                    "original_path": extracted_file.original_path,
+                    "file_type": extracted_file.file_type,
+                    "file_size": extracted_file.file_size_bytes,
+                    "status": extracted_file.status
+                })
+            
+            logger.info(f"Sending files_extracted event for {len(files_data)} files")
+            await sse_manager.send_files_extracted(zip_file.job_id, files_data)
+            logger.info(f"Sending file_status_changed event for ZIP file")
+            await sse_manager.send_file_status_changed(zip_file.job_id, str(zip_file.id), "unpacked")
+            logger.info(f"SSE events sent successfully for job {zip_file.job_id}")
+            
+            logger.info(f"Successfully unpacked ZIP file {source_file_id}: {files_extracted} files extracted")
+            
+        finally:
+            # Clean up temporary directory
+            if temp_dir and os.path.exists(temp_dir):
+                try:
+                    shutil.rmtree(temp_dir)
+                    logger.info(f"Cleaned up temporary directory: {temp_dir}")
+                except Exception as e:
+                    logger.warning(f"Failed to clean up temporary directory {temp_dir}: {e}")
+        
+        return {
+            "success": True, 
+            "source_file_id": source_file_id, 
+            "files_extracted": files_extracted
+        }
+        
+    except Exception as e:
+        logger.error(f"Error unpacking ZIP file {source_file_id}: {e}")
+        
+        # Update status to failed
+        if 'zip_file' in locals():
+            zip_file.status = FileStatus.FAILED.value
+            db.commit()
+            
+            # Send SSE event for extraction failure
+            from services.sse_service import sse_manager
+            try:
+                from services.sse_service import sse_manager
+                await sse_manager.send_extraction_failed(zip_file.job_id, str(zip_file.id), str(e))
+            except ImportError as import_err:
+                logger.error(f"Could not import SSE service for error notification: {import_err}")
+        
+        raise
+    finally:
+        db.close()
 
 async def run_abandoned_cleanup(ctx: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -276,22 +440,40 @@ async def run_artifact_cleanup(ctx: Dict[str, Any]) -> Dict[str, Any]:
 
 # ARQ worker settings
 class WorkerSettings:
-    """ARQ worker configuration"""
+    """ARQ worker configuration for AI extraction tasks (default queue)"""
     
     redis_settings = RedisSettings.from_dsn(REDIS_URL)
     
     # Task functions that the worker can execute
     functions = [
         process_extraction_task,
-        unpack_zip_file_task,
         run_abandoned_cleanup,
         run_opt_out_cleanup,
         run_artifact_cleanup,
     ]
     
-    # Worker configuration
+    # Worker configuration for AI tasks (low memory, high concurrency)
     max_jobs = 10  # Maximum concurrent jobs
     job_timeout = 300  # 5 minutes timeout per job
+    keep_result = 3600  # Keep results for 1 hour
+    
+    # Logging
+    log_results = True
+
+class ZipWorkerSettings:
+    """ARQ worker configuration for ZIP unpacking tasks (zip_queue)"""
+    
+    redis_settings = RedisSettings.from_dsn(REDIS_URL)
+    queue_name = "zip_queue"  # Dedicated queue for ZIP tasks
+    
+    # Task functions for ZIP processing
+    functions = [
+        unpack_zip_file_task,
+    ]
+    
+    # Worker configuration for ZIP tasks (high memory, low concurrency)
+    max_jobs = 1  # Low concurrency to prevent memory issues
+    job_timeout = 1800  # 30 minutes timeout for large ZIP files
     keep_result = 3600  # Keep results for 1 hour
     
     # Logging

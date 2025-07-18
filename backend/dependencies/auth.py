@@ -70,3 +70,19 @@ async def get_current_user_email(token_data: Dict = Depends(verify_firebase_toke
     if not email:
         raise HTTPException(status_code=400, detail="User email not found in token")
     return email
+
+async def verify_token_string(token: str) -> str:
+    """
+    Verify a raw Firebase token string and return user ID
+    Used for SSE authentication via query parameter
+    """
+    try:
+        decoded_token = firebase_auth.verify_id_token(token)
+        user_id = decoded_token.get('uid')
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not found in token")
+        logger.info(f"Token verified for user: {user_id}")
+        return user_id
+    except Exception as e:
+        logger.warning(f"Token verification failed: {e}")
+        raise HTTPException(status_code=401, detail="Invalid or expired token")

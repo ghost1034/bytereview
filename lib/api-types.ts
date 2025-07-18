@@ -47,7 +47,7 @@ export interface paths {
         };
         /**
          * Get Current User
-         * @description Get current user information and create if doesn't exist
+         * @description Get current user information - returns existing user or creates minimal profile
          */
         get: operations["get_current_user_api_users_me_get"];
         /**
@@ -73,30 +73,10 @@ export interface paths {
         put?: never;
         /**
          * Sync User Profile
-         * @description Sync user profile from Firebase Auth to our database
-         *     This is the explicit endpoint for user creation/sync
+         * @description Sync user profile with data from frontend
+         *     Frontend sends complete user profile data
          */
         post: operations["sync_user_profile_api_users_me_sync_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/users/usage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get User Usage
-         * @description Get user's usage statistics
-         */
-        get: operations["get_user_usage_api_users_usage_get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -195,6 +175,71 @@ export interface paths {
          * @description Get job progress information for real-time updates
          */
         get: operations["get_job_progress_api_jobs__job_id__progress_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Job Files
+         * @description Get flat list of files in a job
+         */
+        get: operations["get_job_files_api_jobs__job_id__files_get"];
+        put?: never;
+        /**
+         * Add Files To Job
+         * @description Add more files to an existing job
+         *     Immediately extracts ZIP files via ARQ workers
+         */
+        post: operations["add_files_to_job_api_jobs__job_id__files_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/files/{file_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove File From Job
+         * @description Remove a file from a job (synchronous deletion for now)
+         */
+        delete: operations["remove_file_from_job_api_jobs__job_id__files__file_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream Job Events
+         * @description Simplified Server-Sent Events stream for real-time job updates
+         */
+        get: operations["stream_job_events_api_jobs__job_id__events_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -499,6 +544,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Body_add_files_to_job_api_jobs__job_id__files_post */
+        Body_add_files_to_job_api_jobs__job_id__files_post: {
+            /** Files */
+            files: string[];
+        };
         /** Body_extract_data_from_pdfs_api_extraction_extract_post */
         Body_extract_data_from_pdfs_api_extraction_extract_post: {
             /**
@@ -624,6 +674,12 @@ export interface components {
             prompt: string;
         };
         /**
+         * FileStatus
+         * @description File status enumeration
+         * @enum {string}
+         */
+        FileStatus: "uploading" | "uploaded" | "ready" | "unpacking" | "unpacked" | "failed";
+        /**
          * FileUploadInfo
          * @description Information about a file to be uploaded
          */
@@ -745,6 +801,45 @@ export interface components {
              * @description Display order
              */
             display_order: number;
+        };
+        /**
+         * JobFileInfo
+         * @description Information about a file in a job
+         */
+        JobFileInfo: {
+            /**
+             * Id
+             * @description File identifier
+             */
+            id: string;
+            /**
+             * Original Path
+             * @description Original file path
+             */
+            original_path: string;
+            /**
+             * Original Filename
+             * @description Original filename
+             */
+            original_filename: string;
+            /**
+             * File Size Bytes
+             * @description File size
+             */
+            file_size_bytes: number;
+            /** @description File processing status */
+            status: components["schemas"]["FileStatus"];
+        };
+        /**
+         * JobFilesResponse
+         * @description Response for job files listing
+         */
+        JobFilesResponse: {
+            /**
+             * Files
+             * @description List of files in the job
+             */
+            files: components["schemas"]["JobFileInfo"][];
         };
         /**
          * JobInitiateRequest
@@ -1008,20 +1103,6 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
-        /**
-         * UsageStats
-         * @description User usage statistics
-         */
-        UsageStats: {
-            /** Pages Used */
-            pages_used: number;
-            /** Pages Limit */
-            pages_limit: number;
-            /** Subscription Status */
-            subscription_status: string;
-            /** Usage Percentage */
-            usage_percentage: number;
-        };
         /** UserResponse */
         UserResponse: {
             /** Uid */
@@ -1042,23 +1123,13 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
-            /** Stripe Customer Id */
-            stripe_customer_id?: string | null;
-            /**
-             * Subscription Status
-             * @default free
-             */
-            subscription_status: string;
-            /**
-             * Pages Used
-             * @default 0
-             */
-            pages_used: number;
-            /**
-             * Pages Limit
-             * @default 10
-             */
-            pages_limit: number;
+        };
+        /** UserSyncRequest */
+        UserSyncRequest: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Photo Url */
+            photo_url?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1210,7 +1281,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserSyncRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -1221,24 +1296,13 @@ export interface operations {
                     "application/json": components["schemas"]["UserResponse"];
                 };
             };
-        };
-    };
-    get_user_usage_api_users_usage_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description Validation Error */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsageStats"];
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1396,6 +1460,137 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobProgressResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_job_files_api_jobs__job_id__files_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFilesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_files_to_job_api_jobs__job_id__files_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_add_files_to_job_api_jobs__job_id__files_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_file_from_job_api_jobs__job_id__files__file_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_job_events_api_jobs__job_id__events_get: {
+        parameters: {
+            query: {
+                token: string;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

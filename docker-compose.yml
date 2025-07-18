@@ -28,5 +28,47 @@ services:
       timeout: 5s
       retries: 5
 
+  # AI Worker Pool (for extraction tasks)
+  worker-ai:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bytereview-worker-ai-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://bytereview:bytereview@postgres:5432/bytereview_dev
+      - REDIS_URL=redis://redis:6379
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-key.json
+    volumes:
+      - ./backend:/app
+      - ./backend/firebase-key.json:/app/firebase-key.json:ro
+    command: python run_workers.py ai
+    restart: unless-stopped
+
+  # ZIP Worker Pool (for unpacking tasks)
+  worker-zip:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bytereview-worker-zip-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://bytereview:bytereview@postgres:5432/bytereview_dev
+      - REDIS_URL=redis://redis:6379
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-key.json
+    volumes:
+      - ./backend:/app
+      - ./backend/firebase-key.json:/app/firebase-key.json:ro
+    command: python run_workers.py zip
+    restart: unless-stopped
+
 volumes:
   postgres_data:

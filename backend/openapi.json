@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "FinancialExtract API",
-    "description": "AI-powered PDF data extraction service with field configuration and template management",
-    "version": "1.0.0"
+    "title": "ByteReview API",
+    "description": "AI-powered document data extraction service with asynchronous job processing",
+    "version": "2.0.0"
   },
   "paths": {
     "/": {
@@ -44,7 +44,7 @@
           "users"
         ],
         "summary": "Get Current User",
-        "description": "Get current user information and create if doesn't exist",
+        "description": "Get current user information - returns existing user or creates minimal profile",
         "operationId": "get_current_user_api_users_me_get",
         "responses": {
           "200": {
@@ -110,21 +110,41 @@
         ]
       }
     },
-    "/api/users/usage": {
-      "get": {
+    "/api/users/me/sync": {
+      "post": {
         "tags": [
           "users"
         ],
-        "summary": "Get User Usage",
-        "description": "Get user's usage statistics",
-        "operationId": "get_user_usage_api_users_usage_get",
+        "summary": "Sync User Profile",
+        "description": "Sync user profile with data from frontend\nFrontend sends complete user profile data",
+        "operationId": "sync_user_profile_api_users_me_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UsageStats"
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -135,6 +155,496 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/jobs/initiate": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Initiate Job",
+        "description": "Step 1: Initiate a new extraction job and get pre-signed upload URLs",
+        "operationId": "initiate_job_api_jobs_initiate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobInitiateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobInitiateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/jobs/{job_id}/start": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Start Job",
+        "description": "Step 2: Start job processing with field configuration and task definitions",
+        "operationId": "start_job_api_jobs__job_id__start_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobStartRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStartResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Job Details",
+        "description": "Get detailed information about a specific job",
+        "operationId": "get_job_details_api_jobs__job_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDetailsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "List Jobs",
+        "description": "List jobs for the current user with pagination and filtering",
+        "operationId": "list_jobs_api_jobs_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Number of jobs to return",
+              "default": 25,
+              "title": "Limit"
+            },
+            "description": "Number of jobs to return"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of jobs to skip",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Number of jobs to skip"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by job status",
+              "title": "Status"
+            },
+            "description": "Filter by job status"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/progress": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Job Progress",
+        "description": "Get job progress information for real-time updates",
+        "operationId": "get_job_progress_api_jobs__job_id__progress_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobProgressResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/files": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Add Files To Job",
+        "description": "Add more files to an existing job\nImmediately extracts ZIP files via ARQ workers",
+        "operationId": "add_files_to_job_api_jobs__job_id__files_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_add_files_to_job_api_jobs__job_id__files_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Job Files",
+        "description": "Get flat list of files in a job",
+        "operationId": "get_job_files_api_jobs__job_id__files_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/files/{file_id}": {
+      "delete": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Remove File From Job",
+        "description": "Remove a file from a job (synchronous deletion for now)",
+        "operationId": "remove_file_from_job_api_jobs__job_id__files__file_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/events": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Stream Job Events",
+        "description": "Server-Sent Events stream for real-time job updates",
+        "operationId": "stream_job_events_api_jobs__job_id__events_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/stripe/create-checkout-session": {
@@ -277,7 +787,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/models__upload__FileUploadResponse"
+                }
               }
             }
           },
@@ -532,6 +1044,101 @@
         }
       }
     },
+    "/api/extraction/cleanup/{file_id}": {
+      "delete": {
+        "tags": [
+          "extraction"
+        ],
+        "summary": "Cleanup Uploaded File",
+        "description": "Delete a specific uploaded file from storage and cache",
+        "operationId": "cleanup_uploaded_file_api_extraction_cleanup__file_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/extraction/cleanup-multiple": {
+      "delete": {
+        "tags": [
+          "extraction"
+        ],
+        "summary": "Cleanup Multiple Files",
+        "description": "Delete multiple uploaded files from storage and cache",
+        "operationId": "cleanup_multiple_files_api_extraction_cleanup_multiple_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "title": "File Ids"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/templates/": {
       "get": {
         "tags": [
@@ -767,6 +1374,23 @@
   },
   "components": {
     "schemas": {
+      "Body_add_files_to_job_api_jobs__job_id__files_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string",
+              "format": "binary"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files"
+        ],
+        "title": "Body_add_files_to_job_api_jobs__job_id__files_post"
+      },
       "Body_extract_data_from_pdfs_api_extraction_extract_post": {
         "properties": {
           "files": {
@@ -1055,6 +1679,39 @@
         ],
         "title": "FieldConfig"
       },
+      "FileUploadInfo": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename",
+            "description": "Original filename"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "Relative path within upload structure"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size",
+            "description": "File size in bytes"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "MIME type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "path",
+          "size",
+          "type"
+        ],
+        "title": "FileUploadInfo",
+        "description": "Information about a file to be uploaded"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1067,6 +1724,372 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "JobDetailsResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Job identifier"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Job name"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus",
+            "description": "Current job status"
+          },
+          "persist_data": {
+            "type": "boolean",
+            "title": "Persist Data",
+            "description": "Data persistence setting"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Creation timestamp"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At",
+            "description": "Completion timestamp"
+          },
+          "job_fields": {
+            "items": {
+              "$ref": "#/components/schemas/JobFieldInfo"
+            },
+            "type": "array",
+            "title": "Job Fields",
+            "description": "Field configuration"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "persist_data",
+          "created_at",
+          "job_fields"
+        ],
+        "title": "JobDetailsResponse",
+        "description": "Detailed job information"
+      },
+      "JobFieldConfig": {
+        "properties": {
+          "field_name": {
+            "type": "string",
+            "title": "Field Name",
+            "description": "Name of the field"
+          },
+          "data_type_id": {
+            "type": "string",
+            "title": "Data Type Id",
+            "description": "Data type identifier"
+          },
+          "ai_prompt": {
+            "type": "string",
+            "title": "Ai Prompt",
+            "description": "AI extraction prompt"
+          },
+          "display_order": {
+            "type": "integer",
+            "title": "Display Order",
+            "description": "Display order",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "field_name",
+          "data_type_id",
+          "ai_prompt"
+        ],
+        "title": "JobFieldConfig",
+        "description": "Field configuration for a job (snapshot from template)"
+      },
+      "JobFieldInfo": {
+        "properties": {
+          "field_name": {
+            "type": "string",
+            "title": "Field Name",
+            "description": "Field name"
+          },
+          "data_type_id": {
+            "type": "string",
+            "title": "Data Type Id",
+            "description": "Data type"
+          },
+          "ai_prompt": {
+            "type": "string",
+            "title": "Ai Prompt",
+            "description": "AI prompt"
+          },
+          "display_order": {
+            "type": "integer",
+            "title": "Display Order",
+            "description": "Display order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field_name",
+          "data_type_id",
+          "ai_prompt",
+          "display_order"
+        ],
+        "title": "JobFieldInfo",
+        "description": "Information about a job field"
+      },
+      "JobInitiateRequest": {
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/FileUploadInfo"
+            },
+            "type": "array",
+            "title": "Files",
+            "description": "List of files to upload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files"
+        ],
+        "title": "JobInitiateRequest",
+        "description": "Request to initiate a new job"
+      },
+      "JobInitiateResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id",
+            "description": "Unique job identifier"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/models__job__FileUploadResponse"
+            },
+            "type": "array",
+            "title": "Files",
+            "description": "Upload URLs for each file"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "files"
+        ],
+        "title": "JobInitiateResponse",
+        "description": "Response for job initiation"
+      },
+      "JobListItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Job identifier"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Job name"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus",
+            "description": "Job status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Creation timestamp"
+          },
+          "file_count": {
+            "type": "integer",
+            "title": "File Count",
+            "description": "Number of files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "created_at",
+          "file_count"
+        ],
+        "title": "JobListItem",
+        "description": "Job list item for job listing"
+      },
+      "JobListResponse": {
+        "properties": {
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/JobListItem"
+            },
+            "type": "array",
+            "title": "Jobs",
+            "description": "List of jobs"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total number of jobs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "jobs",
+          "total"
+        ],
+        "title": "JobListResponse",
+        "description": "Response for job listing"
+      },
+      "JobProgressResponse": {
+        "properties": {
+          "total_tasks": {
+            "type": "integer",
+            "title": "Total Tasks",
+            "description": "Total number of tasks"
+          },
+          "completed": {
+            "type": "integer",
+            "title": "Completed",
+            "description": "Completed tasks"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "description": "Failed tasks"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus",
+            "description": "Overall job status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_tasks",
+          "completed",
+          "failed",
+          "status"
+        ],
+        "title": "JobProgressResponse",
+        "description": "Job progress information"
+      },
+      "JobStartRequest": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "User-friendly job name"
+          },
+          "template_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Id",
+            "description": "Template ID to use"
+          },
+          "persist_data": {
+            "type": "boolean",
+            "title": "Persist Data",
+            "description": "Whether to persist data",
+            "default": true
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/JobFieldConfig"
+            },
+            "type": "array",
+            "title": "Fields",
+            "description": "Field configuration"
+          },
+          "task_definitions": {
+            "items": {
+              "$ref": "#/components/schemas/TaskDefinition"
+            },
+            "type": "array",
+            "title": "Task Definitions",
+            "description": "Processing definitions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fields",
+          "task_definitions"
+        ],
+        "title": "JobStartRequest",
+        "description": "Request to start job processing"
+      },
+      "JobStartResponse": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Success message"
+          },
+          "job_id": {
+            "type": "string",
+            "title": "Job Id",
+            "description": "Job identifier"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "job_id"
+        ],
+        "title": "JobStartResponse",
+        "description": "Response for job start"
+      },
+      "JobStatus": {
+        "type": "string",
+        "enum": [
+          "pending_configuration",
+          "processing",
+          "completed",
+          "failed",
+          "cancelled"
+        ],
+        "title": "JobStatus",
+        "description": "Job status enumeration"
       },
       "ProcessedFile": {
         "properties": {
@@ -1102,6 +2125,15 @@
           "num_pages"
         ],
         "title": "ProcessedFile"
+      },
+      "ProcessingMode": {
+        "type": "string",
+        "enum": [
+          "individual",
+          "combined"
+        ],
+        "title": "ProcessingMode",
+        "description": "File processing mode enumeration"
       },
       "SubscriptionStatus": {
         "properties": {
@@ -1146,6 +2178,26 @@
         ],
         "title": "SubscriptionStatus",
         "description": "User's subscription status information"
+      },
+      "TaskDefinition": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "Folder path to process"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ProcessingMode",
+            "description": "Processing mode for this path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "mode"
+        ],
+        "title": "TaskDefinition",
+        "description": "Definition of how files should be processed"
       },
       "TemplateCreateRequest": {
         "properties": {
@@ -1260,34 +2312,52 @@
         "type": "object",
         "title": "UpdateProfileRequest"
       },
-      "UsageStats": {
+      "UploadedFileInfo": {
         "properties": {
-          "pages_used": {
-            "type": "integer",
-            "title": "Pages Used"
-          },
-          "pages_limit": {
-            "type": "integer",
-            "title": "Pages Limit"
-          },
-          "subscription_status": {
+          "file_id": {
             "type": "string",
-            "title": "Subscription Status"
+            "title": "File Id"
           },
-          "usage_percentage": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          },
+          "is_zip": {
+            "type": "boolean",
+            "title": "Is Zip",
+            "default": false
+          },
+          "extracted_count": {
+            "type": "integer",
+            "title": "Extracted Count",
+            "default": 1
+          },
+          "upload_time": {
             "type": "number",
-            "title": "Usage Percentage"
+            "title": "Upload Time"
+          },
+          "extracted_files": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Extracted Files"
           }
         },
         "type": "object",
         "required": [
-          "pages_used",
-          "pages_limit",
-          "subscription_status",
-          "usage_percentage"
+          "file_id",
+          "filename",
+          "size_bytes",
+          "upload_time"
         ],
-        "title": "UsageStats",
-        "description": "User usage statistics"
+        "title": "UploadedFileInfo",
+        "description": "Information about an uploaded file"
       },
       "UserResponse": {
         "properties": {
@@ -1330,32 +2400,6 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
-          },
-          "stripe_customer_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Stripe Customer Id"
-          },
-          "subscription_status": {
-            "type": "string",
-            "title": "Subscription Status",
-            "default": "free"
-          },
-          "pages_used": {
-            "type": "integer",
-            "title": "Pages Used",
-            "default": 0
-          },
-          "pages_limit": {
-            "type": "integer",
-            "title": "Pages Limit",
-            "default": 10
           }
         },
         "type": "object",
@@ -1366,6 +2410,34 @@
           "updated_at"
         ],
         "title": "UserResponse"
+      },
+      "UserSyncRequest": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Url"
+          }
+        },
+        "type": "object",
+        "title": "UserSyncRequest"
       },
       "ValidationError": {
         "properties": {
@@ -1399,6 +2471,70 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "models__job__FileUploadResponse": {
+        "properties": {
+          "original_path": {
+            "type": "string",
+            "title": "Original Path",
+            "description": "Original file path"
+          },
+          "upload_url": {
+            "type": "string",
+            "title": "Upload Url",
+            "description": "Pre-signed URL for upload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "original_path",
+          "upload_url"
+        ],
+        "title": "FileUploadResponse",
+        "description": "Response for file upload preparation"
+      },
+      "models__upload__FileUploadResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "uploaded_files": {
+            "items": {
+              "$ref": "#/components/schemas/UploadedFileInfo"
+            },
+            "type": "array",
+            "title": "Uploaded Files"
+          },
+          "total_files": {
+            "type": "integer",
+            "title": "Total Files"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "uploaded_files",
+          "total_files",
+          "message"
+        ],
+        "title": "FileUploadResponse",
+        "description": "Response from file upload endpoint"
       }
     },
     "securitySchemes": {

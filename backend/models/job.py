@@ -7,6 +7,9 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
 
+# Export the enums for OpenAPI generation
+__all__ = ["JobStatus", "ProcessingMode", "FileStatus", "JobInitiateRequest", "JobInitiateResponse", "JobStartRequest", "JobStartResponse", "JobDetailsResponse", "JobListResponse", "JobProgressResponse", "JobResultsResponse"]
+
 class JobStatus(str, Enum):
     """Job status enumeration"""
     PENDING_CONFIGURATION = "pending_configuration"
@@ -19,6 +22,15 @@ class ProcessingMode(str, Enum):
     """File processing mode enumeration"""
     INDIVIDUAL = "individual"
     COMBINED = "combined"
+
+class FileStatus(str, Enum):
+    """File status enumeration"""
+    UPLOADING = "uploading"
+    UPLOADED = "uploaded"
+    READY = "ready"
+    UNPACKING = "unpacking"  # ZIP files being unpacked
+    UNPACKED = "unpacked"    # ZIP files that have been unpacked
+    FAILED = "failed"
 
 class FileUploadInfo(BaseModel):
     """Information about a file to be uploaded"""
@@ -72,7 +84,7 @@ class JobFileInfo(BaseModel):
     original_path: str = Field(..., description="Original file path")
     original_filename: str = Field(..., description="Original filename")
     file_size_bytes: int = Field(..., description="File size")
-    status: str = Field(..., description="File processing status")
+    status: FileStatus = Field(..., description="File processing status")
 
 class JobFieldInfo(BaseModel):
     """Information about a job field"""
@@ -122,3 +134,7 @@ class JobResultsResponse(BaseModel):
     """Job results with pagination"""
     total: int = Field(..., description="Total number of results")
     results: List[ExtractionTaskResult] = Field(..., description="Extraction results")
+
+class JobFilesResponse(BaseModel):
+    """Response for job files listing"""
+    files: List[JobFileInfo] = Field(..., description="List of files in the job")

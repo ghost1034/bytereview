@@ -6,23 +6,24 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
-import { jobApiClient } from '@/lib/job-api'
+import { apiClient } from '@/lib/api'
 import {
-  JobInitiateRequest,
-  JobStartRequest,
+  JobInitiateResponse,
+  JobStartResponse,
   JobDetailsResponse,
   JobListResponse,
   JobProgressResponse,
-  JobResultsResponse,
-  UploadedFile
-} from '@/lib/job-types'
+  UploadedFile,
+  JobFieldConfig,
+  TaskDefinition
+} from '@/lib/api'
 
 /**
  * Hook to initiate a new job
  */
 export function useInitiateJob() {
   return useMutation({
-    mutationFn: (request: JobInitiateRequest) => jobApiClient.initiateJob(request),
+    mutationFn: (request: { files: { filename: string; path: string; size: number; type: string }[] }) => apiClient.initiateJob(request),
   })
 }
 
@@ -34,7 +35,7 @@ export function useStartJob() {
   
   return useMutation({
     mutationFn: ({ jobId, request }: { jobId: string; request: JobStartRequest }) =>
-      jobApiClient.startJob(jobId, request),
+      apiClient.startJob(jobId, request),
     onSuccess: (_, { jobId }) => {
       // Invalidate job details and list
       queryClient.invalidateQueries({ queryKey: ['job', jobId] })
@@ -54,7 +55,7 @@ export function useUploadFiles() {
     }: {
       files: UploadedFile[]
       onProgress?: (fileIndex: number, progress: number) => void
-    }) => jobApiClient.uploadFiles(files, onProgress),
+    }) => { throw new Error('uploadFiles method removed - use addFilesToJob instead') },
   })
 }
 
@@ -69,7 +70,7 @@ export function useInitiateAndUploadFiles() {
     }: {
       files: File[]
       onProgress?: (fileIndex: number, progress: number) => void
-    }) => jobApiClient.initiateAndUploadFiles(files, onProgress),
+    }) => { throw new Error('initiateAndUploadFiles method removed - use initiateJob + addFilesToJob instead') },
   })
 }
 
@@ -79,7 +80,7 @@ export function useInitiateAndUploadFiles() {
 export function useJobDetails(jobId: string | undefined) {
   return useQuery<JobDetailsResponse>({
     queryKey: ['job', jobId],
-    queryFn: () => jobApiClient.getJobDetails(jobId!),
+    queryFn: () => apiClient.getJobDetails(jobId!),
     enabled: !!jobId,
     refetchInterval: (data) => {
       // Poll every 2 seconds if job is processing
@@ -96,7 +97,7 @@ export function useJobs(limit = 25, offset = 0, status?: string) {
   
   return useQuery<JobListResponse>({
     queryKey: ['jobs', user?.uid, limit, offset, status],
-    queryFn: () => jobApiClient.listJobs(limit, offset, status),
+    queryFn: () => apiClient.listJobs({ limit, offset, status }),
     enabled: !!user,
     staleTime: 30 * 1000, // 30 seconds
   })
@@ -108,7 +109,7 @@ export function useJobs(limit = 25, offset = 0, status?: string) {
 export function useJobProgress(jobId: string | undefined) {
   return useQuery<JobProgressResponse>({
     queryKey: ['job-progress', jobId],
-    queryFn: () => jobApiClient.getJobProgress(jobId!),
+    queryFn: () => apiClient.getJobProgress(jobId!),
     enabled: !!jobId,
     refetchInterval: (data) => {
       // Poll every 1 second if job is processing
@@ -123,7 +124,7 @@ export function useJobProgress(jobId: string | undefined) {
 export function useJobResults(jobId: string | undefined, limit = 50, offset = 0) {
   return useQuery<JobResultsResponse>({
     queryKey: ['job-results', jobId, limit, offset],
-    queryFn: () => jobApiClient.getJobResults(jobId!, limit, offset),
+    queryFn: () => { throw new Error('getJobResults not implemented yet') },
     enabled: !!jobId,
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
@@ -147,7 +148,7 @@ export function useJobWorkflow() {
       files: File[]
       onProgress?: (fileIndex: number, progress: number) => void
     }) => {
-      return jobApiClient.initiateAndUploadFiles(files, onProgress)
+      throw new Error('initiateAndUploadFiles method removed - use initiateJob + addFilesToJob instead')
     },
     onSuccess: () => {
       // Invalidate jobs list after successful initiation
@@ -171,7 +172,7 @@ export function useJobWorkflow() {
       fields: any[]
       taskDefinitions: any[]
     }) => {
-      return jobApiClient.startJob(jobId, {
+      return apiClient.startJob(jobId, {
         name: jobName,
         template_id: templateId,
         persist_data: persistData,
@@ -202,11 +203,12 @@ export function useJobWorkflow() {
 
 // Re-export types for convenience
 export type {
-  JobInitiateRequest,
-  JobStartRequest,
+  JobInitiateResponse,
+  JobStartResponse,
   JobDetailsResponse,
   JobListResponse,
   JobProgressResponse,
-  JobResultsResponse,
-  UploadedFile
-} from '@/lib/job-types'
+  UploadedFile,
+  JobFieldConfig,
+  TaskDefinition
+} from '@/lib/api'

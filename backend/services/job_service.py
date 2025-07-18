@@ -2,11 +2,20 @@
 Job service for ByteReview
 Handles job lifecycle, file management, and task orchestration
 """
+import os
+import uuid
+import logging
+from typing import Dict, Any, List, Optional
+from datetime import datetime, timedelta
+from fastapi import UploadFile
+from arq import create_pool
+from arq.connections import RedisSettings
+
 from models.job import (
     JobInitiateRequest, JobInitiateResponse, JobStartRequest, JobStartResponse,
     JobDetailsResponse, JobListResponse, JobProgressResponse, JobResultsResponse,
     JobStatus, ProcessingMode, FileUploadResponse, JobListItem, JobFieldInfo,
-    ExtractionTaskResult
+    ExtractionTaskResult, JobFileInfo, FileStatus
 )
 from models.db_models import (
     ExtractionJob, SourceFile, JobField, ExtractionTask, SourceFileToTask,
@@ -56,7 +65,7 @@ class JobService:
             # Create extraction job
             job = ExtractionJob(
                 user_id=user_id,
-                status=JobStatus.PENDING_CONFIGURATION.value
+                status=JobStatus.PENDING_CONFIGURATION.value  # Start with pending_configuration status
             )
             db.add(job)
             db.flush()  # Get the job ID
@@ -81,7 +90,7 @@ class JobService:
                     gcs_object_name=gcs_object_name,
                     file_type=file_info.type,
                     file_size_bytes=file_info.size,
-                    status='uploading'
+                    status=FileStatus.UPLOADING.value
                 )
                 db.add(source_file)
                 
@@ -385,6 +394,208 @@ class JobService:
         finally:
             db.close()
 
-    # TODO: Implement job results and export methods
+    async def add_files_to_job(self, user_id: str, job_id: str, files: List[UploadFile]) -> List[Dict[str, Any]]:
+        """
+        Add more files to an existing job
+        Immediately extracts ZIP files via ARQ workers
+        """
+        db = self._get_session()
+        try:
+            # Get the job
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id,
+                ExtractionJob.status == JobStatus.PENDING_CONFIGURATION.value
+            ).first()
+            
+            if not job:
+                raise ValueError(f"Job {job_id} not found or not in correct state")
+            
+            uploaded_files = []
+            storage_service = get_storage_service()
+            
+            for file in files:
+                # Generate unique GCS object name
+                file_extension = os.path.splitext(file.filename)[1] if file.filename else ""
+                gcs_object_name = f"jobs/{job_id}/{uuid.uuid4()}{file_extension}"
+                
+                # Upload to GCS
+                file_content = await file.read()
+                await storage_service.upload_file_content(file_content, gcs_object_name)
+                
+                # Determine file type
+                content_type = file.content_type or "application/octet-stream"
+                
+                # Create SourceFile record
+                source_file = SourceFile(
+                    job_id=job.id,
+                    original_filename=file.filename or "unknown",
+                    original_path=file.filename or "unknown",
+                    gcs_object_name=gcs_object_name,
+                    file_type=content_type,
+                    file_size_bytes=len(file_content),
+                    status=FileStatus.READY.value if not content_type.startswith("application/zip") else FileStatus.UNPACKING.value
+                )
+                
+                db.add(source_file)
+                db.flush()  # Get the ID
+                
+                uploaded_files.append({
+                    "id": str(source_file.id),
+                    "filename": source_file.original_filename,
+                    "file_type": source_file.file_type,
+                    "file_size": source_file.file_size_bytes,
+                    "status": source_file.status
+                })
+                
+                # If ZIP file, enqueue extraction task
+                if content_type in ['application/zip', 'application/x-zip-compressed']:
+                    await self._enqueue_zip_extraction(source_file.id)
+                    logger.info(f"Enqueued ZIP extraction for file {source_file.id}")
+            
+            db.commit()
+            logger.info(f"Added {len(uploaded_files)} files to job {job_id}")
+            
+            # No longer send SSE events for file uploads - handled directly by API response
+            # SSE is now only used for background operations like ZIP extraction
+            
+            return uploaded_files
+            
+        except Exception as e:
+            logger.error(f"Failed to add files to job {job_id}: {e}")
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    async def get_job_files(self, user_id: str, job_id: str) -> List[JobFileInfo]:
+        """Get flat list of files in a job"""
+        db = self._get_session()
+        try:
+            # Get the job
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id
+            ).first()
+            
+            if not job:
+                raise ValueError(f"Job {job_id} not found")
+            
+            # Get all source files
+            source_files = db.query(SourceFile).filter(
+                SourceFile.job_id == job.id
+            ).order_by(SourceFile.id).all()
+            
+            files = []
+            for source_file in source_files:
+                files.append(JobFileInfo(
+                    id=str(source_file.id),
+                    original_filename=source_file.original_filename,
+                    original_path=source_file.original_path,
+                    file_size_bytes=source_file.file_size_bytes,
+                    status=FileStatus(source_file.status)
+                ))
+            
+            return files
+            
+        except Exception as e:
+            logger.error(f"Failed to get files for job {job_id}: {e}")
+            raise
+        finally:
+            db.close()
+
+    async def remove_file_from_job(self, user_id: str, job_id: str, file_id: str) -> None:
+        """Remove a file from a job (synchronous deletion for now)"""
+        db = self._get_session()
+        try:
+            # Get the job
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id,
+                ExtractionJob.status == JobStatus.PENDING_CONFIGURATION.value
+            ).first()
+            
+            if not job:
+                raise ValueError(f"Job {job_id} not found or not in correct state")
+            
+            # Get the source file
+            source_file = db.query(SourceFile).filter(
+                SourceFile.id == file_id,
+                SourceFile.job_id == job.id
+            ).first()
+            
+            if not source_file:
+                raise ValueError(f"File {file_id} not found in job {job_id}")
+            
+            # Delete from GCS
+            storage_service = get_storage_service()
+            try:
+                await storage_service.delete_file(source_file.gcs_object_name)
+            except Exception as e:
+                logger.warning(f"Failed to delete file from GCS: {e}")
+                # Continue with database deletion even if GCS deletion fails
+            
+            # TODO: If this was a ZIP file, also delete all extracted files
+            # This requires adding parent_zip_file_id to the SourceFile model
+            # For now, extracted files will remain as orphaned files
+            if source_file.file_type in ['application/zip', 'application/x-zip-compressed']:
+                logger.info(f"Deleted ZIP file {file_id}, but extracted files remain (orphaned)")
+            
+            # Delete the source file record
+            db.delete(source_file)
+            db.commit()
+            
+            logger.info(f"Removed file {file_id} from job {job_id}")
+            
+            # No longer send SSE events for file deletion - handled directly by API response
+            
+        except Exception as e:
+            logger.error(f"Failed to remove file {file_id} from job {job_id}: {e}")
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    async def _enqueue_zip_extraction(self, source_file_id: str) -> None:
+        """Enqueue ZIP extraction task"""
+        try:
+            # Get Redis connection
+            redis = await create_pool(self.redis_settings)
+            
+            try:
+                # Enqueue to zip_queue
+                job_info = await redis.enqueue_job(
+                    'unpack_zip_file_task',
+                    str(source_file_id),
+                    _queue_name='zip_queue'
+                )
+                logger.info(f"Enqueued ZIP extraction task for file {source_file_id} as job {job_info.job_id}")
+                
+            finally:
+                await redis.close()
+                
+        except Exception as e:
+            logger.error(f"Failed to enqueue ZIP extraction task: {e}")
+            raise
+
+    async def verify_job_access(self, user_id: str, job_id: str) -> None:
+        """Verify that a user has access to a specific job"""
+        db = self._get_session()
+        try:
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id
+            ).first()
+            
+            if not job:
+                raise ValueError(f"Job {job_id} not found")
+                
+        except Exception as e:
+            logger.error(f"Failed to verify job access for {job_id}: {e}")
+            raise
+        finally:
+            db.close()
+
+    # TODO: Implement additional methods
     # async def get_job_results(self, user_id: str, job_id: str, limit: int = 50, offset: int = 0) -> JobResultsResponse
     # async def delete_job(self, user_id: str, job_id: str) -> bool
