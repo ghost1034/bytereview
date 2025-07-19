@@ -65,6 +65,7 @@ class JobService:
             # Create extraction job
             job = ExtractionJob(
                 user_id=user_id,
+                name=request.name,  # Set the job name from request
                 status=JobStatus.PENDING_CONFIGURATION.value  # Start with pending_configuration status
             )
             db.add(job)
@@ -598,4 +599,33 @@ class JobService:
 
     # TODO: Implement additional methods
     # async def get_job_results(self, user_id: str, job_id: str, limit: int = 50, offset: int = 0) -> JobResultsResponse
-    # async def delete_job(self, user_id: str, job_id: str) -> bool
+    async def delete_job(self, user_id: str, job_id: str) -> bool:
+        """Delete a job and all its associated data"""
+        db = self._get_session()
+        try:
+            # Get the job and verify ownership
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id
+            ).first()
+            
+            if not job:
+                raise ValueError(f"Job {job_id} not found")
+            
+            # Delete the job (cascade will handle related records)
+            db.delete(job)
+            db.commit()
+            
+            logger.info(f"Deleted job {job_id} for user {user_id}")
+            
+            # TODO: Enqueue background task to clean up GCS files
+            # For now, we'll just delete the database records
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to delete job {job_id}: {e}")
+            db.rollback()
+            raise
+        finally:
+            db.close()

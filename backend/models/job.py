@@ -47,6 +47,7 @@ class FileUploadResponse(BaseModel):
 class JobInitiateRequest(BaseModel):
     """Request to initiate a new job"""
     files: List[FileUploadInfo] = Field(..., description="List of files to upload")
+    name: Optional[str] = Field(None, description="Job name")
 
 class JobInitiateResponse(BaseModel):
     """Response for job initiation"""

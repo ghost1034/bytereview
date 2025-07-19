@@ -233,7 +233,16 @@ async def stream_job_events(
 #     """Export job results as CSV or XLSX"""
 #     pass
 
-# @router.delete("/{job_id}")
-# async def delete_job(job_id: str, user_id: str = Depends(get_current_user_id)):
-#     """Delete a job and all its data"""
-#     pass
+@router.delete("/{job_id}")
+async def delete_job(job_id: str, user_id: str = Depends(get_current_user_id)):
+    """Delete a job and all its data"""
+    try:
+        logger.info(f"Deleting job {job_id} for user {user_id}")
+        await job_service.delete_job(user_id, job_id)
+        return {"message": "Job deleted successfully"}
+    except ValueError as e:
+        logger.warning(f"Job {job_id} not found for user {user_id}: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to delete job {job_id} for user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete job: {str(e)}")
