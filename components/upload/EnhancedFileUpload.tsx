@@ -219,6 +219,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
   // Load existing files function
   const loadExistingFiles = async () => {
     try {
+      // Load all files for display purposes (including ZIP files for transparency)
       const data = await apiClient.getJobFiles(jobId)
       setFiles(data.files || [])
     } catch (error) {
@@ -803,14 +804,30 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
         <div className="flex-1" />
         
         <Button
-          onClick={() => onFilesReady(files)}
+          onClick={async () => {
+            // Get only processable files from the backend for data extraction
+            try {
+              const data = await apiClient.getJobFiles(jobId, { processable: true })
+              onFilesReady(data.files || [])
+            } catch (error) {
+              console.error('Error getting processable files:', error)
+              // Fallback to client-side filtering if API call fails
+              const processableFiles = files.filter(file => {
+                const filename = file.original_filename?.toLowerCase() || ''
+                return !filename.endsWith('.zip') && 
+                       !filename.endsWith('.7z') && 
+                       !filename.endsWith('.rar')
+              })
+              onFilesReady(processableFiles)
+            }
+          }}
           disabled={!allFilesReady}
           className="min-w-[200px]"
         >
           {allFilesReady ? (
             <>
               <CheckCircle className="w-4 h-4 mr-2" />
-              Continue to Configuration ({readyFiles.length} files)
+              Continue to Configuration
             </>
           ) : (
             <>

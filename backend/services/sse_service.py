@@ -25,6 +25,24 @@ class SSEManager:
         Listen for events related to a specific job
         Simplified version with just local queues and Redis pub/sub
         """
+        # Check if job is already completed - if so, don't start SSE connection
+        try:
+            from core.database import db_config
+            from models.db_models import ExtractionJob
+            
+            db = db_config.get_session()
+            try:
+                job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
+                if job and job.status == 'completed':
+                    logger.info(f"Job {job_id} is already completed, not starting SSE connection")
+                    yield {"type": "job_already_completed", "job_id": job_id}
+                    return
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"Could not check job status for {job_id}: {e}")
+            # Continue with connection if we can't check status
+        
         # Create a queue for this listener
         event_queue = asyncio.Queue()
         
@@ -37,42 +55,40 @@ class SSEManager:
         channel = f"job_events_{job_id}"
         await pubsub.subscribe(channel)
         
+        job_completed = False
+        
         try:
             # Send initial connection confirmation
             yield {"type": "connected", "job_id": job_id}
             
-            while True:
+            while not job_completed:
                 try:
-                    # Wait for events from either local queue or Redis with 30s timeout
-                    done, pending = await asyncio.wait([
-                        asyncio.create_task(event_queue.get()),
-                        asyncio.create_task(pubsub.get_message(ignore_subscribe_messages=True, timeout=30.0))
-                    ], return_when=asyncio.FIRST_COMPLETED, timeout=30.0)
+                    # Only wait for Redis events - no local queue
+                    message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=30.0)
                     
-                    # Cancel pending tasks
-                    for task in pending:
-                        task.cancel()
-                    
-                    if done:
-                        result = done.pop().result()
-                        if result is not None:
-                            # Handle Redis message
-                            if isinstance(result, dict) and 'data' in result:
-                                try:
-                                    event = json.loads(result['data'])
-                                    yield event
-                                except json.JSONDecodeError:
-                                    continue
-                            # Handle local queue event
+                    if message is not None and message['data']:
+                        try:
+                            event = json.loads(message['data'])
+                            
+                            # Check if this is a job completion event
+                            if event.get('type') == 'job_completed':
+                                job_completed = True
+                                yield event
+                                logger.info(f"Job {job_id} completed, closing SSE connection")
+                                break
                             else:
-                                yield result
+                                yield event
+                        except json.JSONDecodeError:
+                            continue
                     else:
-                        # Timeout - send keepalive
-                        yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
+                        # Timeout - only send keepalive if job is not completed
+                        if not job_completed:
+                            yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
                         
                 except asyncio.TimeoutError:
-                    # Send keepalive event
-                    yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
+                    # Only send keepalive if job is not completed
+                    if not job_completed:
+                        yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
                     continue
                 except asyncio.CancelledError:
                     break
@@ -117,25 +133,20 @@ class SSEManager:
         Send an event to all listeners of a specific job
         Simplified to use Redis pub/sub only
         """
-        logger.info(f"Sending SSE event for job {job_id}: {event.get('type', 'unknown')}")
+        logger.info(f"Sending SSE event for job {job_id}: {event.get('type', 'unknown')} - task_id: {event.get('task_id', 'N/A')}")
         
         # Add metadata to event
         event["job_id"] = job_id
         event["timestamp"] = asyncio.get_event_loop().time()
         
-        # Send to local listeners first (same process)
+        # Check if there are local listeners (for logging)
         local_listeners = len(self._job_listeners.get(job_id, set()))
         if local_listeners > 0:
-            logger.info(f"Sending to {local_listeners} local listeners for job {job_id}")
-            for queue in list(self._job_listeners[job_id]):
-                try:
-                    await queue.put(event)
-                except Exception as e:
-                    logger.warning(f"Failed to send to local listener: {e}")
-                    # Remove failed listeners
-                    self._job_listeners[job_id].discard(queue)
+            logger.info(f"Found {local_listeners} local listeners for job {job_id}")
         else:
             logger.info(f"No local listeners for job {job_id}")
+        
+        # Don't send to local listeners - only use Redis to avoid duplicates
         
         # Send via Redis for cross-process communication
         try:
@@ -143,7 +154,7 @@ class SSEManager:
             channel = f"job_events_{job_id}"
             serializable_event = self._make_json_serializable(event)
             await redis_client.publish(channel, json.dumps(serializable_event))
-            logger.info(f"Published SSE event to Redis channel {channel}")
+            logger.info(f"Published SSE event to Redis channel {channel} - event: {event.get('type')} task: {event.get('task_id', 'N/A')}")
         except Exception as e:
             logger.warning(f"Failed to publish event to Redis: {e}")
     
@@ -183,6 +194,35 @@ class SSEManager:
             "type": "extraction_failed",
             "file_id": file_id,
             "error": error
+        })
+    
+    async def send_task_started(self, job_id: str, task_id: str) -> None:
+        """Send task started event"""
+        await self.send_job_event(job_id, {
+            "type": "task_started",
+            "task_id": task_id
+        })
+    
+    async def send_task_completed(self, job_id: str, task_id: str, result: dict) -> None:
+        """Send task completed event"""
+        await self.send_job_event(job_id, {
+            "type": "task_completed",
+            "task_id": task_id,
+            "result": result
+        })
+    
+    async def send_task_failed(self, job_id: str, task_id: str, error: str) -> None:
+        """Send task failed event"""
+        await self.send_job_event(job_id, {
+            "type": "task_failed",
+            "task_id": task_id,
+            "error": error
+        })
+    
+    async def send_job_completed(self, job_id: str) -> None:
+        """Send job completion event"""
+        await self.send_job_event(job_id, {
+            "type": "job_completed"
         })
 
 # Global SSE manager instance

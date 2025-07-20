@@ -469,7 +469,7 @@ class JobService:
         finally:
             db.close()
 
-    async def get_job_files(self, user_id: str, job_id: str) -> List[JobFileInfo]:
+    async def get_job_files(self, user_id: str, job_id: str, processable_only: bool = False) -> List[JobFileInfo]:
         """Get flat list of files in a job"""
         db = self._get_session()
         try:
@@ -482,10 +482,22 @@ class JobService:
             if not job:
                 raise ValueError(f"Job {job_id} not found")
             
-            # Get all source files
-            source_files = db.query(SourceFile).filter(
-                SourceFile.job_id == job.id
-            ).order_by(SourceFile.id).all()
+            # Get source files with optional filtering
+            query = db.query(SourceFile).filter(SourceFile.job_id == job.id)
+            
+            if processable_only:
+                # Filter out archive files that are only used for unpacking, not data extraction
+                # This same logic will be used when creating extraction tasks for AI processing
+                query = query.filter(
+                    ~SourceFile.file_type.in_([
+                        'application/zip', 
+                        'application/x-zip-compressed',
+                        'application/x-7z-compressed',
+                        'application/x-rar-compressed'
+                    ])
+                )
+            
+            source_files = query.order_by(SourceFile.id).all()
             
             files = []
             for source_file in source_files:
@@ -597,8 +609,84 @@ class JobService:
         finally:
             db.close()
 
-    # TODO: Implement additional methods
-    # async def get_job_results(self, user_id: str, job_id: str, limit: int = 50, offset: int = 0) -> JobResultsResponse
+    async def get_job_results(self, user_id: str, job_id: str, limit: int = 50, offset: int = 0) -> JobResultsResponse:
+        """Get extraction results for a completed job"""
+        db = self._get_session()
+        try:
+            # Verify job exists and user has access
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id
+            ).first()
+            
+            if not job:
+                raise ValueError(f"Job {job_id} not found")
+            
+            # Get extraction results with pagination
+            results_query = db.query(ExtractionResult, ExtractionTask).join(
+                ExtractionTask, ExtractionResult.task_id == ExtractionTask.id
+            ).filter(
+                ExtractionTask.job_id == job_id
+            ).order_by(ExtractionResult.processed_at)
+            
+            # Get total count
+            total_count = results_query.count()
+            
+            # Apply pagination
+            results_with_tasks = results_query.offset(offset).limit(limit).all()
+            
+            # Process results
+            processed_results = []
+            logger.info(f"Processing {len(results_with_tasks)} result records for job {job_id}")
+            
+            for result, task in results_with_tasks:
+                # Parse the extracted_data JSONB field
+                extracted_data = result.extracted_data
+                logger.info(f"Processing task {result.task_id}, mode: {task.processing_mode}, data keys: {list(extracted_data.keys()) if extracted_data else 'None'}")
+                
+                # Handle different result formats based on processing mode
+                if task.processing_mode == "individual":
+                    # For individual mode, extract the results array
+                    if "results" in extracted_data:
+                        for individual_result in extracted_data["results"]:
+                            if individual_result.get("success", False):
+                                processed_results.append({
+                                    "task_id": str(result.task_id),
+                                    "source_files": [individual_result.get("filename", "Unknown")],
+                                    "processing_mode": task.processing_mode,
+                                    "extracted_data": individual_result.get("data", {})
+                                })
+                    elif "data" in extracted_data:
+                        # Handle direct data format
+                        processed_results.append({
+                            "task_id": str(result.task_id),
+                            "source_files": extracted_data.get("source_files", ["Unknown"]),
+                            "processing_mode": task.processing_mode,
+                            "extracted_data": extracted_data["data"]
+                        })
+                elif task.processing_mode == "combined":
+                    # For combined mode, use the combined data
+                    processed_results.append({
+                        "task_id": str(result.task_id),
+                        "source_files": extracted_data.get("source_files", ["Unknown"]),
+                        "processing_mode": task.processing_mode,
+                        "extracted_data": extracted_data.get("data", {})
+                    })
+            
+            logger.info(f"Job {job_id} results debug: total_count={total_count}, processed_results_count={len(processed_results)}")
+            logger.info(f"First few processed results: {processed_results[:2] if processed_results else 'None'}")
+            
+            return JobResultsResponse(
+                total=total_count,
+                results=processed_results
+            )
+            
+        except Exception as e:
+            logger.error(f"Failed to get results for job {job_id}: {e}")
+            raise
+        finally:
+            db.close()
+
     async def delete_job(self, user_id: str, job_id: str) -> bool:
         """Delete a job and all its associated data"""
         db = self._get_session()

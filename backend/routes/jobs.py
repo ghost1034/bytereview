@@ -7,8 +7,9 @@ from fastapi.responses import StreamingResponse
 from typing import Optional, List
 import json
 import asyncio
-from dependencies.auth import get_current_user_id
+from dependencies.auth import get_current_user_id, verify_token_string
 from services.job_service import JobService
+from services.sse_service import sse_manager
 from models.job import (
     JobInitiateRequest, JobInitiateResponse,
     JobStartRequest, JobStartResponse,
@@ -147,11 +148,12 @@ async def add_files_to_job(
 @router.get("/{job_id}/files", response_model=JobFilesResponse)
 async def get_job_files(
     job_id: str,
-    user_id: str = Depends(get_current_user_id)
+    user_id: str = Depends(get_current_user_id),
+    processable: bool = Query(default=False, description="Only return files that can be processed for data extraction (excludes ZIP files)")
 ):
     """Get flat list of files in a job"""
     try:
-        files = await job_service.get_job_files(user_id, job_id)
+        files = await job_service.get_job_files(user_id, job_id, processable_only=processable)
         return JobFilesResponse(files=files)
     except ValueError as e:
         logger.warning(f"Job {job_id} not found for user {user_id}: {e}")
@@ -222,12 +224,27 @@ async def stream_job_events(
         logger.error(f"Failed to start SSE stream for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start event stream: {str(e)}")
 
-# TODO: Implement additional endpoints for Phase 3
-# @router.get("/{job_id}/results")
-# async def get_job_results(job_id: str, user_id: str = Depends(get_current_user_id)):
-#     """Get extraction results for a completed job"""
-#     pass
+@router.get("/{job_id}/results", response_model=JobResultsResponse)
+async def get_job_results(
+    job_id: str,
+    user_id: str = Depends(get_current_user_id),
+    limit: int = Query(default=50, ge=1, le=100, description="Number of results to return"),
+    offset: int = Query(default=0, ge=0, description="Number of results to skip")
+):
+    """Get extraction results for a completed job"""
+    logger.info(f"Getting results for job {job_id}, user {user_id}")
+    try:
+        response = await job_service.get_job_results(user_id, job_id, limit, offset)
+        logger.info(f"Returning response: total={response.total}, results_count={len(response.results)}")
+        return response
+    except ValueError as e:
+        logger.warning(f"Job {job_id} not found for user {user_id}: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to get results for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get results: {str(e)}")
 
+# TODO: Implement export endpoint for Phase 3
 # @router.get("/{job_id}/export")
 # async def export_job_results(job_id: str, format: str = "csv", user_id: str = Depends(get_current_user_id)):
 #     """Export job results as CSV or XLSX"""

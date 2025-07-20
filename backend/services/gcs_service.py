@@ -26,7 +26,19 @@ class GCSService:
             return
         
         try:
-            # Initialize GCS client
+            # Initialize GCS client with explicit service account path
+            service_account_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+            if not service_account_path:
+                # Try to find service account file in backend directory
+                backend_dir = Path(__file__).parent.parent  # Go up to backend/ directory
+                service_account_file = backend_dir / "service-account.json"
+                if service_account_file.exists():
+                    service_account_path = str(service_account_file)
+                    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = service_account_path
+                    logger.info(f"Using service account file: {service_account_path}")
+                else:
+                    raise Exception(f"Service account file not found at {service_account_file}")
+            
             self.client = storage.Client()
             self.bucket = self.client.bucket(self.bucket_name)
             
@@ -45,6 +57,24 @@ class GCSService:
     def is_available(self) -> bool:
         """Check if GCS is available and configured"""
         return self.client is not None and self.bucket is not None
+    
+    def get_bucket_name(self) -> str:
+        """Get the configured bucket name"""
+        if not self.bucket_name:
+            raise Exception("GCS bucket name not configured")
+        return self.bucket_name
+    
+    def construct_gcs_uri_for_object(self, object_name: str) -> str:
+        """
+        Construct a GCS URI for an object in this service's bucket
+        
+        Args:
+            object_name: Path/name of the object in the bucket
+            
+        Returns:
+            Properly formatted GCS URI for this bucket
+        """
+        return construct_gcs_uri(self.get_bucket_name(), object_name)
     
     def upload_temp_file(self, file_content: bytes, original_filename: str, user_id: str = None) -> str:
         """
@@ -385,6 +415,73 @@ def normalize_path(path: str) -> str:
         return ""
     
     return normalized
+
+def construct_gcs_uri(bucket_name: str, object_name: str) -> str:
+    """
+    Construct a gs:// URI from bucket and object name
+    
+    Args:
+        bucket_name: Name of the GCS bucket
+        object_name: Path/name of the object in the bucket
+        
+    Returns:
+        Properly formatted GCS URI
+        
+    Raises:
+        ValueError: If bucket_name or object_name is invalid
+    """
+    if not bucket_name or not bucket_name.strip():
+        raise ValueError("bucket_name is required and cannot be empty")
+    
+    if not object_name or not object_name.strip():
+        raise ValueError("object_name is required and cannot be empty")
+    
+    # Clean up bucket name (remove any gs:// prefix if present)
+    bucket_name = bucket_name.strip()
+    if bucket_name.startswith('gs://'):
+        bucket_name = bucket_name[5:]
+    
+    # Clean up object name (remove leading slashes)
+    object_name = object_name.strip().lstrip('/')
+    
+    # Validate bucket name format (basic validation)
+    if not bucket_name.replace('-', '').replace('_', '').replace('.', '').isalnum():
+        raise ValueError(f"Invalid bucket name format: {bucket_name}")
+    
+    return f"gs://{bucket_name}/{object_name}"
+
+def validate_gcs_uri(gcs_uri: str) -> bool:
+    """
+    Validate that a string is a properly formatted GCS URI
+    
+    Args:
+        gcs_uri: The URI to validate
+        
+    Returns:
+        True if valid, False otherwise
+    """
+    if not gcs_uri or not isinstance(gcs_uri, str):
+        return False
+    
+    if not gcs_uri.startswith('gs://'):
+        return False
+    
+    # Remove gs:// prefix
+    path_part = gcs_uri[5:]
+    
+    # Must have at least bucket/object format
+    if '/' not in path_part:
+        return False
+    
+    parts = path_part.split('/', 1)
+    bucket_name = parts[0]
+    object_name = parts[1]
+    
+    # Basic validation
+    if not bucket_name or not object_name:
+        return False
+    
+    return True
 
 # Fallback local storage for when GCS is not available
 class LocalStorageService:

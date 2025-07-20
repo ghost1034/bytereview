@@ -324,8 +324,14 @@ export class ApiClient {
     return this.request(`/api/jobs/${jobId}/progress`)
   }
 
-  async getJobFiles(jobId: string): Promise<ApiResponse<ApiPaths['/api/jobs/{job_id}/files']['get']>> {
-    return this.request(`/api/jobs/${jobId}/files`)
+  async getJobFiles(jobId: string, options?: { processable?: boolean }): Promise<ApiResponse<ApiPaths['/api/jobs/{job_id}/files']['get']>> {
+    const searchParams = new URLSearchParams()
+    if (options?.processable) {
+      searchParams.set('processable', 'true')
+    }
+    
+    const query = searchParams.toString()
+    return this.request(`/api/jobs/${jobId}/files${query ? `?${query}` : ''}`)
   }
 
   async addFilesToJob(
@@ -424,6 +430,25 @@ export class ApiClient {
     return await user.getIdToken()
   }
 
+  async deleteJob(jobId: string): Promise<void> {
+    await this.request(`/api/jobs/${jobId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getJobResults(jobId: string, params?: { limit?: number; offset?: number }): Promise<JobResultsResponse> {
+    const searchParams = new URLSearchParams()
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    if (params?.offset) searchParams.set('offset', params.offset.toString())
+    
+    const query = searchParams.toString()
+    return this.request(`/api/jobs/${jobId}/results${query ? `?${query}` : ''}`)
+  }
+
+  async getDataTypes(): Promise<DataType[]> {
+    return this.request('/api/data-types/')
+  }
+
   async verifyJobAccess(jobId: string): Promise<void> {
     // This will throw if user doesn't have access
     await this.getJobDetails(jobId)
@@ -446,43 +471,42 @@ export type JobDetailsResponse = ApiResponse<ApiPaths['/api/jobs/{job_id}']['get
 export type JobListResponse = ApiResponse<ApiPaths['/api/jobs']['get']>
 export type JobProgressResponse = ApiResponse<ApiPaths['/api/jobs/{job_id}/progress']['get']>
 export type JobFilesResponse = ApiResponse<ApiPaths['/api/jobs/{job_id}/files']['get']>
-
-// Additional workflow types
-export type JobStatus = 
-  | 'pending_configuration'
-  | 'processing'
-  | 'completed'
-  | 'failed'
-  | 'cancelled'
-
-export type ProcessingMode = 'individual' | 'combined'
-
-export interface FileUploadInfo {
-  filename: string
-  path: string
-  size: number
-  type: string
+export type JobResultsResponse = {
+  total: number
+  results: Array<{
+    task_id: string
+    source_files: string[]
+    processing_mode: string
+    extracted_data: Record<string, any>
+  }>
 }
 
-export interface TaskDefinition {
-  path: string
-  mode: ProcessingMode
-}
+// Import types from generated OpenAPI schema
+import { components } from './api-types'
 
-export interface JobFieldConfig {
-  field_name: string
-  data_type_id: string
-  ai_prompt: string
-  display_order: number
-}
+export type JobStatus = components['schemas']['JobStatus']
+export type ProcessingMode = components['schemas']['ProcessingMode']
+export type FileUploadInfo = components['schemas']['FileUploadInfo']
+export type TaskDefinition = components['schemas']['TaskDefinition']
+export type JobFieldConfig = components['schemas']['JobFieldConfig']
 
 // Frontend-specific types for the multi-step workflow
-export interface UploadedFile {
+export interface FrontendUploadFile {
   file: File
   path: string
   uploadUrl?: string
   uploaded: boolean
   error?: string
+}
+
+// Backend file structure (what we get from API)
+export interface UploadedFile {
+  id: string
+  filename: string
+  original_path: string
+  file_type: string
+  file_size: number
+  status: 'ready' | 'extracting' | 'extracted' | 'failed'
 }
 
 export interface WorkflowStep {
@@ -502,6 +526,16 @@ export interface JobWorkflowState {
   jobName?: string
   templateId?: string
   persistData: boolean
+}
+
+// Data types interface matching backend DataTypeResponse
+export interface DataType {
+  id: string
+  display_name: string
+  description: string
+  base_json_type: string
+  json_format?: string
+  display_order: number
 }
 
 // Export field configuration type from the generated types

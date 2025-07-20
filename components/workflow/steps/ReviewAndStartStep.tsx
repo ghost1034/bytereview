@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useStartJob } from '@/hooks/useJobs'
-import { JobWorkflowState } from '@/lib/job-types'
+import { JobWorkflowState } from '@/lib/api'
 
 interface ReviewAndStartStepProps {
   workflowState: JobWorkflowState
@@ -41,7 +41,6 @@ export default function ReviewAndStartStep({
   const { toast } = useToast()
   const startJob = useStartJob()
   
-  const [jobName, setJobName] = useState('')
   const [persistData, setPersistData] = useState(true)
   const [saveAsTemplate, setSaveAsTemplate] = useState(false)
   const [templateName, setTemplateName] = useState('')
@@ -60,7 +59,7 @@ export default function ReviewAndStartStep({
       await startJob.mutateAsync({
         jobId: workflowState.jobId,
         request: {
-          name: jobName.trim() || undefined,
+          name: undefined, // Job name already set during creation
           template_id: workflowState.templateId,
           persist_data: persistData,
           fields: workflowState.fields,
@@ -73,7 +72,7 @@ export default function ReviewAndStartStep({
         description: "Your extraction job is now processing in the background"
       })
 
-      onJobStarted(jobName.trim() || undefined, workflowState.templateId)
+      onJobStarted(undefined, workflowState.templateId)
     } catch (error) {
       toast({
         title: "Failed to start job",
@@ -91,7 +90,7 @@ export default function ReviewAndStartStep({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  const totalFileSize = workflowState.files.reduce((sum, file) => sum + file.file.size, 0)
+  const totalFileSize = workflowState.files.reduce((sum, file) => sum + (file.file_size_bytes || 0), 0)
   const estimatedTime = Math.max(1, Math.ceil(workflowState.files.length * 0.5)) // Rough estimate
 
   return (
@@ -105,19 +104,6 @@ export default function ReviewAndStartStep({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="job-name">Job Name (Optional)</Label>
-            <Input
-              id="job-name"
-              placeholder="e.g., Q4 Invoice Processing"
-              value={jobName}
-              onChange={(e) => setJobName(e.target.value)}
-            />
-            <p className="text-sm text-muted-foreground">
-              Give your job a memorable name for easy identification
-            </p>
-          </div>
-
           <div className="flex items-center space-x-2">
             <Checkbox
               id="persist-data"
@@ -185,9 +171,9 @@ export default function ReviewAndStartStep({
                 {workflowState.files.map((file, index) => (
                   <div key={index} className="flex items-center gap-2 text-sm">
                     <FileText className="w-4 h-4 text-gray-400" />
-                    <span className="truncate">{file.file.name}</span>
+                    <span className="truncate">{file.original_filename}</span>
                     <Badge variant="outline" className="text-xs">
-                      {formatFileSize(file.file.size)}
+                      {formatFileSize(file.file_size_bytes || 0)}
                     </Badge>
                   </div>
                 ))}
@@ -225,28 +211,37 @@ export default function ReviewAndStartStep({
           <CardTitle>Processing Configuration</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span>Processing Mode:</span>
-              <Badge>
-                {workflowState.taskDefinitions[0]?.mode === 'individual' 
-                  ? 'Individual Files' 
-                  : 'Combined Processing'
-                }
-              </Badge>
+          <div className="space-y-4">
+            {/* Processing Mode per Folder */}
+            <div>
+              <h4 className="font-medium mb-2">Processing Mode by Folder:</h4>
+              <div className="space-y-2">
+                {workflowState.taskDefinitions.map((task, index) => {
+                  const folderFiles = workflowState.files.filter(file => {
+                    const fileFolder = file.original_path.includes('/') 
+                      ? file.original_path.substring(0, file.original_path.lastIndexOf('/'))
+                      : '/'
+                    return fileFolder === task.path
+                  })
+                  
+                  return (
+                    <div key={index} className="flex justify-between items-center">
+                      <span className="text-sm">
+                        {task.path === '/' ? 'Root Folder' : task.path} ({folderFiles.length} files)
+                      </span>
+                      <Badge variant="secondary">
+                        {task.mode === 'individual' ? 'Individual' : 'Combined'}
+                      </Badge>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
+            
             <div className="flex justify-between">
               <span>Data Persistence:</span>
               <Badge variant={persistData ? "default" : "secondary"}>
                 {persistData ? 'Enabled' : 'Disabled'}
-              </Badge>
-            </div>
-            <div className="flex justify-between">
-              <span>Estimated Tasks:</span>
-              <Badge variant="outline">
-                {workflowState.taskDefinitions.reduce((sum, def) => 
-                  sum + (def.mode === 'individual' ? workflowState.files.length : 1), 0
-                )}
               </Badge>
             </div>
           </div>

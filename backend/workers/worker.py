@@ -30,7 +30,7 @@ from arq import create_pool
 from arq.connections import RedisSettings
 from sqlalchemy.orm import Session
 from core.database import db_config
-from models.db_models import ExtractionTask, ExtractionResult, SourceFile, JobField, SystemPrompt, SourceFileToTask, ExtractionJob
+from models.db_models import ExtractionTask, ExtractionResult, SourceFile, JobField, SystemPrompt, SourceFileToTask, ExtractionJob, DataType
 from models.job import FileStatus
 from services.ai_extraction_service import AIExtractionService
 from services.gcs_service import get_storage_service
@@ -59,6 +59,13 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str
         task.status = "processing"
         db.commit()
         
+        # Send SSE event for task started
+        try:
+            from services.sse_service import sse_manager
+            await sse_manager.send_task_started(task.job_id, task_id)
+        except Exception as e:
+            logger.warning(f"Failed to send task_started SSE event: {e}")
+        
         # Get associated source files (ordered by document_order)
         source_files_query = db.query(SourceFile, SourceFileToTask.document_order).join(
             SourceFileToTask, SourceFile.id == SourceFileToTask.source_file_id
@@ -79,9 +86,21 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str
             raise ValueError(f"No job fields found for job {task.job_id}")
         
         # Get active system prompt
-        system_prompt = db.query(SystemPrompt).filter(SystemPrompt.is_active == True).first()
-        if not system_prompt:
+        system_prompt_record = db.query(SystemPrompt).filter(SystemPrompt.is_active == True).first()
+        if not system_prompt_record:
             raise ValueError("No active system prompt found")
+        
+        # Get data types for JSON schema creation
+        data_types = db.query(DataType).all()
+        data_types_map = {
+            dt.id: {
+                "base_json_type": dt.base_json_type,
+                "json_format": dt.json_format,
+                "display_name": dt.display_name,
+                "description": dt.description
+            }
+            for dt in data_types
+        }
         
         # Convert job fields to FieldConfig format for AI service
         from models.extraction import FieldConfig
@@ -98,101 +117,76 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str
         ai_service = AIExtractionService()
         storage_service = get_storage_service()
         
-        # Download and process files
-        results = []
-        temp_files = []
+        # Download files from GCS and process them locally
+        temp_dir = None
+        files_data = []
         
         try:
-            # Download files from GCS to temporary location
+            # Create temporary directory for downloaded files
+            temp_dir = tempfile.mkdtemp(prefix=f"extraction_task_{task_id}_")
+            logger.info(f"Created temporary directory for extraction: {temp_dir}")
+            
             for source_file in source_files:
-                logger.info(f"Downloading file: {source_file.original_filename}")
+                logger.info(f"Downloading file for processing: {source_file.original_filename}")
                 
-                # Create temporary file
-                temp_fd, temp_path = tempfile.mkstemp(suffix=os.path.splitext(source_file.original_filename)[1])
-                temp_files.append(temp_path)
+                # Download file from GCS to temporary location
+                file_extension = os.path.splitext(source_file.original_filename)[1]
+                temp_file_path = os.path.join(temp_dir, f"{uuid.uuid4()}{file_extension}")
                 
-                try:
-                    # Download from GCS
-                    await storage_service.download_file(source_file.gcs_object_name, temp_path)
-                    logger.info(f"Downloaded {source_file.original_filename} to {temp_path}")
-                    
-                    # Process with AI service
-                    logger.info(f"Processing file with AI: {source_file.original_filename}")
-                    
-                    # Convert job fields to FieldConfig format
-                    from models.extraction import FieldConfig
-                    field_configs = [
-                        FieldConfig(
-                            name=field.field_name,
-                            data_type=field.data_type_id,
-                            prompt=field.ai_prompt
-                        )
-                        for field in job_fields
-                    ]
-                    
-                    # Read file content for AI service
-                    with open(temp_path, 'rb') as f:
-                        file_content = f.read()
-                    
-                    files_data = [{
-                        'filename': source_file.original_filename,
-                        'content': file_content
-                    }]
-                    
-                    # Extract data using AI service
-                    extraction_result = await ai_service.extract_data_from_files(
-                        files_data, 
-                        field_configs,
-                        extract_multiple_rows=False
-                    )
-                    
-                    file_result = {
-                        "filename": source_file.original_filename,
-                        "success": extraction_result.success,
-                        "data": extraction_result.data[0] if extraction_result.data else {}
-                    }
-                    
-                except Exception as e:
-                    logger.error(f"Failed to process file {source_file.original_filename}: {e}")
-                    file_result = {
-                        "filename": source_file.original_filename,
-                        "success": False,
-                        "error": str(e),
-                        "data": {}
-                    }
-                finally:
-                    # Close file descriptor
-                    os.close(temp_fd)
+                await storage_service.download_file(source_file.gcs_object_name, temp_file_path)
+                logger.info(f"Downloaded {source_file.original_filename} to {temp_file_path}")
                 
-                results.append(file_result)
+                # Read file content
+                with open(temp_file_path, 'rb') as f:
+                    file_content = f.read()
                 
+                files_data.append({
+                    'filename': source_file.original_filename,
+                    'content': file_content
+                })
+                
+                logger.info(f"Prepared file data for {source_file.original_filename}, size: {len(file_content)} bytes")
+            
+            # Process files using downloaded content instead of GCS URIs
+            logger.info(f"Processing {len(files_data)} files with AI using downloaded content")
+            
+            # Extract data using AI service with file content
+            logger.info(f"Using processing mode: {task.processing_mode}")
+            extraction_result = await ai_service.extract_data_from_files(
+                files_data,
+                field_configs,
+                data_types_map,
+                system_prompt_record.template_text,
+                processed_files=source_files,  # Pass source files for metadata
+                processing_mode=task.processing_mode  # Pass processing mode for routing
+            )
+            
         finally:
-            # Clean up temporary files
-            for temp_path in temp_files:
+            # Clean up temporary directory
+            if temp_dir and os.path.exists(temp_dir):
                 try:
-                    if os.path.exists(temp_path):
-                        os.unlink(temp_path)
+                    shutil.rmtree(temp_dir)
+                    logger.info(f"Cleaned up temporary directory: {temp_dir}")
                 except Exception as e:
-                    logger.warning(f"Failed to clean up temp file {temp_path}: {e}")
+                    logger.warning(f"Failed to clean up temporary directory {temp_dir}: {e}")
         
-        # Combine results based on processing mode
+        # Process the extraction result based on processing mode
+        if not extraction_result.success:
+            raise ValueError(f"AI extraction failed: {extraction_result.error}")
+        
         if task.processing_mode == "combined":
             # For combined mode, merge all results into one
-            combined_data = {}
-            for field in job_fields:
-                # Simple combination strategy - take first non-null value
-                combined_data[field.field_name] = f"combined_{field.field_name}"
-            
             final_result = {
                 "processing_mode": "combined",
                 "source_files": [f.original_filename for f in source_files],
-                "data": combined_data
+                "data": extraction_result.data,  # Combined data for all files
+                "by_document": extraction_result.by_document
             }
         else:
-            # For individual mode, keep separate results
+            # For individual mode, keep separate results (no redundant top-level data)
             final_result = {
                 "processing_mode": "individual",
-                "results": results
+                "results": extraction_result.by_document
             }
         
         # Save results to database
@@ -206,6 +200,13 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str
         task.status = "completed"
         task.processed_at = datetime.utcnow()
         
+        # Send SSE event for task completed
+        try:
+            from services.sse_service import sse_manager
+            await sse_manager.send_task_completed(task.job_id, task_id, final_result)
+        except Exception as e:
+            logger.warning(f"Failed to send task_completed SSE event: {e}")
+        
         # Check if all tasks for this job are completed
         job_tasks = db.query(ExtractionTask).filter(ExtractionTask.job_id == task.job_id).all()
         all_completed = all(t.status in ['completed', 'failed'] for t in job_tasks)
@@ -217,6 +218,12 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str
                 job.status = "completed"
                 job.completed_at = datetime.utcnow()
                 logger.info(f"Job {task.job_id} completed - all tasks finished")
+                
+                # Send SSE event for job completed
+                try:
+                    await sse_manager.send_job_completed(task.job_id)
+                except Exception as e:
+                    logger.warning(f"Failed to send job_completed SSE event: {e}")
         
         db.commit()
         
@@ -231,6 +238,13 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str
             task.status = "failed"
             task.error_message = str(e)
             db.commit()
+            
+            # Send SSE event for task failed
+            try:
+                from services.sse_service import sse_manager
+                await sse_manager.send_task_failed(task.job_id, task_id, str(e))
+            except Exception as e:
+                logger.warning(f"Failed to send task_failed SSE event: {e}")
         
         raise
     finally:
@@ -453,7 +467,7 @@ class WorkerSettings:
     ]
     
     # Worker configuration for AI tasks (low memory, high concurrency)
-    max_jobs = 10  # Maximum concurrent jobs
+    max_jobs = 5  # Reduce concurrent jobs to prevent Redis overload
     job_timeout = 300  # 5 minutes timeout per job
     keep_result = 3600  # Keep results for 1 hour
     

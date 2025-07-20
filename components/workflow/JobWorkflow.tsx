@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useJobWorkflow } from '@/hooks/useJobs'
-import { JobWorkflowState, WorkflowStep, UploadedFile, JobFieldConfig, TaskDefinition } from '@/lib/job-types'
+import { JobWorkflowState, WorkflowStep, UploadedFile, JobFieldConfig, TaskDefinition } from '@/lib/api'
 
 // Import step components
 import FileUploadStep from './steps/FileUploadStep'
@@ -71,10 +71,11 @@ const WORKFLOW_STEPS: WorkflowStep[] = [
 ]
 
 interface JobWorkflowProps {
+  jobId?: string // Optional existing job ID
   onJobComplete?: (jobId: string) => void
 }
 
-export default function JobWorkflow({ onJobComplete }: JobWorkflowProps) {
+export default function JobWorkflow({ jobId: providedJobId, onJobComplete }: JobWorkflowProps) {
   const { toast } = useToast()
   const jobWorkflow = useJobWorkflow()
   
@@ -83,6 +84,7 @@ export default function JobWorkflow({ onJobComplete }: JobWorkflowProps) {
   const [steps, setSteps] = useState(WORKFLOW_STEPS)
   const [workflowState, setWorkflowState] = useState<JobWorkflowState>({
     currentStep: 0,
+    jobId: providedJobId, // Use provided job ID if available
     files: [],
     fields: [],
     taskDefinitions: [],
@@ -157,7 +159,8 @@ export default function JobWorkflow({ onJobComplete }: JobWorkflowProps) {
   }
 
   const handleJobCompleted = (jobId: string) => {
-    updateStepState(steps.length - 1, true)
+    // Mark the processing step (index 3) as completed
+    updateStepState(3, true)
     onJobComplete?.(jobId)
   }
 
@@ -169,6 +172,7 @@ export default function JobWorkflow({ onJobComplete }: JobWorkflowProps) {
       case 0:
         return (
           <FileUploadStep
+            jobId={workflowState.jobId}
             onFilesUploaded={handleFilesUploaded}
             isLoading={jobWorkflow.isLoading}
           />
@@ -178,6 +182,8 @@ export default function JobWorkflow({ onJobComplete }: JobWorkflowProps) {
         return (
           <FieldConfigurationStep
             files={workflowState.files}
+            initialFields={workflowState.fields}
+            initialTaskDefinitions={workflowState.taskDefinitions}
             onFieldsConfigured={handleFieldsConfigured}
             onBack={prevStep}
           />
@@ -198,6 +204,7 @@ export default function JobWorkflow({ onJobComplete }: JobWorkflowProps) {
           <ProcessingStep
             jobId={workflowState.jobId!}
             onJobCompleted={handleJobCompleted}
+            onViewResults={() => goToStep(4)}
             onBack={prevStep}
           />
         )
@@ -295,14 +302,7 @@ export default function JobWorkflow({ onJobComplete }: JobWorkflowProps) {
       {/* Current Step Content */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {currentStep === 0 && <Upload className="w-5 h-5" />}
-            {currentStep === 1 && <Settings className="w-5 h-5" />}
-            {currentStep === 2 && <Play className="w-5 h-5" />}
-            {currentStep === 3 && <Loader2 className="w-5 h-5 animate-spin" />}
-            {currentStep === 4 && <BarChart3 className="w-5 h-5" />}
-            {steps[currentStep]?.title}
-          </CardTitle>
+          <CardTitle>Extraction Job</CardTitle>
         </CardHeader>
         <CardContent>
           {renderStepContent()}

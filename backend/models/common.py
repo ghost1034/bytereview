@@ -37,3 +37,12 @@ class UsageStats(BaseModel):
     pages_limit: int
     subscription_status: str
     usage_percentage: float
+
+class DataTypeResponse(BaseModel):
+    """Data type response model"""
+    id: str
+    display_name: str
+    description: str
+    base_json_type: str
+    json_format: Optional[str] = None
+    display_order: int

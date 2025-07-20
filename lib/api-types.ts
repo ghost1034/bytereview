@@ -137,7 +137,11 @@ export interface paths {
         get: operations["get_job_details_api_jobs__job_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Job
+         * @description Delete a job and all its data
+         */
+        delete: operations["delete_job_api_jobs__job_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -240,6 +244,26 @@ export interface paths {
          * @description Simplified Server-Sent Events stream for real-time job updates
          */
         get: operations["stream_job_events_api_jobs__job_id__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream Job Events
+         * @description Stream real-time events for a job using Server-Sent Events
+         */
+        get: operations["stream_job_events_api_jobs__job_id__stream_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -540,6 +564,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/data-types/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Data Types
+         * @description Get all available data types
+         */
+        get: operations["get_data_types_api_data_types__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -619,6 +663,24 @@ export interface components {
              * @description URL to return to from the portal
              */
             return_url: string;
+        };
+        /**
+         * DataTypeResponse
+         * @description Data type response model
+         */
+        DataTypeResponse: {
+            /** Id */
+            id: string;
+            /** Display Name */
+            display_name: string;
+            /** Description */
+            description: string;
+            /** Base Json Type */
+            base_json_type: string;
+            /** Json Format */
+            json_format?: string | null;
+            /** Display Order */
+            display_order: number;
         };
         /** ExtractionResponse */
         ExtractionResponse: {
@@ -851,6 +913,11 @@ export interface components {
              * @description List of files to upload
              */
             files: components["schemas"]["FileUploadInfo"][];
+            /**
+             * Name
+             * @description Job name
+             */
+            name?: string | null;
         };
         /**
          * JobInitiateResponse
@@ -1406,6 +1473,37 @@ export interface operations {
             };
         };
     };
+    delete_job_api_jobs__job_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_jobs_api_jobs_get: {
         parameters: {
             query?: {
@@ -1475,7 +1573,10 @@ export interface operations {
     };
     get_job_files_api_jobs__job_id__files_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Only return files that can be processed for data extraction (excludes ZIP files) */
+                processable?: boolean;
+            };
             header?: never;
             path: {
                 job_id: string;
@@ -1574,6 +1675,40 @@ export interface operations {
     stream_job_events_api_jobs__job_id__events_get: {
         parameters: {
             query: {
+                token: string;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_job_events_api_jobs__job_id__stream_get: {
+        parameters: {
+            query: {
+                /** @description Authentication token */
                 token: string;
             };
             header?: never;
@@ -2120,6 +2255,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_data_types_api_data_types__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataTypeResponse"][];
                 };
             };
         };

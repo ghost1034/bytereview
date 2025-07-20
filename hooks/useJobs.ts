@@ -13,6 +13,7 @@ import {
   JobDetailsResponse,
   JobListResponse,
   JobProgressResponse,
+  JobResultsResponse,
   UploadedFile,
   JobFieldConfig,
   TaskDefinition
@@ -124,7 +125,7 @@ export function useJobProgress(jobId: string | undefined) {
 export function useJobResults(jobId: string | undefined, limit = 50, offset = 0) {
   return useQuery<JobResultsResponse>({
     queryKey: ['job-results', jobId, limit, offset],
-    queryFn: () => { throw new Error('getJobResults not implemented yet') },
+    queryFn: () => apiClient.getJobResults(jobId!, { limit, offset }),
     enabled: !!jobId,
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
