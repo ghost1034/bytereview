@@ -56,16 +56,20 @@ class JobService:
         normalized = path.replace('\\', '/').strip('/')
         return normalized
 
-    def _filter_processable_files(self, query):
+    def _filter_processable_files(self, query, allow_null_files=False):
         """Filter out archive files that are only used for unpacking, not data extraction"""
-        return query.filter(
-            ~SourceFile.file_type.in_([
-                'application/zip', 
-                'application/x-zip-compressed',
-                'application/x-7z-compressed',
-                'application/x-rar-compressed'
-            ])
-        )
+        filter_condition = ~SourceFile.file_type.in_([
+            'application/zip', 
+            'application/x-zip-compressed',
+            'application/x-7z-compressed',
+            'application/x-rar-compressed'
+        ])
+        
+        if allow_null_files:
+            # For job listing where we want to include jobs with no files
+            filter_condition = (SourceFile.id.is_(None)) | filter_condition
+            
+        return query.filter(filter_condition)
 
     async def initiate_job(self, user_id: str, request: JobInitiateRequest) -> JobInitiateResponse:
         """
@@ -334,13 +338,18 @@ class JobService:
             # Get total count
             total = db.query(ExtractionJob).filter(ExtractionJob.user_id == user_id).count()
             
-            # Get jobs with file counts
+            # Get jobs with processable file counts (excluding ZIP files)
             jobs_query = db.query(
                 ExtractionJob,
                 func.count(SourceFile.id).label('file_count')
             ).outerjoin(SourceFile).filter(
                 ExtractionJob.user_id == user_id
-            ).group_by(ExtractionJob.id).order_by(
+            )
+            
+            # Apply processable files filter, allowing jobs with no files
+            jobs_query = self._filter_processable_files(jobs_query, allow_null_files=True)
+            
+            jobs_query = jobs_query.group_by(ExtractionJob.id).order_by(
                 ExtractionJob.created_at.desc()
             ).limit(limit).offset(offset)
             

@@ -23,11 +23,7 @@ import {
   Clock
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { apiClient } from '@/lib/api'
-import { components } from '@/lib/api-types'
-
-type JobFileInfo = components['schemas']['JobFileInfo']
-type FileStatus = components['schemas']['FileStatus']
+import { apiClient, type JobFileInfo, type FileStatus } from '@/lib/api'
 
 interface EnhancedFileUploadProps {
   jobId: string

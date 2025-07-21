@@ -490,6 +490,9 @@ export type ProcessingMode = components['schemas']['ProcessingMode']
 export type FileUploadInfo = components['schemas']['FileUploadInfo']
 export type TaskDefinition = components['schemas']['TaskDefinition']
 export type JobFieldConfig = components['schemas']['JobFieldConfig']
+export type JobListItem = components['schemas']['JobListItem']
+export type JobFileInfo = components['schemas']['JobFileInfo']
+export type FileStatus = components['schemas']['FileStatus']
 
 // Frontend-specific types for the multi-step workflow
 export interface FrontendUploadFile {

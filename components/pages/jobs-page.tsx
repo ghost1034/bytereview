@@ -25,7 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CreateJobModal } from "@/components/jobs/create-job-modal";
-import { apiClient } from "@/lib/api";
+import { apiClient, type JobListItem } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import {
@@ -42,7 +42,7 @@ import {
 export function JobsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<JobListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteJobId, setDeleteJobId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -140,9 +140,8 @@ export function JobsPage() {
     });
   };
 
-  const getDocumentCount = (job: any) => {
-    // Try to get document count from various possible fields
-    return job.documents_count || job.file_count || job.files?.length || 0;
+  const getDocumentCount = (job: JobListItem) => {
+    return job.file_count;
   };
 
   const filteredJobs = jobs.filter((job) =>
