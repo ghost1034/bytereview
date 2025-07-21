@@ -59,7 +59,6 @@ export default function ReviewAndStartStep({
       await startJob.mutateAsync({
         jobId: workflowState.jobId,
         request: {
-          name: undefined, // Job name already set during creation
           template_id: workflowState.templateId,
           persist_data: persistData,
           fields: workflowState.fields,

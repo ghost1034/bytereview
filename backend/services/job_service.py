@@ -135,7 +135,6 @@ class JobService:
                 raise ValueError(f"Job {job_id} not found or not in pending configuration state")
             
             # Update job details
-            job.name = request.name
             job.persist_data = request.persist_data
             job.status = JobStatus.PROCESSING.value
             
@@ -644,34 +643,31 @@ class JobService:
                 extracted_data = result.extracted_data
                 logger.info(f"Processing task {result.task_id}, mode: {task.processing_mode}, data keys: {list(extracted_data.keys()) if extracted_data else 'None'}")
                 
-                # Handle different result formats based on processing mode
-                if task.processing_mode == "individual":
-                    # For individual mode, extract the results array
-                    if "results" in extracted_data:
-                        for individual_result in extracted_data["results"]:
-                            if individual_result.get("success", False):
-                                processed_results.append({
-                                    "task_id": str(result.task_id),
-                                    "source_files": [individual_result.get("filename", "Unknown")],
-                                    "processing_mode": task.processing_mode,
-                                    "extracted_data": individual_result.get("data", {})
-                                })
-                    elif "data" in extracted_data:
-                        # Handle direct data format
-                        processed_results.append({
-                            "task_id": str(result.task_id),
-                            "source_files": extracted_data.get("source_files", ["Unknown"]),
-                            "processing_mode": task.processing_mode,
-                            "extracted_data": extracted_data["data"]
-                        })
-                elif task.processing_mode == "combined":
-                    # For combined mode, use the combined data
-                    processed_results.append({
-                        "task_id": str(result.task_id),
-                        "source_files": extracted_data.get("source_files", ["Unknown"]),
-                        "processing_mode": task.processing_mode,
-                        "extracted_data": extracted_data.get("data", {})
-                    })
+                # Handle simplified format: "results": [{row1}, {row2}, {row3}]
+                # Both individual and combined modes use the same format now
+                if "results" in extracted_data and isinstance(extracted_data["results"], list):
+                    # Get source file info from the task
+                    source_files = []
+                    task_source_files = db.query(SourceFileToTask, SourceFile).join(
+                        SourceFile, SourceFileToTask.source_file_id == SourceFile.id
+                    ).filter(SourceFileToTask.task_id == task.id).order_by(SourceFileToTask.document_order).all()
+                    
+                    for _, source_file in task_source_files:
+                        source_files.append(source_file.original_path)
+                    
+                    if not source_files:
+                        source_files = ["Unknown"]
+                    
+                    # Process each row object in the results array
+                    for row_data in extracted_data["results"]:
+                        if isinstance(row_data, dict):
+                            processed_results.append({
+                                "task_id": str(result.task_id),
+                                "source_files": source_files,
+                                "processing_mode": task.processing_mode,
+                                "extracted_data": row_data,
+                                "row_index": len(processed_results)
+                            })
             
             logger.info(f"Job {job_id} results debug: total_count={total_count}, processed_results_count={len(processed_results)}")
             logger.info(f"First few processed results: {processed_results[:2] if processed_results else 'None'}")

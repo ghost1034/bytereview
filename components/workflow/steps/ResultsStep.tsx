@@ -21,6 +21,7 @@ import {
   ChevronDown,
   ChevronRight,
   Folder,
+  Files,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useJobDetails, useJobResults } from "@/hooks/useJobs";
@@ -31,6 +32,7 @@ type JobResult = {
   source_files: string[];
   processing_mode: string;
   extracted_data: Record<string, any>;
+  row_index: number;
 };
 
 type FileNode = {
@@ -56,67 +58,170 @@ const buildFileTree = (results: JobResult[]): TreeNode[] => {
   const tree: TreeNode[] = [];
   const folderMap: Record<string, FolderNode> = {};
 
+  // Group results by task_id to handle multiple rows per task
+  const resultsByTask = new Map<string, JobResult[]>();
   results.forEach((result) => {
-    // Use original_path if available, otherwise fall back to first source file
-    const filePath =
-      result.extracted_data?.original_path || result.source_files[0];
-    if (!filePath) return; // Skip if no path available
-
-    // Split path into segments and extract filename
-    const pathSegments = filePath
-      .split("/")
-      .filter((segment) => segment.length > 0);
-    const fileName = pathSegments.pop() || filePath;
-
-    // Create file node
-    const fileNode: FileNode = {
-      name: fileName,
-      path: filePath,
-      type: "file",
-      result: result,
-    };
-
-    // If no folders, add directly to tree
-    if (pathSegments.length === 0) {
-      tree.push(fileNode);
-      return;
+    const taskId = result.task_id;
+    if (!resultsByTask.has(taskId)) {
+      resultsByTask.set(taskId, []);
     }
+    resultsByTask.get(taskId)!.push(result);
+  });
 
-    // Build folder structure
-    let currentPath = "";
-    let parentFolder: FolderNode | null = null;
-
-    pathSegments.forEach((segment) => {
-      // Build current path
-      currentPath = currentPath ? `${currentPath}/${segment}` : segment;
-
-      // Check if folder already exists
-      if (!folderMap[currentPath]) {
-        // Create new folder
-        const newFolder: FolderNode = {
-          name: segment,
-          path: currentPath,
-          type: "folder",
-          children: [],
-        };
-
-        folderMap[currentPath] = newFolder;
-
-        // Add to parent or tree
-        if (parentFolder) {
-          parentFolder.children.push(newFolder);
-        } else {
-          tree.push(newFolder);
+  // Process each task group - create ONE node per task, not per row
+  resultsByTask.forEach((taskResults, taskId) => {
+    // Sort by row_index to maintain order
+    taskResults.sort((a, b) => a.row_index - b.row_index);
+    
+    const firstResult = taskResults[0];
+    
+    if (firstResult.processing_mode === "combined") {
+      // For combined processing, create one node representing all files
+      const sourceFiles = firstResult.source_files || [];
+      
+      if (sourceFiles.length === 0) return;
+      
+      // Find the common folder path for all source files
+      let commonPath = "";
+      if (sourceFiles.length > 1) {
+        // Find common directory path
+        const paths = sourceFiles.map(file => file.split("/").slice(0, -1));
+        if (paths.length > 0) {
+          const minLength = Math.min(...paths.map(p => p.length));
+          const commonSegments = [];
+          
+          for (let i = 0; i < minLength; i++) {
+            const segment = paths[0][i];
+            if (paths.every(path => path[i] === segment)) {
+              commonSegments.push(segment);
+            } else {
+              break;
+            }
+          }
+          commonPath = commonSegments.join("/");
         }
+      } else {
+        // Single file in combined mode - use its directory
+        const filePath = sourceFiles[0];
+        const pathSegments = filePath.split("/").slice(0, -1);
+        commonPath = pathSegments.join("/");
       }
 
-      // Update parent reference
-      parentFolder = folderMap[currentPath];
-    });
+      // Create ONE node for the combined result (not per row)
+      const combinedName = sourceFiles.length > 1 
+        ? `Combined (${sourceFiles.length} files, ${taskResults.length} rows)`
+        : `${sourceFiles[0].split("/").pop()} (${taskResults.length} rows)`;
+      
+      const combinedPath = commonPath 
+        ? `${commonPath}/${combinedName}`
+        : combinedName;
 
-    // Add file to its parent folder
-    if (parentFolder) {
-      parentFolder.children.push(fileNode);
+      // Create file node for combined result - use first result as representative
+      const fileNode: FileNode = {
+        name: combinedName,
+        path: combinedPath,
+        type: "file",
+        result: firstResult, // Use first result as representative
+      };
+
+      // Build folder structure if needed
+      if (commonPath) {
+        const pathSegments = commonPath.split("/").filter(segment => segment.length > 0);
+        
+        if (pathSegments.length === 0) {
+          tree.push(fileNode);
+          return;
+        }
+
+        // Build folder structure
+        let currentPath = "";
+        let parentFolder: FolderNode | null = null;
+
+        pathSegments.forEach((segment) => {
+          currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+
+          if (!folderMap[currentPath]) {
+            const newFolder: FolderNode = {
+              name: segment,
+              path: currentPath,
+              type: "folder",
+              children: [],
+            };
+
+            folderMap[currentPath] = newFolder;
+
+            if (parentFolder) {
+              parentFolder.children.push(newFolder);
+            } else {
+              tree.push(newFolder);
+            }
+          }
+
+          parentFolder = folderMap[currentPath];
+        });
+
+        if (parentFolder) {
+          parentFolder.children.push(fileNode);
+        }
+      } else {
+        tree.push(fileNode);
+      }
+    } else {
+      // Individual processing mode - create ONE node per file (not per row)
+      const filePath = firstResult.extracted_data?.original_path || firstResult.source_files[0];
+      if (!filePath) return;
+
+      const pathSegments = filePath
+        .split("/")
+        .filter((segment) => segment.length > 0);
+      const baseFileName = pathSegments.pop() || filePath;
+      
+      // Show row count in filename if multiple rows
+      const fileName = taskResults.length > 1 
+        ? `${baseFileName} (${taskResults.length} rows)`
+        : baseFileName;
+
+      const fileNode: FileNode = {
+        name: fileName,
+        path: filePath,
+        type: "file",
+        result: firstResult, // Use first result as representative
+      };
+
+      if (pathSegments.length === 0) {
+        tree.push(fileNode);
+        return;
+      }
+
+      let currentPath = "";
+      let parentFolder: FolderNode | null = null;
+
+      pathSegments.forEach((segment) => {
+        currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+
+        if (!folderMap[currentPath]) {
+          const newFolder: FolderNode = {
+            name: segment,
+            path: currentPath,
+            type: "folder",
+            children: [],
+          };
+
+          folderMap[currentPath] = newFolder;
+
+          if (parentFolder) {
+            parentFolder.children.push(newFolder);
+          } else {
+            tree.push(newFolder);
+          }
+        }
+
+        parentFolder = folderMap[currentPath];
+      });
+
+      if (parentFolder) {
+        parentFolder.children.push(fileNode);
+      }
     }
   });
 
@@ -151,6 +256,10 @@ const FileTreeNode = memo(
     const paddingLeft = `${level * 12}px`;
 
     if (node.type === "file") {
+      const isCombined = node.result.processing_mode === "combined";
+      const IconComponent = isCombined ? Files : FileText;
+      const iconColor = isCombined ? "text-purple-500" : "text-blue-500";
+      
       return (
         <div
           className={`flex items-center py-1 px-2 rounded cursor-pointer ${
@@ -159,8 +268,13 @@ const FileTreeNode = memo(
           style={{ paddingLeft }}
           onClick={() => onSelect(node.path)}
         >
-          <FileText className="w-4 h-4 text-blue-500 mr-2 flex-shrink-0" />
+          <IconComponent className={`w-4 h-4 ${iconColor} mr-2 flex-shrink-0`} />
           <span className="text-sm truncate">{node.name}</span>
+          {isCombined && (
+            <span className="ml-1 text-xs text-purple-600 bg-purple-100 px-1 rounded">
+              {node.result.source_files.length}
+            </span>
+          )}
         </div>
       );
     }
@@ -329,15 +443,17 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
     // Create CSV header
     const header = [
       "Task ID",
+      "Row Index",
       "Source Files",
       "Processing Mode",
       ...fields,
     ].join(",");
 
-    // Create CSV rows
+    // Create CSV rows - each result is already a separate row
     const rows = data.map((result) => {
       const row = [
         result.task_id,
+        result.row_index || 0,
         result.source_files.join("; "),
         result.processing_mode,
         ...fields.map((field) => {
@@ -435,10 +551,15 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
             </div>
             <div className="space-y-1">
               <div className="text-2xl font-bold text-orange-600">
-                {results?.results?.reduce(
-                  (sum, r) => sum + r.source_files.length,
-                  0
-                ) || 0}
+                {(() => {
+                  if (!results?.results) return 0;
+                  // Count unique source files across all results
+                  const uniqueFiles = new Set();
+                  results.results.forEach(r => {
+                    r.source_files.forEach(file => uniqueFiles.add(file));
+                  });
+                  return uniqueFiles.size;
+                })()}
               </div>
               <div className="text-sm text-muted-foreground">
                 Files Processed
@@ -566,6 +687,18 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
                           <div className="text-sm text-gray-500 mt-1">
                             {selectedFileNode.path}
                           </div>
+                          {selectedFileNode.result.processing_mode === "combined" && (
+                            <div className="text-sm text-gray-600 mt-2">
+                              <strong>Source files:</strong>
+                              <ul className="list-disc list-inside mt-1 space-y-1">
+                                {selectedFileNode.result.source_files.map((file, index) => (
+                                  <li key={index} className="text-xs">
+                                    {file.split("/").pop() || file}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                           <Badge variant="secondary" className="mt-2">
                             {selectedFileNode.result.processing_mode}
                           </Badge>
@@ -573,36 +706,58 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
                       </div>
 
                       <div className="overflow-x-auto">
-                        <table className="w-full border-collapse border border-gray-200 rounded-lg">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              {jobDetails?.job_fields?.map((field) => (
-                                <th
-                                  key={field.field_name}
-                                  className="text-left px-4 py-2 font-medium text-gray-900 border-b"
-                                >
-                                  {field.field_name}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr className="border-b">
-                              {jobDetails?.job_fields?.map((field) => (
-                                <td
-                                  key={field.field_name}
-                                  className="px-4 py-2"
-                                >
-                                  {formatValue(
-                                    selectedFileNode.result.extracted_data[
-                                      field.field_name
-                                    ]
+                        {(() => {
+                          // Find all rows for this task to display them together
+                          const taskId = selectedFileNode.result.task_id;
+                          const allTaskRows = results?.results?.filter(r => r.task_id === taskId) || [];
+                          allTaskRows.sort((a, b) => a.row_index - b.row_index);
+                          
+                          return (
+                            <table className="w-full border-collapse border border-gray-200 rounded-lg">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  {allTaskRows.length > 1 && (
+                                    <th className="text-left px-4 py-2 font-medium text-gray-900 border-b">
+                                      Row
+                                    </th>
                                   )}
-                                </td>
-                              ))}
-                            </tr>
-                          </tbody>
-                        </table>
+                                  {jobDetails?.job_fields?.map((field) => (
+                                    <th
+                                      key={field.field_name}
+                                      className="text-left px-4 py-2 font-medium text-gray-900 border-b"
+                                    >
+                                      {field.field_name}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {allTaskRows.map((row, rowIndex) => (
+                                  <tr 
+                                    key={`${row.task_id}-${row.row_index}`} 
+                                    className="border-b"
+                                  >
+                                    {allTaskRows.length > 1 && (
+                                      <td className="px-4 py-2 font-medium text-gray-600">
+                                        {rowIndex + 1}
+                                      </td>
+                                    )}
+                                    {jobDetails?.job_fields?.map((field) => (
+                                      <td
+                                        key={field.field_name}
+                                        className="px-4 py-2"
+                                      >
+                                        {formatValue(
+                                          row.extracted_data[field.field_name]
+                                        )}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          );
+                        })()}
                       </div>
                     </div>
                   ) : (

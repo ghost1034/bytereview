@@ -174,20 +174,20 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str
         if not extraction_result.success:
             raise ValueError(f"AI extraction failed: {extraction_result.error}")
         
-        if task.processing_mode == "combined":
-            # For combined mode, merge all results into one
-            final_result = {
-                "processing_mode": "combined",
-                "source_files": [f.original_filename for f in source_files],
-                "data": extraction_result.data,  # Combined data for all files
-                "by_document": extraction_result.by_document
-            }
+        # Convert AI service result to new simplified format: "results": [{row1}, {row2}]
+        # The AI service returns data as an array of row objects, use it directly
+        if extraction_result.data and isinstance(extraction_result.data, list):
+            # AI returned array of row objects, use directly
+            results_array = extraction_result.data
         else:
-            # For individual mode, keep separate results (no redundant top-level data)
-            final_result = {
-                "processing_mode": "individual",
-                "results": extraction_result.by_document
-            }
+            # Fallback for unexpected format
+            results_array = []
+        
+        # Create new simplified format for both individual and combined modes
+        final_result = {
+            "processing_mode": task.processing_mode,
+            "results": results_array
+        }
         
         # Save results to database
         extraction_result = ExtractionResult(

@@ -124,217 +124,6 @@ class AIExtractionService:
         
         return schema
 
-    # def construct_gcs_uri(self, bucket_name: str, object_name: str) -> str:
-    #     """Construct a gs:// URI from bucket and object name"""
-    #     from services.gcs_service import construct_gcs_uri
-    #     return construct_gcs_uri(bucket_name, object_name)
-
-#     async def extract_data_from_gcs_uris(self, gcs_uris: List[str], filenames: List[str], fields: List[FieldConfig], data_types_map: Dict[str, Dict], system_prompt: str, processed_files: List = None) -> ExtractionResult:
-#         """Extract structured data from PDF files using GCS URIs directly with Gemini API"""
-#         if not hasattr(self, 'base_model_name'):
-#             return ExtractionResult(
-#                 success=False,
-#                 error="AI service not available - GEMINI_API_KEY not configured"
-#             )
-        
-#         if len(gcs_uris) != len(filenames):
-#             return ExtractionResult(
-#                 success=False,
-#                 error="Number of GCS URIs must match number of filenames"
-#             )
-        
-#         try:
-#             # Create JSON schema for structured output
-#             json_schema = self.create_json_schema(fields, data_types_map)
-            
-#             # Configure model with JSON schema
-#             generation_config = genai.GenerationConfig(
-#                 response_mime_type="application/json",
-#                 response_schema=json_schema
-#             )
-            
-#             model = genai.GenerativeModel(
-#                 self.base_model_name,
-#                 generation_config=generation_config
-#             )
-            
-#             # Use system prompt from database and add field-specific instructions
-#             field_list = chr(10).join([f"- {field.name}: {field.prompt}" for field in fields])
-            
-#             prompt = f"""{system_prompt}
-
-# Extract the following data fields from the document:
-
-# {field_list}
-
-# Please return JSON as according to the schema.
-# """
-            
-#             # Process each file separately to get individual results
-#             document_results = []
-#             all_data = []
-#             total_rows = 0
-            
-#             for i, (gcs_uri, filename) in enumerate(zip(gcs_uris, filenames)):
-#                 try:
-#                     logger.info(f"Processing file from GCS URI: {filename} ({gcs_uri})")
-                    
-#                     # Gemini API supports GCS URIs directly as strings in content parts
-#                     # No need to create special file objects
-                    
-#                     # Generate response for this specific file
-#                     content_parts = [prompt, gcs_uri]
-#                     logger.info(f"Sending to AI - GCS URI: {gcs_uri}")
-#                     logger.info(f"AI Prompt preview: {prompt[:200]}...")
-                    
-#                     response = model.generate_content(content_parts)
-                    
-#                     if not response or not response.text:
-#                         document_results.append({
-#                             'filename': filename,
-#                             'success': False,
-#                             'error': 'AI model returned empty response',
-#                             'data': None
-#                         })
-#                         continue
-                    
-#                     # Parse the JSON response for this document
-#                     try:
-#                         extracted_data = json.loads(response.text.strip())
-#                         logger.info(f"Successfully extracted data from {filename}")
-                        
-#                         # Get metadata from processed_files if available
-#                         metadata = {}
-#                         size_bytes = None
-#                         if processed_files and i < len(processed_files):
-#                             processed_file = processed_files[i]
-#                             if hasattr(processed_file, 'metadata') and processed_file.metadata:
-#                                 # Ensure metadata is a dictionary, not a MetaData object
-#                                 if hasattr(processed_file.metadata, '__dict__'):
-#                                     metadata = processed_file.metadata.__dict__
-#                                 elif isinstance(processed_file.metadata, dict):
-#                                     metadata = processed_file.metadata
-#                                 else:
-#                                     metadata = {}
-#                             if hasattr(processed_file, 'size_bytes'):
-#                                 size_bytes = processed_file.size_bytes
-                        
-#                         # Store individual document result with metadata
-#                         # For individual files, extract the first item from the array
-#                         individual_data = extracted_data[0] if isinstance(extracted_data, list) and len(extracted_data) > 0 else {}
-#                         document_results.append({
-#                             'filename': filename,
-#                             'success': True,
-#                             'data': individual_data,
-#                             'error': None,
-#                             'original_path': metadata.get('original_path', filename),
-#                             'source_zip': metadata.get('source_zip'),
-#                             'size_bytes': size_bytes or metadata.get('size_bytes')
-#                         })
-                        
-#                         # Add to combined data - extracted_data is now always an array
-#                         if isinstance(extracted_data, list):
-#                             all_data.extend(extracted_data)
-#                             total_rows += len(extracted_data)
-#                         else:
-#                             # Fallback in case AI doesn't return array (shouldn't happen with new schema)
-#                             all_data.append(extracted_data)
-#                             total_rows += 1
-                            
-#                     except json.JSONDecodeError as e:
-#                         logger.error(f"Failed to parse JSON for {filename}: {e}")
-                        
-#                         # Get metadata for failed files too
-#                         metadata = {}
-#                         size_bytes = None
-#                         if processed_files and i < len(processed_files):
-#                             processed_file = processed_files[i]
-#                             if hasattr(processed_file, 'metadata') and processed_file.metadata:
-#                                 # Ensure metadata is a dictionary, not a MetaData object
-#                                 if hasattr(processed_file.metadata, '__dict__'):
-#                                     metadata = processed_file.metadata.__dict__
-#                                 elif isinstance(processed_file.metadata, dict):
-#                                     metadata = processed_file.metadata
-#                                 else:
-#                                     metadata = {}
-#                             if hasattr(processed_file, 'size_bytes'):
-#                                 size_bytes = processed_file.size_bytes
-                        
-#                         document_results.append({
-#                             'filename': filename,
-#                             'success': False,
-#                             'error': f'Failed to parse AI response: {str(e)}',
-#                             'data': None,
-#                             'original_path': metadata.get('original_path', filename),
-#                             'source_zip': metadata.get('source_zip'),
-#                             'size_bytes': size_bytes or metadata.get('size_bytes')
-#                         })
-                        
-#                 except Exception as e:
-#                     # Provide specific error messages for common GCS URI issues
-#                     error_message = str(e)
-#                     if "403" in error_message or "Forbidden" in error_message:
-#                         error_message = f"Access denied to GCS file {gcs_uri}. Check service account permissions."
-#                     elif "404" in error_message or "Not Found" in error_message:
-#                         error_message = f"GCS file not found: {gcs_uri}. File may have been deleted or moved."
-#                     elif "gs://" in error_message:
-#                         error_message = f"GCS URI error for {gcs_uri}: {str(e)}"
-#                     else:
-#                         error_message = f"Processing failed: {str(e)}"
-                    
-#                     logger.error(f"Failed to process file {filename} from GCS URI {gcs_uri}: {error_message}")
-                    
-#                     # Get metadata for failed files too
-#                     metadata = {}
-#                     size_bytes = None
-#                     if processed_files and i < len(processed_files):
-#                         processed_file = processed_files[i]
-#                         if hasattr(processed_file, 'metadata') and processed_file.metadata:
-#                             # Ensure metadata is a dictionary, not a MetaData object
-#                             if hasattr(processed_file.metadata, '__dict__'):
-#                                 metadata = processed_file.metadata.__dict__
-#                             elif isinstance(processed_file.metadata, dict):
-#                                 metadata = processed_file.metadata
-#                             else:
-#                                 metadata = {}
-#                         if hasattr(processed_file, 'size_bytes'):
-#                             size_bytes = processed_file.size_bytes
-                    
-#                     document_results.append({
-#                         'filename': filename,
-#                         'success': False,
-#                         'error': error_message,
-#                         'data': None,
-#                         'original_path': metadata.get('original_path', filename),
-#                         'source_zip': metadata.get('source_zip'),
-#                         'size_bytes': size_bytes or metadata.get('size_bytes')
-#                     })
-            
-#             # Check if any documents were successfully processed
-#             successful_docs = [doc for doc in document_results if doc['success']]
-            
-#             if not successful_docs:
-#                 return ExtractionResult(
-#                     success=False,
-#                     error="Failed to extract data from any documents",
-#                     by_document=document_results
-#                 )
-            
-#             return ExtractionResult(
-#                 success=True,
-#                 data=all_data,  # Combined data for backward compatibility
-#                 by_document=document_results,  # Individual document results
-#                 rows_extracted=total_rows,
-#                 ai_model="gemini-2.5-pro"
-#             )
-        
-#         except Exception as e:
-#             logger.error(f"AI extraction from GCS URIs failed: {e}")
-#             return ExtractionResult(
-#                 success=False,
-#                 error=f"AI extraction failed: {str(e)}"
-#             )
-
     async def extract_data_individual(self, files_data: List[Dict], fields: List[FieldConfig], data_types_map: Dict[str, Dict], system_prompt: str, processed_files: List = None) -> ExtractionResult:
         """Extract structured data from PDF files using AI with JSON schema - process each file separately"""
         if not hasattr(self, 'base_model_name'):
@@ -363,7 +152,7 @@ class AIExtractionService:
             
             prompt = f"""{system_prompt}
 
-Extract the following data fields from the document:
+Extract the following data fields from the document. If the document contains multiple records (like multiple line items, invoices, etc.), return all of them as separate objects in the array:
 
 {field_list}
 
@@ -387,8 +176,8 @@ If a field is not found, use null.
                     )
                     
                     # Wait for file to be processed
-                    import time
-                    time.sleep(2)  # Give Gemini time to process the file
+                    # import time
+                    # time.sleep(2)  # Give Gemini time to process the file
                     
                     # Generate response for this specific file
                     content_parts = [prompt, uploaded_file]
@@ -430,9 +219,13 @@ If a field is not found, use null.
                             'size_bytes': size_bytes or metadata.get('size_bytes')
                         })
                         
-                        # Add to combined data (simplified - no multiple rows logic)
-                        all_data.append(extracted_data)
-                        total_rows += 1
+                        # Add to combined data - extend with the array of rows
+                        if isinstance(extracted_data, list):
+                            all_data.extend(extracted_data)
+                            total_rows += len(extracted_data)
+                        else:
+                            all_data.append(extracted_data)
+                            total_rows += 1
                             
                     except json.JSONDecodeError as e:
                         logger.error(f"Failed to parse JSON for {file_data['filename']}: {e}")
@@ -553,8 +346,8 @@ If a field is not found, use null.
                 )
             
             # Wait for all files to be processed by Gemini
-            import time
-            time.sleep(len(uploaded_files))  # Give more time for multiple files
+            # import time
+            # time.sleep(len(uploaded_files))  # Give more time for multiple files
             
             # Create combined prompt that references all documents
             field_list = chr(10).join([f"- {field.name}: {field.prompt}" for field in fields])
@@ -564,7 +357,7 @@ If a field is not found, use null.
             
             prompt = f"""{system_prompt}
 
-You are processing {len(file_names)} documents together. Please extract the following fields from ALL documents:
+You are processing {len(file_names)} documents together. Please extract the following fields given ALL documents.
 
 {doc_list}
 
@@ -573,7 +366,6 @@ Fields to extract:
 
 For each extracted data point, indicate which document(s) it came from using the document filenames.
 If a field is not found in any document, use null.
-Return results as an array where each item includes a "source_documents" field listing the filenames that contributed to that data.
 """
             
             # Generate response for all files together

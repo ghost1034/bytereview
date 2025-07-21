@@ -762,7 +762,12 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemoveFile(file.id)}
-                          className="text-red-500 hover:text-red-700"
+                          disabled={file.status === 'unpacking'}
+                          className={`${
+                            file.status === 'unpacking' 
+                              ? 'text-gray-400 cursor-not-allowed' 
+                              : 'text-red-500 hover:text-red-700'
+                          }`}
                         >
                           <X className="w-4 h-4" />
                         </Button>

@@ -252,7 +252,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/jobs/{job_id}/stream": {
+    "/api/jobs/{job_id}/results": {
         parameters: {
             query?: never;
             header?: never;
@@ -260,10 +260,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Stream Job Events
-         * @description Stream real-time events for a job using Server-Sent Events
+         * Get Job Results
+         * @description Get extraction results for a completed job
          */
-        get: operations["stream_job_events_api_jobs__job_id__stream_get"];
+        get: operations["get_job_results_api_jobs__job_id__results_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -717,6 +717,36 @@ export interface components {
                 [key: string]: unknown;
             }[] | null;
         };
+        /**
+         * ExtractionTaskResult
+         * @description Result from a single extraction task
+         */
+        ExtractionTaskResult: {
+            /**
+             * Task Id
+             * @description Task identifier
+             */
+            task_id: string;
+            /**
+             * Source Files
+             * @description Source file names
+             */
+            source_files: string[];
+            /**
+             * Extracted Data
+             * @description Extracted data
+             */
+            extracted_data: {
+                [key: string]: unknown;
+            };
+            /** @description Processing mode used */
+            processing_mode: components["schemas"]["ProcessingMode"];
+            /**
+             * Row Index
+             * @description Row index for multiple results from same task
+             */
+            row_index: number;
+        };
         /** FieldConfig */
         FieldConfig: {
             /**
@@ -1004,15 +1034,26 @@ export interface components {
             status: components["schemas"]["JobStatus"];
         };
         /**
+         * JobResultsResponse
+         * @description Job results with pagination
+         */
+        JobResultsResponse: {
+            /**
+             * Total
+             * @description Total number of results
+             */
+            total: number;
+            /**
+             * Results
+             * @description Extraction results
+             */
+            results: components["schemas"]["ExtractionTaskResult"][];
+        };
+        /**
          * JobStartRequest
          * @description Request to start job processing
          */
         JobStartRequest: {
-            /**
-             * Name
-             * @description User-friendly job name
-             */
-            name?: string | null;
             /**
              * Template Id
              * @description Template ID to use
@@ -1705,11 +1746,13 @@ export interface operations {
             };
         };
     };
-    stream_job_events_api_jobs__job_id__stream_get: {
+    get_job_results_api_jobs__job_id__results_get: {
         parameters: {
-            query: {
-                /** @description Authentication token */
-                token: string;
+            query?: {
+                /** @description Number of results to return */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
             };
             header?: never;
             path: {
@@ -1725,7 +1768,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["JobResultsResponse"];
                 };
             };
             /** @description Validation Error */

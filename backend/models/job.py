@@ -68,7 +68,6 @@ class JobFieldConfig(BaseModel):
 
 class JobStartRequest(BaseModel):
     """Request to start job processing"""
-    name: Optional[str] = Field(None, description="User-friendly job name")
     template_id: Optional[str] = Field(None, description="Template ID to use")
     persist_data: bool = Field(default=True, description="Whether to persist data")
     fields: List[JobFieldConfig] = Field(..., description="Field configuration")
@@ -130,6 +129,7 @@ class ExtractionTaskResult(BaseModel):
     source_files: List[str] = Field(..., description="Source file names")
     extracted_data: Dict[str, Any] = Field(..., description="Extracted data")
     processing_mode: ProcessingMode = Field(..., description="Processing mode used")
+    row_index: int = Field(..., description="Row index for multiple results from same task")
 
 class JobResultsResponse(BaseModel):
     """Job results with pagination"""
