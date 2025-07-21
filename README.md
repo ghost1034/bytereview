@@ -67,7 +67,7 @@ This will start:
 npm install
 ```
 
-4. **Set up environment variables in `env.local`.**
+4. **Set up environment variables in `env.local` and `backend/.env`.**
 
 5. **Start the frontend:**
 
@@ -102,7 +102,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-5. **Set up environment variables in `env.local`.**
+5. **Set up environment variables in `backend/.env`.**
 
 6. **Run database migrations:**
 
@@ -134,18 +134,15 @@ python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 npm install
 ```
 
-2. **Set up environment variables:**
+2. **Set up environment variables in `.env.local`.**
 
-```bash
-cp .env.example .env.local
-# Edit .env.local with your Firebase and Stripe keys
-```
+````
 
 3. **Generate TypeScript types from OpenAPI:**
 
 ```bash
 npm run generate-types
-```
+````
 
 4. **Start the development server:**
 
