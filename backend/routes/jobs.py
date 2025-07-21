@@ -228,7 +228,7 @@ async def stream_job_events(
 async def get_job_results(
     job_id: str,
     user_id: str = Depends(get_current_user_id),
-    limit: int = Query(default=50, ge=1, le=100, description="Number of results to return"),
+    limit: int = Query(default=50, ge=1, le=1000, description="Number of results to return"),
     offset: int = Query(default=0, ge=0, description="Number of results to skip")
 ):
     """Get extraction results for a completed job"""

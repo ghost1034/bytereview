@@ -741,11 +741,6 @@ export interface components {
             };
             /** @description Processing mode used */
             processing_mode: components["schemas"]["ProcessingMode"];
-            /**
-             * Row Index
-             * @description Row index for multiple results from same task
-             */
-            row_index: number;
         };
         /** FieldConfig */
         FieldConfig: {
@@ -1043,6 +1038,11 @@ export interface components {
              * @description Total number of results
              */
             total: number;
+            /**
+             * Files Processed Count
+             * @description Total number of unique files processed
+             */
+            files_processed_count: number;
             /**
              * Results
              * @description Extraction results

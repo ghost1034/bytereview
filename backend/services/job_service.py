@@ -56,6 +56,17 @@ class JobService:
         normalized = path.replace('\\', '/').strip('/')
         return normalized
 
+    def _filter_processable_files(self, query):
+        """Filter out archive files that are only used for unpacking, not data extraction"""
+        return query.filter(
+            ~SourceFile.file_type.in_([
+                'application/zip', 
+                'application/x-zip-compressed',
+                'application/x-7z-compressed',
+                'application/x-rar-compressed'
+            ])
+        )
+
     async def initiate_job(self, user_id: str, request: JobInitiateRequest) -> JobInitiateResponse:
         """
         Step 1: Initiate a new job and generate pre-signed upload URLs
@@ -486,15 +497,7 @@ class JobService:
             
             if processable_only:
                 # Filter out archive files that are only used for unpacking, not data extraction
-                # This same logic will be used when creating extraction tasks for AI processing
-                query = query.filter(
-                    ~SourceFile.file_type.in_([
-                        'application/zip', 
-                        'application/x-zip-compressed',
-                        'application/x-7z-compressed',
-                        'application/x-rar-compressed'
-                    ])
-                )
+                query = self._filter_processable_files(query)
             
             source_files = query.order_by(SourceFile.id).all()
             
@@ -634,6 +637,11 @@ class JobService:
             # Apply pagination
             results_with_tasks = results_query.offset(offset).limit(limit).all()
             
+            # Calculate unique files processed count efficiently (excluding archive files)
+            unique_files_query = db.query(SourceFile.id).filter(SourceFile.job_id == job_id)
+            unique_files_query = self._filter_processable_files(unique_files_query).distinct()
+            files_processed_count = unique_files_query.count()
+            
             # Process results
             processed_results = []
             logger.info(f"Processing {len(results_with_tasks)} result records for job {job_id}")
@@ -665,15 +673,15 @@ class JobService:
                                 "task_id": str(result.task_id),
                                 "source_files": source_files,
                                 "processing_mode": task.processing_mode,
-                                "extracted_data": row_data,
-                                "row_index": len(processed_results)
+                                "extracted_data": row_data
                             })
             
-            logger.info(f"Job {job_id} results debug: total_count={total_count}, processed_results_count={len(processed_results)}")
+            logger.info(f"Job {job_id} results debug: total_count={total_count}, files_processed_count={files_processed_count}, processed_results_count={len(processed_results)}")
             logger.info(f"First few processed results: {processed_results[:2] if processed_results else 'None'}")
             
             return JobResultsResponse(
                 total=total_count,
+                files_processed_count=files_processed_count,
                 results=processed_results
             )
             

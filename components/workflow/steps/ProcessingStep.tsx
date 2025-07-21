@@ -15,9 +15,6 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  FileText,
-  Brain,
-  Database,
   AlertTriangle,
 } from "lucide-react";
 import { useJobDetails, useJobProgress } from "@/hooks/useJobs";
@@ -426,7 +423,9 @@ export default function ProcessingStep({
                       (completedTasks || progress.completed) -
                       progress.failed}
                   </div>
-                  <div className="text-sm text-muted-foreground">Pending</div>
+                  <div className="text-sm text-muted-foreground">
+                    Tasks Remaining
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-2xl font-bold text-red-600">
@@ -485,13 +484,15 @@ export default function ProcessingStep({
                     <div className="flex-1">
                       <div className="font-medium">{step.name}</div>
                       <div className="text-sm text-muted-foreground">
-                        {step.status === "processing" && isCurrentStep
+                        {step.status === "processing"
                           ? "Currently processing..."
                           : step.status === "completed"
                           ? `Completed in ${duration}s`
                           : step.status === "failed"
                           ? "Processing failed"
-                          : "Waiting to start"}
+                          : step.status === "pending"
+                          ? "Pending..."
+                          : "Status unknown"}
                       </div>
                     </div>
                     <Badge

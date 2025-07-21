@@ -32,7 +32,6 @@ type JobResult = {
   source_files: string[];
   processing_mode: string;
   extracted_data: Record<string, any>;
-  row_index: number;
 };
 
 type FileNode = {
@@ -70,29 +69,28 @@ const buildFileTree = (results: JobResult[]): TreeNode[] => {
 
   // Process each task group - create ONE node per task, not per row
   resultsByTask.forEach((taskResults, taskId) => {
-    // Sort by row_index to maintain order
-    taskResults.sort((a, b) => a.row_index - b.row_index);
-    
+    // Results are already in processing order
+
     const firstResult = taskResults[0];
-    
+
     if (firstResult.processing_mode === "combined") {
       // For combined processing, create one node representing all files
       const sourceFiles = firstResult.source_files || [];
-      
+
       if (sourceFiles.length === 0) return;
-      
+
       // Find the common folder path for all source files
       let commonPath = "";
       if (sourceFiles.length > 1) {
         // Find common directory path
-        const paths = sourceFiles.map(file => file.split("/").slice(0, -1));
+        const paths = sourceFiles.map((file) => file.split("/").slice(0, -1));
         if (paths.length > 0) {
-          const minLength = Math.min(...paths.map(p => p.length));
+          const minLength = Math.min(...paths.map((p) => p.length));
           const commonSegments = [];
-          
+
           for (let i = 0; i < minLength; i++) {
             const segment = paths[0][i];
-            if (paths.every(path => path[i] === segment)) {
+            if (paths.every((path) => path[i] === segment)) {
               commonSegments.push(segment);
             } else {
               break;
@@ -108,11 +106,12 @@ const buildFileTree = (results: JobResult[]): TreeNode[] => {
       }
 
       // Create ONE node for the combined result (not per row)
-      const combinedName = sourceFiles.length > 1 
-        ? `Combined (${sourceFiles.length} files, ${taskResults.length} rows)`
-        : `${sourceFiles[0].split("/").pop()} (${taskResults.length} rows)`;
-      
-      const combinedPath = commonPath 
+      const combinedName =
+        sourceFiles.length > 1
+          ? `Combined (${sourceFiles.length} files, ${taskResults.length} rows)`
+          : `${sourceFiles[0].split("/").pop()} (${taskResults.length} rows)`;
+
+      const combinedPath = commonPath
         ? `${commonPath}/${combinedName}`
         : combinedName;
 
@@ -126,8 +125,10 @@ const buildFileTree = (results: JobResult[]): TreeNode[] => {
 
       // Build folder structure if needed
       if (commonPath) {
-        const pathSegments = commonPath.split("/").filter(segment => segment.length > 0);
-        
+        const pathSegments = commonPath
+          .split("/")
+          .filter((segment) => segment.length > 0);
+
         if (pathSegments.length === 0) {
           tree.push(fileNode);
           return;
@@ -168,18 +169,21 @@ const buildFileTree = (results: JobResult[]): TreeNode[] => {
       }
     } else {
       // Individual processing mode - create ONE node per file (not per row)
-      const filePath = firstResult.extracted_data?.original_path || firstResult.source_files[0];
+      const filePath =
+        firstResult.extracted_data?.original_path ||
+        firstResult.source_files[0];
       if (!filePath) return;
 
       const pathSegments = filePath
         .split("/")
         .filter((segment) => segment.length > 0);
       const baseFileName = pathSegments.pop() || filePath;
-      
+
       // Show row count in filename if multiple rows
-      const fileName = taskResults.length > 1 
-        ? `${baseFileName} (${taskResults.length} rows)`
-        : baseFileName;
+      const fileName =
+        taskResults.length > 1
+          ? `${baseFileName} (${taskResults.length} rows)`
+          : baseFileName;
 
       const fileNode: FileNode = {
         name: fileName,
@@ -259,7 +263,7 @@ const FileTreeNode = memo(
       const isCombined = node.result.processing_mode === "combined";
       const IconComponent = isCombined ? Files : FileText;
       const iconColor = isCombined ? "text-purple-500" : "text-blue-500";
-      
+
       return (
         <div
           className={`flex items-center py-1 px-2 rounded cursor-pointer ${
@@ -268,7 +272,9 @@ const FileTreeNode = memo(
           style={{ paddingLeft }}
           onClick={() => onSelect(node.path)}
         >
-          <IconComponent className={`w-4 h-4 ${iconColor} mr-2 flex-shrink-0`} />
+          <IconComponent
+            className={`w-4 h-4 ${iconColor} mr-2 flex-shrink-0`}
+          />
           <span className="text-sm truncate">{node.name}</span>
           {isCombined && (
             <span className="ml-1 text-xs text-purple-600 bg-purple-100 px-1 rounded">
@@ -325,7 +331,7 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
     data: results,
     isLoading: resultsLoading,
     error,
-  } = useJobResults(jobId);
+  } = useJobResults(jobId, 1000); // Get up to 1000 results
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [fileTree, setFileTree] = useState<TreeNode[]>([]);
 
@@ -336,6 +342,9 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
     }
     return [];
   }, [results?.results]);
+
+  // Get unique files count directly from API response (more efficient)
+  const uniqueFilesCount = results?.files_processed_count || 0;
 
   // Update file tree and selection when memoized tree changes
   useEffect(() => {
@@ -443,7 +452,6 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
     // Create CSV header
     const header = [
       "Task ID",
-      "Row Index",
       "Source Files",
       "Processing Mode",
       ...fields,
@@ -453,7 +461,6 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
     const rows = data.map((result) => {
       const row = [
         result.task_id,
-        result.row_index || 0,
         result.source_files.join("; "),
         result.processing_mode,
         ...fields.map((field) => {
@@ -531,7 +538,7 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div className="space-y-1">
               <div className="text-2xl font-bold text-blue-600">
-                {results?.total || 0}
+                {results?.results?.length || 0}
               </div>
               <div className="text-sm text-muted-foreground">Total Results</div>
             </div>
@@ -551,15 +558,7 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
             </div>
             <div className="space-y-1">
               <div className="text-2xl font-bold text-orange-600">
-                {(() => {
-                  if (!results?.results) return 0;
-                  // Count unique source files across all results
-                  const uniqueFiles = new Set();
-                  results.results.forEach(r => {
-                    r.source_files.forEach(file => uniqueFiles.add(file));
-                  });
-                  return uniqueFiles.size;
-                })()}
+                {uniqueFilesCount}
               </div>
               <div className="text-sm text-muted-foreground">
                 Files Processed
@@ -652,7 +651,7 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
                 <div className="w-64 flex-shrink-0">
                   <h3 className="font-medium text-gray-900 mb-3 flex items-center">
                     <Folder className="w-4 h-4 mr-2" />
-                    Files ({results.results.length})
+                    Files ({uniqueFilesCount})
                   </h3>
 
                   <div className="max-h-96 overflow-y-auto border rounded-lg p-2">
@@ -687,15 +686,18 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
                           <div className="text-sm text-gray-500 mt-1">
                             {selectedFileNode.path}
                           </div>
-                          {selectedFileNode.result.processing_mode === "combined" && (
+                          {selectedFileNode.result.processing_mode ===
+                            "combined" && (
                             <div className="text-sm text-gray-600 mt-2">
                               <strong>Source files:</strong>
                               <ul className="list-disc list-inside mt-1 space-y-1">
-                                {selectedFileNode.result.source_files.map((file, index) => (
-                                  <li key={index} className="text-xs">
-                                    {file.split("/").pop() || file}
-                                  </li>
-                                ))}
+                                {selectedFileNode.result.source_files.map(
+                                  (file, index) => (
+                                    <li key={index} className="text-xs">
+                                      {file.split("/").pop() || file}
+                                    </li>
+                                  )
+                                )}
                               </ul>
                             </div>
                           )}
@@ -709,9 +711,12 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
                         {(() => {
                           // Find all rows for this task to display them together
                           const taskId = selectedFileNode.result.task_id;
-                          const allTaskRows = results?.results?.filter(r => r.task_id === taskId) || [];
-                          allTaskRows.sort((a, b) => a.row_index - b.row_index);
-                          
+                          const allTaskRows =
+                            results?.results?.filter(
+                              (r) => r.task_id === taskId
+                            ) || [];
+                          // Results are already in processing order
+
                           return (
                             <table className="w-full border-collapse border border-gray-200 rounded-lg">
                               <thead className="bg-gray-50">
@@ -733,8 +738,8 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
                               </thead>
                               <tbody>
                                 {allTaskRows.map((row, rowIndex) => (
-                                  <tr 
-                                    key={`${row.task_id}-${row.row_index}`} 
+                                  <tr
+                                    key={`${row.task_id}-${rowIndex}`}
                                     className="border-b"
                                   >
                                     {allTaskRows.length > 1 && (

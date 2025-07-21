@@ -2,6 +2,7 @@
 AI-powered data extraction service using Google Gemini
 Direct PDF processing with structured JSON schema output using GCS URIs
 """
+import asyncio
 import google.generativeai as genai
 import json
 import os
@@ -148,7 +149,7 @@ class AIExtractionService:
             )
             
             # Use system prompt from database and add field-specific instructions
-            field_list = chr(10).join([f"- {field.name}: {field.prompt}" for field in fields])
+            field_list = chr(10).join([f"- {field.name} ({field.data_type}): {field.prompt}" for field in fields])
             
             prompt = f"""{system_prompt}
 
@@ -157,7 +158,15 @@ Extract the following data fields from the document. If the document contains mu
 {field_list}
 
 If a field is not found, use null.
+If the field name, data type, or prompt includes formatting information, follow that instead of exactly matching the format of what is in the document.
 """
+            
+            # Debug: Log the complete prompt being sent to Gemini
+            logger.info(f"=== GEMINI PROMPT DEBUG (Individual Mode) ===")
+            logger.info(f"System prompt: {system_prompt}")
+            logger.info(f"Field list: {field_list}")
+            logger.info(f"Complete prompt: {prompt}")
+            logger.info(f"=== END GEMINI PROMPT DEBUG ===")
             
             # Process each file separately to get individual results
             document_results = []
@@ -168,8 +177,9 @@ If a field is not found, use null.
                 try:
                     logger.info(f"Processing file: {file_data['filename']}")
                     
-                    # Upload single file to Gemini
-                    uploaded_file = genai.upload_file(
+                    # Upload single file to Gemini (run in thread pool to avoid blocking)
+                    uploaded_file = await asyncio.to_thread(
+                        genai.upload_file,
                         io.BytesIO(file_data['content']),
                         mime_type="application/pdf",
                         display_name=file_data['filename']
@@ -179,9 +189,9 @@ If a field is not found, use null.
                     # import time
                     # time.sleep(2)  # Give Gemini time to process the file
                     
-                    # Generate response for this specific file
+                    # Generate response for this specific file (run in thread pool to avoid blocking)
                     content_parts = [prompt, uploaded_file]
-                    response = model.generate_content(content_parts)
+                    response = await asyncio.to_thread(model.generate_content, content_parts)
                     
                     if not response or not response.text:
                         document_results.append({
@@ -350,7 +360,7 @@ If a field is not found, use null.
             # time.sleep(len(uploaded_files))  # Give more time for multiple files
             
             # Create combined prompt that references all documents
-            field_list = chr(10).join([f"- {field.name}: {field.prompt}" for field in fields])
+            field_list = chr(10).join([f"- {field.name} ({field.data_type}): {field.prompt}" for field in fields])
             
             # Create document list for the prompt
             doc_list = chr(10).join([f"Document {i+1}: {name}" for i, name in enumerate(file_names)])
@@ -366,14 +376,23 @@ Fields to extract:
 
 For each extracted data point, indicate which document(s) it came from using the document filenames.
 If a field is not found in any document, use null.
+If the field name, data type, or prompt includes formatting information, follow that instead of exactly matching the format of what is in the document.
 """
+            
+            # Debug: Log the complete prompt being sent to Gemini
+            logger.info(f"=== GEMINI PROMPT DEBUG (Combined Mode) ===")
+            logger.info(f"System prompt: {system_prompt}")
+            logger.info(f"Document list: {doc_list}")
+            logger.info(f"Field list: {field_list}")
+            logger.info(f"Complete prompt: {prompt}")
+            logger.info(f"=== END GEMINI PROMPT DEBUG ===")
             
             # Generate response for all files together
             content_parts = [prompt] + uploaded_files
             logger.info(f"Sending {len(uploaded_files)} files to AI for combined processing")
             logger.info(f"AI Prompt preview: {prompt[:300]}...")
             
-            response = model.generate_content(content_parts)
+            response = await asyncio.to_thread(model.generate_content, content_parts)
             
             if not response or not response.text:
                 return ExtractionResult(

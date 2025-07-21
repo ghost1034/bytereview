@@ -473,6 +473,7 @@ export type JobProgressResponse = ApiResponse<ApiPaths['/api/jobs/{job_id}/progr
 export type JobFilesResponse = ApiResponse<ApiPaths['/api/jobs/{job_id}/files']['get']>
 export type JobResultsResponse = {
   total: number
+  files_processed_count: number
   results: Array<{
     task_id: string
     source_files: string[]
