@@ -58,8 +58,10 @@ class Template(Base):
     __tablename__ = "templates"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)  # Nullable for public templates
     name = Column(String(255), nullable=False)
+    description = Column(Text)  # Add description field
+    is_public = Column(Boolean, nullable=False, default=False)  # Add is_public field
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
     

@@ -54,7 +54,7 @@ export function DashboardHome() {
       {/* Welcome Section */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">
-          Welcome back, {userLoading ? 'Loading...' : userProfile?.display_name || userProfile?.email || 'User'}!
+          {userLoading ? 'Welcome back!' : `Welcome back, ${userProfile?.display_name || userProfile?.email || 'User'}!`}
         </h1>
         <p className="text-gray-600 mt-2">
           Ready to extract data from your documents? Let's get started.

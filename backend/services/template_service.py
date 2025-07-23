@@ -48,8 +48,10 @@ class TemplateService:
         try:
             # Create template
             template = DBTemplate(
-                user_id=user_id,
-                name=name
+                user_id=user_id if not is_public else None,  # Public templates have no user_id
+                name=name,
+                description=description,
+                is_public=is_public
             )
             db.add(template)
             db.flush()  # Get the ID
@@ -74,12 +76,12 @@ class TemplateService:
             return ExtractionTemplate(
                 id=str(template.id),
                 name=template.name,
-                description=description,
+                description=template.description,
                 fields=fields,
-                created_by=user_id,
+                created_by=template.user_id,  # Will be None for public templates
                 created_at=template.created_at,
                 updated_at=template.updated_at,
-                is_public=is_public
+                is_public=template.is_public
             )
             
         except SQLAlchemyError as e:
@@ -114,12 +116,12 @@ class TemplateService:
                 result.append(ExtractionTemplate(
                     id=str(template.id),
                     name=template.name,
-                    description=None,  # TODO: Add to schema
+                    description=template.description,
                     fields=field_configs,
-                    created_by=user_id,
+                    created_by=template.user_id,  # Will be the actual user_id
                     created_at=template.created_at,
                     updated_at=template.updated_at,
-                    is_public=False  # TODO: Add to schema
+                    is_public=template.is_public
                 ))
             
             return result
@@ -131,12 +133,13 @@ class TemplateService:
             db.close()
 
     async def get_template(self, template_id: str, user_id: str) -> Optional[ExtractionTemplate]:
-        """Get a specific template"""
+        """Get a specific template (user's own template or public template)"""
         db = self._get_session()
         try:
+            # Allow access to user's own templates OR public templates
             template = db.query(DBTemplate).filter(
                 DBTemplate.id == template_id,
-                DBTemplate.user_id == user_id
+                (DBTemplate.user_id == user_id) | (DBTemplate.is_public == True)
             ).first()
             
             if not template:
@@ -159,12 +162,12 @@ class TemplateService:
             return ExtractionTemplate(
                 id=str(template.id),
                 name=template.name,
-                description=None,
+                description=template.description,
                 fields=field_configs,
-                created_by=user_id,
+                created_by=template.user_id,  # Will be None for public templates
                 created_at=template.created_at,
                 updated_at=template.updated_at,
-                is_public=False
+                is_public=template.is_public
             )
             
         except SQLAlchemyError as e:
@@ -190,9 +193,18 @@ class TemplateService:
             if not template:
                 return None
             
-            # Update template name if provided
+            # Update template fields if provided
             if update_data.name:
                 template.name = update_data.name
+            if update_data.description is not None:
+                template.description = update_data.description
+            if update_data.is_public is not None:
+                template.is_public = update_data.is_public
+                # If making public, remove user_id; if making private, ensure user_id is set
+                if update_data.is_public:
+                    template.user_id = None
+                else:
+                    template.user_id = user_id
             
             template.updated_at = datetime.utcnow()
             
@@ -256,5 +268,41 @@ class TemplateService:
 
     async def get_public_templates(self) -> List[ExtractionTemplate]:
         """Get publicly available templates"""
-        # TODO: Implement when public templates are added to schema
-        return []
+        db = self._get_session()
+        try:
+            templates = db.query(DBTemplate).filter(DBTemplate.is_public == True).all()
+            
+            result = []
+            for template in templates:
+                # Get template fields
+                fields = db.query(DBTemplateField).filter(
+                    DBTemplateField.template_id == template.id
+                ).order_by(DBTemplateField.display_order).all()
+                
+                field_configs = [
+                    FieldConfig(
+                        name=field.field_name,
+                        data_type=field.data_type_id,
+                        prompt=field.ai_prompt
+                    )
+                    for field in fields
+                ]
+                
+                result.append(ExtractionTemplate(
+                    id=str(template.id),
+                    name=template.name,
+                    description=template.description,
+                    fields=field_configs,
+                    created_by=None,  # Public templates have no specific creator
+                    created_at=template.created_at,
+                    updated_at=template.updated_at,
+                    is_public=True
+                ))
+            
+            return result
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting public templates: {e}")
+            raise
+        finally:
+            db.close()

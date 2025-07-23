@@ -2,281 +2,275 @@
  * Field Configuration Step for Job Workflow
  * Allows users to define what data to extract from documents
  */
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { 
-  Plus, 
-  Trash2, 
-  ArrowLeft, 
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import {
+  ArrowLeft,
   ArrowRight,
   Settings,
   FileText,
-  GripVertical,
-  Copy
-} from 'lucide-react'
-import { useToast } from '@/hooks/use-toast'
-import { useTemplates } from '@/hooks/useExtraction'
-import { UploadedFile, JobFieldConfig, TaskDefinition, ProcessingMode, DataType, apiClient } from '@/lib/api'
+  Bookmark,
+  Wrench,
+  Globe,
+  Lock,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useTemplates, usePublicTemplates } from "@/hooks/useExtraction";
+import { useDataTypes } from "@/hooks/useDataTypes";
+import FieldConfigurationEditor from "@/components/extraction/FieldConfigurationEditor";
+import {
+  UploadedFile,
+  JobFieldConfig,
+  TaskDefinition,
+  ProcessingMode,
+  FieldConfig,
+} from "@/lib/api";
 
 interface FieldConfigurationStepProps {
-  files: UploadedFile[]
-  initialFields?: JobFieldConfig[]
-  initialTaskDefinitions?: TaskDefinition[]
-  onFieldsConfigured: (fields: JobFieldConfig[], taskDefinitions: TaskDefinition[]) => void
-  onBack: () => void
+  files: UploadedFile[];
+  initialFields?: JobFieldConfig[];
+  initialTaskDefinitions?: TaskDefinition[];
+  onFieldsConfigured: (
+    fields: JobFieldConfig[],
+    taskDefinitions: TaskDefinition[],
+    templateId?: string
+  ) => void;
+  onBack: () => void;
 }
 
-export default function FieldConfigurationStep({ 
-  files, 
+export default function FieldConfigurationStep({
+  files,
   initialFields,
   initialTaskDefinitions,
-  onFieldsConfigured, 
-  onBack 
+  onFieldsConfigured,
+  onBack,
 }: FieldConfigurationStepProps) {
-  const { toast } = useToast()
-  const { data: templates } = useTemplates()
-  const [dataTypes, setDataTypes] = useState<DataType[]>([])
-  const [loadingDataTypes, setLoadingDataTypes] = useState(true)
-  
+  const { toast } = useToast();
+  const { data: userTemplates } = useTemplates();
+  const { data: publicTemplates } = usePublicTemplates();
+  const { data: dataTypes = [], isLoading: dataTypesLoading } = useDataTypes();
+
   const [fields, setFields] = useState<JobFieldConfig[]>(
-    initialFields && initialFields.length > 0 
-      ? initialFields 
-      : [{
-          field_name: '',
-          data_type_id: 'text',
-          ai_prompt: '',
-          display_order: 0
-        }]
-  )
-  
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('')
-  const [folderProcessingModes, setFolderProcessingModes] = useState<Record<string, ProcessingMode>>({})
+    initialFields && initialFields.length > 0
+      ? initialFields
+      : [
+          {
+            field_name: "",
+            data_type_id: "text",
+            ai_prompt: "",
+            display_order: 0,
+          },
+        ]
+  );
 
-  // Load data types from API
-  useEffect(() => {
-    const loadDataTypes = async () => {
-      try {
-        const dataTypes = await apiClient.getDataTypes()
-        setDataTypes(dataTypes)
-      } catch (error) {
-        console.error('Error loading data types:', error)
-        toast({
-          title: "Error loading data types",
-          description: "Using default data types. Please check your connection.",
-          variant: "destructive"
-        })
-        // Fallback to basic data types
-        setDataTypes([
-          { 
-            id: 'text', 
-            display_name: 'Text', 
-            description: 'General text field',
-            base_json_type: 'string',
-            display_order: 1
-          },
-          { 
-            id: 'number', 
-            display_name: 'Number', 
-            description: 'Numeric value',
-            base_json_type: 'number',
-            display_order: 2
-          },
-          { 
-            id: 'currency', 
-            display_name: 'Currency', 
-            description: 'Monetary amount',
-            base_json_type: 'number',
-            display_order: 3
-          },
-          { 
-            id: 'date_ymd', 
-            display_name: 'Date (YYYY-MM-DD)', 
-            description: 'Date format',
-            base_json_type: 'string',
-            json_format: 'date',
-            display_order: 4
-          },
-          { 
-            id: 'boolean', 
-            display_name: 'Boolean (Yes/No)', 
-            description: 'True/false value',
-            base_json_type: 'boolean',
-            display_order: 5
-          }
-        ])
-      } finally {
-        setLoadingDataTypes(false)
-      }
+  // Convert JobFieldConfig to FieldConfig for the shared component
+  const convertToFieldConfig = (jobFields: JobFieldConfig[]): FieldConfig[] => {
+    return jobFields.map((field) => ({
+      name: field.field_name,
+      data_type: field.data_type_id,
+      prompt: field.ai_prompt,
+    }));
+  };
+
+  // Convert FieldConfig back to JobFieldConfig
+  const convertFromFieldConfig = (
+    fieldConfigs: FieldConfig[]
+  ): JobFieldConfig[] => {
+    return fieldConfigs.map((field, index) => ({
+      field_name: field.name,
+      data_type_id: field.data_type,
+      ai_prompt: field.prompt,
+      display_order: index,
+    }));
+  };
+
+  const handleFieldsChange = (newFieldConfigs: FieldConfig[]) => {
+    const newJobFields = convertFromFieldConfig(newFieldConfigs);
+    setFields(newJobFields);
+  };
+
+  // Combine user and public templates
+  const allTemplates = [
+    ...(userTemplates?.templates || []),
+    ...(publicTemplates?.templates || []),
+  ];
+
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [configurationMode, setConfigurationMode] = useState<
+    "template" | "custom"
+  >("custom");
+  const [folderProcessingModes, setFolderProcessingModes] = useState<
+    Record<string, ProcessingMode>
+  >({});
+
+
+  // Handle configuration mode change
+  const handleConfigurationModeChange = (mode: "template" | "custom") => {
+    setConfigurationMode(mode);
+    if (mode === "custom") {
+      setSelectedTemplate("");
+      // Reset to default single field for custom configuration
+      setFields([
+        {
+          field_name: "",
+          data_type_id: "text",
+          ai_prompt: "",
+          display_order: 0,
+        },
+      ]);
     }
-
-    loadDataTypes()
-  }, [])
+  };
 
   // Load template when selected
   useEffect(() => {
-    if (selectedTemplate && templates?.templates) {
-      const template = templates.templates.find(t => t.id === selectedTemplate)
+    if (
+      configurationMode === "template" &&
+      selectedTemplate &&
+      allTemplates.length > 0
+    ) {
+      const template = allTemplates.find((t) => t.id === selectedTemplate);
       if (template) {
-        const templateFields: JobFieldConfig[] = template.fields.map((field, index) => ({
-          field_name: field.name,
-          data_type_id: field.data_type,
-          ai_prompt: field.prompt,
-          display_order: index
-        }))
-        setFields(templateFields)
-        
+        const templateFields: JobFieldConfig[] = template.fields.map(
+          (field, index) => ({
+            field_name: field.name,
+            data_type_id: field.data_type,
+            ai_prompt: field.prompt,
+            display_order: index,
+          })
+        );
+        setFields(templateFields);
+
         toast({
           title: "Template loaded",
-          description: `Loaded ${templateFields.length} fields from "${template.name}"`
-        })
+          description: `Loaded ${templateFields.length} fields from "${template.name}". You can customize these fields before proceeding.`,
+        });
       }
     }
-  }, [selectedTemplate, templates, toast])
+  }, [configurationMode, selectedTemplate, toast]);
 
   // Group files by folder for task definition
   const getFileFolders = () => {
-    const folders = new Set<string>()
-    files.forEach(file => {
-      const folder = file.original_path.includes('/') 
-        ? file.original_path.substring(0, file.original_path.lastIndexOf('/'))
-        : '/'
-      folders.add(folder)
-    })
-    return Array.from(folders).sort()
-  }
+    const folders = new Set<string>();
+    files.forEach((file) => {
+      const folder = file.original_path.includes("/")
+        ? file.original_path.substring(0, file.original_path.lastIndexOf("/"))
+        : "/";
+      folders.add(folder);
+    });
+    return Array.from(folders).sort();
+  };
 
   // Initialize processing modes for all folders
   useEffect(() => {
-    const folders = getFileFolders()
-    
+    const folders = getFileFolders();
+
     // If we have initial task definitions, use those to set processing modes
-    const initialModes: Record<string, ProcessingMode> = {}
+    const initialModes: Record<string, ProcessingMode> = {};
     if (initialTaskDefinitions && initialTaskDefinitions.length > 0) {
-      initialTaskDefinitions.forEach(task => {
-        initialModes[task.path] = task.mode
-      })
+      initialTaskDefinitions.forEach((task) => {
+        initialModes[task.path] = task.mode;
+      });
     }
-    
-    setFolderProcessingModes(prev => {
-      const newModes = { ...prev, ...initialModes }
-      folders.forEach(folder => {
+
+    setFolderProcessingModes((prev) => {
+      const newModes = { ...prev, ...initialModes };
+      folders.forEach((folder) => {
         if (!(folder in newModes)) {
-          newModes[folder] = 'individual' // Default to individual
+          newModes[folder] = "individual"; // Default to individual
         }
-      })
-      return newModes
-    })
-  }, [files, initialTaskDefinitions])
+      });
+      return newModes;
+    });
+  }, [files, initialTaskDefinitions]);
 
   // Get files for a specific folder
   const getFilesInFolder = (folder: string) => {
-    return files.filter(file => {
-      const fileFolder = file.original_path.includes('/') 
-        ? file.original_path.substring(0, file.original_path.lastIndexOf('/'))
-        : '/'
-      return fileFolder === folder
-    })
-  }
-
-  const addField = () => {
-    setFields(prev => [
-      ...prev,
-      {
-        field_name: '',
-        data_type_id: 'text',
-        ai_prompt: '',
-        display_order: prev.length
-      }
-    ])
-  }
-
-  const removeField = (index: number) => {
-    setFields(prev => prev.filter((_, i) => i !== index))
-  }
-
-  const updateField = (index: number, updates: Partial<JobFieldConfig>) => {
-    setFields(prev => prev.map((field, i) => 
-      i === index ? { ...field, ...updates } : field
-    ))
-  }
-
-  const duplicateField = (index: number) => {
-    const fieldToDuplicate = fields[index]
-    setFields(prev => [
-      ...prev,
-      {
-        ...fieldToDuplicate,
-        field_name: `${fieldToDuplicate.field_name} (Copy)`,
-        display_order: prev.length
-      }
-    ])
-  }
+    return files.filter((file) => {
+      const fileFolder = file.original_path.includes("/")
+        ? file.original_path.substring(0, file.original_path.lastIndexOf("/"))
+        : "/";
+      return fileFolder === folder;
+    });
+  };
 
   const validateFields = () => {
-    const errors: string[] = []
-    
+    const errors: string[] = [];
+
     if (fields.length === 0) {
-      errors.push("At least one field is required")
+      errors.push("At least one field is required");
     }
-    
+
     fields.forEach((field, index) => {
       if (!field.field_name.trim()) {
-        errors.push(`Field ${index + 1}: Name is required`)
+        errors.push(`Field ${index + 1}: Name is required`);
       }
       if (!field.ai_prompt.trim()) {
-        errors.push(`Field ${index + 1}: Prompt is required`)
+        errors.push(`Field ${index + 1}: Prompt is required`);
       }
-    })
-    
+      if (!field.data_type_id.trim()) {
+        errors.push(`Field ${index + 1}: Data type is required`);
+      }
+    });
+
     // Check for duplicate field names
-    const fieldNames = fields.map(f => f.field_name.trim().toLowerCase())
-    const duplicates = fieldNames.filter((name, index) => 
-      name && fieldNames.indexOf(name) !== index
-    )
-    
+    const fieldNames = fields.map((f) => f.field_name.trim().toLowerCase());
+    const duplicates = fieldNames.filter(
+      (name, index) => name && fieldNames.indexOf(name) !== index
+    );
+
     if (duplicates.length > 0) {
-      errors.push("Duplicate field names are not allowed")
+      errors.push("Duplicate field names are not allowed");
     }
-    
-    return errors
-  }
+
+    return errors;
+  };
 
   const handleContinue = () => {
-    const errors = validateFields()
-    
+    const errors = validateFields();
+
     if (errors.length > 0) {
       toast({
         title: "Validation Error",
-        description: errors.join(', '),
-        variant: "destructive"
-      })
-      return
+        description: errors.join(", "),
+        variant: "destructive",
+      });
+      return;
     }
 
     // Create task definitions based on processing mode and file structure
-    const folders = getFileFolders()
-    const taskDefinitions: TaskDefinition[] = folders.map(folder => ({
+    const folders = getFileFolders();
+    const taskDefinitions: TaskDefinition[] = folders.map((folder) => ({
       path: folder,
-      mode: folderProcessingModes[folder] || 'individual'
-    }))
+      mode: folderProcessingModes[folder] || "individual",
+    }));
 
     // Update display order
     const orderedFields = fields.map((field, index) => ({
       ...field,
-      display_order: index
-    }))
+      display_order: index,
+    }));
 
-    onFieldsConfigured(orderedFields, taskDefinitions)
-  }
+    // Pass template ID if using template mode and a template is selected
+    const templateId =
+      configurationMode === "template" && selectedTemplate
+        ? selectedTemplate
+        : undefined;
+
+    onFieldsConfigured(orderedFields, taskDefinitions, templateId);
+  };
 
   return (
     <div className="space-y-6">
@@ -296,36 +290,110 @@ export default function FieldConfigurationStep({
               </Badge>
             ))}
             {files.length > 6 && (
-              <Badge variant="outline">
-                +{files.length - 6} more files
-              </Badge>
+              <Badge variant="outline">+{files.length - 6} more files</Badge>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Template Selection */}
-      {templates?.templates && templates.templates.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Load from Template (Optional)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a saved template..." />
-              </SelectTrigger>
-              <SelectContent>
-                {templates.templates.map(template => (
-                  <SelectItem key={template.id} value={template.id}>
-                    {template.name} ({template.fields.length} fields)
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-      )}
+      {/* Configuration Method Selection */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Field Configuration Method</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <RadioGroup
+            value={configurationMode}
+            onValueChange={handleConfigurationModeChange}
+            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          >
+            {/* Custom Configuration Option */}
+            <div className="flex items-center space-x-2 border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+              <RadioGroupItem value="custom" id="custom" />
+              <Label htmlFor="custom" className="flex-1 cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Wrench className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Custom Configuration</h3>
+                    <p className="text-sm text-gray-600">
+                      Define fields from scratch
+                    </p>
+                  </div>
+                </div>
+              </Label>
+            </div>
+
+            {/* Template Configuration Option */}
+            <div className="flex items-center space-x-2 border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+              <RadioGroupItem
+                value="template"
+                id="template"
+                disabled={allTemplates.length === 0}
+              />
+              <Label htmlFor="template" className="flex-1 cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <Bookmark className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Use Template</h3>
+                    <p className="text-sm text-gray-600">
+                      {allTemplates.length > 0
+                        ? `Choose from ${allTemplates.length} saved templates`
+                        : "No templates available"}
+                    </p>
+                  </div>
+                </div>
+              </Label>
+            </div>
+          </RadioGroup>
+
+          {/* Template Selection (shown when template mode is selected) */}
+          {configurationMode === "template" && allTemplates.length > 0 && (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium">Select Template</Label>
+                <Select
+                  value={selectedTemplate}
+                  onValueChange={setSelectedTemplate}
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Choose a template to start with..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allTemplates.map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        <div className="flex items-center gap-2">
+                          {template.is_public ? (
+                            <Globe className="w-3 h-3 text-blue-500" />
+                          ) : (
+                            <Lock className="w-3 h-3 text-gray-500" />
+                          )}
+                          <span>{template.name}</span>
+                          <Badge variant="outline" className="ml-2">
+                            {template.fields.length} fields
+                          </Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedTemplate && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm text-blue-800">
+                    <strong>Note:</strong> Template fields will be loaded below.
+                    You can customize them before starting the extraction.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Processing Mode per Folder */}
       <Card>
@@ -334,21 +402,27 @@ export default function FieldConfigurationStep({
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {getFileFolders().map(folder => {
-              const folderFiles = getFilesInFolder(folder)
+            {getFileFolders().map((folder) => {
+              const folderFiles = getFilesInFolder(folder);
               return (
                 <div key={folder} className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div>
-                      <h4 className="font-medium">{folder === '/' ? 'Root Folder' : folder}</h4>
+                      <h4 className="font-medium">
+                        {folder === "/" ? "Root Folder" : folder}
+                      </h4>
                       <p className="text-sm text-muted-foreground">
-                        {folderFiles.length} file{folderFiles.length !== 1 ? 's' : ''}
+                        {folderFiles.length} file
+                        {folderFiles.length !== 1 ? "s" : ""}
                       </p>
                     </div>
-                    <Select 
-                      value={folderProcessingModes[folder] || 'individual'} 
-                      onValueChange={(value: ProcessingMode) => 
-                        setFolderProcessingModes(prev => ({ ...prev, [folder]: value }))
+                    <Select
+                      value={folderProcessingModes[folder] || "individual"}
+                      onValueChange={(value: ProcessingMode) =>
+                        setFolderProcessingModes((prev) => ({
+                          ...prev,
+                          [folder]: value,
+                        }))
                       }
                     >
                       <SelectTrigger className="w-48">
@@ -360,23 +434,26 @@ export default function FieldConfigurationStep({
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                     {folderFiles.map((file, index) => (
-                      <Badge key={index} variant="outline" className="justify-start text-xs">
+                      <Badge
+                        key={index}
+                        variant="outline"
+                        className="justify-start text-xs"
+                      >
                         {file.original_filename}
                       </Badge>
                     ))}
                   </div>
-                  
+
                   <p className="text-xs text-muted-foreground mt-2">
-                    {folderProcessingModes[folder] === 'combined' 
-                      ? 'All files in this folder will be processed together, creating combined results.'
-                      : 'Each file will be processed separately, creating individual results.'
-                    }
+                    {folderProcessingModes[folder] === "combined"
+                      ? "All files in this folder will be processed together, creating combined results."
+                      : "Each file will be processed separately, creating individual results."}
                   </p>
                 </div>
-              )
+              );
             })}
           </div>
         </CardContent>
@@ -391,94 +468,21 @@ export default function FieldConfigurationStep({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {fields.map((field, index) => (
-              <div key={index} className="border rounded-lg p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <GripVertical className="w-4 h-4 text-gray-400" />
-                    <span className="font-medium">Field {index + 1}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => duplicateField(index)}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                    {fields.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeField(index)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Field Name</Label>
-                    <Input
-                      placeholder="e.g., Invoice Number"
-                      value={field.field_name}
-                      onChange={(e) => updateField(index, { field_name: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Data Type</Label>
-                    <Select
-                      value={field.data_type_id}
-                      onValueChange={(value) => updateField(index, { data_type_id: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {loadingDataTypes ? (
-                          <SelectItem value="loading" disabled>Loading data types...</SelectItem>
-                        ) : dataTypes.length === 0 ? (
-                          <SelectItem value="no-data" disabled>No data types available</SelectItem>
-                        ) : (
-                          dataTypes.map(type => (
-                            <SelectItem key={type.id} value={type.id}>
-                              {type.display_name}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>AI Prompt</Label>
-                  <Textarea
-                    placeholder="Describe what data to extract and how to find it..."
-                    value={field.ai_prompt}
-                    onChange={(e) => updateField(index, { ai_prompt: e.target.value })}
-                    rows={3}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Be specific about what data to extract and where to find it in the document.
-                  </p>
-                </div>
+          {dataTypesLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                <span className="text-sm text-gray-600">Loading field configuration...</span>
               </div>
-            ))}
-
-            <Button
-              variant="outline"
-              onClick={addField}
-              className="w-full"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Field
-            </Button>
-          </div>
+            </div>
+          ) : (
+            <FieldConfigurationEditor
+              fields={convertToFieldConfig(fields)}
+              onFieldsChange={handleFieldsChange}
+              dataTypes={dataTypes}
+              mode="job"
+            />
+          )}
         </CardContent>
       </Card>
 
@@ -488,12 +492,12 @@ export default function FieldConfigurationStep({
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
         </Button>
-        
+
         <Button onClick={handleContinue}>
           Continue
           <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
     </div>
-  )
+  );
 }

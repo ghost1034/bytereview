@@ -44,7 +44,7 @@ class ExtractionTemplate(BaseModel):
     name: str
     description: Optional[str] = None
     fields: List[FieldConfig]
-    created_by: str
+    created_by: Optional[str] = None  # None for public templates
     created_at: datetime
     updated_at: datetime
     is_public: bool = False

@@ -138,11 +138,12 @@ export default function JobWorkflow({ jobId: providedJobId, onJobComplete }: Job
     nextStep()
   }
 
-  const handleFieldsConfigured = (fields: JobFieldConfig[], taskDefinitions: TaskDefinition[]) => {
+  const handleFieldsConfigured = (fields: JobFieldConfig[], taskDefinitions: TaskDefinition[], templateId?: string) => {
     setWorkflowState(prev => ({
       ...prev,
       fields,
-      taskDefinitions
+      taskDefinitions,
+      templateId
     }))
     
     nextStep()

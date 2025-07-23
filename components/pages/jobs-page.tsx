@@ -188,7 +188,9 @@ export function JobsPage() {
       {/* Jobs List */}
       <Card>
         <CardHeader>
-          <CardTitle>All Jobs ({filteredJobs.length})</CardTitle>
+          <CardTitle>
+            All Jobs {loading ? "" : `(${filteredJobs.length})`}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
