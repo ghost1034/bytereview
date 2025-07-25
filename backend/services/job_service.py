@@ -15,7 +15,7 @@ from models.job import (
     JobInitiateRequest, JobInitiateResponse, JobStartRequest, JobStartResponse,
     JobDetailsResponse, JobListResponse, JobProgressResponse, JobResultsResponse,
     JobStatus, ProcessingMode, FileUploadResponse, JobListItem, JobFieldInfo,
-    ExtractionTaskResult, JobFileInfo, FileStatus
+    ExtractionTaskResult, JobFileInfo, FileStatus, TaskInfo
 )
 from models.db_models import (
     ExtractionJob, SourceFile, JobField, ExtractionTask, SourceFileToTask,
@@ -25,7 +25,7 @@ from core.database import db_config
 from services.gcs_service import get_storage_service
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import func
+from sqlalchemy import func, update, and_, or_
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 import logging
@@ -47,14 +47,354 @@ class JobService:
         logger.info("Job service initialized")
 
     def _get_session(self) -> Session:
-        """Get database session"""
+        """Get database session - creates a fresh session each time"""
         return db_config.get_session()
+    
+    async def create_job(self, user_id: str, name: str = None) -> str:
+        """Create new job starting at upload step"""
+        db = self._get_session()
+        try:
+            job = ExtractionJob(
+                user_id=user_id,
+                name=name,
+                config_step='upload',
+                status='pending',
+                last_active_at=datetime.utcnow()
+            )
+            db.add(job)
+            db.commit()
+            return str(job.id)
+        except SQLAlchemyError as e:
+            db.rollback()
+            logger.error(f"Error creating job: {e}")
+            raise
+        finally:
+            db.close()
+    
+    async def advance_config_step(self, job_id: str, user_id: str, next_step: str, expected_version: int = None):
+        """Advance wizard step with optimistic locking"""
+        db = self._get_session()
+        try:
+            # Build update query with version check if provided
+            query = update(ExtractionJob).where(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id
+            )
+            
+            if expected_version is not None:
+                query = query.where(ExtractionJob.version == expected_version)
+            
+            result = db.execute(
+                query.values(
+                    config_step=next_step,
+                    version=ExtractionJob.version + 1,
+                    last_active_at=datetime.utcnow()
+                )
+            )
+            
+            if result.rowcount == 0:
+                if expected_version is not None:
+                    raise ValueError("Job was modified by another session")
+                else:
+                    raise ValueError("Job not found or access denied")
+            
+            db.commit()
+            
+        except SQLAlchemyError as e:
+            db.rollback()
+            logger.error(f"Error advancing config step: {e}")
+            raise
+        finally:
+            db.close()
+    
+    def calculate_total_tasks(self, job: ExtractionJob) -> int:
+        """Calculate total tasks based on files and processing mode"""
+        if not job.extraction_tasks:
+            # Fallback: assume one task per file
+            return len(job.source_files) if job.source_files else 0
+        
+        total = 0
+        for task in job.extraction_tasks:
+            if task.processing_mode == 'individual':
+                total += len(task.source_files_to_tasks)
+            elif task.processing_mode == 'combined':
+                total += 1  # One task for all files combined
+        
+        return max(total, len(job.source_files) if job.source_files else 0)
+    
+    async def submit_job_for_processing(self, job_id: str, user_id: str):
+        """Submit completed wizard for processing using existing extraction tasks"""
+        logger.info(f"submit_job_for_processing called for job {job_id} by user {user_id}")
+        db = self._get_session()
+        try:
+            # Get job with related data
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id
+            ).first()
+            
+            if not job:
+                raise ValueError("Job not found")
+            
+            if job.config_step == 'submitted':
+                raise ValueError("Job already submitted")
+            
+            # Count existing extraction tasks (created during field configuration)
+            total_tasks = db.query(ExtractionTask).filter(
+                ExtractionTask.job_id == job_id
+            ).count()
+            
+            if total_tasks == 0:
+                raise ValueError("No extraction tasks found. Please configure processing modes first.")
+            
+            # Update job for processing
+            db.execute(
+                update(ExtractionJob)
+                .where(ExtractionJob.id == job_id)
+                .values(
+                    config_step='submitted',
+                    status='in_progress',
+                    tasks_total=total_tasks,
+                    tasks_completed=0,
+                    tasks_failed=0,
+                    last_active_at=datetime.utcnow(),
+                    version=ExtractionJob.version + 1
+                )
+            )
+            
+            db.commit()
+            
+            # Enqueue existing extraction tasks for processing
+            await self._enqueue_existing_extraction_tasks(job_id)
+            
+            logger.info(f"Submitted job {job_id} with {total_tasks} existing extraction tasks")
+            return job_id
+            
+        except SQLAlchemyError as e:
+            db.rollback()
+            logger.error(f"Error submitting job: {e}")
+            raise
+        finally:
+            db.close()
+
+    async def _enqueue_existing_extraction_tasks(self, job_id: str) -> None:
+        """Enqueue existing extraction tasks for background processing"""
+        try:
+            # Get Redis connection
+            redis = await create_pool(self.redis_settings)
+            
+            # Get all pending tasks for this job
+            db = self._get_session()
+            try:
+                tasks = db.query(ExtractionTask).filter(
+                    ExtractionTask.job_id == job_id,
+                    ExtractionTask.status == 'pending'
+                ).all()
+                
+                logger.info(f"Found {len(tasks)} pending extraction tasks for job {job_id}")
+                for task in tasks:
+                    logger.info(f"Task {task.id}: processing_mode={task.processing_mode}")
+                
+                # Enqueue each task
+                for task in tasks:
+                    job_info = await redis.enqueue_job(
+                        'process_extraction_task',
+                        str(task.id)
+                    )
+                    logger.info(f"Enqueued extraction task {task.id} as job {job_info.job_id}")
+                
+                logger.info(f"Enqueued {len(tasks)} existing extraction tasks for job {job_id}")
+                
+            finally:
+                db.close()
+                await redis.close()
+                
+        except Exception as e:
+            logger.error(f"Failed to enqueue existing tasks for job {job_id}: {e}")
+            # Don't raise - job is still valid, tasks can be retried later
+    
+    async def increment_task_completion(self, job_id: str, success: bool = True):
+        """Atomically update task progress from workers"""
+        db = self._get_session()
+        try:
+            if success:
+                await db.execute(
+                    update(ExtractionJob)
+                    .where(ExtractionJob.id == job_id)
+                    .values(
+                        tasks_completed=ExtractionJob.tasks_completed + 1,
+                        last_active_at=datetime.utcnow()
+                    )
+                )
+            else:
+                await db.execute(
+                    update(ExtractionJob)
+                    .where(ExtractionJob.id == job_id)
+                    .values(
+                        tasks_failed=ExtractionJob.tasks_failed + 1,
+                        last_active_at=datetime.utcnow()
+                    )
+                )
+            
+            # Check if job is complete
+            job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
+            if job and job.tasks_completed + job.tasks_failed >= job.tasks_total:
+                final_status = 'completed' if job.tasks_failed == 0 else 'partially_completed'
+                await db.execute(
+                    update(ExtractionJob)
+                    .where(ExtractionJob.id == job_id)
+                    .values(
+                        status=final_status,
+                        completed_at=datetime.utcnow() if final_status == 'completed' else None
+                    )
+                )
+            
+            db.commit()
+            
+        except SQLAlchemyError as e:
+            db.rollback()
+            logger.error(f"Error updating task progress: {e}")
+            raise
+        finally:
+            db.close()
+    
+    def get_resumable_jobs(self, user_id: str) -> list[ExtractionJob]:
+        """Get all jobs user can resume (wizard incomplete OR processing incomplete/failed)"""
+        db = self._get_session()
+        try:
+            return db.query(ExtractionJob).filter(
+                ExtractionJob.user_id == user_id,
+                or_(
+                    # Wizard not complete
+                    ExtractionJob.config_step != 'submitted',
+                    # Processing incomplete/failed with remaining tasks
+                    and_(
+                        ExtractionJob.status.in_(['in_progress', 'partially_completed', 'failed']),
+                        ExtractionJob.tasks_completed < ExtractionJob.tasks_total
+                    )
+                )
+            ).order_by(ExtractionJob.last_active_at.desc()).all()
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting resumable jobs: {e}")
+            raise
+        finally:
+            db.close()
+    
+    def get_active_jobs(self, user_id: str) -> list[ExtractionJob]:
+        """Get completed or fully processed jobs"""
+        db = self._get_session()
+        try:
+            return db.query(ExtractionJob).filter(
+                ExtractionJob.user_id == user_id,
+                ExtractionJob.config_step == 'submitted',
+                or_(
+                    ExtractionJob.status.in_(['completed', 'cancelled']),
+                    and_(
+                        ExtractionJob.status == 'in_progress',
+                        ExtractionJob.tasks_completed >= ExtractionJob.tasks_total
+                    )
+                )
+            ).order_by(ExtractionJob.created_at.desc()).all()
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting active jobs: {e}")
+            raise
+        finally:
+            db.close()
+    
+    async def cleanup_old_jobs(self):
+        """Mark old jobs for deletion instead of immediate delete"""
+        db = self._get_session()
+        try:
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            
+            # Mark abandoned wizard jobs as cancelled
+            await db.execute(
+                update(ExtractionJob)
+                .where(
+                    ExtractionJob.config_step != 'submitted',
+                    ExtractionJob.last_active_at < thirty_days_ago,
+                    ExtractionJob.status != 'cancelled'
+                )
+                .values(
+                    status='cancelled',
+                    persist_data=False  # Mark for physical deletion
+                )
+            )
+            
+            db.commit()
+            logger.info("Marked old jobs for cleanup")
+            
+        except SQLAlchemyError as e:
+            db.rollback()
+            logger.error(f"Error during job cleanup: {e}")
+            raise
+        finally:
+            db.close()
+    
+    async def broadcast_workflow_progress(self, job_id: str, user_id: str):
+        """Broadcast workflow progress update via SSE"""
+        try:
+            from services.sse_service import sse_manager
+            
+            # Get current job state
+            db = self._get_session()
+            try:
+                job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
+                if job:
+                    await sse_manager.send_workflow_progress(job_id, {
+                        'config_step': job.config_step,
+                        'status': job.status,
+                        'progress_percentage': job.progress_percentage,
+                        'tasks_completed': job.tasks_completed,
+                        'tasks_total': job.tasks_total,
+                        'tasks_failed': job.tasks_failed,
+                        'is_resumable': job.is_resumable,
+                        'last_active_at': job.last_active_at.isoformat(),
+                        'version': job.version
+                    })
+            finally:
+                db.close()
+                
+        except Exception as e:
+            logger.warning(f"Failed to broadcast workflow progress for job {job_id}: {e}")
+    
+    async def cancel_job(self, job_id: str, user_id: str):
+        """Cancel job (soft delete)"""
+        db = self._get_session()
+        try:
+            result = await db.execute(
+                update(ExtractionJob)
+                .where(
+                    ExtractionJob.id == job_id,
+                    ExtractionJob.user_id == user_id
+                )
+                .values(
+                    status='cancelled',
+                    last_active_at=datetime.utcnow()
+                )
+            )
+            
+            if result.rowcount == 0:
+                raise ValueError("Job not found or access denied")
+            
+            db.commit()
+            
+        except SQLAlchemyError as e:
+            db.rollback()
+            logger.error(f"Error cancelling job: {e}")
+            raise
+        finally:
+            db.close()
 
     def _normalize_path(self, path: str) -> str:
         """Normalize file path for consistent storage"""
         # Replace backslashes with forward slashes and remove leading/trailing slashes
         normalized = path.replace('\\', '/').strip('/')
         return normalized
+    
+    def _get_folder_path(self, file_path: str) -> str:
+        """Extract folder path from file path consistently across all methods"""
+        return os.path.dirname(file_path) or "/"
 
     def _filter_processable_files(self, query, allow_null_files=False):
         """Filter out archive files that are only used for unpacking, not data extraction"""
@@ -81,7 +421,8 @@ class JobService:
             job = ExtractionJob(
                 user_id=user_id,
                 name=request.name,  # Set the job name from request
-                status=JobStatus.PENDING_CONFIGURATION.value  # Start with pending_configuration status
+                status='pending',  # Start with pending status
+                config_step='upload'  # Start at upload step
             )
             db.add(job)
             db.flush()  # Get the job ID
@@ -143,15 +484,15 @@ class JobService:
             job = db.query(ExtractionJob).filter(
                 ExtractionJob.id == job_id,
                 ExtractionJob.user_id == user_id,
-                ExtractionJob.status == JobStatus.PENDING_CONFIGURATION.value
+                ExtractionJob.status == JobStatus.PENDING.value
             ).first()
             
             if not job:
-                raise ValueError(f"Job {job_id} not found or not in pending configuration state")
+                raise ValueError(f"Job {job_id} not found or not in correct state")
             
             # Update job details
             job.persist_data = request.persist_data
-            job.status = JobStatus.PROCESSING.value
+            job.status = JobStatus.IN_PROGRESS.value
             
             # If template_id provided, link it
             if request.template_id:
@@ -199,7 +540,7 @@ class JobService:
         files_by_path = {}
         for file in source_files:
             # Extract folder path from file path
-            folder_path = os.path.dirname(file.original_path) or "/"
+            folder_path = self._get_folder_path(file.original_path)
             if folder_path not in files_by_path:
                 files_by_path[folder_path] = []
             files_by_path[folder_path].append(file)
@@ -315,6 +656,41 @@ class JobService:
                 for field in job_fields
             ]
             
+            # Get extraction tasks for processing mode display
+            extraction_tasks = db.query(ExtractionTask).filter(
+                ExtractionTask.job_id == job.id
+            ).all()
+            
+            # Build task definitions by grouping files by folder and processing mode
+            # This is much cleaner than creating individual task definitions and then aggregating
+            folder_mode_files = {}
+            
+            for task in extraction_tasks:
+                # Get files associated with this task
+                task_files = db.query(SourceFileToTask, SourceFile).join(
+                    SourceFile, SourceFileToTask.source_file_id == SourceFile.id
+                ).filter(SourceFileToTask.task_id == task.id).all()
+                
+                if task_files:
+                    # Use the folder path from the first file
+                    first_file = task_files[0][1]  # SourceFile object
+                    folder_path = self._get_folder_path(first_file.original_path)
+                    
+                    key = (folder_path, task.processing_mode)
+                    if key not in folder_mode_files:
+                        folder_mode_files[key] = 0
+                    folder_mode_files[key] += len(task_files)
+            
+            # Convert to task definitions format
+            unique_task_definitions = [
+                {
+                    'path': folder_path,
+                    'mode': processing_mode,
+                    'file_count': file_count
+                }
+                for (folder_path, processing_mode), file_count in folder_mode_files.items()
+            ]
+            
             return JobDetailsResponse(
                 id=str(job.id),
                 name=job.name,
@@ -322,7 +698,9 @@ class JobService:
                 persist_data=job.persist_data,
                 created_at=job.created_at,
                 completed_at=job.completed_at,
-                job_fields=field_info
+                job_fields=field_info,
+                template_id=str(job.template_id) if job.template_id else None,
+                extraction_tasks=unique_task_definitions
             )
             
         except Exception as e:
@@ -360,6 +738,7 @@ class JobService:
                     id=str(job.id),
                     name=job.name,
                     status=JobStatus(job.status),
+                    config_step=job.config_step,
                     created_at=job.created_at,
                     file_count=file_count or 0
                 )
@@ -389,24 +768,51 @@ class JobService:
             if not job:
                 raise ValueError(f"Job {job_id} not found")
             
-            # Count tasks by status
-            task_counts = db.query(
-                ExtractionTask.status,
-                func.count(ExtractionTask.id)
-            ).filter(
+            # Get all tasks with their status
+            # Get all tasks with their status
+            tasks = db.query(ExtractionTask).filter(
                 ExtractionTask.job_id == job.id
-            ).group_by(ExtractionTask.status).all()
+            ).all()
             
-            total_tasks = sum(count for _, count in task_counts)
-            completed = sum(count for status, count in task_counts if status == 'completed')
-            failed = sum(count for status, count in task_counts if status == 'failed')
+            # Debug: Print what we're reading from database
+            print(f"DEBUG: Found {len(tasks)} tasks in database:")
+            for task in tasks:
+                print(f"  Task {task.id}: status='{task.status}' (type: {type(task.status)})")
             
-            return JobProgressResponse(
+            # Double-check with raw SQL to bypass any ORM caching
+            from sqlalchemy import text
+            raw_result = db.execute(
+                text("SELECT id, status FROM extraction_tasks WHERE job_id = :job_id ORDER BY created_at"),
+                {"job_id": str(job.id)}
+            ).fetchall()
+            print(f"DEBUG: Raw SQL query results:")
+            for row in raw_result:
+                print(f"  Task {row[0]}: status='{row[1]}' (raw SQL)")
+            
+            # Count tasks by status
+            total_tasks = len(tasks)
+            completed = sum(1 for task in tasks if task.status == 'completed')
+            failed = sum(1 for task in tasks if task.status == 'failed')
+            
+            # Create task info list
+            task_info_list = [
+                TaskInfo(id=str(task.id), status=task.status)
+                for task in tasks
+            ]
+            
+            response = JobProgressResponse(
                 total_tasks=total_tasks,
                 completed=completed,
                 failed=failed,
-                status=JobStatus(job.status)
+                status=JobStatus(job.status),
+                tasks=task_info_list
             )
+            
+            # Debug logging
+            print(f"DEBUG: Job progress response for {job_id}: total={total_tasks}, completed={completed}, failed={failed}, tasks_count={len(task_info_list)}")
+            print(f"DEBUG: Task details: {[f'{task.id}:{task.status}' for task in task_info_list]}")
+            
+            return response
             
         except Exception as e:
             logger.error(f"Failed to get job progress for {job_id}: {e}")
@@ -425,7 +831,7 @@ class JobService:
             job = db.query(ExtractionJob).filter(
                 ExtractionJob.id == job_id,
                 ExtractionJob.user_id == user_id,
-                ExtractionJob.status == JobStatus.PENDING_CONFIGURATION.value
+                ExtractionJob.status == JobStatus.PENDING.value
             ).first()
             
             if not job:
@@ -536,7 +942,7 @@ class JobService:
             job = db.query(ExtractionJob).filter(
                 ExtractionJob.id == job_id,
                 ExtractionJob.user_id == user_id,
-                ExtractionJob.status == JobStatus.PENDING_CONFIGURATION.value
+                ExtractionJob.status == JobStatus.PENDING.value
             ).first()
             
             if not job:
@@ -726,6 +1132,154 @@ class JobService:
             
         except Exception as e:
             logger.error(f"Failed to delete job {job_id}: {e}")
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    async def update_job_fields(self, job_id: str, user_id: str, fields: List[dict], template_id: str = None, processing_modes: dict = None) -> None:
+        """Update job field configuration and processing modes during wizard steps"""
+        db = self._get_session()
+        try:
+            # Get the job and verify ownership and state
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id,
+                ExtractionJob.config_step != 'submitted'  # Only allow updates during wizard
+            ).first()
+            
+            if not job:
+                raise ValueError(f"Job {job_id} not found or cannot be modified")
+            
+            # Delete existing job fields
+            db.query(JobField).filter(JobField.job_id == job_id).delete()
+            
+            # Add new job fields
+            for i, field_data in enumerate(fields):
+                job_field = JobField(
+                    job_id=job.id,
+                    field_name=field_data.get('field_name', ''),
+                    data_type_id=field_data.get('data_type_id', 'text'),
+                    ai_prompt=field_data.get('ai_prompt', ''),
+                    display_order=field_data.get('display_order', i)
+                )
+                db.add(job_field)
+            
+            # Delete existing extraction tasks
+            db.query(ExtractionTask).filter(ExtractionTask.job_id == job_id).delete()
+            
+            # Debug: Log what we received
+            logger.info(f"update_job_fields called with processing_modes: {processing_modes}")
+            logger.info(f"processing_modes type: {type(processing_modes)}")
+            logger.info(f"processing_modes is truthy: {bool(processing_modes)}")
+            
+            # Create extraction tasks with processing modes
+            if processing_modes:
+                logger.info(f"Processing modes received: {processing_modes}")
+                
+                # Get all source files for this job
+                source_files = db.query(SourceFile).filter(SourceFile.job_id == job_id).all()
+                logger.info(f"Found {len(source_files)} source files for job {job_id}")
+                
+                # Group files by their folder paths
+                files_by_folder = {}
+                for file in source_files:
+                    folder_path = self._get_folder_path(file.original_path)
+                    if folder_path not in files_by_folder:
+                        files_by_folder[folder_path] = []
+                    files_by_folder[folder_path].append(file)
+                    logger.info(f"File: {file.original_path} -> Folder: '{folder_path}'")
+                
+                logger.info(f"Files grouped by folder: {list(files_by_folder.keys())}")
+                
+                # Create extraction tasks based on processing modes
+                for folder_path, processing_mode in processing_modes.items():
+                    logger.info(f"Processing folder_path: '{folder_path}' with mode: {processing_mode}")
+                    matching_files = files_by_folder.get(folder_path, [])
+                    
+                    if not matching_files:
+                        logger.warning(f"No files found for folder path: '{folder_path}'. Available folders: {list(files_by_folder.keys())}")
+                        continue
+                    
+                    logger.info(f"Found {len(matching_files)} matching files for folder '{folder_path}'")
+                    
+                    if processing_mode == 'individual':
+                        # Create one task per file
+                        for file in matching_files:
+                            extraction_task = ExtractionTask(
+                                job_id=job.id,
+                                processing_mode=processing_mode,
+                                status='pending'
+                            )
+                            db.add(extraction_task)
+                            db.flush()  # Get task ID
+                            
+                            # Link file to task
+                            file_to_task = SourceFileToTask(
+                                source_file_id=file.id,
+                                task_id=extraction_task.id,
+                                document_order=0
+                            )
+                            db.add(file_to_task)
+                    
+                    elif processing_mode == 'combined':
+                        # Create one task for all files in this folder
+                        extraction_task = ExtractionTask(
+                            job_id=job.id,
+                            processing_mode=processing_mode,
+                            status='pending'
+                        )
+                        db.add(extraction_task)
+                        db.flush()  # Get task ID
+                        
+                        # Link all files to this task
+                        for i, file in enumerate(matching_files):
+                            file_to_task = SourceFileToTask(
+                                source_file_id=file.id,
+                                task_id=extraction_task.id,
+                                document_order=i
+                            )
+                            db.add(file_to_task)
+            
+            # Update template reference if provided
+            if template_id:
+                job.template_id = template_id
+            
+            # Update last activity
+            job.last_active_at = datetime.utcnow()
+            
+            db.commit()
+            logger.info(f"Updated {len(fields)} fields and {len(processing_modes or {})} processing modes for job {job_id}")
+            
+        except Exception as e:
+            logger.error(f"Failed to update job configuration for {job_id}: {e}")
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    async def update_job_name(self, job_id: str, user_id: str, name: str) -> None:
+        """Update job name"""
+        db = self._get_session()
+        try:
+            # Get the job and verify ownership
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id
+            ).first()
+            
+            if not job:
+                raise ValueError(f"Job {job_id} not found")
+            
+            # Update job name and last activity
+            job.name = name
+            job.last_active_at = datetime.utcnow()
+            
+            db.commit()
+            logger.info(f"Updated name for job {job_id} to '{name}'")
+            
+        except Exception as e:
+            logger.error(f"Failed to update job name for {job_id}: {e}")
             db.rollback()
             raise
         finally:

@@ -5,6 +5,7 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { apiClient } from '@/lib/api'
 import {
@@ -28,22 +29,22 @@ export function useInitiateJob() {
   })
 }
 
-/**
- * Hook to start job processing
- */
-export function useStartJob() {
-  const queryClient = useQueryClient()
+// /**
+//  * Hook to start job processing
+//  */
+// export function useStartJob() {
+//   const queryClient = useQueryClient()
   
-  return useMutation({
-    mutationFn: ({ jobId, request }: { jobId: string; request: JobStartRequest }) =>
-      apiClient.startJob(jobId, request),
-    onSuccess: (_, { jobId }) => {
-      // Invalidate job details and list
-      queryClient.invalidateQueries({ queryKey: ['job', jobId] })
-      queryClient.invalidateQueries({ queryKey: ['jobs'] })
-    },
-  })
-}
+//   return useMutation({
+//     mutationFn: ({ jobId, request }: { jobId: string; request: JobStartRequest }) =>
+//       apiClient.startJob(jobId, request),
+//     onSuccess: (_, { jobId }) => {
+//       // Invalidate job details and list
+//       queryClient.invalidateQueries({ queryKey: ['job', jobId] })
+//       queryClient.invalidateQueries({ queryKey: ['jobs'] })
+//     },
+//   })
+// }
 
 /**
  * Hook to upload files with progress tracking
@@ -139,7 +140,7 @@ export function useJobWorkflow() {
   
   const initiateJob = useInitiateJob()
   const uploadFiles = useUploadFiles()
-  const startJob = useStartJob()
+  // const startJob = useStartJob()
   
   const initiateAndUpload = useMutation({
     mutationFn: async ({
@@ -202,6 +203,88 @@ export function useJobWorkflow() {
   }
 }
 
+/**
+ * Hook for updating job configuration step
+ */
+export function useUpdateConfigStep() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async ({ jobId, update }: { jobId: string; update: { config_step: string; version?: number } }) => {
+      const token = await getAuthToken(user)
+      const response = await fetch(`/api/jobs/${jobId}/config-step`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(update)
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || 'Failed to update configuration step')
+      }
+      
+      return response.json()
+    },
+    onSuccess: () => {
+      // Invalidate job queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+    }
+  })
+}
+
+/**
+ * Hook for submitting job for processing
+ */
+export function useSubmitJob() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async (jobId: string) => {
+      const token = await getAuthToken(user)
+      const response = await fetch(`/api/jobs/${jobId}/submit`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || 'Failed to submit job')
+      }
+      
+      return response.json()
+    },
+    onSuccess: () => {
+      // Invalidate all job queries
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+    }
+  })
+}
+
+/**
+ * Helper function to get Firebase auth token
+ */
+async function getAuthToken(user: any): Promise<string> {
+  if (!user) {
+    throw new Error('User not authenticated')
+  }
+  
+  try {
+    // Get the Firebase ID token
+    const token = await user.getIdToken()
+    return token
+  } catch (error) {
+    console.error('Error getting auth token:', error)
+    throw new Error('Failed to get authentication token')
+  }
+}
+
 // Re-export types for convenience
 export type {
   JobInitiateResponse,
@@ -213,3 +296,22 @@ export type {
   JobFieldConfig,
   TaskDefinition
 } from '@/lib/api'
+// Special hook for processing page that needs fresh progress data
+export const useJobProgressFresh = (jobId: string) => {
+  return useQuery({
+    queryKey: [`/api/jobs/${jobId}/progress`, 'fresh'], // Simple fresh key
+    queryFn: () => apiClient.getJobProgress(jobId),
+    enabled: !!jobId,
+    staleTime: 0, // Always consider stale, fetch fresh data
+    cacheTime: 0, // Don't cache the result at all
+    refetchOnMount: true, // Always refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
+    retry: false, // Don't retry to avoid hanging
+    onError: (error) => {
+      console.error("useJobProgressFresh error:", error);
+    },
+    onSuccess: (data) => {
+      console.log("useJobProgressFresh success:", data);
+    },
+  });
+};

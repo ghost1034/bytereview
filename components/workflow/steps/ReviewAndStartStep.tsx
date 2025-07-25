@@ -22,7 +22,6 @@ import {
   Loader2
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { useStartJob } from '@/hooks/useJobs'
 import { JobWorkflowState } from '@/lib/api'
 
 interface ReviewAndStartStepProps {
@@ -39,7 +38,6 @@ export default function ReviewAndStartStep({
   isLoading 
 }: ReviewAndStartStepProps) {
   const { toast } = useToast()
-  const startJob = useStartJob()
   
   const [persistData, setPersistData] = useState(true)
   const [saveAsTemplate, setSaveAsTemplate] = useState(false)
@@ -55,30 +53,8 @@ export default function ReviewAndStartStep({
       return
     }
 
-    try {
-      await startJob.mutateAsync({
-        jobId: workflowState.jobId,
-        request: {
-          template_id: workflowState.templateId,
-          persist_data: persistData,
-          fields: workflowState.fields,
-          task_definitions: workflowState.taskDefinitions
-        }
-      })
-
-      toast({
-        title: "Job started successfully",
-        description: "Your extraction job is now processing in the background"
-      })
-
-      onJobStarted(undefined, workflowState.templateId)
-    } catch (error) {
-      toast({
-        title: "Failed to start job",
-        description: error instanceof Error ? error.message : "Unknown error occurred",
-        variant: "destructive"
-      })
-    }
+    // Just call the parent handler - the review page will handle the actual submission
+    onJobStarted(undefined, workflowState.templateId)
   }
 
   const formatFileSize = (bytes: number) => {
@@ -89,7 +65,7 @@ export default function ReviewAndStartStep({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  const totalFileSize = workflowState.files.reduce((sum, file) => sum + (file.file_size_bytes || 0), 0)
+  const totalFileSize = workflowState.files.reduce((sum, file) => sum + (file.size_bytes || 0), 0)
   const estimatedTime = Math.max(1, Math.ceil(workflowState.files.length * 0.5)) // Rough estimate
 
   return (
@@ -172,7 +148,7 @@ export default function ReviewAndStartStep({
                     <FileText className="w-4 h-4 text-gray-400" />
                     <span className="truncate">{file.original_filename}</span>
                     <Badge variant="outline" className="text-xs">
-                      {formatFileSize(file.file_size_bytes || 0)}
+                      {formatFileSize(file.size_bytes || 0)}
                     </Badge>
                   </div>
                 ))}
@@ -215,25 +191,16 @@ export default function ReviewAndStartStep({
             <div>
               <h4 className="font-medium mb-2">Processing Mode by Folder:</h4>
               <div className="space-y-2">
-                {workflowState.taskDefinitions.map((task, index) => {
-                  const folderFiles = workflowState.files.filter(file => {
-                    const fileFolder = file.original_path.includes('/') 
-                      ? file.original_path.substring(0, file.original_path.lastIndexOf('/'))
-                      : '/'
-                    return fileFolder === task.path
-                  })
-                  
-                  return (
-                    <div key={index} className="flex justify-between items-center">
-                      <span className="text-sm">
-                        {task.path === '/' ? 'Root Folder' : task.path} ({folderFiles.length} files)
-                      </span>
-                      <Badge variant="secondary">
-                        {task.mode === 'individual' ? 'Individual' : 'Combined'}
-                      </Badge>
-                    </div>
-                  )
-                })}
+                {workflowState.taskDefinitions.map((task, index) => (
+                  <div key={index} className="flex justify-between items-center">
+                    <span className="text-sm">
+                      {task.path === '/' ? 'Root Folder' : task.path} ({task.file_count || 0} files)
+                    </span>
+                    <Badge variant="secondary">
+                      {task.mode === 'individual' ? 'Individual' : 'Combined'}
+                    </Badge>
+                  </div>
+                ))}
               </div>
             </div>
             
@@ -266,17 +233,17 @@ export default function ReviewAndStartStep({
 
       {/* Navigation */}
       <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack} disabled={isLoading || startJob.isPending}>
+        <Button variant="outline" onClick={onBack} disabled={isLoading}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
         </Button>
         
         <Button 
           onClick={handleStartJob} 
-          disabled={isLoading || startJob.isPending}
+          disabled={isLoading}
           size="lg"
         >
-          {startJob.isPending ? (
+          {isLoading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               Starting Job...
@@ -290,16 +257,6 @@ export default function ReviewAndStartStep({
         </Button>
       </div>
 
-      {/* Error Display */}
-      {startJob.error && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="pt-6">
-            <div className="text-red-800">
-              <strong>Error:</strong> {startJob.error.message}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

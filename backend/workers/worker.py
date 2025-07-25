@@ -233,8 +233,8 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str
     except Exception as e:
         logger.error(f"Error processing extraction task {task_id}: {e}")
         
-        # Update task status to failed
-        if 'task' in locals():
+        # Update task status to failed only if task exists
+        if 'task' in locals() and task is not None:
             task.status = "failed"
             task.error_message = str(e)
             db.commit()
@@ -245,6 +245,13 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str
                 await sse_manager.send_task_failed(task.job_id, task_id, str(e))
             except Exception as e:
                 logger.warning(f"Failed to send task_failed SSE event: {e}")
+        else:
+            logger.warning(f"Task {task_id} not found in database - likely stale queue item")
+        
+        # Don't re-raise for missing tasks to avoid infinite retries
+        if "not found" in str(e):
+            logger.info(f"Skipping missing task {task_id} to prevent retries")
+            return {"success": False, "task_id": task_id, "error": "Task not found"}
         
         raise
     finally:

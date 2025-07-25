@@ -1,33 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Plus,
-  Search,
-  Filter,
-  MoreHorizontal,
-  Calendar,
-  FileText,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Loader2,
-} from "lucide-react";
+import { Plus, Search, Filter, FileText, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { CreateJobModal } from "@/components/jobs/create-job-modal";
-import { apiClient, type JobListItem } from "@/lib/api";
+import JobCard from "@/components/jobs/JobCard";
+import { apiClient } from "@/lib/api";
+import { useJobs } from "@/hooks/useJobs";
 import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,27 +24,18 @@ import {
 export function JobsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [jobs, setJobs] = useState<JobListItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [deleteJobId, setDeleteJobId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
-  const router = useRouter();
 
-  useEffect(() => {
-    const loadJobs = async () => {
-      try {
-        const response = await apiClient.listJobs({ limit: 50, offset: 0 });
-        setJobs(response.jobs || []);
-      } catch (error) {
-        console.error("Error loading jobs:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Use regular jobs hook to get all jobs
+  const { data: jobsData, isLoading: loading, error, refetch } = useJobs();
+  const jobs = jobsData?.jobs || [];
 
-    loadJobs();
-  }, []);
+  const handleJobDelete = (jobId: string) => {
+    // Trigger refetch to update the list immediately
+    refetch();
+  };
 
   const handleDeleteJob = async () => {
     if (!deleteJobId) return;
@@ -71,8 +44,8 @@ export function JobsPage() {
     try {
       await apiClient.deleteJob(deleteJobId);
 
-      // Remove the job from the local state
-      setJobs(jobs.filter((job) => job.id !== deleteJobId));
+      // Trigger refetch to update the list immediately
+      refetch();
 
       toast({
         title: "Job deleted",
@@ -91,61 +64,8 @@ export function JobsPage() {
     }
   };
 
-  const handleJobClick = (jobId: string) => {
-    router.push(`/dashboard/jobs/${jobId}`);
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "completed":
-        return (
-          <Badge variant="secondary" className="bg-green-100 text-green-800">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            Completed
-          </Badge>
-        );
-      case "processing":
-        return (
-          <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-            <Clock className="w-3 h-3 mr-1" />
-            Processing
-          </Badge>
-        );
-      case "failed":
-        return (
-          <Badge variant="destructive">
-            <XCircle className="w-3 h-3 mr-1" />
-            Failed
-          </Badge>
-        );
-      case "pending":
-        return (
-          <Badge variant="outline">
-            <AlertCircle className="w-3 h-3 mr-1" />
-            Pending
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const getDocumentCount = (job: JobListItem) => {
-    return job.file_count;
-  };
-
   const filteredJobs = jobs.filter((job) =>
-    (job.name || `Job ${job.id}`)
+    (job.name || `Untitled Job`)
       .toLowerCase()
       .includes(searchQuery.toLowerCase())
   );
@@ -217,69 +137,9 @@ export function JobsPage() {
               )}
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid gap-4">
               {filteredJobs.map((job) => (
-                <div
-                  key={job.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => handleJobClick(job.id)}
-                >
-                  <div className="flex items-center space-x-4 flex-1">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-blue-600" />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-900 truncate">
-                        {job.name || `Job ${job.id}`}
-                      </h3>
-                      <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
-                        <span className="flex items-center">
-                          <Calendar className="w-3 h-3 mr-1" />
-                          {formatDate(job.created_at)}
-                        </span>
-                        <span className="flex items-center">
-                          <FileText className="w-3 h-3 mr-1" />
-                          {getDocumentCount(job)} documents
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-3">
-                    {getStatusBadge(job.status)}
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => e.stopPropagation()} // Prevent row click when clicking dropdown
-                        >
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => handleJobClick(job.id)}
-                        >
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>Download Results</DropdownMenuItem>
-                        <DropdownMenuItem>Duplicate Job</DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-red-600"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteJobId(job.id);
-                          }}
-                        >
-                          Delete Job
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
+                <JobCard key={job.id} job={job} onDelete={handleJobDelete} />
               ))}
             </div>
           )}

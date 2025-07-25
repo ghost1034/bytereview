@@ -22,44 +22,100 @@ class SSEManager:
     
     async def listen_for_job_events(self, job_id: str) -> AsyncGenerator[Dict[str, Any], None]:
         """
-        Listen for events related to a specific job
-        Simplified version with just local queues and Redis pub/sub
+        Listen for events related to a specific job using full_state approach
+        Eliminates race conditions by sending complete state first, then incremental updates
         """
-        # Check if job is already completed - if so, don't start SSE connection
-        try:
-            from core.database import db_config
-            from models.db_models import ExtractionJob
-            
-            db = db_config.get_session()
-            try:
-                job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
-                if job and job.status == 'completed':
-                    logger.info(f"Job {job_id} is already completed, not starting SSE connection")
-                    yield {"type": "job_already_completed", "job_id": job_id}
-                    return
-            finally:
-                db.close()
-        except Exception as e:
-            logger.warning(f"Could not check job status for {job_id}: {e}")
-            # Continue with connection if we can't check status
-        
-        # Create a queue for this listener
-        event_queue = asyncio.Queue()
-        
-        # Register this listener for the job
-        self._job_listeners[job_id].add(event_queue)
-        
-        # Set up Redis subscription for cross-process events
+        # STEP 1: Subscribe to Redis pub/sub (start buffering)
         redis_client = await self._get_redis()
         pubsub = redis_client.pubsub()
         channel = f"job_events_{job_id}"
         await pubsub.subscribe(channel)
         
-        job_completed = False
+        # Buffer for events that arrive during snapshot
+        event_buffer = []
+        buffering = True
+        
+        # Start background task to buffer events
+        async def buffer_events():
+            nonlocal buffering, event_buffer
+            while buffering:
+                try:
+                    message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                    if message and message['data']:
+                        event_data = json.loads(message['data'])
+                        event_buffer.append(event_data)
+                        logger.debug(f"Buffered event for job {job_id}: {event_data.get('type')}")
+                except Exception as e:
+                    logger.debug(f"Error buffering event: {e}")
+                await asyncio.sleep(0.1)
+        
+        buffer_task = asyncio.create_task(buffer_events())
         
         try:
-            # Send initial connection confirmation
-            yield {"type": "connected", "job_id": job_id}
+            # STEP 2: Get current snapshot from database
+            from core.database import db_config
+            from models.db_models import ExtractionJob, ExtractionTask
+            from services.job_service import JobService
+            
+            # Small delay to ensure subscription is active
+            await asyncio.sleep(0.1)
+            
+            db = db_config.get_session()
+            try:
+                job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
+                if not job:
+                    yield {"type": "error", "message": "Job not found"}
+                    return
+                
+                # Get all tasks for this job
+                tasks = db.query(ExtractionTask).filter(ExtractionTask.job_id == job.id).all()
+                
+                # Calculate progress
+                total_tasks = len(tasks)
+                completed = sum(1 for task in tasks if task.status == 'completed')
+                failed = sum(1 for task in tasks if task.status == 'failed')
+                
+                # Create task list
+                task_list = [
+                    {"id": str(task.id), "status": task.status}
+                    for task in tasks
+                ]
+                
+                current_version = int(asyncio.get_event_loop().time() * 1000)
+                
+            finally:
+                db.close()
+            
+            # STEP 3: Send full_state event
+            full_state = {
+                "type": "full_state",
+                "version": current_version,
+                "job_id": job_id,
+                "status": job.status,
+                "progress": {
+                    "total_tasks": total_tasks,
+                    "completed": completed,
+                    "failed": failed,
+                    "tasks": task_list
+                },
+                "timestamp": current_version
+            }
+            
+            yield full_state
+            logger.info(f"Sent full_state for job {job_id}: {completed}/{total_tasks} tasks")
+            
+            # STEP 4: Stop buffering and flush buffered events
+            buffering = False
+            await buffer_task
+            
+            # Send buffered events that occurred after our snapshot
+            for buffered_event in event_buffer:
+                if buffered_event.get('timestamp', 0) > current_version:
+                    yield buffered_event
+                    logger.debug(f"Flushed buffered event: {buffered_event.get('type')}")
+            
+            # STEP 5: Stream live events
+            job_completed = job.status == 'completed'
             
             while not job_completed:
                 try:
@@ -198,31 +254,74 @@ class SSEManager:
     
     async def send_task_started(self, job_id: str, task_id: str) -> None:
         """Send task started event"""
+        import time
         await self.send_job_event(job_id, {
             "type": "task_started",
-            "task_id": task_id
+            "task_id": task_id,
+            "timestamp": int(time.time() * 1000)
         })
     
     async def send_task_completed(self, job_id: str, task_id: str, result: dict) -> None:
         """Send task completed event"""
+        import time
         await self.send_job_event(job_id, {
             "type": "task_completed",
             "task_id": task_id,
-            "result": result
+            "result": result,
+            "timestamp": int(time.time() * 1000)
         })
     
     async def send_task_failed(self, job_id: str, task_id: str, error: str) -> None:
         """Send task failed event"""
+        import time
         await self.send_job_event(job_id, {
             "type": "task_failed",
             "task_id": task_id,
-            "error": error
+            "error": error,
+            "timestamp": int(time.time() * 1000)
         })
     
     async def send_job_completed(self, job_id: str) -> None:
         """Send job completion event"""
+        import time
         await self.send_job_event(job_id, {
-            "type": "job_completed"
+            "type": "job_completed",
+            "timestamp": int(time.time() * 1000)
+        })
+    
+    # New workflow-specific events for resumable jobs
+    async def send_workflow_progress(self, job_id: str, progress_data: dict) -> None:
+        """Send workflow progress update event"""
+        await self.send_job_event(job_id, {
+            "type": "workflow_progress",
+            "progress": progress_data
+        })
+    
+    async def send_config_step_changed(self, job_id: str, old_step: str, new_step: str) -> None:
+        """Send configuration step change event"""
+        await self.send_job_event(job_id, {
+            "type": "config_step_changed",
+            "old_step": old_step,
+            "new_step": new_step
+        })
+    
+    async def send_job_submitted(self, job_id: str) -> None:
+        """Send job submitted for processing event"""
+        await self.send_job_event(job_id, {
+            "type": "job_submitted"
+        })
+    
+    async def send_job_cancelled(self, job_id: str) -> None:
+        """Send job cancelled event"""
+        await self.send_job_event(job_id, {
+            "type": "job_cancelled"
+        })
+    
+    async def send_auto_save(self, job_id: str, saved_data: dict) -> None:
+        """Send auto-save event"""
+        await self.send_job_event(job_id, {
+            "type": "auto_save",
+            "saved_data": saved_data
         })
 
 # Global SSE manager instance

@@ -123,6 +123,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jobs/resumable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Resumable Jobs
+         * @description List jobs that can be resumed
+         */
+        get: operations["list_resumable_jobs_api_jobs_resumable_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/jobs/{job_id}": {
         parameters: {
             query?: never;
@@ -144,7 +164,11 @@ export interface paths {
         delete: operations["delete_job_api_jobs__job_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update Job Details
+         * @description Update job details like name
+         */
+        patch: operations["update_job_details_api_jobs__job_id__patch"];
         trace?: never;
     };
     "/api/jobs": {
@@ -265,6 +289,86 @@ export interface paths {
          */
         get: operations["get_job_results_api_jobs__job_id__results_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/config-step": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Config Step
+         * @description Update job configuration step
+         */
+        put: operations["update_config_step_api_jobs__job_id__config_step_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Job For Processing
+         * @description Submit job for processing
+         */
+        post: operations["submit_job_for_processing_api_jobs__job_id__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Cancel Job
+         * @description Cancel job (soft delete)
+         */
+        put: operations["cancel_job_api_jobs__job_id__cancel_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Job Fields
+         * @description Update job field configuration and processing modes
+         */
+        put: operations["update_job_fields_api_jobs__job_id__fields_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -629,6 +733,13 @@ export interface components {
             /** Files */
             files: string[];
         };
+        /** ConfigStepRequest */
+        ConfigStepRequest: {
+            /** Config Step */
+            config_step: string;
+            /** Version */
+            version?: number;
+        };
         /**
          * CreateCheckoutSessionRequest
          * @description Request to create a Stripe checkout session
@@ -835,6 +946,18 @@ export interface components {
              * @description Field configuration
              */
             job_fields: components["schemas"]["JobFieldInfo"][];
+            /**
+             * Template Id
+             * @description Template ID used for this job
+             */
+            template_id?: string | null;
+            /**
+             * Extraction Tasks
+             * @description Task definitions for processing modes
+             */
+            extraction_tasks?: {
+                [key: string]: unknown;
+            }[];
         };
         /**
          * JobFieldConfig
@@ -888,6 +1011,19 @@ export interface components {
              * @description Display order
              */
             display_order: number;
+        };
+        /** JobFieldsUpdateRequest */
+        JobFieldsUpdateRequest: {
+            /** Fields */
+            fields: {
+                [key: string]: unknown;
+            }[];
+            /** Template Id */
+            template_id?: string;
+            /** Processing Modes */
+            processing_modes?: {
+                [key: string]: unknown;
+            };
         };
         /**
          * JobFileInfo
@@ -978,6 +1114,11 @@ export interface components {
             /** @description Job status */
             status: components["schemas"]["JobStatus"];
             /**
+             * Config Step
+             * @description Current configuration step
+             */
+            config_step: string;
+            /**
              * Created At
              * Format: date-time
              * @description Creation timestamp
@@ -1005,6 +1146,11 @@ export interface components {
              */
             total: number;
         };
+        /** JobNameUpdateRequest */
+        JobNameUpdateRequest: {
+            /** Name */
+            name: string;
+        };
         /**
          * JobProgressResponse
          * @description Job progress information
@@ -1027,6 +1173,11 @@ export interface components {
             failed: number;
             /** @description Overall job status */
             status: components["schemas"]["JobStatus"];
+            /**
+             * Tasks
+             * @description List of all tasks with their status
+             */
+            tasks?: components["schemas"]["TaskInfo"][];
         };
         /**
          * JobResultsResponse
@@ -1097,7 +1248,7 @@ export interface components {
          * @description Job status enumeration
          * @enum {string}
          */
-        JobStatus: "pending_configuration" | "processing" | "completed" | "failed" | "cancelled";
+        JobStatus: "pending" | "in_progress" | "partially_completed" | "completed" | "failed" | "cancelled";
         /** ProcessedFile */
         ProcessedFile: {
             /** Filename */
@@ -1152,6 +1303,22 @@ export interface components {
             path: string;
             /** @description Processing mode for this path */
             mode: components["schemas"]["ProcessingMode"];
+        };
+        /**
+         * TaskInfo
+         * @description Information about a single extraction task
+         */
+        TaskInfo: {
+            /**
+             * Id
+             * @description Task identifier
+             */
+            id: string;
+            /**
+             * Status
+             * @description Task status
+             */
+            status: string;
         };
         /** TemplateCreateRequest */
         TemplateCreateRequest: {
@@ -1483,6 +1650,26 @@ export interface operations {
             };
         };
     };
+    list_resumable_jobs_api_jobs_resumable_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
     get_job_details_api_jobs__job_id__get: {
         parameters: {
             query?: never;
@@ -1524,6 +1711,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_job_details_api_jobs__job_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobNameUpdateRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -1769,6 +1991,138 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobResultsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_config_step_api_jobs__job_id__config_step_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfigStepRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_job_for_processing_api_jobs__job_id__submit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_job_api_jobs__job_id__cancel_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_job_fields_api_jobs__job_id__fields_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobFieldsUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

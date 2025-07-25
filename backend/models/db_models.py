@@ -97,7 +97,22 @@ class ExtractionJob(Base):
     name = Column(String(255))  # User-friendly, nullable name
     user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     template_id = Column(UUID(as_uuid=True), ForeignKey("templates.id", ondelete="SET NULL"))
-    status = Column(String(50), nullable=False, default='pending_configuration')
+    
+    # Wizard/Configuration State
+    config_step = Column(String(20), nullable=False, default='upload')  # 'upload', 'fields', 'review', 'submitted'
+    
+    # Processing Lifecycle State  
+    status = Column(String(50), nullable=False, default='pending')  # 'pending', 'in_progress', 'partially_completed', 'completed', 'failed', 'cancelled'
+    
+    # Progress Tracking
+    tasks_total = Column(Integer, nullable=False, default=0)
+    tasks_completed = Column(Integer, nullable=False, default=0)
+    tasks_failed = Column(Integer, nullable=False, default=0)
+    
+    # Activity and Concurrency Control
+    last_active_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    version = Column(Integer, nullable=False, default=1)  # For optimistic locking
+    
     persist_data = Column(Boolean, nullable=False, default=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     completed_at = Column(TIMESTAMP(timezone=True))
@@ -108,6 +123,35 @@ class ExtractionJob(Base):
     job_fields = relationship("JobField", back_populates="job", cascade="all, delete-orphan")
     source_files = relationship("SourceFile", back_populates="job", cascade="all, delete-orphan")
     extraction_tasks = relationship("ExtractionTask", back_populates="job", cascade="all, delete-orphan")
+    
+    @property
+    def is_resumable(self) -> bool:
+        """A job is resumable if wizard not done OR processing incomplete/errored"""
+        return (
+            self.config_step != 'submitted' or 
+            (self.status in ('in_progress', 'partially_completed', 'failed') and 
+             self.tasks_completed < self.tasks_total)
+        )
+    
+    @property 
+    def progress_percentage(self) -> float:
+        """Calculate progress with safety checks"""
+        if self.config_step != 'submitted':
+            # Wizard progress
+            steps = ['upload', 'fields', 'review', 'submitted']
+            try:
+                step_index = steps.index(self.config_step)
+                return min(100, max(0, (step_index / 3) * 100))
+            except ValueError:
+                return 0
+        else:
+            # Processing progress
+            if self.tasks_total <= 0:
+                return 100 if self.status == 'completed' else 0
+            
+            completed = max(0, self.tasks_completed)
+            total = max(1, self.tasks_total)  # Prevent division by zero
+            return min(100, (completed / total) * 100)
 
 class JobField(Base):
     """Snapshot of fields used for a specific job, ensuring immutability"""

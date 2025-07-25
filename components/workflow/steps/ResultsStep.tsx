@@ -797,21 +797,14 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
       </Card>
 
       {/* Actions */}
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={onStartNew}>
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Start New Extraction
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          onClick={() => (window.location.href = "/dashboard/jobs")}
+        >
+          <Eye className="w-4 h-4 mr-2" />
+          View All Jobs
         </Button>
-
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => (window.location.href = "/dashboard")}
-          >
-            <Eye className="w-4 h-4 mr-2" />
-            View All Jobs
-          </Button>
-        </div>
       </div>
     </div>
   );

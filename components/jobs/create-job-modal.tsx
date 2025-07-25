@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
+import { useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api'
 
 interface CreateJobModalProps {
@@ -27,6 +28,7 @@ export function CreateJobModal({ open, onOpenChange }: CreateJobModalProps) {
   const [isCreating, setIsCreating] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
+  const queryClient = useQueryClient()
 
   const handleCreateJob = async () => {
     if (!jobName.trim()) {
@@ -51,9 +53,12 @@ export function CreateJobModal({ open, onOpenChange }: CreateJobModalProps) {
         description: `Job "${jobName}" has been created.`
       })
 
-      // Close modal and navigate to the job workflow
+      // Invalidate jobs queries to update the jobs list
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+
+      // Close modal and navigate to upload step
       onOpenChange(false)
-      router.push(`/dashboard/jobs/${response.job_id}`)
+      router.push(`/dashboard/jobs/${response.job_id}/upload`)
       
       // Reset form
       setJobName('')

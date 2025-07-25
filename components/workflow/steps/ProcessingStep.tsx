@@ -24,6 +24,7 @@ import { JobStatus, apiClient } from "@/lib/api";
 class SSEConnectionManager {
   private connections = new Map<string, EventSource>();
   private eventHandlersAttached = new Set<string>();
+  private connectionStates = new Map<string, 'connecting' | 'open' | 'closed'>();
 
   getConnection(jobId: string): EventSource | null {
     return this.connections.get(jobId) || null;
@@ -31,6 +32,7 @@ class SSEConnectionManager {
 
   setConnection(jobId: string, eventSource: EventSource): void {
     this.connections.set(jobId, eventSource);
+    this.connectionStates.set(jobId, 'connecting');
   }
 
   closeConnection(jobId: string): void {
@@ -39,11 +41,22 @@ class SSEConnectionManager {
       connection.close();
       this.connections.delete(jobId);
       this.eventHandlersAttached.delete(jobId);
+      this.connectionStates.delete(jobId);
     }
   }
 
   hasConnection(jobId: string): boolean {
     return this.connections.has(jobId);
+  }
+
+  isConnectionOpen(jobId: string): boolean {
+    const connection = this.connections.get(jobId);
+    return connection?.readyState === EventSource.OPEN;
+  }
+
+  isConnecting(jobId: string): boolean {
+    const connection = this.connections.get(jobId);
+    return connection?.readyState === EventSource.CONNECTING;
   }
 
   hasEventHandlers(jobId: string): boolean {
@@ -52,6 +65,14 @@ class SSEConnectionManager {
 
   markEventHandlersAttached(jobId: string): void {
     this.eventHandlersAttached.add(jobId);
+  }
+
+  markConnectionOpen(jobId: string): void {
+    this.connectionStates.set(jobId, 'open');
+  }
+
+  markConnectionClosed(jobId: string): void {
+    this.connectionStates.set(jobId, 'closed');
   }
 }
 
@@ -71,21 +92,24 @@ export default function ProcessingStep({
   onBack,
 }: ProcessingStepProps) {
   const { data: jobDetails, isLoading: jobLoading } = useJobDetails(jobId);
-  const { data: progress, isLoading: progressLoading } = useJobProgress(jobId);
+  // No longer need separate progress API call - SSE provides full_state
   const [startTime] = useState(Date.now());
   const [elapsedTime, setElapsedTime] = useState(0);
 
   // SSE connection for real-time updates
   const eventSourceRef = useRef<EventSource | null>(null);
-  const [completedTasks, setCompletedTasks] = useState(0);
-  const [totalTasks, setTotalTasks] = useState(0);
+  // Single source of truth for progress - starts with server data, gets updated by SSE
+  // Initialize as null to distinguish between "no data yet" and "zero progress"
+  const [currentProgress, setCurrentProgress] = useState<{
+    total: number;
+    completed: number;
+    failed: number;
+  } | null>(null);
   const [processingSteps, setProcessingSteps] = useState<
     Array<{
       id: string;
       name: string;
       status: "pending" | "processing" | "completed" | "failed";
-      startTime?: number;
-      endTime?: number;
     }>
   >([]);
   const [currentStep, setCurrentStep] = useState<string | null>(null);
@@ -94,10 +118,17 @@ export default function ProcessingStep({
   const [jobCompleted, setJobCompleted] = useState(false);
   const [sseIntentionallyClosed, setSseIntentionallyClosed] = useState(false);
 
+  // Track if we've already restored processing steps to prevent re-restoration
+  const hasRestoredSteps = useRef(false);
+
   // Simplified status derivation - single source of truth
   const isCompleted = jobDetails?.status === "completed" || jobCompleted;
-  const isProcessing = jobDetails?.status === "processing" && !isCompleted;
+  const isProcessing = jobDetails?.status === "in_progress" && !isCompleted;
   const isFailed = jobDetails?.status === "failed";
+
+  console.log(
+    `Job status check: status=${jobDetails?.status}, isCompleted=${isCompleted}, isProcessing=${isProcessing}`
+  );
 
   // Update elapsed time every second (stop when job completes)
   useEffect(() => {
@@ -110,6 +141,60 @@ export default function ProcessingStep({
     return () => clearInterval(interval);
   }, [isCompleted, startTime]);
 
+  // Handle full_state from SSE - this replaces the old progress API approach
+  const handleFullState = (fullStateData: any) => {
+    console.log("=== FULL STATE RECEIVED ===");
+    console.log("Full state data:", fullStateData);
+
+    const { progress: progressData } = fullStateData;
+
+    // Initialize current progress from full state
+    setCurrentProgress({
+      total: progressData.total_tasks || 0,
+      completed: progressData.completed || 0,
+      failed: progressData.failed || 0,
+    });
+
+    // Restore processing steps from full state
+    if (progressData.tasks && progressData.tasks.length > 0) {
+      console.log(
+        "Restoring processing steps from full state",
+        progressData.tasks
+      );
+      const restoredSteps = [];
+
+      // Create steps from actual task data
+      for (const task of progressData.tasks) {
+        console.log(`Restoring task: ${task.id} with status: ${task.status}`);
+        restoredSteps.push({
+          id: task.id,
+          name: `Task ${task.id}`,
+          status: task.status as
+            | "pending"
+            | "processing"
+            | "completed"
+            | "failed",
+        });
+
+        // Set current step if task is processing
+        if (task.status === "processing") {
+          setCurrentStep(task.id);
+        }
+      }
+
+      setProcessingSteps(restoredSteps);
+      console.log(
+        `Restored ${restoredSteps.length} processing steps from full state`
+      );
+    }
+
+    // Update job completion status
+    if (fullStateData.status === "completed") {
+      console.log("Job completed according to full state");
+      setJobCompleted(true);
+    }
+  };
+
   // SSE connection setup for real-time progress updates
   const setupSSEConnection = async () => {
     // Don't establish connection if job is already completed or SSE was intentionally closed
@@ -120,13 +205,27 @@ export default function ProcessingStep({
       return;
     }
 
-    // Check if a connection already exists globally
-    if (sseManager.hasConnection(jobId)) {
-      console.log("SSE connection already exists globally, skipping setup");
-      // Get the existing connection and store in ref for this component
+    // Check if we already have an active connection for this job
+    if (sseManager.isConnectionOpen(jobId)) {
+      console.log(`SSE connection already exists and is open for job ${jobId}, reusing it`);
       eventSourceRef.current = sseManager.getConnection(jobId);
       return;
     }
+
+    // If there's a connection that's still connecting, wait for it
+    if (sseManager.isConnecting(jobId)) {
+      console.log(`SSE connection is already connecting for job ${jobId}, skipping duplicate setup`);
+      eventSourceRef.current = sseManager.getConnection(jobId);
+      return;
+    }
+
+    // Close any existing connection that might be in a bad state
+    if (sseManager.hasConnection(jobId)) {
+      console.log("Closing existing SSE connection to create fresh one for this page visit");
+      sseManager.closeConnection(jobId);
+    }
+    
+    console.log(`Creating new SSE connection for job ${jobId}`);
 
     try {
       console.log("Setting up SSE connection for job processing updates");
@@ -145,133 +244,171 @@ export default function ProcessingStep({
       eventSourceRef.current = eventSource;
       sseManager.setConnection(jobId, eventSource);
 
-      // Only attach event handlers once per connection
-      if (!sseManager.hasEventHandlers(jobId)) {
-        sseManager.markEventHandlersAttached(jobId);
+      // Always attach event handlers for fresh connection
+      eventSource.onopen = () => {
+        console.log("SSE connection established for job processing");
+        sseManager.markConnectionOpen(jobId);
+      };
 
-        eventSource.onopen = () => {
-          console.log("SSE connection established for job processing");
-        };
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log(`[Connection ${eventSource.url}] Received SSE event:`, data);
 
-        eventSource.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            console.log("Received SSE event:", data);
+          switch (data.type) {
+            case "full_state":
+              console.log("Received full_state event");
+              handleFullState(data);
+              break;
 
-            switch (data.type) {
-              case "task_started":
-                console.log(`Task started: ${data.task_id}`);
-                setCurrentStep(data.task_id);
-                setProcessingSteps((prev) => {
-                  const existing = prev.find(
-                    (step) => step.id === data.task_id
+            case "task_started":
+              console.log(`Task started: ${data.task_id}`);
+              setCurrentStep(data.task_id);
+              setProcessingSteps((prev) => {
+                const existing = prev.find((step) => step.id === data.task_id);
+                if (existing) {
+                  return prev.map((step) =>
+                    step.id === data.task_id
+                      ? {
+                          ...step,
+                          status: "processing",
+                          startTime: Date.now(),
+                        }
+                      : step
                   );
-                  if (existing) {
-                    return prev.map((step) =>
-                      step.id === data.task_id
-                        ? {
-                            ...step,
-                            status: "processing",
-                            startTime: Date.now(),
-                          }
-                        : step
-                    );
-                  }
-                  return [
-                    ...prev,
-                    {
-                      id: data.task_id,
-                      name: `Processing Task ${prev.length + 1}`,
-                      status: "processing",
-                      startTime: Date.now(),
-                    },
-                  ];
-                });
-                break;
+                }
+                return [
+                  ...prev,
+                  {
+                    id: data.task_id,
+                    name: `Processing Task ${prev.length + 1}`,
+                    status: "processing",
+                    startTime: Date.now(),
+                  },
+                ];
+              });
+              break;
 
-              case "task_completed":
-                console.log(`Task completed: ${data.task_id}`);
-                setCompletedTasks((prev) => {
-                  const newCount = prev + 1;
+            case "task_completed":
+              console.log(`Task completed: ${data.task_id}`);
+              setCurrentProgress((prev) => {
+                if (!prev) return prev; // Don't update if no initial data yet
+                const newCompleted = prev.completed + 1;
+                console.log(`Progress: ${newCompleted}/${prev.total}`);
+                return {
+                  ...prev,
+                  completed: newCompleted,
+                };
+              });
+              setProcessingSteps((prev) => {
+                const updated = prev.map((step) =>
+                  step.id === data.task_id
+                    ? { ...step, status: "completed" }
+                    : step
+                );
+
+                // If no step was found with this task_id, it might be a new task
+                // that wasn't in our restored steps
+                const foundStep = prev.find((step) => step.id === data.task_id);
+                if (!foundStep) {
                   console.log(
-                    `Progress: ${newCount}/${
-                      totalTasks || progress?.total_tasks || 0
-                    }`
+                    `Task ${data.task_id} not found in existing steps, adding as completed`
                   );
-                  return newCount;
-                });
-                setProcessingSteps((prev) =>
-                  prev.map((step) =>
-                    step.id === data.task_id
-                      ? { ...step, status: "completed", endTime: Date.now() }
-                      : step
-                  )
+                  updated.push({
+                    id: data.task_id,
+                    name: `Task ${data.task_id}`,
+                    status: "completed",
+                  });
+                }
+
+                return updated;
+              });
+              break;
+
+            case "task_failed":
+              console.log(`Task failed: ${data.task_id}`);
+              setProcessingSteps((prev) => {
+                const updated = prev.map((step) =>
+                  step.id === data.task_id
+                    ? { ...step, status: "failed" }
+                    : step
                 );
-                break;
 
-              case "task_failed":
-                console.log(`Task failed: ${data.task_id}`);
-                setProcessingSteps((prev) =>
-                  prev.map((step) =>
-                    step.id === data.task_id
-                      ? { ...step, status: "failed", endTime: Date.now() }
-                      : step
-                  )
-                );
-                break;
+                // If no step was found with this task_id, add it as failed
+                const foundStep = prev.find((step) => step.id === data.task_id);
+                if (!foundStep) {
+                  console.log(
+                    `Task ${data.task_id} not found in existing steps, adding as failed`
+                  );
+                  updated.push({
+                    id: data.task_id,
+                    name: `Task ${data.task_id}`,
+                    status: "failed",
+                  });
+                }
 
-              case "job_completed":
-                console.log("Job completed");
-                setCurrentStep(null);
+                return updated;
+              });
+              break;
 
-                // Mark job as completed immediately for UI updates
-                setJobCompleted(true);
-                setSseIntentionallyClosed(true);
+            case "job_completed":
+              console.log("Job completed");
+              setCurrentStep(null);
 
-                // Close SSE connection immediately to prevent further events
-                eventSource.close();
-                sseManager.closeConnection(jobId);
-                eventSourceRef.current = null;
+              // Mark job as completed immediately for UI updates
+              setJobCompleted(true);
+              setSseIntentionallyClosed(true);
 
-                // Remove event handlers to prevent any further processing
-                eventSource.onmessage = null;
-                eventSource.onerror = null;
-                eventSource.onopen = null;
-                break;
+              // Close SSE connection immediately to prevent further events
+              eventSource.close();
+              sseManager.closeConnection(jobId);
+              eventSourceRef.current = null;
 
-              case "job_already_completed":
-                console.log("Job already completed, closing SSE connection");
-                setJobCompleted(true);
-                setSseIntentionallyClosed(true);
+              // Remove event handlers to prevent any further processing
+              eventSource.onmessage = null;
+              eventSource.onerror = null;
+              eventSource.onopen = null;
+              break;
 
-                // Close connection immediately since job is already done
-                eventSource.close();
-                sseManager.closeConnection(jobId);
-                eventSourceRef.current = null;
-                break;
+            case "job_already_completed":
+              console.log("Job already completed, closing SSE connection");
+              setJobCompleted(true);
+              setSseIntentionallyClosed(true);
 
-              default:
-                console.log(`Ignoring SSE event type: ${data.type}`);
-            }
-          } catch (error) {
-            console.error("Error parsing SSE event:", error);
+              // Close connection immediately since job is already done
+              eventSource.close();
+              sseManager.closeConnection(jobId);
+              eventSourceRef.current = null;
+              break;
+
+            default:
+              console.log(`Ignoring SSE event type: ${data.type}`);
           }
-        };
+        } catch (error) {
+          console.error("Error parsing SSE event:", error);
+        }
+      };
 
-        eventSource.onerror = (error) => {
-          console.error("SSE connection error:", error);
-          // If the job is completed or SSE was intentionally closed, close the connection to prevent reconnection
-          if (jobCompleted || sseIntentionallyClosed) {
-            console.log(
-              "SSE connection closed after job completion - preventing reconnection"
-            );
-            eventSource.close();
-            sseManager.closeConnection(jobId);
-            eventSourceRef.current = null;
-            return;
-          }
-        };
-      }
+      eventSource.onerror = (error) => {
+        console.error("SSE connection error:", error);
+        sseManager.markConnectionClosed(jobId);
+        
+        // If the job is completed or SSE was intentionally closed, close the connection to prevent reconnection
+        if (jobCompleted || sseIntentionallyClosed) {
+          console.log(
+            "SSE connection closed after job completion - preventing reconnection"
+          );
+          eventSource.close();
+          sseManager.closeConnection(jobId);
+          eventSourceRef.current = null;
+          return;
+        }
+      };
+
+      // Store the connection globally and in component ref
+      console.log(`Storing SSE connection for job ${jobId}, URL: ${eventSource.url}`);
+      sseManager.setConnection(jobId, eventSource);
+      eventSourceRef.current = eventSource;
     } catch (error) {
       console.error("Error setting up SSE:", error);
     }
@@ -289,23 +426,26 @@ export default function ProcessingStep({
   // Setup SSE connection when component mounts - ONCE
   useEffect(() => {
     if (jobId && !isCompleted) {
-      setupSSEConnection();
+      // Add a small delay to ensure any previous cleanup has completed
+      const timeoutId = setTimeout(() => {
+        setupSSEConnection();
+      }, 100);
+
+      return () => {
+        clearTimeout(timeoutId);
+        console.log("useEffect cleanup: closing SSE connection");
+        sseManager.closeConnection(jobId);
+        eventSourceRef.current = null;
+      };
     }
 
-    // Clean up the SSE connection in the useEffect return function
     return () => {
       console.log("useEffect cleanup: closing SSE connection");
       sseManager.closeConnection(jobId);
       eventSourceRef.current = null;
     };
-  }, []); // Empty dependency array - run once only
+  }, [jobId]); // Include jobId to handle job changes, but this should be stable
 
-  // Update total tasks when progress data changes
-  useEffect(() => {
-    if (progress?.total_tasks) {
-      setTotalTasks(progress.total_tasks);
-    }
-  }, [progress?.total_tasks]);
 
   // Check if job is completed (using ref to avoid infinite re-renders)
   const onJobCompletedRef = useRef(onJobCompleted);
@@ -345,7 +485,7 @@ export default function ProcessingStep({
 
   const getStatusColor = (status: JobStatus) => {
     switch (status) {
-      case "processing":
+      case "in_progress":
         return "bg-blue-500";
       case "completed":
         return "bg-green-500";
@@ -359,10 +499,10 @@ export default function ProcessingStep({
   };
 
   const calculateProgress = () => {
-    const completed = completedTasks || progress?.completed || 0;
-    const total = totalTasks || progress?.total_tasks || 0;
-    if (total === 0) return 0;
-    return Math.round((completed / total) * 100);
+    if (!currentProgress || currentProgress.total === 0) return 0;
+    return Math.round(
+      (currentProgress.completed / currentProgress.total) * 100
+    );
   };
 
   const progressPercentage = calculateProgress();
@@ -401,11 +541,11 @@ export default function ProcessingStep({
             </div>
 
             {/* Task Statistics */}
-            {progress && (
+            {currentProgress ? (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                 <div className="space-y-1">
                   <div className="text-2xl font-bold text-blue-600">
-                    {totalTasks || progress.total_tasks}
+                    {currentProgress.total}
                   </div>
                   <div className="text-sm text-muted-foreground">
                     Total Tasks
@@ -413,15 +553,15 @@ export default function ProcessingStep({
                 </div>
                 <div className="space-y-1">
                   <div className="text-2xl font-bold text-green-600">
-                    {completedTasks || progress.completed}
+                    {currentProgress.completed}
                   </div>
                   <div className="text-sm text-muted-foreground">Completed</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-2xl font-bold text-orange-600">
-                    {(totalTasks || progress.total_tasks) -
-                      (completedTasks || progress.completed) -
-                      progress.failed}
+                    {currentProgress.total -
+                      currentProgress.completed -
+                      currentProgress.failed}
                   </div>
                   <div className="text-sm text-muted-foreground">
                     Tasks Remaining
@@ -429,10 +569,17 @@ export default function ProcessingStep({
                 </div>
                 <div className="space-y-1">
                   <div className="text-2xl font-bold text-red-600">
-                    {progress.failed}
+                    {currentProgress.failed}
                   </div>
                   <div className="text-sm text-muted-foreground">Failed</div>
                 </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                <span className="text-muted-foreground">
+                  Loading progress data...
+                </span>
               </div>
             )}
           </div>
@@ -453,10 +600,6 @@ export default function ProcessingStep({
             ) : (
               processingSteps.map((step, index) => {
                 const isCurrentStep = currentStep === step.id;
-                const duration =
-                  step.endTime && step.startTime
-                    ? Math.round((step.endTime - step.startTime) / 1000)
-                    : null;
 
                 return (
                   <div key={step.id} className="flex items-center gap-3">
@@ -487,7 +630,7 @@ export default function ProcessingStep({
                         {step.status === "processing"
                           ? "Currently processing..."
                           : step.status === "completed"
-                          ? `Completed in ${duration}s`
+                          ? "Completed"
                           : step.status === "failed"
                           ? "Processing failed"
                           : step.status === "pending"

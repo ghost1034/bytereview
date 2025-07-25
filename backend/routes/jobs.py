@@ -17,6 +17,7 @@ from models.job import (
     JobProgressResponse, JobResultsResponse,
     JobFilesResponse, FileStatus
 )
+from pydantic import BaseModel
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,24 @@ router = APIRouter()
 
 # Initialize job service
 job_service = JobService()
+
+# Request/Response models for resumable workflow
+class ConfigStepRequest(BaseModel):
+    config_step: str
+    version: int = None
+
+class ResumableJobResponse(BaseModel):
+    id: str
+    name: str = None
+    config_step: str
+    status: str
+    progress_percentage: float
+    tasks_completed: int
+    tasks_total: int
+    tasks_failed: int
+    is_resumable: bool
+    created_at: str
+    last_active_at: str
 
 @router.post("/initiate", response_model=JobInitiateResponse)
 async def initiate_job(
@@ -60,6 +79,36 @@ async def start_job(
     except Exception as e:
         logger.error(f"Failed to start job {job_id} for user {user_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start job: {str(e)}")
+
+# New resumable workflow endpoints (must come before /{job_id} routes)
+
+@router.get("/resumable")
+async def list_resumable_jobs(
+    user_id: str = Depends(get_current_user_id)
+):
+    """List jobs that can be resumed"""
+    try:
+        jobs = job_service.get_resumable_jobs(user_id)
+        return {
+            "jobs": [
+                ResumableJobResponse(
+                    id=str(job.id),
+                    name=job.name,
+                    config_step=job.config_step,
+                    status=job.status,
+                    progress_percentage=job.progress_percentage,
+                    tasks_completed=job.tasks_completed,
+                    tasks_total=job.tasks_total,
+                    tasks_failed=job.tasks_failed,
+                    is_resumable=job.is_resumable,
+                    created_at=job.created_at.isoformat(),
+                    last_active_at=job.last_active_at.isoformat()
+                ) for job in jobs
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error listing resumable jobs: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list resumable jobs")
 
 @router.get("/{job_id}", response_model=JobDetailsResponse)
 async def get_job_details(
@@ -263,3 +312,105 @@ async def delete_job(job_id: str, user_id: str = Depends(get_current_user_id)):
     except Exception as e:
         logger.error(f"Failed to delete job {job_id} for user {user_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete job: {str(e)}")
+
+# Duplicate resumable endpoint removed (moved above)
+
+@router.put("/{job_id}/config-step")
+async def update_config_step(
+    job_id: str,
+    request: ConfigStepRequest,
+    user_id: str = Depends(get_current_user_id)
+):
+    """Update job configuration step"""
+    try:
+        await job_service.advance_config_step(
+            job_id=job_id,
+            user_id=user_id,
+            next_step=request.config_step,
+            expected_version=request.version
+        )
+        return {"message": "Configuration step updated successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error updating config step: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update configuration step")
+
+@router.post("/{job_id}/submit")
+async def submit_job_for_processing(
+    job_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    """Submit job for processing"""
+    try:
+        await job_service.submit_job_for_processing(job_id, user_id)
+        return {"message": "Job submitted for processing"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error submitting job: {e}")
+        raise HTTPException(status_code=500, detail="Failed to submit job")
+
+@router.put("/{job_id}/cancel")
+async def cancel_job(
+    job_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    """Cancel job (soft delete)"""
+    try:
+        # Update job status to cancelled
+        await job_service.cancel_job(job_id, user_id)
+        return {"message": "Job cancelled successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error cancelling job: {e}")
+        raise HTTPException(status_code=500, detail="Failed to cancel job")
+
+# New endpoints for saving workflow configuration data
+
+class JobFieldsUpdateRequest(BaseModel):
+    fields: List[dict]
+    template_id: str = None
+    processing_modes: dict = None  # folder_path -> processing_mode mapping
+
+class JobNameUpdateRequest(BaseModel):
+    name: str
+
+@router.put("/{job_id}/fields")
+async def update_job_fields(
+    job_id: str,
+    request: JobFieldsUpdateRequest,
+    user_id: str = Depends(get_current_user_id)
+):
+    """Update job field configuration and processing modes"""
+    try:
+        await job_service.update_job_fields(
+            job_id, 
+            user_id, 
+            request.fields, 
+            request.template_id, 
+            request.processing_modes
+        )
+        return {"message": "Job configuration updated successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error updating job configuration: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update job configuration")
+
+@router.patch("/{job_id}")
+async def update_job_details(
+    job_id: str,
+    request: JobNameUpdateRequest,
+    user_id: str = Depends(get_current_user_id)
+):
+    """Update job details like name"""
+    try:
+        await job_service.update_job_name(job_id, user_id, request.name)
+        return {"message": "Job updated successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error updating job: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update job")

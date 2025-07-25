@@ -22,7 +22,8 @@ import {
   Loader2
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { useJobWorkflow } from '@/hooks/useJobs'
+import { useJobWorkflow } from '@/hooks/useJobWorkflow'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { JobWorkflowState, WorkflowStep, UploadedFile, JobFieldConfig, TaskDefinition } from '@/lib/api'
 
 // Import step components
@@ -77,19 +78,56 @@ interface JobWorkflowProps {
 
 export default function JobWorkflow({ jobId: providedJobId, onJobComplete }: JobWorkflowProps) {
   const { toast } = useToast()
-  const jobWorkflow = useJobWorkflow()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   
-  // Workflow state
-  const [currentStep, setCurrentStep] = useState(0)
-  const [steps, setSteps] = useState(WORKFLOW_STEPS)
-  const [workflowState, setWorkflowState] = useState<JobWorkflowState>({
-    currentStep: 0,
-    jobId: providedJobId, // Use provided job ID if available
-    files: [],
-    fields: [],
-    taskDefinitions: [],
+  // Get job ID from URL params or props
+  const jobId = searchParams.get('jobId') || providedJobId
+  
+  // Get the step parameter from URL for resuming
+  const stepParam = searchParams.get('step')
+  
+  // Use the enhanced resumable workflow hook
+  const {
+    job,
+    workflowState: resumableState,
+    isLoading,
+    autoSaving,
+    updateStep,
+    updateWorkflowData,
+    submitForProcessing,
+    getProgressInfo,
+    isSubmitting,
+    isUpdatingStep
+  } = useJobWorkflow(jobId, stepParam)
+  
+  // Map resumable workflow step to component step index
+  const getStepIndex = (step: string) => {
+    const stepMap = { upload: 0, fields: 1, review: 2, submitted: 3 }
+    return stepMap[step as keyof typeof stepMap] || 0
+  }
+
+  // Use resumable state as the ONLY source of truth - no local state conflicts
+  const currentStep = resumableState ? getStepIndex(resumableState.currentStep) : 0
+  const workflowData = {
+    currentStep: resumableState?.currentStep || 'upload',
+    jobId: jobId,
+    files: resumableState?.uploadedFiles || [],
+    fields: resumableState?.fields || [],
+    taskDefinitions: resumableState?.taskDefinitions || [],
+    jobName: resumableState?.jobName,
+    templateId: resumableState?.templateId,
     persistData: true
-  })
+  }
+
+  const [steps, setSteps] = useState(WORKFLOW_STEPS)
+
+  // Update step completion status when resumable state changes
+  useEffect(() => {
+    if (resumableState) {
+      updateStepState(getStepIndex(resumableState.currentStep), false, true)
+    }
+  }, [resumableState])
 
   // Update step states
   const updateStepState = (stepIndex: number, completed: boolean, current: boolean = false) => {
@@ -100,35 +138,29 @@ export default function JobWorkflow({ jobId: providedJobId, onJobComplete }: Job
     })))
   }
 
-  // Navigation functions
-  const goToStep = (stepIndex: number) => {
-    if (stepIndex >= 0 && stepIndex < steps.length) {
-      setCurrentStep(stepIndex)
-      setWorkflowState(prev => ({ ...prev, currentStep: stepIndex }))
-      updateStepState(stepIndex, false, true)
-    }
-  }
-
-  const nextStep = () => {
+  // Navigation functions - now only update backend, let resumable state drive UI
+  const nextStep = async () => {
     if (currentStep < steps.length - 1) {
       updateStepState(currentStep, true)
-      goToStep(currentStep + 1)
+      
+      // Update backend step - this will trigger resumable state update
+      const nextStepName = ['upload', 'fields', 'review'][currentStep + 1] as 'upload' | 'fields' | 'review'
+      await updateStep(nextStepName)
     }
   }
 
-  const prevStep = () => {
+  const prevStep = async () => {
     if (currentStep > 0) {
-      goToStep(currentStep - 1)
+      // Update backend step - this will trigger resumable state update
+      const prevStepName = ['upload', 'fields', 'review'][currentStep - 1] as 'upload' | 'fields' | 'review'
+      await updateStep(prevStepName)
     }
   }
 
-  // Step completion handlers
+  // Step completion handlers - simplified to only update backend
   const handleFilesUploaded = (jobId: string, files: UploadedFile[]) => {
-    setWorkflowState(prev => ({
-      ...prev,
-      jobId,
-      files
-    }))
+    // Update resumable workflow state
+    updateWorkflowData({ uploadedFiles: files })
     
     toast({
       title: "Files uploaded successfully",
@@ -138,23 +170,23 @@ export default function JobWorkflow({ jobId: providedJobId, onJobComplete }: Job
     nextStep()
   }
 
-  const handleFieldsConfigured = (fields: JobFieldConfig[], taskDefinitions: TaskDefinition[], templateId?: string) => {
-    setWorkflowState(prev => ({
-      ...prev,
-      fields,
-      taskDefinitions,
-      templateId
-    }))
+  const handleFieldsConfigured = async (fields: JobFieldConfig[], taskDefinitions: TaskDefinition[], templateId?: string) => {
+    // Save the field configuration data and wait for it to complete
+    await updateWorkflowData({ 
+      fields, 
+      taskDefinitions, 
+      templateId 
+    })
     
-    nextStep()
+    // Only advance step after data is saved
+    await nextStep()
   }
 
   const handleJobStarted = (jobName?: string, templateId?: string) => {
-    setWorkflowState(prev => ({
-      ...prev,
-      jobName,
-      templateId
-    }))
+    // Update backend with job name if provided
+    if (jobName) {
+      updateWorkflowData({ jobName })
+    }
     
     nextStep()
   }
@@ -173,30 +205,30 @@ export default function JobWorkflow({ jobId: providedJobId, onJobComplete }: Job
       case 0:
         return (
           <FileUploadStep
-            jobId={workflowState.jobId}
+            jobId={workflowData.jobId}
             onFilesUploaded={handleFilesUploaded}
-            isLoading={jobWorkflow.isLoading}
+            isLoading={isLoading}
           />
         )
       
       case 1:
         return (
           <FieldConfigurationStep
-            files={workflowState.files}
-            initialFields={workflowState.fields}
-            initialTaskDefinitions={workflowState.taskDefinitions}
+            files={workflowData.files}
+            initialFields={workflowData.fields}
+            initialTaskDefinitions={workflowData.taskDefinitions}
             onFieldsConfigured={handleFieldsConfigured}
-            onBack={prevStep}
+            onBack={async () => await prevStep()}
           />
         )
       
       case 2:
         return (
           <ReviewAndStartStep
-            workflowState={workflowState}
+            workflowState={workflowData}
             onJobStarted={handleJobStarted}
-            onBack={prevStep}
-            isLoading={jobWorkflow.isLoading}
+            onBack={async () => await prevStep()}
+            isLoading={isLoading}
           />
         )
       
@@ -205,26 +237,21 @@ export default function JobWorkflow({ jobId: providedJobId, onJobComplete }: Job
           <ProcessingStep
             jobId={workflowState.jobId!}
             onJobCompleted={handleJobCompleted}
-            onViewResults={() => goToStep(4)}
-            onBack={prevStep}
+            onViewResults={() => {
+              // Navigate to job results page
+              router.push(`/dashboard/jobs/${workflowData.jobId}`)
+            }}
+            onBack={async () => await prevStep()}
           />
         )
       
       case 4:
         return (
           <ResultsStep
-            jobId={workflowState.jobId!}
+            jobId={workflowData.jobId!}
             onStartNew={() => {
-              // Reset workflow
-              setCurrentStep(0)
-              setWorkflowState({
-                currentStep: 0,
-                files: [],
-                fields: [],
-                taskDefinitions: [],
-                persistData: true
-              })
-              setSteps(WORKFLOW_STEPS)
+              // Navigate to new job creation
+              router.push('/dashboard/jobs/create')
             }}
           />
         )
@@ -238,9 +265,19 @@ export default function JobWorkflow({ jobId: providedJobId, onJobComplete }: Job
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold">Document Data Extraction</h1>
+        <div className="flex items-center justify-center gap-4">
+          <h1 className="text-3xl font-bold">
+            {job?.name || 'Document Data Extraction'}
+          </h1>
+          {autoSaving && (
+            <div className="flex items-center text-sm text-gray-500">
+              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              Saving...
+            </div>
+          )}
+        </div>
         <p className="text-muted-foreground">
-          Extract structured data from your documents using AI
+          {jobId ? 'Continue where you left off' : 'Extract structured data from your documents using AI'}
         </p>
       </div>
 
@@ -311,15 +348,6 @@ export default function JobWorkflow({ jobId: providedJobId, onJobComplete }: Job
       </Card>
 
       {/* Error Display */}
-      {jobWorkflow.error && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="pt-6">
-            <div className="text-red-800">
-              <strong>Error:</strong> {jobWorkflow.error.message}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

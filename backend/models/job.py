@@ -12,8 +12,9 @@ __all__ = ["JobStatus", "ProcessingMode", "FileStatus", "JobInitiateRequest", "J
 
 class JobStatus(str, Enum):
     """Job status enumeration"""
-    PENDING_CONFIGURATION = "pending_configuration"
-    PROCESSING = "processing"
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    PARTIALLY_COMPLETED = "partially_completed"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -102,12 +103,15 @@ class JobDetailsResponse(BaseModel):
     created_at: datetime = Field(..., description="Creation timestamp")
     completed_at: Optional[datetime] = Field(None, description="Completion timestamp")
     job_fields: List[JobFieldInfo] = Field(..., description="Field configuration")
+    template_id: Optional[str] = Field(None, description="Template ID used for this job")
+    extraction_tasks: List[dict] = Field(default_factory=list, description="Task definitions for processing modes")
 
 class JobListItem(BaseModel):
     """Job list item for job listing"""
     id: str = Field(..., description="Job identifier")
     name: Optional[str] = Field(None, description="Job name")
     status: JobStatus = Field(..., description="Job status")
+    config_step: str = Field(..., description="Current configuration step")
     created_at: datetime = Field(..., description="Creation timestamp")
     file_count: int = Field(..., description="Number of files")
 
@@ -116,12 +120,18 @@ class JobListResponse(BaseModel):
     jobs: List[JobListItem] = Field(..., description="List of jobs")
     total: int = Field(..., description="Total number of jobs")
 
+class TaskInfo(BaseModel):
+    """Information about a single extraction task"""
+    id: str = Field(..., description="Task identifier")
+    status: str = Field(..., description="Task status")
+
 class JobProgressResponse(BaseModel):
     """Job progress information"""
     total_tasks: int = Field(..., description="Total number of tasks")
     completed: int = Field(..., description="Completed tasks")
     failed: int = Field(..., description="Failed tasks")
     status: JobStatus = Field(..., description="Overall job status")
+    tasks: List[TaskInfo] = Field(default_factory=list, description="List of all tasks with their status")
 
 class ExtractionTaskResult(BaseModel):
     """Result from a single extraction task"""

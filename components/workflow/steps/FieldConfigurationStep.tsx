@@ -43,6 +43,7 @@ interface FieldConfigurationStepProps {
   files: UploadedFile[];
   initialFields?: JobFieldConfig[];
   initialTaskDefinitions?: TaskDefinition[];
+  initialTemplateId?: string;
   onFieldsConfigured: (
     fields: JobFieldConfig[],
     taskDefinitions: TaskDefinition[],
@@ -55,6 +56,7 @@ export default function FieldConfigurationStep({
   files,
   initialFields,
   initialTaskDefinitions,
+  initialTemplateId,
   onFieldsConfigured,
   onBack,
 }: FieldConfigurationStepProps) {
@@ -108,10 +110,10 @@ export default function FieldConfigurationStep({
     ...(publicTemplates?.templates || []),
   ];
 
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [selectedTemplate, setSelectedTemplate] = useState<string>(initialTemplateId || "");
   const [configurationMode, setConfigurationMode] = useState<
     "template" | "custom"
-  >("custom");
+  >(initialTemplateId ? "template" : "custom");
   const [folderProcessingModes, setFolderProcessingModes] = useState<
     Record<string, ProcessingMode>
   >({});
@@ -134,32 +136,50 @@ export default function FieldConfigurationStep({
     }
   };
 
-  // Load template when selected
+  // Helper function to load template fields
+  const loadTemplateFields = (template: any, showToast: boolean = true) => {
+    const templateFields: JobFieldConfig[] = template.fields.map(
+      (field, index) => ({
+        field_name: field.name,
+        data_type_id: field.data_type,
+        ai_prompt: field.prompt,
+        display_order: index,
+      })
+    );
+    setFields(templateFields);
+
+    if (showToast) {
+      toast({
+        title: "Template loaded",
+        description: `Loaded ${templateFields.length} fields from "${template.name}". You can customize these fields before proceeding.`,
+      });
+    }
+  };
+
+  // Load initial template when returning to page (only if no saved fields exist)
   useEffect(() => {
     if (
       configurationMode === "template" &&
       selectedTemplate &&
-      allTemplates.length > 0
+      allTemplates.length > 0 &&
+      (!initialFields || initialFields.length === 0)
     ) {
       const template = allTemplates.find((t) => t.id === selectedTemplate);
       if (template) {
-        const templateFields: JobFieldConfig[] = template.fields.map(
-          (field, index) => ({
-            field_name: field.name,
-            data_type_id: field.data_type,
-            ai_prompt: field.prompt,
-            display_order: index,
-          })
-        );
-        setFields(templateFields);
-
-        toast({
-          title: "Template loaded",
-          description: `Loaded ${templateFields.length} fields from "${template.name}". You can customize these fields before proceeding.`,
-        });
+        loadTemplateFields(template, false); // Don't show toast for initial load
       }
     }
-  }, [configurationMode, selectedTemplate, toast]);
+  }, [configurationMode, userTemplates, publicTemplates, initialFields]); // Removed selectedTemplate and toast from dependencies
+
+  // Handle template selection changes
+  const handleTemplateChange = (templateId: string) => {
+    setSelectedTemplate(templateId);
+    
+    const template = allTemplates.find((t) => t.id === templateId);
+    if (template) {
+      loadTemplateFields(template);
+    }
+  };
 
   // Group files by folder for task definition
   const getFileFolders = () => {
@@ -357,7 +377,7 @@ export default function FieldConfigurationStep({
                 <Label className="text-sm font-medium">Select Template</Label>
                 <Select
                   value={selectedTemplate}
-                  onValueChange={setSelectedTemplate}
+                  onValueChange={handleTemplateChange}
                 >
                   <SelectTrigger className="mt-2">
                     <SelectValue placeholder="Choose a template to start with..." />
