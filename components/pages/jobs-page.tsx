@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, FileText, Loader2 } from "lucide-react";
+import { Plus, Search, Filter, FileText, Loader2, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CreateJobModal } from "@/components/jobs/create-job-modal";
 import JobCard from "@/components/jobs/JobCard";
@@ -81,11 +81,22 @@ export function JobsPage() {
           </p>
         </div>
 
-        <Button onClick={() => setShowCreateModal(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create New Job
-        </Button>
+        <div className="flex items-center space-x-3">
+          <Button 
+            variant="outline" 
+            onClick={() => refetch()}
+            disabled={loading}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Reload
+          </Button>
+          <Button onClick={() => setShowCreateModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create New Job
+          </Button>
+        </div>
       </div>
+
 
       {/* Search and Filters */}
       <div className="flex items-center space-x-4">

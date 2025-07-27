@@ -200,30 +200,21 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str
         task.status = "completed"
         task.processed_at = datetime.utcnow()
         
+        # Increment job-level task completion counter
+        try:
+            from services.job_service import JobService
+            job_service = JobService()
+            await job_service.increment_task_completion(task.job_id, success=True)
+            logger.info(f"Incremented task completion counter for job {task.job_id}")
+        except Exception as e:
+            logger.error(f"Failed to increment task completion counter: {e}")
+        
         # Send SSE event for task completed
         try:
             from services.sse_service import sse_manager
             await sse_manager.send_task_completed(task.job_id, task_id, final_result)
         except Exception as e:
             logger.warning(f"Failed to send task_completed SSE event: {e}")
-        
-        # Check if all tasks for this job are completed
-        job_tasks = db.query(ExtractionTask).filter(ExtractionTask.job_id == task.job_id).all()
-        all_completed = all(t.status in ['completed', 'failed'] for t in job_tasks)
-        
-        if all_completed:
-            # Update job status
-            job = db.query(ExtractionJob).filter(ExtractionJob.id == task.job_id).first()
-            if job:
-                job.status = "completed"
-                job.completed_at = datetime.utcnow()
-                logger.info(f"Job {task.job_id} completed - all tasks finished")
-                
-                # Send SSE event for job completed
-                try:
-                    await sse_manager.send_job_completed(task.job_id)
-                except Exception as e:
-                    logger.warning(f"Failed to send job_completed SSE event: {e}")
         
         db.commit()
         
@@ -237,6 +228,16 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str
         if 'task' in locals() and task is not None:
             task.status = "failed"
             task.error_message = str(e)
+            
+            # Increment job-level task failure counter
+            try:
+                from services.job_service import JobService
+                job_service = JobService()
+                await job_service.increment_task_completion(task.job_id, success=False)
+                logger.info(f"Incremented task failure counter for job {task.job_id}")
+            except Exception as e:
+                logger.error(f"Failed to increment task failure counter: {e}")
+            
             db.commit()
             
             # Send SSE event for task failed

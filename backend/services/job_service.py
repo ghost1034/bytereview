@@ -218,7 +218,7 @@ class JobService:
         db = self._get_session()
         try:
             if success:
-                await db.execute(
+                db.execute(
                     update(ExtractionJob)
                     .where(ExtractionJob.id == job_id)
                     .values(
@@ -227,7 +227,7 @@ class JobService:
                     )
                 )
             else:
-                await db.execute(
+                db.execute(
                     update(ExtractionJob)
                     .where(ExtractionJob.id == job_id)
                     .values(
@@ -236,11 +236,11 @@ class JobService:
                     )
                 )
             
-            # Check if job is complete
+            # Check if job is complete and send SSE events
             job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
             if job and job.tasks_completed + job.tasks_failed >= job.tasks_total:
                 final_status = 'completed' if job.tasks_failed == 0 else 'partially_completed'
-                await db.execute(
+                db.execute(
                     update(ExtractionJob)
                     .where(ExtractionJob.id == job_id)
                     .values(
@@ -248,6 +248,14 @@ class JobService:
                         completed_at=datetime.utcnow() if final_status == 'completed' else None
                     )
                 )
+                
+                # Send job completion SSE event
+                try:
+                    from services.sse_service import sse_manager
+                    await sse_manager.send_job_completed(job_id)
+                    logger.info(f"Job {job_id} completed - sent SSE event")
+                except Exception as e:
+                    logger.warning(f"Failed to send job_completed SSE event: {e}")
             
             db.commit()
             
@@ -257,6 +265,7 @@ class JobService:
             raise
         finally:
             db.close()
+    
     
     def get_resumable_jobs(self, user_id: str) -> list[ExtractionJob]:
         """Get all jobs user can resume (wizard incomplete OR processing incomplete/failed)"""

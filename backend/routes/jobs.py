@@ -2,7 +2,7 @@
 Job management routes for ByteReview
 New asynchronous job-based extraction workflow
 """
-from fastapi import APIRouter, HTTPException, Depends, Query, File, UploadFile
+from fastapi import APIRouter, HTTPException, Depends, Query, File, UploadFile, Request
 from fastapi.responses import StreamingResponse
 from typing import Optional, List
 import json

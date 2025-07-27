@@ -99,9 +99,21 @@ export function useJobs(limit = 25, offset = 0, status?: string) {
   
   return useQuery<JobListResponse>({
     queryKey: ['jobs', user?.uid, limit, offset, status],
-    queryFn: () => apiClient.listJobs({ limit, offset, status }),
+    queryFn: () => {
+      console.log('[JOBS] API call triggered at', new Date().toLocaleTimeString())
+      return apiClient.listJobs({ limit, offset, status })
+    },
     enabled: !!user,
     staleTime: 30 * 1000, // 30 seconds
+    refetchOnWindowFocus: true, // Refresh when user returns to tab
+    refetchOnMount: true, // Always refetch when component mounts
+    onSuccess: (data) => {
+      const activeJobs = data?.jobs?.filter(job => job.status === 'in_progress') || []
+      console.log(`[JOBS] Data loaded: ${data?.jobs?.length || 0} total, ${activeJobs.length} active`)
+    },
+    onError: (error) => {
+      console.error('[JOBS] API error:', error)
+    }
   })
 }
 

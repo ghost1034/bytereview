@@ -245,8 +245,9 @@ export default function JobCard({ job, onDelete }: JobCardProps) {
             </div>
           </div>
 
-          {/* Progress Bar */}
-          {job.progress_percentage !== undefined && (
+          {/* Progress Bar - only show for non-processing jobs */}
+          {job.progress_percentage !== undefined && 
+           job.status !== 'in_progress' && (
             <div className="mb-3">
               <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
                 <span>Progress</span>
@@ -256,8 +257,31 @@ export default function JobCard({ job, onDelete }: JobCardProps) {
             </div>
           )}
 
-          {/* Processing Details */}
+          {/* Real-time Processing Details */}
+          {job.status === 'in_progress' &&
+            job.tasks_total &&
+            job.tasks_total > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded p-2 text-xs">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-blue-700 font-medium">
+                    Processing: {job.tasks_completed || 0}/{job.tasks_total} tasks
+                  </span>
+                  {job.tasks_failed && job.tasks_failed > 0 && (
+                    <span className="text-red-600 font-medium">
+                      {job.tasks_failed} failed
+                    </span>
+                  )}
+                </div>
+                <Progress 
+                  value={job.tasks_total > 0 ? (job.tasks_completed || 0) / job.tasks_total * 100 : 0} 
+                  className="h-1.5"
+                />
+              </div>
+            )}
+
+          {/* Static Processing Details for completed/failed jobs */}
           {job.config_step === "submitted" &&
+            job.status !== 'in_progress' &&
             job.tasks_total &&
             job.tasks_total > 0 && (
               <div className="text-xs text-gray-600">

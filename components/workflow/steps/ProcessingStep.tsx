@@ -168,7 +168,7 @@ export default function ProcessingStep({
         console.log(`Restoring task: ${task.id} with status: ${task.status}`);
         restoredSteps.push({
           id: task.id,
-          name: `Task ${task.id}`,
+          name: task.display_name || `Task ${task.id}`,
           status: task.status as
             | "pending"
             | "processing"
@@ -281,7 +281,7 @@ export default function ProcessingStep({
                   ...prev,
                   {
                     id: data.task_id,
-                    name: `Processing Task ${prev.length + 1}`,
+                    name: data.display_name || `Processing Task ${prev.length + 1}`,
                     status: "processing",
                     startTime: Date.now(),
                   },
@@ -359,15 +359,20 @@ export default function ProcessingStep({
               setJobCompleted(true);
               setSseIntentionallyClosed(true);
 
-              // Close SSE connection immediately to prevent further events
-              eventSource.close();
-              sseManager.closeConnection(jobId);
-              eventSourceRef.current = null;
-
-              // Remove event handlers to prevent any further processing
-              eventSource.onmessage = null;
-              eventSource.onerror = null;
-              eventSource.onopen = null;
+              // Gracefully close SSE connection
+              try {
+                // Remove event handlers first to prevent error events
+                eventSource.onmessage = null;
+                eventSource.onerror = null;
+                eventSource.onopen = null;
+                
+                // Then close the connection
+                eventSource.close();
+                sseManager.closeConnection(jobId);
+                eventSourceRef.current = null;
+              } catch (e) {
+                console.log("Error closing SSE connection:", e);
+              }
               break;
 
             case "job_already_completed":
@@ -375,10 +380,20 @@ export default function ProcessingStep({
               setJobCompleted(true);
               setSseIntentionallyClosed(true);
 
-              // Close connection immediately since job is already done
-              eventSource.close();
-              sseManager.closeConnection(jobId);
-              eventSourceRef.current = null;
+              // Gracefully close connection since job is already done
+              try {
+                // Remove event handlers first to prevent error events
+                eventSource.onmessage = null;
+                eventSource.onerror = null;
+                eventSource.onopen = null;
+                
+                // Then close the connection
+                eventSource.close();
+                sseManager.closeConnection(jobId);
+                eventSourceRef.current = null;
+              } catch (e) {
+                console.log("Error closing SSE connection:", e);
+              }
               break;
 
             default:
@@ -390,19 +405,28 @@ export default function ProcessingStep({
       };
 
       eventSource.onerror = (error) => {
-        console.error("SSE connection error:", error);
         sseManager.markConnectionClosed(jobId);
         
-        // If the job is completed or SSE was intentionally closed, close the connection to prevent reconnection
-        if (jobCompleted || sseIntentionallyClosed) {
-          console.log(
-            "SSE connection closed after job completion - preventing reconnection"
-          );
+        // Check if this is an expected closure (job completed)
+        if (jobCompleted || sseIntentionallyClosed || isCompleted) {
+          console.log("SSE connection closed - job completed");
           eventSource.close();
           sseManager.closeConnection(jobId);
           eventSourceRef.current = null;
           return;
         }
+        
+        // Only log unexpected errors
+        if (eventSource.readyState === EventSource.CLOSED) {
+          console.log("SSE connection closed by server");
+        } else {
+          console.error("SSE connection error:", error);
+        }
+        
+        // Clean up the connection
+        eventSource.close();
+        sseManager.closeConnection(jobId);
+        eventSourceRef.current = null;
       };
 
       // Store the connection globally and in component ref

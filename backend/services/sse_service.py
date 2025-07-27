@@ -9,6 +9,7 @@ import redis.asyncio as redis
 from typing import Dict, Any, AsyncGenerator, Set
 from collections import defaultdict
 import os
+from models.db_models import SourceFile, SourceFileToTask, ExtractionJob, ExtractionTask
 
 logger = logging.getLogger(__name__)
 
@@ -76,10 +77,30 @@ class SSEManager:
                 failed = sum(1 for task in tasks if task.status == 'failed')
                 
                 # Create task list
-                task_list = [
-                    {"id": str(task.id), "status": task.status}
-                    for task in tasks
-                ]
+                # Build task list with source file names
+                task_list = []
+                for task in tasks:
+                    # Get source files for this task
+                    source_files = db.query(SourceFile).join(
+                        SourceFileToTask, SourceFile.id == SourceFileToTask.source_file_id
+                    ).filter(
+                        SourceFileToTask.task_id == task.id
+                    ).order_by(SourceFileToTask.document_order).all()
+                    
+                    # Create a reasonable display name from source files
+                    if len(source_files) == 1:
+                        display_name = source_files[0].original_filename
+                    elif len(source_files) <= 3:
+                        display_name = ", ".join([f.original_filename for f in source_files])
+                    else:
+                        display_name = f"{source_files[0].original_filename} and {len(source_files)-1} others"
+                    
+                    task_list.append({
+                        "id": str(task.id),
+                        "status": task.status,
+                        "display_name": display_name,
+                        "file_count": len(source_files)
+                    })
                 
                 current_version = int(asyncio.get_event_loop().time() * 1000)
                 
@@ -153,11 +174,6 @@ class SSEManager:
             logger.error(f"SSE listener error for job {job_id}: {e}")
             yield {"type": "error", "message": str(e)}
         finally:
-            # Clean up: remove this listener
-            self._job_listeners[job_id].discard(event_queue)
-            if not self._job_listeners[job_id]:
-                del self._job_listeners[job_id]
-            
             # Clean up Redis subscription
             try:
                 await pubsub.unsubscribe(channel)
@@ -323,6 +339,7 @@ class SSEManager:
             "type": "auto_save",
             "saved_data": saved_data
         })
+    
 
 # Global SSE manager instance
 _sse_manager_instance = None
