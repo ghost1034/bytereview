@@ -71,10 +71,10 @@ class SSEManager:
                 # Get all tasks for this job
                 tasks = db.query(ExtractionTask).filter(ExtractionTask.job_id == job.id).all()
                 
-                # Calculate progress
-                total_tasks = len(tasks)
-                completed = sum(1 for task in tasks if task.status == 'completed')
-                failed = sum(1 for task in tasks if task.status == 'failed')
+                # Get progress from job record (more efficient and consistent)
+                total_tasks = job.tasks_total or 0
+                completed = job.tasks_completed or 0
+                failed = job.tasks_failed or 0
                 
                 # Create task list
                 # Build task list with source file names
