@@ -174,20 +174,35 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str
         if not extraction_result.success:
             raise ValueError(f"AI extraction failed: {extraction_result.error}")
         
-        # Convert AI service result to new simplified format: "results": [{row1}, {row2}]
-        # The AI service returns data as an array of row objects, use it directly
+        # Convert AI service result to new array-based format with column snapshot
         if extraction_result.data and isinstance(extraction_result.data, list):
-            # AI returned array of row objects, use directly
-            results_array = extraction_result.data
+            # Get field order from job configuration (snapshot at extraction time)
+            field_order = [field.field_name for field in job_fields]
+            
+            # Convert object-based results to array-based results
+            results_arrays = []
+            for result_obj in extraction_result.data:
+                if isinstance(result_obj, dict):
+                    # Convert dict to array using field order
+                    result_array = []
+                    for field_name in field_order:
+                        result_array.append(result_obj.get(field_name))
+                    results_arrays.append(result_array)
+                else:
+                    # Fallback for unexpected format
+                    results_arrays.append(result_obj)
+            
+            # Create new array-based format with column snapshot
+            final_result = {
+                "results": results_arrays,
+                "columns": field_order
+            }
         else:
             # Fallback for unexpected format
-            results_array = []
-        
-        # Create new simplified format for both individual and combined modes
-        final_result = {
-            "processing_mode": task.processing_mode,
-            "results": results_array
-        }
+            final_result = {
+                "results": [],
+                "columns": [field.field_name for field in job_fields]
+            }
         
         # Save results to database
         extraction_result = ExtractionResult(

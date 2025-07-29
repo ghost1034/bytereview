@@ -3,8 +3,15 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, FileText, Loader2, RefreshCw } from "lucide-react";
+import { Plus, Search, Filter, FileText, Loader2, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CreateJobModal } from "@/components/jobs/create-job-modal";
 import JobCard from "@/components/jobs/JobCard";
 import { apiClient } from "@/lib/api";
@@ -26,11 +33,18 @@ export function JobsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteJobId, setDeleteJobId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const { toast } = useToast();
 
-  // Use regular jobs hook to get all jobs
-  const { data: jobsData, isLoading: loading, error, refetch } = useJobs();
+  // Calculate offset for pagination
+  const offset = (currentPage - 1) * pageSize;
+
+  // Use jobs hook with pagination
+  const { data: jobsData, isLoading: loading, error, refetch } = useJobs(pageSize, offset);
   const jobs = jobsData?.jobs || [];
+  const totalJobs = jobsData?.total || 0;
+  const totalPages = Math.ceil(totalJobs / pageSize);
 
   const handleJobDelete = (jobId: string) => {
     // Trigger refetch to update the list immediately
@@ -64,6 +78,18 @@ export function JobsPage() {
     }
   };
 
+  // Handle page changes
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (newPageSize: string) => {
+    setPageSize(parseInt(newPageSize));
+    setCurrentPage(1); // Reset to first page when changing page size
+  };
+
+  // For now, we'll do client-side search filtering
+  // TODO: Implement server-side search in the API
   const filteredJobs = jobs.filter((job) =>
     (job.name || `Untitled Job`)
       .toLowerCase()
@@ -120,7 +146,7 @@ export function JobsPage() {
       <Card>
         <CardHeader>
           <CardTitle>
-            All Jobs {loading ? "" : `(${filteredJobs.length})`}
+            All Jobs {loading ? "" : `(${totalJobs} total)`}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -133,14 +159,14 @@ export function JobsPage() {
             <div className="text-center py-8">
               <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {jobs.length === 0 ? "No jobs yet" : "No jobs found"}
+                {totalJobs === 0 ? "No jobs yet" : "No jobs found"}
               </h3>
               <p className="text-gray-600 mb-4">
-                {jobs.length === 0
+                {totalJobs === 0
                   ? "Create your first job to start extracting data from documents."
                   : "Try adjusting your search criteria."}
               </p>
-              {jobs.length === 0 && (
+              {totalJobs === 0 && (
                 <Button onClick={() => setShowCreateModal(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Create Your First Job
@@ -148,11 +174,90 @@ export function JobsPage() {
               )}
             </div>
           ) : (
-            <div className="grid gap-4">
-              {filteredJobs.map((job) => (
-                <JobCard key={job.id} job={job} onDelete={handleJobDelete} />
-              ))}
-            </div>
+            <>
+              <div className="grid gap-4">
+                {filteredJobs.map((job) => (
+                  <JobCard key={job.id} job={job} onDelete={handleJobDelete} />
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-6 border-t">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600">Show</span>
+                    <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm text-gray-600">per page</span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600">
+                      Page {currentPage} of {totalPages} ({totalJobs} total jobs)
+                    </span>
+                  </div>
+
+                  <div className="flex items-center space-x-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </Button>
+
+                    {/* Page Numbers */}
+                    <div className="flex items-center space-x-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handlePageChange(pageNum)}
+                            className="w-8 h-8 p-0"
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

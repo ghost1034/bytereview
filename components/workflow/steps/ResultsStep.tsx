@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useJobDetails, useJobResults } from "@/hooks/useJobs";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Type definitions for file tree structure
 type JobResult = {
@@ -326,12 +327,43 @@ interface ResultsStepProps {
 
 export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const { data: jobDetails } = useJobDetails(jobId);
   const {
     data: results,
     isLoading: resultsLoading,
     error,
   } = useJobResults(jobId, 1000); // Get up to 1000 results
+
+  const getAuthToken = async () => {
+    if (!user) throw new Error('User not authenticated');
+    return await user.getIdToken();
+  };
+
+  // Helper function to get field value from array-based extracted data
+  const getFieldValue = (result: JobResult, fieldName: string, rowIndex: number = 0) => {
+    if (!result.extracted_data || !result.extracted_data.columns || !result.extracted_data.results) {
+      return null;
+    }
+    
+    const columns = result.extracted_data.columns;
+    const results = result.extracted_data.results;
+    
+    // Find the column index for this field
+    const columnIndex = columns.indexOf(fieldName);
+    if (columnIndex !== -1 && results.length > rowIndex && results[rowIndex] && columnIndex < results[rowIndex].length) {
+      return results[rowIndex][columnIndex];
+    }
+    return null;
+  };
+
+  // Helper function to get all rows from extracted data
+  const getExtractedRows = (result: JobResult) => {
+    if (!result.extracted_data || !result.extracted_data.results) {
+      return [];
+    }
+    return result.extracted_data.results;
+  };
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [fileTree, setFileTree] = useState<TreeNode[]>([]);
 
@@ -391,13 +423,36 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
     resultsArrayLength: results?.results?.length,
   });
 
+  const [exportLoading, setExportLoading] = useState<string | null>(null);
+
   const handleExportCSV = async () => {
     if (!results?.results) return;
 
     try {
-      // Convert results to CSV format
-      const csvData = convertToCSV(results.results);
-      downloadFile(csvData, `extraction-results-${jobId}.csv`, "text/csv");
+      setExportLoading('csv');
+      
+      // Use the new backend export endpoint
+      const response = await fetch(`/api/jobs/${jobId}/export/csv`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${await getAuthToken()}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      // Download the file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `job_${jobId}_results.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
 
       toast({
         title: "Export successful",
@@ -409,6 +464,52 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
         description: "Failed to export results",
         variant: "destructive",
       });
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    if (!results?.results) return;
+
+    try {
+      setExportLoading('excel');
+      
+      // Use the new backend export endpoint
+      const response = await fetch(`/api/jobs/${jobId}/export/excel`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${await getAuthToken()}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      // Download the file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `job_${jobId}_results.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Export successful",
+        description: "Results exported as Excel file",
+      });
+    } catch (error) {
+      toast({
+        title: "Export failed",
+        description: "Failed to export results",
+        variant: "destructive",
+      });
+    } finally {
+      setExportLoading(null);
     }
   };
 
@@ -416,6 +517,7 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
     if (!results?.results) return;
 
     try {
+      setExportLoading('json');
       const jsonData = JSON.stringify(results.results, null, 2);
       downloadFile(
         jsonData,
@@ -433,50 +535,11 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
         description: "Failed to export results",
         variant: "destructive",
       });
+    } finally {
+      setExportLoading(null);
     }
   };
 
-  const convertToCSV = (data: any[]) => {
-    if (!data || data.length === 0) return "";
-
-    // Get all unique field names
-    const allFields = new Set<string>();
-    data.forEach((result) => {
-      if (result.extracted_data) {
-        Object.keys(result.extracted_data).forEach((key) => allFields.add(key));
-      }
-    });
-
-    const fields = Array.from(allFields);
-
-    // Create CSV header
-    const header = [
-      "Task ID",
-      "Source Files",
-      "Processing Mode",
-      ...fields,
-    ].join(",");
-
-    // Create CSV rows - each result is already a separate row
-    const rows = data.map((result) => {
-      const row = [
-        result.task_id,
-        result.source_files.join("; "),
-        result.processing_mode,
-        ...fields.map((field) => {
-          const value = result.extracted_data[field];
-          if (value === null || value === undefined) return "";
-          if (typeof value === "string" && value.includes(",")) {
-            return `"${value.replace(/"/g, '""')}"`;
-          }
-          return String(value);
-        }),
-      ];
-      return row.join(",");
-    });
-
-    return [header, ...rows].join("\n");
-  };
 
   const downloadFile = (
     content: string,
@@ -578,12 +641,40 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
         </CardHeader>
         <CardContent>
           <div className="flex gap-2">
-            <Button onClick={handleExportCSV} variant="outline">
-              <FileSpreadsheet className="w-4 h-4 mr-2" />
+            <Button 
+              onClick={handleExportCSV} 
+              variant="outline"
+              disabled={exportLoading === 'csv' || !results?.results?.length}
+            >
+              {exportLoading === 'csv' ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+              )}
               Export CSV
             </Button>
-            <Button onClick={handleExportJSON} variant="outline">
-              <FileText className="w-4 h-4 mr-2" />
+            <Button 
+              onClick={handleExportExcel} 
+              variant="outline"
+              disabled={exportLoading === 'excel' || !results?.results?.length}
+            >
+              {exportLoading === 'excel' ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+              )}
+              Export Excel
+            </Button>
+            <Button 
+              onClick={handleExportJSON} 
+              variant="outline"
+              disabled={exportLoading === 'json' || !results?.results?.length}
+            >
+              {exportLoading === 'json' ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4 mr-2" />
+              )}
               Export JSON
             </Button>
           </div>
@@ -633,9 +724,7 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
                         {jobDetails?.job_fields?.map((field) => (
                           <td key={field.field_name} className="px-4 py-2">
                             {formatValue(
-                              results.results[0].extracted_data[
-                                field.field_name
-                              ]
+                              getFieldValue(results.results[0], field.field_name, 0)
                             )}
                           </td>
                         ))}
@@ -709,19 +798,21 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
 
                       <div className="overflow-x-auto">
                         {(() => {
-                          // Find all rows for this task to display them together
+                          // Find the task result and expand its extracted data rows
                           const taskId = selectedFileNode.result.task_id;
-                          const allTaskRows =
-                            results?.results?.filter(
-                              (r) => r.task_id === taskId
-                            ) || [];
-                          // Results are already in processing order
+                          const taskResult = results?.results?.find(
+                            (r) => r.task_id === taskId
+                          );
+                          
+                          if (!taskResult) return <div>No data found</div>;
+                          
+                          const extractedRows = getExtractedRows(taskResult);
 
                           return (
                             <table className="w-full border-collapse border border-gray-200 rounded-lg">
                               <thead className="bg-gray-50">
                                 <tr>
-                                  {allTaskRows.length > 1 && (
+                                  {extractedRows.length > 1 && (
                                     <th className="text-left px-4 py-2 font-medium text-gray-900 border-b">
                                       Row
                                     </th>
@@ -737,12 +828,12 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
                                 </tr>
                               </thead>
                               <tbody>
-                                {allTaskRows.map((row, rowIndex) => (
+                                {extractedRows.map((rowData, rowIndex) => (
                                   <tr
-                                    key={`${row.task_id}-${rowIndex}`}
+                                    key={`${taskResult.task_id}-${rowIndex}`}
                                     className="border-b"
                                   >
-                                    {allTaskRows.length > 1 && (
+                                    {extractedRows.length > 1 && (
                                       <td className="px-4 py-2 font-medium text-gray-600">
                                         {rowIndex + 1}
                                       </td>
@@ -753,7 +844,7 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
                                         className="px-4 py-2"
                                       >
                                         {formatValue(
-                                          row.extracted_data[field.field_name]
+                                          getFieldValue(taskResult, field.field_name, rowIndex)
                                         )}
                                       </td>
                                     ))}

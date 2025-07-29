@@ -157,6 +157,7 @@ Extract the following data fields from the document. If the document contains mu
 
 {field_list}
 
+Make sure the resulting fields are provided exactly in the order given above.
 If a field is not found, use null.
 If the field name, data type, or prompt includes formatting information, follow that instead of exactly matching the format of what is in the document.
 """
@@ -374,6 +375,7 @@ You are processing {len(file_names)} documents together. Please extract the foll
 Fields to extract:
 {field_list}
 
+Make sure the resulting fields are provided exactly in the order given above.
 For each extracted data point, indicate which document(s) it came from using the document filenames.
 If a field is not found in any document, use null.
 If the field name, data type, or prompt includes formatting information, follow that instead of exactly matching the format of what is in the document.

@@ -1075,9 +1075,8 @@ class JobService:
                 extracted_data = result.extracted_data
                 logger.info(f"Processing task {result.task_id}, mode: {task.processing_mode}, data keys: {list(extracted_data.keys()) if extracted_data else 'None'}")
                 
-                # Handle simplified format: "results": [{row1}, {row2}, {row3}]
-                # Both individual and combined modes use the same format now
-                if "results" in extracted_data and isinstance(extracted_data["results"], list):
+                # Handle new array-based format: "results": [[val1, val2], [val3, val4]], "columns": ["field1", "field2"]
+                if "results" in extracted_data and "columns" in extracted_data:
                     # Get source file info from the task
                     source_files = []
                     task_source_files = db.query(SourceFileToTask, SourceFile).join(
@@ -1090,15 +1089,13 @@ class JobService:
                     if not source_files:
                         source_files = ["Unknown"]
                     
-                    # Process each row object in the results array
-                    for row_data in extracted_data["results"]:
-                        if isinstance(row_data, dict):
-                            processed_results.append({
-                                "task_id": str(result.task_id),
-                                "source_files": source_files,
-                                "processing_mode": task.processing_mode,
-                                "extracted_data": row_data
-                            })
+                    # Keep the array-based format for API response
+                    processed_results.append({
+                        "task_id": str(result.task_id),
+                        "source_files": source_files,
+                        "processing_mode": task.processing_mode,
+                        "extracted_data": extracted_data  # Keep the full array format with columns
+                    })
             
             logger.info(f"Job {job_id} results debug: total_count={total_count}, files_processed_count={files_processed_count}, processed_results_count={len(processed_results)}")
             logger.info(f"First few processed results: {processed_results[:2] if processed_results else 'None'}")
