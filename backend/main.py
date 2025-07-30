@@ -70,7 +70,7 @@ async def health_check():
     return {"status": "healthy"}
 
 # Import routes
-from routes import users, jobs, stripe_routes, extraction, templates, data_types
+from routes import users, jobs, stripe_routes, extraction, templates, data_types, integrations
 
 # Include routers
 app.include_router(users.router, prefix="/api/users", tags=["users"])
@@ -79,6 +79,7 @@ app.include_router(stripe_routes.router, prefix="/api/stripe", tags=["stripe"])
 app.include_router(extraction.router, prefix="/api/extraction", tags=["extraction"])
 app.include_router(templates.router, prefix="/api/templates", tags=["templates"])
 app.include_router(data_types.router, prefix="/api/data-types", tags=["data-types"])
+app.include_router(integrations.router, prefix="/api", tags=["integrations"])
 
 # GCS lifecycle policies handle automatic cleanup
 

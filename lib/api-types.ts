@@ -728,6 +728,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/integrations/google/auth-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Google Auth Url
+         * @description Generate Google OAuth authorization URL
+         */
+        get: operations["get_google_auth_url_api_integrations_google_auth_url_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/integrations/google/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Exchange Google Code
+         * @description Exchange authorization code for tokens
+         */
+        post: operations["exchange_google_code_api_integrations_google_exchange_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/integrations/google/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Google Integration Status
+         * @description Get current Google integration status for the user
+         */
+        get: operations["get_google_integration_status_api_integrations_google_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/integrations/google/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Disconnect Google Integration
+         * @description Disconnect Google integration for the user
+         */
+        delete: operations["disconnect_google_integration_api_integrations_google_disconnect_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/integrations/google/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Google Token
+         * @description Refresh Google access token using refresh token
+         */
+        post: operations["refresh_google_token_api_integrations_google_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -864,9 +964,7 @@ export interface components {
             /** Processing Time */
             processing_time?: number | null;
             /** By Document */
-            by_document?: {
-                [key: string]: unknown;
-            }[] | null;
+            by_document?: Record<string, never>[] | null;
         };
         /**
          * ExtractionTaskResult
@@ -887,9 +985,7 @@ export interface components {
              * Extracted Data
              * @description Extracted data
              */
-            extracted_data: {
-                [key: string]: unknown;
-            };
+            extracted_data: Record<string, never>;
             /** @description Processing mode used */
             processing_mode: components["schemas"]["ProcessingMode"];
         };
@@ -995,9 +1091,7 @@ export interface components {
              * Extraction Tasks
              * @description Task definitions for processing modes
              */
-            extraction_tasks?: {
-                [key: string]: unknown;
-            }[];
+            extraction_tasks?: Record<string, never>[];
         };
         /**
          * JobFieldConfig
@@ -1055,15 +1149,11 @@ export interface components {
         /** JobFieldsUpdateRequest */
         JobFieldsUpdateRequest: {
             /** Fields */
-            fields: {
-                [key: string]: unknown;
-            }[];
+            fields: Record<string, never>[];
             /** Template Id */
             template_id?: string;
             /** Processing Modes */
-            processing_modes?: {
-                [key: string]: unknown;
-            };
+            processing_modes?: Record<string, never>;
         };
         /**
          * JobFileInfo
@@ -1298,9 +1388,7 @@ export interface components {
             /** Num Pages */
             num_pages: number;
             /** Metadata */
-            metadata?: {
-                [key: string]: unknown;
-            } | null;
+            metadata?: Record<string, never> | null;
         };
         /**
          * ProcessingMode
@@ -1414,9 +1502,7 @@ export interface components {
             /** Upload Time */
             upload_time: number;
             /** Extracted Files */
-            extracted_files?: {
-                [key: string]: unknown;
-            }[];
+            extracted_files?: Record<string, never>[];
         };
         /** UserResponse */
         UserResponse: {
@@ -2432,9 +2518,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": Record<string, never>;
             };
         };
         responses: {
@@ -2467,9 +2551,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": Record<string, never>;
             };
         };
         responses: {
@@ -2774,6 +2856,117 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DataTypeResponse"][];
+                };
+            };
+        };
+    };
+    get_google_auth_url_api_integrations_google_auth_url_get: {
+        parameters: {
+            query?: {
+                scopes?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    exchange_google_code_api_integrations_google_exchange_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_google_integration_status_api_integrations_google_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    disconnect_google_integration_api_integrations_google_disconnect_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    refresh_google_token_api_integrations_google_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

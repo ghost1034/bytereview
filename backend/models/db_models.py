@@ -1,8 +1,8 @@
 """
 SQLAlchemy database models for ByteReview
-Based on the schema defined in 1_DATABASE_SCHEMA.md
+Integration phase - supports multi-source ingestion, exports, and automations
 """
-from sqlalchemy import Column, String, Integer, BigInteger, Boolean, Text, TIMESTAMP, ForeignKey, UUID
+from sqlalchemy import Column, String, Integer, BigInteger, Boolean, Text, TIMESTAMP, ForeignKey, UUID, LargeBinary, ARRAY, CheckConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
@@ -25,6 +25,8 @@ class User(Base):
     # Relationships
     templates = relationship("Template", back_populates="user", cascade="all, delete-orphan")
     extraction_jobs = relationship("ExtractionJob", back_populates="user", cascade="all, delete-orphan")
+    integration_accounts = relationship("IntegrationAccount", back_populates="user", cascade="all, delete-orphan")
+    automations = relationship("Automation", back_populates="user", cascade="all, delete-orphan")
 
 class DataType(Base):
     """Canonical list of supported data types for extraction"""
@@ -123,6 +125,8 @@ class ExtractionJob(Base):
     job_fields = relationship("JobField", back_populates="job", cascade="all, delete-orphan")
     source_files = relationship("SourceFile", back_populates="job", cascade="all, delete-orphan")
     extraction_tasks = relationship("ExtractionTask", back_populates="job", cascade="all, delete-orphan")
+    job_runs = relationship("JobRun", back_populates="job", cascade="all, delete-orphan")
+    automations = relationship("Automation", back_populates="job")
     
     @property
     def is_resumable(self) -> bool:
@@ -180,6 +184,8 @@ class SourceFile(Base):
     file_type = Column(String(100), nullable=False)
     file_size_bytes = Column(BigInteger, nullable=False)
     status = Column(String(50), nullable=False, default='uploading')
+    source_type = Column(String(20), nullable=False, default='upload')
+    external_id = Column(Text)
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
     
     # Relationships
@@ -192,6 +198,7 @@ class ExtractionTask(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
+    run_id = Column(UUID(as_uuid=True), ForeignKey("job_runs.id", ondelete="CASCADE"), nullable=True)  # Will be required after migration
     processing_mode = Column(String(50), nullable=False, default='individual')  # 'individual' or 'combined'
     status = Column(String(50), nullable=False, default='pending')
     error_message = Column(Text)
@@ -200,6 +207,7 @@ class ExtractionTask(Base):
     
     # Relationships
     job = relationship("ExtractionJob", back_populates="extraction_tasks")
+    job_run = relationship("JobRun", back_populates="extraction_tasks")
     source_files_to_tasks = relationship("SourceFileToTask", back_populates="task", cascade="all, delete-orphan")
     extraction_result = relationship("ExtractionResult", back_populates="task", uselist=False, cascade="all, delete-orphan")
 
@@ -226,3 +234,133 @@ class ExtractionResult(Base):
     
     # Relationships
     task = relationship("ExtractionTask", back_populates="extraction_result")
+
+# ===================================================================
+# Integration Phase Models
+# ===================================================================
+
+class IntegrationAccount(Base):
+    """OAuth credentials for third-party integrations (Google, Microsoft, etc.)"""
+    __tablename__ = "integration_accounts"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    provider = Column(String(30), nullable=False)
+    scopes = Column(ARRAY(Text), nullable=False)
+    access_token = Column(LargeBinary)  # AES-GCM encrypted
+    refresh_token = Column(LargeBinary)  # AES-GCM encrypted
+    expires_at = Column(TIMESTAMP(timezone=True))
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    
+    # Constraints
+    __table_args__ = (
+        CheckConstraint("provider IN ('google', 'microsoft')", name="check_provider"),
+    )
+    
+    # Relationships
+    user = relationship("User", back_populates="integration_accounts")
+    
+    def set_access_token(self, token: str):
+        """Encrypt and store access token"""
+        from services.encryption_service import encryption_service
+        self.access_token = encryption_service.encrypt_token(token)
+    
+    def get_access_token(self) -> str:
+        """Decrypt and return access token"""
+        if not self.access_token:
+            return None
+        from services.encryption_service import encryption_service
+        return encryption_service.decrypt_token(self.access_token)
+    
+    def set_refresh_token(self, token: str):
+        """Encrypt and store refresh token"""
+        from services.encryption_service import encryption_service
+        self.refresh_token = encryption_service.encrypt_token(token)
+    
+    def get_refresh_token(self) -> str:
+        """Decrypt and return refresh token"""
+        if not self.refresh_token:
+            return None
+        from services.encryption_service import encryption_service
+        return encryption_service.decrypt_token(self.refresh_token)
+
+class JobRun(Base):
+    """A single execution/run of an extraction job"""
+    __tablename__ = "job_runs"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
+    run_number = Column(Integer, nullable=False)
+    status = Column(String(50), nullable=False, default='pending')
+    tasks_total = Column(Integer, nullable=False, default=0)
+    tasks_completed = Column(Integer, nullable=False, default=0)
+    tasks_failed = Column(Integer, nullable=False, default=0)
+    started_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    completed_at = Column(TIMESTAMP(timezone=True))
+    
+    # Relationships
+    job = relationship("ExtractionJob", back_populates="job_runs")
+    extraction_tasks = relationship("ExtractionTask", back_populates="job_run", cascade="all, delete-orphan")
+    job_exports = relationship("JobExport", back_populates="job_run", cascade="all, delete-orphan")
+    automation_runs = relationship("AutomationRun", back_populates="job_run")
+
+class JobExport(Base):
+    """Export operations for job results to various destinations"""
+    __tablename__ = "job_exports"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_id = Column(UUID(as_uuid=True), ForeignKey("job_runs.id", ondelete="CASCADE"), nullable=False)
+    dest_type = Column(String(15), nullable=False)
+    file_type = Column(String(10), nullable=False)
+    status = Column(String(20), nullable=False, default='pending')
+    external_id = Column(Text)  # Drive file ID or Gmail message ID
+    error_message = Column(Text)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    
+    # Constraints
+    __table_args__ = (
+        CheckConstraint("dest_type IN ('download', 'gdrive', 'gmail')", name="check_dest_type"),
+        CheckConstraint("file_type IN ('csv', 'xlsx')", name="check_file_type"),
+    )
+    
+    # Relationships
+    job_run = relationship("JobRun", back_populates="job_exports")
+
+class Automation(Base):
+    """Automated workflows triggered by external events"""
+    __tablename__ = "automations"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    is_enabled = Column(Boolean, nullable=False, default=True)
+    trigger_type = Column(String(30), nullable=False)
+    trigger_config = Column(JSONB, nullable=False)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
+    export_config = Column(JSONB, nullable=False)
+    last_fired_at = Column(TIMESTAMP(timezone=True))
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    user = relationship("User", back_populates="automations")
+    job = relationship("ExtractionJob", back_populates="automations")
+    automation_runs = relationship("AutomationRun", back_populates="automation", cascade="all, delete-orphan")
+
+class AutomationRun(Base):
+    """Individual executions of an automation"""
+    __tablename__ = "automation_runs"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    automation_id = Column(UUID(as_uuid=True), ForeignKey("automations.id", ondelete="CASCADE"), nullable=False)
+    run_id = Column(UUID(as_uuid=True), ForeignKey("job_runs.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String(20), nullable=False, default='pending')
+    error_message = Column(Text)
+    triggered_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    completed_at = Column(TIMESTAMP(timezone=True))
+    
+    # Relationships
+    automation = relationship("Automation", back_populates="automation_runs")
+    job_run = relationship("JobRun", back_populates="automation_runs")

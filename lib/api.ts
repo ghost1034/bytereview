@@ -454,6 +454,43 @@ export class ApiClient {
     await this.getJobDetails(jobId)
   }
 
+  // Google Integration endpoints
+  async getGoogleAuthUrl(scopes: string = 'combined'): Promise<{ auth_url: string; state: string }> {
+    return this.request(`/api/integrations/google/auth-url?scopes=${encodeURIComponent(scopes)}`)
+  }
+
+  async exchangeGoogleCode(code: string, state: string): Promise<{ success: boolean; provider: string; scopes: string[]; user_email: string; expires_at: string | null }> {
+    return this.request('/api/integrations/google/exchange', {
+      method: 'POST',
+      body: JSON.stringify({ code, state })
+    })
+  }
+
+  async getGoogleIntegrationStatus(): Promise<{ connected: boolean; scopes: string[]; expires_at: string | null; is_expired: boolean }> {
+    return this.request('/api/integrations/google/status')
+  }
+
+  async disconnectGoogleIntegration(): Promise<{ success: boolean; message: string }> {
+    return this.request('/api/integrations/google/disconnect', {
+      method: 'DELETE'
+    })
+  }
+
+  async refreshGoogleToken(): Promise<{ success: boolean; expires_at: string | null }> {
+    return this.request('/api/integrations/google/refresh', {
+      method: 'POST'
+    })
+  }
+
+  async getGmailAttachments(query: string, mimeTypes: string, limit: number = 50): Promise<{ attachments: any[] }> {
+    const params = new URLSearchParams({
+      query,
+      mimeTypes,
+      limit: limit.toString()
+    })
+    return this.request(`/api/integrations/gmail/attachments?${params}`)
+  }
+
 }
 
 export const apiClient = new ApiClient()

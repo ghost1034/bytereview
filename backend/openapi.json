@@ -262,6 +262,31 @@
         }
       }
     },
+    "/api/jobs/resumable": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "List Resumable Jobs",
+        "description": "List jobs that can be resumed",
+        "operationId": "list_resumable_jobs_api_jobs_resumable_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/jobs/{job_id}": {
       "get": {
         "tags": [
@@ -294,6 +319,104 @@
                 "schema": {
                   "$ref": "#/components/schemas/JobDetailsResponse"
                 }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Delete Job",
+        "description": "Delete a job and all its data",
+        "operationId": "delete_job_api_jobs__job_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Update Job Details",
+        "description": "Update job details like name",
+        "operationId": "update_job_details_api_jobs__job_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobNameUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -518,6 +641,18 @@
               "type": "string",
               "title": "Job Id"
             }
+          },
+          {
+            "name": "processable",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Only return files that can be processed for data extraction (excludes ZIP files)",
+              "default": false,
+              "title": "Processable"
+            },
+            "description": "Only return files that can be processed for data extraction (excludes ZIP files)"
           }
         ],
         "responses": {
@@ -525,7 +660,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/JobFilesResponse"
+                }
               }
             }
           },
@@ -603,7 +740,7 @@
           "jobs"
         ],
         "summary": "Stream Job Events",
-        "description": "Server-Sent Events stream for real-time job updates",
+        "description": "Simplified Server-Sent Events stream for real-time job updates",
         "operationId": "stream_job_events_api_jobs__job_id__events_get",
         "parameters": [
           {
@@ -618,10 +755,381 @@
           {
             "name": "token",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/results": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Job Results",
+        "description": "Get extraction results for a completed job",
+        "operationId": "get_job_results_api_jobs__job_id__results_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "description": "Number of results to return",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Number of results to return"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of results to skip",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Number of results to skip"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResultsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/config-step": {
+      "put": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Update Config Step",
+        "description": "Update job configuration step",
+        "operationId": "update_config_step_api_jobs__job_id__config_step_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigStepRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/submit": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Submit Job For Processing",
+        "description": "Submit job for processing",
+        "operationId": "submit_job_for_processing_api_jobs__job_id__submit_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/cancel": {
+      "put": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Cancel Job",
+        "description": "Cancel job (soft delete)",
+        "operationId": "cancel_job_api_jobs__job_id__cancel_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/fields": {
+      "put": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Update Job Fields",
+        "description": "Update job field configuration and processing modes",
+        "operationId": "update_job_fields_api_jobs__job_id__fields_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobFieldsUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/export/csv": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Export Job Results Csv",
+        "description": "Export job results to CSV format",
+        "operationId": "export_job_results_csv_api_jobs__job_id__export_csv_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/export/excel": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Export Job Results Excel",
+        "description": "Export job results to Excel format",
+        "operationId": "export_job_results_excel_api_jobs__job_id__export_excel_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
             }
           }
         ],
@@ -915,7 +1423,6 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
                 "type": "object",
                 "title": "Extraction Data"
               }
@@ -962,7 +1469,6 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
                 "type": "object",
                 "title": "Extraction Data"
               }
@@ -1370,6 +1876,189 @@
           }
         }
       }
+    },
+    "/api/data-types/": {
+      "get": {
+        "tags": [
+          "data-types"
+        ],
+        "summary": "Get Data Types",
+        "description": "Get all available data types",
+        "operationId": "get_data_types_api_data_types__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DataTypeResponse"
+                  },
+                  "type": "array",
+                  "title": "Response Get Data Types Api Data Types  Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/integrations/google/auth-url": {
+      "get": {
+        "tags": [
+          "integrations",
+          "integrations"
+        ],
+        "summary": "Get Google Auth Url",
+        "description": "Generate Google OAuth authorization URL",
+        "operationId": "get_google_auth_url_api_integrations_google_auth_url_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scopes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "combined",
+              "title": "Scopes"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/integrations/google/exchange": {
+      "post": {
+        "tags": [
+          "integrations",
+          "integrations"
+        ],
+        "summary": "Exchange Google Code",
+        "description": "Exchange authorization code for tokens",
+        "operationId": "exchange_google_code_api_integrations_google_exchange_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/integrations/google/status": {
+      "get": {
+        "tags": [
+          "integrations",
+          "integrations"
+        ],
+        "summary": "Get Google Integration Status",
+        "description": "Get current Google integration status for the user",
+        "operationId": "get_google_integration_status_api_integrations_google_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/integrations/google/disconnect": {
+      "delete": {
+        "tags": [
+          "integrations",
+          "integrations"
+        ],
+        "summary": "Disconnect Google Integration",
+        "description": "Disconnect Google integration for the user",
+        "operationId": "disconnect_google_integration_api_integrations_google_disconnect_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/integrations/google/refresh": {
+      "post": {
+        "tags": [
+          "integrations",
+          "integrations"
+        ],
+        "summary": "Refresh Google Token",
+        "description": "Refresh Google access token using refresh token",
+        "operationId": "refresh_google_token_api_integrations_google_refresh_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1464,6 +2153,23 @@
         ],
         "title": "Body_upload_files_api_extraction_upload_post"
       },
+      "ConfigStepRequest": {
+        "properties": {
+          "config_step": {
+            "type": "string",
+            "title": "Config Step"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "config_step"
+        ],
+        "title": "ConfigStepRequest"
+      },
       "CreateCheckoutSessionRequest": {
         "properties": {
           "price_id": {
@@ -1514,6 +2220,51 @@
         ],
         "title": "CreatePortalSessionRequest",
         "description": "Request to create a Stripe customer portal session"
+      },
+      "DataTypeResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "base_json_type": {
+            "type": "string",
+            "title": "Base Json Type"
+          },
+          "json_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Json Format"
+          },
+          "display_order": {
+            "type": "integer",
+            "title": "Display Order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "description",
+          "base_json_type",
+          "display_order"
+        ],
+        "title": "DataTypeResponse",
+        "description": "Data type response model"
       },
       "ExtractionResponse": {
         "properties": {
@@ -1635,7 +2386,6 @@
             "anyOf": [
               {
                 "items": {
-                  "additionalProperties": true,
                   "type": "object"
                 },
                 "type": "array"
@@ -1652,6 +2402,45 @@
           "success"
         ],
         "title": "ExtractionResult"
+      },
+      "ExtractionTaskResult": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id",
+            "description": "Task identifier"
+          },
+          "source_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Source Files",
+            "description": "Source file names"
+          },
+          "extracted_data": {
+            "type": "object",
+            "title": "Extracted Data",
+            "description": "Extracted data"
+          },
+          "processing_mode": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProcessingMode"
+              }
+            ],
+            "description": "Processing mode used"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "source_files",
+          "extracted_data",
+          "processing_mode"
+        ],
+        "title": "ExtractionTaskResult",
+        "description": "Result from a single extraction task"
       },
       "FieldConfig": {
         "properties": {
@@ -1678,6 +2467,19 @@
           "prompt"
         ],
         "title": "FieldConfig"
+      },
+      "FileStatus": {
+        "type": "string",
+        "enum": [
+          "uploading",
+          "uploaded",
+          "ready",
+          "unpacking",
+          "unpacked",
+          "failed"
+        ],
+        "title": "FileStatus",
+        "description": "File status enumeration"
       },
       "FileUploadInfo": {
         "properties": {
@@ -1745,7 +2547,11 @@
             "description": "Job name"
           },
           "status": {
-            "$ref": "#/components/schemas/JobStatus",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JobStatus"
+              }
+            ],
             "description": "Current job status"
           },
           "persist_data": {
@@ -1779,6 +2585,26 @@
             "type": "array",
             "title": "Job Fields",
             "description": "Field configuration"
+          },
+          "template_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Id",
+            "description": "Template ID used for this job"
+          },
+          "extraction_tasks": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Extraction Tasks",
+            "description": "Task definitions for processing modes"
           }
         },
         "type": "object",
@@ -1858,6 +2684,90 @@
         "title": "JobFieldInfo",
         "description": "Information about a job field"
       },
+      "JobFieldsUpdateRequest": {
+        "properties": {
+          "fields": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "template_id": {
+            "type": "string",
+            "title": "Template Id"
+          },
+          "processing_modes": {
+            "type": "object",
+            "title": "Processing Modes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fields"
+        ],
+        "title": "JobFieldsUpdateRequest"
+      },
+      "JobFileInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "File identifier"
+          },
+          "original_path": {
+            "type": "string",
+            "title": "Original Path",
+            "description": "Original file path"
+          },
+          "original_filename": {
+            "type": "string",
+            "title": "Original Filename",
+            "description": "Original filename"
+          },
+          "file_size_bytes": {
+            "type": "integer",
+            "title": "File Size Bytes",
+            "description": "File size"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FileStatus"
+              }
+            ],
+            "description": "File processing status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "original_path",
+          "original_filename",
+          "file_size_bytes",
+          "status"
+        ],
+        "title": "JobFileInfo",
+        "description": "Information about a file in a job"
+      },
+      "JobFilesResponse": {
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/JobFileInfo"
+            },
+            "type": "array",
+            "title": "Files",
+            "description": "List of files in the job"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files"
+        ],
+        "title": "JobFilesResponse",
+        "description": "Response for job files listing"
+      },
       "JobInitiateRequest": {
         "properties": {
           "files": {
@@ -1867,6 +2777,18 @@
             "type": "array",
             "title": "Files",
             "description": "List of files to upload"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Job name"
           }
         },
         "type": "object",
@@ -1920,8 +2842,17 @@
             "description": "Job name"
           },
           "status": {
-            "$ref": "#/components/schemas/JobStatus",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JobStatus"
+              }
+            ],
             "description": "Job status"
+          },
+          "config_step": {
+            "type": "string",
+            "title": "Config Step",
+            "description": "Current configuration step"
           },
           "created_at": {
             "type": "string",
@@ -1939,6 +2870,7 @@
         "required": [
           "id",
           "status",
+          "config_step",
           "created_at",
           "file_count"
         ],
@@ -1969,6 +2901,19 @@
         "title": "JobListResponse",
         "description": "Response for job listing"
       },
+      "JobNameUpdateRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "JobNameUpdateRequest"
+      },
       "JobProgressResponse": {
         "properties": {
           "total_tasks": {
@@ -1987,8 +2932,20 @@
             "description": "Failed tasks"
           },
           "status": {
-            "$ref": "#/components/schemas/JobStatus",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JobStatus"
+              }
+            ],
             "description": "Overall job status"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/TaskInfo"
+            },
+            "type": "array",
+            "title": "Tasks",
+            "description": "List of all tasks with their status"
           }
         },
         "type": "object",
@@ -2001,20 +2958,38 @@
         "title": "JobProgressResponse",
         "description": "Job progress information"
       },
+      "JobResultsResponse": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total number of results"
+          },
+          "files_processed_count": {
+            "type": "integer",
+            "title": "Files Processed Count",
+            "description": "Total number of unique files processed"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/ExtractionTaskResult"
+            },
+            "type": "array",
+            "title": "Results",
+            "description": "Extraction results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "files_processed_count",
+          "results"
+        ],
+        "title": "JobResultsResponse",
+        "description": "Job results with pagination"
+      },
       "JobStartRequest": {
         "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name",
-            "description": "User-friendly job name"
-          },
           "template_id": {
             "anyOf": [
               {
@@ -2082,8 +3057,9 @@
       "JobStatus": {
         "type": "string",
         "enum": [
-          "pending_configuration",
-          "processing",
+          "pending",
+          "in_progress",
+          "partially_completed",
           "completed",
           "failed",
           "cancelled"
@@ -2108,7 +3084,6 @@
           "metadata": {
             "anyOf": [
               {
-                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -2187,7 +3162,11 @@
             "description": "Folder path to process"
           },
           "mode": {
-            "$ref": "#/components/schemas/ProcessingMode",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProcessingMode"
+              }
+            ],
             "description": "Processing mode for this path"
           }
         },
@@ -2198,6 +3177,27 @@
         ],
         "title": "TaskDefinition",
         "description": "Definition of how files should be processed"
+      },
+      "TaskInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Task identifier"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Task status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "TaskInfo",
+        "description": "Information about a single extraction task"
       },
       "TemplateCreateRequest": {
         "properties": {
@@ -2342,7 +3342,6 @@
           },
           "extracted_files": {
             "items": {
-              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",

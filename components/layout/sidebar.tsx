@@ -9,7 +9,8 @@ import {
   Briefcase, 
   FileText, 
   Settings,
-  LogOut
+  LogOut,
+  Plug
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -43,6 +44,12 @@ export function Sidebar({ className }: SidebarProps) {
       href: '/dashboard/templates',
       icon: FileText,
       current: pathname.startsWith('/dashboard/templates')
+    },
+    {
+      name: 'Integrations',
+      href: '/dashboard/integrations',
+      icon: Plug,
+      current: pathname.startsWith('/dashboard/integrations')
     },
     {
       name: 'Settings',
