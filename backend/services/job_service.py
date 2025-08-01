@@ -861,19 +861,23 @@ class JobService:
                 # Determine file type
                 content_type = file.content_type or "application/octet-stream"
                 
-                # Create SourceFile record
+                # Create SourceFile record (always start as ready, ZIP detection will update if needed)
+                filename = file.filename or "unknown"
                 source_file = SourceFile(
                     job_id=job.id,
-                    original_filename=file.filename or "unknown",
-                    original_path=file.filename or "unknown",
+                    original_filename=os.path.basename(filename),  # Just the filename
+                    original_path=filename,  # Full path as uploaded
                     gcs_object_name=gcs_object_name,
                     file_type=content_type,
                     file_size_bytes=len(file_content),
-                    status=FileStatus.READY.value if not content_type.startswith("application/zip") else FileStatus.UNPACKING.value
+                    status=FileStatus.READY.value
                 )
                 
                 db.add(source_file)
                 db.flush()  # Get the ID
+                
+                # Handle ZIP detection and extraction using centralized logic
+                await self._handle_zip_detection(db, source_file, content_type, file.filename or "unknown")
                 
                 uploaded_files.append({
                     "id": str(source_file.id),
@@ -882,11 +886,6 @@ class JobService:
                     "file_size": source_file.file_size_bytes,
                     "status": source_file.status
                 })
-                
-                # If ZIP file, enqueue extraction task
-                if content_type in ['application/zip', 'application/x-zip-compressed']:
-                    await self._enqueue_zip_extraction(source_file.id)
-                    logger.info(f"Enqueued ZIP extraction for file {source_file.id}")
             
             db.commit()
             logger.info(f"Added {len(uploaded_files)} files to job {job_id}")
@@ -994,6 +993,24 @@ class JobService:
             raise
         finally:
             db.close()
+
+    def _is_zip_file(self, mime_type: str, filename: str) -> bool:
+        """Check if a file is a ZIP archive based on MIME type and extension"""
+        return (
+            mime_type in ['application/zip', 'application/x-zip-compressed'] or
+            filename.lower().endswith('.zip')
+        )
+
+    async def _handle_zip_detection(self, db, source_file, mime_type: str, filename: str) -> None:
+        """Handle ZIP file detection and enqueue extraction if needed"""
+        if self._is_zip_file(mime_type, filename):
+            # Update status to unpacking
+            source_file.status = 'unpacking'
+            db.commit()
+            
+            # Enqueue ZIP extraction task
+            await self._enqueue_zip_extraction(str(source_file.id))
+            logger.info(f"Detected and enqueued ZIP extraction for file {source_file.id}")
 
     async def _enqueue_zip_extraction(self, source_file_id: str) -> None:
         """Enqueue ZIP extraction task"""

@@ -9,8 +9,12 @@ import json
 import asyncio
 import csv
 import openpyxl
+import logging
 from io import StringIO, BytesIO
 from dependencies.auth import get_current_user_id, verify_token_string
+from core.database import get_db
+from sqlalchemy.orm import Session
+from models.db_models import ExtractionJob, SourceFile
 from services.job_service import JobService
 from services.sse_service import sse_manager
 from models.job import (
@@ -23,8 +27,8 @@ from models.job import (
 from pydantic import BaseModel
 import logging
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Initialize job service
 job_service = JobService()
@@ -275,6 +279,94 @@ async def stream_job_events(
     except Exception as e:
         logger.error(f"Failed to start SSE stream for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start event stream: {str(e)}")
+
+@router.get("/{job_id}/import-events")
+async def stream_job_import_events(
+    job_id: str,
+    token: str = Query(...)
+):
+    """Server-Sent Events stream for real-time import updates (Drive/Gmail imports)"""
+    try:
+        # Verify the token and get user_id
+        from dependencies.auth import verify_token_string
+        user_id = await verify_token_string(token)
+        
+        # Verify user has access to this job
+        await job_service.verify_job_access(user_id, job_id)
+        
+        async def import_event_generator():
+            try:
+                # Get SSE manager and listen for import events
+                from services.sse_service import sse_manager
+                
+                async for event in sse_manager.listen_for_import_events(job_id):
+                    yield f"data: {json.dumps(event)}\n\n"
+                    
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                logger.error(f"Error in import SSE stream for job {job_id}: {e}")
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+                return
+
+        return StreamingResponse(
+            import_event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Cache-Control"
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to start import SSE stream for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to start import event stream: {str(e)}")
+
+@router.get("/{job_id}/zip-events")
+async def stream_job_zip_events(
+    job_id: str,
+    token: str = Query(...)
+):
+    """Server-Sent Events stream for real-time ZIP extraction updates"""
+    try:
+        # Verify the token and get user_id
+        from dependencies.auth import verify_token_string
+        user_id = await verify_token_string(token)
+        
+        # Verify user has access to this job
+        await job_service.verify_job_access(user_id, job_id)
+        
+        async def zip_event_generator():
+            try:
+                # Get SSE manager and listen for ZIP events
+                from services.sse_service import sse_manager
+                
+                async for event in sse_manager.listen_for_zip_events(job_id):
+                    yield f"data: {json.dumps(event)}\n\n"
+                    
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                logger.error(f"Error in ZIP SSE stream for job {job_id}: {e}")
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+                return
+
+        return StreamingResponse(
+            zip_event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Cache-Control"
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to start ZIP SSE stream for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to start ZIP event stream: {str(e)}")
 
 @router.get("/{job_id}/results", response_model=JobResultsResponse)
 async def get_job_results(
@@ -532,3 +624,194 @@ async def export_job_results_excel(
     except Exception as e:
         logger.error(f"Excel export error for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Excel export failed: {str(e)}")
+
+# ===================================================================
+# File Import Endpoints (Epic 3)
+# ===================================================================
+
+@router.post("/{job_id}/files:gdrive")
+async def import_drive_files(
+    job_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Import files from Google Drive for a job
+    """
+    try:
+        # Verify job exists and user has access
+        job = db.query(ExtractionJob).filter(
+            ExtractionJob.id == job_id,
+            ExtractionJob.user_id == current_user_id
+        ).first()
+        
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        # Parse request body
+        body = await request.json()
+        drive_file_ids = body.get("file_ids", [])
+        
+        if not drive_file_ids:
+            raise HTTPException(status_code=400, detail="No file IDs provided")
+        
+        # Enqueue import job
+        from arq import create_pool
+        from workers.worker import ImportWorkerSettings
+        
+        redis = await create_pool(ImportWorkerSettings.redis_settings)
+        
+        job_result = await redis.enqueue_job(
+            'import_drive_files',
+            job_id=job_id,
+            user_id=current_user_id,
+            drive_file_ids=drive_file_ids,
+            _queue_name='imports'
+        )
+        
+        await redis.close()
+        
+        logger.info(f"Enqueued Drive import job {job_result.job_id} for {len(drive_file_ids)} files")
+        
+        return {
+            "success": True,
+            "import_job_id": job_result.job_id,
+            "message": f"Import started for {len(drive_file_ids)} files",
+            "file_count": len(drive_file_ids)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to start Drive import for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")
+
+@router.post("/{job_id}/files:gmail")
+async def import_gmail_attachments(
+    job_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Import attachments from Gmail for a job
+    """
+    try:
+        # Verify job exists and user has access
+        job = db.query(ExtractionJob).filter(
+            ExtractionJob.id == job_id,
+            ExtractionJob.user_id == current_user_id
+        ).first()
+        
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        # Parse request body
+        body = await request.json()
+        attachments = body.get("attachments", [])
+        
+        if not attachments:
+            raise HTTPException(status_code=400, detail="No attachments provided")
+        
+        # Validate attachment data structure
+        for attachment in attachments:
+            required_fields = ['message_id', 'attachment_id', 'filename']
+            for field in required_fields:
+                if field not in attachment:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Missing required field '{field}' in attachment data"
+                    )
+        
+        # Enqueue import job
+        from arq import create_pool
+        from workers.worker import ImportWorkerSettings
+        
+        redis = await create_pool(ImportWorkerSettings.redis_settings)
+        
+        job_result = await redis.enqueue_job(
+            'import_gmail_attachments',
+            job_id=job_id,
+            user_id=current_user_id,
+            attachment_data=attachments,
+            _queue_name='imports'
+        )
+        
+        await redis.close()
+        
+        logger.info(f"Enqueued Gmail import job {job_result.job_id} for {len(attachments)} attachments")
+        
+        return {
+            "success": True,
+            "import_job_id": job_result.job_id,
+            "message": f"Import started for {len(attachments)} attachments",
+            "attachment_count": len(attachments)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to start Gmail import for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")
+
+@router.get("/{job_id}/import-status")
+async def get_import_status(
+    job_id: str,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Get import status for a job's source files
+    """
+    try:
+        # Verify job exists and user has access
+        job = db.query(ExtractionJob).filter(
+            ExtractionJob.id == job_id,
+            ExtractionJob.user_id == current_user_id
+        ).first()
+        
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        # Get source files with their import status
+        source_files = db.query(SourceFile).filter(
+            SourceFile.job_id == job_id
+        ).all()
+        
+        # Group by source type and status
+        status_summary = {
+            'total_files': len(source_files),
+            'by_source': {},
+            'by_status': {},
+            'files': []
+        }
+        
+        for file in source_files:
+            # Count by source type
+            if file.source_type not in status_summary['by_source']:
+                status_summary['by_source'][file.source_type] = 0
+            status_summary['by_source'][file.source_type] += 1
+            
+            # Count by status
+            if file.status not in status_summary['by_status']:
+                status_summary['by_status'][file.status] = 0
+            status_summary['by_status'][file.status] += 1
+            
+            # Add file details
+            status_summary['files'].append({
+                'id': str(file.id),
+                'filename': file.original_filename,
+                'source_type': file.source_type,
+                'status': file.status,
+                'file_size': file.file_size_bytes,
+                'updated_at': file.updated_at.isoformat() if file.updated_at else None
+            })
+        
+        return status_summary
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get import status for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get import status: {str(e)}")

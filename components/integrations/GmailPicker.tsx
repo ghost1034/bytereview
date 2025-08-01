@@ -45,6 +45,7 @@ interface SelectedAttachment extends GmailAttachment {
 
 interface GmailPickerProps {
   onAttachmentsSelected: (attachments: GmailAttachment[]) => void;
+  jobId?: string; // If provided, will trigger import automatically
   multiSelect?: boolean;
   mimeTypes?: string[];
   className?: string;
@@ -52,12 +53,14 @@ interface GmailPickerProps {
 
 export function GmailPicker({
   onAttachmentsSelected,
+  jobId,
   multiSelect = true,
   mimeTypes = ['application/pdf'],
   className
 }: GmailPickerProps) {
   const { status, connect, isConnecting } = useGoogleIntegration();
-  const [searchQuery, setSearchQuery] = useState('has:attachment');
+  const [searchInput, setSearchInput] = useState('');
+  const [executedQuery, setExecutedQuery] = useState('');
   const [selectedAttachments, setSelectedAttachments] = useState<Set<string>>(new Set());
 
   // Query for Gmail messages with attachments
@@ -67,28 +70,35 @@ export function GmailPicker({
     error,
     refetch
   } = useQuery({
-    queryKey: ['gmail-attachments', searchQuery],
+    queryKey: ['gmail-attachments', executedQuery],
     queryFn: async (): Promise<GmailAttachment[]> => {
       if (!status?.connected) {
         return [];
       }
 
       const response = await apiClient.getGmailAttachments(
-        searchQuery,
+        executedQuery,
         mimeTypes.join(','),
         50
       );
       return response.attachments || [];
     },
-    enabled: !!status?.connected,
+    enabled: !!status?.connected && !!executedQuery,
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 1
   });
 
   const handleSearch = useCallback((query: string) => {
-    setSearchQuery(query || 'has:attachment');
+    const searchTerm = query || 'has:attachment';
+    setExecutedQuery(searchTerm);
     setSelectedAttachments(new Set());
   }, []);
+
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch(searchInput);
+    }
+  }, [searchInput, handleSearch]);
 
   const handleAttachmentToggle = useCallback((attachmentId: string) => {
     setSelectedAttachments(prev => {
@@ -108,7 +118,7 @@ export function GmailPicker({
   const handleSelectAll = useCallback(() => {
     if (!attachments) return;
     
-    const allIds = attachments.map(att => att.id);
+    const allIds = attachments.map(att => `${att.messageId}-${att.attachmentId}`);
     setSelectedAttachments(new Set(allIds));
   }, [attachments]);
 
@@ -116,18 +126,47 @@ export function GmailPicker({
     setSelectedAttachments(new Set());
   }, []);
 
-  const handleConfirmSelection = useCallback(() => {
+  const handleConfirmSelection = useCallback(async () => {
     if (!attachments) return;
 
-    const selected = attachments.filter(att => selectedAttachments.has(att.id));
+    const selected = attachments.filter(att => selectedAttachments.has(`${att.messageId}-${att.attachmentId}`));
     onAttachmentsSelected(selected);
     
-    toast({
-      title: "Attachments Selected",
-      description: `Selected ${selected.length} attachment${selected.length !== 1 ? 's' : ''} from Gmail`,
-      variant: "default"
-    });
-  }, [attachments, selectedAttachments, onAttachmentsSelected]);
+    // If jobId is provided, automatically trigger import
+    if (jobId) {
+      try {
+        const { apiClient } = await import('@/lib/api');
+        
+        // Convert to the format expected by the API
+        const attachmentData = selected.map(att => ({
+          message_id: att.messageId,
+          attachment_id: att.attachmentId,
+          filename: att.filename
+        }));
+        
+        const result = await apiClient.importGmailAttachments(jobId, attachmentData);
+        
+        toast({
+          title: "Import Started",
+          description: `Started importing ${selected.length} attachment${selected.length !== 1 ? 's' : ''} from Gmail`,
+          variant: "default"
+        });
+      } catch (error) {
+        console.error('Failed to start Gmail import:', error);
+        toast({
+          title: "Import Failed",
+          description: "Failed to start importing attachments from Gmail",
+          variant: "destructive"
+        });
+      }
+    } else {
+      toast({
+        title: "Attachments Selected",
+        description: `Selected ${selected.length} attachment${selected.length !== 1 ? 's' : ''} from Gmail`,
+        variant: "default"
+      });
+    }
+  }, [attachments, selectedAttachments, onAttachmentsSelected, jobId]);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
@@ -191,13 +230,14 @@ export function GmailPicker({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search emails (e.g., from:sender@example.com has:attachment)"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyPress={handleKeyPress}
               className="pl-10"
             />
           </div>
           <Button 
-            onClick={() => handleSearch(searchQuery)}
+            onClick={() => handleSearch(searchInput)}
             disabled={isLoading}
             variant="outline"
           >
@@ -214,21 +254,33 @@ export function GmailPicker({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleSearch('has:attachment newer_than:7d')}
+            onClick={() => {
+              const query = 'has:attachment newer_than:7d';
+              setSearchInput(query);
+              handleSearch(query);
+            }}
           >
             Last 7 days
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleSearch('has:attachment filename:pdf')}
+            onClick={() => {
+              const query = 'has:attachment filename:pdf';
+              setSearchInput(query);
+              handleSearch(query);
+            }}
           >
             PDF files
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleSearch('has:attachment larger:1M')}
+            onClick={() => {
+              const query = 'has:attachment larger:1M';
+              setSearchInput(query);
+              handleSearch(query);
+            }}
           >
             Large files
           </Button>
@@ -288,13 +340,13 @@ export function GmailPicker({
               <div className="p-4 space-y-3">
                 {attachments.map((attachment) => (
                   <div
-                    key={attachment.id}
+                    key={`${attachment.messageId}-${attachment.attachmentId}`}
                     className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
-                    onClick={() => handleAttachmentToggle(attachment.id)}
+                    onClick={() => handleAttachmentToggle(`${attachment.messageId}-${attachment.attachmentId}`)}
                   >
                     <Checkbox
-                      checked={selectedAttachments.has(attachment.id)}
-                      onChange={() => handleAttachmentToggle(attachment.id)}
+                      checked={selectedAttachments.has(`${attachment.messageId}-${attachment.attachmentId}`)}
+                      onChange={() => handleAttachmentToggle(`${attachment.messageId}-${attachment.attachmentId}`)}
                     />
                     
                     <div className="flex-1 min-w-0 space-y-1">

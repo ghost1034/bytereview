@@ -4,12 +4,13 @@
  */
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, FolderOpen, FileText, AlertCircle } from 'lucide-react';
 import { useGoogleIntegration } from '@/hooks/useGoogleIntegration';
+import { apiClient } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 
 // Google Picker API types
@@ -31,6 +32,7 @@ interface SelectedFile {
 
 interface GoogleDrivePickerProps {
   onFilesSelected: (files: SelectedFile[]) => void;
+  jobId?: string; // If provided, will trigger import automatically
   multiSelect?: boolean;
   allowFolders?: boolean;
   mimeTypes?: string[];
@@ -39,6 +41,7 @@ interface GoogleDrivePickerProps {
 
 export function GoogleDrivePicker({
   onFilesSelected,
+  jobId,
   multiSelect = true,
   allowFolders = true,
   mimeTypes = ['application/pdf'], // Default to PDFs
@@ -47,68 +50,109 @@ export function GoogleDrivePicker({
   const { status, connect, isConnecting } = useGoogleIntegration();
   const [isPickerLoading, setIsPickerLoading] = useState(false);
   const [isGoogleApiLoaded, setIsGoogleApiLoaded] = useState(false);
+  const [apiLoadError, setApiLoadError] = useState<string | null>(null);
+  const loadAttemptedRef = useRef(false);
 
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-  // Load Google APIs
+  // Load Google APIs only when user is connected
   useEffect(() => {
     if (!clientId) {
       console.error('NEXT_PUBLIC_GOOGLE_CLIENT_ID not configured');
       return;
     }
 
+    // Only load APIs if user is connected to Google
+    if (!status?.connected) {
+      return;
+    }
+
     const loadGoogleApis = async () => {
+      // Prevent duplicate loading using ref (survives re-renders)
+      if (loadAttemptedRef.current) {
+        console.log('APIs already attempted, skipping...');
+        return;
+      }
+
+      // Mark as attempted
+      loadAttemptedRef.current = true;
+
       try {
-        // Load Google APIs script if not already loaded
-        if (!window.gapi) {
-          await new Promise((resolve, reject) => {
+        console.log('Starting to load Google APIs...');
+        setApiLoadError(null);
+        
+        // Check if already loaded
+        if (window.google?.picker) {
+          console.log('Google Picker API already loaded');
+          setIsGoogleApiLoaded(true);
+          return;
+        }
+        
+        // Load Google Picker API with timeout
+        console.log('Loading Google Picker API...');
+        await Promise.race([
+          new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = 'https://apis.google.com/js/api.js';
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-          });
-        }
-
-        // Load Google Picker API
-        if (!window.google?.picker) {
-          await new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = 'https://apis.google.com/js/api.js?onload=onGoogleApiLoad';
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-          });
-
-          // Wait for picker to be available
-          await new Promise((resolve) => {
-            const checkPicker = () => {
-              if (window.google?.picker) {
-                resolve(true);
-              } else {
-                setTimeout(checkPicker, 100);
-              }
+            script.onload = () => {
+              console.log('Google API script loaded');
+              // Load the picker library
+              window.gapi.load('picker', {
+                callback: () => {
+                  console.log('Google Picker library loaded');
+                  resolve(true);
+                },
+                onerror: (error: any) => {
+                  console.error('Failed to load picker library:', error);
+                  reject(new Error('Failed to load picker library'));
+                }
+              });
             };
-            checkPicker();
-          });
-        }
+            script.onerror = (error) => {
+              console.error('Failed to load Google API script:', error);
+              reject(new Error('Failed to load Google API script'));
+            };
+            document.head.appendChild(script);
+          }),
+          // 10 second timeout
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout loading Google APIs')), 10000)
+          )
+        ]);
 
+        console.log('Google APIs loaded successfully');
         setIsGoogleApiLoaded(true);
+        setApiLoadError(null);
       } catch (error) {
-        console.error('Failed to load Google APIs:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error('Failed to load Google APIs:', errorMessage);
+        setIsGoogleApiLoaded(false);
+        setApiLoadError(errorMessage);
+        loadAttemptedRef.current = false; // Reset so user can retry
         toast({
           title: "Google APIs Failed to Load",
-          description: "Unable to load Google Drive picker. Please refresh the page.",
+          description: `Unable to load Google Drive picker: ${errorMessage}`,
           variant: "destructive"
         });
       }
     };
 
     loadGoogleApis();
-  }, [clientId]);
+  }, [clientId, status?.connected]);
 
   const openPicker = useCallback(async () => {
+    console.log('openPicker called', {
+      isGoogleApiLoaded,
+      hasGooglePicker: !!window.google?.picker,
+      isConnected: status?.connected
+    });
+
     if (!isGoogleApiLoaded || !window.google?.picker || !status?.connected) {
+      console.warn('Picker not ready:', {
+        isGoogleApiLoaded,
+        hasGooglePicker: !!window.google?.picker,
+        isConnected: status?.connected
+      });
       return;
     }
 
@@ -117,9 +161,12 @@ export function GoogleDrivePicker({
     try {
       // Get access token (this should be handled by the backend, but for picker we need it client-side)
       // In a real implementation, you'd get this from your backend
+      console.log('Getting access token...');
       const accessToken = await getAccessToken();
+      console.log('Access token received:', !!accessToken);
 
       if (!accessToken) {
+        console.error('No access token available');
         toast({
           title: "Authentication Required",
           description: "Please refresh your Google connection.",
@@ -128,16 +175,18 @@ export function GoogleDrivePicker({
         return;
       }
 
-      // Create picker
+      // Create picker showing My Drive in list mode to avoid thumbnail issues
+      const driveView = new window.google.picker.DocsView()
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(allowFolders)
+        .setMimeTypes(mimeTypes.join(','))
+        .setParent('root')  // Show actual My Drive content
+        .setMode(window.google.picker.DocsViewMode.LIST);  // Use list mode to avoid thumbnails
+
       const picker = new window.google.picker.PickerBuilder()
-        .enableFeature(window.google.picker.Feature.NAV_HIDDEN)
         .enableFeature(multiSelect ? window.google.picker.Feature.MULTISELECT_ENABLED : null)
         .setOAuthToken(accessToken)
-        .addView(
-          new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
-            .setMimeTypes(mimeTypes.join(','))
-            .setSelectFolderEnabled(allowFolders)
-        )
+        .addView(driveView)
         .setCallback(handlePickerCallback)
         .build();
 
@@ -154,7 +203,7 @@ export function GoogleDrivePicker({
     }
   }, [isGoogleApiLoaded, status?.connected, multiSelect, allowFolders, mimeTypes]);
 
-  const handlePickerCallback = useCallback((data: any) => {
+  const handlePickerCallback = useCallback(async (data: any) => {
     if (data.action === window.google.picker.Action.PICKED) {
       const files: SelectedFile[] = data.docs.map((doc: any) => ({
         id: doc.id,
@@ -167,23 +216,46 @@ export function GoogleDrivePicker({
 
       onFilesSelected(files);
       
-      toast({
-        title: "Files Selected",
-        description: `Selected ${files.length} file${files.length !== 1 ? 's' : ''} from Google Drive`,
-        variant: "default"
-      });
+      // If jobId is provided, automatically trigger import
+      if (jobId) {
+        try {
+          const { apiClient } = await import('@/lib/api');
+          const fileIds = files.map(file => file.id);
+          
+          const result = await apiClient.importDriveFiles(jobId, fileIds);
+          
+          toast({
+            title: "Import Started",
+            description: `Started importing ${files.length} file${files.length !== 1 ? 's' : ''} from Google Drive`,
+            variant: "default"
+          });
+        } catch (error) {
+          console.error('Failed to start Drive import:', error);
+          toast({
+            title: "Import Failed",
+            description: "Failed to start importing files from Google Drive",
+            variant: "destructive"
+          });
+        }
+      } else {
+        toast({
+          title: "Files Selected",
+          description: `Selected ${files.length} file${files.length !== 1 ? 's' : ''} from Google Drive`,
+          variant: "default"
+        });
+      }
     }
-  }, [onFilesSelected]);
+  }, [onFilesSelected, jobId]);
 
-  // Placeholder function - in real implementation, this would call your backend
+  // Get access token from backend using apiClient
   const getAccessToken = async (): Promise<string | null> => {
-    // This is a simplified version. In reality, you'd:
-    // 1. Call your backend to get a fresh access token
-    // 2. Handle token refresh if needed
-    // 3. Return the token for picker use
-    
-    // For now, return null to indicate we need proper token handling
-    return null;
+    try {
+      const response = await apiClient.request('/api/integrations/google/picker-token');
+      return response.access_token;
+    } catch (error) {
+      console.error('Failed to get access token for picker:', error);
+      return null;
+    }
   };
 
   if (!clientId) {
@@ -243,7 +315,7 @@ export function GoogleDrivePicker({
           <Badge variant="secondary" className="ml-auto">Connected</Badge>
         </CardTitle>
         <CardDescription>
-          Select files from your Google Drive
+          Browse and select files, folders, or ZIP archives from your Google Drive
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -255,7 +327,7 @@ export function GoogleDrivePicker({
           
           <Button 
             onClick={openPicker}
-            disabled={isPickerLoading || !isGoogleApiLoaded}
+            disabled={isPickerLoading || (!isGoogleApiLoaded && status?.connected)}
             className="w-full"
           >
             {isPickerLoading ? (
@@ -263,7 +335,7 @@ export function GoogleDrivePicker({
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Opening Picker...
               </>
-            ) : !isGoogleApiLoaded ? (
+            ) : !isGoogleApiLoaded && status?.connected ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Loading Google APIs...
@@ -276,9 +348,30 @@ export function GoogleDrivePicker({
             )}
           </Button>
           
-          {!isGoogleApiLoaded && (
+          {!isGoogleApiLoaded && status?.connected && !apiLoadError && (
             <div className="text-xs text-muted-foreground text-center">
               Loading Google Drive integration...
+            </div>
+          )}
+          
+          {apiLoadError && (
+            <div className="text-center space-y-2">
+              <div className="text-xs text-destructive">
+                Failed to load Google APIs: {apiLoadError}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setApiLoadError(null);
+                  setIsGoogleApiLoaded(false);
+                  loadAttemptedRef.current = false; // Reset the ref
+                  // Force re-trigger the useEffect
+                  setIsLoadingApis(false);
+                }}
+              >
+                Retry
+              </Button>
             </div>
           )}
         </div>

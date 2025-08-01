@@ -276,6 +276,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jobs/{job_id}/import-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream Job Import Events
+         * @description Server-Sent Events stream for real-time import updates (Drive/Gmail imports)
+         */
+        get: operations["stream_job_import_events_api_jobs__job_id__import_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/zip-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream Job Zip Events
+         * @description Server-Sent Events stream for real-time ZIP extraction updates
+         */
+        get: operations["stream_job_zip_events_api_jobs__job_id__zip_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/jobs/{job_id}/results": {
         parameters: {
             query?: never;
@@ -408,6 +448,66 @@ export interface paths {
          * @description Export job results to Excel format
          */
         get: operations["export_job_results_excel_api_jobs__job_id__export_excel_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/files:gdrive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Drive Files
+         * @description Import files from Google Drive for a job
+         */
+        post: operations["import_drive_files_api_jobs__job_id__files_gdrive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/files:gmail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Gmail Attachments
+         * @description Import attachments from Gmail for a job
+         */
+        post: operations["import_gmail_attachments_api_jobs__job_id__files_gmail_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/import-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Import Status
+         * @description Get import status for a job's source files
+         */
+        get: operations["get_import_status_api_jobs__job_id__import_status_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -828,6 +928,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/integrations/google/picker-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Google Picker Token
+         * @description Get Google access token for use with Google Picker API
+         */
+        get: operations["get_google_picker_token_api_integrations_google_picker_token_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/integrations/gmail/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Gmail Attachments
+         * @description Get Gmail attachments matching the specified criteria
+         */
+        get: operations["get_gmail_attachments_api_integrations_gmail_attachments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -964,7 +1104,9 @@ export interface components {
             /** Processing Time */
             processing_time?: number | null;
             /** By Document */
-            by_document?: Record<string, never>[] | null;
+            by_document?: {
+                [key: string]: unknown;
+            }[] | null;
         };
         /**
          * ExtractionTaskResult
@@ -985,7 +1127,9 @@ export interface components {
              * Extracted Data
              * @description Extracted data
              */
-            extracted_data: Record<string, never>;
+            extracted_data: {
+                [key: string]: unknown;
+            };
             /** @description Processing mode used */
             processing_mode: components["schemas"]["ProcessingMode"];
         };
@@ -1012,7 +1156,7 @@ export interface components {
          * @description File status enumeration
          * @enum {string}
          */
-        FileStatus: "uploading" | "uploaded" | "ready" | "unpacking" | "unpacked" | "failed";
+        FileStatus: "uploading" | "uploaded" | "importing" | "ready" | "unpacking" | "unpacked" | "failed";
         /**
          * FileUploadInfo
          * @description Information about a file to be uploaded
@@ -1091,7 +1235,9 @@ export interface components {
              * Extraction Tasks
              * @description Task definitions for processing modes
              */
-            extraction_tasks?: Record<string, never>[];
+            extraction_tasks?: {
+                [key: string]: unknown;
+            }[];
         };
         /**
          * JobFieldConfig
@@ -1149,11 +1295,15 @@ export interface components {
         /** JobFieldsUpdateRequest */
         JobFieldsUpdateRequest: {
             /** Fields */
-            fields: Record<string, never>[];
+            fields: {
+                [key: string]: unknown;
+            }[];
             /** Template Id */
             template_id?: string;
             /** Processing Modes */
-            processing_modes?: Record<string, never>;
+            processing_modes?: {
+                [key: string]: unknown;
+            };
         };
         /**
          * JobFileInfo
@@ -1388,7 +1538,9 @@ export interface components {
             /** Num Pages */
             num_pages: number;
             /** Metadata */
-            metadata?: Record<string, never> | null;
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * ProcessingMode
@@ -1502,7 +1654,9 @@ export interface components {
             /** Upload Time */
             upload_time: number;
             /** Extracted Files */
-            extracted_files?: Record<string, never>[];
+            extracted_files?: {
+                [key: string]: unknown;
+            }[];
         };
         /** UserResponse */
         UserResponse: {
@@ -2094,6 +2248,72 @@ export interface operations {
             };
         };
     };
+    stream_job_import_events_api_jobs__job_id__import_events_get: {
+        parameters: {
+            query: {
+                token: string;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_job_zip_events_api_jobs__job_id__zip_events_get: {
+        parameters: {
+            query: {
+                token: string;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_job_results_api_jobs__job_id__results_get: {
         parameters: {
             query?: {
@@ -2324,6 +2544,99 @@ export interface operations {
             };
         };
     };
+    import_drive_files_api_jobs__job_id__files_gdrive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_gmail_attachments_api_jobs__job_id__files_gmail_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_import_status_api_jobs__job_id__import_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_checkout_session_api_stripe_create_checkout_session_post: {
         parameters: {
             query?: never;
@@ -2518,7 +2831,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": {
+                    [key: string]: unknown;
+                };
             };
         };
         responses: {
@@ -2551,7 +2866,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": {
+                    [key: string]: unknown;
+                };
             };
         };
         responses: {
@@ -2967,6 +3284,62 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_google_picker_token_api_integrations_google_picker_token_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_gmail_attachments_api_integrations_gmail_attachments_get: {
+        parameters: {
+            query?: {
+                /** @description Gmail search query */
+                query?: string;
+                /** @description Comma-separated MIME types to filter */
+                mimeTypes?: string;
+                /** @description Maximum number of attachments to return */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

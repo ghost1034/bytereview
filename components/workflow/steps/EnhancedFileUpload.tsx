@@ -5,8 +5,9 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { 
@@ -20,10 +21,20 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
-  Clock
+  Clock,
+  Cloud,
+  Mail,
+  HardDrive,
+  FolderOpen,
+  Paperclip,
+  Trash2
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { apiClient, type JobFileInfo, type FileStatus } from '@/lib/api'
+import { GoogleDrivePicker } from '@/components/integrations/GoogleDrivePicker'
+import { GmailPicker } from '@/components/integrations/GmailPicker'
+import { IntegrationPrompt } from '@/components/integrations/IntegrationBanner'
+import { ImportStatusDisplay } from '@/components/upload/ImportStatusDisplay'
 
 interface EnhancedFileUploadProps {
   jobId: string
@@ -37,12 +48,39 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
   const [dragOver, setDragOver] = useState(false)
+  const [hasTriggeredImports, setHasTriggeredImports] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
-  const eventSourceRef = useRef<EventSource | null>(null)
+  const zipEventSourceRef = useRef<EventSource | null>(null)
+  const importEventSourceRef = useRef<EventSource | null>(null)
+  const zipConnectionAttemptedRef = useRef<boolean>(false)
   const pendingFilesRef = useRef<Set<string>>(new Set())
   const expectedFilesRef = useRef<Set<string>>(new Set())
   const receivedFilesRef = useRef<Set<string>>(new Set())
+
+  // Handle Google Drive file selection
+  const handleDriveFiles = (driveFiles: any[]) => {
+    if (driveFiles.length > 0) {
+      setHasTriggeredImports(true);
+      
+      // Setup import SSE connection if not already active
+      if (!importEventSourceRef.current) {
+        setupImportSSEConnection();
+      }
+    }
+  };
+
+  // Handle Gmail attachment selection
+  const handleGmailAttachments = (attachments: any[]) => {
+    if (attachments.length > 0) {
+      setHasTriggeredImports(true);
+      
+      // Setup import SSE connection if not already active
+      if (!importEventSourceRef.current) {
+        setupImportSSEConnection();
+      }
+    }
+  };
 
   // Check if all files are ready
   const allFilesReady = files.length > 0 && files.every(f => 
@@ -54,24 +92,25 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
   const unpackingFiles = files.filter(f => f.status === 'unpacking')
   const failedFiles = files.filter(f => f.status === 'failed')
 
-  // SSE connection setup - only for ZIP extraction monitoring
-  const setupSSEConnection = async () => {
-    if (!jobId || eventSourceRef.current) return
+  // ZIP SSE connection setup - for ZIP extraction monitoring only
+  const setupZipSSEConnection = async () => {
+    if (!jobId || zipEventSourceRef.current || zipConnectionAttemptedRef.current) return
 
+    zipConnectionAttemptedRef.current = true
     try {
-      console.log('Setting up SSE connection for ZIP extraction monitoring')
+      console.log('Setting up ZIP SSE connection for extraction monitoring')
       const token = await apiClient.getAuthTokenForSSE()
       if (!token) {
-        console.warn('No auth token available for SSE')
+        console.warn('No auth token available for ZIP SSE')
         return
       }
       
-      const sseUrl = `http://localhost:8000/api/jobs/${jobId}/events?token=${encodeURIComponent(token)}`
+      const sseUrl = `http://localhost:8000/api/jobs/${jobId}/zip-events?token=${encodeURIComponent(token)}`
       const eventSource = new EventSource(sseUrl)
-      eventSourceRef.current = eventSource
+      zipEventSourceRef.current = eventSource
 
       eventSource.onopen = () => {
-        console.log('SSE connection established for ZIP extraction monitoring')
+        console.log('ZIP SSE connection established for extraction monitoring')
       }
 
       eventSource.onmessage = (event) => {
@@ -80,12 +119,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
 
           switch (data.type) {
             case 'connected':
-              console.log('SSE connection confirmed for ZIP extraction')
-              break
-
-            case 'file_uploaded':
-              // File uploads are now handled directly by API response, not SSE
-              console.warn('Received file_uploaded SSE event - this should be handled directly by API response')
+              console.log('ZIP SSE connection confirmed')
               break
 
             case 'files_extracted':
@@ -107,7 +141,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                 
                 // Check if all ZIP files are done extracting after this update
                 const updatedFiles = [...prev, ...newFiles]
-                setTimeout(() => checkAndCloseSSEIfDone(updatedFiles), 1000)
+                setTimeout(() => checkAndCloseZipSSEIfDone(updatedFiles), 1000)
                 
                 return updatedFiles
               })
@@ -122,15 +156,10 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                 )
                 
                 // Check if all ZIP files are done extracting after this status change
-                setTimeout(() => checkAndCloseSSEIfDone(updatedFiles), 1000)
+                setTimeout(() => checkAndCloseZipSSEIfDone(updatedFiles), 1000)
                 
                 return updatedFiles
               })
-              break
-
-            case 'file_deleted':
-              // File deletion is now handled directly by API response, not SSE
-              console.warn('Received file_deleted SSE event - this should be handled directly by API response')
               break
 
             case 'extraction_failed':
@@ -151,38 +180,172 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
               break
 
             default:
-              console.log(`Ignoring SSE event type: ${data.type}`)
+              // Ignore other event types for ZIP connection
               break
           }
         } catch (error) {
-          console.error('Error parsing SSE event:', error)
+          console.error('Error parsing ZIP SSE event:', error)
         }
       }
 
       eventSource.onerror = (error) => {
-        console.error('SSE connection error:', error)
+        console.error('ZIP SSE connection error:', error)
         if (eventSource.readyState === EventSource.CLOSED) {
-          eventSourceRef.current = null
+          zipEventSourceRef.current = null
         }
       }
 
     } catch (error) {
-      console.error('Error setting up SSE:', error)
+      console.error('Error setting up ZIP SSE:', error)
     }
   }
 
-  // Close SSE connection when no longer needed
-  const closeSSEConnection = () => {
-    if (eventSourceRef.current) {
-      console.log('Closing SSE connection')
-      eventSourceRef.current.close()
-      eventSourceRef.current = null
+  // Import SSE connection setup - for import monitoring only
+  const setupImportSSEConnection = async () => {
+    if (!jobId || importEventSourceRef.current) return
+
+    try {
+      console.log('Setting up Import SSE connection for import monitoring')
+      const token = await apiClient.getAuthTokenForSSE()
+      if (!token) {
+        console.warn('No auth token available for Import SSE')
+        return
+      }
+      
+      const sseUrl = `http://localhost:8000/api/jobs/${jobId}/events?token=${encodeURIComponent(token)}`
+      const eventSource = new EventSource(sseUrl)
+      importEventSourceRef.current = eventSource
+
+      eventSource.onopen = () => {
+        console.log('Import SSE connection established for import monitoring')
+      }
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+
+          switch (data.type) {
+            case 'connected':
+              console.log('Import SSE connection confirmed')
+              break
+
+            case 'import_started':
+              // Import operation started
+              console.log(`Import started: ${data.source} - ${data.file_count} files`)
+              toast({
+                title: `${data.source} Import Started`,
+                description: `Importing ${data.file_count} file(s)`,
+              });
+              break
+
+            case 'import_progress':
+              // Individual file import progress
+              console.log(`Import progress: ${data.filename} - ${data.status}`)
+              break
+
+            case 'import_completed':
+              // Individual file import completed
+              console.log(`Import completed: ${data.filename}`)
+              // Add the imported file to the list
+              const importedFile: JobFileInfo = {
+                id: data.file_id,
+                original_filename: data.filename,
+                original_path: data.original_path || data.filename, // Use original_path from backend
+                file_size_bytes: data.file_size || 0,
+                status: data.status as FileStatus
+              }
+              
+              setFiles(prev => {
+                // Check if file already exists to avoid duplicates
+                const exists = prev.some(f => f.id === data.file_id)
+                let updatedFiles;
+                if (exists) {
+                  // Update existing file
+                  updatedFiles = prev.map(f => f.id === data.file_id ? importedFile : f)
+                } else {
+                  // Add new file
+                  updatedFiles = [...prev, importedFile]
+                }
+                
+                // Check if we need to establish ZIP SSE connection for unpacking files
+                const hasUnpackingFiles = updatedFiles.some(f => f.status === 'unpacking')
+                if (hasUnpackingFiles && !zipEventSourceRef.current && !zipConnectionAttemptedRef.current) {
+                  console.log('Imported file with unpacking status detected, setting up ZIP SSE connection')
+                  setupZipSSEConnection()
+                }
+                
+                return updatedFiles
+              })
+              break
+
+            case 'import_failed':
+              // Import operation failed
+              console.log(`Import failed: ${data.filename} - ${data.error}`)
+              toast({
+                title: "Import Failed",
+                description: `Failed to import ${data.filename}: ${data.error}`,
+                variant: "destructive"
+              });
+              break
+
+            case 'import_batch_completed':
+              // All imports in a batch completed
+              console.log(`Import batch completed: ${data.source} - ${data.successful}/${data.total} files`)
+              toast({
+                title: `${data.source} Import Completed`,
+                description: `Successfully imported ${data.successful} of ${data.total} file(s)`,
+              });
+              // Check if we can close the import connection
+              setTimeout(() => checkAndCloseImportSSEIfDone(), 1000)
+              break
+
+            case 'keepalive':
+              // Ignore keepalive events
+              break
+
+            default:
+              // Ignore other event types for import connection
+              break
+          }
+        } catch (error) {
+          console.error('Error parsing Import SSE event:', error)
+        }
+      }
+
+      eventSource.onerror = (error) => {
+        console.error('Import SSE connection error:', error)
+        if (eventSource.readyState === EventSource.CLOSED) {
+          importEventSourceRef.current = null
+        }
+      }
+
+    } catch (error) {
+      console.error('Error setting up Import SSE:', error)
     }
   }
 
-  // Check if all ZIP extraction is complete and close SSE if so
-  const checkAndCloseSSEIfDone = (currentFiles: JobFileInfo[]) => {
-    if (!eventSourceRef.current) return
+  // Close ZIP SSE connection when no longer needed
+  const closeZipSSEConnection = () => {
+    if (zipEventSourceRef.current) {
+      console.log('Closing ZIP SSE connection')
+      zipEventSourceRef.current.close()
+      zipEventSourceRef.current = null
+    }
+    zipConnectionAttemptedRef.current = false
+  }
+
+  // Close Import SSE connection when no longer needed
+  const closeImportSSEConnection = () => {
+    if (importEventSourceRef.current) {
+      console.log('Closing Import SSE connection')
+      importEventSourceRef.current.close()
+      importEventSourceRef.current = null
+    }
+  }
+
+  // Check if all ZIP extraction is complete and close ZIP SSE if so
+  const checkAndCloseZipSSEIfDone = (currentFiles: JobFileInfo[]) => {
+    if (!zipEventSourceRef.current) return
 
     // Check if there are any ZIP files still being processed
     const hasUnpackingFiles = currentFiles.some(f => 
@@ -193,21 +356,33 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
       f.original_filename?.toLowerCase().endsWith('.zip')
     )
     
-    // If we have ZIP files but none are currently unpacking, close SSE
+    // If we have ZIP files but none are currently unpacking, close ZIP SSE
     if (hasZipFiles && !hasUnpackingFiles) {
-      console.log('All ZIP extraction completed, closing SSE connection')
-      closeSSEConnection()
+      console.log('All ZIP extraction completed, closing ZIP SSE connection')
+      closeZipSSEConnection()
     } else if (hasUnpackingFiles) {
-      console.log('ZIP extraction still in progress, keeping SSE connection open')
+      console.log('ZIP extraction still in progress, keeping ZIP SSE connection open')
     }
   }
 
-  // Cleanup SSE connection
+  // Check if all imports are complete and close Import SSE if so
+  const checkAndCloseImportSSEIfDone = () => {
+    if (!importEventSourceRef.current) return
+
+    // For imports, we close the connection after batch completion
+    // since we get explicit batch completion events
+    console.log('Import batch completed, closing Import SSE connection')
+    closeImportSSEConnection()
+  }
+
+  // Cleanup both SSE connections
   useEffect(() => {
     return () => {
-      closeSSEConnection()
+      closeZipSSEConnection()
+      closeImportSSEConnection()
     }
   }, [])
+
 
   // Track if we've already loaded files for this job to prevent Strict Mode double execution
   const loadedJobRef = useRef<string | null>(null)
@@ -218,6 +393,16 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
       // Load all files for display purposes (including ZIP files for transparency)
       const data = await apiClient.getJobFiles(jobId)
       setFiles(data.files || [])
+      
+      // Check if there are unpacking files and setup ZIP SSE if needed
+      const hasUnpackingFiles = (data.files || []).some(file => 
+        file.status === 'unpacking'
+      )
+      
+      if (hasUnpackingFiles && !zipEventSourceRef.current && !zipConnectionAttemptedRef.current) {
+        console.log('Unpacking files detected on load, setting up ZIP SSE connection')
+        setupZipSSEConnection()
+      }
     } catch (error) {
       console.error('Error loading existing files:', error)
     }
@@ -324,7 +509,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
               return {
                 id: fileData.id,
                 original_filename: fileData.filename,
-                original_path: fileData.filename,
+                original_path: filePath, // Keep the original path from upload
                 file_size_bytes: fileData.file_size,
                 status: fileData.status as FileStatus
               }
@@ -347,10 +532,10 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
       )
       
       if (hasZipFiles) {
-        console.log('ZIP files detected, setting up SSE connection for extraction monitoring')
-        await setupSSEConnection()
+        console.log('ZIP files detected, setting up ZIP SSE connection for extraction monitoring')
+        await setupZipSSEConnection()
       } else {
-        console.log('No ZIP files detected, skipping SSE connection')
+        console.log('No ZIP files detected, skipping ZIP SSE connection')
       }
 
       // Clear progress and uploading files after all uploads complete
@@ -569,6 +754,20 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
     }
   }
 
+  // Get source icon based on file source
+  const getSourceIcon = (file: JobFileInfo) => {
+    // Check if file came from Drive (external_id and source_type)
+    if ((file as any).source_type === 'drive' || (file as any).external_id?.includes('drive')) {
+      return <Cloud className="w-4 h-4 text-blue-500" title="Google Drive" />
+    }
+    // Check if file came from Gmail
+    if ((file as any).source_type === 'gmail' || (file as any).external_id?.includes(':')) {
+      return <Mail className="w-4 h-4 text-green-500" title="Gmail" />
+    }
+    // Default to computer upload
+    return <HardDrive className="w-4 h-4 text-gray-500" title="Computer" />
+  }
+
   // Get status badge
   const getStatusBadge = (status: FileStatus) => {
     switch (status) {
@@ -614,8 +813,30 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
 
   return (
     <div className="space-y-6">
-      {/* Upload Area */}
-      <Card>
+      {/* Integration prompt */}
+      <IntegrationPrompt />
+
+
+      {/* Multi-source upload tabs */}
+      <Tabs defaultValue="computer" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="computer" className="flex items-center gap-2">
+            <HardDrive className="h-4 w-4" />
+            Computer
+          </TabsTrigger>
+          <TabsTrigger value="drive" className="flex items-center gap-2">
+            <Cloud className="h-4 w-4" />
+            Google Drive
+          </TabsTrigger>
+          <TabsTrigger value="gmail" className="flex items-center gap-2">
+            <Mail className="h-4 w-4" />
+            Gmail
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="computer" className="mt-6">
+          {/* Upload Area */}
+          <Card>
         <CardContent className="pt-6">
           {/* Drag & Drop Zone */}
           <div
@@ -688,42 +909,57 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
         </CardContent>
       </Card>
 
-      {/* File List */}
+        </TabsContent>
+
+        <TabsContent value="drive" className="mt-6">
+          <GoogleDrivePicker
+            onFilesSelected={handleDriveFiles}
+            jobId={jobId}
+            multiSelect
+            allowFolders
+            mimeTypes={[
+              'application/pdf',
+              'application/zip',
+              'application/x-zip-compressed',
+              'application/vnd.google-apps.folder'
+            ]}
+          />
+        </TabsContent>
+
+        <TabsContent value="gmail" className="mt-6">
+          <GmailPicker
+            onAttachmentsSelected={handleGmailAttachments}
+            jobId={jobId}
+            multiSelect
+            mimeTypes={[
+              'application/pdf',
+              'application/zip',
+              'application/x-zip-compressed'
+            ]}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {/* Uploaded Files - Always visible regardless of tab */}
       {files.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Uploaded Files ({files.length})</span>
-              <div className="flex gap-2 text-sm">
-                {readyFiles.length > 0 && (
-                  <Badge variant="secondary" className="bg-green-100 text-green-800">
-                    {readyFiles.length} Ready
-                  </Badge>
-                )}
-                {unpackingFiles.length > 0 && (
-                  <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                    {unpackingFiles.length} Unpacking
-                  </Badge>
-                )}
-                {failedFiles.length > 0 && (
-                  <Badge variant="destructive">
-                    {failedFiles.length} Failed
-                  </Badge>
-                )}
-              </div>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Uploaded Files ({files.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               {files.map((file) => (
-                <div
-                  key={file.id}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
-                >
+                <div key={file.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-3 flex-1">
                     {getFileIcon(file)}
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{file.original_filename || 'Unknown file'}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium truncate">{file.original_filename || 'Unknown file'}</p>
+                        {getSourceIcon(file)}
+                      </div>
                       {file.original_path && file.original_path !== file.original_filename && (
                         <p className="text-sm text-gray-500 truncate">{file.original_path}</p>
                       )}
@@ -734,34 +970,18 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    {file.status === 'uploading' ? (
-                      <div className="flex items-center gap-2 flex-1">
-                        <div className="flex-1">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs text-blue-600">Uploading...</span>
-                            <span className="text-xs text-blue-600">
-                              {Math.round(uploadProgress[file.original_path] || 0)}%
-                            </span>
-                          </div>
-                          <Progress 
-                            value={uploadProgress[file.original_path] || 0} 
-                            className="h-2 bg-blue-100" 
-                          />
-                        </div>
-                        <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
-                      </div>
-                    ) : (
+                    {getStatusBadge(file.status)}
+                    
+                    {/* Delete button - only show for ready files */}
+                    {(file.status === 'ready' || file.status === 'uploaded' || file.status === 'unpacked') && (
                       <>
-                        {getStatusBadge(file.status)}
-                        
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemoveFile(file.id)}
-                          disabled={file.status === 'unpacking'}
-                          className={`${
-                            file.status === 'unpacking' 
-                              ? 'text-gray-400 cursor-not-allowed' 
+                          className={`p-1 h-8 w-8 ${
+                            file.status === 'failed' 
+                              ? 'text-red-500 hover:text-red-700' 
                               : 'text-red-500 hover:text-red-700'
                           }`}
                         >
@@ -794,7 +1014,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
         </Card>
       )}
 
-      {/* Navigation */}
+      {/* Navigation - Always visible */}
       <div className="flex justify-between">
         {onBack && (
           <Button variant="outline" onClick={onBack}>

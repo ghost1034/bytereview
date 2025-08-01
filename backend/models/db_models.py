@@ -125,8 +125,9 @@ class ExtractionJob(Base):
     job_fields = relationship("JobField", back_populates="job", cascade="all, delete-orphan")
     source_files = relationship("SourceFile", back_populates="job", cascade="all, delete-orphan")
     extraction_tasks = relationship("ExtractionTask", back_populates="job", cascade="all, delete-orphan")
-    job_runs = relationship("JobRun", back_populates="job", cascade="all, delete-orphan")
     automations = relationship("Automation", back_populates="job")
+    job_exports = relationship("JobExport", back_populates="job", cascade="all, delete-orphan")
+    automation_runs = relationship("AutomationRun", back_populates="job", cascade="all, delete-orphan")
     
     @property
     def is_resumable(self) -> bool:
@@ -198,7 +199,6 @@ class ExtractionTask(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
-    run_id = Column(UUID(as_uuid=True), ForeignKey("job_runs.id", ondelete="CASCADE"), nullable=True)  # Will be required after migration
     processing_mode = Column(String(50), nullable=False, default='individual')  # 'individual' or 'combined'
     status = Column(String(50), nullable=False, default='pending')
     error_message = Column(Text)
@@ -207,7 +207,6 @@ class ExtractionTask(Base):
     
     # Relationships
     job = relationship("ExtractionJob", back_populates="extraction_tasks")
-    job_run = relationship("JobRun", back_populates="extraction_tasks")
     source_files_to_tasks = relationship("SourceFileToTask", back_populates="task", cascade="all, delete-orphan")
     extraction_result = relationship("ExtractionResult", back_populates="task", uselist=False, cascade="all, delete-orphan")
 
@@ -285,32 +284,12 @@ class IntegrationAccount(Base):
         from services.encryption_service import encryption_service
         return encryption_service.decrypt_token(self.refresh_token)
 
-class JobRun(Base):
-    """A single execution/run of an extraction job"""
-    __tablename__ = "job_runs"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
-    run_number = Column(Integer, nullable=False)
-    status = Column(String(50), nullable=False, default='pending')
-    tasks_total = Column(Integer, nullable=False, default=0)
-    tasks_completed = Column(Integer, nullable=False, default=0)
-    tasks_failed = Column(Integer, nullable=False, default=0)
-    started_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
-    completed_at = Column(TIMESTAMP(timezone=True))
-    
-    # Relationships
-    job = relationship("ExtractionJob", back_populates="job_runs")
-    extraction_tasks = relationship("ExtractionTask", back_populates="job_run", cascade="all, delete-orphan")
-    job_exports = relationship("JobExport", back_populates="job_run", cascade="all, delete-orphan")
-    automation_runs = relationship("AutomationRun", back_populates="job_run")
-
 class JobExport(Base):
     """Export operations for job results to various destinations"""
     __tablename__ = "job_exports"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    run_id = Column(UUID(as_uuid=True), ForeignKey("job_runs.id", ondelete="CASCADE"), nullable=False)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
     dest_type = Column(String(15), nullable=False)
     file_type = Column(String(10), nullable=False)
     status = Column(String(20), nullable=False, default='pending')
@@ -326,7 +305,7 @@ class JobExport(Base):
     )
     
     # Relationships
-    job_run = relationship("JobRun", back_populates="job_exports")
+    job = relationship("ExtractionJob", back_populates="job_exports")
 
 class Automation(Base):
     """Automated workflows triggered by external events"""
@@ -355,7 +334,7 @@ class AutomationRun(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     automation_id = Column(UUID(as_uuid=True), ForeignKey("automations.id", ondelete="CASCADE"), nullable=False)
-    run_id = Column(UUID(as_uuid=True), ForeignKey("job_runs.id", ondelete="CASCADE"), nullable=False)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
     status = Column(String(20), nullable=False, default='pending')
     error_message = Column(Text)
     triggered_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
@@ -363,4 +342,4 @@ class AutomationRun(Base):
     
     # Relationships
     automation = relationship("Automation", back_populates="automation_runs")
-    job_run = relationship("JobRun", back_populates="automation_runs")
+    job = relationship("ExtractionJob", back_populates="automation_runs")

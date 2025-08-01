@@ -181,6 +181,104 @@ class SSEManager:
             except Exception:
                 pass
     
+    async def listen_for_import_events(self, job_id: str) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Listen for import events for a specific job (Drive/Gmail imports)
+        Uses the same Redis pub/sub system but filters for import events only
+        """
+        redis_client = await self._get_redis()
+        pubsub = redis_client.pubsub()
+        channel = f"job_events_{job_id}"
+        await pubsub.subscribe(channel)
+        
+        try:
+            # Send initial connection event
+            yield {"type": "connected", "job_id": job_id}
+            
+            # Listen for import events only
+            while True:
+                try:
+                    message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=30.0)
+                    
+                    if message is not None and message['data']:
+                        try:
+                            event = json.loads(message['data'])
+                            
+                            # Only yield import-related events
+                            if event.get('type') in ['import_started', 'import_progress', 'import_completed', 'import_failed', 'import_batch_completed']:
+                                yield event
+                        except json.JSONDecodeError:
+                            continue
+                    else:
+                        # Send keepalive on timeout
+                        yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
+                        
+                except asyncio.TimeoutError:
+                    yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
+                    continue
+                except asyncio.CancelledError:
+                    break
+                    
+        except Exception as e:
+            logger.error(f"Import SSE listener error for job {job_id}: {e}")
+            yield {"type": "error", "message": str(e)}
+        finally:
+            # Clean up Redis subscription
+            try:
+                await pubsub.unsubscribe(channel)
+                await pubsub.close()
+            except Exception:
+                pass
+    
+    async def listen_for_zip_events(self, job_id: str) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Listen for ZIP extraction events for a specific job
+        Uses the same Redis pub/sub system but filters for ZIP events only
+        """
+        redis_client = await self._get_redis()
+        pubsub = redis_client.pubsub()
+        channel = f"job_events_{job_id}"
+        await pubsub.subscribe(channel)
+        
+        try:
+            # Send initial connection event
+            yield {"type": "connected", "job_id": job_id}
+            
+            # Listen for ZIP events only
+            while True:
+                try:
+                    message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=30.0)
+                    
+                    if message is not None and message['data']:
+                        try:
+                            event = json.loads(message['data'])
+                            
+                            # Only yield ZIP extraction related events
+                            if event.get('type') in ['files_extracted', 'file_status_changed', 'extraction_failed']:
+                                yield event
+                        except json.JSONDecodeError:
+                            continue
+                    else:
+                        # Send keepalive on timeout
+                        yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
+                        
+                except asyncio.TimeoutError:
+                    yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
+                    continue
+                except asyncio.CancelledError:
+                    break
+                    
+        except Exception as e:
+            logger.error(f"ZIP SSE listener error for job {job_id}: {e}")
+            yield {"type": "error", "message": str(e)}
+        finally:
+            # Clean up Redis subscription
+            try:
+                await pubsub.unsubscribe(channel)
+                await pubsub.close()
+            except Exception:
+                pass
+    
     async def _get_redis(self):
         """Get Redis connection for cross-process communication"""
         if self._redis is None:
@@ -338,6 +436,51 @@ class SSEManager:
         await self.send_job_event(job_id, {
             "type": "auto_save",
             "saved_data": saved_data
+        })
+    
+    # Import-specific events
+    async def send_import_started(self, job_id: str, source: str, file_count: int) -> None:
+        """Send import started event"""
+        await self.send_job_event(job_id, {
+            "type": "import_started",
+            "source": source,
+            "file_count": file_count
+        })
+    
+    async def send_import_progress(self, job_id: str, filename: str, status: str) -> None:
+        """Send import progress event"""
+        await self.send_job_event(job_id, {
+            "type": "import_progress",
+            "filename": filename,
+            "status": status
+        })
+    
+    async def send_import_completed(self, job_id: str, file_id: str, filename: str, file_size: int, status: str, original_path: str = None) -> None:
+        """Send import completed event"""
+        await self.send_job_event(job_id, {
+            "type": "import_completed",
+            "file_id": file_id,
+            "filename": filename,
+            "original_path": original_path or filename,
+            "file_size": file_size,
+            "status": status
+        })
+    
+    async def send_import_failed(self, job_id: str, filename: str, error: str) -> None:
+        """Send import failed event"""
+        await self.send_job_event(job_id, {
+            "type": "import_failed",
+            "filename": filename,
+            "error": error
+        })
+    
+    async def send_import_batch_completed(self, job_id: str, source: str, successful: int, total: int) -> None:
+        """Send import batch completed event"""
+        await self.send_job_event(job_id, {
+            "type": "import_batch_completed",
+            "source": source,
+            "successful": successful,
+            "total": total
         })
     
 

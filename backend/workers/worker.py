@@ -11,7 +11,7 @@ import tempfile
 import zipfile
 import shutil
 from typing import Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -29,12 +29,15 @@ sys.path.insert(0, str(backend_dir))
 from arq import create_pool
 from arq.connections import RedisSettings
 from sqlalchemy.orm import Session
-from core.database import db_config
+from core.database import db_config, get_db
 from models.db_models import ExtractionTask, ExtractionResult, SourceFile, JobField, SystemPrompt, SourceFileToTask, ExtractionJob, DataType
 from models.job import FileStatus
 from services.ai_extraction_service import AIExtractionService
 from services.gcs_service import get_storage_service
+from services.google_service import google_service
 import json
+import io
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +216,7 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str
         
         # Update task status
         task.status = "completed"
-        task.processed_at = datetime.utcnow()
+        task.processed_at = datetime.now(timezone.utc)
         
         # Increment job-level task completion counter
         try:
@@ -511,6 +514,542 @@ class ZipWorkerSettings:
     # Worker configuration for ZIP tasks (high memory, low concurrency)
     max_jobs = 1  # Low concurrency to prevent memory issues
     job_timeout = 1800  # 30 minutes timeout for large ZIP files
+    keep_result = 3600  # Keep results for 1 hour
+    
+    # Logging
+    log_results = True
+
+# ImportWorkerSettings will be defined after the functions
+
+# ===================================================================
+# Import Worker Functions (Drive, Gmail)
+# ===================================================================
+
+async def import_startup(ctx: Dict[str, Any]) -> None:
+    """Initialize import worker resources"""
+    logger.info("Import worker starting up...")
+
+async def import_shutdown(ctx: Dict[str, Any]) -> None:
+    """Cleanup import worker resources"""
+    logger.info("Import worker shutting down...")
+
+async def import_drive_files(
+    ctx: Dict[str, Any],
+    job_id: str, 
+    user_id: str, 
+    drive_file_ids: List[str]
+) -> Dict[str, Any]:
+    """
+    Import files from Google Drive
+    
+    Args:
+        job_id: Extraction job ID
+        user_id: User ID for OAuth credentials
+        drive_file_ids: List of Google Drive file IDs to import
+        
+    Returns:
+        Dict with import results and status
+    """
+    logger.info(f"Starting Drive import for job {job_id}, {len(drive_file_ids)} files")
+    
+    results = {
+        'job_id': job_id,
+        'total_files': len(drive_file_ids),
+        'successful': 0,
+        'failed': 0,
+        'errors': []
+    }
+    
+    with next(get_db()) as db:
+        try:
+            # Verify job exists and user has access
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id
+            ).first()
+            
+            if not job:
+                raise ValueError(f"Job {job_id} not found or access denied")
+            
+            # Send import started event
+            from services.sse_service import sse_manager
+            await sse_manager.send_import_started(job_id, "Google Drive", len(drive_file_ids))
+            
+            # Process each Drive file
+            for file_id in drive_file_ids:
+                try:
+                    await _import_single_drive_file(db, job_id, user_id, file_id)
+                    results['successful'] += 1
+                    logger.info(f"Successfully imported Drive file {file_id}")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to import Drive file {file_id}: {e}")
+                    results['failed'] += 1
+                    results['errors'].append({
+                        'file_id': file_id,
+                        'error': str(e)
+                    })
+            
+            # Send import batch completed event
+            await sse_manager.send_import_batch_completed(job_id, "Google Drive", results['successful'], results['total_files'])
+            
+            # Update job status
+            if results['failed'] == 0:
+                logger.info(f"Drive import completed successfully for job {job_id}")
+            else:
+                logger.warning(f"Drive import completed with {results['failed']} failures for job {job_id}")
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Drive import failed for job {job_id}: {e}")
+            results['errors'].append({'general': str(e)})
+            raise
+
+async def import_gmail_attachments(
+    ctx: Dict[str, Any],
+    job_id: str,
+    user_id: str,
+    attachment_data: List[Dict[str, str]]
+) -> Dict[str, Any]:
+    """
+    Import attachments from Gmail
+    
+    Args:
+        job_id: Extraction job ID
+        user_id: User ID for OAuth credentials
+        attachment_data: List of dicts with message_id, attachment_id, filename
+        
+    Returns:
+        Dict with import results and status
+    """
+    logger.info(f"Starting Gmail import for job {job_id}, {len(attachment_data)} attachments")
+    
+    results = {
+        'job_id': job_id,
+        'total_files': len(attachment_data),
+        'successful': 0,
+        'failed': 0,
+        'errors': []
+    }
+    
+    with next(get_db()) as db:
+        try:
+            # Verify job exists and user has access
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id
+            ).first()
+            
+            if not job:
+                raise ValueError(f"Job {job_id} not found or access denied")
+            
+            # Process each Gmail attachment
+            for attachment in attachment_data:
+                try:
+                    await _import_single_gmail_attachment(
+                        db, job_id, user_id, attachment
+                    )
+                    results['successful'] += 1
+                    logger.info(f"Successfully imported Gmail attachment {attachment['filename']}")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to import Gmail attachment {attachment['filename']}: {e}")
+                    results['failed'] += 1
+                    results['errors'].append({
+                        'filename': attachment['filename'],
+                        'message_id': attachment['message_id'],
+                        'error': str(e)
+                    })
+            
+            # Update job status
+            if results['failed'] == 0:
+                logger.info(f"Gmail import completed successfully for job {job_id}")
+            else:
+                logger.warning(f"Gmail import completed with {results['failed']} failures for job {job_id}")
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Gmail import failed for job {job_id}: {e}")
+            results['errors'].append({'general': str(e)})
+            raise
+
+async def _import_single_drive_file(
+    db: Session, 
+    job_id: str, 
+    user_id: str, 
+    file_id: str
+) -> None:
+    """Import a single file or folder from Google Drive"""
+    
+    try:
+        logger.info(f"Getting metadata for Drive file {file_id}")
+        # Get file metadata from Drive
+        file_metadata = google_service.get_drive_file_metadata(db, user_id, file_id)
+        if not file_metadata:
+            raise ValueError(f"Could not get metadata for Drive file {file_id}")
+        
+        filename = file_metadata['name']
+        file_size = int(file_metadata.get('size', 0))
+        mime_type = file_metadata.get('mimeType', 'application/octet-stream')
+        
+        logger.info(f"Importing Drive item: {filename} ({file_size} bytes), MIME: {mime_type}")
+        
+        # Check if this is a folder
+        if mime_type == 'application/vnd.google-apps.folder':
+            logger.info(f"Processing Drive folder: {filename}")
+            await _import_drive_folder(db, job_id, user_id, file_id, filename)
+            return
+        
+        logger.info(f"Creating source file record for {filename}")
+        # Create source file record for regular file
+        source_file = SourceFile(
+            job_id=job_id,
+            original_filename=filename,
+            original_path=filename,
+            gcs_object_name=f"imports/{job_id}/{file_id}_{filename}",
+            file_type=mime_type,
+            file_size_bytes=file_size,
+            status='importing',
+            source_type='drive',
+            external_id=file_id
+        )
+        db.add(source_file)
+        logger.info(f"Committing source file record")
+        db.commit()
+        db.refresh(source_file)
+        logger.info(f"Source file record created successfully")
+    except Exception as e:
+        logger.error(f"Error in metadata/record creation phase: {e}")
+        raise
+    
+    try:
+        # Download file from Drive
+        file_content = google_service.download_drive_file(db, user_id, file_id)
+        if not file_content:
+            raise ValueError(f"Could not download Drive file {file_id}")
+        
+        # Upload to GCS
+        storage_service = get_storage_service()
+        await storage_service.upload_file_content(
+            file_content=file_content,
+            gcs_object_name=source_file.gcs_object_name
+        )
+        
+        # Note: ZIP extraction is handled by the ZIP worker, not the import worker
+        
+        # Update status to ready
+        source_file.status = 'ready'
+        source_file.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        
+        # Handle ZIP detection using centralized logic
+        from services.job_service import JobService
+        job_service = JobService()
+        await job_service._handle_zip_detection(db, source_file, mime_type, filename)
+        
+        # Send import completed event
+        from services.sse_service import sse_manager
+        await sse_manager.send_import_completed(
+            job_id, 
+            str(source_file.id), 
+            filename, 
+            file_size, 
+            source_file.status,  # Use actual status (ready or unpacking)
+            source_file.original_path  # Include original path
+        )
+        
+        logger.info(f"Successfully imported Drive file {filename} to GCS")
+        
+    except Exception as e:
+        # Update status to failed
+        source_file.status = 'failed'
+        source_file.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        raise
+
+async def _import_drive_folder(
+    db: Session,
+    job_id: str,
+    user_id: str,
+    folder_id: str,
+    folder_name: str,
+    parent_path: str = ""
+) -> None:
+    """Import all files from a Google Drive folder recursively"""
+    
+    logger.info(f"Processing Drive folder: {folder_name} (ID: {folder_id})")
+    
+    try:
+        # Get folder contents from Google Drive
+        folder_contents = google_service.list_drive_folder_contents(db, user_id, folder_id)
+        if not folder_contents:
+            logger.info(f"Folder {folder_name} is empty or inaccessible")
+            return
+        
+        # Build current folder path
+        current_path = os.path.join(parent_path, folder_name) if parent_path else folder_name
+        
+        # Process each item in the folder
+        for item in folder_contents:
+            item_id = item['id']
+            item_name = item['name']
+            item_mime_type = item.get('mimeType', 'application/octet-stream')
+            item_size = int(item.get('size', 0))
+            
+            # Build full path for this item
+            item_path = os.path.join(current_path, item_name)
+            
+            logger.info(f"Processing folder item: {item_path} (MIME: {item_mime_type})")
+            
+            if item_mime_type == 'application/vnd.google-apps.folder':
+                # Recursively process subfolder
+                logger.info(f"Found subfolder: {item_name}")
+                await _import_drive_folder(db, job_id, user_id, item_id, item_name, current_path)
+            else:
+                # Process regular file
+                logger.info(f"Found file: {item_name} ({item_size} bytes)")
+                await _import_drive_file_from_folder(db, job_id, user_id, item_id, item_name, item_path, item_mime_type, item_size)
+                
+    except Exception as e:
+        logger.error(f"Failed to process Drive folder {folder_name}: {e}")
+        raise
+
+async def _import_drive_file_from_folder(
+    db: Session,
+    job_id: str,
+    user_id: str,
+    file_id: str,
+    filename: str,
+    full_path: str,
+    mime_type: str,
+    file_size: int
+) -> None:
+    """Import a single file from within a Drive folder"""
+    
+    logger.info(f"Importing file from folder: {full_path}")
+    
+    try:
+        # Create source file record
+        source_file = SourceFile(
+            job_id=job_id,
+            original_filename=filename,
+            original_path=full_path,  # Full path within folder structure
+            gcs_object_name=f"imports/{job_id}/{file_id}_{filename}",
+            file_type=mime_type,
+            file_size_bytes=file_size,
+            status='importing',
+            source_type='drive',
+            external_id=file_id
+        )
+        db.add(source_file)
+        db.commit()
+        db.refresh(source_file)
+        
+        # Download file from Drive
+        file_content = google_service.download_drive_file(db, user_id, file_id)
+        if not file_content:
+            raise ValueError(f"Could not download Drive file {file_id}")
+        
+        # Upload to GCS
+        storage_service = get_storage_service()
+        await storage_service.upload_file_content(
+            file_content=file_content,
+            gcs_object_name=source_file.gcs_object_name
+        )
+        
+        # Update status to ready
+        source_file.status = 'ready'
+        source_file.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        
+        # Handle ZIP detection using centralized logic
+        from services.job_service import JobService
+        job_service = JobService()
+        await job_service._handle_zip_detection(db, source_file, mime_type, filename)
+        
+        # Send import completed event
+        from services.sse_service import sse_manager
+        await sse_manager.send_import_completed(
+            job_id, 
+            str(source_file.id), 
+            filename, 
+            file_size, 
+            source_file.status,  # Use actual status (ready or unpacking)
+            source_file.original_path  # Include original path
+        )
+        
+        logger.info(f"Successfully imported file from folder: {full_path}")
+        
+    except Exception as e:
+        # Update status to failed
+        if 'source_file' in locals():
+            source_file.status = 'failed'
+            source_file.updated_at = datetime.now(timezone.utc)
+            db.commit()
+        logger.error(f"Failed to import file from folder {full_path}: {e}")
+        raise
+
+async def _import_single_gmail_attachment(
+    db: Session,
+    job_id: str,
+    user_id: str,
+    attachment: Dict[str, str]
+) -> None:
+    """Import a single attachment from Gmail"""
+    
+    message_id = attachment['message_id']
+    attachment_id = attachment['attachment_id']
+    filename = attachment['filename']
+    
+    logger.info(f"Importing Gmail attachment: {filename}")
+    
+    # Download attachment from Gmail
+    file_content = google_service.download_gmail_attachment(
+        db, user_id, message_id, attachment_id
+    )
+    if not file_content:
+        raise ValueError(f"Could not download Gmail attachment {filename}")
+    
+    file_size = len(file_content)
+    
+    # Determine MIME type from filename
+    mime_type = 'application/pdf' if filename.lower().endswith('.pdf') else 'application/octet-stream'
+    
+    # Create source file record
+    source_file = SourceFile(
+        job_id=job_id,
+        original_filename=filename,
+        original_path=filename,
+        gcs_object_name=f"imports/{job_id}/{message_id}_{attachment_id}_{filename}",
+        file_type=mime_type,
+        file_size_bytes=file_size,
+        status='importing',
+        source_type='gmail',
+        external_id=f"{message_id}:{attachment_id}"
+    )
+    db.add(source_file)
+    db.commit()
+    db.refresh(source_file)
+    
+    try:
+        # Upload to GCS
+        storage_service = get_storage_service()
+        await storage_service.upload_file_content(
+            file_content=file_content,
+            gcs_object_name=source_file.gcs_object_name
+        )
+        
+        # Note: ZIP extraction is handled by the ZIP worker, not the import worker
+        
+        # Update status to ready
+        source_file.status = 'ready'
+        source_file.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        
+        # Handle ZIP detection using centralized logic
+        from services.job_service import JobService
+        job_service = JobService()
+        await job_service._handle_zip_detection(db, source_file, mime_type, filename)
+        
+        # Send import completed event
+        from services.sse_service import sse_manager
+        await sse_manager.send_import_completed(
+            job_id, 
+            str(source_file.id), 
+            filename, 
+            file_size, 
+            source_file.status,  # Use actual status (ready or unpacking)
+            source_file.original_path  # Include original path
+        )
+        
+        logger.info(f"Successfully imported Gmail attachment {filename} to GCS")
+        
+    except Exception as e:
+        # Update status to failed
+        source_file.status = 'failed'
+        source_file.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        raise
+
+async def _handle_zip_file(
+    db: Session,
+    source_file: SourceFile,
+    zip_content: bytes
+) -> None:
+    """Handle ZIP file extraction and create individual source file records"""
+    logger.info(f"Processing ZIP file: {source_file.original_filename}")
+    
+    try:
+        with zipfile.ZipFile(io.BytesIO(zip_content), 'r') as zip_ref:
+            for file_info in zip_ref.infolist():
+                # Skip directories and hidden files
+                if file_info.is_dir() or file_info.filename.startswith('.'):
+                    continue
+                
+                # Extract individual file
+                extracted_content = zip_ref.read(file_info.filename)
+                extracted_filename = os.path.basename(file_info.filename)
+                
+                # Determine MIME type
+                if extracted_filename.lower().endswith('.pdf'):
+                    mime_type = 'application/pdf'
+                else:
+                    mime_type = 'application/octet-stream'
+                
+                # Create source file record for extracted file
+                extracted_source_file = SourceFile(
+                    job_id=source_file.job_id,
+                    original_filename=extracted_filename,
+                    original_path=file_info.filename,  # Full path within ZIP
+                    gcs_object_name=f"imports/{source_file.job_id}/extracted_{extracted_filename}",
+                    file_type=mime_type,
+                    file_size_bytes=len(extracted_content),
+                    status='importing',
+                    source_type=source_file.source_type,
+                    external_id=f"{source_file.external_id}:{file_info.filename}"
+                )
+                db.add(extracted_source_file)
+                db.flush()  # Get ID without committing
+                
+                try:
+                    # Upload extracted file to GCS
+                    storage_service = get_storage_service()
+                    await storage_service.upload_file_content(
+                        file_content=extracted_content,
+                        gcs_object_name=extracted_source_file.gcs_object_name
+                    )
+                    
+                    extracted_source_file.status = 'ready'
+                    logger.info(f"Extracted and uploaded: {extracted_filename}")
+                    
+                except Exception as e:
+                    extracted_source_file.status = 'failed'
+                    logger.error(f"Failed to upload extracted file {extracted_filename}: {e}")
+            
+            db.commit()
+            logger.info(f"ZIP processing completed for {source_file.original_filename}")
+            
+    except Exception as e:
+        logger.error(f"Failed to process ZIP file {source_file.original_filename}: {e}")
+        raise
+
+class ImportWorkerSettings:
+    """ARQ worker configuration for import tasks (imports queue)"""
+    
+    redis_settings = RedisSettings.from_dsn(REDIS_URL)
+    queue_name = "imports"  # Dedicated queue for import tasks
+    
+    # Task functions for import processing
+    functions = [
+        import_drive_files,
+        import_gmail_attachments
+    ]
+    
+    # Worker configuration for import tasks (moderate concurrency)
+    max_jobs = 10  # Higher concurrency for I/O bound tasks
+    job_timeout = 300  # 5 minutes timeout for import operations
     keep_result = 3600  # Keep results for 1 hour
     
     # Logging

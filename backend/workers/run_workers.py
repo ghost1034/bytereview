@@ -21,13 +21,14 @@ else:
     print(f"Warning: service-account.json not found at {service_account_path}")
 
 from arq import run_worker
-from worker import WorkerSettings, ZipWorkerSettings
+from worker import WorkerSettings, ZipWorkerSettings, ImportWorkerSettings
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python run_workers.py [ai|zip]")
-        print("  ai  - Run AI extraction worker")
-        print("  zip - Run ZIP unpacking worker")
+        print("Usage: python run_workers.py [ai|zip|import]")
+        print("  ai     - Run AI extraction worker")
+        print("  zip    - Run ZIP unpacking worker")
+        print("  import - Run file import worker (Drive, Gmail)")
         sys.exit(1)
     
     worker_type = sys.argv[1].lower()
@@ -47,9 +48,13 @@ def main():
         print("Starting ZIP Worker (unpacking tasks)...")
         print("Logs will appear below...")
         run_worker(ZipWorkerSettings)
+    elif worker_type == "import":
+        print("Starting Import Worker (Drive, Gmail import tasks)...")
+        print("Logs will appear below...")
+        run_worker(ImportWorkerSettings)
     else:
         print(f"Unknown worker type: {worker_type}")
-        print("Use 'ai' or 'zip'")
+        print("Use 'ai', 'zip', or 'import'")
         sys.exit(1)
 
 if __name__ == "__main__":

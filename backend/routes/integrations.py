@@ -1,7 +1,7 @@
 """
 Integration routes for OAuth providers (Google, Microsoft, etc.)
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 import os
@@ -14,6 +14,7 @@ from core.database import get_db
 from dependencies.auth import get_current_user_id
 from models.db_models import User, IntegrationAccount
 from services.encryption_service import encryption_service
+from services.google_service import google_service
 
 # Google OAuth imports
 try:
@@ -395,4 +396,128 @@ async def refresh_google_token(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error during token refresh"
+        )
+
+@router.get("/google/picker-token")
+async def get_google_picker_token(
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Get Google access token for use with Google Picker API
+    """
+    account = db.query(IntegrationAccount).filter(
+        IntegrationAccount.user_id == current_user_id,
+        IntegrationAccount.provider == "google"
+    ).first()
+    
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Google integration not found"
+        )
+    
+    access_token = account.get_access_token()
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No access token available. Please re-authorize."
+        )
+    
+    # Check if token is expired and refresh if needed
+    if account.expires_at and datetime.now(timezone.utc) > account.expires_at:
+        refresh_token = account.get_refresh_token()
+        if not refresh_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token expired and no refresh token available. Please re-authorize."
+            )
+        
+        try:
+            config = get_google_config()
+            import requests
+            
+            token_data = {
+                "client_id": config['client_id'],
+                "client_secret": config['client_secret'],
+                "refresh_token": refresh_token,
+                "grant_type": "refresh_token"
+            }
+            
+            response = requests.post(
+                "https://oauth2.googleapis.com/token",
+                data=token_data
+            )
+            response.raise_for_status()
+            tokens = response.json()
+            
+            # Update the access token
+            account.set_access_token(tokens["access_token"])
+            
+            # Update expiry time
+            if "expires_in" in tokens:
+                account.expires_at = datetime.now(timezone.utc) + timedelta(seconds=tokens["expires_in"])
+            
+            # Update refresh token if provided
+            if "refresh_token" in tokens:
+                account.set_refresh_token(tokens["refresh_token"])
+            
+            account.updated_at = datetime.now(timezone.utc)
+            db.commit()
+            
+            access_token = tokens["access_token"]
+            logger.info(f"Refreshed Google token for picker use for user {current_user_id}")
+            
+        except requests.RequestException as e:
+            logger.error(f"Failed to refresh token for picker: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to refresh token. Please re-authorize."
+            )
+    
+    return {
+        "access_token": access_token
+    }
+
+@router.get("/gmail/attachments")
+async def get_gmail_attachments(
+    query: str = Query(default="has:attachment", description="Gmail search query"),
+    mimeTypes: str = Query(default="", description="Comma-separated MIME types to filter"),
+    limit: int = Query(default=50, max=100, description="Maximum number of attachments to return"),
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Get Gmail attachments matching the specified criteria
+    """
+    account = db.query(IntegrationAccount).filter(
+        IntegrationAccount.user_id == current_user_id,
+        IntegrationAccount.provider == "google"
+    ).first()
+    
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Google integration not found"
+        )
+    
+    try:
+        # Parse MIME types
+        mime_type_list = [mt.strip() for mt in mimeTypes.split(',') if mt.strip()] if mimeTypes else []
+        
+        # Get Gmail attachments using the Google service
+        attachments = google_service.get_gmail_attachments(
+            db, current_user_id, query, mime_type_list, limit
+        )
+        
+        return {
+            "attachments": attachments,
+            "total": len(attachments)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get Gmail attachments for user {current_user_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve Gmail attachments"
         )

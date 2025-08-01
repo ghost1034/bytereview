@@ -491,6 +491,25 @@ export class ApiClient {
     return this.request(`/api/integrations/gmail/attachments?${params}`)
   }
 
+  // File Import endpoints (Epic 3)
+  async importDriveFiles(jobId: string, fileIds: string[]): Promise<{ success: boolean; import_job_id: string; message: string; file_count: number }> {
+    return this.request(`/api/jobs/${jobId}/files:gdrive`, {
+      method: 'POST',
+      body: JSON.stringify({ file_ids: fileIds })
+    })
+  }
+
+  async importGmailAttachments(jobId: string, attachments: Array<{ message_id: string; attachment_id: string; filename: string }>): Promise<{ success: boolean; import_job_id: string; message: string; attachment_count: number }> {
+    return this.request(`/api/jobs/${jobId}/files:gmail`, {
+      method: 'POST',
+      body: JSON.stringify({ attachments })
+    })
+  }
+
+  async getImportStatus(jobId: string): Promise<{ total_files: number; by_source: Record<string, number>; by_status: Record<string, number>; files: Array<{ id: string; filename: string; source_type: string; status: string; file_size: number; updated_at: string | null }> }> {
+    return this.request(`/api/jobs/${jobId}/import-status`)
+  }
+
 }
 
 export const apiClient = new ApiClient()

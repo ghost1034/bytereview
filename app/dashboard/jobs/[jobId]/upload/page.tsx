@@ -6,8 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ArrowRight } from 'lucide-react'
-import FileUploadStep from '@/components/workflow/steps/FileUploadStep'
-import { UploadedFile } from '@/lib/api'
+import EnhancedFileUpload from '@/components/workflow/steps/EnhancedFileUpload';
 import { useToast } from '@/hooks/use-toast'
 
 async function getAuthToken(user: any): Promise<string> {
@@ -37,7 +36,10 @@ export default function JobUploadPage() {
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
-  const handleFilesUploaded = async (jobId: string, files: UploadedFile[]) => {
+  const handleFilesReady = async (files: any[]) => {
+    // Files are ready for the next step
+    console.log('Files ready:', files.length, 'files uploaded/imported')
+    
     try {
       // Update config step to fields
       const token = await getAuthToken(user)
@@ -50,34 +52,17 @@ export default function JobUploadPage() {
         body: JSON.stringify({ config_step: 'fields' })
       })
       
-      toast({
-        title: "Files uploaded successfully",
-        description: `${files.length} files ready for analysis`
-      })
-      
       // Navigate to next step
       router.push(`/dashboard/jobs/${jobId}/fields`)
     } catch (error) {
       console.error('Error updating config step:', error)
-      // Still navigate even if step update fails
       toast({
-        title: "Files uploaded successfully",
-        description: `${files.length} files ready for analysis`
-      })
-      router.push(`/dashboard/jobs/${jobId}/fields`)
-    }
-  }
-
-  const handleContinue = () => {
-    // Check if files are uploaded
-    if (job?.source_files?.length > 0) {
-      router.push(`/dashboard/jobs/${jobId}/fields`)
-    } else {
-      toast({
-        title: "No files uploaded",
-        description: "Please upload files before continuing",
+        title: "Navigation Error",
+        description: "Failed to update job step, but continuing anyway.",
         variant: "destructive"
       })
+      // Still navigate even if step update fails
+      router.push(`/dashboard/jobs/${jobId}/fields`)
     }
   }
 
@@ -100,36 +85,12 @@ export default function JobUploadPage() {
         Step 1 of 3
       </div>
 
-      {/* Upload Step */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Document Upload</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <FileUploadStep
-            jobId={jobId}
-            onFilesUploaded={handleFilesUploaded}
-            isLoading={isLoading}
-          />
-        </CardContent>
-      </Card>
+      {/* Enhanced File Upload with Multi-Source Support */}
+      <EnhancedFileUpload
+        jobId={jobId}
+        onFilesReady={handleFilesReady}
+      />
 
-      {/* Navigation */}
-      <div className="flex justify-between">
-        <Button 
-          variant="outline" 
-          onClick={() => router.push('/dashboard/jobs')}
-        >
-          Back to Jobs
-        </Button>
-        
-        {job?.source_files?.length > 0 && (
-          <Button onClick={handleContinue}>
-            Continue to Configuration
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </Button>
-        )}
-      </div>
     </div>
   )
 }

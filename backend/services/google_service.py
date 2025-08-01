@@ -4,7 +4,7 @@ Handles authenticated requests using stored OAuth tokens.
 """
 import logging
 from typing import Optional, List, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from models.db_models import IntegrationAccount
@@ -60,7 +60,7 @@ class GoogleService:
         )
         
         # Check if token needs refresh
-        if account.expires_at and datetime.utcnow() > account.expires_at:
+        if account.expires_at and datetime.now(timezone.utc) > account.expires_at:
             logger.info(f"Token expired for user {user_id}, attempting refresh")
             try:
                 creds.refresh(Request())
@@ -74,7 +74,7 @@ class GoogleService:
                 if creds.expiry:
                     account.expires_at = creds.expiry
                 
-                account.updated_at = datetime.utcnow()
+                account.updated_at = datetime.now(timezone.utc)
                 db.commit()
                 
                 logger.info(f"Token refreshed successfully for user {user_id}")
@@ -264,6 +264,131 @@ class GoogleService:
         except Exception as e:
             logger.error(f"Failed to download Gmail attachment for user {user_id}, message {message_id}, attachment {attachment_id}: {e}")
             return None
+
+    def get_gmail_attachments(self, db: Session, user_id: str, query: str = "", 
+                             mime_types: list = None, limit: int = 50) -> list:
+        """
+        Get Gmail attachments matching the specified criteria
+        """
+        gmail_service = self.get_gmail_service(db, user_id)
+        if not gmail_service:
+            return []
+
+        try:
+            # Search for messages with attachments
+            messages_result = gmail_service.users().messages().list(
+                userId='me',
+                q=query,
+                maxResults=limit
+            ).execute()
+            
+            messages = messages_result.get('messages', [])
+            attachments = []
+            
+            for message in messages:
+                try:
+                    # Get message details
+                    msg = gmail_service.users().messages().get(
+                        userId='me',
+                        id=message['id']
+                    ).execute()
+                    
+                    # Extract message metadata
+                    headers = msg['payload'].get('headers', [])
+                    subject = next((h['value'] for h in headers if h['name'] == 'Subject'), 'No Subject')
+                    from_email = next((h['value'] for h in headers if h['name'] == 'From'), 'Unknown')
+                    date = next((h['value'] for h in headers if h['name'] == 'Date'), 'Unknown')
+                    
+                    # Process message parts to find attachments
+                    def process_parts(parts, message_id, subject, from_email, date):
+                        found_attachments = []
+                        for part in parts:
+                            if part.get('parts'):
+                                # Recursive for nested parts
+                                found_attachments.extend(
+                                    process_parts(part['parts'], message_id, subject, from_email, date)
+                                )
+                            elif part.get('body', {}).get('attachmentId'):
+                                # This is an attachment
+                                filename = part.get('filename', 'unknown')
+                                mime_type = part.get('mimeType', 'application/octet-stream')
+                                size = part.get('body', {}).get('size', 0)
+                                
+                                # Filter by MIME type if specified
+                                if mime_types and mime_type not in mime_types:
+                                    continue
+                                
+                                found_attachments.append({
+                                    'messageId': message_id,
+                                    'attachmentId': part['body']['attachmentId'],
+                                    'filename': filename,
+                                    'mimeType': mime_type,
+                                    'size': size,
+                                    'subject': subject,
+                                    'from': from_email,
+                                    'date': date
+                                })
+                        return found_attachments
+                    
+                    # Process message payload
+                    if msg['payload'].get('parts'):
+                        attachments.extend(
+                            process_parts(msg['payload']['parts'], message['id'], subject, from_email, date)
+                        )
+                    elif msg['payload'].get('body', {}).get('attachmentId'):
+                        # Single attachment message
+                        filename = msg['payload'].get('filename', 'unknown')
+                        mime_type = msg['payload'].get('mimeType', 'application/octet-stream')
+                        size = msg['payload'].get('body', {}).get('size', 0)
+                        
+                        if not mime_types or mime_type in mime_types:
+                            attachments.append({
+                                'messageId': message['id'],
+                                'attachmentId': msg['payload']['body']['attachmentId'],
+                                'filename': filename,
+                                'mimeType': mime_type,
+                                'size': size,
+                                'subject': subject,
+                                'from': from_email,
+                                'date': date
+                            })
+                
+                except Exception as e:
+                    logger.warning(f"Failed to process message {message['id']}: {e}")
+                    continue
+            
+            logger.info(f"Found {len(attachments)} Gmail attachments for user {user_id}")
+            return attachments
+            
+        except Exception as e:
+            logger.error(f"Failed to get Gmail attachments: {e}")
+            return []
+
+    def list_drive_folder_contents(self, db: Session, user_id: str, folder_id: str) -> list:
+        """
+        List contents of a Google Drive folder
+        """
+        try:
+            # Get Drive service using existing pattern
+            drive_service = self.get_drive_service(db, user_id)
+            if not drive_service:
+                raise ValueError("Could not get Drive service")
+            
+            # List files in the folder
+            results = drive_service.files().list(
+                q=f"'{folder_id}' in parents and trashed=false",
+                fields="files(id,name,mimeType,size,parents)",
+                pageSize=1000  # Get up to 1000 items per folder
+            ).execute()
+            
+            items = results.get('files', [])
+            
+            logger.info(f"Found {len(items)} items in Drive folder {folder_id}")
+            return items
+            
+        except Exception as e:
+            logger.error(f"Failed to list Drive folder contents: {e}")
+            return []
 
 # Singleton instance
 google_service = GoogleService()
