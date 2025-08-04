@@ -22,10 +22,14 @@ import {
   ChevronRight,
   Folder,
   Files,
+  Cloud,
+  ExternalLink,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useJobDetails, useJobResults } from "@/hooks/useJobs";
 import { useAuth } from "@/contexts/AuthContext";
+import { useGoogleIntegration } from "@/hooks/useGoogleIntegration";
+import { apiClient } from "@/lib/api";
 
 // Type definitions for file tree structure
 type JobResult = {
@@ -334,6 +338,7 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
     isLoading: resultsLoading,
     error,
   } = useJobResults(jobId, 1000); // Get up to 1000 results
+  const { status: googleStatus, connect: connectGoogle, isConnecting } = useGoogleIntegration();
 
   const getAuthToken = async () => {
     if (!user) throw new Error('User not authenticated');
@@ -424,6 +429,78 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
   });
 
   const [exportLoading, setExportLoading] = useState<string | null>(null);
+
+  const handleExportToGoogleDriveCSV = async () => {
+    if (!results?.results) return;
+
+    try {
+      setExportLoading('gdrive-csv');
+      
+      const result = await apiClient.exportJobToGoogleDriveCSV(jobId);
+      
+      toast({
+        title: "Export successful",
+        description: (
+          <div className="flex flex-col gap-2">
+            <span>Results exported to Google Drive as CSV</span>
+            <a 
+              href={result.web_view_link} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+            >
+              <ExternalLink className="w-3 h-3" />
+              View in Google Drive
+            </a>
+          </div>
+        ),
+      });
+    } catch (error: any) {
+      toast({
+        title: "Export failed",
+        description: error.message || "Failed to export to Google Drive",
+        variant: "destructive",
+      });
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
+  const handleExportToGoogleDriveExcel = async () => {
+    if (!results?.results) return;
+
+    try {
+      setExportLoading('gdrive-excel');
+      
+      const result = await apiClient.exportJobToGoogleDriveExcel(jobId);
+      
+      toast({
+        title: "Export successful",
+        description: (
+          <div className="flex flex-col gap-2">
+            <span>Results exported to Google Drive as Excel</span>
+            <a 
+              href={result.web_view_link} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+            >
+              <ExternalLink className="w-3 h-3" />
+              View in Google Drive
+            </a>
+          </div>
+        ),
+      });
+    } catch (error: any) {
+      toast({
+        title: "Export failed",
+        description: error.message || "Failed to export to Google Drive",
+        variant: "destructive",
+      });
+    } finally {
+      setExportLoading(null);
+    }
+  };
 
   const handleExportCSV = async () => {
     if (!results?.results) return;
@@ -640,43 +717,101 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2">
-            <Button 
-              onClick={handleExportCSV} 
-              variant="outline"
-              disabled={exportLoading === 'csv' || !results?.results?.length}
-            >
-              {exportLoading === 'csv' ? (
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+          <div className="space-y-4">
+            {/* Local Download Options */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Download to Computer</h4>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleExportCSV} 
+                  variant="outline"
+                  disabled={exportLoading === 'csv' || !results?.results?.length}
+                >
+                  {exportLoading === 'csv' ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  )}
+                  Export CSV
+                </Button>
+                <Button 
+                  onClick={handleExportExcel} 
+                  variant="outline"
+                  disabled={exportLoading === 'excel' || !results?.results?.length}
+                >
+                  {exportLoading === 'excel' ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  )}
+                  Export Excel
+                </Button>
+                <Button 
+                  onClick={handleExportJSON} 
+                  variant="outline"
+                  disabled={exportLoading === 'json' || !results?.results?.length}
+                >
+                  {exportLoading === 'json' ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <FileText className="w-4 h-4 mr-2" />
+                  )}
+                  Export JSON
+                </Button>
+              </div>
+            </div>
+
+            {/* Google Drive Export Options */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Export to Google Drive</h4>
+              {googleStatus?.connected ? (
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleExportToGoogleDriveCSV} 
+                    variant="outline"
+                    disabled={exportLoading === 'gdrive-csv' || !results?.results?.length}
+                  >
+                    {exportLoading === 'gdrive-csv' ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Cloud className="w-4 h-4 mr-2" />
+                    )}
+                    Export CSV to Drive
+                  </Button>
+                  <Button 
+                    onClick={handleExportToGoogleDriveExcel} 
+                    variant="outline"
+                    disabled={exportLoading === 'gdrive-excel' || !results?.results?.length}
+                  >
+                    {exportLoading === 'gdrive-excel' ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Cloud className="w-4 h-4 mr-2" />
+                    )}
+                    Export Excel to Drive
+                  </Button>
+                </div>
               ) : (
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <Cloud className="w-5 h-5 text-blue-600" />
+                  <div className="flex-1">
+                    <p className="text-sm text-blue-800">
+                      Connect your Google account to export directly to Google Drive
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => connectGoogle('combined')} 
+                    size="sm"
+                    disabled={isConnecting}
+                  >
+                    {isConnecting ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : null}
+                    Connect Google Drive
+                  </Button>
+                </div>
               )}
-              Export CSV
-            </Button>
-            <Button 
-              onClick={handleExportExcel} 
-              variant="outline"
-              disabled={exportLoading === 'excel' || !results?.results?.length}
-            >
-              {exportLoading === 'excel' ? (
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-              )}
-              Export Excel
-            </Button>
-            <Button 
-              onClick={handleExportJSON} 
-              variant="outline"
-              disabled={exportLoading === 'json' || !results?.results?.length}
-            >
-              {exportLoading === 'json' ? (
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <FileText className="w-4 h-4 mr-2" />
-              )}
-              Export JSON
-            </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

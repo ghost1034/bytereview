@@ -14,9 +14,10 @@ from io import StringIO, BytesIO
 from dependencies.auth import get_current_user_id, verify_token_string
 from core.database import get_db
 from sqlalchemy.orm import Session
-from models.db_models import ExtractionJob, SourceFile
+from models.db_models import ExtractionJob, SourceFile, JobExport
 from services.job_service import JobService
 from services.sse_service import sse_manager
+from services.google_service import google_service
 from models.job import (
     JobInitiateRequest, JobInitiateResponse,
     JobStartRequest, JobStartResponse,
@@ -504,6 +505,92 @@ async def update_job_details(
         logger.error(f"Error updating job: {e}")
         raise HTTPException(status_code=500, detail="Failed to update job")
 
+# Helper functions for export generation
+def generate_csv_content(results_response) -> str:
+    """Generate CSV content from job results"""
+    if not results_response.results:
+        raise ValueError("No results found for this job")
+    
+    # Create CSV content
+    output = StringIO()
+    
+    # Determine field names from the first result
+    first_result = results_response.results[0]
+    if not first_result.extracted_data:
+        raise ValueError("No extracted data found")
+    
+    # Get field names from the columns snapshot in extracted_data
+    if "columns" not in first_result.extracted_data:
+        raise ValueError("Invalid extracted data format - missing columns")
+    
+    field_names = first_result.extracted_data["columns"]
+    
+    # Process array-based results
+    writer = csv.DictWriter(output, fieldnames=field_names)
+    writer.writeheader()
+    
+    for result in results_response.results:
+        if result.extracted_data and "results" in result.extracted_data:
+            for result_array in result.extracted_data["results"]:
+                row = {}
+                for i, field_name in enumerate(field_names):
+                    if i < len(result_array):
+                        value = result_array[i]
+                        row[field_name] = str(value) if value is not None else ""
+                    else:
+                        row[field_name] = ""
+                writer.writerow(row)
+    
+    # Get CSV content
+    csv_content = output.getvalue()
+    output.close()
+    return csv_content
+
+def generate_excel_content(results_response) -> bytes:
+    """Generate Excel content from job results"""
+    if not results_response.results:
+        raise ValueError("No results found for this job")
+    
+    # Create Excel workbook
+    workbook = openpyxl.Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Extraction Results"
+    
+    # Determine field names from the first result
+    first_result = results_response.results[0]
+    if not first_result.extracted_data:
+        raise ValueError("No extracted data found")
+    
+    # Get field names from the columns snapshot in extracted_data
+    if "columns" not in first_result.extracted_data:
+        raise ValueError("Invalid extracted data format - missing columns")
+    
+    field_names = first_result.extracted_data["columns"]
+    
+    # Write headers
+    for col_idx, field_name in enumerate(field_names, 1):
+        worksheet.cell(row=1, column=col_idx, value=field_name)
+    
+    # Process array-based results
+    row_idx = 2
+    for result in results_response.results:
+        if result.extracted_data and "results" in result.extracted_data:
+            for result_array in result.extracted_data["results"]:
+                for col_idx, field_name in enumerate(field_names, 1):
+                    if col_idx - 1 < len(result_array):
+                        value = result_array[col_idx - 1]
+                        cell_value = str(value) if value is not None else ""
+                    else:
+                        cell_value = ""
+                    worksheet.cell(row=row_idx, column=col_idx, value=cell_value)
+                row_idx += 1
+    
+    # Save to BytesIO
+    output = BytesIO()
+    workbook.save(output)
+    output.seek(0)
+    return output.getvalue()
+
 @router.get("/{job_id}/export/csv")
 async def export_job_results_csv(
     job_id: str,
@@ -514,42 +601,8 @@ async def export_job_results_csv(
         # Get job results
         results_response = await job_service.get_job_results(current_user_id, job_id)
         
-        if not results_response.results:
-            raise HTTPException(status_code=404, detail="No results found for this job")
-        
-        # Create CSV content
-        output = StringIO()
-        
-        # Determine field names from the first result
-        first_result = results_response.results[0]
-        if not first_result.extracted_data:
-            raise HTTPException(status_code=400, detail="No extracted data found")
-        
-        # Get field names from the columns snapshot in extracted_data
-        if "columns" not in first_result.extracted_data:
-            raise HTTPException(status_code=400, detail="Invalid extracted data format - missing columns")
-        
-        field_names = first_result.extracted_data["columns"]
-        
-        # Process array-based results
-        writer = csv.DictWriter(output, fieldnames=field_names)
-        writer.writeheader()
-        
-        for result in results_response.results:
-            if result.extracted_data and "results" in result.extracted_data:
-                for result_array in result.extracted_data["results"]:
-                    row = {}
-                    for i, field_name in enumerate(field_names):
-                        if i < len(result_array):
-                            value = result_array[i]
-                            row[field_name] = str(value) if value is not None else ""
-                        else:
-                            row[field_name] = ""
-                    writer.writerow(row)
-        
-        # Get CSV content
-        csv_content = output.getvalue()
-        output.close()
+        # Generate CSV content using helper function
+        csv_content = generate_csv_content(results_response)
         
         # Return as downloadable file
         return Response(
@@ -558,6 +611,8 @@ async def export_job_results_csv(
             headers={"Content-Disposition": f"attachment; filename=job_{job_id}_results.csv"}
         )
         
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"CSV export error for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"CSV export failed: {str(e)}")
@@ -572,58 +627,135 @@ async def export_job_results_excel(
         # Get job results
         results_response = await job_service.get_job_results(current_user_id, job_id)
         
-        if not results_response.results:
-            raise HTTPException(status_code=404, detail="No results found for this job")
-        
-        # Create Excel workbook
-        workbook = openpyxl.Workbook()
-        worksheet = workbook.active
-        worksheet.title = "Extraction Results"
-        
-        # Determine field names from the first result
-        first_result = results_response.results[0]
-        if not first_result.extracted_data:
-            raise HTTPException(status_code=400, detail="No extracted data found")
-        
-        # Get field names from the columns snapshot in extracted_data
-        if "columns" not in first_result.extracted_data:
-            raise HTTPException(status_code=400, detail="Invalid extracted data format - missing columns")
-        
-        field_names = first_result.extracted_data["columns"]
-        
-        # Write headers
-        for col_idx, field_name in enumerate(field_names, 1):
-            worksheet.cell(row=1, column=col_idx, value=field_name)
-        
-        # Process array-based results
-        row_idx = 2
-        for result in results_response.results:
-            if result.extracted_data and "results" in result.extracted_data:
-                for result_array in result.extracted_data["results"]:
-                    for col_idx, field_name in enumerate(field_names, 1):
-                        if col_idx - 1 < len(result_array):
-                            value = result_array[col_idx - 1]
-                            cell_value = str(value) if value is not None else ""
-                        else:
-                            cell_value = ""
-                        worksheet.cell(row=row_idx, column=col_idx, value=cell_value)
-                    row_idx += 1
-        
-        # Save to BytesIO
-        output = BytesIO()
-        workbook.save(output)
-        output.seek(0)
+        # Generate Excel content using helper function
+        excel_content = generate_excel_content(results_response)
         
         # Return as downloadable file
         return Response(
-            content=output.getvalue(),
+            content=excel_content,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={"Content-Disposition": f"attachment; filename=job_{job_id}_results.xlsx"}
         )
         
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Excel export error for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Excel export failed: {str(e)}")
+
+@router.get("/{job_id}/export/gdrive/csv")
+async def export_job_results_to_drive_csv(
+    job_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+    folder_id: Optional[str] = Query(None, description="Google Drive folder ID (optional)")
+):
+    """Export job results to Google Drive as CSV format"""
+    try:
+        # Get job results
+        results_response = await job_service.get_job_results(current_user_id, job_id)
+        
+        # Generate CSV content using helper function
+        csv_content = generate_csv_content(results_response)
+        
+        # Upload to Google Drive
+        filename = f"job_{job_id}_results.csv"
+        drive_file = google_service.upload_to_drive(
+            db=db,
+            user_id=current_user_id,
+            file_content=csv_content.encode('utf-8'),
+            filename=filename,
+            mime_type="text/csv",
+            folder_id=folder_id
+        )
+        
+        if not drive_file:
+            raise HTTPException(status_code=400, detail="Failed to upload to Google Drive. Please check your Google Drive integration.")
+        
+        # Create JobExport record
+        job_export = JobExport(
+            job_id=job_id,
+            dest_type="gdrive",
+            file_type="csv",
+            status="completed",
+            external_id=drive_file.get('id')
+        )
+        db.add(job_export)
+        db.commit()
+        
+        logger.info(f"Successfully exported job {job_id} to Google Drive as CSV: {drive_file.get('id')}")
+        
+        return {
+            "success": True,
+            "message": "Results exported to Google Drive successfully",
+            "drive_file_id": drive_file.get('id'),
+            "drive_file_name": drive_file.get('name'),
+            "web_view_link": drive_file.get('webViewLink'),
+            "web_content_link": drive_file.get('webContentLink')
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Google Drive CSV export error for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Google Drive CSV export failed: {str(e)}")
+
+@router.get("/{job_id}/export/gdrive/excel")
+async def export_job_results_to_drive_excel(
+    job_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+    folder_id: Optional[str] = Query(None, description="Google Drive folder ID (optional)")
+):
+    """Export job results to Google Drive as Excel format"""
+    try:
+        # Get job results
+        results_response = await job_service.get_job_results(current_user_id, job_id)
+        
+        # Generate Excel content using helper function
+        excel_content = generate_excel_content(results_response)
+        
+        # Upload to Google Drive
+        filename = f"job_{job_id}_results.xlsx"
+        drive_file = google_service.upload_to_drive(
+            db=db,
+            user_id=current_user_id,
+            file_content=excel_content,
+            filename=filename,
+            mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            folder_id=folder_id
+        )
+        
+        if not drive_file:
+            raise HTTPException(status_code=400, detail="Failed to upload to Google Drive. Please check your Google Drive integration.")
+        
+        # Create JobExport record
+        job_export = JobExport(
+            job_id=job_id,
+            dest_type="gdrive",
+            file_type="xlsx",
+            status="completed",
+            external_id=drive_file.get('id')
+        )
+        db.add(job_export)
+        db.commit()
+        
+        logger.info(f"Successfully exported job {job_id} to Google Drive as Excel: {drive_file.get('id')}")
+        
+        return {
+            "success": True,
+            "message": "Results exported to Google Drive successfully",
+            "drive_file_id": drive_file.get('id'),
+            "drive_file_name": drive_file.get('name'),
+            "web_view_link": drive_file.get('webViewLink'),
+            "web_content_link": drive_file.get('webContentLink')
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Google Drive Excel export error for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Google Drive Excel export failed: {str(e)}")
 
 # ===================================================================
 # File Import Endpoints (Epic 3)

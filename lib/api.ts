@@ -510,6 +510,65 @@ export class ApiClient {
     return this.request(`/api/jobs/${jobId}/import-status`)
   }
 
+  // Google Drive Export endpoints
+  async exportJobToGoogleDriveCSV(jobId: string, folderId?: string): Promise<{
+    success: boolean;
+    message: string;
+    drive_file_id: string;
+    drive_file_name: string;
+    web_view_link: string;
+    web_content_link: string;
+  }> {
+    const token = await this.getAuthToken()
+    const url = new URL(`${this.baseURL}/api/jobs/${jobId}/export/gdrive/csv`);
+    if (folderId) {
+      url.searchParams.append('folder_id', folderId);
+    }
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Google Drive CSV export failed' }));
+      throw new Error(error.detail || 'Google Drive CSV export failed');
+    }
+
+    return await response.json();
+  }
+
+  async exportJobToGoogleDriveExcel(jobId: string, folderId?: string): Promise<{
+    success: boolean;
+    message: string;
+    drive_file_id: string;
+    drive_file_name: string;
+    web_view_link: string;
+    web_content_link: string;
+  }> {
+    const token = await this.getAuthToken()
+    const url = new URL(`${this.baseURL}/api/jobs/${jobId}/export/gdrive/excel`);
+    if (folderId) {
+      url.searchParams.append('folder_id', folderId);
+    }
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Google Drive Excel export failed' }));
+      throw new Error(error.detail || 'Google Drive Excel export failed');
+    }
+
+    return await response.json();
+  }
+
 }
 
 export const apiClient = new ApiClient()

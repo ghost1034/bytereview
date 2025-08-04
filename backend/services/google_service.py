@@ -390,5 +390,66 @@ class GoogleService:
             logger.error(f"Failed to list Drive folder contents: {e}")
             return []
 
+    def upload_to_drive(
+        self, 
+        db: Session, 
+        user_id: str, 
+        file_content: bytes, 
+        filename: str, 
+        mime_type: str,
+        folder_id: str = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Upload a file to Google Drive and return file metadata
+        
+        Args:
+            db: Database session
+            user_id: User ID
+            file_content: File content as bytes
+            filename: Name for the file in Drive
+            mime_type: MIME type of the file
+            folder_id: Optional parent folder ID (defaults to root)
+            
+        Returns:
+            Dict with file metadata including 'id', 'name', 'webViewLink' or None if failed
+        """
+        drive_service = self.get_drive_service(db, user_id)
+        if not drive_service:
+            return None
+        
+        try:
+            from googleapiclient.http import MediaIoBaseUpload
+            from io import BytesIO
+            
+            # Prepare file metadata
+            file_metadata = {
+                'name': filename
+            }
+            
+            # Set parent folder if specified
+            if folder_id:
+                file_metadata['parents'] = [folder_id]
+            
+            # Create media upload object
+            media = MediaIoBaseUpload(
+                BytesIO(file_content),
+                mimetype=mime_type,
+                resumable=True
+            )
+            
+            # Upload the file
+            file = drive_service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields='id,name,webViewLink,webContentLink'
+            ).execute()
+            
+            logger.info(f"Successfully uploaded file to Drive: {file.get('id')} - {filename}")
+            return file
+            
+        except Exception as e:
+            logger.error(f"Failed to upload file to Drive for user {user_id}: {e}")
+            return None
+
 # Singleton instance
 google_service = GoogleService()

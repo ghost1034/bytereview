@@ -40,9 +40,9 @@ def get_google_config():
 
 # OAuth scopes for different services
 GOOGLE_SCOPES = {
-    "drive": "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email",
+    "drive": "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email",
     "gmail": "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email",
-    "combined": "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email"
+    "combined": "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email"
 }
 
 @router.get("/google/auth-url")
