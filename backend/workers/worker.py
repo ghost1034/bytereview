@@ -1055,6 +1055,256 @@ class ImportWorkerSettings:
     # Logging
     log_results = True
 
+# ===================================================================
+# Export Worker Functions (Google Drive, etc.)
+# ===================================================================
+
+async def export_startup(ctx: Dict[str, Any]) -> None:
+    """Initialize export worker resources"""
+    logger.info("Export worker starting up...")
+
+async def export_shutdown(ctx: Dict[str, Any]) -> None:
+    """Cleanup export worker resources"""
+    logger.info("Export worker shutting down...")
+
+async def export_job_to_google_drive(
+    ctx: Dict[str, Any],
+    job_id: str,
+    user_id: str,
+    file_type: str,  # 'csv' or 'xlsx'
+    folder_id: str = None
+) -> Dict[str, Any]:
+    """
+    Export job results to Google Drive as CSV or Excel
+    
+    Args:
+        job_id: Extraction job ID
+        user_id: User ID for OAuth credentials
+        file_type: Export format ('csv' or 'xlsx')
+        folder_id: Optional Google Drive folder ID
+        
+    Returns:
+        Dict with export results and Google Drive file info
+    """
+    logger.info(f"Starting Google Drive export for job {job_id}, format: {file_type}")
+    
+    with next(get_db()) as db:
+        try:
+            # Import here to avoid circular imports
+            from models.db_models import JobExport
+            from services.job_service import JobService
+            from services.google_service import google_service
+            
+            # Verify job exists and user has access
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id
+            ).first()
+            
+            if not job:
+                raise ValueError(f"Job {job_id} not found or access denied")
+            
+            # Create JobExport record to track the export
+            job_export = JobExport(
+                job_id=job_id,
+                dest_type="gdrive",
+                file_type=file_type,
+                status="processing"
+            )
+            db.add(job_export)
+            db.commit()
+            db.refresh(job_export)
+            
+            # Send export started event
+            from services.sse_service import sse_manager
+            await sse_manager.send_export_started(job_id, "Google Drive", file_type)
+            
+            # Get job results
+            job_service = JobService()
+            results_response = await job_service.get_job_results(user_id, job_id)
+            
+            if not results_response.results:
+                raise ValueError("No results found for this job")
+            
+            # Generate export content based on file type
+            if file_type == "csv":
+                content = _generate_csv_content(results_response)
+                filename = f"job_{job_id}_results.csv"
+                mime_type = "text/csv"
+                content_bytes = content.encode('utf-8')
+            elif file_type == "xlsx":
+                content_bytes = _generate_excel_content(results_response)
+                filename = f"job_{job_id}_results.xlsx"
+                mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            else:
+                raise ValueError(f"Unsupported file type: {file_type}")
+            
+            # Upload to Google Drive
+            drive_file = google_service.upload_to_drive(
+                db=db,
+                user_id=user_id,
+                file_content=content_bytes,
+                filename=filename,
+                mime_type=mime_type,
+                folder_id=folder_id
+            )
+            
+            if not drive_file:
+                raise ValueError("Failed to upload to Google Drive")
+            
+            # Update JobExport record with success
+            job_export.status = "completed"
+            job_export.external_id = drive_file.get('id')
+            db.commit()
+            
+            # Send export completed event
+            await sse_manager.send_export_completed(
+                job_id, 
+                "Google Drive", 
+                file_type,
+                drive_file.get('webViewLink')
+            )
+            
+            logger.info(f"Successfully exported job {job_id} to Google Drive: {drive_file.get('id')}")
+            
+            return {
+                "success": True,
+                "job_id": job_id,
+                "file_type": file_type,
+                "drive_file_id": drive_file.get('id'),
+                "drive_file_name": drive_file.get('name'),
+                "web_view_link": drive_file.get('webViewLink'),
+                "web_content_link": drive_file.get('webContentLink')
+            }
+            
+        except Exception as e:
+            logger.error(f"Google Drive export failed for job {job_id}: {e}")
+            
+            # Update JobExport record with failure
+            if 'job_export' in locals():
+                job_export.status = "failed"
+                job_export.error_message = str(e)
+                db.commit()
+            
+            # Send export failed event
+            try:
+                from services.sse_service import sse_manager
+                await sse_manager.send_export_failed(job_id, "Google Drive", file_type, str(e))
+            except Exception as sse_error:
+                logger.warning(f"Failed to send export_failed SSE event: {sse_error}")
+            
+            raise
+
+def _generate_csv_content(results_response) -> str:
+    """Generate CSV content from job results (sync version for worker)"""
+    import csv
+    from io import StringIO
+    
+    if not results_response.results:
+        raise ValueError("No results found for this job")
+    
+    # Create CSV content
+    output = StringIO()
+    
+    # Determine field names from the first result
+    first_result = results_response.results[0]
+    if not first_result.extracted_data:
+        raise ValueError("No extracted data found")
+    
+    # Get field names from the columns snapshot in extracted_data
+    if "columns" not in first_result.extracted_data:
+        raise ValueError("Invalid extracted data format - missing columns")
+    
+    field_names = first_result.extracted_data["columns"]
+    
+    # Process array-based results
+    writer = csv.DictWriter(output, fieldnames=field_names)
+    writer.writeheader()
+    
+    for result in results_response.results:
+        if result.extracted_data and "results" in result.extracted_data:
+            for result_array in result.extracted_data["results"]:
+                row = {}
+                for i, field_name in enumerate(field_names):
+                    if i < len(result_array):
+                        value = result_array[i]
+                        row[field_name] = str(value) if value is not None else ""
+                    else:
+                        row[field_name] = ""
+                writer.writerow(row)
+    
+    # Get CSV content
+    csv_content = output.getvalue()
+    output.close()
+    return csv_content
+
+def _generate_excel_content(results_response) -> bytes:
+    """Generate Excel content from job results (sync version for worker)"""
+    import openpyxl
+    from io import BytesIO
+    
+    if not results_response.results:
+        raise ValueError("No results found for this job")
+    
+    # Create Excel workbook
+    workbook = openpyxl.Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Extraction Results"
+    
+    # Determine field names from the first result
+    first_result = results_response.results[0]
+    if not first_result.extracted_data:
+        raise ValueError("No extracted data found")
+    
+    # Get field names from the columns snapshot in extracted_data
+    if "columns" not in first_result.extracted_data:
+        raise ValueError("Invalid extracted data format - missing columns")
+    
+    field_names = first_result.extracted_data["columns"]
+    
+    # Write headers
+    for col_idx, field_name in enumerate(field_names, 1):
+        worksheet.cell(row=1, column=col_idx, value=field_name)
+    
+    # Process array-based results
+    row_idx = 2
+    for result in results_response.results:
+        if result.extracted_data and "results" in result.extracted_data:
+            for result_array in result.extracted_data["results"]:
+                for col_idx, field_name in enumerate(field_names, 1):
+                    if col_idx - 1 < len(result_array):
+                        value = result_array[col_idx - 1]
+                        cell_value = str(value) if value is not None else ""
+                    else:
+                        cell_value = ""
+                    worksheet.cell(row=row_idx, column=col_idx, value=cell_value)
+                row_idx += 1
+    
+    # Save to BytesIO
+    output = BytesIO()
+    workbook.save(output)
+    output.seek(0)
+    return output.getvalue()
+
+class ExportWorkerSettings:
+    """ARQ worker configuration for export tasks (exports queue)"""
+    
+    redis_settings = RedisSettings.from_dsn(REDIS_URL)
+    queue_name = "exports"  # Dedicated queue for export tasks
+    
+    # Task functions for export processing
+    functions = [
+        export_job_to_google_drive
+    ]
+    
+    # Worker configuration for export tasks (moderate concurrency)
+    max_jobs = 5  # Moderate concurrency for export operations
+    job_timeout = 600  # 10 minutes timeout for export operations (longer for large datasets)
+    keep_result = 3600  # Keep results for 1 hour
+    
+    # Logging
+    log_results = True
+
 async def main():
     """For testing the worker locally"""
     redis = await create_pool(WorkerSettings.redis_settings)

@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useState, useEffect, useMemo, memo } from "react";
+import { useState, useEffect, useMemo, memo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -415,20 +415,134 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
     return findNode(fileTree);
   }, [selectedPath, fileTree]);
 
-  // Debug logging to see what we're actually getting from the API
-  console.log("ResultsStep Debug:", {
-    jobId,
-    results,
-    resultsLoading,
-    error,
-    resultsType: typeof results,
-    resultsKeys: results ? Object.keys(results) : null,
-    hasResults: results?.results ? results.results.length > 0 : false,
-    resultsArray: results?.results,
-    resultsArrayLength: results?.results?.length,
-  });
-
   const [exportLoading, setExportLoading] = useState<string | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
+
+  // Set up SSE connection for export events (only when export starts)
+  const setupExportSSEConnection = async () => {
+    if (!jobId || eventSourceRef.current) {
+      console.log('Export SSE connection already exists or no jobId');
+      return;
+    }
+
+    try {
+      console.log('Setting up Export SSE connection for export monitoring');
+      const token = await apiClient.getAuthTokenForSSE();
+      if (!token) {
+        console.warn('No auth token available for Export SSE');
+        return;
+      }
+      
+      const sseUrl = `http://localhost:8000/api/jobs/${jobId}/export-events?token=${encodeURIComponent(token)}`;
+      const eventSource = new EventSource(sseUrl);
+      eventSourceRef.current = eventSource;
+
+      eventSource.onopen = () => {
+        console.log('Export SSE connection established for export monitoring');
+      };
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          switch (data.type) {
+            case 'connected':
+              console.log('Export SSE connection confirmed');
+              break;
+
+            case 'export_started':
+              console.log('Export started:', data);
+              break;
+
+            case 'export_completed':
+              console.log('Export completed:', data);
+              
+              // Clear loading state
+              setExportLoading(null);
+              
+              // Show success notification with link
+              toast({
+                title: "Export completed",
+                description: (
+                  <div className="flex flex-col gap-2">
+                    <span>Results exported to {data.destination} as {data.file_type.toUpperCase()}</span>
+                    {data.file_link && (
+                      <a 
+                        href={data.file_link} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        View in {data.destination}
+                      </a>
+                    )}
+                  </div>
+                ),
+              });
+              
+              // Close SSE connection after export completes
+              closeExportSSEConnection();
+              break;
+
+            case 'export_failed':
+              console.log('Export failed:', data);
+              
+              // Clear loading state
+              setExportLoading(null);
+              
+              // Show error notification
+              toast({
+                title: "Export failed",
+                description: `Failed to export to ${data.destination}: ${data.error}`,
+                variant: "destructive",
+              });
+              
+              // Close SSE connection after export fails
+              closeExportSSEConnection();
+              break;
+
+            case 'keepalive':
+              // Ignore keepalive events
+              break;
+
+            default:
+              // Ignore other event types for export connection
+              break;
+          }
+        } catch (error) {
+          console.error('Error parsing Export SSE event:', error);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('Export SSE connection error:', error);
+        if (eventSource.readyState === EventSource.CLOSED) {
+          eventSourceRef.current = null;
+        }
+      };
+
+    } catch (error) {
+      console.error('Error setting up Export SSE:', error);
+    }
+  };
+
+  // Close Export SSE connection when no longer needed
+  const closeExportSSEConnection = () => {
+    if (eventSourceRef.current) {
+      console.log('Closing Export SSE connection');
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+  };
+
+  // Only cleanup on unmount - don't auto-setup connection
+  useEffect(() => {
+    // Cleanup on unmount
+    return () => {
+      closeExportSSEConnection();
+    };
+  }, []);
 
   const handleExportToGoogleDriveCSV = async () => {
     if (!results?.results) return;
@@ -436,33 +550,28 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
     try {
       setExportLoading('gdrive-csv');
       
+      // Set up SSE connection before starting export
+      await setupExportSSEConnection();
+      
       const result = await apiClient.exportJobToGoogleDriveCSV(jobId);
       
       toast({
-        title: "Export successful",
-        description: (
-          <div className="flex flex-col gap-2">
-            <span>Results exported to Google Drive as CSV</span>
-            <a 
-              href={result.web_view_link} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
-            >
-              <ExternalLink className="w-3 h-3" />
-              View in Google Drive
-            </a>
-          </div>
-        ),
+        title: "Export started",
+        description: "Your CSV export is being processed. You'll be notified when it's ready.",
       });
+      
+      // Note: Export completion will be handled via SSE events
+      // The loading state will be cleared when we receive export_completed or export_failed events
+      
     } catch (error: any) {
       toast({
         title: "Export failed",
-        description: error.message || "Failed to export to Google Drive",
+        description: error.message || "Failed to start export to Google Drive",
         variant: "destructive",
       });
-    } finally {
       setExportLoading(null);
+      // Close SSE connection if export failed to start
+      closeExportSSEConnection();
     }
   };
 
@@ -472,33 +581,28 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
     try {
       setExportLoading('gdrive-excel');
       
+      // Set up SSE connection before starting export
+      await setupExportSSEConnection();
+      
       const result = await apiClient.exportJobToGoogleDriveExcel(jobId);
       
       toast({
-        title: "Export successful",
-        description: (
-          <div className="flex flex-col gap-2">
-            <span>Results exported to Google Drive as Excel</span>
-            <a 
-              href={result.web_view_link} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
-            >
-              <ExternalLink className="w-3 h-3" />
-              View in Google Drive
-            </a>
-          </div>
-        ),
+        title: "Export started",
+        description: "Your Excel export is being processed. You'll be notified when it's ready.",
       });
+      
+      // Note: Export completion will be handled via SSE events
+      // The loading state will be cleared when we receive export_completed or export_failed events
+      
     } catch (error: any) {
       toast({
         title: "Export failed",
-        description: error.message || "Failed to export to Google Drive",
+        description: error.message || "Failed to start export to Google Drive",
         variant: "destructive",
       });
-    } finally {
       setExportLoading(null);
+      // Close SSE connection if export failed to start
+      closeExportSSEConnection();
     }
   };
 

@@ -279,6 +279,55 @@ class SSEManager:
             except Exception:
                 pass
     
+    async def listen_for_export_events(self, job_id: str) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Listen for export events for a specific job (Google Drive exports)
+        Uses the same Redis pub/sub system but filters for export events only
+        """
+        redis_client = await self._get_redis()
+        pubsub = redis_client.pubsub()
+        channel = f"job_events_{job_id}"
+        await pubsub.subscribe(channel)
+        
+        try:
+            # Send initial connection event
+            yield {"type": "connected", "job_id": job_id}
+            
+            # Listen for export events only
+            while True:
+                try:
+                    message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=30.0)
+                    
+                    if message is not None and message['data']:
+                        try:
+                            event = json.loads(message['data'])
+                            
+                            # Only yield export-related events
+                            if event.get('type') in ['export_started', 'export_completed', 'export_failed']:
+                                yield event
+                        except json.JSONDecodeError:
+                            continue
+                    else:
+                        # Send keepalive on timeout
+                        yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
+                        
+                except asyncio.TimeoutError:
+                    yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
+                    continue
+                except asyncio.CancelledError:
+                    break
+                    
+        except Exception as e:
+            logger.error(f"Export SSE listener error for job {job_id}: {e}")
+            yield {"type": "error", "message": str(e)}
+        finally:
+            # Clean up Redis subscription
+            try:
+                await pubsub.unsubscribe(channel)
+                await pubsub.close()
+            except Exception:
+                pass
+    
     async def _get_redis(self):
         """Get Redis connection for cross-process communication"""
         if self._redis is None:
@@ -481,6 +530,33 @@ class SSEManager:
             "source": source,
             "successful": successful,
             "total": total
+        })
+    
+    # Export-specific events
+    async def send_export_started(self, job_id: str, destination: str, file_type: str) -> None:
+        """Send export started event"""
+        await self.send_job_event(job_id, {
+            "type": "export_started",
+            "destination": destination,
+            "file_type": file_type
+        })
+    
+    async def send_export_completed(self, job_id: str, destination: str, file_type: str, file_link: str = None) -> None:
+        """Send export completed event"""
+        await self.send_job_event(job_id, {
+            "type": "export_completed",
+            "destination": destination,
+            "file_type": file_type,
+            "file_link": file_link
+        })
+    
+    async def send_export_failed(self, job_id: str, destination: str, file_type: str, error: str) -> None:
+        """Send export failed event"""
+        await self.send_job_event(job_id, {
+            "type": "export_failed",
+            "destination": destination,
+            "file_type": file_type,
+            "error": error
         })
     
 

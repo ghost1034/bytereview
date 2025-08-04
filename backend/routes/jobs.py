@@ -369,6 +369,50 @@ async def stream_job_zip_events(
         logger.error(f"Failed to start ZIP SSE stream for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start ZIP event stream: {str(e)}")
 
+@router.get("/{job_id}/export-events")
+async def stream_job_export_events(
+    job_id: str,
+    token: str = Query(...)
+):
+    """Server-Sent Events stream for real-time export updates (Google Drive exports)"""
+    try:
+        # Verify the token and get user_id
+        from dependencies.auth import verify_token_string
+        user_id = await verify_token_string(token)
+        
+        # Verify user has access to this job
+        await job_service.verify_job_access(user_id, job_id)
+        
+        async def export_event_generator():
+            try:
+                # Get SSE manager and listen for export events
+                from services.sse_service import sse_manager
+                
+                async for event in sse_manager.listen_for_export_events(job_id):
+                    yield f"data: {json.dumps(event)}\n\n"
+                    
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                logger.error(f"Error in export SSE stream for job {job_id}: {e}")
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+                return
+
+        return StreamingResponse(
+            export_event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Cache-Control"
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to start export SSE stream for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to start export event stream: {str(e)}")
+
 @router.get("/{job_id}/results", response_model=JobResultsResponse)
 async def get_job_results(
     job_id: str,
@@ -650,55 +694,48 @@ async def export_job_results_to_drive_csv(
     db: Session = Depends(get_db),
     folder_id: Optional[str] = Query(None, description="Google Drive folder ID (optional)")
 ):
-    """Export job results to Google Drive as CSV format"""
+    """Export job results to Google Drive as CSV format (async)"""
     try:
-        # Get job results
-        results_response = await job_service.get_job_results(current_user_id, job_id)
+        # Verify job exists and user has access
+        job = db.query(ExtractionJob).filter(
+            ExtractionJob.id == job_id,
+            ExtractionJob.user_id == current_user_id
+        ).first()
         
-        # Generate CSV content using helper function
-        csv_content = generate_csv_content(results_response)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
         
-        # Upload to Google Drive
-        filename = f"job_{job_id}_results.csv"
-        drive_file = google_service.upload_to_drive(
-            db=db,
-            user_id=current_user_id,
-            file_content=csv_content.encode('utf-8'),
-            filename=filename,
-            mime_type="text/csv",
-            folder_id=folder_id
-        )
+        # Enqueue export job
+        from arq import create_pool
+        from workers.worker import ExportWorkerSettings
         
-        if not drive_file:
-            raise HTTPException(status_code=400, detail="Failed to upload to Google Drive. Please check your Google Drive integration.")
+        redis = await create_pool(ExportWorkerSettings.redis_settings)
         
-        # Create JobExport record
-        job_export = JobExport(
+        job_result = await redis.enqueue_job(
+            'export_job_to_google_drive',
             job_id=job_id,
-            dest_type="gdrive",
-            file_type="csv",
-            status="completed",
-            external_id=drive_file.get('id')
+            user_id=current_user_id,
+            file_type='csv',
+            folder_id=folder_id,
+            _queue_name='exports'
         )
-        db.add(job_export)
-        db.commit()
         
-        logger.info(f"Successfully exported job {job_id} to Google Drive as CSV: {drive_file.get('id')}")
+        await redis.close()
+        
+        logger.info(f"Enqueued Google Drive CSV export job {job_result.job_id} for job {job_id}")
         
         return {
             "success": True,
-            "message": "Results exported to Google Drive successfully",
-            "drive_file_id": drive_file.get('id'),
-            "drive_file_name": drive_file.get('name'),
-            "web_view_link": drive_file.get('webViewLink'),
-            "web_content_link": drive_file.get('webContentLink')
+            "message": "Export started. You will be notified when it completes.",
+            "export_job_id": job_result.job_id,
+            "status": "processing"
         }
         
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Google Drive CSV export error for job {job_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Google Drive CSV export failed: {str(e)}")
+        logger.error(f"Failed to start Google Drive CSV export for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 @router.get("/{job_id}/export/gdrive/excel")
 async def export_job_results_to_drive_excel(
@@ -707,55 +744,48 @@ async def export_job_results_to_drive_excel(
     db: Session = Depends(get_db),
     folder_id: Optional[str] = Query(None, description="Google Drive folder ID (optional)")
 ):
-    """Export job results to Google Drive as Excel format"""
+    """Export job results to Google Drive as Excel format (async)"""
     try:
-        # Get job results
-        results_response = await job_service.get_job_results(current_user_id, job_id)
+        # Verify job exists and user has access
+        job = db.query(ExtractionJob).filter(
+            ExtractionJob.id == job_id,
+            ExtractionJob.user_id == current_user_id
+        ).first()
         
-        # Generate Excel content using helper function
-        excel_content = generate_excel_content(results_response)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
         
-        # Upload to Google Drive
-        filename = f"job_{job_id}_results.xlsx"
-        drive_file = google_service.upload_to_drive(
-            db=db,
-            user_id=current_user_id,
-            file_content=excel_content,
-            filename=filename,
-            mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            folder_id=folder_id
-        )
+        # Enqueue export job
+        from arq import create_pool
+        from workers.worker import ExportWorkerSettings
         
-        if not drive_file:
-            raise HTTPException(status_code=400, detail="Failed to upload to Google Drive. Please check your Google Drive integration.")
+        redis = await create_pool(ExportWorkerSettings.redis_settings)
         
-        # Create JobExport record
-        job_export = JobExport(
+        job_result = await redis.enqueue_job(
+            'export_job_to_google_drive',
             job_id=job_id,
-            dest_type="gdrive",
-            file_type="xlsx",
-            status="completed",
-            external_id=drive_file.get('id')
+            user_id=current_user_id,
+            file_type='xlsx',
+            folder_id=folder_id,
+            _queue_name='exports'
         )
-        db.add(job_export)
-        db.commit()
         
-        logger.info(f"Successfully exported job {job_id} to Google Drive as Excel: {drive_file.get('id')}")
+        await redis.close()
+        
+        logger.info(f"Enqueued Google Drive Excel export job {job_result.job_id} for job {job_id}")
         
         return {
             "success": True,
-            "message": "Results exported to Google Drive successfully",
-            "drive_file_id": drive_file.get('id'),
-            "drive_file_name": drive_file.get('name'),
-            "web_view_link": drive_file.get('webViewLink'),
-            "web_content_link": drive_file.get('webContentLink')
+            "message": "Export started. You will be notified when it completes.",
+            "export_job_id": job_result.job_id,
+            "status": "processing"
         }
         
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Google Drive Excel export error for job {job_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Google Drive Excel export failed: {str(e)}")
+        logger.error(f"Failed to start Google Drive Excel export for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 # ===================================================================
 # File Import Endpoints (Epic 3)
