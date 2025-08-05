@@ -930,50 +930,9 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
         </CardHeader>
         <CardContent>
           {results?.results && results.results.length > 0 ? (
-            results.results.length === 1 ? (
-              // Single result - show simple table
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium text-gray-900">
-                      {results.results[0].source_files.join(", ")}
-                    </h3>
-                    <Badge variant="secondary" className="mt-1">
-                      {results.results[0].processing_mode}
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-gray-200 rounded-lg">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        {jobDetails?.job_fields?.map((field) => (
-                          <th
-                            key={field.field_name}
-                            className="text-left px-4 py-2 font-medium text-gray-900 border-b"
-                          >
-                            {field.field_name}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b">
-                        {jobDetails?.job_fields?.map((field) => (
-                          <td key={field.field_name} className="px-4 py-2">
-                            {formatValue(
-                              getFieldValue(results.results[0], field.field_name, 0)
-                            )}
-                          </td>
-                        ))}
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : (
-              // Multiple results - show sidebar layout with file tree
+            // Always show sidebar layout with file tree (regardless of result count)
+            <div>
+              {/* Show sidebar layout with file tree */}
               <div className="flex gap-6">
                 {/* Sidebar with file tree */}
                 <div className="w-64 flex-shrink-0">
@@ -1109,7 +1068,7 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
                   )}
                 </div>
               </div>
-            )
+            </div>
           ) : (
             <div className="text-center py-8">
               <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
