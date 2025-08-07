@@ -3,15 +3,20 @@ Webhook endpoints for external service integrations
 """
 import logging
 import os
+import stripe
 from fastapi import APIRouter, Request, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 
 from core.database import get_db
 from services.gmail_pubsub_service import gmail_pubsub_service
+from services.billing_service import get_billing_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
+
+# Stripe webhook endpoint secret
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 async def verify_pubsub_request(request: Request):
     """
@@ -41,6 +46,62 @@ async def verify_pubsub_request(request: Request):
     # TODO: Implement proper JWT verification for production
     logger.warning("Allowing unauthenticated request for development - implement proper auth for production")
     return
+
+@router.post("/stripe")
+async def stripe_webhook(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Handle Stripe webhook events for billing and subscription management"""
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+    
+    if not STRIPE_WEBHOOK_SECRET:
+        logger.error("Stripe webhook secret not configured")
+        raise HTTPException(status_code=500, detail="Stripe webhook secret not configured")
+    
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError as e:
+        logger.error(f"Invalid Stripe webhook payload: {e}")
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError as e:
+        logger.error(f"Invalid Stripe webhook signature: {e}")
+        raise HTTPException(status_code=400, detail="Invalid signature")
+    
+    billing_service = get_billing_service(db)
+    
+    try:
+        # Handle the event
+        if event['type'] == 'checkout.session.completed':
+            logger.info(f"Processing checkout.session.completed: {event['data']['object']['id']}")
+            session = event['data']['object']
+            billing_service.handle_checkout_completed(session)
+            
+        elif event['type'] == 'customer.subscription.updated':
+            logger.info(f"Processing customer.subscription.updated: {event['data']['object']['id']}")
+            subscription = event['data']['object']
+            billing_service.handle_subscription_updated(subscription)
+            
+        elif event['type'] == 'customer.subscription.deleted':
+            logger.info(f"Processing customer.subscription.deleted: {event['data']['object']['id']}")
+            subscription = event['data']['object']
+            billing_service.handle_subscription_deleted(subscription)
+            
+        elif event['type'] == 'invoice.finalized':
+            logger.info(f"Processing invoice.finalized: {event['data']['object']['id']}")
+            # Optional: Add reconciliation logic here
+            pass
+        else:
+            logger.info(f"Unhandled Stripe event type: {event['type']}")
+        
+        return {"status": "success"}
+        
+    except Exception as e:
+        logger.error(f"Error processing Stripe webhook: {e}")
+        raise HTTPException(status_code=500, detail="Error processing webhook")
 
 @router.post("/gmail-push")
 async def gmail_push_webhook(

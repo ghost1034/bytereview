@@ -27,6 +27,7 @@ class User(Base):
     extraction_jobs = relationship("ExtractionJob", back_populates="user", cascade="all, delete-orphan")
     integration_accounts = relationship("IntegrationAccount", back_populates="user", cascade="all, delete-orphan")
     automations = relationship("Automation", back_populates="user", cascade="all, delete-orphan")
+    billing_account = relationship("BillingAccount", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
 class DataType(Base):
     """Canonical list of supported data types for extraction"""
@@ -371,4 +372,92 @@ class AutomationProcessedMessage(Base):
         # Prevent duplicate processing of same message by same automation
         CheckConstraint("automation_id IS NOT NULL AND message_id IS NOT NULL", name="check_automation_message_required"),
     )
+
+# ===================================================================
+# Billing & Subscription Models
+# ===================================================================
+
+class SubscriptionPlan(Base):
+    """Plan catalog and Stripe mapping"""
+    __tablename__ = "subscription_plans"
+    
+    code = Column(Text, primary_key=True)  # 'free'|'basic'|'pro'
+    display_name = Column(Text, nullable=False)
+    pages_included = Column(Integer, nullable=False)
+    automations_limit = Column(Integer, nullable=False)
+    overage_cents = Column(Integer, nullable=False)  # 0 for free
+    stripe_product_id = Column(Text, nullable=True)  # NULL for 'free'
+    stripe_price_recurring_id = Column(Text, nullable=True)
+    stripe_price_metered_id = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    billing_accounts = relationship("BillingAccount", back_populates="plan")
+
+class BillingAccount(Base):
+    """One row per user; free users: plan_code='free', no Stripe IDs"""
+    __tablename__ = "billing_accounts"
+    
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    plan_code = Column(Text, ForeignKey("subscription_plans.code"), nullable=False)
+    stripe_customer_id = Column(Text, nullable=True)  # NULL until first upgrade
+    stripe_subscription_id = Column(Text, nullable=True)  # NULL for free
+    current_period_start = Column(TIMESTAMP(timezone=True), nullable=True)  # from Stripe for paid; calendar month for free
+    current_period_end = Column(TIMESTAMP(timezone=True), nullable=True)
+    status = Column(Text, nullable=False, default='active')  # 'active','past_due','canceled','paused'
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    user = relationship("User", back_populates="billing_account")
+    plan = relationship("SubscriptionPlan", back_populates="billing_accounts")
+    usage_events = relationship("UsageEvent", back_populates="billing_account")
+    usage_counters = relationship("UsageCounter", back_populates="billing_account")
+
+class UsageEvent(Base):
+    """Authoritative, append-only usage events"""
+    __tablename__ = "usage_events"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    occurred_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    source = Column(Text, nullable=False)  # 'extraction_task', 'manual_adjustment', etc.
+    task_id = Column(UUID(as_uuid=True), ForeignKey("extraction_tasks.id", ondelete="SET NULL"), nullable=True)  # NULL for manual adjustments
+    pages = Column(Integer, nullable=False)
+    stripe_reported = Column(Boolean, nullable=False, default=False)
+    stripe_record_id = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
+    
+    __table_args__ = (
+        CheckConstraint("pages >= 0", name="check_pages_non_negative"),
+    )
+    
+    # Relationships
+    user = relationship("User")
+    task = relationship("ExtractionTask")
+    billing_account = relationship("BillingAccount", back_populates="usage_events")
+
+class UsageCounter(Base):
+    """Cached totals per active period (fast UI reads)"""
+    __tablename__ = "usage_counters"
+    
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    period_start = Column(TIMESTAMP(timezone=True), nullable=False)
+    period_end = Column(TIMESTAMP(timezone=True), nullable=False)
+    pages_total = Column(Integer, nullable=False, default=0)
+    
+    __table_args__ = (
+        {"schema": None},  # Composite primary key
+    )
+    
+    # Composite primary key
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    period_start = Column(TIMESTAMP(timezone=True), primary_key=True)
+    
+    # Relationships
+    user = relationship("User")
+    billing_account = relationship("BillingAccount", back_populates="usage_counters")
 
