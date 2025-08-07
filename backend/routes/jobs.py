@@ -210,7 +210,7 @@ async def get_job_files(
 ):
     """Get flat list of files in a job"""
     try:
-        files = await job_service.get_job_files(user_id, job_id, processable_only=processable)
+        files = await job_service.get_job_files(job_id, processable_only=processable, user_id=user_id)
         return JobFilesResponse(files=files)
     except ValueError as e:
         logger.warning(f"Job {job_id} not found for user {user_id}: {e}")
@@ -878,7 +878,7 @@ async def import_gmail_attachments(
         
         # Validate attachment data structure
         for attachment in attachments:
-            required_fields = ['message_id', 'attachment_id', 'filename']
+            required_fields = ['messageId', 'attachmentId', 'filename']
             for field in required_fields:
                 if field not in attachment:
                     raise HTTPException(

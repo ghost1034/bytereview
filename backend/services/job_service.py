@@ -213,7 +213,7 @@ class JobService:
             logger.error(f"Failed to enqueue existing tasks for job {job_id}: {e}")
             # Don't raise - job is still valid, tasks can be retried later
     
-    async def increment_task_completion(self, job_id: str, success: bool = True):
+    async def increment_task_completion(self, job_id: str, success: bool = True, automation_run_id: str = None):
         """Atomically update task progress from workers"""
         db = self._get_session()
         try:
@@ -256,6 +256,15 @@ class JobService:
                     logger.info(f"Job {job_id} completed - sent SSE event")
                 except Exception as e:
                     logger.warning(f"Failed to send job_completed SSE event: {e}")
+                
+                # Handle automation completion and exports when job finishes
+                if final_status == 'completed':
+                    try:
+                        # Check if this job completion should trigger automation exports
+                        await self._trigger_automation_exports_if_needed(db, job_id, automation_run_id)
+                        # Then complete automation runs (this will be handled by export completion)
+                    except Exception as e:
+                        logger.error(f"Failed to handle automation completion for job {job_id}: {e}")
             
             db.commit()
             
@@ -265,6 +274,158 @@ class JobService:
             raise
         finally:
             db.close()
+    
+    async def _complete_automation_runs_for_job(self, db: Session, job_id: str):
+        """
+        Mark all running automation runs as completed when a job finishes
+        This is called from increment_task_completion when all tasks are done
+        """
+        from models.db_models import AutomationRun
+        
+        # Find all running automation runs for this job
+        running_automation_runs = db.query(AutomationRun).filter(
+            AutomationRun.job_id == job_id,
+            AutomationRun.status == 'running'
+        ).all()
+        
+        if not running_automation_runs:
+            logger.info(f"No running automation runs found for completed job {job_id}")
+            return
+        
+        # Mark all running automation runs as completed
+        from services.automation_service import automation_service
+        for automation_run in running_automation_runs:
+            await automation_service.update_automation_run_status(
+                db, str(automation_run.id), 'completed'
+            )
+            logger.info(f"Marked automation run {automation_run.id} as completed (job {job_id} finished)")
+        
+        logger.info(f"Completed {len(running_automation_runs)} automation runs for job {job_id}")
+    
+    async def _trigger_automation_exports_if_needed(self, db: Session, job_id: str, automation_run_id: str = None):
+        """
+        Check if job completion should trigger automation exports
+        """
+        from models.db_models import AutomationRun, Automation
+        
+        try:
+            if automation_run_id:
+                # We have a specific automation run ID - use it directly
+                automation_run = db.query(AutomationRun).join(
+                    Automation, AutomationRun.automation_id == Automation.id
+                ).filter(
+                    AutomationRun.id == automation_run_id,
+                    AutomationRun.status == 'running'
+                ).first()
+                
+                if not automation_run:
+                    logger.warning(f"Automation run {automation_run_id} not found or not running")
+                    return
+                
+                automation = automation_run.automation
+                
+                # Check if export is configured
+                if automation.dest_type:
+                    logger.info(f"Triggering export for automation run {automation_run.id} to {automation.dest_type}")
+                    
+                    # Enqueue export based on destination type
+                    if automation.dest_type == 'gdrive':
+                        await self._enqueue_drive_export(automation_run, automation)
+                    else:
+                        logger.warning(f"Unsupported export destination: {automation.dest_type}")
+                        # Mark as completed if export type not supported
+                        from services.automation_service import automation_service
+                        await automation_service.update_automation_run_status(
+                            db, str(automation_run.id), 'completed'
+                        )
+                else:
+                    # No export configured, mark as completed
+                    from services.automation_service import automation_service
+                    await automation_service.update_automation_run_status(
+                        db, str(automation_run.id), 'completed'
+                    )
+                    logger.info(f"No export configured for automation run {automation_run.id}, marked as completed")
+                    
+            else:
+                # Fallback: Find running automation runs for this job (for manual jobs or legacy)
+                automation_runs = db.query(AutomationRun).join(
+                    Automation, AutomationRun.automation_id == Automation.id
+                ).filter(
+                    AutomationRun.job_id == job_id,
+                    AutomationRun.status == 'running',
+                    Automation.dest_type.isnot(None)  # Has export destination configured
+                ).all()
+                
+                if not automation_runs:
+                    logger.info(f"No running automation runs with exports found for job {job_id}")
+                    # If no exports needed, complete automation runs normally
+                    await self._complete_automation_runs_for_job(db, job_id)
+                    return
+                
+                for automation_run in automation_runs:
+                    automation = automation_run.automation
+                    logger.info(f"Triggering export for automation run {automation_run.id} to {automation.dest_type}")
+                    
+                    # Enqueue export based on destination type
+                    if automation.dest_type == 'gdrive':
+                        await self._enqueue_drive_export(automation_run, automation)
+                    else:
+                        logger.warning(f"Unsupported export destination: {automation.dest_type}")
+                        # Mark as completed if export type not supported
+                        from services.automation_service import automation_service
+                        await automation_service.update_automation_run_status(
+                            db, str(automation_run.id), 'completed'
+                        )
+                    
+        except Exception as e:
+            logger.error(f"Failed to trigger automation exports for job {job_id}: {e}")
+            # Don't re-raise - export failure shouldn't break job completion
+            if automation_run_id:
+                # Mark specific automation run as failed
+                from services.automation_service import automation_service
+                await automation_service.update_automation_run_status(
+                    db, automation_run_id, 'failed', f'Export trigger failed: {str(e)}'
+                )
+            else:
+                # Complete automation runs normally as fallback
+                await self._complete_automation_runs_for_job(db, job_id)
+    
+    async def _enqueue_drive_export(self, automation_run, automation):
+        """
+        Enqueue Google Drive export for an automation run
+        """
+        from arq import create_pool
+        
+        try:
+            # Get export configuration (default to CSV for now)
+            export_config = automation.export_config or {}
+            file_type = export_config.get('file_type', 'csv')
+            folder_id = export_config.get('folder_id')
+            
+            # Enqueue export worker
+            redis = await create_pool(self.redis_settings)
+            
+            await redis.enqueue_job(
+                'export_job_to_google_drive',
+                job_id=automation.job_id,
+                user_id=automation.user_id,
+                file_type=file_type,
+                folder_id=folder_id,
+                automation_run_id=str(automation_run.id),
+                _queue_name='exports'
+            )
+            
+            await redis.close()
+            
+            logger.info(f"Enqueued Google Drive export for automation run {automation_run.id}")
+            
+        except Exception as e:
+            logger.error(f"Failed to enqueue Drive export for automation run {automation_run.id}: {e}")
+            # Mark automation run as failed
+            from services.automation_service import automation_service
+            await automation_service.update_automation_run_status(
+                db, str(automation_run.id), 'failed', f'Export enqueue failed: {str(e)}'
+            )
     
     
     def get_resumable_jobs(self, user_id: str) -> list[ExtractionJob]:
@@ -902,15 +1063,20 @@ class JobService:
         finally:
             db.close()
 
-    async def get_job_files(self, user_id: str, job_id: str, processable_only: bool = False) -> List[JobFileInfo]:
+    async def get_job_files(self, job_id: str, processable_only: bool = False, user_id: str = None) -> List[JobFileInfo]:
         """Get flat list of files in a job"""
         db = self._get_session()
         try:
-            # Get the job
-            job = db.query(ExtractionJob).filter(
-                ExtractionJob.id == job_id,
-                ExtractionJob.user_id == user_id
-            ).first()
+            # Get the job (with optional user_id check for security)
+            if user_id:
+                job = db.query(ExtractionJob).filter(
+                    ExtractionJob.id == job_id,
+                    ExtractionJob.user_id == user_id
+                ).first()
+            else:
+                job = db.query(ExtractionJob).filter(
+                    ExtractionJob.id == job_id
+                ).first()
             
             if not job:
                 raise ValueError(f"Job {job_id} not found")
@@ -1001,7 +1167,7 @@ class JobService:
             filename.lower().endswith('.zip')
         )
 
-    async def _handle_zip_detection(self, db, source_file, mime_type: str, filename: str) -> None:
+    async def _handle_zip_detection(self, db, source_file, mime_type: str, filename: str, automation_run_id: str = None) -> bool:
         """Handle ZIP file detection and enqueue extraction if needed"""
         if self._is_zip_file(mime_type, filename):
             # Update status to unpacking
@@ -1009,10 +1175,13 @@ class JobService:
             db.commit()
             
             # Enqueue ZIP extraction task
-            await self._enqueue_zip_extraction(str(source_file.id))
+            await self._enqueue_zip_extraction(str(source_file.id), automation_run_id)
             logger.info(f"Detected and enqueued ZIP extraction for file {source_file.id}")
+            return True  # This is a ZIP file
+        
+        return False  # This is not a ZIP file
 
-    async def _enqueue_zip_extraction(self, source_file_id: str) -> None:
+    async def _enqueue_zip_extraction(self, source_file_id: str, automation_run_id: str = None) -> None:
         """Enqueue ZIP extraction task"""
         try:
             # Get Redis connection
@@ -1022,7 +1191,8 @@ class JobService:
                 # Enqueue to zip_queue
                 job_info = await redis.enqueue_job(
                     'unpack_zip_file_task',
-                    str(source_file_id),
+                    source_file_id=source_file_id,
+                    automation_run_id=automation_run_id,
                     _queue_name='zip_queue'
                 )
                 logger.info(f"Enqueued ZIP extraction task for file {source_file_id} as job {job_info.job_id}")

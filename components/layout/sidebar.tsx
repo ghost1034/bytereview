@@ -10,7 +10,8 @@ import {
   FileText, 
   Settings,
   LogOut,
-  Plug
+  Plug,
+  Bot
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -50,6 +51,12 @@ export function Sidebar({ className }: SidebarProps) {
       href: '/dashboard/integrations',
       icon: Plug,
       current: pathname.startsWith('/dashboard/integrations')
+    },
+    {
+      name: 'Automations',
+      href: '/dashboard/automations',
+      icon: Bot,
+      current: pathname.startsWith('/dashboard/automations')
     },
     {
       name: 'Settings',

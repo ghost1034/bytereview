@@ -3,6 +3,7 @@ Google API service for Drive and Gmail operations.
 Handles authenticated requests using stored OAuth tokens.
 """
 import logging
+import os
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
@@ -450,6 +451,883 @@ class GoogleService:
         except Exception as e:
             logger.error(f"Failed to upload file to Drive for user {user_id}: {e}")
             return None
+    
+    def search_gmail_messages(self, db: Session, user_id: str, query: str) -> List[str]:
+        """
+        Search Gmail messages using query syntax
+        
+        Args:
+            db: Database session
+            user_id: User ID
+            query: Gmail search query (e.g., "has:attachment from:example@gmail.com")
+            
+        Returns:
+            List of message IDs matching the query
+        """
+        gmail_service = self.get_gmail_service(db, user_id)
+        if not gmail_service:
+            return []
+        
+        try:
+            # Search for messages
+            results = gmail_service.users().messages().list(
+                userId='me',
+                q=query,
+                maxResults=100  # Limit to prevent overwhelming the system
+            ).execute()
+            
+            messages = results.get('messages', [])
+            message_ids = [msg['id'] for msg in messages]
+            
+            logger.info(f"Found {len(message_ids)} messages for query: {query}")
+            return message_ids
+            
+        except Exception as e:
+            logger.error(f"Failed to search Gmail messages for user {user_id}: {e}")
+            return []
+    
+    def get_gmail_message_attachments(self, db: Session, user_id: str, message_id: str) -> List[Dict[str, Any]]:
+        """
+        Get attachments from a specific Gmail message
+        
+        Args:
+            db: Database session
+            user_id: User ID
+            message_id: Gmail message ID
+            
+        Returns:
+            List of attachment metadata dictionaries
+        """
+        gmail_service = self.get_gmail_service(db, user_id)
+        if not gmail_service:
+            return []
+        
+        try:
+            # Get message details
+            message = gmail_service.users().messages().get(
+                userId='me',
+                id=message_id,
+                format='full'
+            ).execute()
+            
+            attachments = []
+            
+            # Process message parts to find attachments
+            def process_parts(parts):
+                for part in parts:
+                    if part.get('parts'):
+                        # Recursive call for nested parts
+                        process_parts(part['parts'])
+                    elif part.get('body', {}).get('attachmentId'):
+                        # This is an attachment
+                        filename = part.get('filename', 'unknown')
+                        if filename and filename != '':
+                            attachments.append({
+                                'messageId': message_id,
+                                'attachmentId': part['body']['attachmentId'],
+                                'filename': filename,
+                                'mimeType': part.get('mimeType', 'application/octet-stream'),
+                                'size': part.get('body', {}).get('size', 0)
+                            })
+            
+            # Process message payload
+            payload = message.get('payload', {})
+            if payload.get('parts'):
+                process_parts(payload['parts'])
+            elif payload.get('body', {}).get('attachmentId'):
+                # Single attachment message
+                filename = payload.get('filename', 'unknown')
+                if filename and filename != '':
+                    attachments.append({
+                        'messageId': message_id,
+                        'attachmentId': payload['body']['attachmentId'],
+                        'filename': filename,
+                        'mimeType': payload.get('mimeType', 'application/octet-stream'),
+                        'size': payload.get('body', {}).get('size', 0)
+                    })
+            
+            logger.info(f"Found {len(attachments)} attachments in message {message_id}")
+            return attachments
+            
+        except Exception as e:
+            logger.error(f"Failed to get attachments for message {message_id}: {e}")
+            return []
+    
+    async def import_gmail_attachments(
+        self, 
+        db: Session, 
+        job_id: str, 
+        attachments: List[Dict[str, Any]],
+        automation_run_id: str = None
+    ) -> Dict[str, Any]:
+        """
+        Import Gmail attachments into a job - creates SourceFiles only
+        ExtractionTasks will be created later by run_initializer_worker
+        
+        Args:
+            db: Database session
+            job_id: Extraction job ID
+            attachments: List of attachment metadata with messageId, attachmentId, filename, etc.
+            automation_run_id: Optional automation run ID for tracking
+            
+        Returns:
+            Dict with import results
+        """
+        try:
+            from models.db_models import SourceFile, ExtractionTask, ExtractionJob
+            from services.gcs_service import GCSService
+            from services.sse_service import sse_manager
+            import uuid
+            import os
+            
+            # Get the job to verify it exists
+            job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
+            if not job:
+                raise ValueError(f"Job {job_id} not found")
+            
+            user_id = job.user_id
+            gmail_service = self.get_gmail_service(db, user_id)
+            if not gmail_service:
+                raise ValueError("Could not get Gmail service")
+            
+            # Send import started event
+            await sse_manager.send_import_started(job_id, "Gmail", len(attachments))
+            
+            successful = 0
+            ready = 0
+            failed = 0
+            
+            for attachment in attachments:
+                try:
+                    message_id = attachment.get('messageId')
+                    attachment_id = attachment.get('attachmentId')
+                    filename = attachment.get('filename', 'unknown')
+                    mime_type = attachment.get('mimeType', 'application/octet-stream')
+                    
+                    if not message_id or not attachment_id:
+                        logger.error(f"Missing messageId or attachmentId for attachment {filename}")
+                        failed += 1
+                        continue
+                    
+                    logger.info(f"Downloading Gmail attachment: {filename}")
+                    
+                    # Download attachment from Gmail
+                    attachment_data = gmail_service.users().messages().attachments().get(
+                        userId='me',
+                        messageId=message_id,
+                        id=attachment_id
+                    ).execute()
+                    
+                    # Decode the attachment data
+                    import base64
+                    file_data = base64.urlsafe_b64decode(attachment_data['data'])
+                    
+                    # Generate unique filename for GCS
+                    file_extension = os.path.splitext(filename)[1] if '.' in filename else ''
+                    unique_filename = f"{uuid.uuid4()}{file_extension}"
+                    gcs_path = f"jobs/{job_id}/gmail_imports/{unique_filename}"
+                    
+                    # Upload to GCS
+                    logger.info(f"Uploading {filename} to GCS: {gcs_path}")
+                    gcs_service = GCSService()
+                    await gcs_service.upload_file_content(
+                        file_content=file_data,
+                        gcs_object_name=gcs_path
+                    )
+                    
+                    # GCS upload successful - construct the GCS URL
+                    gcs_url = f"gs://{gcs_service.bucket_name}/{gcs_path}"
+                    
+                    # Create SourceFile record
+                    source_file = SourceFile(
+                        id=str(uuid.uuid4()),
+                        job_id=job_id,
+                        original_filename=filename,
+                        original_path=filename,  # Just the filename for Gmail (no folder structure)
+                        gcs_object_name=gcs_path,  # GCS object name for storage
+                        file_type=mime_type,
+                        file_size_bytes=len(file_data),
+                        source_type='gmail',
+                        status='uploaded'
+                    )
+                    db.add(source_file)
+                    
+                    # Flush to ensure the source file ID is available
+                    db.flush()
+                    
+                    # Handle ZIP files using the existing centralized ZIP detection system
+                    from services.job_service import JobService
+                    job_service = JobService()
+                    is_zip = await job_service._handle_zip_detection(db, source_file, mime_type, filename, automation_run_id)
+                    
+                    # Send import completed event for individual file
+                    await sse_manager.send_import_completed(
+                        job_id, 
+                        str(source_file.id), 
+                        filename, 
+                        len(file_data), 
+                        source_file.status,  # Use actual status (uploaded or unpacking)
+                        source_file.original_path  # Include original path
+                    )
+                    
+                    logger.info(f"Created SourceFile {source_file.id} for {filename}")
+                    
+                    # Import counted as successful
+                    successful += 1
+                    
+                    # Non-ZIP files are considered ready
+                    # ZIP files are not ready until unpacked
+                    if not is_zip:
+                        ready += 1
+                    
+                except Exception as e:
+                    logger.error(f"Failed to import attachment {filename}: {e}")
+                    failed += 1
+                    # Failed files are neither successful nor ready
+            
+            # Update automation run import tracking if this is an automation
+            if automation_run_id:
+                logger.info(f"Updating automation import tracking for run {automation_run_id}: successful={successful}, failed={failed}, processed={ready}")
+                await self._update_automation_import_tracking(
+                    db, automation_run_id, 
+                    successful=successful, 
+                    failed=failed, 
+                    processed=ready
+                )
+            else:
+                logger.info(f"No automation_run_id provided, skipping import tracking update")
+            
+            # Commit all changes
+            db.commit()
+            
+            # Send import batch completed event
+            await sse_manager.send_import_batch_completed(job_id, "Gmail", successful, len(attachments))
+            
+            logger.info(f"Gmail import completed: {successful} successful, {failed} failed, {ready} ready for processing")
+            
+            return {
+                "successful": successful,
+                "failed": failed,
+                "total": len(attachments)
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Gmail import failed for job {job_id}: {e}")
+            return {
+                "successful": 0,
+                "failed": len(attachments),
+                "total": len(attachments),
+                "error": str(e)
+            }
+    
+    def get_last_processed_history_id(self, db: Session, user_id: str) -> str:
+        """
+        Get the last processed Gmail history ID for a user
+        
+        Args:
+            db: Database session
+            user_id: User ID
+            
+        Returns:
+            Last processed history ID or None if never processed
+        """
+        try:
+            from models.db_models import IntegrationAccount
+            
+            # Get the user's Gmail integration account
+            integration = db.query(IntegrationAccount).filter(
+                IntegrationAccount.user_id == user_id,
+                IntegrationAccount.provider == 'google'
+            ).first()
+            
+            if integration and integration.last_history_id:
+                return integration.last_history_id
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to get last processed history ID for user {user_id}: {e}")
+            return None
+    
+    def update_last_processed_history_id(self, db: Session, user_id: str, history_id: str):
+        """
+        Update the last processed Gmail history ID for a user
+        
+        Args:
+            db: Database session
+            user_id: User ID
+            history_id: History ID to store
+        """
+        try:
+            from models.db_models import IntegrationAccount
+            
+            # Get the user's Gmail integration account
+            integration = db.query(IntegrationAccount).filter(
+                IntegrationAccount.user_id == user_id,
+                IntegrationAccount.provider == 'google'
+            ).first()
+            
+            if integration:
+                integration.last_history_id = history_id
+                db.commit()
+                logger.info(f"Updated last processed history ID to {history_id} for user {user_id}")
+            else:
+                logger.warning(f"No Google integration account found for user {user_id}")
+            
+        except Exception as e:
+            logger.error(f"Failed to update last processed history ID for user {user_id}: {e}")
+    
+    def get_messages_since_history(self, db: Session, user_id: str, start_history_id: str) -> List[str]:
+        """
+        Get new messages since a specific history ID using Gmail history API
+        
+        Args:
+            db: Database session
+            user_id: User ID
+            start_history_id: Gmail history ID to start from
+            
+        Returns:
+            List of new message IDs
+        """
+        gmail_service = self.get_gmail_service(db, user_id)
+        if not gmail_service:
+            return []
+        
+        try:
+            logger.info(f"Getting messages since history ID: {start_history_id}")
+            
+            # Get history changes since the given history ID
+            history_response = gmail_service.users().history().list(
+                userId='me',
+                startHistoryId=start_history_id,
+                historyTypes=['messageAdded']  # Only get added messages
+            ).execute()
+            
+            message_ids = []
+            history_records = history_response.get('history', [])
+            
+            logger.info(f"History API returned {len(history_records)} history records")
+            
+            for record in history_records:
+                messages_added = record.get('messagesAdded', [])
+                for message_added in messages_added:
+                    message_id = message_added['message']['id']
+                    message_ids.append(message_id)
+                    logger.info(f"Found new message: {message_id}")
+            
+            logger.info(f"Found {len(message_ids)} new messages since history {start_history_id}")
+            return message_ids
+            
+        except Exception as e:
+            logger.error(f"Failed to get messages since history {start_history_id}: {e}")
+            return []
+    
+    def message_matches_query(self, db: Session, user_id: str, message_id: str, query: str) -> bool:
+        """
+        Check if a specific message matches a Gmail query
+        
+        Args:
+            db: Database session
+            user_id: User ID
+            message_id: Gmail message ID to check
+            query: Gmail search query
+            
+        Returns:
+            True if message matches query, False otherwise
+        """
+        gmail_service = self.get_gmail_service(db, user_id)
+        if not gmail_service:
+            return False
+        
+        try:
+            logger.info(f"Checking if message {message_id} matches query: '{query}'")
+            
+            # Get the message with full payload to check attachments
+            message = gmail_service.users().messages().get(
+                userId='me',
+                id=message_id,
+                format='full'  # Changed to 'full' to get attachment info
+            ).execute()
+            
+            payload = message.get('payload', {})
+            logger.info(f"Message {message_id} payload keys: {list(payload.keys())}")
+            
+            # For now, let's do a simple check based on the query
+            # This is a simplified implementation - in production you'd want more sophisticated matching
+            
+            # Check for "has:attachment" in query
+            if 'has:attachment' in query.lower():
+                logger.info(f"Checking if message {message_id} has attachments")
+                # Check if message has attachments
+                has_attachments = self._message_has_attachments(payload)
+                logger.info(f"Message {message_id} has attachments: {has_attachments}")
+                if not has_attachments:
+                    logger.info(f"Message {message_id} does not match query - no attachments")
+                    return False
+            
+            # Check for "filename:" criteria
+            if 'filename:' in query.lower():
+                filename_criteria = []
+                parts = query.lower().split()
+                for part in parts:
+                    if part.startswith('filename:'):
+                        filename_criteria.append(part.split('filename:')[1])
+                
+                logger.info(f"Checking filename criteria: {filename_criteria}")
+                if filename_criteria:
+                    has_matching_filename = self._message_has_matching_filename(payload, filename_criteria)
+                    logger.info(f"Message {message_id} has matching filename: {has_matching_filename}")
+                    if not has_matching_filename:
+                        logger.info(f"Message {message_id} does not match query - no matching filename")
+                        return False
+            
+            # Check for "from:" criteria
+            if 'from:' in query.lower():
+                from_criteria = []
+                parts = query.split()
+                for part in parts:
+                    if part.lower().startswith('from:'):
+                        from_criteria.append(part.split('from:')[1])
+                
+                if from_criteria:
+                    headers = message.get('payload', {}).get('headers', [])
+                    from_header = next((h['value'] for h in headers if h['name'].lower() == 'from'), '')
+                    if not any(criteria.lower() in from_header.lower() for criteria in from_criteria):
+                        return False
+            
+            # Check for "subject:" criteria
+            if 'subject:' in query.lower():
+                subject_criteria = []
+                parts = query.split()
+                for part in parts:
+                    if part.lower().startswith('subject:'):
+                        subject_criteria.append(part.split('subject:')[1])
+                
+                if subject_criteria:
+                    headers = message.get('payload', {}).get('headers', [])
+                    subject_header = next((h['value'] for h in headers if h['name'].lower() == 'subject'), '')
+                    if not any(criteria.lower() in subject_header.lower() for criteria in subject_criteria):
+                        return False
+            
+            logger.info(f"Message {message_id} matches query: {query}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to check if message {message_id} matches query '{query}': {e}")
+            return False
+    
+    def _message_has_attachments(self, payload: dict) -> bool:
+        """Check if a message payload has attachments"""
+        logger.info(f"Checking payload for attachments. Payload structure: {self._debug_payload_structure(payload)}")
+        
+        def check_parts(parts):
+            for i, part in enumerate(parts):
+                logger.info(f"Checking part {i}: mimeType={part.get('mimeType')}, filename={part.get('filename')}, has_attachmentId={bool(part.get('body', {}).get('attachmentId'))}")
+                if part.get('parts'):
+                    if check_parts(part['parts']):
+                        return True
+                elif part.get('body', {}).get('attachmentId'):
+                    logger.info(f"Found attachment in part {i}")
+                    return True
+            return False
+        
+        if payload.get('parts'):
+            logger.info(f"Payload has {len(payload['parts'])} parts")
+            return check_parts(payload['parts'])
+        elif payload.get('body', {}).get('attachmentId'):
+            logger.info("Found attachment in main payload body")
+            return True
+        
+        logger.info("No attachments found in payload")
+        return False
+    
+    def _debug_payload_structure(self, payload: dict) -> str:
+        """Helper to debug payload structure"""
+        if not payload:
+            return "empty"
+        
+        info = f"mimeType={payload.get('mimeType')}"
+        if payload.get('parts'):
+            info += f", parts_count={len(payload['parts'])}"
+        if payload.get('body', {}).get('attachmentId'):
+            info += ", has_main_attachment=True"
+        if payload.get('filename'):
+            info += f", filename={payload.get('filename')}"
+        
+        return info
+    
+    def _message_has_matching_filename(self, payload: dict, filename_criteria: List[str]) -> bool:
+        """Check if message has attachments matching filename criteria"""
+        logger.info(f"Checking for filename criteria: {filename_criteria}")
+        
+        def check_parts(parts):
+            for i, part in enumerate(parts):
+                if part.get('parts'):
+                    if check_parts(part['parts']):
+                        return True
+                elif part.get('body', {}).get('attachmentId'):
+                    filename = part.get('filename', '').lower()
+                    logger.info(f"Part {i} attachment filename: '{filename}'")
+                    if filename and any(criteria in filename for criteria in filename_criteria):
+                        logger.info(f"Filename '{filename}' matches criteria {filename_criteria}")
+                        return True
+            return False
+        
+        if payload.get('parts'):
+            return check_parts(payload['parts'])
+        elif payload.get('body', {}).get('attachmentId'):
+            filename = payload.get('filename', '').lower()
+            logger.info(f"Main payload attachment filename: '{filename}'")
+            return filename and any(criteria in filename for criteria in filename_criteria)
+        
+        logger.info("No matching filenames found")
+        return False
+    
+    async def import_drive_files(
+        self, 
+        db: Session, 
+        job_id: str, 
+        user_id: str, 
+        drive_file_ids: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Import files from Google Drive - creates SourceFiles only
+        
+        Args:
+            db: Database session
+            job_id: Extraction job ID
+            user_id: User ID for OAuth credentials
+            drive_file_ids: List of Google Drive file IDs to import
+            
+        Returns:
+            Dict with import results
+        """
+        from services.sse_service import sse_manager
+        
+        # Send import started event
+        await sse_manager.send_import_started(job_id, "Google Drive", len(drive_file_ids))
+        
+        successful = 0
+        failed = 0
+        errors = []
+        
+        # Process each Drive file
+        for file_id in drive_file_ids:
+            try:
+                await self._import_single_drive_file(db, job_id, user_id, file_id)
+                successful += 1
+                logger.info(f"Successfully imported Drive file {file_id}")
+                
+            except Exception as e:
+                logger.error(f"Failed to import Drive file {file_id}: {e}")
+                failed += 1
+                errors.append({
+                    'file_id': file_id,
+                    'error': str(e)
+                })
+        
+        # Send import batch completed event
+        await sse_manager.send_import_batch_completed(job_id, "Google Drive", successful, len(drive_file_ids))
+        
+        return {
+            'total': len(drive_file_ids),
+            'successful': successful,
+            'failed': failed,
+            'errors': errors
+        }
+    
+    async def _import_single_drive_file(
+        self, 
+        db: Session, 
+        job_id: str, 
+        user_id: str, 
+        file_id: str
+    ) -> None:
+        """Import a single file or folder from Google Drive"""
+        from models.db_models import SourceFile
+        from services.gcs_service import get_storage_service
+        from services.job_service import JobService
+        from services.sse_service import sse_manager
+        
+        try:
+            logger.info(f"Getting metadata for Drive file {file_id}")
+            # Get file metadata from Drive
+            file_metadata = self.get_drive_file_metadata(db, user_id, file_id)
+            if not file_metadata:
+                raise ValueError(f"Could not get metadata for Drive file {file_id}")
+            
+            filename = file_metadata['name']
+            file_size = int(file_metadata.get('size', 0))
+            mime_type = file_metadata.get('mimeType', 'application/octet-stream')
+            
+            logger.info(f"Importing Drive item: {filename} ({file_size} bytes), MIME: {mime_type}")
+            
+            # Check if this is a folder
+            if mime_type == 'application/vnd.google-apps.folder':
+                logger.info(f"Processing Drive folder: {filename}")
+                await self._import_drive_folder(db, job_id, user_id, file_id, filename)
+                return
+            
+            logger.info(f"Creating source file record for {filename}")
+            # Create source file record for regular file
+            source_file = SourceFile(
+                job_id=job_id,
+                original_filename=filename,
+                original_path=filename,
+                gcs_object_name=f"imports/{job_id}/{file_id}_{filename}",
+                file_type=mime_type,
+                file_size_bytes=file_size,
+                status='importing',
+                source_type='drive',
+                external_id=file_id
+            )
+            db.add(source_file)
+            db.commit()
+            db.refresh(source_file)
+            
+            # Download file from Drive
+            file_content = self.download_drive_file(db, user_id, file_id)
+            if not file_content:
+                raise ValueError(f"Could not download Drive file {file_id}")
+            
+            # Upload to GCS
+            storage_service = get_storage_service()
+            await storage_service.upload_file_content(
+                file_content=file_content,
+                gcs_object_name=source_file.gcs_object_name
+            )
+            
+            # Update status to uploaded
+            source_file.status = 'uploaded'
+            source_file.updated_at = datetime.utcnow()
+            db.commit()
+            
+            # Handle ZIP detection using centralized logic
+            job_service = JobService()
+            await job_service._handle_zip_detection(db, source_file, mime_type, filename)
+            
+            # Send import completed event
+            await sse_manager.send_import_completed(
+                job_id, 
+                str(source_file.id), 
+                filename, 
+                file_size, 
+                source_file.status,  # Use actual status (uploaded or unpacking)
+                source_file.original_path  # Include original path
+            )
+            
+            logger.info(f"Successfully imported Drive file {filename} to GCS")
+            
+        except Exception as e:
+            # Update status to failed
+            if 'source_file' in locals():
+                source_file.status = 'failed'
+                source_file.updated_at = datetime.utcnow()
+                db.commit()
+            raise
+    
+    async def _import_drive_folder(
+        self,
+        db: Session,
+        job_id: str,
+        user_id: str,
+        folder_id: str,
+        folder_name: str,
+        parent_path: str = ""
+    ) -> None:
+        """Import all files from a Google Drive folder recursively"""
+        
+        logger.info(f"Processing Drive folder: {folder_name} (ID: {folder_id})")
+        
+        try:
+            # Get folder contents from Google Drive
+            folder_contents = self.list_drive_folder_contents(db, user_id, folder_id)
+            if not folder_contents:
+                logger.info(f"Folder {folder_name} is empty or inaccessible")
+                return
+            
+            # Build current folder path
+            current_path = os.path.join(parent_path, folder_name) if parent_path else folder_name
+            
+            # Process each item in the folder
+            for item in folder_contents:
+                item_id = item['id']
+                item_name = item['name']
+                item_mime_type = item.get('mimeType', 'application/octet-stream')
+                item_size = int(item.get('size', 0))
+                
+                # Build full path for this item
+                item_path = os.path.join(current_path, item_name)
+                
+                logger.info(f"Processing folder item: {item_path} (MIME: {item_mime_type})")
+                
+                if item_mime_type == 'application/vnd.google-apps.folder':
+                    # Recursively process subfolder
+                    logger.info(f"Found subfolder: {item_name}")
+                    await self._import_drive_folder(db, job_id, user_id, item_id, item_name, current_path)
+                else:
+                    # Process regular file
+                    logger.info(f"Found file: {item_name} ({item_size} bytes)")
+                    await self._import_drive_file_from_folder(db, job_id, user_id, item_id, item_name, item_path, item_mime_type, item_size)
+                    
+        except Exception as e:
+            logger.error(f"Failed to process Drive folder {folder_name}: {e}")
+            raise
+    
+    async def _import_drive_file_from_folder(
+        self,
+        db: Session,
+        job_id: str,
+        user_id: str,
+        file_id: str,
+        filename: str,
+        full_path: str,
+        mime_type: str,
+        file_size: int
+    ) -> None:
+        """Import a single file from within a Drive folder"""
+        from models.db_models import SourceFile
+        from services.gcs_service import get_storage_service
+        from services.job_service import JobService
+        from services.sse_service import sse_manager
+        
+        logger.info(f"Importing file from folder: {full_path}")
+        
+        try:
+            # Create source file record
+            source_file = SourceFile(
+                job_id=job_id,
+                original_filename=filename,
+                original_path=full_path,  # Full path within folder structure
+                gcs_object_name=f"imports/{job_id}/{file_id}_{filename}",
+                file_type=mime_type,
+                file_size_bytes=file_size,
+                status='importing',
+                source_type='drive',
+                external_id=file_id
+            )
+            db.add(source_file)
+            db.commit()
+            db.refresh(source_file)
+            
+            # Download file from Drive
+            file_content = self.download_drive_file(db, user_id, file_id)
+            if not file_content:
+                raise ValueError(f"Could not download Drive file {file_id}")
+            
+            # Upload to GCS
+            storage_service = get_storage_service()
+            await storage_service.upload_file_content(
+                file_content=file_content,
+                gcs_object_name=source_file.gcs_object_name
+            )
+            
+            # Update status to uploaded
+            source_file.status = 'uploaded'
+            source_file.updated_at = datetime.utcnow()
+            db.commit()
+            
+            # Handle ZIP detection using centralized logic
+            job_service = JobService()
+            await job_service._handle_zip_detection(db, source_file, mime_type, filename)
+            
+            # Send import completed event
+            await sse_manager.send_import_completed(
+                job_id, 
+                str(source_file.id), 
+                filename, 
+                file_size, 
+                source_file.status,  # Use actual status (uploaded or unpacking)
+                source_file.original_path  # Include original path
+            )
+            
+            logger.info(f"Successfully imported file from folder: {full_path}")
+            
+        except Exception as e:
+            # Update status to failed
+            if 'source_file' in locals():
+                source_file.status = 'failed'
+                source_file.updated_at = datetime.utcnow()
+                db.commit()
+            logger.error(f"Failed to import file from folder {full_path}: {e}")
+            raise
+
+    
+    async def _update_automation_import_tracking(
+        self, 
+        db: Session, 
+        automation_run_id: str, 
+        successful: int = 0,
+        failed: int = 0, 
+        processed: int = 0, 
+        processing_failed: int = 0
+    ):
+        """Update automation run import tracking counters with atomic database operations"""
+        from models.db_models import AutomationRun
+        from sqlalchemy import func
+        from sqlalchemy.orm import Session
+        
+        try:
+            # Use atomic ORM update to prevent race conditions
+            updated_rows = db.query(AutomationRun).filter(
+                AutomationRun.id == automation_run_id
+            ).update({
+                AutomationRun.imports_successful: func.coalesce(AutomationRun.imports_successful, 0) + successful,
+                AutomationRun.imports_failed: func.coalesce(AutomationRun.imports_failed, 0) + failed,
+                AutomationRun.imports_processed: func.coalesce(AutomationRun.imports_processed, 0) + processed,
+                AutomationRun.imports_processing_failed: func.coalesce(AutomationRun.imports_processing_failed, 0) + processing_failed
+            }, synchronize_session=False)
+            
+            if updated_rows == 0:
+                logger.warning(f"Automation run {automation_run_id} not found for import tracking update")
+                return
+            
+            # Commit the atomic update
+            db.commit()
+            
+            # Get the updated automation run to check completion
+            automation_run = db.query(AutomationRun).filter(AutomationRun.id == automation_run_id).first()
+            if not automation_run:
+                logger.warning(f"Automation run {automation_run_id} not found after update")
+                return
+            
+            total = automation_run.imports_total or 0
+            successful_count = automation_run.imports_successful or 0
+            failed_count = automation_run.imports_failed or 0
+            processed_count = automation_run.imports_processed or 0
+            processing_failed_count = automation_run.imports_processing_failed or 0
+            
+            logger.info(f"Updated automation run {automation_run_id} import tracking: {successful_count} successful, {failed_count} import failed, {processed_count} processed, {processing_failed_count} processing failed (total: {total})")
+            
+            # Check if all imports are complete (successful + failed = total) and all processing is done
+            if total > 0 and successful_count + failed_count >= total and processed_count + processing_failed_count >= successful_count:
+                logger.info(f"All imports and processing complete for automation run {automation_run_id}, triggering initialization")
+                await self._trigger_automation_initialization(automation_run)
+                    
+        except Exception as e:
+            logger.error(f"Failed to update automation import tracking for {automation_run_id}: {e}")
+            db.rollback()
+            raise
+    
+    async def _trigger_automation_initialization(self, automation_run):
+        """Trigger job initialization for a specific automation run"""
+        from arq import create_pool
+        from workers.worker import AutomationWorkerSettings
+        
+        # Enqueue job initialization
+        redis = await create_pool(AutomationWorkerSettings.redis_settings)
+        
+        await redis.enqueue_job(
+            'run_initializer_worker',
+            job_id=automation_run.job_id,
+            automation_run_id=str(automation_run.id),
+            _queue_name='automation'
+        )
+        
+        await redis.close()
+        
+        logger.info(f"Enqueued job initialization for automation run {automation_run.id}")
 
 # Singleton instance
 google_service = GoogleService()

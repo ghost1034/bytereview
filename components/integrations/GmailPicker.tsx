@@ -29,8 +29,8 @@ import { toast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 
 interface GmailAttachment {
-  id: string;
   messageId: string;
+  attachmentId: string;
   filename: string;
   mimeType: string;
   size: number;
@@ -139,8 +139,8 @@ export function GmailPicker({
         
         // Convert to the format expected by the API
         const attachmentData = selected.map(att => ({
-          message_id: att.messageId,
-          attachment_id: att.attachmentId,
+          messageId: att.messageId,
+          attachmentId: att.attachmentId,
           filename: att.filename
         }));
         

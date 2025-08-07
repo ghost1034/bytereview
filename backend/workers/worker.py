@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 # Redis configuration
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 
-async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str, Any]:
+async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_run_id: str = None) -> Dict[str, Any]:
     """
     Process a single extraction task using AI
     This is the core background task for data extraction
@@ -222,10 +222,12 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str
         try:
             from services.job_service import JobService
             job_service = JobService()
-            await job_service.increment_task_completion(task.job_id, success=True)
+            automation_run_id = ctx.get('automation_run_id')
+            await job_service.increment_task_completion(task.job_id, success=True, automation_run_id=automation_run_id)
             logger.info(f"Incremented task completion counter for job {task.job_id}")
         except Exception as e:
             logger.error(f"Failed to increment task completion counter: {e}")
+        
         
         # Send SSE event for task completed
         try:
@@ -251,7 +253,8 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str
             try:
                 from services.job_service import JobService
                 job_service = JobService()
-                await job_service.increment_task_completion(task.job_id, success=False)
+                automation_run_id = ctx.get('automation_run_id')
+                await job_service.increment_task_completion(task.job_id, success=False, automation_run_id=automation_run_id)
                 logger.info(f"Incremented task failure counter for job {task.job_id}")
             except Exception as e:
                 logger.error(f"Failed to increment task failure counter: {e}")
@@ -276,7 +279,7 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str) -> Dict[str
     finally:
         db.close()
 
-async def unpack_zip_file_task(ctx: Dict[str, Any], source_file_id: str) -> Dict[str, Any]:
+async def unpack_zip_file_task(ctx: Dict[str, Any], source_file_id: str, automation_run_id: str = None) -> Dict[str, Any]:
     """
     Unpack a ZIP file and register its contents as individual source files
     This task runs in the high-memory ZIP worker pool
@@ -407,6 +410,14 @@ async def unpack_zip_file_task(ctx: Dict[str, Any], source_file_id: str) -> Dict
             
             logger.info(f"Successfully unpacked ZIP file {source_file_id}: {files_extracted} files extracted")
             
+            # If this is part of an automation, count the ZIP file as processed now that it's unpacked
+            if automation_run_id:
+                from services.google_service import google_service
+                await google_service._update_automation_import_tracking(
+                    db, automation_run_id, 
+                    processed=1
+                )
+            
         finally:
             # Clean up temporary directory
             if temp_dir and os.path.exists(temp_dir):
@@ -429,6 +440,15 @@ async def unpack_zip_file_task(ctx: Dict[str, Any], source_file_id: str) -> Dict
         if 'zip_file' in locals():
             zip_file.status = FileStatus.FAILED.value
             db.commit()
+            
+            # If this is part of an automation, count the ZIP file processing as failed
+            if automation_run_id:
+                from services.google_service import google_service
+                await google_service._update_automation_import_tracking(
+                    db, automation_run_id, 
+                    processing_failed=1
+                )
+                logger.info(f"Marked ZIP processing as failed for automation run {automation_run_id}")
             
             # Send SSE event for extraction failure
             from services.sse_service import sse_manager
@@ -540,7 +560,7 @@ async def import_drive_files(
     drive_file_ids: List[str]
 ) -> Dict[str, Any]:
     """
-    Import files from Google Drive
+    Import files from Google Drive (manual imports)
     
     Args:
         job_id: Extraction job ID
@@ -552,14 +572,6 @@ async def import_drive_files(
     """
     logger.info(f"Starting Drive import for job {job_id}, {len(drive_file_ids)} files")
     
-    results = {
-        'job_id': job_id,
-        'total_files': len(drive_file_ids),
-        'successful': 0,
-        'failed': 0,
-        'errors': []
-    }
-    
     with next(get_db()) as db:
         try:
             # Verify job exists and user has access
@@ -571,27 +583,18 @@ async def import_drive_files(
             if not job:
                 raise ValueError(f"Job {job_id} not found or access denied")
             
-            # Send import started event
-            from services.sse_service import sse_manager
-            await sse_manager.send_import_started(job_id, "Google Drive", len(drive_file_ids))
+            # Use service layer for actual import logic
+            from services.google_service import google_service
+            import_result = await google_service.import_drive_files(db, job_id, user_id, drive_file_ids)
             
-            # Process each Drive file
-            for file_id in drive_file_ids:
-                try:
-                    await _import_single_drive_file(db, job_id, user_id, file_id)
-                    results['successful'] += 1
-                    logger.info(f"Successfully imported Drive file {file_id}")
-                    
-                except Exception as e:
-                    logger.error(f"Failed to import Drive file {file_id}: {e}")
-                    results['failed'] += 1
-                    results['errors'].append({
-                        'file_id': file_id,
-                        'error': str(e)
-                    })
-            
-            # Send import batch completed event
-            await sse_manager.send_import_batch_completed(job_id, "Google Drive", results['successful'], results['total_files'])
+            # Convert service result to worker result format
+            results = {
+                'job_id': job_id,
+                'total_files': import_result.get('total', len(drive_file_ids)),
+                'successful': import_result.get('successful', 0),
+                'failed': import_result.get('failed', 0),
+                'errors': import_result.get('errors', [])
+            }
             
             # Update job status
             if results['failed'] == 0:
@@ -603,35 +606,27 @@ async def import_drive_files(
             
         except Exception as e:
             logger.error(f"Drive import failed for job {job_id}: {e}")
-            results['errors'].append({'general': str(e)})
             raise
 
 async def import_gmail_attachments(
     ctx: Dict[str, Any],
     job_id: str,
     user_id: str,
-    attachment_data: List[Dict[str, str]]
+    attachment_data: List[Dict[str, str]],
+    automation_run_id: str = None
 ) -> Dict[str, Any]:
     """
-    Import attachments from Gmail
+    Import attachments from Gmail (manual imports)
     
     Args:
         job_id: Extraction job ID
         user_id: User ID for OAuth credentials
-        attachment_data: List of dicts with message_id, attachment_id, filename
+        attachment_data: List of dicts with messageId, attachmentId, filename
         
     Returns:
         Dict with import results and status
     """
     logger.info(f"Starting Gmail import for job {job_id}, {len(attachment_data)} attachments")
-    
-    results = {
-        'job_id': job_id,
-        'total_files': len(attachment_data),
-        'successful': 0,
-        'failed': 0,
-        'errors': []
-    }
     
     with next(get_db()) as db:
         try:
@@ -644,23 +639,19 @@ async def import_gmail_attachments(
             if not job:
                 raise ValueError(f"Job {job_id} not found or access denied")
             
-            # Process each Gmail attachment
-            for attachment in attachment_data:
-                try:
-                    await _import_single_gmail_attachment(
-                        db, job_id, user_id, attachment
-                    )
-                    results['successful'] += 1
-                    logger.info(f"Successfully imported Gmail attachment {attachment['filename']}")
-                    
-                except Exception as e:
-                    logger.error(f"Failed to import Gmail attachment {attachment['filename']}: {e}")
-                    results['failed'] += 1
-                    results['errors'].append({
-                        'filename': attachment['filename'],
-                        'message_id': attachment['message_id'],
-                        'error': str(e)
-                    })
+            # Use service layer for actual import logic
+            from services.google_service import google_service
+            logger.info(f"Gmail import worker: automation_run_id parameter = {automation_run_id}")
+            import_result = await google_service.import_gmail_attachments(db, job_id, attachment_data, automation_run_id)
+            
+            # Convert service result to worker result format
+            results = {
+                'job_id': job_id,
+                'total_files': import_result.get('total', len(attachment_data)),
+                'successful': import_result.get('successful', 0),
+                'failed': import_result.get('failed', 0),
+                'errors': import_result.get('errors', [])
+            }
             
             # Update job status
             if results['failed'] == 0:
@@ -672,306 +663,9 @@ async def import_gmail_attachments(
             
         except Exception as e:
             logger.error(f"Gmail import failed for job {job_id}: {e}")
-            results['errors'].append({'general': str(e)})
             raise
 
-async def _import_single_drive_file(
-    db: Session, 
-    job_id: str, 
-    user_id: str, 
-    file_id: str
-) -> None:
-    """Import a single file or folder from Google Drive"""
-    
-    try:
-        logger.info(f"Getting metadata for Drive file {file_id}")
-        # Get file metadata from Drive
-        file_metadata = google_service.get_drive_file_metadata(db, user_id, file_id)
-        if not file_metadata:
-            raise ValueError(f"Could not get metadata for Drive file {file_id}")
-        
-        filename = file_metadata['name']
-        file_size = int(file_metadata.get('size', 0))
-        mime_type = file_metadata.get('mimeType', 'application/octet-stream')
-        
-        logger.info(f"Importing Drive item: {filename} ({file_size} bytes), MIME: {mime_type}")
-        
-        # Check if this is a folder
-        if mime_type == 'application/vnd.google-apps.folder':
-            logger.info(f"Processing Drive folder: {filename}")
-            await _import_drive_folder(db, job_id, user_id, file_id, filename)
-            return
-        
-        logger.info(f"Creating source file record for {filename}")
-        # Create source file record for regular file
-        source_file = SourceFile(
-            job_id=job_id,
-            original_filename=filename,
-            original_path=filename,
-            gcs_object_name=f"imports/{job_id}/{file_id}_{filename}",
-            file_type=mime_type,
-            file_size_bytes=file_size,
-            status='importing',
-            source_type='drive',
-            external_id=file_id
-        )
-        db.add(source_file)
-        logger.info(f"Committing source file record")
-        db.commit()
-        db.refresh(source_file)
-        logger.info(f"Source file record created successfully")
-    except Exception as e:
-        logger.error(f"Error in metadata/record creation phase: {e}")
-        raise
-    
-    try:
-        # Download file from Drive
-        file_content = google_service.download_drive_file(db, user_id, file_id)
-        if not file_content:
-            raise ValueError(f"Could not download Drive file {file_id}")
-        
-        # Upload to GCS
-        storage_service = get_storage_service()
-        await storage_service.upload_file_content(
-            file_content=file_content,
-            gcs_object_name=source_file.gcs_object_name
-        )
-        
-        # Note: ZIP extraction is handled by the ZIP worker, not the import worker
-        
-        # Update status to ready
-        source_file.status = 'ready'
-        source_file.updated_at = datetime.now(timezone.utc)
-        db.commit()
-        
-        # Handle ZIP detection using centralized logic
-        from services.job_service import JobService
-        job_service = JobService()
-        await job_service._handle_zip_detection(db, source_file, mime_type, filename)
-        
-        # Send import completed event
-        from services.sse_service import sse_manager
-        await sse_manager.send_import_completed(
-            job_id, 
-            str(source_file.id), 
-            filename, 
-            file_size, 
-            source_file.status,  # Use actual status (ready or unpacking)
-            source_file.original_path  # Include original path
-        )
-        
-        logger.info(f"Successfully imported Drive file {filename} to GCS")
-        
-    except Exception as e:
-        # Update status to failed
-        source_file.status = 'failed'
-        source_file.updated_at = datetime.now(timezone.utc)
-        db.commit()
-        raise
 
-async def _import_drive_folder(
-    db: Session,
-    job_id: str,
-    user_id: str,
-    folder_id: str,
-    folder_name: str,
-    parent_path: str = ""
-) -> None:
-    """Import all files from a Google Drive folder recursively"""
-    
-    logger.info(f"Processing Drive folder: {folder_name} (ID: {folder_id})")
-    
-    try:
-        # Get folder contents from Google Drive
-        folder_contents = google_service.list_drive_folder_contents(db, user_id, folder_id)
-        if not folder_contents:
-            logger.info(f"Folder {folder_name} is empty or inaccessible")
-            return
-        
-        # Build current folder path
-        current_path = os.path.join(parent_path, folder_name) if parent_path else folder_name
-        
-        # Process each item in the folder
-        for item in folder_contents:
-            item_id = item['id']
-            item_name = item['name']
-            item_mime_type = item.get('mimeType', 'application/octet-stream')
-            item_size = int(item.get('size', 0))
-            
-            # Build full path for this item
-            item_path = os.path.join(current_path, item_name)
-            
-            logger.info(f"Processing folder item: {item_path} (MIME: {item_mime_type})")
-            
-            if item_mime_type == 'application/vnd.google-apps.folder':
-                # Recursively process subfolder
-                logger.info(f"Found subfolder: {item_name}")
-                await _import_drive_folder(db, job_id, user_id, item_id, item_name, current_path)
-            else:
-                # Process regular file
-                logger.info(f"Found file: {item_name} ({item_size} bytes)")
-                await _import_drive_file_from_folder(db, job_id, user_id, item_id, item_name, item_path, item_mime_type, item_size)
-                
-    except Exception as e:
-        logger.error(f"Failed to process Drive folder {folder_name}: {e}")
-        raise
-
-async def _import_drive_file_from_folder(
-    db: Session,
-    job_id: str,
-    user_id: str,
-    file_id: str,
-    filename: str,
-    full_path: str,
-    mime_type: str,
-    file_size: int
-) -> None:
-    """Import a single file from within a Drive folder"""
-    
-    logger.info(f"Importing file from folder: {full_path}")
-    
-    try:
-        # Create source file record
-        source_file = SourceFile(
-            job_id=job_id,
-            original_filename=filename,
-            original_path=full_path,  # Full path within folder structure
-            gcs_object_name=f"imports/{job_id}/{file_id}_{filename}",
-            file_type=mime_type,
-            file_size_bytes=file_size,
-            status='importing',
-            source_type='drive',
-            external_id=file_id
-        )
-        db.add(source_file)
-        db.commit()
-        db.refresh(source_file)
-        
-        # Download file from Drive
-        file_content = google_service.download_drive_file(db, user_id, file_id)
-        if not file_content:
-            raise ValueError(f"Could not download Drive file {file_id}")
-        
-        # Upload to GCS
-        storage_service = get_storage_service()
-        await storage_service.upload_file_content(
-            file_content=file_content,
-            gcs_object_name=source_file.gcs_object_name
-        )
-        
-        # Update status to ready
-        source_file.status = 'ready'
-        source_file.updated_at = datetime.now(timezone.utc)
-        db.commit()
-        
-        # Handle ZIP detection using centralized logic
-        from services.job_service import JobService
-        job_service = JobService()
-        await job_service._handle_zip_detection(db, source_file, mime_type, filename)
-        
-        # Send import completed event
-        from services.sse_service import sse_manager
-        await sse_manager.send_import_completed(
-            job_id, 
-            str(source_file.id), 
-            filename, 
-            file_size, 
-            source_file.status,  # Use actual status (ready or unpacking)
-            source_file.original_path  # Include original path
-        )
-        
-        logger.info(f"Successfully imported file from folder: {full_path}")
-        
-    except Exception as e:
-        # Update status to failed
-        if 'source_file' in locals():
-            source_file.status = 'failed'
-            source_file.updated_at = datetime.now(timezone.utc)
-            db.commit()
-        logger.error(f"Failed to import file from folder {full_path}: {e}")
-        raise
-
-async def _import_single_gmail_attachment(
-    db: Session,
-    job_id: str,
-    user_id: str,
-    attachment: Dict[str, str]
-) -> None:
-    """Import a single attachment from Gmail"""
-    
-    message_id = attachment['message_id']
-    attachment_id = attachment['attachment_id']
-    filename = attachment['filename']
-    
-    logger.info(f"Importing Gmail attachment: {filename}")
-    
-    # Download attachment from Gmail
-    file_content = google_service.download_gmail_attachment(
-        db, user_id, message_id, attachment_id
-    )
-    if not file_content:
-        raise ValueError(f"Could not download Gmail attachment {filename}")
-    
-    file_size = len(file_content)
-    
-    # Determine MIME type from filename
-    mime_type = 'application/pdf' if filename.lower().endswith('.pdf') else 'application/octet-stream'
-    
-    # Create source file record
-    source_file = SourceFile(
-        job_id=job_id,
-        original_filename=filename,
-        original_path=filename,
-        gcs_object_name=f"imports/{job_id}/{message_id}_{attachment_id}_{filename}",
-        file_type=mime_type,
-        file_size_bytes=file_size,
-        status='importing',
-        source_type='gmail',
-        external_id=f"{message_id}:{attachment_id}"
-    )
-    db.add(source_file)
-    db.commit()
-    db.refresh(source_file)
-    
-    try:
-        # Upload to GCS
-        storage_service = get_storage_service()
-        await storage_service.upload_file_content(
-            file_content=file_content,
-            gcs_object_name=source_file.gcs_object_name
-        )
-        
-        # Note: ZIP extraction is handled by the ZIP worker, not the import worker
-        
-        # Update status to ready
-        source_file.status = 'ready'
-        source_file.updated_at = datetime.now(timezone.utc)
-        db.commit()
-        
-        # Handle ZIP detection using centralized logic
-        from services.job_service import JobService
-        job_service = JobService()
-        await job_service._handle_zip_detection(db, source_file, mime_type, filename)
-        
-        # Send import completed event
-        from services.sse_service import sse_manager
-        await sse_manager.send_import_completed(
-            job_id, 
-            str(source_file.id), 
-            filename, 
-            file_size, 
-            source_file.status,  # Use actual status (ready or unpacking)
-            source_file.original_path  # Include original path
-        )
-        
-        logger.info(f"Successfully imported Gmail attachment {filename} to GCS")
-        
-    except Exception as e:
-        # Update status to failed
-        source_file.status = 'failed'
-        source_file.updated_at = datetime.now(timezone.utc)
-        db.commit()
-        raise
 
 async def _handle_zip_file(
     db: Session,
@@ -1035,6 +729,7 @@ async def _handle_zip_file(
         logger.error(f"Failed to process ZIP file {source_file.original_filename}: {e}")
         raise
 
+
 class ImportWorkerSettings:
     """ARQ worker configuration for import tasks (imports queue)"""
     
@@ -1072,7 +767,8 @@ async def export_job_to_google_drive(
     job_id: str,
     user_id: str,
     file_type: str,  # 'csv' or 'xlsx'
-    folder_id: str = None
+    folder_id: str = None,
+    automation_run_id: str = None
 ) -> Dict[str, Any]:
     """
     Export job results to Google Drive as CSV or Excel
@@ -1164,6 +860,15 @@ async def export_job_to_google_drive(
                 file_type,
                 drive_file.get('webViewLink')
             )
+            
+            # Check if this export was triggered by an automation
+            if automation_run_id:
+                # This export was triggered by a specific automation run
+                from services.automation_service import automation_service
+                await automation_service.update_automation_run_status(
+                    db, automation_run_id, 'completed'
+                )
+                logger.info(f"Marked automation run {automation_run_id} as completed after export")
             
             logger.info(f"Successfully exported job {job_id} to Google Drive: {drive_file.get('id')}")
             
@@ -1305,6 +1010,305 @@ class ExportWorkerSettings:
     # Logging
     log_results = True
 
+# ===================================================================
+# Automation Worker Functions
+# ===================================================================
+
+async def automation_startup(ctx: Dict[str, Any]) -> None:
+    """Initialize automation worker resources"""
+    logger.info("Automation worker starting up...")
+
+async def automation_shutdown(ctx: Dict[str, Any]) -> None:
+    """Cleanup automation worker resources"""
+    logger.info("Automation worker shutting down...")
+
+async def automation_trigger_worker(
+    ctx: Dict[str, Any],
+    user_id: str,
+    message_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Process Gmail push notifications and trigger automations
+    
+    Args:
+        user_id: User ID for the Gmail account
+        message_data: Gmail Pub/Sub message payload
+        
+    Returns:
+        Dict with processing results
+    """
+    logger.info(f"Processing Gmail trigger for user {user_id}")
+    
+    with next(get_db()) as db:
+        try:
+            from services.automation_service import automation_service
+            from services.google_service import google_service
+            
+            # Get enabled automations for this user
+            automations = await automation_service.get_enabled_automations(db, user_id)
+            gmail_automations = [auto for auto in automations if auto.trigger_type == 'gmail_attachment']
+            
+            if not gmail_automations:
+                logger.info(f"No Gmail automations found for user {user_id}")
+                return {"processed": 0, "message": "No Gmail automations configured"}
+            
+            processed_count = 0
+            
+            # Use Gmail History API to get new messages since last processed history ID
+            # Extract history ID from push notification (prefer snake_case, fallback to camelCase)
+            current_history_id = message_data.get('history_id') or message_data.get('raw_data', {}).get('historyId')
+            
+            if not current_history_id:
+                logger.warning("No history_id in push notification")
+                return {"processed": 0, "message": "No history_id in notification"}
+            
+            logger.info(f"Processing Gmail push notification with history ID: {current_history_id}")
+            
+            # Get the last processed history ID for this user (stored in database)
+            last_processed_history_id = google_service.get_last_processed_history_id(db, user_id)
+            
+            if last_processed_history_id and int(current_history_id) <= int(last_processed_history_id):
+                logger.info(f"History ID {current_history_id} already processed (last: {last_processed_history_id}), skipping")
+                return {"processed": 0, "message": "History already processed"}
+            
+            # Get new messages since the last processed history ID
+            start_history_id = last_processed_history_id or str(int(current_history_id) - 1)
+            message_ids_to_check = google_service.get_messages_since_history(db, user_id, start_history_id)
+            
+            if not message_ids_to_check:
+                logger.info(f"No messages to check for user {user_id}")
+                return {"processed": 0, "message": "No messages to check"}
+            
+            for automation in gmail_automations:
+                try:
+                    # Extract Gmail query from trigger config
+                    gmail_query = automation.trigger_config.get('query', '')
+                    if not gmail_query:
+                        logger.warning(f"Automation {automation.id} has no Gmail query configured")
+                        continue
+                    
+                    # Check each message against the automation query
+                    for message_id in message_ids_to_check:
+                        logger.info(f"Checking message {message_id} against automation {automation.id} query: '{gmail_query}'")
+                        
+                        # Check if this specific message matches the automation query
+                        if google_service.message_matches_query(db, user_id, message_id, gmail_query):
+                            logger.info(f"Message {message_id} matches automation {automation.id} query")
+                            
+                            # Check if we've already processed this message for this automation
+                            from models.db_models import AutomationProcessedMessage
+                            existing_processed = db.query(AutomationProcessedMessage).filter(
+                                AutomationProcessedMessage.automation_id == automation.id,
+                                AutomationProcessedMessage.message_id == message_id
+                            ).first()
+                            
+                            if existing_processed:
+                                logger.info(f"Message {message_id} already processed by automation {automation.id} at {existing_processed.processed_at}, skipping")
+                                continue
+                            
+                            # Get message attachments
+                            attachments = google_service.get_gmail_message_attachments(db, user_id, message_id)
+                            
+                            if not attachments:
+                                logger.info(f"Message {message_id} matches query but has no attachments")
+                                continue
+                            
+                            logger.info(f"Message {message_id} has {len(attachments)} attachments")
+                            
+                            # Mark message as processed BEFORE creating automation run
+                            from models.db_models import AutomationProcessedMessage
+                            processed_message = AutomationProcessedMessage(
+                                automation_id=automation.id,
+                                message_id=message_id
+                            )
+                            db.add(processed_message)
+                            db.commit()
+                            
+                            logger.info(f"Marked message {message_id} as processed for automation {automation.id}")
+                            
+                            # Check if job is currently running before proceeding
+                            job = db.query(ExtractionJob).filter(ExtractionJob.id == automation.job_id).first()
+                            if job and job.status == 'in_progress':
+                                logger.warning(f"Job {automation.job_id} is currently running, skipping automation trigger")
+                                continue
+                            
+                            # Clear existing data for automation runs to support multiple runs
+                            logger.info(f"Clearing existing data for automation job {automation.job_id}")
+                            await _clear_job_data_for_automation(db, automation.job_id)
+                            
+                            # Create automation run with import tracking
+                            automation_run = await automation_service.create_automation_run(
+                                db, automation.id, automation.job_id
+                            )
+                            
+                            # Initialize import tracking
+                            automation_run.imports_total = len(attachments)
+                            automation_run.imports_successful = 0
+                            automation_run.imports_failed = 0
+                            automation_run.imports_processed = 0
+                            automation_run.imports_processing_failed = 0
+                            db.commit()
+                            
+                            # Enqueue Gmail import worker (now using consolidated function)
+                            from arq import create_pool
+                            redis = await create_pool(ImportWorkerSettings.redis_settings)
+                            
+                            await redis.enqueue_job(
+                                'import_gmail_attachments',
+                                job_id=automation.job_id,
+                                user_id=user_id,
+                                attachment_data=attachments,
+                                automation_run_id=str(automation_run.id),
+                                _queue_name='imports'
+                            )
+                            
+                            await redis.close()
+                            processed_count += 1
+                            
+                            logger.info(f"Triggered automation {automation.id} for new message {message_id}")
+                            processed_count += 1
+                
+                except Exception as e:
+                    logger.error(f"Failed to process automation {automation.id}: {e}")
+                    continue
+            
+            # Update the last processed history ID after processing
+            google_service.update_last_processed_history_id(db, user_id, str(current_history_id))
+            logger.info(f"Updated last processed history ID to {current_history_id}")
+            
+            return {
+                "processed": processed_count,
+                "message": f"Processed {processed_count} automation triggers"
+            }
+            
+        except Exception as e:
+            logger.error(f"Automation trigger worker failed for user {user_id}: {e}")
+            raise
+
+async def run_initializer_worker(
+    ctx: Dict[str, Any],
+    job_id: str,
+    automation_run_id: str = None
+) -> Dict[str, Any]:
+    """
+    Initialize job execution (used by both manual and automation flows)
+    
+    Args:
+        job_id: Extraction job ID to initialize
+        automation_run_id: Optional automation run ID if triggered by automation
+        
+    Returns:
+        Dict with initialization results
+    """
+    logger.info(f"Initializing job execution for job {job_id}")
+    
+    with next(get_db()) as db:
+        try:
+            from models.db_models import ExtractionJob, ExtractionTask
+            from services.automation_service import automation_service
+            from services.sse_service import sse_manager
+            
+            # Lock the job for update
+            job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).with_for_update().first()
+            if not job:
+                raise ValueError(f"Job {job_id} not found")
+            
+            # Check if job is currently running (for both automation and manual runs)
+            if job.status == 'in_progress':
+                logger.warning(f"Job {job_id} already has tasks in progress, aborting initialization")
+                if automation_run_id:
+                    # Update automation run status to failed
+                    await automation_service.update_automation_run_status(
+                        db, automation_run_id, 'failed', 'Job already in progress'
+                    )
+                return {"message": "Job already in progress", "tasks_queued": 0}
+            
+            # For automation runs, create extraction tasks for all uploaded source files
+            if automation_run_id:
+                await _create_extraction_tasks_for_automation(db, job_id)
+            
+            # Update pending tasks to queued
+            pending_tasks = db.query(ExtractionTask).filter(
+                ExtractionTask.job_id == job_id,
+                ExtractionTask.status == 'pending'
+            ).all()
+            
+            if not pending_tasks:
+                logger.warning(f"No pending tasks found for job {job_id}")
+                return {"message": "No pending tasks to process", "tasks_queued": 0}
+            
+            # Keep task statuses as 'pending' for AI extraction worker
+            # (The AI worker expects 'pending' status)
+            
+            # Update job status
+            job.status = 'in_progress'
+            db.commit()
+            
+            # Update automation run status if this is from automation
+            if automation_run_id:
+                await automation_service.update_automation_run_status(
+                    db, automation_run_id, 'running'
+                )
+            
+            # Enqueue AI extraction workers
+            from arq import create_pool
+            redis = await create_pool(WorkerSettings.redis_settings)
+            
+            tasks_queued = 0
+            for task in pending_tasks:
+                await redis.enqueue_job(
+                    'process_extraction_task',
+                    task_id=str(task.id),
+                    automation_run_id=automation_run_id
+                )
+                tasks_queued += 1
+            
+            await redis.close()
+            
+            logger.info(f"Initialized job {job_id} with {tasks_queued} tasks")
+            
+            return {
+                "message": "Job initialization successful",
+                "tasks_queued": tasks_queued,
+                "automation_run_id": automation_run_id
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Job initialization failed for job {job_id}: {e}")
+            
+            # Update automation run status if this is from automation
+            if automation_run_id:
+                try:
+                    await automation_service.update_automation_run_status(
+                        db, automation_run_id, 'failed', str(e)
+                    )
+                except Exception as sse_error:
+                    logger.warning(f"Failed to update automation run status: {sse_error}")
+            
+            raise
+
+
+class AutomationWorkerSettings:
+    """ARQ worker configuration for automation tasks (automation queue)"""
+    
+    redis_settings = RedisSettings.from_dsn(REDIS_URL)
+    queue_name = "automation"  # Dedicated queue for automation tasks
+    
+    # Task functions for automation processing
+    functions = [
+        automation_trigger_worker,
+        run_initializer_worker
+    ]
+    
+    # Worker configuration for automation tasks (lower concurrency)
+    max_jobs = 3  # Lower concurrency for automation triggers
+    job_timeout = 600  # 10 minutes timeout for automation operations
+    keep_result = 3600  # Keep results for 1 hour
+    
+    # Logging
+    log_results = True
+
 async def main():
     """For testing the worker locally"""
     redis = await create_pool(WorkerSettings.redis_settings)
@@ -1314,6 +1318,123 @@ async def main():
     print(f"Enqueued job: {job}")
     
     await redis.close()
+
+async def _clear_job_data_for_automation(db: Session, job_id: str):
+    """
+    Clear existing job data to support multiple automation runs
+    Removes source_files, extraction_tasks, and extraction_results
+    """
+    from models.db_models import (
+        SourceFile, ExtractionTask, ExtractionResult, 
+        SourceFileToTask, ExtractionJob
+    )
+    
+    try:
+        # Get all source files for this job
+        source_files = db.query(SourceFile).filter(SourceFile.job_id == job_id).all()
+        source_file_ids = [sf.id for sf in source_files]
+        
+        if source_file_ids:
+            # Delete extraction results (via task relationship)
+            # Get task IDs that are linked to these source files
+            task_ids = db.query(SourceFileToTask.task_id).filter(
+                SourceFileToTask.source_file_id.in_(source_file_ids)
+            ).subquery()
+            
+            deleted_results = db.query(ExtractionResult).filter(
+                ExtractionResult.task_id.in_(task_ids)
+            ).delete(synchronize_session=False)
+            logger.info(f"Deleted {deleted_results} extraction results for {len(source_file_ids)} source files")
+            
+            # Delete source file to task mappings
+            db.query(SourceFileToTask).filter(
+                SourceFileToTask.source_file_id.in_(source_file_ids)
+            ).delete(synchronize_session=False)
+            logger.info(f"Deleted source file to task mappings")
+        
+        # Delete extraction tasks
+        deleted_tasks = db.query(ExtractionTask).filter(
+            ExtractionTask.job_id == job_id
+        ).delete(synchronize_session=False)
+        logger.info(f"Deleted {deleted_tasks} extraction tasks")
+        
+        # Delete source files
+        deleted_files = db.query(SourceFile).filter(
+            SourceFile.job_id == job_id
+        ).delete(synchronize_session=False)
+        logger.info(f"Deleted {deleted_files} source files")
+        
+        # Reset job status if completed
+        job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
+        if job and job.status in ['completed', 'partially_completed']:
+            job.status = 'pending'
+            job.completed_at = None
+            job.tasks_total = 0
+            job.tasks_completed = 0
+            job.tasks_failed = 0
+            logger.info(f"Reset job {job_id} status from {job.status} to pending")
+        
+        db.commit()
+        logger.info(f"Successfully cleared job data for automation run")
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to clear job data for automation: {e}")
+        raise
+
+
+async def _create_extraction_tasks_for_automation(db: Session, job_id: str):
+    """
+    Create extraction tasks for all uploaded source files in an automation job
+    This centralizes the extraction task creation logic for automations
+    """
+    from models.db_models import SourceFile, ExtractionTask, SourceFileToTask
+    
+    # Get processable source files (reuse existing logic from job service)
+    from services.job_service import JobService
+    job_service = JobService()
+    
+    # Use the same filtering logic as manual jobs (processable_only=True)
+    source_files = await job_service.get_job_files(job_id, processable_only=True)
+    
+    if not source_files:
+        logger.info(f"No source files found for automation job {job_id}")
+        return
+    
+    tasks_created = 0
+    for source_file in source_files:
+        # Check if this source file already has extraction tasks
+        existing_task = db.query(SourceFileToTask).filter(
+            SourceFileToTask.source_file_id == source_file.id
+        ).first()
+        
+        if existing_task:
+            logger.info(f"SourceFile {source_file.id} already has extraction task, skipping")
+            continue
+        
+        # Create extraction task
+        extraction_task = ExtractionTask(
+            id=str(uuid.uuid4()),
+            job_id=job_id,
+            status='pending'
+        )
+        db.add(extraction_task)
+        db.flush()  # Ensure ID is available
+        
+        # Create the many-to-many relationship
+        source_file_to_task = SourceFileToTask(
+            source_file_id=source_file.id,
+            task_id=extraction_task.id,
+            document_order=0
+        )
+        db.add(source_file_to_task)
+        
+        tasks_created += 1
+        logger.info(f"Created ExtractionTask {extraction_task.id} for SourceFile {source_file.id} ({source_file.original_filename})")
+    
+    db.commit()
+    logger.info(f"Created {tasks_created} extraction tasks for automation job {job_id}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

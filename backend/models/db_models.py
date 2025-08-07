@@ -125,7 +125,7 @@ class ExtractionJob(Base):
     job_fields = relationship("JobField", back_populates="job", cascade="all, delete-orphan")
     source_files = relationship("SourceFile", back_populates="job", cascade="all, delete-orphan")
     extraction_tasks = relationship("ExtractionTask", back_populates="job", cascade="all, delete-orphan")
-    automations = relationship("Automation", back_populates="job")
+    automations = relationship("Automation", back_populates="job", cascade="all, delete-orphan")
     job_exports = relationship("JobExport", back_populates="job", cascade="all, delete-orphan")
     automation_runs = relationship("AutomationRun", back_populates="job", cascade="all, delete-orphan")
     
@@ -249,6 +249,7 @@ class IntegrationAccount(Base):
     access_token = Column(LargeBinary)  # AES-GCM encrypted
     refresh_token = Column(LargeBinary)  # AES-GCM encrypted
     expires_at = Column(TIMESTAMP(timezone=True))
+    last_history_id = Column(String(50), nullable=True)  # Gmail history ID for incremental sync
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
     
@@ -313,13 +314,13 @@ class Automation(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    name = Column(String(255), nullable=False)
+    name = Column(Text, nullable=False)
     is_enabled = Column(Boolean, nullable=False, default=True)
-    trigger_type = Column(String(30), nullable=False)
+    trigger_type = Column(String(30), nullable=False)  # 'gmail_attachment' for v1
     trigger_config = Column(JSONB, nullable=False)
     job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
-    export_config = Column(JSONB, nullable=False)
-    last_fired_at = Column(TIMESTAMP(timezone=True))
+    dest_type = Column(String(30), nullable=True)  # 'gdrive', 'gmail' when present, NULL when no export
+    export_config = Column(JSONB, nullable=True)  # MUST be NULL when dest_type is NULL
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
     
@@ -335,11 +336,39 @@ class AutomationRun(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     automation_id = Column(UUID(as_uuid=True), ForeignKey("automations.id", ondelete="CASCADE"), nullable=False)
     job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
-    status = Column(String(20), nullable=False, default='pending')
+    status = Column(String(20), nullable=False, default='pending')  # pending, running, completed, failed
     error_message = Column(Text)
+    
+    # Import tracking
+    imports_total = Column(Integer, nullable=True)
+    imports_successful = Column(Integer, nullable=True)
+    imports_failed = Column(Integer, nullable=True)
+    imports_processed = Column(Integer, nullable=True)
+    imports_processing_failed = Column(Integer, nullable=True)
+    
     triggered_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     completed_at = Column(TIMESTAMP(timezone=True))
     
     # Relationships
     automation = relationship("Automation", back_populates="automation_runs")
     job = relationship("ExtractionJob", back_populates="automation_runs")
+
+class AutomationProcessedMessage(Base):
+    """Track which Gmail messages have been processed by which automations"""
+    __tablename__ = "automation_processed_messages"
+    
+    # Match the existing table structure exactly
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    automation_id = Column(UUID(as_uuid=True), ForeignKey("automations.id", ondelete="CASCADE"), nullable=False)
+    message_id = Column(String(255), nullable=False)  # Gmail message ID
+    processed_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    
+    # Relationships
+    automation = relationship("Automation")
+    
+    # Add unique constraint to prevent duplicates
+    __table_args__ = (
+        # Prevent duplicate processing of same message by same automation
+        CheckConstraint("automation_id IS NOT NULL AND message_id IS NOT NULL", name="check_automation_message_required"),
+    )
+

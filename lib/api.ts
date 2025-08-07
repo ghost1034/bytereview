@@ -499,7 +499,7 @@ export class ApiClient {
     })
   }
 
-  async importGmailAttachments(jobId: string, attachments: Array<{ message_id: string; attachment_id: string; filename: string }>): Promise<{ success: boolean; import_job_id: string; message: string; attachment_count: number }> {
+  async importGmailAttachments(jobId: string, attachments: Array<{ messageId: string; attachmentId: string; filename: string }>): Promise<{ success: boolean; import_job_id: string; message: string; attachment_count: number }> {
     return this.request(`/api/jobs/${jobId}/files:gmail`, {
       method: 'POST',
       body: JSON.stringify({ attachments })
