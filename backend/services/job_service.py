@@ -107,24 +107,9 @@ class JobService:
         finally:
             db.close()
     
-    def calculate_total_tasks(self, job: ExtractionJob) -> int:
-        """Calculate total tasks based on files and processing mode"""
-        if not job.extraction_tasks:
-            # Fallback: assume one task per file
-            return len(job.source_files) if job.source_files else 0
-        
-        total = 0
-        for task in job.extraction_tasks:
-            if task.processing_mode == 'individual':
-                total += len(task.source_files_to_tasks)
-            elif task.processing_mode == 'combined':
-                total += 1  # One task for all files combined
-        
-        return max(total, len(job.source_files) if job.source_files else 0)
-    
-    async def submit_job_for_processing(self, job_id: str, user_id: str):
-        """Submit completed wizard for processing using existing extraction tasks"""
-        logger.info(f"submit_job_for_processing called for job {job_id} by user {user_id}")
+    async def submit_manual_job(self, job_id: str, user_id: str) -> str:
+        """Submit manually configured job for processing"""
+        logger.info(f"submit_manual_job called for job {job_id} by user {user_id}")
         db = self._get_session()
         try:
             # Get job with related data
@@ -136,16 +121,24 @@ class JobService:
             if not job:
                 raise ValueError("Job not found")
             
+            # Manual job specific validations
             if job.config_step == 'submitted':
                 raise ValueError("Job already submitted")
             
-            # Count existing extraction tasks (created during field configuration)
+            # Check if job is already running
+            if job.status == 'in_progress':
+                raise ValueError("Job already in progress")
+            
+            # Validate existing configured tasks
             total_tasks = db.query(ExtractionTask).filter(
                 ExtractionTask.job_id == job_id
             ).count()
             
             if total_tasks == 0:
                 raise ValueError("No extraction tasks found. Please configure processing modes first.")
+            
+            # Check plan limits before starting job
+            await self._check_job_plan_limits(db, job_id, user_id)
             
             # Update job for processing
             db.execute(
@@ -164,21 +157,255 @@ class JobService:
             
             db.commit()
             
-            # Enqueue existing extraction tasks for processing
-            await self._enqueue_existing_extraction_tasks(job_id)
+            # Enqueue extraction tasks for processing
+            await self._enqueue_extraction_tasks_for_processing(job_id)
             
-            logger.info(f"Submitted job {job_id} with {total_tasks} existing extraction tasks")
+            logger.info(f"Submitted manual job {job_id} with {total_tasks} extraction tasks")
             return job_id
             
         except SQLAlchemyError as e:
             db.rollback()
-            logger.error(f"Error submitting job: {e}")
+            logger.error(f"Error submitting manual job: {e}")
             raise
         finally:
             db.close()
 
-    async def _enqueue_existing_extraction_tasks(self, job_id: str) -> None:
-        """Enqueue existing extraction tasks for background processing"""
+    async def submit_automation_job(self, job_id: str, user_id: str, automation_run_id: str) -> str:
+        """Submit automation-triggered job for processing"""
+        logger.info(f"submit_automation_job called for job {job_id} by user {user_id}, automation_run_id={automation_run_id}")
+        db = self._get_session()
+        try:
+            # Get job with related data
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id
+            ).first()
+            
+            if not job:
+                raise ValueError("Job not found")
+            
+            # Check if job is already running
+            if job.status == 'in_progress':
+                logger.warning(f"Job {job_id} already in progress")
+                from services.automation_service import automation_service
+                await automation_service.update_automation_run_status(
+                    db, automation_run_id, 'failed', 'Job already in progress'
+                )
+                raise ValueError("Job already in progress")
+            
+            # Automation flow: clear existing data and create new tasks
+            await self._prepare_job_for_automation(db, job_id)
+            
+            # Count tasks after preparation
+            total_tasks = db.query(ExtractionTask).filter(
+                ExtractionTask.job_id == job_id
+            ).count()
+            
+            if total_tasks == 0:
+                raise ValueError("No tasks available for processing")
+            
+            # Check plan limits before starting job
+            await self._check_job_plan_limits(db, job_id, user_id)
+            
+            # Update job for processing
+            db.execute(
+                update(ExtractionJob)
+                .where(ExtractionJob.id == job_id)
+                .values(
+                    status='in_progress',
+                    tasks_total=total_tasks,
+                    tasks_completed=0,
+                    tasks_failed=0,
+                    last_active_at=datetime.utcnow()
+                )
+            )
+            
+            db.commit()
+            
+            # Update automation run status
+            from services.automation_service import automation_service
+            await automation_service.update_automation_run_status(
+                db, automation_run_id, 'running'
+            )
+            
+            # Enqueue extraction tasks for processing
+            await self._enqueue_extraction_tasks_for_processing(job_id, automation_run_id)
+            
+            logger.info(f"Submitted automation job {job_id} with {total_tasks} extraction tasks")
+            return job_id
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error submitting automation job: {e}")
+            
+            # Update automation run status on failure
+            try:
+                from services.automation_service import automation_service
+                await automation_service.update_automation_run_status(
+                    db, automation_run_id, 'failed', str(e)
+                )
+            except Exception as status_error:
+                logger.error(f"Failed to update automation run status: {status_error}")
+            
+            raise
+        finally:
+            db.close()
+
+    async def _clear_job_data_for_automation(self, db: Session, job_id: str) -> None:
+        """Clear existing job data to support multiple automation runs"""
+        from models.db_models import (
+            SourceFile, ExtractionTask, ExtractionResult, 
+            SourceFileToTask, ExtractionJob
+        )
+        
+        logger.info(f"Clearing existing job data for automation run")
+        
+        # Get all source files for this job
+        source_files = db.query(SourceFile).filter(SourceFile.job_id == job_id).all()
+        source_file_ids = [sf.id for sf in source_files]
+        
+        if source_file_ids:
+            # Delete extraction results (via task relationship)
+            task_ids = db.query(SourceFileToTask.task_id).filter(
+                SourceFileToTask.source_file_id.in_(source_file_ids)
+            ).subquery()
+            
+            deleted_results = db.query(ExtractionResult).filter(
+                ExtractionResult.task_id.in_(task_ids)
+            ).delete(synchronize_session=False)
+            logger.info(f"Deleted {deleted_results} extraction results")
+            
+            # Delete source file to task mappings
+            db.query(SourceFileToTask).filter(
+                SourceFileToTask.source_file_id.in_(source_file_ids)
+            ).delete(synchronize_session=False)
+        
+        # Delete extraction tasks
+        deleted_tasks = db.query(ExtractionTask).filter(
+            ExtractionTask.job_id == job_id
+        ).delete(synchronize_session=False)
+        logger.info(f"Deleted {deleted_tasks} extraction tasks")
+        
+        # Delete source files
+        deleted_files = db.query(SourceFile).filter(
+            SourceFile.job_id == job_id
+        ).delete(synchronize_session=False)
+        logger.info(f"Deleted {deleted_files} source files")
+        
+        # Reset job status if completed
+        job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
+        if job and job.status in ['completed', 'partially_completed']:
+            job.status = 'pending'
+            job.completed_at = None
+            job.tasks_total = 0
+            job.tasks_completed = 0
+            job.tasks_failed = 0
+            logger.info(f"Reset job {job_id} status to pending")
+        
+        db.commit()
+        logger.info(f"Successfully cleared job data for automation run")
+
+    async def _prepare_job_for_automation(self, db: Session, job_id: str) -> None:
+        """Prepare job for automation run by clearing existing data and creating new tasks"""
+        logger.info(f"Preparing job {job_id} for automation run")
+        
+        # Clear existing job data for automation runs
+        await self._clear_job_data_for_automation(db, job_id)
+        
+        # Create extraction tasks for all uploaded source files
+        await self._create_extraction_tasks_for_automation(db, job_id)
+
+    async def _create_extraction_tasks_for_automation(self, db: Session, job_id: str) -> None:
+        """Create extraction tasks for all uploaded source files in an automation job"""
+        import uuid
+        from models.db_models import ExtractionTask, SourceFileToTask
+        
+        # Get processable source files (exclude ZIP files)
+        source_files = await self.get_job_files(job_id, processable_only=True)
+        
+        if not source_files:
+            logger.info(f"No source files found for automation job {job_id}")
+            return
+        
+        tasks_created = 0
+        for source_file in source_files:
+            # Create extraction task (individual mode for automation)
+            extraction_task = ExtractionTask(
+                id=str(uuid.uuid4()),
+                job_id=job_id,
+                processing_mode='individual',  # Default for automation
+                status='pending'
+            )
+            db.add(extraction_task)
+            db.flush()  # Get ID
+            
+            # Create the many-to-many relationship
+            source_file_to_task = SourceFileToTask(
+                source_file_id=source_file.id,
+                task_id=extraction_task.id,
+                document_order=0
+            )
+            db.add(source_file_to_task)
+            
+            tasks_created += 1
+            logger.info(f"Created extraction task {extraction_task.id} for file {source_file.original_filename}")
+        
+        db.commit()
+        logger.info(f"Created {tasks_created} extraction tasks for automation job {job_id}")
+
+    async def _check_job_plan_limits(self, db: Session, job_id: str, user_id: str) -> None:
+        """Check if starting this job would exceed plan limits (job-start cap)"""
+        try:
+            from services.billing_service import get_billing_service
+            from models.db_models import SourceFileToTask
+            
+            # Calculate total pages for this job (only files with page_count set)
+            total_pages = db.query(func.sum(SourceFile.page_count)).join(
+                SourceFileToTask, SourceFile.id == SourceFileToTask.source_file_id
+            ).join(
+                ExtractionTask, SourceFileToTask.task_id == ExtractionTask.id
+            ).filter(
+                ExtractionTask.job_id == job_id,
+                SourceFile.page_count.isnot(None)
+            ).scalar() or 0
+            
+            if total_pages <= 0:
+                logger.info(f"No pages to process for job {job_id}")
+                return
+            
+            # Check limits through billing service
+            billing_service = get_billing_service(db)
+            can_process = billing_service.check_page_limit(user_id, total_pages)
+            
+            if not can_process:
+                billing_info = billing_service.get_billing_info(user_id)
+                plan_name = billing_info['plan_display_name']
+                pages_used = billing_info['pages_used']
+                pages_included = billing_info['pages_included']
+                pages_remaining = max(0, pages_included - pages_used)
+                
+                if billing_info['plan_code'] == 'free':
+                    raise ValueError(
+                        f"Cannot start job: Processing {total_pages} pages would exceed your {plan_name} plan limit. "
+                        f"You have {pages_remaining} pages remaining out of {pages_included}. "
+                        f"Please upgrade your plan or reduce the number of files."
+                    )
+                else:
+                    # For paid plans, this shouldn't happen since they allow overage
+                    logger.warning(f"Paid user {user_id} hitting page limit check - this shouldn't normally happen")
+            
+            logger.info(f"Job {job_id} plan limits check passed: {total_pages} pages for user {user_id}")
+            
+        except ValueError:
+            # Re-raise plan limit errors
+            raise
+        except Exception as e:
+            logger.error(f"Error checking job plan limits for job {job_id}: {e}")
+            # Default to allowing processing if we can't check limits
+            logger.warning("Allowing job to start due to limit check failure")
+
+    async def _enqueue_extraction_tasks_for_processing(self, job_id: str, automation_run_id: str = None) -> None:
+        """Enqueue extraction tasks for background processing"""
         try:
             # Get Redis connection
             redis = await create_pool(self.redis_settings)
@@ -192,25 +419,24 @@ class JobService:
                 ).all()
                 
                 logger.info(f"Found {len(tasks)} pending extraction tasks for job {job_id}")
-                for task in tasks:
-                    logger.info(f"Task {task.id}: processing_mode={task.processing_mode}")
                 
                 # Enqueue each task
                 for task in tasks:
                     job_info = await redis.enqueue_job(
                         'process_extraction_task',
-                        str(task.id)
+                        task_id=str(task.id),
+                        automation_run_id=automation_run_id
                     )
                     logger.info(f"Enqueued extraction task {task.id} as job {job_info.job_id}")
                 
-                logger.info(f"Enqueued {len(tasks)} existing extraction tasks for job {job_id}")
+                logger.info(f"Enqueued {len(tasks)} extraction tasks for job {job_id}")
                 
             finally:
                 db.close()
                 await redis.close()
                 
         except Exception as e:
-            logger.error(f"Failed to enqueue existing tasks for job {job_id}: {e}")
+            logger.error(f"Failed to enqueue tasks for job {job_id}: {e}")
             # Don't raise - job is still valid, tasks can be retried later
     
     async def increment_task_completion(self, job_id: str, success: bool = True, automation_run_id: str = None):
@@ -628,6 +854,9 @@ class JobService:
                     original_path=normalized_path,
                     upload_url=upload_url
                 ))
+                
+                # Note: Page counting will happen when files are actually uploaded via the upload URL
+                # The page_count field will be updated in a separate process or webhook
             
             db.commit()
             logger.info(f"Initiated job {job_id} with {len(request.files)} files")
@@ -639,63 +868,6 @@ class JobService:
             
         except Exception as e:
             logger.error(f"Failed to initiate job: {e}")
-            db.rollback()
-            raise
-        finally:
-            db.close()
-
-    async def start_job(self, user_id: str, job_id: str, request: JobStartRequest) -> JobStartResponse:
-        """
-        Step 2: Start job processing with configuration
-        """
-        db = self._get_session()
-        try:
-            # Get the job
-            job = db.query(ExtractionJob).filter(
-                ExtractionJob.id == job_id,
-                ExtractionJob.user_id == user_id,
-                ExtractionJob.status == JobStatus.PENDING.value
-            ).first()
-            
-            if not job:
-                raise ValueError(f"Job {job_id} not found or not in correct state")
-            
-            # Update job details
-            job.persist_data = request.persist_data
-            job.status = JobStatus.IN_PROGRESS.value
-            
-            # If template_id provided, link it
-            if request.template_id:
-                job.template_id = request.template_id
-            
-            # Snapshot field configuration into job_fields
-            for field_config in request.fields:
-                job_field = JobField(
-                    job_id=job.id,
-                    field_name=field_config.field_name,
-                    data_type_id=field_config.data_type_id,
-                    ai_prompt=field_config.ai_prompt,
-                    display_order=field_config.display_order
-                )
-                db.add(job_field)
-            
-            # Create extraction tasks based on task definitions
-            await self._create_extraction_tasks(db, job.id, request.task_definitions)
-            
-            db.commit()
-            
-            # Enqueue extraction tasks for background processing
-            await self._enqueue_extraction_tasks(job.id)
-            
-            logger.info(f"Started job {job_id} with {len(request.fields)} fields and enqueued tasks")
-            
-            return JobStartResponse(
-                message="Job processing has been successfully started.",
-                job_id=job_id
-            )
-            
-        except Exception as e:
-            logger.error(f"Failed to start job {job_id}: {e}")
             db.rollback()
             raise
         finally:
@@ -1022,6 +1194,10 @@ class JobService:
                 # Determine file type
                 content_type = file.content_type or "application/octet-stream"
                 
+                # Count pages in the file
+                from services.page_counting_service import page_counting_service
+                page_count = page_counting_service.count_pages_from_content(file_content, file.filename or "unknown")
+                
                 # Create SourceFile record (always start as ready, ZIP detection will update if needed)
                 filename = file.filename or "unknown"
                 source_file = SourceFile(
@@ -1031,6 +1207,7 @@ class JobService:
                     gcs_object_name=gcs_object_name,
                     file_type=content_type,
                     file_size_bytes=len(file_content),
+                    page_count=page_count,
                     status=FileStatus.READY.value
                 )
                 

@@ -16,6 +16,7 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { apiClient } from '@/lib/api'
 import { useCurrentUser } from '@/hooks/useUserProfile'
+import UsageStats from '@/components/subscription/UsageStats'
 
 export function DashboardHome() {
   const { user: userProfile, isLoading: userLoading } = useCurrentUser()
@@ -247,6 +248,13 @@ export function DashboardHome() {
           )}
         </CardContent>
       </Card>
+
+      {/* Usage Stats Sidebar */}
+      <div className="lg:col-span-1">
+        <div className="sticky top-6">
+          <UsageStats />
+        </div>
+      </div>
     </div>
   )
 }

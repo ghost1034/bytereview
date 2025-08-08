@@ -103,26 +103,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/jobs/{job_id}/start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start Job
-         * @description Step 2: Start job processing with field configuration and task definitions
-         */
-        post: operations["start_job_api_jobs__job_id__start_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/jobs/resumable": {
         parameters: {
             query?: never;
@@ -316,6 +296,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jobs/{job_id}/export-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream Job Export Events
+         * @description Server-Sent Events stream for real-time export updates (Google Drive exports)
+         */
+        get: operations["stream_job_export_events_api_jobs__job_id__export_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/jobs/{job_id}/results": {
         parameters: {
             query?: never;
@@ -456,6 +456,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jobs/{job_id}/export/gdrive/csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Job Results To Drive Csv
+         * @description Export job results to Google Drive as CSV format (async)
+         */
+        get: operations["export_job_results_to_drive_csv_api_jobs__job_id__export_gdrive_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/export/gdrive/excel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Job Results To Drive Excel
+         * @description Export job results to Google Drive as Excel format (async)
+         */
+        get: operations["export_job_results_to_drive_excel_api_jobs__job_id__export_gdrive_excel_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/jobs/{job_id}/files:gdrive": {
         parameters: {
             query?: never;
@@ -516,6 +556,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stripe/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Billing Account
+         * @description Get user's billing account information
+         */
+        get: operations["get_billing_account_api_stripe_account_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stripe/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Usage Stats
+         * @description Get current usage statistics
+         */
+        get: operations["get_usage_stats_api_stripe_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stripe/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Subscription Plans
+         * @description Get all available subscription plans
+         */
+        get: operations["get_subscription_plans_api_stripe_plans_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stripe/create-checkout-session": {
         parameters: {
             query?: never;
@@ -527,7 +627,7 @@ export interface paths {
         put?: never;
         /**
          * Create Checkout Session
-         * @description Create a Stripe checkout session
+         * @description Create a Stripe checkout session for plan upgrade
          */
         post: operations["create_checkout_session_api_stripe_create_checkout_session_post"];
         delete?: never;
@@ -565,9 +665,89 @@ export interface paths {
         };
         /**
          * Get Subscription Status
-         * @description Get user's subscription status
+         * @description Get user's subscription status (legacy compatibility)
          */
         get: operations["get_subscription_status_api_stripe_subscription_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Billing Account
+         * @description Get user's billing account information
+         */
+        get: operations["get_billing_account_api_billing_account_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Usage Stats
+         * @description Get current usage statistics
+         */
+        get: operations["get_usage_stats_api_billing_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Subscription Plans
+         * @description Get all available subscription plans
+         */
+        get: operations["get_subscription_plans_api_billing_plans_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/limits/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check Limits
+         * @description Check current plan limits and usage
+         */
+        get: operations["check_limits_api_billing_limits_check_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -630,46 +810,6 @@ export interface paths {
          * @description Extract structured data from PDF files using AI
          */
         post: operations["extract_data_from_pdfs_api_extraction_extract_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/extraction/export/csv": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Export Results To Csv
-         * @description Export extraction results to CSV format
-         */
-        post: operations["export_results_to_csv_api_extraction_export_csv_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/extraction/export/excel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Export Results To Excel
-         * @description Export extraction results to Excel format
-         */
-        post: operations["export_results_to_excel_api_extraction_export_excel_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -968,10 +1108,450 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/automations/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Automations
+         * @description Get all automations for the current user
+         */
+        get: operations["list_automations_api_automations__get"];
+        put?: never;
+        /**
+         * Create Automation
+         * @description Create a new automation
+         */
+        post: operations["create_automation_api_automations__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/automations/{automation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Automation
+         * @description Get a specific automation by ID
+         */
+        get: operations["get_automation_api_automations__automation_id__get"];
+        /**
+         * Update Automation
+         * @description Update an existing automation
+         */
+        put: operations["update_automation_api_automations__automation_id__put"];
+        post?: never;
+        /**
+         * Delete Automation
+         * @description Delete an automation
+         */
+        delete: operations["delete_automation_api_automations__automation_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/automations/{automation_id}/toggle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Toggle Automation
+         * @description Toggle automation enabled/disabled state
+         */
+        post: operations["toggle_automation_api_automations__automation_id__toggle_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/automations/{automation_id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Automation Runs
+         * @description Get automation runs for a specific automation
+         */
+        get: operations["get_automation_runs_api_automations__automation_id__runs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/webhooks/stripe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stripe Webhook
+         * @description Handle Stripe webhook events for billing and subscription management
+         */
+        post: operations["stripe_webhook_api_webhooks_stripe_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/webhooks/gmail-push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gmail Push Verification
+         * @description Handle Gmail Pub/Sub subscription verification
+         *
+         *     Google Cloud Pub/Sub may send a GET request to verify the webhook endpoint
+         *     during subscription setup. Simple authentication for development.
+         */
+        get: operations["gmail_push_verification_api_webhooks_gmail_push_get"];
+        put?: never;
+        /**
+         * Gmail Push Webhook
+         * @description Handle Gmail Pub/Sub push notifications
+         *
+         *     This endpoint receives notifications when Gmail messages are received
+         *     and triggers automations for users who have Gmail automations configured.
+         *
+         *     Security: Simple authentication for development. Implement proper JWT verification for production.
+         */
+        post: operations["gmail_push_webhook_api_webhooks_gmail_push_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/webhooks/test-automation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Automation Trigger
+         * @description Test endpoint for triggering automations manually (development/testing only)
+         */
+        post: operations["test_automation_trigger_api_webhooks_test_automation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/setup-gmail-pubsub": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Setup Gmail Pubsub
+         * @description Set up Gmail Pub/Sub infrastructure and watch for all users
+         *
+         *     This endpoint should be called once during deployment to set up:
+         *     1. Google Cloud Pub/Sub topic and subscription
+         *     2. Gmail watch for all existing users with Google integrations
+         */
+        post: operations["setup_gmail_pubsub_api_admin_setup_gmail_pubsub_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/setup-gmail-watch/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Setup Gmail Watch For User
+         * @description Set up Gmail watch for a specific user
+         *
+         *     This can be used to set up Gmail watch for new users or retry failed setups.
+         */
+        post: operations["setup_gmail_watch_for_user_api_admin_setup_gmail_watch__user_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/gmail-pubsub-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Gmail Pubsub Status
+         * @description Get Gmail Pub/Sub configuration status
+         */
+        get: operations["get_gmail_pubsub_status_api_admin_gmail_pubsub_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AutomationCreate
+         * @description Request model for creating an automation
+         */
+        AutomationCreate: {
+            /**
+             * Name
+             * @description Human-readable name for the automation
+             */
+            name: string;
+            /**
+             * Is Enabled
+             * @description Whether the automation is enabled
+             * @default true
+             */
+            is_enabled: boolean;
+            /**
+             * Trigger Type
+             * @description Type of trigger (gmail_attachment for v1)
+             */
+            trigger_type: string;
+            /**
+             * Trigger Config
+             * @description Configuration for the trigger
+             */
+            trigger_config: {
+                [key: string]: unknown;
+            };
+            /**
+             * Job Id
+             * Format: uuid
+             * @description ID of the extraction job to use as template
+             */
+            job_id: string;
+            /**
+             * Dest Type
+             * @description Export destination type (gdrive, gmail)
+             */
+            dest_type?: string | null;
+            /**
+             * Export Config
+             * @description Export configuration
+             */
+            export_config?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * AutomationListResponse
+         * @description Response model for list of automations
+         */
+        AutomationListResponse: {
+            /** Automations */
+            automations: components["schemas"]["AutomationResponse"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * AutomationResponse
+         * @description Response model for automation data
+         */
+        AutomationResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** User Id */
+            user_id: string;
+            /** Name */
+            name: string;
+            /** Is Enabled */
+            is_enabled: boolean;
+            /** Trigger Type */
+            trigger_type: string;
+            /** Trigger Config */
+            trigger_config: {
+                [key: string]: unknown;
+            };
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /** Dest Type */
+            dest_type: string | null;
+            /** Export Config */
+            export_config: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * AutomationRunListResponse
+         * @description Response model for list of automation runs
+         */
+        AutomationRunListResponse: {
+            /** Runs */
+            runs: components["schemas"]["AutomationRunResponse"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * AutomationRunResponse
+         * @description Response model for automation run data
+         */
+        AutomationRunResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Automation Id
+             * Format: uuid
+             */
+            automation_id: string;
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /** Status */
+            status: string;
+            /** Error Message */
+            error_message: string | null;
+            /**
+             * Triggered At
+             * Format: date-time
+             */
+            triggered_at: string;
+            /** Completed At */
+            completed_at: string | null;
+        };
+        /**
+         * AutomationUpdate
+         * @description Request model for updating an automation
+         */
+        AutomationUpdate: {
+            /**
+             * Name
+             * @description Human-readable name for the automation
+             */
+            name?: string | null;
+            /**
+             * Is Enabled
+             * @description Whether the automation is enabled
+             */
+            is_enabled?: boolean | null;
+            /**
+             * Trigger Config
+             * @description Configuration for the trigger
+             */
+            trigger_config?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Dest Type
+             * @description Export destination type (gdrive, gmail)
+             */
+            dest_type?: string | null;
+            /**
+             * Export Config
+             * @description Export configuration
+             */
+            export_config?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * BillingAccountResponse
+         * @description User's billing account information
+         */
+        BillingAccountResponse: {
+            /** User Id */
+            user_id: string;
+            /** Plan Code */
+            plan_code: string;
+            /** Plan Display Name */
+            plan_display_name: string;
+            /** Pages Included */
+            pages_included: number;
+            /** Pages Used */
+            pages_used: number;
+            /** Automations Limit */
+            automations_limit: number;
+            /** Automations Count */
+            automations_count: number;
+            /** Overage Cents */
+            overage_cents: number;
+            /** Current Period Start */
+            current_period_start: string | null;
+            /** Current Period End */
+            current_period_end: string | null;
+            /** Status */
+            status: string;
+            /** Stripe Customer Id */
+            stripe_customer_id: string | null;
+            /** Stripe Subscription Id */
+            stripe_subscription_id: string | null;
+        };
         /** Body_add_files_to_job_api_jobs__job_id__files_post */
         Body_add_files_to_job_api_jobs__job_id__files_post: {
             /** Files */
@@ -1013,6 +1593,14 @@ export interface components {
             /** Files */
             files: string[];
         };
+        /**
+         * CheckoutSessionResponse
+         * @description Response containing checkout session URL
+         */
+        CheckoutSessionResponse: {
+            /** Checkout Url */
+            checkout_url: string;
+        };
         /** ConfigStepRequest */
         ConfigStepRequest: {
             /** Config Step */
@@ -1026,10 +1614,10 @@ export interface components {
          */
         CreateCheckoutSessionRequest: {
             /**
-             * Price Id
-             * @description Stripe price ID for the subscription
+             * Plan Code
+             * @description Plan code (basic, pro)
              */
-            price_id: string;
+            plan_code: string;
             /**
              * Success Url
              * Format: uri
@@ -1238,33 +1826,6 @@ export interface components {
             extraction_tasks?: {
                 [key: string]: unknown;
             }[];
-        };
-        /**
-         * JobFieldConfig
-         * @description Field configuration for a job (snapshot from template)
-         */
-        JobFieldConfig: {
-            /**
-             * Field Name
-             * @description Name of the field
-             */
-            field_name: string;
-            /**
-             * Data Type Id
-             * @description Data type identifier
-             */
-            data_type_id: string;
-            /**
-             * Ai Prompt
-             * @description AI extraction prompt
-             */
-            ai_prompt: string;
-            /**
-             * Display Order
-             * @description Display order
-             * @default 0
-             */
-            display_order: number;
         };
         /**
          * JobFieldInfo
@@ -1481,54 +2042,19 @@ export interface components {
             results: components["schemas"]["ExtractionTaskResult"][];
         };
         /**
-         * JobStartRequest
-         * @description Request to start job processing
-         */
-        JobStartRequest: {
-            /**
-             * Template Id
-             * @description Template ID to use
-             */
-            template_id?: string | null;
-            /**
-             * Persist Data
-             * @description Whether to persist data
-             * @default true
-             */
-            persist_data: boolean;
-            /**
-             * Fields
-             * @description Field configuration
-             */
-            fields: components["schemas"]["JobFieldConfig"][];
-            /**
-             * Task Definitions
-             * @description Processing definitions
-             */
-            task_definitions: components["schemas"]["TaskDefinition"][];
-        };
-        /**
-         * JobStartResponse
-         * @description Response for job start
-         */
-        JobStartResponse: {
-            /**
-             * Message
-             * @description Success message
-             */
-            message: string;
-            /**
-             * Job Id
-             * @description Job identifier
-             */
-            job_id: string;
-        };
-        /**
          * JobStatus
          * @description Job status enumeration
          * @enum {string}
          */
         JobStatus: "pending" | "in_progress" | "partially_completed" | "completed" | "failed" | "cancelled";
+        /**
+         * PortalSessionResponse
+         * @description Response containing portal session URL
+         */
+        PortalSessionResponse: {
+            /** Portal Url */
+            portal_url: string;
+        };
         /** ProcessedFile */
         ProcessedFile: {
             /** Filename */
@@ -1549,15 +2075,35 @@ export interface components {
          */
         ProcessingMode: "individual" | "combined";
         /**
+         * SubscriptionPlanResponse
+         * @description Subscription plan information
+         */
+        SubscriptionPlanResponse: {
+            /** Code */
+            code: string;
+            /** Display Name */
+            display_name: string;
+            /** Pages Included */
+            pages_included: number;
+            /** Automations Limit */
+            automations_limit: number;
+            /** Overage Cents */
+            overage_cents: number;
+            /** Stripe Price Recurring Id */
+            stripe_price_recurring_id: string | null;
+            /** Sort Order */
+            sort_order: number;
+        };
+        /**
          * SubscriptionStatus
-         * @description User's subscription status information
+         * @description Legacy subscription status (for backward compatibility)
          */
         SubscriptionStatus: {
             /** Has Subscription */
             has_subscription: boolean;
             /**
              * Plan
-             * @description Plan name (free, starter, professional, enterprise)
+             * @description Plan name (free, basic, pro)
              */
             plan: string;
             /**
@@ -1570,19 +2116,6 @@ export interface components {
              * @description Unix timestamp of period end
              */
             current_period_end?: number | null;
-        };
-        /**
-         * TaskDefinition
-         * @description Definition of how files should be processed
-         */
-        TaskDefinition: {
-            /**
-             * Path
-             * @description Folder path to process
-             */
-            path: string;
-            /** @description Processing mode for this path */
-            mode: components["schemas"]["ProcessingMode"];
         };
         /**
          * TaskInfo
@@ -1657,6 +2190,30 @@ export interface components {
             extracted_files?: {
                 [key: string]: unknown;
             }[];
+        };
+        /**
+         * UsageStatsResponse
+         * @description Usage statistics for current period
+         */
+        UsageStatsResponse: {
+            /** Pages Used */
+            pages_used: number;
+            /** Pages Included */
+            pages_included: number;
+            /** Pages Remaining */
+            pages_remaining: number;
+            /** Automations Count */
+            automations_count: number;
+            /** Automations Limit */
+            automations_limit: number;
+            /** Period Start */
+            period_start: string | null;
+            /** Period End */
+            period_end: string | null;
+            /** Plan Code */
+            plan_code: string;
+            /** Plan Display Name */
+            plan_display_name: string;
         };
         /** UserResponse */
         UserResponse: {
@@ -1882,41 +2439,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobInitiateResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    start_job_api_jobs__job_id__start_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                job_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["JobStartRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["JobStartResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2314,6 +2836,39 @@ export interface operations {
             };
         };
     };
+    stream_job_export_events_api_jobs__job_id__export_events_get: {
+        parameters: {
+            query: {
+                token: string;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_job_results_api_jobs__job_id__results_get: {
         parameters: {
             query?: {
@@ -2544,6 +3099,74 @@ export interface operations {
             };
         };
     };
+    export_job_results_to_drive_csv_api_jobs__job_id__export_gdrive_csv_get: {
+        parameters: {
+            query?: {
+                /** @description Google Drive folder ID (optional) */
+                folder_id?: string | null;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_job_results_to_drive_excel_api_jobs__job_id__export_gdrive_excel_get: {
+        parameters: {
+            query?: {
+                /** @description Google Drive folder ID (optional) */
+                folder_id?: string | null;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     import_drive_files_api_jobs__job_id__files_gdrive_post: {
         parameters: {
             query?: never;
@@ -2637,6 +3260,66 @@ export interface operations {
             };
         };
     };
+    get_billing_account_api_stripe_account_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingAccountResponse"];
+                };
+            };
+        };
+    };
+    get_usage_stats_api_stripe_usage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageStatsResponse"];
+                };
+            };
+        };
+    };
+    get_subscription_plans_api_stripe_plans_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionPlanResponse"][];
+                };
+            };
+        };
+    };
     create_checkout_session_api_stripe_create_checkout_session_post: {
         parameters: {
             query?: never;
@@ -2656,7 +3339,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["CheckoutSessionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2689,7 +3372,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["PortalSessionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2719,6 +3402,86 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SubscriptionStatus"];
+                };
+            };
+        };
+    };
+    get_billing_account_api_billing_account_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingAccountResponse"];
+                };
+            };
+        };
+    };
+    get_usage_stats_api_billing_usage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageStatsResponse"];
+                };
+            };
+        };
+    };
+    get_subscription_plans_api_billing_plans_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionPlanResponse"][];
+                };
+            };
+        };
+    };
+    check_limits_api_billing_limits_check_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };
@@ -2809,76 +3572,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExtractionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    export_results_to_csv_api_extraction_export_csv_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    export_results_to_excel_api_extraction_export_excel_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -3317,6 +4010,413 @@ export interface operations {
                 mimeTypes?: string;
                 /** @description Maximum number of attachments to return */
                 limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_automations_api_automations__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationListResponse"];
+                };
+            };
+        };
+    };
+    create_automation_api_automations__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_automation_api_automations__automation_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                automation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_automation_api_automations__automation_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                automation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_automation_api_automations__automation_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                automation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    toggle_automation_api_automations__automation_id__toggle_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                automation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_automation_runs_api_automations__automation_id__runs_get: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of runs to return */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                automation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationRunListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stripe_webhook_api_webhooks_stripe_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    gmail_push_verification_api_webhooks_gmail_push_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    gmail_push_webhook_api_webhooks_gmail_push_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    test_automation_trigger_api_webhooks_test_automation_post: {
+        parameters: {
+            query: {
+                /** @description User ID to test */
+                user_id: string;
+                /** @description Test token */
+                token?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    setup_gmail_pubsub_api_admin_setup_gmail_pubsub_post: {
+        parameters: {
+            query: {
+                /** @description Admin token for authentication */
+                admin_token: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    setup_gmail_watch_for_user_api_admin_setup_gmail_watch__user_id__post: {
+        parameters: {
+            query: {
+                /** @description Admin token for authentication */
+                admin_token: string;
+            };
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_gmail_pubsub_status_api_admin_gmail_pubsub_status_get: {
+        parameters: {
+            query: {
+                /** @description Admin token for authentication */
+                admin_token: string;
             };
             header?: never;
             path?: never;

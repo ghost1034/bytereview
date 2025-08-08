@@ -70,12 +70,13 @@ async def health_check():
     return {"status": "healthy"}
 
 # Import routes
-from routes import users, jobs, stripe_routes, extraction, templates, data_types, integrations, automations, webhooks, admin
+from routes import users, jobs, stripe_routes, extraction, templates, data_types, integrations, automations, webhooks, admin, billing
 
 # Include routers
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
 app.include_router(stripe_routes.router, prefix="/api/stripe", tags=["stripe"])
+app.include_router(billing.router)
 app.include_router(extraction.router, prefix="/api/extraction", tags=["extraction"])
 app.include_router(templates.router, prefix="/api/templates", tags=["templates"])
 app.include_router(data_types.router, prefix="/api/data-types", tags=["data-types"])

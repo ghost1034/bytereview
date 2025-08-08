@@ -4,6 +4,7 @@ Billing service for subscription management, usage tracking, and Stripe integrat
 import os
 import stripe
 import uuid
+import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session
@@ -15,6 +16,8 @@ from models.db_models import (
     ExtractionTask, SourceFile
 )
 from core.database import get_db
+
+logger = logging.getLogger(__name__)
 
 
 class PlanLimitExceeded(Exception):

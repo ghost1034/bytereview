@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/automations", tags=["automations"])
 
-@router.post("/", response_model=AutomationResponse)
+@router.post("", response_model=AutomationResponse)
 async def create_automation(
     automation: AutomationCreate,
     user_id: str = Depends(get_current_user_id),
@@ -38,7 +38,7 @@ async def create_automation(
         logger.error(f"Failed to create automation for user {user_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to create automation")
 
-@router.get("/", response_model=AutomationListResponse)
+@router.get("", response_model=AutomationListResponse)
 async def list_automations(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)

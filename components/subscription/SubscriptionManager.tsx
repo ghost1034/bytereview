@@ -1,111 +1,93 @@
 'use client'
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { CreditCard, Calendar, AlertTriangle } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { CreditCard, Calendar, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useBillingAccount, useCreatePortalSession, useSubscriptionPlans } from "@/hooks/useBilling";
 import SubscriptionModal from "./SubscriptionModal";
 
-interface SubscriptionData {
-  plan: string;
-  pagesUsed: number;
-  pagesLimit: number;
-  nextBilling: string;
-  status: string;
-  subscriptionId: string | null;
-  amount?: number;
-  currency?: string;
-}
-
 export default function SubscriptionManager() {
-  const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isCancelling, setIsCancelling] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const { toast } = useToast();
+  
+  const { data: billingAccount, isLoading, error } = useBillingAccount();
+  const { data: plans } = useSubscriptionPlans();
+  const createPortalSession = useCreatePortalSession();
 
-  useEffect(() => {
-    fetchSubscriptionData();
-  }, []);
-
-  const fetchSubscriptionData = async () => {
-    try {
-      const response = await fetch('/api/subscription-status');
-      if (response.ok) {
-        const data = await response.json();
-        setSubscriptionData(data);
-      }
-    } catch (error) {
-      console.error('Error fetching subscription data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCancelSubscription = async () => {
-    if (!subscriptionData?.subscriptionId) return;
-
-    setIsCancelling(true);
-    try {
-      const response = await apiRequest("POST", "/api/cancel-subscription", {
-        subscriptionId: subscriptionData.subscriptionId,
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        toast({
-          title: "Subscription Cancelled",
-          description: data.message,
-        });
-        fetchSubscriptionData();
-      } else {
-        throw new Error(data.error || "Failed to cancel subscription");
-      }
-    } catch (error: any) {
+  const handleManageSubscription = () => {
+    if (!billingAccount?.stripe_customer_id) {
       toast({
-        title: "Cancellation Failed",
-        description: error.message || "Unable to cancel subscription. Please try again.",
+        title: "No subscription found",
+        description: "You don't have an active subscription to manage.",
         variant: "destructive",
       });
-    } finally {
-      setIsCancelling(false);
+      return;
     }
+
+    createPortalSession.mutate({
+      return_url: window.location.href
+    });
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active':
-        return 'default';
-      case 'canceled':
-        return 'secondary';
-      case 'past_due':
-        return 'destructive';
-      case 'incomplete':
-        return 'secondary';
-      default:
-        return 'secondary';
+      case 'active': return 'default';
+      case 'past_due': return 'destructive';
+      case 'canceled': return 'secondary';
+      default: return 'secondary';
+    }
+  };
+
+  const getPlanPrice = (planCode: string) => {
+    const plan = plans?.find(p => p.code === planCode);
+    if (!plan?.stripe_price_recurring_id) return null;
+    
+    switch (planCode) {
+      case 'basic': return '$9.99';
+      case 'pro': return '$49.99';
+      default: return null;
     }
   };
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Subscription</CardTitle>
+          <CardTitle className="flex items-center space-x-2">
+            <CreditCard className="w-5 h-5" />
+            <span>Subscription</span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-600">Loading subscription details...</p>
+          <div className="flex items-center space-x-2">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <p className="text-gray-600">Loading subscription details...</p>
+          </div>
         </CardContent>
       </Card>
     );
   }
 
-  if (!subscriptionData || subscriptionData.plan === "Free") {
+  if (error || !billingAccount) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <CreditCard className="w-5 h-5" />
+            <span>Subscription</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-600">Unable to load subscription details</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (billingAccount.plan_code === "free") {
     return (
       <>
         <Card>
@@ -117,7 +99,7 @@ export default function SubscriptionManager() {
               <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600 mb-2">No Active Subscription</p>
               <p className="text-sm text-gray-500 mb-6">
-                You're currently on the free plan ({subscriptionData?.pagesLimit || 10} pages/month). Upgrade to unlock advanced features.
+                You're currently on the free plan ({billingAccount.pages_included} pages/month). Upgrade to unlock advanced features.
               </p>
               
               <Button 

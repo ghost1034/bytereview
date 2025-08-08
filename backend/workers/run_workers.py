@@ -21,16 +21,17 @@ else:
     print(f"Warning: service-account.json not found at {service_account_path}")
 
 from arq import run_worker
-from worker import WorkerSettings, ZipWorkerSettings, ImportWorkerSettings, ExportWorkerSettings, AutomationWorkerSettings
+from worker import WorkerSettings, ZipWorkerSettings, ImportWorkerSettings, ExportWorkerSettings, AutomationWorkerSettings, CronWorkerSettings
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python run_workers.py [ai|zip|import|export|automation]")
+        print("Usage: python run_workers.py [ai|zip|import|export|automation|cron]")
         print("  ai         - Run AI extraction worker")
         print("  zip        - Run ZIP unpacking worker")
         print("  import     - Run file import worker (Drive, Gmail)")
         print("  export     - Run export worker (Google Drive exports)")
         print("  automation - Run automation worker (Gmail triggers, job initialization)")
+        print("  cron       - Run cron worker (scheduled maintenance tasks)")
         sys.exit(1)
     
     worker_type = sys.argv[1].lower()
@@ -62,9 +63,20 @@ def main():
         print("Starting Automation Worker (Gmail triggers, job initialization)...")
         print("Logs will appear below...")
         run_worker(AutomationWorkerSettings)
+    elif worker_type == "cron":
+        print("Starting Cron Worker (scheduled maintenance tasks)...")
+        print("📅 Scheduled tasks:")
+        print("  - Free user period reset: Daily at 00:30 UTC")
+        print("  - Stripe usage reconciliation: Every 2 hours")
+        print("  - Usage counter cleanup: Weekly on Sundays at 02:00 UTC")
+        print("  - Abandoned job cleanup: Daily at 01:00 UTC")
+        print("  - Artifact cleanup: Daily at 03:00 UTC")
+        print("  - Opt-out data cleanup: Weekly on Saturdays at 04:00 UTC")
+        print("Logs will appear below...")
+        run_worker(CronWorkerSettings)
     else:
         print(f"Unknown worker type: {worker_type}")
-        print("Use 'ai', 'zip', 'import', 'export', or 'automation'")
+        print("Use 'ai', 'zip', 'import', 'export', 'automation', or 'cron'")
         sys.exit(1)
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@ router = APIRouter()
 ai_service = AIExtractionService()
 template_service = TemplateService()
 
-@router.get("/")
+@router.get("")
 async def get_user_templates(user_id: str = Depends(get_current_user_id)):
     """Get user's extraction templates"""
     try:
@@ -26,7 +26,7 @@ async def get_user_templates(user_id: str = Depends(get_current_user_id)):
         logger.error(f"Failed to get templates for user {user_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get templates: {str(e)}")
 
-@router.post("/")
+@router.post("")
 async def create_template(
     template_request: TemplateCreateRequest,
     user_id: str = Depends(get_current_user_id)

@@ -28,6 +28,7 @@ sys.path.insert(0, str(backend_dir))
 
 from arq import create_pool
 from arq.connections import RedisSettings
+from arq.cron import cron
 from sqlalchemy.orm import Session
 from core.database import db_config, get_db
 from models.db_models import ExtractionTask, ExtractionResult, SourceFile, JobField, SystemPrompt, SourceFileToTask, ExtractionJob, DataType
@@ -58,6 +59,16 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
         if not task:
             raise ValueError(f"Task {task_id} not found")
         
+        # Get associated source files (ordered by document_order)
+        source_files_query = db.query(SourceFile, SourceFileToTask.document_order).join(
+            SourceFileToTask, SourceFile.id == SourceFileToTask.source_file_id
+        ).filter(
+            SourceFileToTask.task_id == task_id
+        ).order_by(SourceFileToTask.document_order)
+        
+        source_files_with_order = source_files_query.all()
+        source_files = [sf for sf, _ in source_files_with_order]
+        
         # Update task status to processing
         task.status = "processing"
         db.commit()
@@ -68,16 +79,6 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
             await sse_manager.send_task_started(task.job_id, task_id)
         except Exception as e:
             logger.warning(f"Failed to send task_started SSE event: {e}")
-        
-        # Get associated source files (ordered by document_order)
-        source_files_query = db.query(SourceFile, SourceFileToTask.document_order).join(
-            SourceFileToTask, SourceFile.id == SourceFileToTask.source_file_id
-        ).filter(
-            SourceFileToTask.task_id == task_id
-        ).order_by(SourceFileToTask.document_order)
-        
-        source_files_with_order = source_files_query.all()
-        source_files = [sf for sf, _ in source_files_with_order]
         
         if not source_files:
             raise ValueError(f"No source files found for task {task_id}")
@@ -218,6 +219,13 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
         task.status = "completed"
         task.processed_at = datetime.now(timezone.utc)
         
+        # Record usage for billing (count pages processed)
+        try:
+            await _record_usage_for_task(db, task, source_files)
+        except Exception as e:
+            logger.error(f"Failed to record usage for billing: {e}")
+            # Don't fail the task for billing errors
+        
         # Increment job-level task completion counter
         try:
             from services.job_service import JobService
@@ -354,6 +362,12 @@ async def unpack_zip_file_task(ctx: Dict[str, Any], source_file_id: str, automat
                     if not mime_type:
                         mime_type = "application/octet-stream"
                     
+                    # Count pages in the extracted file
+                    from services.page_counting_service import page_counting_service
+                    with open(file_path, 'rb') as f:
+                        file_content = f.read()
+                    page_count = page_counting_service.count_pages_from_content(file_content, file)
+                    
                     # Create new SourceFile record for extracted file
                     extracted_file = SourceFile(
                         job_id=job_id,
@@ -362,6 +376,7 @@ async def unpack_zip_file_task(ctx: Dict[str, Any], source_file_id: str, automat
                         gcs_object_name=new_gcs_name,
                         file_type=mime_type,
                         file_size_bytes=file_size,
+                        page_count=page_count,
                         status=FileStatus.UPLOADED.value  # Mark as uploaded since it's ready for processing
                     )
                     
@@ -498,6 +513,257 @@ async def run_artifact_cleanup(ctx: Dict[str, Any]) -> Dict[str, Any]:
     
     return {"success": True, "artifacts_cleaned": 0}
 
+async def run_free_user_period_reset(ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """Reset billing periods for free users at month boundaries"""
+    logger.info("Starting free user period reset")
+    
+    db = db_config.get_session()
+    try:
+        from services.billing_service import get_billing_service
+        from datetime import datetime, timezone, timedelta
+        from models.db_models import BillingAccount, UsageCounter
+        
+        billing_service = get_billing_service(db)
+        now = datetime.now(timezone.utc)
+        
+        # Find free users whose periods have expired
+        expired_accounts = db.query(BillingAccount).filter(
+            BillingAccount.plan_code == 'free',
+            BillingAccount.current_period_end < now
+        ).all()
+        
+        updated_count = 0
+        for account in expired_accounts:
+            try:
+                # Calculate new period boundaries (current month)
+                period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                period_end = (period_start + timedelta(days=32)).replace(day=1) - timedelta(seconds=1)
+                
+                # Update billing account period
+                account.current_period_start = period_start
+                account.current_period_end = period_end
+                
+                # Create new usage counter for the new period
+                new_counter = UsageCounter(
+                    user_id=account.user_id,
+                    period_start=period_start,
+                    period_end=period_end,
+                    pages_total=0
+                )
+                db.merge(new_counter)  # Use merge to handle conflicts
+                
+                updated_count += 1
+                logger.info(f"Reset period for free user {account.user_id}: {period_start} to {period_end}")
+                
+            except Exception as e:
+                logger.error(f"Failed to reset period for user {account.user_id}: {e}")
+                continue
+        
+        db.commit()
+        
+        logger.info(f"Free user period reset completed: {updated_count} accounts updated")
+        return {
+            "success": True, 
+            "message": f"Period reset completed for {updated_count} free users",
+            "updated_count": updated_count
+        }
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Free user period reset failed: {e}")
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+async def run_stripe_usage_reconciliation(ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """Retry failed Stripe usage reports and reconcile usage data"""
+    logger.info("Starting Stripe usage reconciliation")
+    
+    db = db_config.get_session()
+    try:
+        from services.billing_service import get_billing_service
+        from datetime import datetime, timezone, timedelta
+        from models.db_models import BillingAccount, UsageEvent
+        
+        # Find usage events that failed to report to Stripe
+        unreported_events = db.query(UsageEvent).filter(
+            UsageEvent.stripe_reported == False,
+            UsageEvent.occurred_at > datetime.now(timezone.utc) - timedelta(days=7)  # Only retry recent events
+        ).all()
+        
+        retry_count = 0
+        success_count = 0
+        
+        for event in unreported_events:
+            try:
+                # Get billing account to check if user is on paid plan
+                billing_account = db.query(BillingAccount).filter(
+                    BillingAccount.user_id == event.user_id
+                ).first()
+                
+                if not billing_account or billing_account.plan_code == 'free':
+                    # Mark as reported for free users (no Stripe reporting needed)
+                    event.stripe_reported = True
+                    continue
+                
+                if not billing_account.stripe_customer_id:
+                    logger.warning(f"No Stripe customer ID for paid user {event.user_id}")
+                    continue
+                
+                # Retry Stripe reporting
+                billing_service = get_billing_service(db)
+                billing_service._report_usage_to_stripe_async(
+                    event.user_id, 
+                    event.pages, 
+                    str(event.id)
+                )
+                
+                retry_count += 1
+                success_count += 1
+                logger.info(f"Successfully retried Stripe reporting for event {event.id}")
+                
+            except Exception as e:
+                logger.error(f"Failed to retry Stripe reporting for event {event.id}: {e}")
+                retry_count += 1
+                continue
+        
+        db.commit()
+        
+        logger.info(f"Stripe usage reconciliation completed: {success_count}/{retry_count} events processed")
+        return {
+            "success": True,
+            "message": f"Reconciliation completed: {success_count}/{retry_count} events processed",
+            "retry_count": retry_count,
+            "success_count": success_count
+        }
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Stripe usage reconciliation failed: {e}")
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+async def run_usage_counter_cleanup(ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """Clean up old usage counters to prevent database bloat"""
+    logger.info("Starting usage counter cleanup")
+    
+    db = db_config.get_session()
+    try:
+        from datetime import datetime, timezone, timedelta
+        from models.db_models import UsageCounter
+        
+        # Remove usage counters older than 13 months (keep 1 year + current month)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=395)  # ~13 months
+        
+        deleted_count = db.query(UsageCounter).filter(
+            UsageCounter.period_start < cutoff_date
+        ).delete()
+        
+        db.commit()
+        
+        logger.info(f"Usage counter cleanup completed: {deleted_count} old counters removed")
+        return {
+            "success": True,
+            "message": f"Cleanup completed: {deleted_count} old usage counters removed",
+            "deleted_count": deleted_count
+        }
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Usage counter cleanup failed: {e}")
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+# ===================================================================
+# Scheduled/Cron Task Wrappers
+# ===================================================================
+
+async def schedule_free_user_period_reset(ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Scheduled task to reset free user billing periods
+    Runs daily at 00:30 UTC to catch month rollovers
+    """
+    logger.info("Scheduled: Free user period reset")
+    try:
+        result = await run_free_user_period_reset(ctx)
+        logger.info(f"Scheduled free user period reset completed: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Scheduled free user period reset failed: {e}")
+        return {"success": False, "error": str(e)}
+
+async def schedule_stripe_usage_reconciliation(ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Scheduled task to retry failed Stripe usage reports
+    Runs every 2 hours to ensure usage is properly reported
+    """
+    logger.info("Scheduled: Stripe usage reconciliation")
+    try:
+        result = await run_stripe_usage_reconciliation(ctx)
+        logger.info(f"Scheduled Stripe reconciliation completed: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Scheduled Stripe reconciliation failed: {e}")
+        return {"success": False, "error": str(e)}
+
+async def schedule_usage_counter_cleanup(ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Scheduled task to clean up old usage counters
+    Runs weekly on Sundays at 02:00 UTC
+    """
+    logger.info("Scheduled: Usage counter cleanup")
+    try:
+        result = await run_usage_counter_cleanup(ctx)
+        logger.info(f"Scheduled usage counter cleanup completed: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Scheduled usage counter cleanup failed: {e}")
+        return {"success": False, "error": str(e)}
+
+async def schedule_abandoned_cleanup(ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Scheduled task to clean up abandoned jobs
+    Runs daily at 01:00 UTC
+    """
+    logger.info("Scheduled: Abandoned job cleanup")
+    try:
+        result = await run_abandoned_cleanup(ctx)
+        logger.info(f"Scheduled abandoned cleanup completed: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Scheduled abandoned cleanup failed: {e}")
+        return {"success": False, "error": str(e)}
+
+async def schedule_artifact_cleanup(ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Scheduled task to clean up old artifacts
+    Runs daily at 03:00 UTC
+    """
+    logger.info("Scheduled: Artifact cleanup")
+    try:
+        result = await run_artifact_cleanup(ctx)
+        logger.info(f"Scheduled artifact cleanup completed: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Scheduled artifact cleanup failed: {e}")
+        return {"success": False, "error": str(e)}
+
+async def schedule_opt_out_cleanup(ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Scheduled task to clean up opt-out user data
+    Runs weekly on Saturdays at 04:00 UTC
+    """
+    logger.info("Scheduled: Opt-out data cleanup")
+    try:
+        result = await run_opt_out_cleanup(ctx)
+        logger.info(f"Scheduled opt-out cleanup completed: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Scheduled opt-out cleanup failed: {e}")
+        return {"success": False, "error": str(e)}
+
 # ARQ worker settings
 class WorkerSettings:
     """ARQ worker configuration for AI extraction tasks (default queue)"""
@@ -507,9 +773,6 @@ class WorkerSettings:
     # Task functions that the worker can execute
     functions = [
         process_extraction_task,
-        run_abandoned_cleanup,
-        run_opt_out_cleanup,
-        run_artifact_cleanup,
     ]
     
     # Worker configuration for AI tasks (low memory, high concurrency)
@@ -1052,6 +1315,20 @@ async def automation_trigger_worker(
                 logger.info(f"No Gmail automations found for user {user_id}")
                 return {"processed": 0, "message": "No Gmail automations configured"}
             
+            # Double-check automation limits before processing (in case plan was downgraded)
+            try:
+                from services.billing_service import get_billing_service
+                billing_service = get_billing_service(db)
+                can_run_automations = billing_service.check_automation_limit(user_id)
+                
+                if not can_run_automations:
+                    billing_info = billing_service.get_billing_info(user_id)
+                    logger.warning(f"User {user_id} has exceeded automation limits ({billing_info['automations_count']}/{billing_info['automations_limit']}), skipping automation processing")
+                    return {"processed": 0, "message": "Automation limit exceeded"}
+            except Exception as e:
+                logger.warning(f"Could not check automation limits for user {user_id}: {e}")
+                # Continue processing if we can't check limits
+            
             processed_count = 0
             
             # Use Gmail History API to get new messages since last processed history ID
@@ -1191,7 +1468,7 @@ async def run_initializer_worker(
     automation_run_id: str = None
 ) -> Dict[str, Any]:
     """
-    Initialize job execution (used by both manual and automation flows)
+    Initialize job execution (now just delegates to consolidated job service)
     
     Args:
         job_id: Extraction job ID to initialize
@@ -1200,86 +1477,41 @@ async def run_initializer_worker(
     Returns:
         Dict with initialization results
     """
-    logger.info(f"Initializing job execution for job {job_id}")
+    logger.info(f"Initializing job execution for job {job_id}, automation_run_id={automation_run_id}")
     
     with next(get_db()) as db:
         try:
-            from models.db_models import ExtractionJob, ExtractionTask
-            from services.automation_service import automation_service
-            from services.sse_service import sse_manager
+            from services.job_service import JobService
             
-            # Lock the job for update
-            job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).with_for_update().first()
+            # Get user_id from job
+            job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
             if not job:
                 raise ValueError(f"Job {job_id} not found")
             
-            # Check if job is currently running (for both automation and manual runs)
-            if job.status == 'in_progress':
-                logger.warning(f"Job {job_id} already has tasks in progress, aborting initialization")
-                if automation_run_id:
-                    # Update automation run status to failed
-                    await automation_service.update_automation_run_status(
-                        db, automation_run_id, 'failed', 'Job already in progress'
-                    )
-                return {"message": "Job already in progress", "tasks_queued": 0}
+            # Use automation-specific job service method
+            job_service = JobService()
+            await job_service.submit_automation_job(job_id, job.user_id, automation_run_id)
             
-            # For automation runs, create extraction tasks for all uploaded source files
-            if automation_run_id:
-                await _create_extraction_tasks_for_automation(db, job_id)
+            # Count tasks for response
+            tasks_count = db.query(ExtractionTask).filter(
+                ExtractionTask.job_id == job_id
+            ).count()
             
-            # Update pending tasks to queued
-            pending_tasks = db.query(ExtractionTask).filter(
-                ExtractionTask.job_id == job_id,
-                ExtractionTask.status == 'pending'
-            ).all()
-            
-            if not pending_tasks:
-                logger.warning(f"No pending tasks found for job {job_id}")
-                return {"message": "No pending tasks to process", "tasks_queued": 0}
-            
-            # Keep task statuses as 'pending' for AI extraction worker
-            # (The AI worker expects 'pending' status)
-            
-            # Update job status
-            job.status = 'in_progress'
-            db.commit()
-            
-            # Update automation run status if this is from automation
-            if automation_run_id:
-                await automation_service.update_automation_run_status(
-                    db, automation_run_id, 'running'
-                )
-            
-            # Enqueue AI extraction workers
-            from arq import create_pool
-            redis = await create_pool(WorkerSettings.redis_settings)
-            
-            tasks_queued = 0
-            for task in pending_tasks:
-                await redis.enqueue_job(
-                    'process_extraction_task',
-                    task_id=str(task.id),
-                    automation_run_id=automation_run_id
-                )
-                tasks_queued += 1
-            
-            await redis.close()
-            
-            logger.info(f"Initialized job {job_id} with {tasks_queued} tasks")
+            logger.info(f"Initialized job {job_id} with {tasks_count} tasks")
             
             return {
                 "message": "Job initialization successful",
-                "tasks_queued": tasks_queued,
+                "tasks_queued": tasks_count,
                 "automation_run_id": automation_run_id
             }
             
         except Exception as e:
-            db.rollback()
             logger.error(f"Job initialization failed for job {job_id}: {e}")
             
             # Update automation run status if this is from automation
             if automation_run_id:
                 try:
+                    from services.automation_service import automation_service
                     await automation_service.update_automation_run_status(
                         db, automation_run_id, 'failed', str(e)
                     )
@@ -1319,122 +1551,112 @@ async def main():
     
     await redis.close()
 
-async def _clear_job_data_for_automation(db: Session, job_id: str):
+# These functions are now moved to job_service.py for better organization
+
+
+async def _record_usage_for_task(db: Session, task: ExtractionTask, source_files: List[SourceFile]):
     """
-    Clear existing job data to support multiple automation runs
-    Removes source_files, extraction_tasks, and extraction_results
+    Record usage for billing when an extraction task completes successfully
     """
-    from models.db_models import (
-        SourceFile, ExtractionTask, ExtractionResult, 
-        SourceFileToTask, ExtractionJob
-    )
-    
     try:
-        # Get all source files for this job
-        source_files = db.query(SourceFile).filter(SourceFile.job_id == job_id).all()
-        source_file_ids = [sf.id for sf in source_files]
+        from services.billing_service import get_billing_service, PlanLimitExceeded
         
-        if source_file_ids:
-            # Delete extraction results (via task relationship)
-            # Get task IDs that are linked to these source files
-            task_ids = db.query(SourceFileToTask.task_id).filter(
-                SourceFileToTask.source_file_id.in_(source_file_ids)
-            ).subquery()
-            
-            deleted_results = db.query(ExtractionResult).filter(
-                ExtractionResult.task_id.in_(task_ids)
-            ).delete(synchronize_session=False)
-            logger.info(f"Deleted {deleted_results} extraction results for {len(source_file_ids)} source files")
-            
-            # Delete source file to task mappings
-            db.query(SourceFileToTask).filter(
-                SourceFileToTask.source_file_id.in_(source_file_ids)
-            ).delete(synchronize_session=False)
-            logger.info(f"Deleted source file to task mappings")
+        # Calculate total pages processed
+        total_pages = 0
+        for source_file in source_files:
+            if source_file.page_count:
+                total_pages += source_file.page_count
+            else:
+                # Fallback: estimate 1 page per file if page_count not available
+                total_pages += 1
+                logger.warning(f"No page_count for file {source_file.id}, using 1 page estimate")
         
-        # Delete extraction tasks
-        deleted_tasks = db.query(ExtractionTask).filter(
-            ExtractionTask.job_id == job_id
-        ).delete(synchronize_session=False)
-        logger.info(f"Deleted {deleted_tasks} extraction tasks")
+        if total_pages <= 0:
+            logger.info("No pages to record for billing")
+            return
         
-        # Delete source files
-        deleted_files = db.query(SourceFile).filter(
-            SourceFile.job_id == job_id
-        ).delete(synchronize_session=False)
-        logger.info(f"Deleted {deleted_files} source files")
+        # Get user ID from the job
+        job = db.query(ExtractionJob).filter(ExtractionJob.id == task.job_id).first()
+        if not job:
+            logger.error(f"Job {task.job_id} not found for usage recording")
+            return
         
-        # Reset job status if completed
-        job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
-        if job and job.status in ['completed', 'partially_completed']:
-            job.status = 'pending'
-            job.completed_at = None
-            job.tasks_total = 0
-            job.tasks_completed = 0
-            job.tasks_failed = 0
-            logger.info(f"Reset job {job_id} status from {job.status} to pending")
+        # Record usage through billing service
+        billing_service = get_billing_service(db)
+        event_id = billing_service.record_usage(
+            user_id=job.user_id,
+            pages=total_pages,
+            source="extraction_task",
+            task_id=str(task.id),
+            notes=f"Processed {len(source_files)} files"
+        )
         
-        db.commit()
-        logger.info(f"Successfully cleared job data for automation run")
+        logger.info(f"Recorded {total_pages} pages usage for user {job.user_id}, task {task.id}, event {event_id}")
         
+    except PlanLimitExceeded as e:
+        # This shouldn't happen since we check limits before starting tasks
+        logger.error(f"Plan limit exceeded during task completion: {e}")
+        raise  # Re-raise to fail the task
     except Exception as e:
-        db.rollback()
-        logger.error(f"Failed to clear job data for automation: {e}")
-        raise
+        logger.error(f"Unexpected error recording usage: {e}")
+        # Don't re-raise for other errors to avoid failing the extraction task
 
+# Removed per-task limit checking - now handled at job start
 
-async def _create_extraction_tasks_for_automation(db: Session, job_id: str):
-    """
-    Create extraction tasks for all uploaded source files in an automation job
-    This centralizes the extraction task creation logic for automations
-    """
-    from models.db_models import SourceFile, ExtractionTask, SourceFileToTask
+class CronWorkerSettings:
+    """Settings for cron/scheduled tasks worker"""
+    redis_settings = RedisSettings.from_dsn(REDIS_URL)
+    queue_name = "cron_queue"
     
-    # Get processable source files (reuse existing logic from job service)
-    from services.job_service import JobService
-    job_service = JobService()
+    # Worker functions (both manual and scheduled versions)
+    functions = [
+        # Manual cleanup functions (can be called directly)
+        run_abandoned_cleanup,
+        run_opt_out_cleanup,
+        run_artifact_cleanup,
+        run_free_user_period_reset,
+        run_stripe_usage_reconciliation,
+        run_usage_counter_cleanup,
+        # Scheduled wrapper functions
+        schedule_free_user_period_reset,
+        schedule_stripe_usage_reconciliation,
+        schedule_usage_counter_cleanup,
+        schedule_abandoned_cleanup,
+        schedule_artifact_cleanup,
+        schedule_opt_out_cleanup,
+    ]
     
-    # Use the same filtering logic as manual jobs (processable_only=True)
-    source_files = await job_service.get_job_files(job_id, processable_only=True)
-    
-    if not source_files:
-        logger.info(f"No source files found for automation job {job_id}")
-        return
-    
-    tasks_created = 0
-    for source_file in source_files:
-        # Check if this source file already has extraction tasks
-        existing_task = db.query(SourceFileToTask).filter(
-            SourceFileToTask.source_file_id == source_file.id
-        ).first()
+    # Cron jobs schedule
+    cron_jobs = [
+        # Free user period reset - Daily at 00:30 UTC (after month rollover)
+        cron(schedule_free_user_period_reset, hour=0, minute=30, run_at_startup=False),
         
-        if existing_task:
-            logger.info(f"SourceFile {source_file.id} already has extraction task, skipping")
-            continue
+        # Stripe usage reconciliation - Every 2 hours
+        cron(schedule_stripe_usage_reconciliation, hour={0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22}, minute=15, run_at_startup=False),
         
-        # Create extraction task
-        extraction_task = ExtractionTask(
-            id=str(uuid.uuid4()),
-            job_id=job_id,
-            status='pending'
-        )
-        db.add(extraction_task)
-        db.flush()  # Ensure ID is available
+        # Usage counter cleanup - Weekly on Sundays at 02:00 UTC
+        cron(schedule_usage_counter_cleanup, weekday=6, hour=2, minute=0, run_at_startup=False),
         
-        # Create the many-to-many relationship
-        source_file_to_task = SourceFileToTask(
-            source_file_id=source_file.id,
-            task_id=extraction_task.id,
-            document_order=0
-        )
-        db.add(source_file_to_task)
+        # Abandoned job cleanup - Daily at 01:00 UTC
+        cron(schedule_abandoned_cleanup, hour=1, minute=0, run_at_startup=False),
         
-        tasks_created += 1
-        logger.info(f"Created ExtractionTask {extraction_task.id} for SourceFile {source_file.id} ({source_file.original_filename})")
+        # Artifact cleanup - Daily at 03:00 UTC
+        cron(schedule_artifact_cleanup, hour=3, minute=0, run_at_startup=False),
+        
+        # Opt-out data cleanup - Weekly on Saturdays at 04:00 UTC
+        cron(schedule_opt_out_cleanup, weekday=5, hour=4, minute=0, run_at_startup=False),
+    ]
     
-    db.commit()
-    logger.info(f"Created {tasks_created} extraction tasks for automation job {job_id}")
-
+    # Worker configuration
+    max_jobs = 5  # Lower concurrency for maintenance tasks
+    job_timeout = 1800  # 30 minutes timeout for cleanup tasks
+    keep_result = 86400  # Keep results for 24 hours
+    
+    # Health check
+    health_check_interval = 300  # 5 minutes
+    
+    # Logging
+    log_results = True
 
 if __name__ == "__main__":
     asyncio.run(main())

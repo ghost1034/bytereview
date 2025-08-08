@@ -622,6 +622,10 @@ class GoogleService:
                     import base64
                     file_data = base64.urlsafe_b64decode(attachment_data['data'])
                     
+                    # Count pages in the file
+                    from services.page_counting_service import page_counting_service
+                    page_count = page_counting_service.count_pages_from_content(file_data, filename)
+                    
                     # Generate unique filename for GCS
                     file_extension = os.path.splitext(filename)[1] if '.' in filename else ''
                     unique_filename = f"{uuid.uuid4()}{file_extension}"
@@ -647,6 +651,7 @@ class GoogleService:
                         gcs_object_name=gcs_path,  # GCS object name for storage
                         file_type=mime_type,
                         file_size_bytes=len(file_data),
+                        page_count=page_count,
                         source_type='gmail',
                         status='uploaded'
                     )

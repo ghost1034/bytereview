@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-@router.get("/", response_model=List[DataTypeResponse])
+@router.get("", response_model=List[DataTypeResponse])
 async def get_data_types(
     db: Session = Depends(get_db),
     user_id: str = Depends(get_current_user_id)

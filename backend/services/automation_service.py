@@ -22,6 +22,10 @@ class AutomationService:
     ) -> Automation:
         """Create a new automation"""
         try:
+            # Check automation limits before creating if enabled
+            if automation_data.is_enabled:
+                await self._check_automation_limits(db, user_id)
+            
             # Verify the job exists and belongs to the user
             job = db.query(ExtractionJob).filter(
                 ExtractionJob.id == automation_data.job_id,
@@ -90,6 +94,9 @@ class AutomationService:
             if automation_data.name is not None:
                 automation.name = automation_data.name
             if automation_data.is_enabled is not None:
+                # Check limits if enabling automation
+                if automation_data.is_enabled and not automation.is_enabled:
+                    await self._check_automation_limits(db, user_id)
                 automation.is_enabled = automation_data.is_enabled
             if automation_data.trigger_config is not None:
                 automation.trigger_config = automation_data.trigger_config
@@ -137,6 +144,10 @@ class AutomationService:
             automation = await self.get_automation(db, automation_id, user_id)
             if not automation:
                 return None
+            
+            # Check limits if enabling automation
+            if not automation.is_enabled:  # Currently disabled, trying to enable
+                await self._check_automation_limits(db, user_id)
             
             automation.is_enabled = not automation.is_enabled
             db.commit()
@@ -232,6 +243,32 @@ class AutomationService:
             logger.error(f"Failed to update automation run {run_id}: {e}")
             raise
     
+    async def _check_automation_limits(self, db: Session, user_id: str) -> None:
+        """Check if user can enable another automation based on their plan limits"""
+        try:
+            from services.billing_service import get_billing_service
+            
+            billing_service = get_billing_service(db)
+            can_enable = billing_service.check_automation_limit(user_id)
+            
+            if not can_enable:
+                billing_info = billing_service.get_billing_info(user_id)
+                plan_name = billing_info['plan_display_name']
+                limit = billing_info['automations_limit']
+                current = billing_info['automations_count']
+                
+                if limit == 0:
+                    raise ValueError(f"Automations are not available on the {plan_name} plan. Please upgrade to enable automations.")
+                else:
+                    raise ValueError(f"You have reached the automation limit for your {plan_name} plan ({current}/{limit}). Please upgrade to enable more automations.")
+                    
+        except ValueError:
+            # Re-raise billing limit errors
+            raise
+        except Exception as e:
+            logger.error(f"Error checking automation limits for user {user_id}: {e}")
+            # Don't block automation creation if we can't check limits
+            logger.warning("Allowing automation creation due to limit check failure")
 
 # Create service instance
 automation_service = AutomationService()

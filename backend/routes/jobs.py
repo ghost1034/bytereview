@@ -68,26 +68,6 @@ async def initiate_job(
         logger.error(f"Failed to initiate job for user {user_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to initiate job: {str(e)}")
 
-@router.post("/{job_id}/start", response_model=JobStartResponse)
-async def start_job(
-    job_id: str,
-    request: JobStartRequest,
-    user_id: str = Depends(get_current_user_id)
-):
-    """
-    Step 2: Start job processing with field configuration and task definitions
-    """
-    try:
-        logger.info(f"Starting job {job_id} for user {user_id}")
-        response = await job_service.start_job(user_id, job_id, request)
-        return response
-    except ValueError as e:
-        logger.warning(f"Invalid job start request for {job_id}: {e}")
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"Failed to start job {job_id} for user {user_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start job: {str(e)}")
-
 # New resumable workflow endpoints (must come before /{job_id} routes)
 
 @router.get("/resumable")
@@ -447,8 +427,6 @@ async def delete_job(job_id: str, user_id: str = Depends(get_current_user_id)):
         logger.error(f"Failed to delete job {job_id} for user {user_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete job: {str(e)}")
 
-# Duplicate resumable endpoint removed (moved above)
-
 @router.put("/{job_id}/config-step")
 async def update_config_step(
     job_id: str,
@@ -477,7 +455,7 @@ async def submit_job_for_processing(
 ):
     """Submit job for processing"""
     try:
-        await job_service.submit_job_for_processing(job_id, user_id)
+        await job_service.submit_manual_job(job_id, user_id)
         return {"message": "Job submitted for processing"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

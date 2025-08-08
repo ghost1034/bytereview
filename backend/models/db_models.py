@@ -185,6 +185,7 @@ class SourceFile(Base):
     gcs_object_name = Column(Text, unique=True, nullable=False)
     file_type = Column(String(100), nullable=False)
     file_size_bytes = Column(BigInteger, nullable=False)
+    page_count = Column(Integer, nullable=True)  # Number of pages in the file (for PDFs)
     status = Column(String(50), nullable=False, default='uploading')
     source_type = Column(String(20), nullable=False, default='upload')
     external_id = Column(Text)
@@ -414,8 +415,6 @@ class BillingAccount(Base):
     # Relationships
     user = relationship("User", back_populates="billing_account")
     plan = relationship("SubscriptionPlan", back_populates="billing_accounts")
-    usage_events = relationship("UsageEvent", back_populates="billing_account")
-    usage_counters = relationship("UsageCounter", back_populates="billing_account")
 
 class UsageEvent(Base):
     """Authoritative, append-only usage events"""
@@ -438,26 +437,16 @@ class UsageEvent(Base):
     # Relationships
     user = relationship("User")
     task = relationship("ExtractionTask")
-    billing_account = relationship("BillingAccount", back_populates="usage_events")
 
 class UsageCounter(Base):
     """Cached totals per active period (fast UI reads)"""
     __tablename__ = "usage_counters"
     
-    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    period_start = Column(TIMESTAMP(timezone=True), nullable=False)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    period_start = Column(TIMESTAMP(timezone=True), primary_key=True)
     period_end = Column(TIMESTAMP(timezone=True), nullable=False)
     pages_total = Column(Integer, nullable=False, default=0)
     
-    __table_args__ = (
-        {"schema": None},  # Composite primary key
-    )
-    
-    # Composite primary key
-    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
-    period_start = Column(TIMESTAMP(timezone=True), primary_key=True)
-    
     # Relationships
     user = relationship("User")
-    billing_account = relationship("BillingAccount", back_populates="usage_counters")
 
