@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { CreditCard, Calendar, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useBillingAccount, useCreatePortalSession, useSubscriptionPlans } from "@/hooks/useBilling";
@@ -11,6 +12,7 @@ import SubscriptionModal from "./SubscriptionModal";
 
 export default function SubscriptionManager() {
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const { toast } = useToast();
   
   const { data: billingAccount, isLoading, error } = useBillingAccount();
@@ -30,6 +32,24 @@ export default function SubscriptionManager() {
     createPortalSession.mutate({
       return_url: window.location.href
     });
+  };
+
+  const handleCancelSubscription = async () => {
+    setIsCancelling(true);
+    try {
+      // Use the portal session for cancellation
+      createPortalSession.mutate({
+        return_url: window.location.href
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to open subscription management. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -132,30 +152,30 @@ export default function SubscriptionManager() {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-gray-700">Status</span>
-            <Badge variant={getStatusColor(subscriptionData.status)}>
-              {subscriptionData.status === 'active' ? 'Active' : 
-               subscriptionData.status === 'incomplete' ? 'Payment Pending' : 
-               subscriptionData.status}
+            <Badge variant={getStatusColor(billingAccount.status)}>
+              {billingAccount.status === 'active' ? 'Active' : 
+               billingAccount.status === 'incomplete' ? 'Payment Pending' : 
+               billingAccount.status}
             </Badge>
           </div>
           
           <div className="flex items-center justify-between">
             <span className="text-gray-700">Plan</span>
-            <span className="font-medium">{subscriptionData.plan}</span>
+            <span className="font-medium">{billingAccount.plan_display_name}</span>
           </div>
 
           <div className="flex items-center justify-between">
             <span className="text-gray-700">Page Limit</span>
             <span className="font-medium">
-              {subscriptionData.pagesLimit === 999999 ? 'Unlimited' : subscriptionData.pagesLimit} pages/month
+              {billingAccount.pages_included === 999999 ? 'Unlimited' : billingAccount.pages_included} pages/month
             </span>
           </div>
 
-          {subscriptionData.amount && (
+          {getPlanPrice(billingAccount.plan_code) && (
             <div className="flex items-center justify-between">
               <span className="text-gray-700">Price</span>
               <span className="font-medium">
-                ${subscriptionData.amount}/month
+                {getPlanPrice(billingAccount.plan_code)}/month
               </span>
             </div>
           )}
@@ -164,13 +184,16 @@ export default function SubscriptionManager() {
             <span className="text-gray-700">Next billing</span>
             <div className="flex items-center space-x-1">
               <Calendar className="w-4 h-4 text-gray-400" />
-              <span className="text-sm">{subscriptionData.nextBilling}</span>
+              <span className="text-sm">
+                {billingAccount.current_period_end ? 
+                  new Date(billingAccount.current_period_end).toLocaleDateString() : 
+                  'Not available'
+                }
+              </span>
             </div>
           </div>
 
-
-
-          {subscriptionData.subscriptionId && subscriptionData.status === 'active' && (
+          {billingAccount.stripe_subscription_id && billingAccount.status === 'active' && (
             <div className="pt-4 border-t">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
