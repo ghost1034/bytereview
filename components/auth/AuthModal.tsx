@@ -97,7 +97,7 @@ export default function AuthModal({ isOpen, onClose, redirectTo }: AuthModalProp
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center text-2xl font-bold">Welcome to Financial Extract</DialogTitle>
+          <DialogTitle className="text-center text-2xl font-bold">Welcome to ian.ai</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-6">

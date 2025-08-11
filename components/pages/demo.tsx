@@ -210,7 +210,7 @@ export default function Demo() {
       {/* Video Demo Section */}
       <section className="bg-white py-16 mb-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">See Financial Extract in Action</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">See ian.ai in Action</h1>
           <p className="text-xl text-gray-600 mb-8">Watch how our AI extracts data from financial documents with professional accuracy</p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
@@ -285,12 +285,12 @@ export default function Demo() {
 
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold text-gray-900 mb-4">
-            {isAuthenticated ? "FinancialExtract Dashboard" : "Try FinancialExtract for Free"}
+            {isAuthenticated ? "ian.ai Dashboard" : "Try ian.ai for Free"}
           </h1>
           <p className="text-xl text-gray-600">
             {isAuthenticated 
               ? "Manage your document extraction projects and templates" 
-              : "Upload your own PDFs and see how FinancialExtract works with your documents."
+              : "Upload your own PDFs and see how ian.ai works with your documents."
             }
           </p>
           

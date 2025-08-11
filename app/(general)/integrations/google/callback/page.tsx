@@ -50,7 +50,7 @@ export default function GoogleCallbackPage() {
       hasProcessedRef.current = true;
       setStatus('error');
       if (error === 'access_denied') {
-        setErrorMessage('You declined to authorize ByteReview. Please try again if you want to connect Google services.');
+        setErrorMessage('You declined to authorize ian.ai. Please try again if you want to connect Google services.');
       } else {
         setErrorMessage(`OAuth error: ${error}`);
       }

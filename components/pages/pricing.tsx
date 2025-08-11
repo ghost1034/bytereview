@@ -1,59 +1,126 @@
 'use client'
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthModal from "@/components/auth/AuthModal";
-// import SubscriptionModal from "@/components/SubscriptionModal";
+import { useSubscriptionPlans, useCreateCheckoutSession } from "@/hooks/useBilling";
 
 export default function Pricing() {
-  const [email, setEmail] = useState("");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [pendingRedirect, setPendingRedirect] = useState<string>("");
+  const [pendingPlan, setPendingPlan] = useState<string>("");
   const { user } = useAuth();
-  const router = useRouter();
+  const { data: plans, isLoading } = useSubscriptionPlans();
+  const createCheckoutSession = useCreateCheckoutSession();
 
-  const plans = {
-    basic: {
-      name: "Basic",
-      price: "$9.99",
-      priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_BASIC || "price_basic",
-      features: [
-        "Up to 100 pages per month",
-        "Basic extraction templates",
-        "Email support",
-        "Standard processing speed"
-      ]
-    },
-    professional: {
-      name: "Professional", 
-      price: "$49.99",
-      priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_PROFESSIONAL || "price_professional",
-      features: [
-        "Up to 1,000 pages per month",
-        "Advanced custom templates",
-        "Priority support",
-        "Fast processing speed",
-        "API access",
-        "Bulk processing"
-      ]
+  // Handle post-authentication checkout
+  useEffect(() => {
+    if (user && typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const planParam = urlParams.get('plan');
+      const checkoutParam = urlParams.get('checkout');
+      
+      if (planParam && checkoutParam === 'true') {
+        // Clear the URL parameters
+        window.history.replaceState({}, '', '/pricing');
+        
+        // Trigger checkout for the specified plan
+        createCheckoutSession.mutate({
+          plan_code: planParam,
+          success_url: `${window.location.origin}/dashboard?success=true`,
+          cancel_url: `${window.location.origin}/pricing`
+        });
+      }
+    }
+  }, [user, createCheckoutSession]);
+
+  const getPlanPrice = (planCode: string) => {
+    switch (planCode) {
+      case 'basic': return '$9.99';
+      case 'pro': return '$49.99';
+      default: return 'Free';
     }
   };
 
-  const handleGetStarted = (plan: any) => {
+  const getPlanFeatures = (planCode: string, pagesIncluded: number, automationsLimit: number) => {
+    const baseFeatures = [
+      `${pagesIncluded === 999999 ? 'Unlimited' : pagesIncluded.toLocaleString()} pages per month`,
+      `Up to ${automationsLimit} automations`,
+      'Custom extraction templates',
+      'Export to CSV, Excel, Google Sheets'
+    ];
+
+    if (planCode === 'free') {
+      return [
+        ...baseFeatures,
+        'Community support',
+        'Standard processing speed'
+      ];
+    } else if (planCode === 'basic') {
+      return [
+        ...baseFeatures,
+        'Email support',
+        'Standard processing speed'
+      ];
+    } else if (planCode === 'pro') {
+      return [
+        ...baseFeatures,
+        'Priority support',
+        'Fast processing speed',
+        'API access',
+        'Advanced integrations'
+      ];
+    }
+
+    return baseFeatures;
+  };
+
+  const handleGetStarted = (planCode: string) => {
     if (!user) {
-      setPendingRedirect(`/subscribe?plan=${plan.name.toLowerCase()}`);
+      // Set up the redirect URL for after authentication
+      const redirectUrl = planCode === 'free' 
+        ? '/dashboard' 
+        : `/pricing?plan=${planCode}&checkout=true`;
+      
+      setPendingPlan(redirectUrl);
       setIsAuthModalOpen(true);
     } else {
-      // Use client-side navigation instead of window.location.href
-      router.push(`/subscribe?plan=${plan.name.toLowerCase()}`);
+      if (planCode === 'free') {
+        // Free plan - redirect to dashboard
+        window.location.href = '/dashboard';
+      } else {
+        // Paid plan - create checkout session
+        createCheckoutSession.mutate({
+          plan_code: planCode,
+          success_url: `${window.location.origin}/dashboard?success=true`,
+          cancel_url: `${window.location.origin}/pricing`
+        });
+      }
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h1 className="text-5xl font-bold text-gray-900 mb-4">Pricing for teams of every size</h1>
+            <p className="text-xl text-gray-600">All plans are available month-to-month and you can cancel at any time.</p>
+          </div>
+          <div className="flex items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            <span className="ml-2 text-gray-600">Loading plans...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Sort plans by sort_order
+  const sortedPlans = [...(plans || [])].sort((a, b) => a.sort_order - b.sort_order);
 
   return (
     <div className="min-h-screen py-20">
@@ -64,103 +131,60 @@ export default function Pricing() {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          {/* Basic Plan */}
-          <Card className="border border-gray-200 hover:shadow-lg transition-shadow">
-            <CardContent className="p-8">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Basic</h3>
-              <p className="text-gray-600 mb-6">For individuals and small teams</p>
+          {sortedPlans.map((plan) => (
+            <Card 
+              key={plan.code}
+              className={`border hover:shadow-lg transition-shadow ${
+                plan.code === 'pro' 
+                  ? 'border-2 border-green-500 relative transform scale-105 shadow-lg' 
+                  : 'border-gray-200'
+              }`}
+            >
+              {plan.code === 'pro' && (
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                  <span className="bg-green-500 text-white px-4 py-1 rounded-full text-sm font-semibold">Most Popular</span>
+                </div>
+              )}
               
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-gray-900">$9.99</span>
-                <span className="text-gray-600">/ month</span>
-              </div>
-              
-              <ul className="space-y-3 mb-8">
-                {plans.basic.features.map((feature, index) => (
-                  <li key={index} className="flex items-center space-x-2">
-                    <Check className="text-green-500 w-4 h-4" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-              
-              <Button 
-                className="w-full lido-green hover:lido-green-dark text-white"
-                onClick={() => handleGetStarted(plans.basic)}
-              >
-                Get Started
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Professional Plan */}
-          <Card className="border-2 border-green-500 relative transform scale-105 shadow-lg">
-            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-              <span className="bg-green-500 text-white px-4 py-1 rounded-full text-sm font-semibold">Most Popular</span>
-            </div>
-            <CardContent className="p-8">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Professional</h3>
-              <p className="text-gray-600 mb-6">For growing finance teams</p>
-              
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-gray-900">$49.99</span>
-                <span className="text-gray-600">/ month</span>
-              </div>
-              
-              <ul className="space-y-3 mb-8">
-                {plans.professional.features.map((feature, index) => (
-                  <li key={index} className="flex items-center space-x-2">
-                    <Check className="text-green-500 w-4 h-4" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-              
-              <Button 
-                className="w-full lido-green hover:lido-green-dark text-white"
-                onClick={() => handleGetStarted(plans.professional)}
-              >
-                Get Started
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Enterprise Plan */}
-          <Card className="border border-gray-200 hover:shadow-lg transition-shadow">
-            <CardContent className="p-8">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Enterprise</h3>
-              <p className="text-gray-600 mb-6">For large organizations requiring unlimited processing</p>
-              
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-gray-900">Talk to Sales</span>
-              </div>
-              
-              <ul className="space-y-3 mb-8">
-                <li className="flex items-center space-x-2">
-                  <Check className="text-green-500 w-4 h-4" />
-                  <span>Unlimited pages</span>
-                </li>
-                <li className="flex items-center space-x-2">
-                  <Check className="text-green-500 w-4 h-4" />
-                  <span>Unlimited users</span>
-                </li>
-                <li className="flex items-center space-x-2">
-                  <Check className="text-green-500 w-4 h-4" />
-                  <span>Dedicated US-based support</span>
-                </li>
-                <li className="flex items-center space-x-2">
-                  <Check className="text-green-500 w-4 h-4" />
-                  <span>Custom data integrations</span>
-                </li>
-              </ul>
-              
-              <Link href="/contact">
-                <Button className="w-full lido-green hover:lido-green-dark text-white">
-                  Talk to Sales
+              <CardContent className="p-8">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{plan.display_name}</h3>
+                <p className="text-gray-600 mb-6">
+                  {plan.code === 'free' ? 'Get started for free' : 
+                   plan.code === 'basic' ? 'For individuals and small teams' :
+                   'For growing finance teams'}
+                </p>
+                
+                <div className="mb-6">
+                  <span className="text-4xl font-bold text-gray-900">{getPlanPrice(plan.code)}</span>
+                  {plan.code !== 'free' && <span className="text-gray-600"> / month</span>}
+                </div>
+                
+                <ul className="space-y-3 mb-8">
+                  {getPlanFeatures(plan.code, plan.pages_included, plan.automations_limit).map((feature, index) => (
+                    <li key={index} className="flex items-center space-x-2">
+                      <Check className="text-green-500 w-4 h-4" />
+                      <span className="text-sm">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                
+                <Button 
+                  className="w-full lido-green hover:lido-green-dark text-white"
+                  onClick={() => handleGetStarted(plan.code)}
+                  disabled={createCheckoutSession.isPending}
+                >
+                  {createCheckoutSession.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    plan.code === 'free' ? 'Get Started Free' : 'Get Started'
+                  )}
                 </Button>
-              </Link>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
 
@@ -179,8 +203,8 @@ export default function Pricing() {
             
             <Card>
               <CardContent className="p-6">
-                <h3 className="font-semibold text-lg text-gray-900 mb-2">What types of files does Financial Extract support?</h3>
-                <p className="text-gray-600">Financial Extract works with PDFs (both scanned and searchable), images (JPEG, PNG), and email attachments. Our AI is specifically trained on financial and legal documents.</p>
+                <h3 className="font-semibold text-lg text-gray-900 mb-2">What types of files does ian.ai support?</h3>
+                <p className="text-gray-600">ian.ai works with PDFs (both scanned and searchable), images (JPEG, PNG), and email attachments. Our AI is specifically trained on financial and legal documents.</p>
               </CardContent>
             </Card>
             
@@ -211,9 +235,8 @@ export default function Pricing() {
       <AuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)}
-        redirectTo={pendingRedirect}
+        redirectTo={pendingPlan}
       />
-      
 
     </div>
   );

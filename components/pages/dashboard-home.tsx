@@ -6,8 +6,6 @@ import { Button } from '@/components/ui/button'
 import { 
   FileText, 
   Briefcase, 
-  Clock, 
-  TrendingUp,
   Plus,
   ArrowRight,
   Loader2
@@ -40,15 +38,7 @@ export function DashboardHome() {
     loadRecentJobs()
   }, [])
 
-  // TODO: Replace with actual usage data
-  const usageStats = {
-    documentsProcessed: 0,
-    jobsCompleted: 0,
-    templatesCreated: 0,
-    monthlyLimit: 1000
-  }
-
-  // Recent jobs are now loaded from API in useEffect
+  // Recent jobs are loaded from API in useEffect
 
   return (
     <div className="space-y-8">
@@ -116,142 +106,80 @@ export function DashboardHome() {
         </Card>
       </div>
 
-      {/* Usage Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Documents Processed</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center space-x-2">
-              <FileText className="w-5 h-5 text-blue-500" />
-              <span className="text-2xl font-bold text-gray-900">
-                {usageStats.documentsProcessed.toLocaleString()}
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">This month</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Jobs Completed</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center space-x-2">
-              <Briefcase className="w-5 h-5 text-green-500" />
-              <span className="text-2xl font-bold text-gray-900">
-                {usageStats.jobsCompleted.toLocaleString()}
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">All time</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Templates Created</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center space-x-2">
-              <FileText className="w-5 h-5 text-purple-500" />
-              <span className="text-2xl font-bold text-gray-900">
-                {usageStats.templatesCreated.toLocaleString()}
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">Personal templates</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Monthly Usage</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center space-x-2">
-              <TrendingUp className="w-5 h-5 text-orange-500" />
-              <span className="text-2xl font-bold text-gray-900">
-                {Math.round((usageStats.documentsProcessed / usageStats.monthlyLimit) * 100)}%
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {usageStats.documentsProcessed} / {usageStats.monthlyLimit.toLocaleString()} docs
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Jobs */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Recent Jobs</CardTitle>
-            <Link href="/dashboard/jobs">
-              <Button variant="outline" size="sm">
-                View All
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {jobsLoading ? (
-            <div className="text-center py-8">
-              <Loader2 className="w-8 h-8 text-gray-400 mx-auto mb-4 animate-spin" />
-              <p className="text-gray-600">Loading recent jobs...</p>
-            </div>
-          ) : recentJobs.length === 0 ? (
-            <div className="text-center py-8">
-              <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No jobs yet</h3>
-              <p className="text-gray-600 mb-4">
-                Create your first job to start extracting data from documents.
-              </p>
-              <Link href="/dashboard/jobs">
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Your First Job
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {recentJobs.slice(0, 5).map((job) => (
-                <div
-                  key={job.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Briefcase className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900">{job.name || `Job ${job.id}`}</h4>
-                      <p className="text-sm text-gray-500">
-                        {new Date(job.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge variant={job.status === 'completed' ? 'secondary' : 'outline'}>
-                      {job.status}
-                    </Badge>
-                    <Link href={`/dashboard/jobs/${job.id}`}>
-                      <Button variant="ghost" size="sm">
-                        <ArrowRight className="w-4 h-4" />
-                      </Button>
-                    </Link>
-                  </div>
+      {/* Usage Stats and Recent Jobs Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Recent Jobs - Takes up 2/3 of the width */}
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Recent Jobs</CardTitle>
+                <Link href="/dashboard/jobs">
+                  <Button variant="outline" size="sm">
+                    View All
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {jobsLoading ? (
+                <div className="text-center py-8">
+                  <Loader2 className="w-8 h-8 text-gray-400 mx-auto mb-4 animate-spin" />
+                  <p className="text-gray-600">Loading recent jobs...</p>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              ) : recentJobs.length === 0 ? (
+                <div className="text-center py-8">
+                  <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No jobs yet</h3>
+                  <p className="text-gray-600 mb-4">
+                    Create your first job to start extracting data from documents.
+                  </p>
+                  <Link href="/dashboard/jobs">
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Your First Job
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentJobs.slice(0, 5).map((job) => (
+                    <div
+                      key={job.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <Briefcase className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-900">{job.name || `Job ${job.id}`}</h4>
+                          <p className="text-sm text-gray-500">
+                            {new Date(job.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant={job.status === 'completed' ? 'secondary' : 'outline'}>
+                          {job.status}
+                        </Badge>
+                        <Link href={`/dashboard/jobs/${job.id}`}>
+                          <Button variant="ghost" size="sm">
+                            <ArrowRight className="w-4 h-4" />
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Usage Stats Sidebar */}
-      <div className="lg:col-span-1">
-        <div className="sticky top-6">
+        {/* Usage Stats - Takes up 1/3 of the width */}
+        <div className="lg:col-span-1">
           <UsageStats />
         </div>
       </div>

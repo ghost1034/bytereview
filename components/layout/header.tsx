@@ -30,9 +30,9 @@ export default function Header() {
           <div className="flex items-center space-x-8">
             <Link href="/" className="flex items-center space-x-3 cursor-pointer">
               <div className="relative w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                <div className="text-white font-bold text-sm">FE</div>
+                <div className="text-white font-bold text-sm">ian</div>
               </div>
-              <span className="text-xl font-bold text-gray-900">Financial Extract</span>
+              <span className="text-xl font-bold text-gray-900">ian.ai</span>
             </Link>
             
             <div className="hidden md:flex space-x-6">

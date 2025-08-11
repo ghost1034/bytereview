@@ -14,7 +14,7 @@ export default function Help() {
     {
       icon: BookOpen,
       title: "Getting Started",
-      description: "Learn the basics of Financial Extract",
+      description: "Learn the basics of ian.ai",
       articles: [
         "How to upload your first document",
         "Understanding extraction results",
@@ -92,7 +92,7 @@ export default function Help() {
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold text-gray-900 mb-6">Help Center</h1>
           <p className="text-xl text-gray-600 mb-8">
-            Find answers to your questions about Financial Extract
+            Find answers to your questions about ian.ai
           </p>
           
           {/* Search Bar */}
@@ -122,7 +122,7 @@ export default function Help() {
                   <Video className="w-8 h-8 text-blue-600" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Watch Demos</h3>
-                <p className="text-gray-600">See Financial Extract in action</p>
+                <p className="text-gray-600">See ian.ai in action</p>
               </CardContent>
             </Card>
 
@@ -206,7 +206,7 @@ export default function Help() {
         <section className="text-center bg-gray-50 rounded-lg p-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Still need help?</h2>
           <p className="text-lg text-gray-600 mb-6">
-            Our support team is here to help with any questions about Financial Extract
+            Our support team is here to help with any questions about ian.ai
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button className="lido-green hover:lido-green-dark text-white">

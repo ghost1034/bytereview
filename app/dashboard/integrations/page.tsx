@@ -223,7 +223,7 @@ export default function IntegrationsPage() {
                 <Alert>
                   <Shield className="h-4 w-4" />
                   <AlertDescription>
-                    ByteReview only requests read-only access to your Google services. 
+                    ian.ai only requests read-only access to your Google services. 
                     We cannot modify or delete your files or emails.
                   </AlertDescription>
                 </Alert>
@@ -309,7 +309,7 @@ export default function IntegrationsPage() {
         <Shield className="h-4 w-4" />
         <AlertDescription>
           <strong>Security:</strong> All OAuth tokens are encrypted and stored securely. 
-          ByteReview only requests the minimum permissions needed and cannot access your data 
+          ian.ai only requests the minimum permissions needed and cannot access your data 
           without explicit authorization for each service.
         </AlertDescription>
       </Alert>

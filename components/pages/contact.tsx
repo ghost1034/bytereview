@@ -144,8 +144,8 @@ export default function Contact() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-gray-900">Email</h4>
-                      <p className="text-gray-600">support@financialextract.com</p>
-                      <p className="text-gray-600">sales@financialextract.com</p>
+                      <p className="text-gray-600">support@ian.ai</p>
+                      <p className="text-gray-600">sales@ian.ai</p>
                     </div>
                   </div>
 
@@ -155,8 +155,8 @@ export default function Contact() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-gray-900">Phone</h4>
-                      <p className="text-gray-600">1-800-FE-EXTRACT</p>
-                      <p className="text-gray-600">(1-800-333-9872)</p>
+                      <p className="text-gray-600">1-800-IAN-HELP</p>
+                      <p className="text-gray-600">(1-800-123-4567)</p>
                     </div>
                   </div>
 

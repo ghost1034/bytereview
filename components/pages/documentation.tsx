@@ -60,7 +60,7 @@ console.log(data);
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold text-gray-900 mb-6">Documentation</h1>
           <p className="text-xl text-gray-600">
-            Complete guide to integrating Financial Extract into your workflow
+            Complete guide to integrating ian.ai into your workflow
           </p>
         </div>
 
@@ -204,7 +204,7 @@ console.log(data);
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">Getting Your API Key</h4>
                   <ol className="list-decimal list-inside space-y-2 text-gray-600">
-                    <li>Log into your Financial Extract dashboard</li>
+                    <li>Log into your ian.ai dashboard</li>
                     <li>Navigate to Settings → API Keys</li>
                     <li>Click "Generate New Key"</li>
                     <li>Copy and securely store your key</li>
@@ -258,7 +258,7 @@ console.log(data);
         <section className="text-center bg-gray-50 rounded-lg p-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Need Integration Help?</h2>
           <p className="text-lg text-gray-600 mb-6">
-            Our technical team can help you integrate Financial Extract into your existing workflow
+            Our technical team can help you integrate ian.ai into your existing workflow
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button className="lido-green hover:lido-green-dark text-white">

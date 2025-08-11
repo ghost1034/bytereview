@@ -1,5 +1,5 @@
 /**
- * Enhanced File Upload Component for ByteReview
+ * Enhanced File Upload Component for ian.ai
  * Handles file uploads with real progress tracking and SSE for ZIP extraction
  */
 'use client'
