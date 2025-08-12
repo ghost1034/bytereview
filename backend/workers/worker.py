@@ -978,7 +978,7 @@ async def _handle_zip_file(
                         gcs_object_name=extracted_source_file.gcs_object_name
                     )
                     
-                    extracted_source_file.status = 'ready'
+                    extracted_source_file.status = 'unpacked'
                     logger.info(f"Extracted and uploaded: {extracted_filename}")
                     
                 except Exception as e:

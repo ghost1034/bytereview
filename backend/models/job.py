@@ -29,7 +29,6 @@ class FileStatus(str, Enum):
     UPLOADING = "uploading"
     UPLOADED = "uploaded"
     IMPORTING = "importing"  # Files being imported from Drive/Gmail
-    READY = "ready"
     UNPACKING = "unpacking"  # ZIP files being unpacked
     UNPACKED = "unpacked"    # ZIP files that have been unpacked
     FAILED = "failed"

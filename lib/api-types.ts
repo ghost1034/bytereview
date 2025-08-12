@@ -1744,7 +1744,7 @@ export interface components {
          * @description File status enumeration
          * @enum {string}
          */
-        FileStatus: "uploading" | "uploaded" | "importing" | "ready" | "unpacking" | "unpacked" | "failed";
+        FileStatus: "uploading" | "uploaded" | "importing" | "unpacking" | "unpacked" | "failed";
         /**
          * FileUploadInfo
          * @description Information about a file to be uploaded

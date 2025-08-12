@@ -1208,7 +1208,7 @@ class JobService:
                     file_type=content_type,
                     file_size_bytes=len(file_content),
                     page_count=page_count,
-                    status=FileStatus.READY.value
+                    status=FileStatus.UPLOADED.value
                 )
                 
                 db.add(source_file)

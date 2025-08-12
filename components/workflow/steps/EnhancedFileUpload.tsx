@@ -84,11 +84,11 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
 
   // Check if all files are ready
   const allFilesReady = files.length > 0 && files.every(f => 
-    f.status === 'ready' || f.status === 'unpacked' || f.status === 'uploaded'
+    f.status === 'unpacked' || f.status === 'uploaded'
   ) && files.filter(f => f.status === 'unpacking').length === 0
 
   // Get files by status for display
-  const readyFiles = files.filter(f => f.status === 'ready' || f.status === 'unpacked' || f.status === 'uploaded')
+  const readyFiles = files.filter(f => f.status === 'unpacked' || f.status === 'uploaded')
   const unpackingFiles = files.filter(f => f.status === 'unpacking')
   const failedFiles = files.filter(f => f.status === 'failed')
 
@@ -148,7 +148,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
               break
 
             case 'file_status_changed':
-              // Update file status (e.g., unpacking to ready)
+              // Update file status (e.g., unpacking to unpacked)
               console.log(`File status changed: ${data.file_id} to ${data.status}`)
               setFiles(prev => {
                 const updatedFiles = prev.map(f => 
@@ -423,8 +423,22 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
 
     console.log(`Starting upload of ${selectedFiles.length} files`)
     
-    // Filter out empty/folder entries (size 0 and no type)
+    // Filter out system files and empty/folder entries
     const validFiles = Array.from(selectedFiles).filter(file => {
+      // Filter out common system files
+      const fileName = file.name.toLowerCase()
+      const isSystemFile = fileName === '.ds_store' || 
+                          fileName === 'thumbs.db' || 
+                          fileName === 'desktop.ini' ||
+                          fileName.startsWith('._') ||
+                          fileName === '.localized'
+      
+      if (isSystemFile) {
+        console.log(`Filtering out system file: ${file.name}`)
+        return false
+      }
+      
+      // Filter out empty/folder entries (size 0 and no type)
       const isValid = file.size > 0 || file.type !== ''
       console.log(`File "${file.name}": size=${file.size}, type="${file.type}", lastModified=${file.lastModified}, valid=${isValid}`)
       return isValid
@@ -435,6 +449,19 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
     if (validFiles.length === 0) {
       console.log('No valid files found with strict filtering, trying lenient filtering...')
       const lenientFiles = Array.from(selectedFiles).filter(file => {
+        // Still filter out system files in lenient mode
+        const fileName = file.name.toLowerCase()
+        const isSystemFile = fileName === '.ds_store' || 
+                            fileName === 'thumbs.db' || 
+                            fileName === 'desktop.ini' ||
+                            fileName.startsWith('._') ||
+                            fileName === '.localized'
+        
+        if (isSystemFile) {
+          console.log(`Filtering out system file in lenient mode: ${file.name}`)
+          return false
+        }
+        
         const isPdf = file.name.toLowerCase().endsWith('.pdf')
         const hasName = file.name && file.name.trim() !== ''
         const isLenientValid = hasName && (file.size > 0 || isPdf)
@@ -705,9 +732,30 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
     for (const entry of allEntries) {
       if (entry.isFile) {
         console.log(`Processing file: ${entry.name}`)
+        
+        // Filter out system files during directory traversal
+        const fileName = entry.name.toLowerCase()
+        const isSystemFile = fileName === '.ds_store' || 
+                            fileName === 'thumbs.db' || 
+                            fileName === 'desktop.ini' ||
+                            fileName.startsWith('._') ||
+                            fileName === '.localized'
+        
+        if (isSystemFile) {
+          console.log(`Skipping system file during directory traversal: ${entry.name}`)
+          continue
+        }
+        
         const file = await getFileFromEntry(entry)
         files.push(file)
       } else if (entry.isDirectory) {
+        // Skip system directories
+        const dirName = entry.name.toLowerCase()
+        if (dirName === '__macosx' || dirName.startsWith('.')) {
+          console.log(`Skipping system directory: ${entry.name}`)
+          continue
+        }
+        
         console.log(`Processing subdirectory: ${entry.name}`)
         // Recursively process subdirectories
         const subFiles = await getAllFilesFromDirectory(entry)
@@ -771,11 +819,10 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
   // Get status badge
   const getStatusBadge = (status: FileStatus) => {
     switch (status) {
-      case 'ready':
       case 'uploaded':
         return <Badge variant="secondary" className="bg-green-100 text-green-800">
           <CheckCircle className="w-3 h-3 mr-1" />
-          Ready
+          Uploaded
         </Badge>
       case 'unpacked':
         return <Badge variant="secondary" className="bg-green-100 text-green-800">
@@ -972,8 +1019,8 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                   <div className="flex items-center gap-2">
                     {getStatusBadge(file.status)}
                     
-                    {/* Delete button - only show for ready files */}
-                    {(file.status === 'ready' || file.status === 'uploaded' || file.status === 'unpacked') && (
+                    {/* Delete button - only show for uploaded/unpacked files */}
+                    {(file.status === 'uploaded' || file.status === 'unpacked') && (
                       <>
                         <Button
                           variant="ghost"

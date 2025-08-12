@@ -77,9 +77,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const result = await signInWithGoogle();
       if (result && result.user) {
-        console.log('Sign-in successful');
+        console.log('Google sign-in successful, redirecting to dashboard');
         setUser(result.user);
-        // Don't auto-redirect - let components handle their own redirect logic
+        setHasRedirected(true);
+        router.push('/dashboard');
       }
     } catch (error) {
       console.error('Sign in error:', error);
@@ -90,9 +91,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const result = await signInWithEmail(email, password);
       if (result && result.user) {
-        console.log('Email sign-in successful');
+        console.log('Email sign-in successful, redirecting to dashboard');
         setUser(result.user);
-        // Don't auto-redirect - let components handle their own redirect logic
+        setHasRedirected(true);
+        router.push('/dashboard');
       }
     } catch (error) {
       console.error('Email sign in error:', error);
