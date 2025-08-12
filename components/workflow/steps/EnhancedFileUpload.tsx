@@ -417,6 +417,22 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
     // Skip duplicate loads in Strict Mode
   }, [jobId])
 
+  // Helper function to check if a file is a system file
+  const isSystemFile = (fileName: string): boolean => {
+    const name = fileName.toLowerCase()
+    return name === '.ds_store' || 
+           name === 'thumbs.db' || 
+           name === 'desktop.ini' ||
+           name.startsWith('._') ||
+           name === '.localized'
+  }
+
+  // Helper function to check if a directory is a system directory
+  const isSystemDirectory = (dirName: string): boolean => {
+    const name = dirName.toLowerCase()
+    return name === '__macosx' || name.startsWith('.')
+  }
+
   // Handle file selection
   const handleFileSelect = async (selectedFiles: FileList) => {
     if (selectedFiles.length === 0) return
@@ -425,15 +441,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
     
     // Filter out system files and empty/folder entries
     const validFiles = Array.from(selectedFiles).filter(file => {
-      // Filter out common system files
-      const fileName = file.name.toLowerCase()
-      const isSystemFile = fileName === '.ds_store' || 
-                          fileName === 'thumbs.db' || 
-                          fileName === 'desktop.ini' ||
-                          fileName.startsWith('._') ||
-                          fileName === '.localized'
-      
-      if (isSystemFile) {
+      if (isSystemFile(file.name)) {
         console.log(`Filtering out system file: ${file.name}`)
         return false
       }
@@ -449,15 +457,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
     if (validFiles.length === 0) {
       console.log('No valid files found with strict filtering, trying lenient filtering...')
       const lenientFiles = Array.from(selectedFiles).filter(file => {
-        // Still filter out system files in lenient mode
-        const fileName = file.name.toLowerCase()
-        const isSystemFile = fileName === '.ds_store' || 
-                            fileName === 'thumbs.db' || 
-                            fileName === 'desktop.ini' ||
-                            fileName.startsWith('._') ||
-                            fileName === '.localized'
-        
-        if (isSystemFile) {
+        if (isSystemFile(file.name)) {
           console.log(`Filtering out system file in lenient mode: ${file.name}`)
           return false
         }
@@ -733,15 +733,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
       if (entry.isFile) {
         console.log(`Processing file: ${entry.name}`)
         
-        // Filter out system files during directory traversal
-        const fileName = entry.name.toLowerCase()
-        const isSystemFile = fileName === '.ds_store' || 
-                            fileName === 'thumbs.db' || 
-                            fileName === 'desktop.ini' ||
-                            fileName.startsWith('._') ||
-                            fileName === '.localized'
-        
-        if (isSystemFile) {
+        if (isSystemFile(entry.name)) {
           console.log(`Skipping system file during directory traversal: ${entry.name}`)
           continue
         }
@@ -749,9 +741,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
         const file = await getFileFromEntry(entry)
         files.push(file)
       } else if (entry.isDirectory) {
-        // Skip system directories
-        const dirName = entry.name.toLowerCase()
-        if (dirName === '__macosx' || dirName.startsWith('.')) {
+        if (isSystemDirectory(entry.name)) {
           console.log(`Skipping system directory: ${entry.name}`)
           continue
         }
