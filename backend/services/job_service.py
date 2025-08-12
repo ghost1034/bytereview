@@ -342,8 +342,7 @@ class JobService:
             # Create the many-to-many relationship
             source_file_to_task = SourceFileToTask(
                 source_file_id=source_file.id,
-                task_id=extraction_task.id,
-                document_order=0
+                task_id=extraction_task.id
             )
             db.add(source_file_to_task)
             
@@ -915,8 +914,7 @@ class JobService:
                     # Link file to task
                     file_to_task = SourceFileToTask(
                         source_file_id=file.id,
-                        task_id=task.id,
-                        document_order=0
+                        task_id=task.id
                     )
                     db.add(file_to_task)
                     
@@ -934,8 +932,7 @@ class JobService:
                 for i, file in enumerate(matching_files):
                     file_to_task = SourceFileToTask(
                         source_file_id=file.id,
-                        task_id=task.id,
-                        document_order=i
+                        task_id=task.id
                     )
                     db.add(file_to_task)
 
@@ -1265,7 +1262,7 @@ class JobService:
                 # Filter out archive files that are only used for unpacking, not data extraction
                 query = self._filter_processable_files(query)
             
-            source_files = query.order_by(SourceFile.id).all()
+            source_files = query.order_by(SourceFile.original_path, SourceFile.id).all()
             
             files = []
             for source_file in source_files:
@@ -1412,12 +1409,26 @@ class JobService:
             if not job:
                 raise ValueError(f"Job {job_id} not found")
             
-            # Get extraction results with pagination
+            # Create subquery to get first source file path for each task
+            first_file_subquery = db.query(
+                SourceFileToTask.task_id,
+                func.min(SourceFile.original_path).label('first_file_path')
+            ).join(
+                SourceFile, SourceFile.id == SourceFileToTask.source_file_id
+            ).group_by(SourceFileToTask.task_id).subquery()
+            
+            # Get extraction results ordered by first source file path
             results_query = db.query(ExtractionResult, ExtractionTask).join(
                 ExtractionTask, ExtractionResult.task_id == ExtractionTask.id
+            ).join(
+                first_file_subquery, first_file_subquery.c.task_id == ExtractionTask.id
             ).filter(
                 ExtractionTask.job_id == job_id
-            ).order_by(ExtractionResult.processed_at)
+            ).order_by(
+                first_file_subquery.c.first_file_path,
+                ExtractionResult.processed_at,
+                ExtractionResult.id
+            )
             
             # Get total count
             total_count = results_query.count()
@@ -1445,7 +1456,7 @@ class JobService:
                     source_files = []
                     task_source_files = db.query(SourceFileToTask, SourceFile).join(
                         SourceFile, SourceFileToTask.source_file_id == SourceFile.id
-                    ).filter(SourceFileToTask.task_id == task.id).order_by(SourceFileToTask.document_order).all()
+                    ).filter(SourceFileToTask.task_id == task.id).order_by(SourceFile.original_path, SourceFile.id).all()
                     
                     for _, source_file in task_source_files:
                         source_files.append(source_file.original_path)
@@ -1587,8 +1598,7 @@ class JobService:
                             # Link file to task
                             file_to_task = SourceFileToTask(
                                 source_file_id=file.id,
-                                task_id=extraction_task.id,
-                                document_order=0
+                                task_id=extraction_task.id
                             )
                             db.add(file_to_task)
                     
@@ -1606,8 +1616,7 @@ class JobService:
                         for i, file in enumerate(matching_files):
                             file_to_task = SourceFileToTask(
                                 source_file_id=file.id,
-                                task_id=extraction_task.id,
-                                document_order=i
+                                task_id=extraction_task.id
                             )
                             db.add(file_to_task)
             

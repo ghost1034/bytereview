@@ -218,7 +218,6 @@ class SourceFileToTask(Base):
     
     source_file_id = Column(UUID(as_uuid=True), ForeignKey("source_files.id", ondelete="CASCADE"), primary_key=True)
     task_id = Column(UUID(as_uuid=True), ForeignKey("extraction_tasks.id", ondelete="CASCADE"), primary_key=True)
-    document_order = Column(Integer, nullable=False, default=0)
     
     # Relationships
     source_file = relationship("SourceFile", back_populates="source_files_to_tasks")

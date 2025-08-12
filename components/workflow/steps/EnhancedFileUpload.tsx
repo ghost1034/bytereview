@@ -123,13 +123,13 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
               break
 
             case 'files_extracted':
-              // Add files unpacked from ZIP to the list
+              // Add files unpacked from ZIP to the list in alphabetical order
               console.log('ZIP extraction completed, adding extracted files')
               const mappedFiles: JobFileInfo[] = data.files.map((file: any) => ({
                 id: file.id,
-                original_filename: file.filename || file.original_filename,
-                original_path: file.original_path || file.filename || file.original_filename,
-                file_size_bytes: file.file_size_bytes || file.file_size,
+                original_filename: file.filename,
+                original_path: file.original_path,
+                file_size_bytes: file.file_size,
                 status: file.status as FileStatus
               }))
               
@@ -139,10 +139,9 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                 )
                 console.log(`Adding ${newFiles.length} extracted files`)
                 
-                // Check if all ZIP files are done extracting after this update
+                // Backend already sends extracted files in alphabetical order
                 const updatedFiles = [...prev, ...newFiles]
-                setTimeout(() => checkAndCloseZipSSEIfDone(updatedFiles), 1000)
-                
+                checkAndCloseZipSSEIfDone(updatedFiles)
                 return updatedFiles
               })
               break
@@ -234,7 +233,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
               console.log(`Import started: ${data.source} - ${data.file_count} files`)
               toast({
                 title: `${data.source} Import Started`,
-                description: `Importing ${data.file_count} file(s)`,
+                description: `Importing ${data.file_count} item(s)`,
               });
               break
 
@@ -290,10 +289,10 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
 
             case 'import_batch_completed':
               // All imports in a batch completed
-              console.log(`Import batch completed: ${data.source} - ${data.successful}/${data.total} files`)
+              console.log(`Import batch completed: ${data.source} - ${data.successful}/${data.total} items`)
               toast({
                 title: `${data.source} Import Completed`,
-                description: `Successfully imported ${data.successful} of ${data.total} file(s)`,
+                description: `Successfully imported ${data.successful} of ${data.total} item(s)`,
               });
               // Check if we can close the import connection
               setTimeout(() => checkAndCloseImportSSEIfDone(), 1000)
@@ -501,11 +500,20 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
     try {
       // Don't set up SSE connection yet - we'll do it only if there are ZIP files
 
-      // Add files to the list immediately with uploading status
-      const tempFiles: JobFileInfo[] = validFiles.map((f, index) => ({
+      // Sort for initial display using folder path if available
+      const sortedFiles: File[] = [...validFiles].sort((a: any, b: any) => {
+        const aKey = (a.webkitRelativePath || a.name || '').toLowerCase()
+        const bKey = (b.webkitRelativePath || b.name || '').toLowerCase()
+        if (aKey < bKey) return -1
+        if (aKey > bKey) return 1
+        return 0
+      })
+
+      // Add files to the list immediately with uploading status (in sorted order)
+      const tempFiles: JobFileInfo[] = sortedFiles.map((f: any, index: number) => ({
         id: `temp-${Date.now()}-${index}`,
         original_filename: f.name,
-        original_path: (f as any).webkitRelativePath || f.name,
+        original_path: f.webkitRelativePath || f.name,
         file_size_bytes: f.size,
         status: 'uploading' as FileStatus
       }))
@@ -549,7 +557,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
       }
       
       // Upload files with real progress tracking and individual completion
-      const result = await apiClient.addFilesToJob(jobId, validFiles, handleProgress, handleFileComplete)
+      const result = await apiClient.addFilesToJob(jobId, sortedFiles, handleProgress, handleFileComplete)
       
       // Check if any uploaded files are ZIP files that need extraction
       const hasZipFiles = result.files.some(file => 

@@ -59,15 +59,14 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
         if not task:
             raise ValueError(f"Task {task_id} not found")
         
-        # Get associated source files (ordered by document_order)
-        source_files_query = db.query(SourceFile, SourceFileToTask.document_order).join(
+        # Get associated source files (natural order by original_path then id)
+        source_files_query = db.query(SourceFile).join(
             SourceFileToTask, SourceFile.id == SourceFileToTask.source_file_id
         ).filter(
             SourceFileToTask.task_id == task_id
-        ).order_by(SourceFileToTask.document_order)
+        ).order_by(SourceFile.original_path, SourceFile.id)
         
-        source_files_with_order = source_files_query.all()
-        source_files = [sf for sf, _ in source_files_with_order]
+        source_files = source_files_query.all()
         
         # Update task status to processing
         task.status = "processing"
@@ -398,12 +397,12 @@ async def unpack_zip_file_task(ctx: Dict[str, Any], source_file_id: str, automat
                 spec.loader.exec_module(sse_module)
                 sse_manager = sse_module.sse_manager
             
-            # Query the extracted files that were just added to the database
+            # Query only the newly extracted files in canonical alphabetical order
             extracted_files = db.query(SourceFile).filter(
                 SourceFile.job_id == zip_file.job_id,
-                SourceFile.status == "uploaded",
+                SourceFile.status == FileStatus.UPLOADED.value,  # Extracted files are marked as "uploaded"
                 SourceFile.id != zip_file.id  # Exclude the original ZIP file
-            ).all()
+            ).order_by(SourceFile.original_path, SourceFile.id).all()
             
             # Convert extracted files to dict format for SSE
             files_data = []

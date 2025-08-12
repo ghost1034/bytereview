@@ -9,6 +9,7 @@ import redis.asyncio as redis
 from typing import Dict, Any, AsyncGenerator, Set
 from collections import defaultdict
 import os
+from sqlalchemy import func
 from models.db_models import SourceFile, SourceFileToTask, ExtractionJob, ExtractionTask
 
 logger = logging.getLogger(__name__)
@@ -68,8 +69,23 @@ class SSEManager:
                     yield {"type": "error", "message": "Job not found"}
                     return
                 
-                # Get all tasks for this job
-                tasks = db.query(ExtractionTask).filter(ExtractionTask.job_id == job.id).all()
+                # Get all tasks for this job, ordered by first source file path
+                # Use subquery to get first source file path for each task
+                first_file_subquery = db.query(
+                    SourceFileToTask.task_id,
+                    func.min(SourceFile.original_path).label('first_file_path')
+                ).join(
+                    SourceFile, SourceFile.id == SourceFileToTask.source_file_id
+                ).group_by(SourceFileToTask.task_id).subquery()
+                
+                # Get tasks ordered by first source file path
+                tasks = db.query(ExtractionTask).join(
+                    first_file_subquery, first_file_subquery.c.task_id == ExtractionTask.id
+                ).filter(
+                    ExtractionTask.job_id == job.id
+                ).order_by(
+                    first_file_subquery.c.first_file_path
+                ).all()
                 
                 # Get progress from job record (more efficient and consistent)
                 total_tasks = job.tasks_total or 0
@@ -85,7 +101,7 @@ class SSEManager:
                         SourceFileToTask, SourceFile.id == SourceFileToTask.source_file_id
                     ).filter(
                         SourceFileToTask.task_id == task.id
-                    ).order_by(SourceFileToTask.document_order).all()
+                    ).order_by(SourceFile.original_path, SourceFile.id).all()
                     
                     # Create a reasonable display name from source files
                     if len(source_files) == 1:

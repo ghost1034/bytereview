@@ -58,19 +58,12 @@ export default function FolderStructureView({ files, className = '', onFileSelec
       }
     })
 
-    // Convert to array and sort
+    // Convert to array, preserving insertion order from backend-provided file list
     const convertToArray = (obj: { [key: string]: FileNode }): FileNode[] => {
-      return Object.values(obj)
-        .map(node => ({
-          ...node,
-          children: node.children
-        }))
-        .sort((a, b) => {
-          // Directories first, then files
-          if (a.isDirectory && !b.isDirectory) return -1
-          if (!a.isDirectory && b.isDirectory) return 1
-          return a.name.localeCompare(b.name)
-        })
+      return Object.values(obj).map(node => ({
+        ...node,
+        children: node.children
+      }))
     }
 
     return convertToArray(root)
