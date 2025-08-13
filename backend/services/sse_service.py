@@ -512,11 +512,13 @@ class SSEManager:
             "file_count": file_count
         })
     
-    async def send_import_progress(self, job_id: str, filename: str, status: str) -> None:
+    async def send_import_progress(self, job_id: str, filename: str, status: str, file_size: int = 0, original_path: str = None) -> None:
         """Send import progress event"""
         await self.send_job_event(job_id, {
             "type": "import_progress",
             "filename": filename,
+            "original_path": original_path or filename,
+            "file_size": file_size,
             "status": status
         })
     

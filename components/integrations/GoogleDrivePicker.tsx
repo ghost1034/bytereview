@@ -226,7 +226,7 @@ export function GoogleDrivePicker({
           
           toast({
             title: "Import Started",
-            description: `Started importing ${files.length} file${files.length !== 1 ? 's' : ''} from Google Drive`,
+            description: `Started importing ${files.length} item${files.length !== 1 ? 's' : ''} from Google Drive`,
             variant: "default"
           });
         } catch (error) {

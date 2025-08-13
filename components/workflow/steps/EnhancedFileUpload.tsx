@@ -85,10 +85,11 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
   // Check if all files are ready
   const allFilesReady = files.length > 0 && files.every(f => 
     f.status === 'unpacked' || f.status === 'uploaded'
-  ) && files.filter(f => f.status === 'unpacking').length === 0
+  ) && files.filter(f => f.status === 'unpacking' || f.status === 'importing').length === 0
 
   // Get files by status for display
   const readyFiles = files.filter(f => f.status === 'unpacked' || f.status === 'uploaded')
+  const importingFiles = files.filter(f => f.status === 'importing')
   const unpackingFiles = files.filter(f => f.status === 'unpacking')
   const failedFiles = files.filter(f => f.status === 'failed')
 
@@ -238,8 +239,21 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
               break
 
             case 'import_progress':
-              // Individual file import progress
+              // Individual file import progress (e.g., started importing)
               console.log(`Import progress: ${data.filename} - ${data.status}`)
+              if (data.status === 'importing') {
+                setFiles(prev => updateOrAddFile(
+                  prev,
+                  {
+                    id: `importing-${Date.now()}-${data.filename}`,
+                    original_filename: data.filename,
+                    original_path: data.original_path || data.filename,
+                    file_size_bytes: data.file_size || 0,
+                    status: 'importing' as FileStatus
+                  },
+                  f => f.original_filename === data.filename || f.original_path === data.filename
+                ))
+              }
               break
 
             case 'import_completed':
@@ -255,16 +269,14 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
               }
               
               setFiles(prev => {
-                // Check if file already exists to avoid duplicates
-                const exists = prev.some(f => f.id === data.file_id)
-                let updatedFiles;
-                if (exists) {
-                  // Update existing file
-                  updatedFiles = prev.map(f => f.id === data.file_id ? importedFile : f)
-                } else {
-                  // Add new file
-                  updatedFiles = [...prev, importedFile]
-                }
+                const updatedFiles = updateOrAddFile(
+                  prev,
+                  importedFile,
+                  f => f.id === data.file_id || 
+                       f.original_filename === data.filename ||
+                       f.original_path === data.original_path ||
+                       (f.id.startsWith('importing-') && f.original_filename === data.filename)
+                )
                 
                 // Check if we need to establish ZIP SSE connection for unpacking files
                 const hasUnpackingFiles = updatedFiles.some(f => f.status === 'unpacking')
@@ -402,6 +414,17 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
         console.log('Unpacking files detected on load, setting up ZIP SSE connection')
         setupZipSSEConnection()
       }
+      
+      // Check if there are importing files and setup Import SSE if needed
+      const hasImportingFiles = (data.files || []).some(file => 
+        file.status === 'importing'
+      )
+      
+      if (hasImportingFiles && !importEventSourceRef.current) {
+        console.log('Importing files detected on load, setting up Import SSE connection')
+        setHasTriggeredImports(true)
+        setupImportSSEConnection()
+      }
     } catch (error) {
       console.error('Error loading existing files:', error)
     }
@@ -430,6 +453,18 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
   const isSystemDirectory = (dirName: string): boolean => {
     const name = dirName.toLowerCase()
     return name === '__macosx' || name.startsWith('.')
+  }
+
+  // Helper function to update or add files
+  const updateOrAddFile = (files: JobFileInfo[], newFile: JobFileInfo, matchCondition: (f: JobFileInfo) => boolean) => {
+    const existingIndex = files.findIndex(matchCondition)
+    if (existingIndex !== -1) {
+      // Update existing file
+      return files.map((file, index) => index === existingIndex ? newFile : file)
+    } else {
+      // Add new file
+      return [...files, newFile]
+    }
   }
 
   // Handle file selection
@@ -827,6 +862,11 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
           <CheckCircle className="w-3 h-3 mr-1" />
           Unpacked
         </Badge>
+      case 'importing':
+        return <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+          Importing
+        </Badge>
       case 'unpacking':
         return <Badge variant="secondary" className="bg-blue-100 text-blue-800">
           <Loader2 className="w-3 h-3 mr-1 animate-spin" />
@@ -995,18 +1035,24 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="max-h-96 overflow-y-auto space-y-2">
               {files.map((file) => (
-                <div key={file.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-3 flex-1">
+                <div key={file.id} className="flex items-center justify-between p-3 border rounded-lg min-w-0">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
                     {getFileIcon(file)}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium truncate">{file.original_filename || 'Unknown file'}</p>
-                        {getSourceIcon(file)}
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="font-medium truncate min-w-0" title={file.original_filename || 'Unknown file'}>
+                          {file.original_filename || 'Unknown file'}
+                        </p>
+                        <div className="flex-shrink-0">
+                          {getSourceIcon(file)}
+                        </div>
                       </div>
                       {file.original_path && file.original_path !== file.original_filename && (
-                        <p className="text-sm text-gray-500 truncate">{file.original_path}</p>
+                        <p className="text-sm text-gray-500 truncate" title={file.original_path}>
+                          {file.original_path}
+                        </p>
                       )}
                       <p className="text-xs text-gray-400">
                         {file.file_size_bytes ? formatFileSize(file.file_size_bytes) : 'Unknown size'}
@@ -1014,7 +1060,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {getStatusBadge(file.status)}
                     
                     {/* Delete button - only show for uploaded/unpacked files */}
@@ -1043,6 +1089,22 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
       )}
 
       {/* Progress Summary */}
+      {importingFiles.length > 0 && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-blue-800">
+              <Cloud className="w-4 h-4" />
+              <span className="font-medium">
+                Currently importing {importingFiles.length} file(s)...
+              </span>
+            </div>
+            <p className="text-sm text-blue-600 mt-1">
+              Please wait while we import your files from Google Drive/Gmail.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {unpackingFiles.length > 0 && (
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="pt-6">

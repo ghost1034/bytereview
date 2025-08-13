@@ -21,7 +21,7 @@ import {
   Calendar,
   User,
   FileText,
-  AlertCircle 
+  AlertCircle
 } from 'lucide-react';
 import { useGoogleIntegration } from '@/hooks/useGoogleIntegration';
 import { apiClient } from '@/lib/api';

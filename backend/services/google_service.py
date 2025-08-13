@@ -1091,6 +1091,15 @@ class GoogleService:
             db.commit()
             db.refresh(source_file)
             
+            # Send import progress event for this individual file
+            await sse_manager.send_import_progress(
+                job_id, 
+                filename, 
+                'importing',
+                file_size,
+                filename
+            )
+            
             # Download file from Drive
             file_content = self.download_drive_file(db, user_id, file_id)
             if not file_content:
@@ -1215,6 +1224,15 @@ class GoogleService:
             db.add(source_file)
             db.commit()
             db.refresh(source_file)
+            
+            # Send import progress event for this individual file
+            await sse_manager.send_import_progress(
+                job_id, 
+                filename, 
+                'importing',
+                file_size,
+                full_path
+            )
             
             # Download file from Drive
             file_content = self.download_drive_file(db, user_id, file_id)
