@@ -65,6 +65,16 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
     queryClient.invalidateQueries({ queryKey: ['job-files', jobId] })
   }
 
+  // Helper function to sort files alphabetically by full path
+  // Uses original_path (includes folder structure) for proper hierarchical sorting
+  const sortFilesByPath = (files: JobFileInfo[]): JobFileInfo[] => {
+    return [...files].sort((a, b) => {
+      const pathA = (a.original_path || a.original_filename || '').toLowerCase()
+      const pathB = (b.original_path || b.original_filename || '').toLowerCase()
+      return pathA.localeCompare(pathB)
+    })
+  }
+
   // Handle Google Drive file selection
   const handleDriveFiles = (driveFiles: any[]) => {
     if (driveFiles.length > 0) {
@@ -147,8 +157,8 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                 )
                 console.log(`Adding ${newFiles.length} extracted files`)
                 
-                // Backend already sends extracted files in alphabetical order
-                const updatedFiles = [...prev, ...newFiles]
+                // Add new files and sort alphabetically
+                const updatedFiles = sortFilesByPath([...prev, ...newFiles])
                 checkAndCloseZipSSEIfDone(updatedFiles)
                 
                 // Invalidate job files queries if new files were added
@@ -171,6 +181,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                 // Check if all ZIP files are done extracting after this status change
                 setTimeout(() => checkAndCloseZipSSEIfDone(updatedFiles), 1000)
                 
+                // Status changes don't affect order, so no need to re-sort
                 return updatedFiles
               })
               break
@@ -419,7 +430,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
     try {
       // Load all files for display purposes (including ZIP files for transparency)
       const data = await apiClient.getJobFiles(jobId)
-      setFiles(data.files || [])
+      setFiles(sortFilesByPath(data.files || []))
       
       // Check if there are unpacking files and setup ZIP SSE if needed
       const hasUnpackingFiles = (data.files || []).some(file => 
@@ -471,15 +482,15 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
     return name === '__macosx' || name.startsWith('.')
   }
 
-  // Helper function to update or add files
+  // Helper function to update or add files while maintaining alphabetical order
   const updateOrAddFile = (files: JobFileInfo[], newFile: JobFileInfo, matchCondition: (f: JobFileInfo) => boolean) => {
     const existingIndex = files.findIndex(matchCondition)
     if (existingIndex !== -1) {
-      // Update existing file
+      // Update existing file in place
       return files.map((file, index) => index === existingIndex ? newFile : file)
     } else {
-      // Add new file
-      return [...files, newFile]
+      // Add new file and sort the entire list
+      return sortFilesByPath([...files, newFile])
     }
   }
 
@@ -551,17 +562,8 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
     try {
       // Don't set up SSE connection yet - we'll do it only if there are ZIP files
 
-      // Sort for initial display using folder path if available
-      const sortedFiles: File[] = [...validFiles].sort((a: any, b: any) => {
-        const aKey = (a.webkitRelativePath || a.name || '').toLowerCase()
-        const bKey = (b.webkitRelativePath || b.name || '').toLowerCase()
-        if (aKey < bKey) return -1
-        if (aKey > bKey) return 1
-        return 0
-      })
-
-      // Add files to the list immediately with uploading status (in sorted order)
-      const tempFiles: JobFileInfo[] = sortedFiles.map((f: any, index: number) => ({
+      // Add files to the list immediately with uploading status
+      const tempFiles: JobFileInfo[] = validFiles.map((f: any, index: number) => ({
         id: `temp-${Date.now()}-${index}`,
         original_filename: f.name,
         original_path: f.webkitRelativePath || f.name,
@@ -569,7 +571,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
         status: 'uploading' as FileStatus
       }))
       
-      setFiles(prev => [...prev, ...tempFiles])
+      setFiles(prev => sortFilesByPath([...prev, ...tempFiles]))
       
       // Real progress callback
       const handleProgress = (filePath: string, progress: number) => {
@@ -590,7 +592,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
         
         // Replace the temp file with the real file data
         setFiles(prev => {
-          return prev.map(file => {
+          const updatedFiles = prev.map(file => {
             if (file.original_path === filePath && file.id.startsWith('temp-')) {
               return {
                 id: fileData.id,
@@ -602,6 +604,8 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
             }
             return file
           })
+          // Re-sort in case the filename changed during upload
+          return sortFilesByPath(updatedFiles)
         })
         
         // Invalidate job files queries when file upload completes
@@ -611,7 +615,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
       }
       
       // Upload files with real progress tracking and individual completion
-      const result = await apiClient.addFilesToJob(jobId, sortedFiles, handleProgress, handleFileComplete)
+      const result = await apiClient.addFilesToJob(jobId, validFiles, handleProgress, handleFileComplete)
       
       // Check if any uploaded files are ZIP files that need extraction
       const hasZipFiles = result.files.some(file => 
