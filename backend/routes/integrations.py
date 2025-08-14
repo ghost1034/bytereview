@@ -39,22 +39,23 @@ def get_google_config():
     }
 
 # OAuth scopes for different services
-# Using limited Drive scopes for enhanced security:
+# Production release: Drive-only scopes (Gmail disabled for this release)
 # - drive.readonly: Read-only access to all files (for importing)
 # - drive.file: Read/write access only to files created by this app (for exporting)
 GOOGLE_SCOPES = {
     "drive": "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email",
-    "gmail": "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email",
-    "combined": "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email"
+    # Gmail scopes disabled for production release
+    # "gmail": "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email",
+    # "combined": "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email"
 }
 
 @router.get("/google/auth-url")
 async def get_google_auth_url(
-    scopes: str = "combined",
+    scopes: str = "drive",
     current_user_id: str = Depends(get_current_user_id)
 ):
     """
-    Generate Google OAuth authorization URL
+    Generate Google OAuth authorization URL (Drive only for this release)
     """
     if not GOOGLE_AVAILABLE:
         raise HTTPException(
@@ -68,6 +69,13 @@ async def get_google_auth_url(
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail="Google OAuth not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables."
+        )
+    
+    # Only allow Drive for production release
+    if scopes != "drive":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only 'drive' scopes are supported in this release"
         )
     
     # Validate scopes

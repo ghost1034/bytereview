@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for ByteReview backend
+# Multi-stage Dockerfile for CPAAutomation backend
 FROM python:3.11-slim as base
 
 # Set environment variables
@@ -33,5 +33,5 @@ USER app
 # Expose port
 EXPOSE 8000
 
-# Default command (can be overridden)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Production command (can be overridden for workers)
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

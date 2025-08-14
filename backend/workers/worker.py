@@ -1606,6 +1606,75 @@ class CronWorkerSettings:
     """Settings for cron/scheduled tasks worker"""
     redis_settings = RedisSettings.from_dsn(REDIS_URL)
     queue_name = "cron_queue"
+
+
+# Hybrid worker settings for production deployment
+class ExtractWorkerSettings:
+    """Production worker for AI extraction tasks only"""
+    redis_settings = RedisSettings.from_dsn(REDIS_URL)
+    queue_name = "extract"  # Only handle extraction queue
+    
+    # Task functions for extraction
+    functions = [
+        process_extraction_task,
+    ]
+    
+    # Worker configuration
+    max_jobs = 10
+    job_timeout = 3600  # 1 hour for complex extractions
+    keep_result = 3600
+    
+    # Health check
+    health_check_interval = 30
+
+
+class IOWorkerSettings:
+    """Production worker for I/O operations: imports, exports, ZIP unpacking"""
+    redis_settings = RedisSettings.from_dsn(REDIS_URL)
+    
+    # Handle multiple queues
+    queue_name = ["imports", "exports", "zip_queue"]
+    
+    # Task functions for I/O operations
+    functions = [
+        # Import tasks
+        import_drive_files_worker,
+        import_gmail_attachments_worker,
+        
+        # Export tasks
+        export_to_drive_worker,
+        
+        # ZIP tasks
+        unpack_zip_task,
+    ]
+    
+    # Worker configuration
+    max_jobs = 5
+    job_timeout = 1800  # 30 minutes
+    keep_result = 3600
+    
+    # Startup/shutdown
+    on_startup = startup_import_worker
+    on_shutdown = shutdown_import_worker
+    
+    # Health check
+    health_check_interval = 30
+
+
+class MaintenanceWorkerSettings:
+    """Production worker for maintenance/cron tasks"""
+    redis_settings = RedisSettings.from_dsn(REDIS_URL)
+    queue_name = "cron_queue"
+    
+    # Cron functions
+    cron_jobs = [
+        cron("30 0 * * *", func=reset_free_user_periods, unique=True),  # Daily at 00:30 UTC
+        cron("0 */2 * * *", func=reconcile_stripe_usage, unique=True),  # Every 2 hours
+        cron("0 2 * * 0", func=cleanup_usage_counters, unique=True),    # Weekly on Sundays at 02:00 UTC
+        cron("0 1 * * *", func=cleanup_abandoned_jobs, unique=True),    # Daily at 01:00 UTC
+        cron("0 3 * * *", func=cleanup_artifacts, unique=True),         # Daily at 03:00 UTC
+        cron("0 4 * * 6", func=cleanup_opt_out_data, unique=True),      # Weekly on Saturdays at 04:00 UTC
+    ]
     
     # Worker functions (both manual and scheduled versions)
     functions = [

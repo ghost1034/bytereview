@@ -1122,7 +1122,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
             <div className="flex items-center gap-2 text-blue-800">
               <Cloud className="w-4 h-4" />
               <span className="font-medium">
-                Currently importing {importingFiles.length} file(s)...
+                Importing file(s)...
               </span>
             </div>
             <p className="text-sm text-blue-600 mt-1">

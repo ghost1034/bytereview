@@ -2,6 +2,14 @@
 const nextConfig = {
   // Remove experimental.appDir as it's now stable in Next.js 14
   async rewrites() {
+    if (process.env.NODE_ENV === 'production') {
+      return [
+        {
+          source: '/api/:path*',
+          destination: 'https://api.cpaautomation.ai/api/:path*',
+        },
+      ]
+    }
     return [
       {
         source: '/api/:path*',
@@ -9,6 +17,7 @@ const nextConfig = {
       },
     ]
   },
+  output: 'standalone',
 }
 
 module.exports = nextConfig

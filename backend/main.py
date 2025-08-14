@@ -24,9 +24,9 @@ from core.database import init_database
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="ByteReview API", 
-    version="2.0.0",
-    description="AI-powered document data extraction service with asynchronous job processing",
+    title="CPAAutomation API", 
+    version="1.0.0",
+    description="AI-powered document data extraction service for CPAs and accounting professionals",
     openapi_url="/api/openapi.json",
     docs_url="/api/docs",
     redoc_url="/api/redoc"
@@ -45,9 +45,16 @@ async def startup_event():
         raise  # Fail fast if database is unavailable
 
 # Configure CORS
+allowed_origins = ["http://localhost:3000", "http://localhost:5000"]  # Development
+if os.getenv("ENVIRONMENT") == "production":
+    allowed_origins = [
+        "https://cpaautomation.ai",
+        "https://www.cpaautomation.ai"
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5000"],  # Next.js dev server
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -63,7 +70,7 @@ security = HTTPBearer(auto_error=False)
 
 @app.get("/")
 async def root():
-    return {"message": "ByteReview API is running"}
+    return {"message": "CPAAutomation API is running", "version": "1.0.0"}
 
 @app.get("/health")
 async def health_check():

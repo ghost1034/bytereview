@@ -108,8 +108,6 @@ export default function JobCard({ job, onDelete }: JobCardProps) {
         return <CheckCircle className="w-4 h-4" />;
       case "failed":
         return <AlertCircle className="w-4 h-4" />;
-      case "in_progress":
-        return <Loader2 className="w-4 h-4 animate-spin" />;
       default:
         return <Clock className="w-4 h-4" />;
     }
@@ -223,15 +221,6 @@ export default function JobCard({ job, onDelete }: JobCardProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => handleClick()}>
-                    {job.config_step === "submitted"
-                      ? "View Details"
-                      : "Continue Job"}
-                  </DropdownMenuItem>
-                  {job.status === "completed" && (
-                    <DropdownMenuItem>Download Results</DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem>Duplicate Job</DropdownMenuItem>
                   <DropdownMenuItem
                     className="text-red-600"
                     onClick={handleDeleteClick}
@@ -244,60 +233,6 @@ export default function JobCard({ job, onDelete }: JobCardProps) {
               </DropdownMenu>
             </div>
           </div>
-
-          {/* Progress Bar - only show for non-processing jobs */}
-          {job.progress_percentage !== undefined && 
-           job.status !== 'in_progress' && (
-            <div className="mb-3">
-              <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                <span>Progress</span>
-                <span>{Math.round(job.progress_percentage)}%</span>
-              </div>
-              <Progress value={job.progress_percentage} className="h-2" />
-            </div>
-          )}
-
-          {/* Real-time Processing Details */}
-          {job.status === 'in_progress' &&
-            job.tasks_total &&
-            job.tasks_total > 0 && (
-              <div className="bg-blue-50 border border-blue-200 rounded p-2 text-xs">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-blue-700 font-medium">
-                    Processing: {job.tasks_completed || 0}/{job.tasks_total} tasks
-                  </span>
-                  {job.tasks_failed && job.tasks_failed > 0 && (
-                    <span className="text-red-600 font-medium">
-                      {job.tasks_failed} failed
-                    </span>
-                  )}
-                </div>
-                <Progress 
-                  value={job.tasks_total > 0 ? (job.tasks_completed || 0) / job.tasks_total * 100 : 0} 
-                  className="h-1.5"
-                />
-              </div>
-            )}
-
-          {/* Static Processing Details for completed/failed jobs */}
-          {job.config_step === "submitted" &&
-            job.status !== 'in_progress' &&
-            job.tasks_total &&
-            job.tasks_total > 0 && (
-              <div className="text-xs text-gray-600">
-                <div className="flex justify-between">
-                  <span>
-                    Tasks completed: {job.tasks_completed || 0}/
-                    {job.tasks_total}
-                  </span>
-                  {job.tasks_failed && job.tasks_failed > 0 && (
-                    <span className="text-red-600">
-                      {job.tasks_failed} failed
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
         </CardContent>
       </Card>
 

@@ -21,11 +21,22 @@ else:
     print(f"Warning: service-account.json not found at {service_account_path}")
 
 from arq import run_worker
-from worker import WorkerSettings, ZipWorkerSettings, ImportWorkerSettings, ExportWorkerSettings, AutomationWorkerSettings, CronWorkerSettings
+from worker import (
+    WorkerSettings, ZipWorkerSettings, ImportWorkerSettings, ExportWorkerSettings, 
+    AutomationWorkerSettings, CronWorkerSettings,
+    # Hybrid worker settings for production
+    ExtractWorkerSettings, IOWorkerSettings, MaintenanceWorkerSettings
+)
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python run_workers.py [ai|zip|import|export|automation|cron]")
+        print("Usage: python run_workers.py [extract|io|maint|ai|zip|import|export|automation|cron]")
+        print("Production (hybrid) workers:")
+        print("  extract    - Run extraction worker (AI tasks only)")
+        print("  io         - Run I/O worker (imports, exports, ZIP unpacking)")
+        print("  maint      - Run maintenance worker (cron tasks)")
+        print("")
+        print("Legacy (individual) workers:")
         print("  ai         - Run AI extraction worker")
         print("  zip        - Run ZIP unpacking worker")
         print("  import     - Run file import worker (Drive, Gmail)")
@@ -43,7 +54,30 @@ def main():
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     
-    if worker_type == "ai":
+    # Production hybrid workers
+    if worker_type == "extract":
+        print("Starting Extract Worker (AI extraction tasks only)...")
+        print("Queues: extract")
+        print("Logs will appear below...")
+        run_worker(ExtractWorkerSettings)
+    elif worker_type == "io":
+        print("Starting I/O Worker (imports, exports, ZIP unpacking)...")
+        print("Queues: imports, exports, zip_queue")
+        print("Logs will appear below...")
+        run_worker(IOWorkerSettings)
+    elif worker_type == "maint":
+        print("Starting Maintenance Worker (cron tasks)...")
+        print("📅 Scheduled tasks:")
+        print("  - Free user period reset: Daily at 00:30 UTC")
+        print("  - Stripe usage reconciliation: Every 2 hours")
+        print("  - Usage counter cleanup: Weekly on Sundays at 02:00 UTC")
+        print("  - Abandoned job cleanup: Daily at 01:00 UTC")
+        print("  - Artifact cleanup: Daily at 03:00 UTC")
+        print("  - Opt-out data cleanup: Weekly on Saturdays at 04:00 UTC")
+        print("Logs will appear below...")
+        run_worker(MaintenanceWorkerSettings)
+    # Legacy individual workers (for backward compatibility)
+    elif worker_type == "ai":
         print("Starting AI Worker (extraction tasks)...")
         print("Logs will appear below...")
         run_worker(WorkerSettings)
@@ -76,7 +110,7 @@ def main():
         run_worker(CronWorkerSettings)
     else:
         print(f"Unknown worker type: {worker_type}")
-        print("Use 'ai', 'zip', 'import', 'export', 'automation', or 'cron'")
+        print("Use 'extract', 'io', 'maint' for production, or legacy individual worker types")
         sys.exit(1)
 
 if __name__ == "__main__":
