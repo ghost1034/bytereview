@@ -155,8 +155,8 @@ export default function Contact() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-gray-900">Phone</h4>
-                      <p className="text-gray-600">1-800-IAN-HELP</p>
-                      <p className="text-gray-600">(1-800-123-4567)</p>
+                      <p className="text-gray-600">No phone contact available yet</p>
+                      <p className="text-gray-600">(Please check back later)</p>
                     </div>
                   </div>
 

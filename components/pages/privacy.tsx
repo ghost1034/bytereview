@@ -12,7 +12,7 @@ export default function Privacy() {
             How we protect and handle your data at CPAAutomation
           </p>
           <p className="text-sm text-gray-500 mt-4">
-            Last updated: January 2024
+            Last updated: August 2025
           </p>
         </div>
 
@@ -48,7 +48,7 @@ export default function Privacy() {
               <CardContent className="p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Document Data</h3>
                 <ul className="space-y-2 text-gray-600">
-                  <li>• PDF files and images you upload for processing</li>
+                  <li>• Files you upload for processing (opt-out option provided)</li>
                   <li>• Extracted data and results from your documents</li>
                   <li>• Custom extraction rules and templates you create</li>
                   <li>• Processing metadata (file size, type, processing time)</li>
@@ -96,8 +96,7 @@ export default function Privacy() {
                   <h3 className="text-lg font-semibold text-gray-900">Immediate File Deletion</h3>
                 </div>
                 <p className="text-gray-600">
-                  All uploaded files are permanently deleted from our servers immediately after processing is complete. 
-                  We do not retain your documents for any purpose.
+                  If you choose not to keep your files stored for later use, they are permanently deleted from our servers immediately after processing is complete.
                 </p>
               </CardContent>
             </Card>
@@ -276,8 +275,7 @@ export default function Privacy() {
                     If you have questions about this privacy policy or how we handle your data, please contact us:
                   </p>
                   <div className="space-y-2 text-gray-600">
-                    <p>Email: privacy@CPAAutomation</p>
-                    <p>Phone: 1-800-IAN-HELP</p>
+                    <p>Email: privacy@CPAAutomation.ai</p>
                     <p>Address: United States (US-based support team)</p>
                   </div>
                 </div>

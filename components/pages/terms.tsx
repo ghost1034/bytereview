@@ -12,7 +12,7 @@ export default function Terms() {
             Legal terms and conditions for using CPAAutomation
           </p>
           <p className="text-sm text-gray-500 mt-4">
-            Last updated: January 2024
+            Last updated: August 2025
           </p>
         </div>
 
@@ -323,7 +323,6 @@ export default function Terms() {
                   </p>
                   <div className="space-y-2 text-gray-600">
                     <p>Email: legal@CPAAutomation.ai</p>
-                    <p>Phone: 1-800-IAN-HELP</p>
                     <p>Address: United States (US-based legal team)</p>
                   </div>
                 </div>
