@@ -5,6 +5,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -44,6 +45,7 @@ interface EnhancedFileUploadProps {
 
 export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: EnhancedFileUploadProps) {
   const { toast } = useToast()
+  const queryClient = useQueryClient()
   const [files, setFiles] = useState<JobFileInfo[]>([])
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
@@ -57,6 +59,11 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
   const pendingFilesRef = useRef<Set<string>>(new Set())
   const expectedFilesRef = useRef<Set<string>>(new Set())
   const receivedFilesRef = useRef<Set<string>>(new Set())
+
+  // Helper function to invalidate job files queries
+  const invalidateJobFiles = () => {
+    queryClient.invalidateQueries({ queryKey: ['job-files', jobId] })
+  }
 
   // Handle Google Drive file selection
   const handleDriveFiles = (driveFiles: any[]) => {
@@ -143,6 +150,12 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                 // Backend already sends extracted files in alphabetical order
                 const updatedFiles = [...prev, ...newFiles]
                 checkAndCloseZipSSEIfDone(updatedFiles)
+                
+                // Invalidate job files queries if new files were added
+                if (newFiles.length > 0) {
+                  invalidateJobFiles()
+                }
+                
                 return updatedFiles
               })
               break
@@ -284,6 +297,9 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                   console.log('Imported file with unpacking status detected, setting up ZIP SSE connection')
                   setupZipSSEConnection()
                 }
+                
+                // Invalidate job files queries when new file is imported
+                invalidateJobFiles()
                 
                 return updatedFiles
               })
@@ -588,6 +604,9 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
           })
         })
         
+        // Invalidate job files queries when file upload completes
+        invalidateJobFiles()
+        
         console.log(`Completed file: ${fileData.filename}`)
       }
       
@@ -647,6 +666,9 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
       
       // Directly remove the file from the list - no need to wait for SSE
       setFiles(prev => prev.filter(f => f.id !== fileId))
+      
+      // Invalidate job files queries so other pages refresh
+      invalidateJobFiles()
       
       toast({
         title: "File removed",

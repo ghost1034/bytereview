@@ -50,7 +50,7 @@ export default function JobFieldsPage() {
       return response.json()
     },
     enabled: !!user && !!jobId,
-    staleTime: 0, // TODO: Implement proper staleTime and invalidation
+    staleTime: 5 * 60 * 1000, // 5 minutes - invalidated when files are added/removed
   })
 
   // Save field configuration mutation
