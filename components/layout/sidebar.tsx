@@ -77,9 +77,9 @@ export function Sidebar({ className }: SidebarProps) {
         {!collapsed && (
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">ian</span>
+              <span className="text-white font-bold text-sm">CPA</span>
             </div>
-            <span className="font-semibold text-gray-900">ian.ai</span>
+            <span className="font-semibold text-gray-900">CPAAutomation</span>
           </div>
         )}
         

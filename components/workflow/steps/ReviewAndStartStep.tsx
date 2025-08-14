@@ -86,15 +86,14 @@ export default function ReviewAndStartStep({
               onCheckedChange={(checked) => setPersistData(checked as boolean)}
             />
             <Label htmlFor="persist-data" className="text-sm">
-              Keep extracted data for future access
+              Keep source files for future reference
             </Label>
           </div>
 
           {!persistData && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
               <p className="text-sm text-yellow-800">
-                <strong>Note:</strong> If you choose not to persist data, results will only be available 
-                during this session and will be automatically deleted after completion.
+                <strong>Note:</strong> If you choose not to keep source files, your files will be automatically discarded upon expiry.
               </p>
             </div>
           )}

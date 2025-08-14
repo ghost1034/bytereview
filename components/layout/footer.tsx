@@ -12,10 +12,10 @@ export default function Footer() {
               <div className="relative w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
                 <div className="text-white font-bold text-sm">FE</div>
               </div>
-              <span className="text-xl font-bold">ian.ai</span>
+              <span className="text-xl font-bold">CPAAutomation</span>
             </div>
             <p className="text-gray-400 mb-4">
-              True GenAI customizable extraction programmed by real CPA and lawyer for practical professional use
+              True GenAI customizable extraction programmed by real CPAs and lawyers for practical professional use
             </p>
             <div className="flex space-x-4">
               <a href="#" className="text-gray-400 hover:text-white transition-colors">
@@ -79,7 +79,7 @@ export default function Footer() {
         </div>
         
         <div className="border-t border-gray-800 mt-12 pt-8 text-center">
-          <p className="text-gray-400">© 2025 ian.ai. All rights reserved.</p>
+          <p className="text-gray-400">© 2025 CPAAutomation. All rights reserved.</p>
         </div>
       </div>
     </footer>

@@ -237,9 +237,6 @@ export default function FieldConfigurationStep({
       if (!field.field_name.trim()) {
         errors.push(`Field ${index + 1}: Name is required`);
       }
-      if (!field.ai_prompt.trim()) {
-        errors.push(`Field ${index + 1}: Prompt is required`);
-      }
       if (!field.data_type_id.trim()) {
         errors.push(`Field ${index + 1}: Data type is required`);
       }
@@ -455,8 +452,8 @@ export default function FieldConfigurationStep({
                     </Select>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {folderFiles.map((file, index) => (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-32 overflow-y-auto">
+                    {folderFiles.slice(0, 12).map((file, index) => (
                       <Badge
                         key={index}
                         variant="outline"
@@ -465,6 +462,11 @@ export default function FieldConfigurationStep({
                         {file.original_filename}
                       </Badge>
                     ))}
+                    {folderFiles.length > 12 && (
+                      <Badge variant="secondary" className="justify-center text-xs">
+                        +{folderFiles.length - 12} more files
+                      </Badge>
+                    )}
                   </div>
 
                   <p className="text-xs text-muted-foreground mt-2">

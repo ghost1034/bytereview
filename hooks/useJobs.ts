@@ -104,7 +104,7 @@ export function useJobs(limit = 25, offset = 0, status?: string) {
       return apiClient.listJobs({ limit, offset, status })
     },
     enabled: !!user,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 0, // TODO: Implement proper staleTime and invalidation
     refetchOnWindowFocus: true, // Refresh when user returns to tab
     refetchOnMount: true, // Always refetch when component mounts
     onSuccess: (data) => {
@@ -314,8 +314,8 @@ export const useJobProgressFresh = (jobId: string) => {
     queryKey: [`/api/jobs/${jobId}/progress`, 'fresh'], // Simple fresh key
     queryFn: () => apiClient.getJobProgress(jobId),
     enabled: !!jobId,
-    staleTime: 0, // Always consider stale, fetch fresh data
-    cacheTime: 0, // Don't cache the result at all
+    staleTime: 0, // TODO: Implement proper staleTime and invalidation
+    cacheTime: 0,
     refetchOnMount: true, // Always refetch when component mounts
     refetchOnWindowFocus: true, // Refetch when user returns to tab
     retry: false, // Don't retry to avoid hanging

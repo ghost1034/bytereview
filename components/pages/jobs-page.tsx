@@ -107,20 +107,6 @@ export function JobsPage() {
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
-          <Button 
-            variant="outline" 
-            onClick={() => refetch()}
-            disabled={loading}
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Reload
-          </Button>
-          <Button onClick={() => setShowCreateModal(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Create New Job
-          </Button>
-        </div>
       </div>
 
 
@@ -145,9 +131,26 @@ export function JobsPage() {
       {/* Jobs List */}
       <Card>
         <CardHeader>
-          <CardTitle>
-            All Jobs {loading ? "" : `(${totalJobs} total)`}
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>
+              All Jobs {loading ? "" : `(${totalJobs} total)`}
+            </CardTitle>
+            <div className="flex items-center space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={() => refetch()}
+                disabled={loading}
+                size="sm"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Reload
+              </Button>
+              <Button onClick={() => setShowCreateModal(true)} size="sm">
+                <Plus className="w-4 h-4 mr-2" />
+                Create New Job
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (

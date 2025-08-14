@@ -9,7 +9,7 @@ export default function Terms() {
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold text-gray-900 mb-6">Terms of Service</h1>
           <p className="text-xl text-gray-600">
-            Legal terms and conditions for using ian.ai
+            Legal terms and conditions for using CPAAutomation
           </p>
           <p className="text-sm text-gray-500 mt-4">
             Last updated: January 2024
@@ -27,11 +27,11 @@ export default function Terms() {
                 <div>
                   <h2 className="text-xl font-bold text-gray-900 mb-4">Acceptance of Terms</h2>
                   <p className="text-gray-700 mb-4">
-                    By accessing or using ian.ai's document processing services, you agree to be bound by these Terms of Service. 
+                    By accessing or using CPAAutomation's document processing services, you agree to be bound by these Terms of Service. 
                     If you do not agree to these terms, please do not use our services.
                   </p>
                   <p className="text-gray-700">
-                    These terms constitute a legal agreement between you and ian.ai regarding your use of our platform.
+                    These terms constitute a legal agreement between you and CPAAutomation regarding your use of our platform.
                   </p>
                 </div>
               </div>
@@ -187,7 +187,7 @@ export default function Terms() {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">Our Rights</h3>
                   <p className="text-gray-600">
-                    ian.ai retains all rights to our software, algorithms, AI models, and extraction methodologies. 
+                    CPAAutomation retains all rights to our software, algorithms, AI models, and extraction methodologies. 
                     Users receive a license to use our services but do not acquire ownership rights.
                   </p>
                 </div>
@@ -322,7 +322,7 @@ export default function Terms() {
                     If you have questions about these Terms of Service, please contact us:
                   </p>
                   <div className="space-y-2 text-gray-600">
-                    <p>Email: legal@ian.ai</p>
+                    <p>Email: legal@CPAAutomation.ai</p>
                     <p>Phone: 1-800-IAN-HELP</p>
                     <p>Address: United States (US-based legal team)</p>
                   </div>

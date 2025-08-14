@@ -185,6 +185,38 @@ class GCSService:
             logger.error(f"Failed to get file info {file_id} from GCS: {e}")
             return None
     
+    def delete_user_files(self, user_id: str) -> bool:
+        """Delete all files for a user from GCS"""
+        try:
+            # Delete all files in the user's jobs directory
+            prefix = f"jobs/"
+            blobs = self.bucket.list_blobs(prefix=prefix)
+            
+            deleted_count = 0
+            for blob in blobs:
+                # Check if this blob belongs to the user
+                if blob.metadata and blob.metadata.get('user_id') == user_id:
+                    blob.delete()
+                    deleted_count += 1
+                elif f"/{user_id}/" in blob.name or blob.name.startswith(f"jobs/{user_id}/"):
+                    # Also delete based on path structure
+                    blob.delete()
+                    deleted_count += 1
+            
+            # Also delete any temp files for this user
+            temp_prefix = f"temp/{user_id}/"
+            temp_blobs = self.bucket.list_blobs(prefix=temp_prefix)
+            for blob in temp_blobs:
+                blob.delete()
+                deleted_count += 1
+            
+            logger.info(f"Deleted {deleted_count} files for user {user_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to delete files for user {user_id}: {e}")
+            return False
+
     def delete_temp_file(self, file_id: str, user_id: str = None) -> bool:
         """
         Delete temporary file from GCS by file_id

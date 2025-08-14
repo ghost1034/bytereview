@@ -120,16 +120,16 @@ export default function FieldConfigurationEditor({
                   </div>
                   
                   <div className="space-y-2">
-                    <Label>AI Prompt</Label>
+                    <Label>AI Prompt (Optional)</Label>
                     <Textarea
                       value={field.prompt}
                       onChange={(e) => updateField(index, { prompt: e.target.value })}
-                      placeholder="Extract the invoice number"
+                      placeholder="Extract the invoice number (optional)"
                       rows={2}
                     />
                     {mode === 'job' && (
                       <p className="text-xs text-gray-500">
-                        Be specific about what to extract
+                        Provide specific instructions for extraction (optional)
                       </p>
                     )}
                   </div>

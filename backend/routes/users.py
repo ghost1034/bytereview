@@ -4,10 +4,13 @@ PostgreSQL-only implementation
 """
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional
+import logging
 from services.user_service import UserService
 from models.user import UserResponse, UserUpdate, UpdateProfileRequest
 # Usage tracking imports will be added when billing is implemented
 from dependencies.auth import verify_firebase_token, get_current_user_id
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 user_service = UserService()
@@ -68,6 +71,25 @@ async def update_current_user(
         return user
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating user: {str(e)}")
+
+@router.delete("/me")
+async def delete_current_user(
+    token_data: dict = Depends(verify_firebase_token)
+):
+    """
+    Permanently delete the current user's account and all associated data
+    This action cannot be undone
+    """
+    try:
+        success = await user_service.delete_user_account(token_data["uid"])
+        if not success:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {"message": "Account successfully deleted"}
+        
+    except Exception as e:
+        logger.error(f"Failed to delete user account {token_data['uid']}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error deleting account: {str(e)}")
 
 # Usage tracking endpoints will be added when Stripe billing is implemented
 

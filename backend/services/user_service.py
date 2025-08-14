@@ -165,6 +165,134 @@ class UserService:
             )
             return await self.create_user(user_create)
 
+    async def delete_user_account(self, uid: str) -> bool:
+        """
+        Permanently delete user account and all associated data
+        This includes:
+        - User profile
+        - All extraction jobs and results
+        - Templates and field configurations
+        - Billing account and usage data
+        - Integration accounts
+        - Automation configurations
+        - All files from cloud storage
+        """
+        db = self._get_session()
+        try:
+            # Import here to avoid circular imports
+            from models.db_models import (
+                User, ExtractionJob, ExtractionTask, ExtractionResult, 
+                SourceFile, JobField, Template, BillingAccount, 
+                UsageCounter, IntegrationAccount, Automation, AutomationRun
+            )
+            from services.gcs_service import GCSService
+            
+            logger.info(f"Starting account deletion for user {uid}")
+            
+            # Initialize GCS service for file cleanup
+            gcs_service = GCSService()
+            
+            # Get user to verify they exist
+            user = db.query(User).filter(User.id == uid).first()
+            if not user:
+                logger.warning(f"User {uid} not found for deletion")
+                return False
+            
+            # 1. Delete all user files from cloud storage
+            # TODO: Implement this properly later
+            try:
+                # Delete all files in user's directory
+                gcs_service.delete_user_files(uid)
+                logger.info(f"Deleted cloud storage files for user {uid}")
+            except Exception as e:
+                logger.error(f"Failed to delete cloud storage files for user {uid}: {e}")
+                # Continue with database deletion even if file deletion fails
+            
+            # 2. Delete database records in dependency order
+            
+            # Delete automation runs first (via automation relationship)
+            automation_runs = db.query(AutomationRun).join(Automation).filter(Automation.user_id == uid).all()
+            for run in automation_runs:
+                db.delete(run)
+            logger.info(f"Deleted {len(automation_runs)} automation runs")
+            
+            # Delete automations
+            automations = db.query(Automation).filter(Automation.user_id == uid).all()
+            for automation in automations:
+                db.delete(automation)
+            logger.info(f"Deleted {len(automations)} automations")
+            
+            # Delete integration accounts
+            integration_accounts = db.query(IntegrationAccount).filter(IntegrationAccount.user_id == uid).all()
+            for account in integration_accounts:
+                db.delete(account)
+            logger.info(f"Deleted {len(integration_accounts)} integration accounts")
+            
+            # Delete extraction results
+            extraction_results = db.query(ExtractionResult).join(ExtractionTask).join(ExtractionJob).filter(ExtractionJob.user_id == uid).all()
+            for result in extraction_results:
+                db.delete(result)
+            logger.info(f"Deleted {len(extraction_results)} extraction results")
+            
+            # Delete job fields
+            job_fields = db.query(JobField).join(ExtractionJob).filter(ExtractionJob.user_id == uid).all()
+            for job_field in job_fields:
+                db.delete(job_field)
+            logger.info(f"Deleted {len(job_fields)} job fields")
+            
+            # Delete extraction tasks
+            extraction_tasks = db.query(ExtractionTask).join(ExtractionJob).filter(ExtractionJob.user_id == uid).all()
+            for task in extraction_tasks:
+                db.delete(task)
+            logger.info(f"Deleted {len(extraction_tasks)} extraction tasks")
+            
+            # Delete source files
+            source_files = db.query(SourceFile).join(ExtractionJob).filter(ExtractionJob.user_id == uid).all()
+            for source_file in source_files:
+                db.delete(source_file)
+            logger.info(f"Deleted {len(source_files)} source files")
+            
+            # Delete extraction jobs
+            extraction_jobs = db.query(ExtractionJob).filter(ExtractionJob.user_id == uid).all()
+            for job in extraction_jobs:
+                db.delete(job)
+            logger.info(f"Deleted {len(extraction_jobs)} extraction jobs")
+            
+            # Delete templates
+            templates = db.query(Template).filter(Template.user_id == uid).all()
+            for template in templates:
+                db.delete(template)
+            logger.info(f"Deleted {len(templates)} templates")
+            
+            # Delete usage counters
+            usage_counters = db.query(UsageCounter).filter(UsageCounter.user_id == uid).all()
+            for counter in usage_counters:
+                db.delete(counter)
+            logger.info(f"Deleted {len(usage_counters)} usage counters")
+            
+            # Delete billing account
+            # TODO: Cancel Stripe subscription automatically
+            billing_account = db.query(BillingAccount).filter(BillingAccount.user_id == uid).first()
+            if billing_account:
+                db.delete(billing_account)
+                logger.info("Deleted billing account")
+            
+            # Finally, delete the user
+            db.delete(user)
+            
+            # Commit all deletions
+            db.commit()
+            
+            logger.info(f"Successfully deleted user account {uid} and all associated data")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to delete user account {uid}: {e}")
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
     # TODO: Implement subscription and usage tracking methods when needed
     # async def update_stripe_customer(self, uid: str, stripe_customer_id: str) -> Optional[UserResponse]
     # async def update_subscription_status(self, uid: str, status: str, pages_limit: int = None) -> Optional[UserResponse]

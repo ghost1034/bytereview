@@ -203,8 +203,8 @@ export default function Pricing() {
             
             <Card>
               <CardContent className="p-6">
-                <h3 className="font-semibold text-lg text-gray-900 mb-2">What types of files does ian.ai support?</h3>
-                <p className="text-gray-600">ian.ai works with PDFs (both scanned and searchable), images (JPEG, PNG), and email attachments. Our AI is specifically trained on financial and legal documents.</p>
+                <h3 className="font-semibold text-lg text-gray-900 mb-2">What types of files does CPAAutomation support?</h3>
+                <p className="text-gray-600">CPAAutomation works with PDFs (both scanned and searchable), images (JPEG, PNG), and email attachments. Our AI is specifically trained on financial and legal documents.</p>
               </CardContent>
             </Card>
             

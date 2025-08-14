@@ -125,7 +125,11 @@ export function IntegrationBanner({
     }
 
     title = 'Google Connected';
-    description = `Connected services: ${status?.scopes?.includes('https://www.googleapis.com/auth/drive.readonly') ? 'Drive' : ''} ${status?.scopes?.includes('https://www.googleapis.com/auth/gmail.readonly') ? 'Gmail' : ''}`.trim();
+    const hasDriveAccess = status?.scopes?.some(scope => 
+      scope.includes('drive.readonly') || scope.includes('drive.file') || scope.includes('auth/drive')
+    );
+    const hasGmailAccess = status?.scopes?.includes('https://www.googleapis.com/auth/gmail.readonly');
+    description = `Connected services: ${hasDriveAccess ? 'Drive' : ''} ${hasGmailAccess ? 'Gmail' : ''}`.trim();
     actions = (
       <div className="flex gap-2 ml-auto">
         <Button

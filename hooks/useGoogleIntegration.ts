@@ -11,6 +11,11 @@ export interface GoogleIntegrationStatus {
   scopes: string[];
   expires_at: string | null;
   is_expired: boolean;
+  drive_capabilities?: {
+    can_import: boolean;
+    can_export: boolean;
+    has_limited_access: boolean;
+  };
 }
 
 export interface GoogleAuthResponse {

@@ -39,10 +39,13 @@ def get_google_config():
     }
 
 # OAuth scopes for different services
+# Using limited Drive scopes for enhanced security:
+# - drive.readonly: Read-only access to all files (for importing)
+# - drive.file: Read/write access only to files created by this app (for exporting)
 GOOGLE_SCOPES = {
-    "drive": "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email",
+    "drive": "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email",
     "gmail": "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email",
-    "combined": "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email"
+    "combined": "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email"
 }
 
 @router.get("/google/auth-url")
@@ -261,11 +264,21 @@ async def get_google_integration_status(
     if account.expires_at:
         is_expired = datetime.now(timezone.utc) > account.expires_at
     
+    # Check Drive access capabilities with limited scopes
+    has_drive_readonly = google_service.has_drive_readonly_access(db, current_user_id)
+    has_drive_file = google_service.has_drive_file_access(db, current_user_id)
+    has_valid_drive_access = google_service.validate_drive_access(db, current_user_id)
+    
     return {
         "connected": True,
         "scopes": account.scopes,
         "expires_at": account.expires_at.isoformat() if account.expires_at else None,
-        "is_expired": is_expired
+        "is_expired": is_expired,
+        "drive_capabilities": {
+            "can_import": has_drive_readonly,
+            "can_export": has_drive_file,
+            "has_limited_access": has_valid_drive_access
+        }
     }
 
 @router.delete("/google/disconnect")

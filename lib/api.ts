@@ -63,6 +63,12 @@ export class ApiClient {
     })
   }
 
+  async deleteUserAccount(): Promise<{ message: string }> {
+    return this.request('/api/users/me', {
+      method: 'DELETE'
+    })
+  }
+
   // Template endpoints
   async getTemplates(): Promise<ApiResponse<ApiPaths['/api/templates/']['get']>> {
     return this.request('/api/templates/')

@@ -60,7 +60,7 @@ export default function Home() {
                 True GenAI Customizable Extraction
               </h1>
               <p className="text-lg text-gray-500 mb-8">
-                Programmed by real CPA and lawyer for practical professional use
+                Programmed by real CPAs and lawyers for practical professional use
               </p>
               <p className="text-xl text-gray-600 mb-8">
                 Professional-grade AI extraction built with deep accounting and legal expertise.
@@ -148,46 +148,6 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-
-
-      {/* Demo Section */}
-      <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Try it now</h2>
-            <p className="text-xl text-gray-600">Upload your own PDFs and see how ian.ai works with your documents.</p>
-          </div>
-          
-          <Card 
-            className={`border-2 border-dashed transition-colors cursor-pointer ${
-              isDragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-500'
-            }`}
-            onDrop={handleFileDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-          >
-            <CardContent className="p-12 text-center">
-              <CloudUpload className={`w-16 h-16 mx-auto mb-4 ${isDragOver ? 'text-blue-500' : 'text-gray-400'}`} />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Upload File</h3>
-              <p className="text-gray-600 mb-4">Click to upload or drag and drop your PDF files here</p>
-              <input
-                type="file"
-                multiple
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={(e) => handleFileUpload(e.target.files)}
-                className="hidden"
-                id="file-upload"
-              />
-              <label htmlFor="file-upload">
-                <Button className="lido-blue hover:lido-blue-dark text-white" asChild>
-                  <span>Choose Files</span>
-                </Button>
-              </label>
-            </CardContent>
-          </Card>
         </div>
       </section>
 
@@ -334,22 +294,22 @@ export default function Home() {
       <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Enterprise grade security and compliance</h2>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Enterprise-grade security and compliance</h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="text-center">
-              <div className="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Ban className="text-red-600 w-8 h-8" />
+              <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Shield className="text-blue-600 w-8 h-8" />
               </div>
-              <h4 className="font-semibold text-gray-900 mb-2">Files Immediately Deleted Post-processing</h4>
+              <h4 className="font-semibold text-gray-900 mb-2">Files Stored Securely</h4>
             </div>
             
             <div className="text-center">
               <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Shield className="text-blue-600 w-8 h-8" />
               </div>
-              <h4 className="font-semibold text-gray-900 mb-2">Server Is Hosted in U.S.A. Only</h4>
+              <h4 className="font-semibold text-gray-900 mb-2">Servers Hosted in US Only</h4>
             </div>
             
             <div className="text-center">

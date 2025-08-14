@@ -44,7 +44,9 @@ export default function IntegrationsPage() {
   const expiresAt = status?.expires_at ? new Date(status.expires_at) : null;
 
   const hasGmailScope = scopes.some(scope => scope.includes('gmail'));
-  const hasDriveScope = scopes.some(scope => scope.includes('drive'));
+  const hasDriveScope = scopes.some(scope => 
+    scope.includes('drive.readonly') || scope.includes('drive.file') || scope.includes('auth/drive')
+  );
 
   return (
     <div className="container max-w-4xl mx-auto py-8 space-y-8">
@@ -74,7 +76,7 @@ export default function IntegrationsPage() {
               <div>
                 <CardTitle>Google Services</CardTitle>
                 <CardDescription>
-                  Connect Google Drive and Gmail for file import
+                  Connect Google Drive for file import (Gmail coming soon)
                 </CardDescription>
               </div>
             </div>
@@ -107,9 +109,10 @@ export default function IntegrationsPage() {
                       </Badge>
                     )}
                     {hasGmailScope && (
-                      <Badge variant="outline" className="flex items-center gap-1">
+                      <Badge variant="outline" className="flex items-center gap-1 opacity-50">
                         <Mail className="h-3 w-3" />
                         Gmail
+                        <Badge variant="secondary" className="ml-1 text-xs">Legacy</Badge>
                       </Badge>
                     )}
                   </div>
@@ -166,7 +169,7 @@ export default function IntegrationsPage() {
                 </Button>
                 
                 <Button
-                  onClick={() => connect('combined')}
+                  onClick={() => connect('drive')}
                   disabled={isConnecting}
                   variant="outline"
                 >
@@ -178,7 +181,7 @@ export default function IntegrationsPage() {
                   ) : (
                     <>
                       <Settings className="mr-2 h-4 w-4" />
-                      Reconnect
+                      Reconnect Drive
                     </>
                   )}
                 </Button>
@@ -213,9 +216,10 @@ export default function IntegrationsPage() {
                       <FolderOpen className="h-4 w-4 text-muted-foreground" />
                       <span>Google Drive - Import files and folders</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-2 text-sm opacity-50">
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       <span>Gmail - Import email attachments</span>
+                      <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
                     </div>
                   </div>
                 </div>
@@ -223,7 +227,7 @@ export default function IntegrationsPage() {
                 <Alert>
                   <Shield className="h-4 w-4" />
                   <AlertDescription>
-                    ian.ai only requests read-only access to your Google services. 
+                    CPAAutomation only requests read-only access to your Google services. 
                     We cannot modify or delete your files or emails.
                   </AlertDescription>
                 </Alert>
@@ -234,7 +238,7 @@ export default function IntegrationsPage() {
               {/* Connect options */}
               <div className="space-y-3">
                 <Button
-                  onClick={() => connect('combined')}
+                  onClick={() => connect('drive')}
                   disabled={isConnecting}
                   className="w-full"
                 >
@@ -246,7 +250,7 @@ export default function IntegrationsPage() {
                   ) : (
                     <>
                       <CheckCircle className="mr-2 h-4 w-4" />
-                      Connect Google Drive & Gmail
+                      Connect Google Drive
                     </>
                   )}
                 </Button>
@@ -261,12 +265,13 @@ export default function IntegrationsPage() {
                     Drive Only
                   </Button>
                   <Button
-                    onClick={() => connect('gmail')}
-                    disabled={isConnecting}
+                    disabled={true}
                     variant="outline"
+                    className="opacity-50"
                   >
                     <Mail className="mr-2 h-4 w-4" />
                     Gmail Only
+                    <Badge variant="secondary" className="ml-2 text-xs">Coming Soon</Badge>
                   </Button>
                 </div>
               </div>
@@ -309,7 +314,7 @@ export default function IntegrationsPage() {
         <Shield className="h-4 w-4" />
         <AlertDescription>
           <strong>Security:</strong> All OAuth tokens are encrypted and stored securely. 
-          ian.ai only requests the minimum permissions needed and cannot access your data 
+          CPAAutomation only requests the minimum permissions needed and cannot access your data 
           without explicit authorization for each service.
         </AlertDescription>
       </Alert>

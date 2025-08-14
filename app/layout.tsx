@@ -6,7 +6,7 @@ import { Providers } from './providers'
 const geist = Geist({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'ian.ai - Extract data from PDFs to Excel, fast',
+  title: 'CPAAutomation - Extract data from PDFs to Excel, fast',
   description: 'Accurately extract data from any PDF or email into a spreadsheet with the #1 AI OCR tool. Save time by automating manual data entry.',
 }
 

@@ -144,8 +144,8 @@ export default function Contact() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-gray-900">Email</h4>
-                      <p className="text-gray-600">support@ian.ai</p>
-                      <p className="text-gray-600">sales@ian.ai</p>
+                      <p className="text-gray-600">support@CPAAutomation.ai</p>
+                      <p className="text-gray-600">sales@CPAAutomation.ai</p>
                     </div>
                   </div>
 

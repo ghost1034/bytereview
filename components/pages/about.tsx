@@ -7,9 +7,9 @@ export default function About() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Hero Section */}
         <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold text-gray-900 mb-6">About ian.ai</h1>
+          <h1 className="text-5xl font-bold text-gray-900 mb-6">About CPAAutomation</h1>
           <p className="text-xl text-gray-600 mb-8">
-            True GenAI customizable extraction programmed by real CPA and lawyer for practical professional use
+            True GenAI customizable extraction programmed by real CPAs and lawyers for practical professional use
           </p>
         </div>
 
@@ -19,7 +19,7 @@ export default function About() {
             <div>
               <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Mission</h2>
               <p className="text-lg text-gray-600 mb-6">
-                ian.ai was created to bridge the gap between traditional document processing and modern AI capabilities. 
+                CPAAutomation was created to bridge the gap between traditional document processing and modern AI capabilities. 
                 We understand that financial and legal professionals need extraction tools that truly comprehend the nuances of their documents.
               </p>
               <p className="text-lg text-gray-600">
@@ -117,7 +117,7 @@ export default function About() {
         <section className="text-center bg-gray-50 rounded-lg p-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Questions About Our Platform?</h2>
           <p className="text-lg text-gray-600 mb-6">
-            Connect with our team to learn more about how ian.ai can transform your document processing workflow.
+            Connect with our team to learn more about how CPAAutomation can transform your document processing workflow.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a href="/contact" className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-medium transition-colors">

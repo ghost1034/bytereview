@@ -49,7 +49,7 @@ export default function JobReviewPage() {
       return response.json()
     },
     enabled: !!user && !!jobId,
-    staleTime: 10 * 60 * 1000,
+    staleTime: 0, // TODO: Implement proper staleTime and invalidation
   })
 
   // Submit job mutation

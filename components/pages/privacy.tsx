@@ -9,7 +9,7 @@ export default function Privacy() {
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold text-gray-900 mb-6">Privacy Policy</h1>
           <p className="text-xl text-gray-600">
-            How we protect and handle your data at ian.ai
+            How we protect and handle your data at CPAAutomation
           </p>
           <p className="text-sm text-gray-500 mt-4">
             Last updated: January 2024
@@ -27,7 +27,7 @@ export default function Privacy() {
                 <div>
                   <h2 className="text-xl font-bold text-gray-900 mb-4">Our Commitment to Privacy</h2>
                   <p className="text-gray-700 mb-4">
-                    At ian.ai, we understand that your documents contain sensitive financial and legal information. 
+                    At CPAAutomation, we understand that your documents contain sensitive financial and legal information. 
                     We are committed to protecting your privacy and maintaining the highest standards of data security.
                   </p>
                   <p className="text-gray-700">
@@ -200,7 +200,7 @@ export default function Privacy() {
             <CardContent className="p-8">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">We Do Not Sell Your Data</h3>
               <p className="text-gray-700 mb-6">
-                ian.ai does not sell, rent, or trade your personal information or document data to third parties 
+                CPAAutomation does not sell, rent, or trade your personal information or document data to third parties 
                 for marketing or any other commercial purposes.
               </p>
               
@@ -276,7 +276,7 @@ export default function Privacy() {
                     If you have questions about this privacy policy or how we handle your data, please contact us:
                   </p>
                   <div className="space-y-2 text-gray-600">
-                    <p>Email: privacy@ian.ai</p>
+                    <p>Email: privacy@CPAAutomation</p>
                     <p>Phone: 1-800-IAN-HELP</p>
                     <p>Address: United States (US-based support team)</p>
                   </div>
@@ -293,7 +293,7 @@ export default function Privacy() {
               <h2 className="text-xl font-bold text-gray-900 mb-4">Policy Updates</h2>
               <p className="text-gray-600">
                 We may update this privacy policy from time to time. We will notify you of any material changes 
-                by email and by posting the updated policy on our website. Your continued use of ian.ai 
+                by email and by posting the updated policy on our website. Your continued use of CPAAutomation 
                 after such changes constitutes acceptance of the updated policy.
               </p>
             </CardContent>
