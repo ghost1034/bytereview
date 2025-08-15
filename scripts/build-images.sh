@@ -44,19 +44,15 @@ build_and_push() {
     echo -e "${BLUE}Dockerfile: ${dockerfile_path}${NC}"
     echo -e "${BLUE}Tag: ${image_tag}${NC}"
     
-    # Build the image
-    docker build \
+    # Build the image for AMD64 (Cloud Run compatible)
+    docker buildx build \
+        --platform linux/amd64 \
         -f "${dockerfile_path}" \
         -t "${image_tag}" \
         -t "${latest_tag}" \
         ${build_args} \
+        --push \
         "${context_path}"
-    
-    echo -e "${YELLOW}📤 Pushing ${service_name}...${NC}"
-    
-    # Push both tags
-    docker push "${image_tag}"
-    docker push "${latest_tag}"
     
     echo -e "${GREEN}✅ ${service_name} built and pushed successfully${NC}"
     echo ""
@@ -67,6 +63,12 @@ if ! docker info >/dev/null 2>&1; then
     echo -e "${RED}❌ Docker is not running. Please start Docker and try again.${NC}"
     exit 1
 fi
+
+# Set up Docker Buildx for multi-platform builds
+echo -e "${YELLOW}🔧 Setting up Docker Buildx for multi-platform builds...${NC}"
+docker buildx create --use --name cpa-builder --driver docker-container || true
+docker buildx inspect --bootstrap
+echo -e "${GREEN}✅ Docker Buildx setup complete${NC}"
 
 # Authenticate Docker with Artifact Registry
 echo -e "${YELLOW}🔐 Authenticating Docker with Artifact Registry...${NC}"
@@ -123,14 +125,13 @@ echo -e "1. Deploy services using: ./scripts/deploy-services.sh ${GIT_HASH}"
 echo -e "2. Or run full deployment: ./scripts/deploy.sh --skip-infra --skip-build"
 echo ""
 
-# Optional: Clean up local images to save space
-echo -e "${BLUE}🧹 Clean up local images? (y/N):${NC}"
+# Optional: Clean up buildx cache to save space
+echo -e "${BLUE}🧹 Clean up buildx cache? (y/N):${NC}"
 read -r cleanup
 if [[ $cleanup =~ ^[Yy]$ ]]; then
-    echo -e "${YELLOW}Cleaning up local images...${NC}"
-    docker rmi "${ARTIFACT_REGISTRY_URL}/backend:${GIT_HASH}" "${ARTIFACT_REGISTRY_URL}/backend:latest" || true
-    docker rmi "${ARTIFACT_REGISTRY_URL}/frontend:${GIT_HASH}" "${ARTIFACT_REGISTRY_URL}/frontend:latest" || true
-    echo -e "${GREEN}✅ Local images cleaned up${NC}"
+    echo -e "${YELLOW}Cleaning up buildx cache...${NC}"
+    docker buildx prune -f || true
+    echo -e "${GREEN}✅ Buildx cache cleaned up${NC}"
 fi
 
 echo -e "${GREEN}✨ Image building complete!${NC}"
