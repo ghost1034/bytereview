@@ -35,6 +35,7 @@ build_and_push() {
     local service_name=$1
     local dockerfile_path=$2
     local context_path=$3
+    local build_args=$4
     local image_tag="${ARTIFACT_REGISTRY_URL}/${service_name}:${GIT_HASH}"
     local latest_tag="${ARTIFACT_REGISTRY_URL}/${service_name}:latest"
     
@@ -48,6 +49,7 @@ build_and_push() {
         -f "${dockerfile_path}" \
         -t "${image_tag}" \
         -t "${latest_tag}" \
+        ${build_args} \
         "${context_path}"
     
     echo -e "${YELLOW}📤 Pushing ${service_name}...${NC}"
@@ -74,11 +76,40 @@ echo ""
 
 # Build backend image (API + Workers)
 echo -e "${BLUE}=== Building Backend (API + Workers) ===${NC}"
-build_and_push "backend" "backend/Dockerfile" "backend"
+build_and_push "backend" "backend/Dockerfile" "backend" ""
 
-# Build frontend image
+# Build frontend image with environment variables
 echo -e "${BLUE}=== Building Frontend ===${NC}"
-build_and_push "frontend" "Dockerfile" "."
+
+# Load environment variables from .env.local for build args
+if [ -f ".env.local" ]; then
+    echo -e "${BLUE}Loading environment variables from .env.local...${NC}"
+    export $(grep -v '^#' .env.local | grep 'NEXT_PUBLIC_' | xargs)
+fi
+
+# Prepare build args for frontend
+FRONTEND_BUILD_ARGS=""
+if [ -n "$NEXT_PUBLIC_FIREBASE_API_KEY" ]; then
+    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_FIREBASE_API_KEY=$NEXT_PUBLIC_FIREBASE_API_KEY"
+fi
+if [ -n "$NEXT_PUBLIC_FIREBASE_PROJECT_ID" ]; then
+    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID=$NEXT_PUBLIC_FIREBASE_PROJECT_ID"
+fi
+if [ -n "$NEXT_PUBLIC_FIREBASE_APP_ID" ]; then
+    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_FIREBASE_APP_ID=$NEXT_PUBLIC_FIREBASE_APP_ID"
+fi
+if [ -n "$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY" ]; then
+    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"
+fi
+if [ -n "$NEXT_PUBLIC_API_URL" ]; then
+    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL"
+fi
+if [ -n "$NEXT_PUBLIC_GOOGLE_CLIENT_ID" ]; then
+    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID"
+fi
+
+echo -e "${BLUE}Build args: ${FRONTEND_BUILD_ARGS}${NC}"
+build_and_push "frontend" "Dockerfile" "." "$FRONTEND_BUILD_ARGS"
 
 # Build summary
 echo -e "${GREEN}🎉 All images built and pushed successfully!${NC}"
