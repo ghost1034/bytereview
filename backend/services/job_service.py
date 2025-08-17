@@ -424,7 +424,8 @@ class JobService:
                     job_info = await redis.enqueue_job(
                         'process_extraction_task',
                         task_id=str(task.id),
-                        automation_run_id=automation_run_id
+                        automation_run_id=automation_run_id,
+                        _queue_name='extract'
                     )
                     logger.info(f"Enqueued extraction task {task.id} as job {job_info.job_id}")
                 
@@ -637,7 +638,7 @@ class JobService:
                 file_type=file_type,
                 folder_id=folder_id,
                 automation_run_id=str(automation_run.id),
-                _queue_name='exports'
+                _queue_name='io_queue'
             )
             
             await redis.close()
@@ -954,7 +955,8 @@ class JobService:
                 for task in tasks:
                     job_info = await redis.enqueue_job(
                         'process_extraction_task',
-                        str(task.id)
+                        str(task.id),
+                        _queue_name='extract'
                     )
                     logger.info(f"Enqueued extraction task {task.id} as job {job_info.job_id}")
                 
@@ -1367,7 +1369,7 @@ class JobService:
                     'unpack_zip_file_task',
                     source_file_id=source_file_id,
                     automation_run_id=automation_run_id,
-                    _queue_name='zip_queue'
+                    _queue_name='io_queue'
                 )
                 logger.info(f"Enqueued ZIP extraction task for file {source_file_id} as job {job_info.job_id}")
                 

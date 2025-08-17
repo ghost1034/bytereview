@@ -526,12 +526,14 @@ export class ApiClient {
     web_content_link: string;
   }> {
     const token = await this.getAuthToken()
-    const url = new URL(`${this.baseURL}/api/jobs/${jobId}/export/gdrive/csv`);
+    const params = new URLSearchParams();
     if (folderId) {
-      url.searchParams.append('folder_id', folderId);
+      params.append('folder_id', folderId);
     }
+    
+    const url = `${this.baseURL}/api/jobs/${jobId}/export/gdrive/csv${params.toString() ? `?${params.toString()}` : ''}`;
 
-    const response = await fetch(url.toString(), {
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -555,12 +557,14 @@ export class ApiClient {
     web_content_link: string;
   }> {
     const token = await this.getAuthToken()
-    const url = new URL(`${this.baseURL}/api/jobs/${jobId}/export/gdrive/excel`);
+    const params = new URLSearchParams();
     if (folderId) {
-      url.searchParams.append('folder_id', folderId);
+      params.append('folder_id', folderId);
     }
+    
+    const url = `${this.baseURL}/api/jobs/${jobId}/export/gdrive/excel${params.toString() ? `?${params.toString()}` : ''}`;
 
-    const response = await fetch(url.toString(), {
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`

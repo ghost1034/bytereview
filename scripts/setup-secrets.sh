@@ -102,8 +102,24 @@ fi
 
 # Google OAuth
 echo -e "${BLUE}=== Google OAuth Configuration ===${NC}"
+if ! gcloud secrets describe GOOGLE_CLIENT_ID >/dev/null 2>&1; then
+    prompt_for_secret "GOOGLE_CLIENT_ID" "Google OAuth client ID" false
+fi
+
 if ! gcloud secrets describe GOOGLE_CLIENT_SECRET >/dev/null 2>&1; then
     prompt_for_secret "GOOGLE_CLIENT_SECRET" "Google OAuth client secret"
+fi
+
+if ! gcloud secrets describe GOOGLE_REDIRECT_URI >/dev/null 2>&1; then
+    echo -e "${YELLOW}Default redirect URI: https://cpaautomation.ai/integrations/google/callback${NC}"
+    echo -e "${BLUE}Press Enter to use default, or enter custom redirect URI:${NC}"
+    read custom_redirect
+    if [ -z "$custom_redirect" ]; then
+        redirect_uri="https://cpaautomation.ai/integrations/google/callback"
+    else
+        redirect_uri="$custom_redirect"
+    fi
+    create_secret_if_not_exists "GOOGLE_REDIRECT_URI" "$redirect_uri" false
 fi
 
 # Security keys
@@ -184,7 +200,7 @@ echo ""
 echo -e "${GREEN}🎉 Secrets setup complete!${NC}"
 echo ""
 echo -e "${BLUE}📋 Created secrets:${NC}"
-gcloud secrets list --filter="name:DATABASE_URL OR name:REDIS_URL OR name:GOOGLE_CLIENT_SECRET OR name:ENCRYPTION_KEY OR name:APP_SECRET OR name:GEMINI_API_KEY OR name:STRIPE_SECRET_KEY OR name:STRIPE_WEBHOOK_SECRET OR name:FIREBASE_SERVICE_ACCOUNT OR name:ADMIN_TOKEN" --format="table(name,createTime)"
+gcloud secrets list --filter="name:DATABASE_URL OR name:REDIS_URL OR name:GOOGLE_CLIENT_ID OR name:GOOGLE_CLIENT_SECRET OR name:GOOGLE_REDIRECT_URI OR name:ENCRYPTION_KEY OR name:APP_SECRET OR name:GEMINI_API_KEY OR name:STRIPE_SECRET_KEY OR name:STRIPE_WEBHOOK_SECRET OR name:FIREBASE_SERVICE_ACCOUNT OR name:ADMIN_TOKEN" --format="table(name,createTime)"
 
 echo ""
 echo -e "${YELLOW}📝 Next steps:${NC}"

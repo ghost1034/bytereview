@@ -83,17 +83,16 @@ export default function JobProcessingPage() {
   }
 
   // If job is not in processing state, redirect to appropriate step
-  if (job && job.status !== "in_progress") {
-    if (job.config_step !== "submitted") {
-      // Job is still in configuration phase
-      router.push(`/dashboard/jobs/${jobId}`);
-      return (
-        <div className="flex justify-center p-8">
-          Redirecting to job configuration...
-        </div>
-      );
-    }
-  }
+  // if (job && job.status !== "in_progress") {
+  //   if (job.config_step !== "submitted") {
+  //     router.push(`/dashboard/jobs/${jobId}`);
+  //     return (
+  //       <div className="flex justify-center p-8">
+  //         Redirecting to job configuration...
+  //       </div>
+  //     );
+  //   }
+  // }
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">

@@ -861,19 +861,6 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
     }
   }
 
-  // Get source icon based on file source
-  const getSourceIcon = (file: JobFileInfo) => {
-    // Check if file came from Drive (external_id and source_type)
-    if ((file as any).source_type === 'drive' || (file as any).external_id?.includes('drive')) {
-      return <Cloud className="w-4 h-4 text-blue-500" title="Google Drive" />
-    }
-    // Check if file came from Gmail
-    if ((file as any).source_type === 'gmail' || (file as any).external_id?.includes(':')) {
-      return <Mail className="w-4 h-4 text-green-500" title="Gmail" />
-    }
-    // Default to computer upload
-    return <HardDrive className="w-4 h-4 text-gray-500" title="Computer" />
-  }
 
   // Get status badge
   const getStatusBadge = (status: FileStatus) => {
@@ -1072,9 +1059,6 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                         <p className="font-medium truncate min-w-0" title={file.original_filename || 'Unknown file'}>
                           {file.original_filename || 'Unknown file'}
                         </p>
-                        <div className="flex-shrink-0">
-                          {getSourceIcon(file)}
-                        </div>
                       </div>
                       {file.original_path && file.original_path !== file.original_filename && (
                         <p className="text-sm text-gray-500 truncate" title={file.original_path}>

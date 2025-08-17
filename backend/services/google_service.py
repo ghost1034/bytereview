@@ -1169,6 +1169,13 @@ class GoogleService:
             if not file_content:
                 raise ValueError(f"Could not download Drive file {file_id}")
             
+            # Count pages in the file
+            from services.page_counting_service import page_counting_service
+            page_count = page_counting_service.count_pages_from_content(file_content, filename)
+            
+            # Update source file with page count
+            source_file.page_count = page_count
+            
             # Upload to GCS
             storage_service = get_storage_service()
             await storage_service.upload_file_content(
@@ -1302,6 +1309,13 @@ class GoogleService:
             file_content = self.download_drive_file(db, user_id, file_id)
             if not file_content:
                 raise ValueError(f"Could not download Drive file {file_id}")
+            
+            # Count pages in the file
+            from services.page_counting_service import page_counting_service
+            page_count = page_counting_service.count_pages_from_content(file_content, filename)
+            
+            # Update source file with page count
+            source_file.page_count = page_count
             
             # Upload to GCS
             storage_service = get_storage_service()

@@ -1435,7 +1435,7 @@ async def automation_trigger_worker(
                                 user_id=user_id,
                                 attachment_data=attachments,
                                 automation_run_id=str(automation_run.id),
-                                _queue_name='imports'
+                                _queue_name='io_queue'
                             )
                             
                             await redis.close()

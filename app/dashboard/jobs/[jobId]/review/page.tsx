@@ -101,7 +101,7 @@ export default function JobReviewPage() {
       })
       
       // Navigate to processing page
-      router.push(`/dashboard/jobs/${jobId}/processing`)
+      router.push(`/dashboard/jobs/${jobId}/processing`);
     } catch (error) {
       toast({
         title: "Error submitting job",

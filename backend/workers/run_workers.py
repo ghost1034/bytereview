@@ -1,31 +1,13 @@
 #!/usr/bin/env python3
 """
-Simple worker runner for ByteReview
-Much cleaner than dealing with ARQ module paths
+Worker runner for CPAAutomation
+Runs ARQ workers with proper configuration
 """
 import sys
 import os
-from pathlib import Path
-
-# Set up Python path for proper imports
-backend_dir = Path(__file__).parent.parent.resolve()  # Go up to backend/ directory
-sys.path.insert(0, str(backend_dir))
-os.environ['PYTHONPATH'] = str(backend_dir)
-
-# Check if Google Application Credentials is already set (from Cloud Run secrets)
-if 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ:
-    print(f"Using GOOGLE_APPLICATION_CREDENTIALS from environment: {os.environ['GOOGLE_APPLICATION_CREDENTIALS']}")
-else:
-    # Fallback to local service account file for development
-    service_account_path = backend_dir / "service-account.json"
-    if service_account_path.exists():
-        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = str(service_account_path)
-        print(f"Set GOOGLE_APPLICATION_CREDENTIALS to: {service_account_path}")
-    else:
-        print(f"Warning: No GOOGLE_APPLICATION_CREDENTIALS set and service-account.json not found at {service_account_path}")
 
 from arq import run_worker
-from worker import (
+from .worker import (
     WorkerSettings, ZipWorkerSettings, ImportWorkerSettings, ExportWorkerSettings, 
     AutomationWorkerSettings, CronWorkerSettings,
     # Hybrid worker settings for production

@@ -695,7 +695,7 @@ async def export_job_results_to_drive_csv(
             user_id=current_user_id,
             file_type='csv',
             folder_id=folder_id,
-            _queue_name='exports'
+            _queue_name='io_queue'
         )
         
         await redis.close()
@@ -745,7 +745,7 @@ async def export_job_results_to_drive_excel(
             user_id=current_user_id,
             file_type='xlsx',
             folder_id=folder_id,
-            _queue_name='exports'
+            _queue_name='io_queue'
         )
         
         await redis.close()
@@ -807,7 +807,7 @@ async def import_drive_files(
             job_id=job_id,
             user_id=current_user_id,
             drive_file_ids=drive_file_ids,
-            _queue_name='imports'
+            _queue_name='io_queue'
         )
         
         await redis.close()
@@ -875,7 +875,7 @@ async def import_gmail_attachments(
             job_id=job_id,
             user_id=current_user_id,
             attachment_data=attachments,
-            _queue_name='imports'
+            _queue_name='io_queue'
         )
         
         await redis.close()
