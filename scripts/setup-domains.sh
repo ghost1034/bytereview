@@ -2,7 +2,7 @@
 # CPAAutomation Domain Setup Script
 # Sets up domain mappings and SSL certificates for Cloud Run services
 
-set -e
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -14,169 +14,166 @@ NC='\033[0m'
 # Configuration
 PROJECT_ID="ace-rider-383100"
 REGION="us-central1"
-DOMAIN="cpaautomation.ai"
-API_DOMAIN="api.cpaautomation.ai"
+DOMAIN="cpaautomation.ai"          # apex
+WWW_DOMAIN="www.cpaautomation.ai"  # www subdomain -> frontend
+API_DOMAIN="api.cpaautomation.ai"  # api subdomain -> backend
+
+FRONTEND_SERVICE="cpa-web"
+API_SERVICE="cpa-api"
 
 echo -e "${BLUE}🌐 Setting up domains for CPAAutomation...${NC}"
 echo -e "${BLUE}Main domain: ${DOMAIN}${NC}"
+echo -e "${BLUE}WWW domain: ${WWW_DOMAIN}${NC}"
 echo -e "${BLUE}API domain: ${API_DOMAIN}${NC}"
 echo ""
 
-# Function to create domain mapping
+# Ensure Google Cloud project & region are set
+gcloud config set project "${PROJECT_ID}" >/dev/null
+gcloud config set run/region "${REGION}" >/dev/null
+
+# --- helpers ---
+
 create_domain_mapping() {
-    local domain=$1
-    local service=$2
-    local description=$3
-    
-    echo -e "${YELLOW}🔗 Creating domain mapping for ${domain} → ${service}...${NC}"
-    
-    if gcloud run domain-mappings describe $domain --region=$REGION >/dev/null 2>&1; then
-        echo -e "${YELLOW}⚠️  Domain mapping for ${domain} already exists${NC}"
-        return 0
-    fi
-    
-    gcloud run domain-mappings create \
-        --service=$service \
-        --domain=$domain \
-        --region=$REGION
-    
-    echo -e "${GREEN}✅ Domain mapping created for ${domain}${NC}"
-    echo ""
-}
+  local domain="$1"
+  local service="$2"
 
-# Function to get DNS records
-get_dns_records() {
-    local domain=$1
-    
-    echo -e "${BLUE}📋 DNS records for ${domain}:${NC}"
-    gcloud run domain-mappings describe $domain --region=$REGION --format="value(spec.routePolicy.ingress)" || true
-    echo ""
-}
+  echo -e "${YELLOW}🔗 Creating domain mapping for ${domain} → ${service}...${NC}"
 
-# Check if services exist
-echo -e "${YELLOW}🔍 Checking if services exist...${NC}"
+  if gcloud beta run domain-mappings describe "${domain}" --region="${REGION}" >/dev/null 2>&1; then
+    echo -e "${YELLOW}⚠️  Domain mapping for ${domain} already exists, skipping create.${NC}"
+    return 0
+  fi
 
-if ! gcloud run services describe cpa-web --region=$REGION >/dev/null 2>&1; then
-    echo -e "${RED}❌ Frontend service 'cpa-web' not found. Please deploy services first.${NC}"
-    exit 1
-fi
-
-if ! gcloud run services describe cpa-api --region=$REGION >/dev/null 2>&1; then
-    echo -e "${RED}❌ API service 'cpa-api' not found. Please deploy services first.${NC}"
-    exit 1
-fi
-
-echo -e "${GREEN}✅ Services found${NC}"
-echo ""
-
-# Create domain mappings
-echo -e "${BLUE}=== Creating Domain Mappings ===${NC}"
-
-create_domain_mapping $DOMAIN "cpa-web" "Frontend service"
-create_domain_mapping $API_DOMAIN "cpa-api" "API service"
-
-# Wait for domain mappings to be ready
-echo -e "${YELLOW}⏳ Waiting for domain mappings to be ready...${NC}"
-echo -e "${BLUE}This may take a few minutes while SSL certificates are provisioned...${NC}"
-
-# Check status of domain mappings
-check_domain_status() {
-    local domain=$1
-    local max_attempts=30
-    local attempt=1
-    
-    while [ $attempt -le $max_attempts ]; do
-        local status=$(gcloud run domain-mappings describe $domain --region=$REGION --format="value(status.conditions[0].status)" 2>/dev/null || echo "Unknown")
-        
-        case $status in
-            "True")
-                echo -e "${GREEN}✅ ${domain} is ready${NC}"
-                return 0
-                ;;
-            "False")
-                local reason=$(gcloud run domain-mappings describe $domain --region=$REGION --format="value(status.conditions[0].reason)" 2>/dev/null || echo "Unknown")
-                echo -e "${RED}❌ ${domain} failed: ${reason}${NC}"
-                return 1
-                ;;
-            *)
-                echo -e "${YELLOW}⏳ ${domain} status: ${status} (attempt ${attempt}/${max_attempts})${NC}"
-                sleep 30
-                ;;
-        esac
-        
-        ((attempt++))
-    done
-    
-    echo -e "${RED}❌ Timeout waiting for ${domain} to be ready${NC}"
+  if ! gcloud beta run domain-mappings create \
+      --service="${service}" \
+      --domain="${domain}" \
+      --region="${REGION}"; then
+    echo -e "${RED}❌ Failed to create domain mapping for ${domain}.${NC}"
     return 1
+  fi
+
+  echo -e "${GREEN}✅ Domain mapping created for ${domain}${NC}"
+  echo ""
 }
 
-# Check both domains
-check_domain_status $DOMAIN
-check_domain_status $API_DOMAIN
+check_domain_status() {
+  local domain="$1"
+  local max_attempts=30
+  local attempt=1
 
-echo ""
-echo -e "${GREEN}🎉 Domain mappings created successfully!${NC}"
-echo ""
+  echo -e "${YELLOW}⏳ Waiting for ${domain} to be Ready...${NC}"
+  while [ "${attempt}" -le "${max_attempts}" ]; do
+    local status
+    status="$(gcloud beta run domain-mappings describe "${domain}" --region="${REGION}" --format="value(status.conditions[?type='Ready'].status)")" || status="Unknown"
 
-# Display DNS configuration instructions
-echo -e "${BLUE}=== DNS Configuration Required ===${NC}"
-echo -e "${YELLOW}You need to configure the following DNS records at your domain registrar (GoDaddy):${NC}"
-echo ""
+    if [[ "${status}" == *"True"* ]]; then
+      echo -e "${GREEN}✅ ${domain} is Ready${NC}"
+      return 0
+    fi
 
-echo -e "${BLUE}For ${DOMAIN} (apex domain):${NC}"
-echo -e "Add these A records:"
-echo -e "  A     @    216.239.32.21"
-echo -e "  A     @    216.239.34.21"
-echo -e "  A     @    216.239.36.21"
-echo -e "  A     @    216.239.38.21"
-echo ""
+    if [[ "${status}" == *"False"* ]]; then
+      local reason
+      reason="$(gcloud beta run domain-mappings describe "${domain}" --region="${REGION}" --format="value(status.conditions[?type='Ready'].reason)")" || reason="Unknown"
+      echo -e "${RED}❌ ${domain} failed: ${reason}${NC}"
+      return 1
+    fi
 
-echo -e "${BLUE}For ${API_DOMAIN} (subdomain):${NC}"
-echo -e "Add this CNAME record:"
-echo -e "  CNAME  api   ghs.googlehosted.com"
-echo ""
+    echo -e "${YELLOW}⏳ ${domain} status: ${status:-Unknown} (attempt ${attempt}/${max_attempts})${NC}"
+    sleep 30
+    attempt=$((attempt+1))
+  done
 
-# Get specific DNS records from Cloud Run (if available)
-echo -e "${BLUE}=== Specific DNS Records from Cloud Run ===${NC}"
-echo -e "${YELLOW}If the generic records above don't work, use these specific ones:${NC}"
-echo ""
-
-get_dns_records $DOMAIN
-get_dns_records $API_DOMAIN
-
-# SSL Certificate status
-echo -e "${BLUE}=== SSL Certificate Status ===${NC}"
-echo -e "${YELLOW}Checking SSL certificate provisioning...${NC}"
+  echo -e "${RED}❌ Timeout waiting for ${domain} to be Ready${NC}"
+  return 1
+}
 
 check_ssl_status() {
-    local domain=$1
-    
-    echo -e "${BLUE}SSL status for ${domain}:${NC}"
-    gcloud run domain-mappings describe $domain --region=$REGION --format="table(status.conditions[].type,status.conditions[].status,status.conditions[].reason)" 2>/dev/null || echo "Unable to get SSL status"
-    echo ""
+  local domain="$1"
+  echo -e "${BLUE}🔐 SSL status for ${domain}:${NC}"
+  gcloud beta run domain-mappings describe "${domain}" --region="${REGION}" \
+    --format="table(status.conditions[].type,status.conditions[].status,status.conditions[].reason)"
+  echo ""
 }
 
-check_ssl_status $DOMAIN
-check_ssl_status $API_DOMAIN
+print_dns_instructions() {
+  echo -e "${BLUE}=== DNS Configuration (GoDaddy) ===${NC}"
+  echo -e "${YELLOW}Configure these records in your GoDaddy DNS zone:${NC}\n"
 
-# Final instructions
-echo -e "${GREEN}✨ Domain setup complete!${NC}"
+  echo -e "${BLUE}Apex ${DOMAIN}:${NC}"
+  cat <<EOF
+Type   Host  Value
+A      @     216.239.32.21
+A      @     216.239.34.21
+A      @     216.239.36.21
+A      @     216.239.38.21
+AAAA   @     2001:4860:4802:32::15
+AAAA   @     2001:4860:4802:34::15
+AAAA   @     2001:4860:4802:36::15
+AAAA   @     2001:4860:4802:38::15
+EOF
+  echo ""
+
+  echo -e "${BLUE}WWW ${WWW_DOMAIN}:${NC}"
+  cat <<EOF
+Type    Host  Value
+CNAME   www   ghs.googlehosted.com.
+EOF
+  echo ""
+
+  echo -e "${BLUE}API ${API_DOMAIN}:${NC}"
+  cat <<EOF
+Type    Host  Value
+CNAME   api   ghs.googlehosted.com.
+EOF
+  echo ""
+
+  echo -e "${YELLOW}Keep existing MX/SPF/DMARC/TXT verifications you already use for Gmail and Google verification.${NC}"
+  echo -e "Remove GoDaddy 'Parked' A record if present.\n"
+}
+
+# --- checks ---
+
+echo -e "${YELLOW}🔍 Verifying services exist...${NC}"
+if ! gcloud run services describe "${FRONTEND_SERVICE}" --region="${REGION}" >/dev/null 2>&1; then
+  echo -e "${RED}❌ Frontend service '${FRONTEND_SERVICE}' not found. Deploy it first.${NC}"
+  exit 1
+fi
+if ! gcloud run services describe "${API_SERVICE}" --region="${REGION}" >/dev/null 2>&1; then
+  echo -e "${RED}❌ API service '${API_SERVICE}' not found. Deploy it first.${NC}"
+  exit 1
+fi
+echo -e "${GREEN}✅ Services found${NC}\n"
+
+# --- create mappings ---
+
+echo -e "${BLUE}=== Creating Domain Mappings ===${NC}"
+create_domain_mapping "${DOMAIN}"     "${FRONTEND_SERVICE}"   # apex -> frontend
+create_domain_mapping "${WWW_DOMAIN}" "${FRONTEND_SERVICE}"   # www  -> frontend
+create_domain_mapping "${API_DOMAIN}" "${API_SERVICE}"        # api  -> backend
+
+# --- show DNS guidance ---
+
+print_dns_instructions
+
+echo -e "${YELLOW}⏳ Waiting for domain mappings to become Ready (after DNS is set)...${NC}"
+check_domain_status "${DOMAIN}"     || true
+check_domain_status "${WWW_DOMAIN}" || true
+check_domain_status "${API_DOMAIN}" || true
+
+# --- SSL status ---
+
+echo -e "${BLUE}=== SSL Certificate Status ===${NC}"
+check_ssl_status "${DOMAIN}"
+check_ssl_status "${WWW_DOMAIN}"
+check_ssl_status "${API_DOMAIN}"
+
+echo -e "${GREEN}✨ Domain setup completed (pending DNS/SSL propagation).${NC}"
 echo ""
 echo -e "${YELLOW}📝 Next steps:${NC}"
-echo -e "1. Configure DNS records at your domain registrar as shown above"
-echo -e "2. Wait for DNS propagation (usually 5-60 minutes)"
-echo -e "3. SSL certificates will be automatically provisioned once DNS is configured"
-echo -e "4. Test your domains:"
+echo -e "1) Update DNS in GoDaddy as shown above."
+echo -e "2) Wait for DNS to propagate (5–60 minutes typically)."
+echo -e "3) Once DNS is correct, SSL will auto-provision (status → Ready)."
+echo -e "4) Test:"
 echo -e "   • https://${DOMAIN}"
+echo -e "   • https://${WWW_DOMAIN}"
 echo -e "   • https://${API_DOMAIN}/health"
-echo ""
-echo -e "${YELLOW}⚠️  Important notes:${NC}"
-echo -e "• DNS propagation can take up to 48 hours (usually much faster)"
-echo -e "• SSL certificates are automatically managed by Google"
-echo -e "• You can check status anytime with: gcloud run domain-mappings list --region=${REGION}"
-echo ""
-echo -e "${BLUE}🔍 Monitoring commands:${NC}"
-echo -e "• Check domain status: gcloud run domain-mappings describe ${DOMAIN} --region=${REGION}"
-echo -e "• Check SSL status: gcloud run domain-mappings describe ${API_DOMAIN} --region=${REGION}"
-echo -e "• List all mappings: gcloud run domain-mappings list --region=${REGION}"

@@ -23,16 +23,21 @@ class EncryptionService:
         """Initialize simple Fernet encryption for development"""
         key = os.getenv("ENCRYPTION_KEY")
         if not key:
+            # Only generate a new key in development when no key is set
+            if os.getenv("ENVIRONMENT") == "production":
+                raise ValueError("ENCRYPTION_KEY environment variable is required in production")
             key = Fernet.generate_key().decode()
             logger.warning(f"Generated encryption key: {key}")
             logger.warning("Add ENCRYPTION_KEY={key} to your .env file")
+        else:
+            logger.info("Using ENCRYPTION_KEY from environment")
         
         if isinstance(key, str):
             key = key.encode()
         
         self.cipher = Fernet(key)
         self.use_kms = False
-        logger.info("Encryption service initialized with Fernet (development mode)")
+        logger.info("Encryption service initialized with Fernet (simple encryption mode)")
     
     def _init_kms(self):
         """Initialize KMS for production"""

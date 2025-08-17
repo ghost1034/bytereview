@@ -448,4 +448,3 @@ class UsageCounter(Base):
     
     # Relationships
     user = relationship("User")
-

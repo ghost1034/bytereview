@@ -97,8 +97,8 @@ deploy_service \
      --vpc-connector=$VPC_CONNECTOR \
      --vpc-egress=private-ranges-only \
      --service-account=$SERVICE_ACCOUNT \
-     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,APP_SECRET=APP_SECRET:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,ADMIN_TOKEN=ADMIN_TOKEN:latest,/app/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads"
+     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,APP_SECRET=APP_SECRET:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,ADMIN_TOKEN=ADMIN_TOKEN:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json"
 
 # Deploy Frontend
 echo -e "${BLUE}=== Deploying Frontend ===${NC}"
@@ -132,10 +132,10 @@ deploy_service \
      --vpc-connector=$VPC_CONNECTOR \
      --vpc-egress=private-ranges-only \
      --service-account=$SERVICE_ACCOUNT \
-     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,/app/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads \
-     --command=python \
-     --args=run_workers.py,extract"
+     --no-cpu-throttling \
+     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=extract \
+     --command=/entrypoint_worker.sh"
 
 # Deploy I/O Worker (imports, exports, ZIP)
 echo -e "${BLUE}=== Deploying I/O Worker ===${NC}"
@@ -154,10 +154,10 @@ deploy_service \
      --vpc-connector=$VPC_CONNECTOR \
      --vpc-egress=private-ranges-only \
      --service-account=$SERVICE_ACCOUNT \
-     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,/app/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads \
-     --command=python \
-     --args=run_workers.py,io"
+     --no-cpu-throttling \
+     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=io \
+     --command=/entrypoint_worker.sh"
 
 # Deploy Maintenance Worker (cron tasks)
 echo -e "${BLUE}=== Deploying Maintenance Worker ===${NC}"
@@ -176,10 +176,10 @@ deploy_service \
      --vpc-connector=$VPC_CONNECTOR \
      --vpc-egress=private-ranges-only \
      --service-account=$SERVICE_ACCOUNT \
-     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,/app/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod \
-     --command=python \
-     --args=run_workers.py,maint"
+     --no-cpu-throttling \
+     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=maint \
+     --command=/entrypoint_worker.sh"
 
 # Run database migrations
 echo -e "${BLUE}=== Running Database Migrations ===${NC}"
@@ -189,27 +189,28 @@ echo -e "${YELLOW}🔄 Running Alembic migrations...${NC}"
 gcloud run jobs create migration-job \
     --image=$ARTIFACT_REGISTRY_URL/backend:$GIT_HASH \
     --region=$REGION \
-    --add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+    --set-cloudsql-instances=$CLOUD_SQL_INSTANCE \
     --vpc-connector=$VPC_CONNECTOR \
     --vpc-egress=private-ranges-only \
     --service-account=$SERVICE_ACCOUNT \
     --set-secrets=DATABASE_URL=DATABASE_URL:latest \
     --set-env-vars=ENVIRONMENT=$ENVIRONMENT \
-    --command=alembic \
-    --args=upgrade,head \
+    --args=alembic,upgrade,head \
     --max-retries=1 \
     --parallelism=1 \
-    --task-count=1 \
-    --task-timeout=600 \
-    --replace || true
+    --tasks=1 \
+    --task-timeout=600 || true
 
 # Execute the migration job
-gcloud run jobs execute migration-job --region=$REGION --wait
-
-echo -e "${GREEN}✅ Database migrations completed${NC}"
-
-# Clean up migration job
-gcloud run jobs delete migration-job --region=$REGION --quiet
+if gcloud run jobs describe migration-job --region=$REGION >/dev/null 2>&1; then
+    gcloud run jobs execute migration-job --region=$REGION --wait
+    echo -e "${GREEN}✅ Database migrations completed${NC}"
+    
+    # Clean up migration job
+    gcloud run jobs delete migration-job --region=$REGION --quiet
+else
+    echo -e "${RED}❌ Failed to create migration job${NC}"
+fi
 
 # Deployment summary
 echo -e "${GREEN}🎉 All services deployed successfully!${NC}"

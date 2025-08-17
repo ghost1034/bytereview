@@ -1,37 +1,38 @@
 # Multi-stage Dockerfile for CPAAutomation backend
 FROM python:3.11-slim AS base
 
-# Set environment variables
+# Minimal, predictable runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app \
+    UVICORN_APP=main:app \
+    UVICORN_WORKERS=1 \
+    UVICORN_LOG_LEVEL=info
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ libpq-dev \
+ && rm -rf /var/lib/apt/lists/*
 
-# Set work directory
 WORKDIR /app
 
-# Copy requirements first for better caching
+# Dependencies first for layer caching
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# App code
 COPY . .
 
-# Create non-root user
-RUN useradd --create-home --shell /bin/bash app && \
-    chown -R app:app /app
+# Entrypoints
+COPY entrypoint.sh /entrypoint.sh
+COPY entrypoint_worker.sh /entrypoint_worker.sh
+RUN chmod +x /entrypoint.sh /entrypoint_worker.sh
+
+# Non-root user
+RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app /entrypoint.sh /entrypoint_worker.sh
 USER app
 
-# Expose port
 EXPOSE 8000
 
-# Production command (can be overridden for workers)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# Start via entrypoint (so we always see early logs)
+CMD ["/entrypoint.sh"]
