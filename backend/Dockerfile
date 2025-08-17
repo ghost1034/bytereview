@@ -20,12 +20,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # App code
 COPY . .
 
-# Worker entrypoint
-COPY entrypoint_worker.sh /entrypoint_worker.sh
-RUN chmod +x /entrypoint_worker.sh
 
 # Non-root user
-RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app /entrypoint_worker.sh
+RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
 USER app
 
 EXPOSE 8000

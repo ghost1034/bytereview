@@ -135,7 +135,8 @@ deploy_service \
      --no-cpu-throttling \
      --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=extract \
-     --command=/entrypoint_worker.sh"
+     --command=python \
+     --args=workers/entrypoint.py"
 
 # Deploy I/O Worker (imports, exports, ZIP)
 echo -e "${BLUE}=== Deploying I/O Worker ===${NC}"
@@ -157,7 +158,8 @@ deploy_service \
      --no-cpu-throttling \
      --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=io \
-     --command=/entrypoint_worker.sh"
+     --command=python \
+     --args=workers/entrypoint.py"
 
 # Deploy Maintenance Worker (cron tasks)
 echo -e "${BLUE}=== Deploying Maintenance Worker ===${NC}"
@@ -179,7 +181,8 @@ deploy_service \
      --no-cpu-throttling \
      --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=maint \
-     --command=/entrypoint_worker.sh"
+     --command=python \
+     --args=workers/entrypoint.py"
 
 # # Run database migrations
 # echo -e "${BLUE}=== Running Database Migrations ===${NC}"

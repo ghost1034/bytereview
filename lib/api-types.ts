@@ -56,7 +56,12 @@ export interface paths {
          */
         put: operations["update_current_user_api_users_me_put"];
         post?: never;
-        delete?: never;
+        /**
+         * Delete Current User
+         * @description Permanently delete the current user's account and all associated data
+         *     This action cannot be undone
+         */
+        delete: operations["delete_current_user_api_users_me_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -876,7 +881,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/templates/": {
+    "/api/templates": {
         parameters: {
             query?: never;
             header?: never;
@@ -887,13 +892,13 @@ export interface paths {
          * Get User Templates
          * @description Get user's extraction templates
          */
-        get: operations["get_user_templates_api_templates__get"];
+        get: operations["get_user_templates_api_templates_get"];
         put?: never;
         /**
          * Create Template
          * @description Create a new extraction template
          */
-        post: operations["create_template_api_templates__post"];
+        post: operations["create_template_api_templates_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -948,7 +953,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/data-types/": {
+    "/api/data-types": {
         parameters: {
             query?: never;
             header?: never;
@@ -959,7 +964,7 @@ export interface paths {
          * Get Data Types
          * @description Get all available data types
          */
-        get: operations["get_data_types_api_data_types__get"];
+        get: operations["get_data_types_api_data_types_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -977,7 +982,7 @@ export interface paths {
         };
         /**
          * Get Google Auth Url
-         * @description Generate Google OAuth authorization URL
+         * @description Generate Google OAuth authorization URL (Drive only for this release)
          */
         get: operations["get_google_auth_url_api_integrations_google_auth_url_get"];
         put?: never;
@@ -1108,7 +1113,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/automations/": {
+    "/api/automations": {
         parameters: {
             query?: never;
             header?: never;
@@ -1119,13 +1124,13 @@ export interface paths {
          * List Automations
          * @description Get all automations for the current user
          */
-        get: operations["list_automations_api_automations__get"];
+        get: operations["list_automations_api_automations_get"];
         put?: never;
         /**
          * Create Automation
          * @description Create a new automation
          */
-        post: operations["create_automation_api_automations__post"];
+        post: operations["create_automation_api_automations_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2382,6 +2387,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_current_user_api_users_me_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };
@@ -3680,7 +3705,7 @@ export interface operations {
             };
         };
     };
-    get_user_templates_api_templates__get: {
+    get_user_templates_api_templates_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -3700,7 +3725,7 @@ export interface operations {
             };
         };
     };
-    create_template_api_templates__post: {
+    create_template_api_templates_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -3850,7 +3875,7 @@ export interface operations {
             };
         };
     };
-    get_data_types_api_data_types__get: {
+    get_data_types_api_data_types_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -4037,7 +4062,7 @@ export interface operations {
             };
         };
     };
-    list_automations_api_automations__get: {
+    list_automations_api_automations_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -4057,7 +4082,7 @@ export interface operations {
             };
         };
     };
-    create_automation_api_automations__post: {
+    create_automation_api_automations_post: {
         parameters: {
             query?: never;
             header?: never;

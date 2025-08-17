@@ -433,7 +433,7 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
         return;
       }
       
-      const sseUrl = `http://localhost:8000/api/jobs/${jobId}/export-events?token=${encodeURIComponent(token)}`;
+      const sseUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/jobs/${jobId}/export-events?token=${encodeURIComponent(token)}`;
       const eventSource = new EventSource(sseUrl);
       eventSourceRef.current = eventSource;
 
