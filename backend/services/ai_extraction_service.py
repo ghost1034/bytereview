@@ -524,9 +524,7 @@ If the field name, data type, or prompt includes formatting information, follow 
             if not field.data_type or not field.data_type.strip():
                 errors.append(f"Field {i+1}: Data type is required")
             
-            if not field.prompt or not field.prompt.strip():
-                errors.append(f"Field {i+1}: Prompt is required")
-            elif len(field.prompt) > 500:
+            if field.prompt and len(field.prompt) > 500:
                 errors.append(f"Field {i+1}: Prompt too long (max 500 characters)")
         
         return errors

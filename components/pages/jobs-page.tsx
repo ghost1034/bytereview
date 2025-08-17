@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, FileText, Loader2, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, FileText, Loader2, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -17,22 +17,9 @@ import JobCard from "@/components/jobs/JobCard";
 import { apiClient } from "@/lib/api";
 import { useJobs } from "@/hooks/useJobs";
 import { useToast } from "@/hooks/use-toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 export function JobsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [deleteJobId, setDeleteJobId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const { toast } = useToast();
@@ -51,32 +38,6 @@ export function JobsPage() {
     refetch();
   };
 
-  const handleDeleteJob = async () => {
-    if (!deleteJobId) return;
-
-    setDeleting(true);
-    try {
-      await apiClient.deleteJob(deleteJobId);
-
-      // Trigger refetch to update the list immediately
-      refetch();
-
-      toast({
-        title: "Job deleted",
-        description: "The job has been successfully deleted.",
-      });
-    } catch (error) {
-      console.error("Error deleting job:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete the job. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setDeleting(false);
-      setDeleteJobId(null);
-    }
-  };
 
   // Handle page changes
   const handlePageChange = (page: number) => {
@@ -88,13 +49,6 @@ export function JobsPage() {
     setCurrentPage(1); // Reset to first page when changing page size
   };
 
-  // For now, we'll do client-side search filtering
-  // TODO: Implement server-side search in the API
-  const filteredJobs = jobs.filter((job) =>
-    (job.name || `Untitled Job`)
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
-  );
 
   return (
     <div className="space-y-6">
@@ -110,23 +64,6 @@ export function JobsPage() {
       </div>
 
 
-      {/* Search and Filters */}
-      <div className="flex items-center space-x-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input
-            placeholder="Search jobs..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-
-        <Button variant="outline">
-          <Filter className="w-4 h-4 mr-2" />
-          Filter
-        </Button>
-      </div>
 
       {/* Jobs List */}
       <Card>
@@ -158,7 +95,7 @@ export function JobsPage() {
               <Loader2 className="w-8 h-8 text-gray-400 mx-auto mb-4 animate-spin" />
               <p className="text-gray-600">Loading jobs...</p>
             </div>
-          ) : filteredJobs.length === 0 ? (
+          ) : jobs.length === 0 ? (
             <div className="text-center py-8">
               <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -167,7 +104,7 @@ export function JobsPage() {
               <p className="text-gray-600 mb-4">
                 {totalJobs === 0
                   ? "Create your first job to start extracting data from documents."
-                  : "Try adjusting your search criteria."}
+                  : "No jobs found."}
               </p>
               {totalJobs === 0 && (
                 <Button onClick={() => setShowCreateModal(true)}>
@@ -179,7 +116,7 @@ export function JobsPage() {
           ) : (
             <>
               <div className="grid gap-4">
-                {filteredJobs.map((job) => (
+                {jobs.map((job) => (
                   <JobCard key={job.id} job={job} onDelete={handleJobDelete} />
                 ))}
               </div>
@@ -270,33 +207,6 @@ export function JobsPage() {
         open={showCreateModal}
         onOpenChange={setShowCreateModal}
       />
-
-      {/* Delete Job Confirmation Dialog */}
-      <AlertDialog
-        open={!!deleteJobId}
-        onOpenChange={() => setDeleteJobId(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Job</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this job? This action cannot be
-              undone and will permanently delete all associated files and
-              results.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteJob}
-              disabled={deleting}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {deleting ? "Deleting..." : "Delete Job"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

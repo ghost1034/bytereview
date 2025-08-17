@@ -181,36 +181,36 @@ deploy_service \
      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=maint \
      --command=/entrypoint_worker.sh"
 
-# Run database migrations
-echo -e "${BLUE}=== Running Database Migrations ===${NC}"
-echo -e "${YELLOW}🔄 Running Alembic migrations...${NC}"
+# # Run database migrations
+# echo -e "${BLUE}=== Running Database Migrations ===${NC}"
+# echo -e "${YELLOW}🔄 Running Alembic migrations...${NC}"
 
-# Create a temporary Cloud Run job to run migrations
-gcloud run jobs create migration-job \
-    --image=$ARTIFACT_REGISTRY_URL/backend:$GIT_HASH \
-    --region=$REGION \
-    --set-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-    --vpc-connector=$VPC_CONNECTOR \
-    --vpc-egress=private-ranges-only \
-    --service-account=$SERVICE_ACCOUNT \
-    --set-secrets=DATABASE_URL=DATABASE_URL:latest \
-    --set-env-vars=ENVIRONMENT=$ENVIRONMENT \
-    --args=alembic,upgrade,head \
-    --max-retries=1 \
-    --parallelism=1 \
-    --tasks=1 \
-    --task-timeout=600 || true
+# # Create a temporary Cloud Run job to run migrations
+# gcloud run jobs create migration-job \
+#     --image=$ARTIFACT_REGISTRY_URL/backend:$GIT_HASH \
+#     --region=$REGION \
+#     --set-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+#     --vpc-connector=$VPC_CONNECTOR \
+#     --vpc-egress=private-ranges-only \
+#     --service-account=$SERVICE_ACCOUNT \
+#     --set-secrets=DATABASE_URL=DATABASE_URL:latest \
+#     --set-env-vars=ENVIRONMENT=$ENVIRONMENT \
+#     --args=alembic,upgrade,head \
+#     --max-retries=1 \
+#     --parallelism=1 \
+#     --tasks=1 \
+#     --task-timeout=600 || true
 
-# Execute the migration job
-if gcloud run jobs describe migration-job --region=$REGION >/dev/null 2>&1; then
-    gcloud run jobs execute migration-job --region=$REGION --wait
-    echo -e "${GREEN}✅ Database migrations completed${NC}"
+# # Execute the migration job
+# if gcloud run jobs describe migration-job --region=$REGION >/dev/null 2>&1; then
+#     gcloud run jobs execute migration-job --region=$REGION --wait
+#     echo -e "${GREEN}✅ Database migrations completed${NC}"
     
-    # Clean up migration job
-    gcloud run jobs delete migration-job --region=$REGION --quiet
-else
-    echo -e "${RED}❌ Failed to create migration job${NC}"
-fi
+#     # Clean up migration job
+#     gcloud run jobs delete migration-job --region=$REGION --quiet
+# else
+#     echo -e "${RED}❌ Failed to create migration job${NC}"
+# fi
 
 # Deployment summary
 echo -e "${GREEN}🎉 All services deployed successfully!${NC}"

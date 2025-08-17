@@ -17,9 +17,10 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   redirectTo?: string;
+  defaultTab?: 'signin' | 'signup';
 }
 
-export default function AuthModal({ isOpen, onClose, redirectTo }: AuthModalProps) {
+export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 'signin' }: AuthModalProps) {
   const { signIn, signInWithEmailAndPassword, signUpWithEmailAndPassword, user } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -120,7 +121,7 @@ export default function AuthModal({ isOpen, onClose, redirectTo }: AuthModalProp
           </div>
 
           {/* Email Authentication Tabs */}
-          <Tabs defaultValue="signin" className="w-full">
+          <Tabs defaultValue={defaultTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Create Account</TabsTrigger>

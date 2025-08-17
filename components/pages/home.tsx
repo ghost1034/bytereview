@@ -302,7 +302,7 @@ export default function Home() {
               <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Shield className="text-blue-600 w-8 h-8" />
               </div>
-              <h4 className="font-semibold text-gray-900 mb-2">Files Stored Securely</h4>
+              <h4 className="font-semibold text-gray-900 mb-2">Files Transferred Securely</h4>
             </div>
             
             <div className="text-center">

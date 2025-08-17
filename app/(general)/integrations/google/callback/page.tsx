@@ -164,15 +164,6 @@ function GoogleCallbackContent() {
                   Return to Dashboard
                 </Button>
               </div>
-              <div className="text-center">
-                <Button 
-                  variant="outline"
-                  onClick={() => router.push('/help')}
-                  className="w-full"
-                >
-                  Get Help
-                </Button>
-              </div>
             </div>
           )}
         </CardContent>

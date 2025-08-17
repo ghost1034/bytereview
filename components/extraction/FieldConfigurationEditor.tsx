@@ -126,12 +126,22 @@ export default function FieldConfigurationEditor({
                       onChange={(e) => updateField(index, { prompt: e.target.value })}
                       placeholder="Extract the invoice number (optional)"
                       rows={2}
+                      maxLength={500}
                     />
-                    {mode === 'job' && (
-                      <p className="text-xs text-gray-500">
-                        Provide specific instructions for extraction (optional)
+                    <div className="flex justify-between items-center">
+                      {mode === 'job' ? (
+                        <p className="text-xs text-gray-500">
+                          Provide specific instructions for extraction (optional)
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-500">
+                          Optional instructions for AI extraction
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-400">
+                        {field.prompt.length}/500
                       </p>
-                    )}
+                    </div>
                   </div>
                 </div>
                 

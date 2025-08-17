@@ -210,9 +210,6 @@ export default function Contact() {
                   <a href="/documentation" className="block text-blue-600 hover:text-blue-800 transition-colors">
                     Documentation & API
                   </a>
-                  <a href="/help" className="block text-blue-600 hover:text-blue-800 transition-colors">
-                    Help Center & FAQs
-                  </a>
                   <a href="/pricing" className="block text-blue-600 hover:text-blue-800 transition-colors">
                     Pricing Plans
                   </a>

@@ -77,11 +77,21 @@ export default function TemplateModal({ isOpen, onClose, template, dataTypes, da
       return;
     }
 
-    const validFields = fields.filter(f => f.name.trim() && f.data_type && f.prompt.trim());
-    if (validFields.length === 0) {
+    // Check that all fields have both name and data type
+    const incompleteFields = fields.filter(f => !f.name.trim() || !f.data_type);
+    if (incompleteFields.length > 0) {
       toast({
         title: "Validation Error", 
-        description: "At least one complete field is required",
+        description: "All fields must have both a name and data type",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (fields.length === 0) {
+      toast({
+        title: "Validation Error", 
+        description: "At least one field is required",
         variant: "destructive"
       });
       return;
@@ -91,7 +101,7 @@ export default function TemplateModal({ isOpen, onClose, template, dataTypes, da
       const templateData = {
         name: name.trim(),
         description: description.trim() || undefined,
-        fields: validFields,
+        fields: fields,
         is_public: false // Always false for user-created templates
       };
 

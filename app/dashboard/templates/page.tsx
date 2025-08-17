@@ -5,6 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   FileText,
   Plus,
   Loader2,
@@ -29,6 +39,8 @@ export default function TemplatesPage() {
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<any>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<{id: string, name: string} | null>(null);
 
   const { data: templatesData, isLoading: templatesLoading } = useTemplates();
   const { data: publicTemplatesData, isLoading: publicLoading } =
@@ -51,16 +63,19 @@ export default function TemplatesPage() {
     setModalOpen(true);
   };
 
-  const handleDeleteTemplate = async (
+  const handleDeleteTemplate = (
     templateId: string,
     templateName: string
   ) => {
-    if (!confirm(`Are you sure you want to delete "${templateName}"?`)) {
-      return;
-    }
+    setTemplateToDelete({ id: templateId, name: templateName });
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteTemplate = async () => {
+    if (!templateToDelete) return;
 
     try {
-      await deleteTemplateMutation.mutateAsync(templateId);
+      await deleteTemplateMutation.mutateAsync(templateToDelete.id);
       toast({
         title: "Template Deleted",
         description: "Template deleted successfully!",
@@ -71,6 +86,9 @@ export default function TemplatesPage() {
         description: error.message || "Failed to delete template",
         variant: "destructive",
       });
+    } finally {
+      setDeleteDialogOpen(false);
+      setTemplateToDelete(null);
     }
   };
 
@@ -240,6 +258,35 @@ export default function TemplatesPage() {
         onClose={() => setPreviewModalOpen(false)}
         template={previewTemplate}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Template</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{templateToDelete?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteTemplate}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              disabled={deleteTemplateMutation.isPending}
+            >
+              {deleteTemplateMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Template"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
