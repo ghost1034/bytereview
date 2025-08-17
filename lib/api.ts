@@ -9,7 +9,7 @@ type ApiRequest<T> = T extends { requestBody: { content: { 'application/json': i
 export class ApiClient {
   private baseURL: string
 
-  constructor(baseURL: string = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') {
+  constructor(baseURL: string = '') {
     this.baseURL = baseURL
   }
 
