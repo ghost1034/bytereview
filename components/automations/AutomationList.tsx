@@ -90,13 +90,12 @@ export function AutomationList() {
         <div>
           <h1 className="text-3xl font-bold">Automations</h1>
           <p className="text-gray-600 mt-2">
-            Automated workflows that trigger when you receive emails with attachments (coming soon)
+            Automated workflows that trigger when you receive emails with attachments
           </p>
         </div>
-        <Button disabled className="opacity-50">
+        <Button onClick={() => setCreateModalOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Create Automation
-          <Badge variant="secondary" className="ml-2 text-xs">Coming Soon</Badge>
         </Button>
       </div>
 
@@ -104,14 +103,13 @@ export function AutomationList() {
         <Card>
           <CardContent className="text-center py-12">
             <Settings className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Automations Coming Soon</h3>
+            <h3 className="text-lg font-semibold mb-2">No Automations Yet</h3>
             <p className="text-gray-600 mb-4">
-              Automated workflows that trigger when you receive emails with attachments will be available in a future update
+              Create automated workflows that trigger when you receive emails with attachments
             </p>
-            <Button disabled className="opacity-50">
+            <Button onClick={() => setCreateModalOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Create Your First Automation
-              <Badge variant="secondary" className="ml-2 text-xs">Coming Soon</Badge>
             </Button>
           </CardContent>
         </Card>

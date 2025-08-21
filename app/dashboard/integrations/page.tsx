@@ -76,7 +76,7 @@ export default function IntegrationsPage() {
               <div>
                 <CardTitle>Google Services</CardTitle>
                 <CardDescription>
-                  Connect Google Drive for file import (Gmail coming soon)
+                  Connect Google Drive and Gmail for file import
                 </CardDescription>
               </div>
             </div>
@@ -216,10 +216,9 @@ export default function IntegrationsPage() {
                       <FolderOpen className="h-4 w-4 text-muted-foreground" />
                       <span>Google Drive - Import files and folders</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm opacity-50">
+                    <div className="flex items-center gap-2 text-sm">
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       <span>Gmail - Import email attachments</span>
-                      <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
                     </div>
                   </div>
                 </div>
@@ -238,7 +237,7 @@ export default function IntegrationsPage() {
               {/* Connect options */}
               <div className="space-y-3">
                 <Button
-                  onClick={() => connect('drive')}
+                  onClick={() => connect('combined')}
                   disabled={isConnecting}
                   className="w-full"
                 >
@@ -250,7 +249,7 @@ export default function IntegrationsPage() {
                   ) : (
                     <>
                       <CheckCircle className="mr-2 h-4 w-4" />
-                      Connect Google Drive
+                      Connect Google Drive & Gmail
                     </>
                   )}
                 </Button>
@@ -265,13 +264,12 @@ export default function IntegrationsPage() {
                     Drive Only
                   </Button>
                   <Button
-                    disabled={true}
+                    onClick={() => connect('gmail')}
+                    disabled={isConnecting}
                     variant="outline"
-                    className="opacity-50"
                   >
                     <Mail className="mr-2 h-4 w-4" />
                     Gmail Only
-                    <Badge variant="secondary" className="ml-2 text-xs">Coming Soon</Badge>
                   </Button>
                 </div>
               </div>

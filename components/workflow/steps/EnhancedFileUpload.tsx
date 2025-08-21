@@ -926,10 +926,9 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
             <Cloud className="h-4 w-4" />
             Google Drive
           </TabsTrigger>
-          <TabsTrigger value="gmail" className="flex items-center gap-2 opacity-50" disabled>
+          <TabsTrigger value="gmail" className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
             Gmail
-            <Badge variant="secondary" className="ml-1 text-xs">Coming Soon</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -1026,16 +1025,16 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
         </TabsContent>
 
         <TabsContent value="gmail" className="mt-6">
-          <Card>
-            <CardContent className="text-center py-12">
-              <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Gmail Import Coming Soon</h3>
-              <p className="text-gray-600 mb-4">
-                The ability to import email attachments from Gmail will be available in a future update
-              </p>
-              <Badge variant="secondary">Coming Soon</Badge>
-            </CardContent>
-          </Card>
+          <GmailPicker
+              onAttachmentsSelected={handleGmailAttachments}
+              jobId={jobId}
+              multiSelect
+              mimeTypes={[
+                'application/pdf',
+                'application/zip',
+                'application/x-zip-compressed'
+              ]}
+            />
         </TabsContent>
       </Tabs>
 

@@ -39,14 +39,13 @@ def get_google_config():
     }
 
 # OAuth scopes for different services
-# Production release: Drive-only scopes (Gmail disabled for this release)
+# Production release: Drive-only scopes
 # - drive.readonly: Read-only access to all files (for importing)
 # - drive.file: Read/write access only to files created by this app (for exporting)
 GOOGLE_SCOPES = {
     "drive": "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email",
-    # Gmail scopes disabled for production release
-    # "gmail": "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email",
-    # "combined": "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email"
+    "gmail": "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email",
+    "combined": "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email"
 }
 
 @router.get("/google/auth-url")
@@ -71,12 +70,12 @@ async def get_google_auth_url(
             detail="Google OAuth not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables."
         )
     
-    # Only allow Drive for production release
-    if scopes != "drive":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only 'drive' scopes are supported in this release"
-        )
+    # # Only allow Drive for production release
+    # if scopes != "drive":
+    #     raise HTTPException(
+    #         status_code=status.HTTP_400_BAD_REQUEST,
+    #         detail="Only 'drive' scopes are supported in this release"
+    #     )
     
     # Validate scopes
     if scopes not in GOOGLE_SCOPES:
