@@ -182,7 +182,7 @@ If the field name, data type, or prompt includes formatting information, follow 
                     uploaded_file = await asyncio.to_thread(
                         genai.upload_file,
                         io.BytesIO(file_data['content']),
-                        mime_type="application/pdf",
+                        mime_type=file_data['mime_type'],
                         display_name=file_data['filename']
                     )
                     
@@ -340,7 +340,7 @@ If the field name, data type, or prompt includes formatting information, follow 
                     
                     uploaded_file = genai.upload_file(
                         io.BytesIO(file_data['content']),
-                        mime_type="application/pdf",
+                        mime_type=file_data['mime_type'],
                         display_name=file_data['filename']
                     )
                     uploaded_files.append(uploaded_file)

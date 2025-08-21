@@ -904,7 +904,7 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
                     </p>
                   </div>
                   <Button 
-                    onClick={() => connectGoogle('combined')} 
+                    onClick={() => connectGoogle('drive')} 
                     size="sm"
                     disabled={isConnecting}
                   >

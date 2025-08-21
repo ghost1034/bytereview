@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, GripVertical } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import type { FieldConfig } from '@/lib/api';
 
 interface DataType {
@@ -81,10 +81,6 @@ export default function FieldConfigurationEditor({
           <Card key={index}>
             <CardContent className="p-4">
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 mt-2">
-                  <GripVertical className="w-4 h-4 text-gray-400 cursor-move" />
-                </div>
-                
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Field Name</Label>

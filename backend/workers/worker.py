@@ -145,7 +145,8 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
                 
                 files_data.append({
                     'filename': source_file.original_filename,
-                    'content': file_content
+                    'content': file_content,
+                    'mime_type': source_file.file_type
                 })
                 
                 logger.info(f"Prepared file data for {source_file.original_filename}, size: {len(file_content)} bytes")
