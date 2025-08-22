@@ -278,8 +278,8 @@ export default function Home() {
           <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
             <CardContent className="p-12 text-center">
               <img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?ixlib=rb-4.0.3&w=600&h=200&fit=crop" alt="NextWorld Capital" className="mx-auto mb-6 rounded-lg" />
-              <h2 className="text-3xl font-bold mb-4">NextWorld Capital saves hundreds of hours per year processing investment statements</h2>
-              <p className="text-xl mb-6">"Our team used to spend weeks manually extracting financial data from portfolio reports. Now we process quarterly statements from 200+ companies in just hours with perfect accuracy."</p>
+              <h2 className="text-3xl font-bold mb-4">A fund-to-fund investment company saves hundreds of hours per year processing investment statements</h2>
+              <p className="text-xl mb-6">"Our team used to spend weeks manually extracting financial data from portfolio fund & company reports. Now we process quarterly statements from 200+ funds/companies in just minutes with perfect accuracy."</p>
               <Link href="/case-study/nextworld-capital">
                 <Button className="bg-white text-blue-600 hover:bg-gray-100">
                   Read the full case study →
