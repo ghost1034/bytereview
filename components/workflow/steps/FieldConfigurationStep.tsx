@@ -26,6 +26,7 @@ import {
   Wrench,
   Globe,
   Lock,
+  Save,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTemplates, usePublicTemplates } from "@/hooks/useExtraction";
@@ -44,11 +45,12 @@ interface FieldConfigurationStepProps {
   initialFields?: JobFieldConfig[];
   initialTaskDefinitions?: TaskDefinition[];
   initialTemplateId?: string;
-  onFieldsConfigured: (
+  onFieldsSaved: (
     fields: JobFieldConfig[],
     taskDefinitions: TaskDefinition[],
     templateId?: string
-  ) => void;
+  ) => Promise<void>;
+  onContinue: () => Promise<void>;
   onBack: () => void;
 }
 
@@ -57,7 +59,8 @@ export default function FieldConfigurationStep({
   initialFields,
   initialTaskDefinitions,
   initialTemplateId,
-  onFieldsConfigured,
+  onFieldsSaved,
+  onContinue,
   onBack,
 }: FieldConfigurationStepProps) {
   const { toast } = useToast();
@@ -255,18 +258,8 @@ export default function FieldConfigurationStep({
     return errors;
   };
 
-  const handleContinue = () => {
-    const errors = validateFields();
-
-    if (errors.length > 0) {
-      toast({
-        title: "Validation Error",
-        description: errors.join(", "),
-        variant: "destructive",
-      });
-      return;
-    }
-
+  // Helper function to prepare field data
+  const prepareFieldData = () => {
     // Create task definitions based on processing mode and file structure
     const folders = getFileFolders();
     const taskDefinitions: TaskDefinition[] = folders.map((folder) => ({
@@ -286,7 +279,41 @@ export default function FieldConfigurationStep({
         ? selectedTemplate
         : undefined;
 
-    onFieldsConfigured(orderedFields, taskDefinitions, templateId);
+    return { orderedFields, taskDefinitions, templateId };
+  };
+
+  const handleSave = async () => {
+    const errors = validateFields();
+
+    if (errors.length > 0) {
+      toast({
+        title: "Validation Error",
+        description: errors.join(", "),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { orderedFields, taskDefinitions, templateId } = prepareFieldData();
+    await onFieldsSaved(orderedFields, taskDefinitions, templateId);
+  };
+
+  const handleContinue = async () => {
+    const errors = validateFields();
+
+    if (errors.length > 0) {
+      toast({
+        title: "Validation Error",
+        description: errors.join(", "),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Save first, then continue
+    const { orderedFields, taskDefinitions, templateId } = prepareFieldData();
+    await onFieldsSaved(orderedFields, taskDefinitions, templateId);
+    await onContinue();
   };
 
   return (
@@ -300,16 +327,28 @@ export default function FieldConfigurationStep({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-            {files.slice(0, 6).map((file, index) => (
-              <Badge key={index} variant="secondary" className="justify-start">
-                {file.original_filename}
-              </Badge>
-            ))}
-            {files.length > 6 && (
-              <Badge variant="outline">+{files.length - 6} more files</Badge>
-            )}
-          </div>
+          {files.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+              {files.slice(0, 6).map((file, index) => (
+                <Badge key={index} variant="secondary" className="justify-start">
+                  {file.original_filename}
+                </Badge>
+              ))}
+              {files.length > 6 && (
+                <Badge variant="outline">+{files.length - 6} more files</Badge>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium mb-2">No files uploaded</p>
+              <p className="text-sm">
+                You can still configure extraction fields.
+                <br />
+                Upload files in the previous step to process documents.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -418,66 +457,78 @@ export default function FieldConfigurationStep({
           <CardTitle>Processing Mode by Folder</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {getFileFolders().map((folder) => {
-              const folderFiles = getFilesInFolder(folder);
-              return (
-                <div key={folder} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h4 className="font-medium">
-                        {folder === "/" ? "Root Folder" : folder}
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        {folderFiles.length} file
-                        {folderFiles.length !== 1 ? "s" : ""}
-                      </p>
-                    </div>
-                    <Select
-                      value={folderProcessingModes[folder] || "individual"}
-                      onValueChange={(value: ProcessingMode) =>
-                        setFolderProcessingModes((prev) => ({
-                          ...prev,
-                          [folder]: value,
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="w-48">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="individual">Individual</SelectItem>
-                        <SelectItem value="combined">Combined</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-32 overflow-y-auto">
-                    {folderFiles.slice(0, 12).map((file, index) => (
-                      <Badge
-                        key={index}
-                        variant="outline"
-                        className="justify-start text-xs"
+          {files.length > 0 ? (
+            <div className="space-y-4">
+              {getFileFolders().map((folder) => {
+                const folderFiles = getFilesInFolder(folder);
+                return (
+                  <div key={folder} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h4 className="font-medium">
+                          {folder === "/" ? "Root Folder" : folder}
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          {folderFiles.length} file
+                          {folderFiles.length !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+                      <Select
+                        value={folderProcessingModes[folder] || "individual"}
+                        onValueChange={(value: ProcessingMode) =>
+                          setFolderProcessingModes((prev) => ({
+                            ...prev,
+                            [folder]: value,
+                          }))
+                        }
                       >
-                        {file.original_filename}
-                      </Badge>
-                    ))}
-                    {folderFiles.length > 12 && (
-                      <Badge variant="secondary" className="justify-center text-xs">
-                        +{folderFiles.length - 12} more files
-                      </Badge>
-                    )}
-                  </div>
+                        <SelectTrigger className="w-48">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="individual">Individual</SelectItem>
+                          <SelectItem value="combined">Combined</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {folderProcessingModes[folder] === "combined"
-                      ? "All files in this folder will be processed together, creating combined results."
-                      : "Each file will be processed separately, creating individual results."}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-32 overflow-y-auto">
+                      {folderFiles.slice(0, 12).map((file, index) => (
+                        <Badge
+                          key={index}
+                          variant="outline"
+                          className="justify-start text-xs"
+                        >
+                          {file.original_filename}
+                        </Badge>
+                      ))}
+                      {folderFiles.length > 12 && (
+                        <Badge variant="secondary" className="justify-center text-xs">
+                          +{folderFiles.length - 12} more files
+                        </Badge>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {folderProcessingModes[folder] === "combined"
+                        ? "All files in this folder will be processed together, creating combined results."
+                        : "Each file will be processed separately, creating individual results."}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <Settings className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium mb-2">No processing modes to configure</p>
+              <p className="text-sm">
+                Processing modes will appear here when you upload files.
+                <br />
+                Each folder can be processed individually or combined.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -515,10 +566,20 @@ export default function FieldConfigurationStep({
           Back
         </Button>
 
-        <Button onClick={handleContinue}>
-          Continue
-          <ArrowRight className="w-4 h-4 ml-2" />
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={handleSave}>
+            <Save className="w-4 h-4 mr-2" />
+            Save Configuration
+          </Button>
+          
+          <Button 
+            onClick={handleContinue}
+            disabled={files.length === 0}
+          >
+            Save and Continue
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
       </div>
     </div>
   );

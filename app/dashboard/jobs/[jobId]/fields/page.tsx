@@ -82,34 +82,44 @@ export default function JobFieldsPage() {
     }
   })
 
-  const handleFieldsConfigured = async (fields: JobFieldConfig[], taskDefinitions: TaskDefinition[], templateId?: string) => {
+  // Common function to save field configuration
+  const saveFieldConfiguration = async (fields: JobFieldConfig[], taskDefinitions: TaskDefinition[], templateId?: string) => {
+    // Extract processing modes from task definitions
+    const processingModes: Record<string, string> = {}
+    taskDefinitions.forEach(task => {
+      if (task.path && task.mode) {
+        processingModes[task.path] = task.mode
+      }
+    })
+    
+    // Save field configuration and processing modes
+    await saveFieldsMutation.mutateAsync({ 
+      fields, 
+      templateId,
+      processingModes
+    })
+  }
+
+  const handleFieldsSaved = async (fields: JobFieldConfig[], taskDefinitions: TaskDefinition[], templateId?: string) => {
     try {
-      // Debug: Log what we received
-      console.log('handleFieldsConfigured called with:');
-      console.log('fields:', fields);
-      console.log('taskDefinitions:', taskDefinitions);
-      console.log('templateId:', templateId);
+      await saveFieldConfiguration(fields, taskDefinitions, templateId)
       
-      // Extract processing modes from task definitions
-      const processingModes: Record<string, string> = {}
-      taskDefinitions.forEach(task => {
-        console.log('Processing task:', task);
-        if (task.path && task.mode) {
-          processingModes[task.path] = task.mode
-          console.log(`Added processing mode: ${task.path} -> ${task.mode}`);
-        }
+      toast({
+        title: "Configuration saved",
+        description: "Field configuration has been saved successfully"
       })
-      
-      console.log('Final processingModes:', processingModes);
-      
-      // Save field configuration and processing modes
-      await saveFieldsMutation.mutateAsync({ 
-        fields, 
-        templateId,
-        processingModes
+    } catch (error) {
+      toast({
+        title: "Error saving configuration",
+        description: "Failed to save configuration",
+        variant: "destructive"
       })
-      
-      // Update config step to review
+    }
+  }
+
+  const handleContinue = async () => {
+    try {
+      // Update config step to review and navigate
       const token = await getAuthToken(user)
       await fetch(`/api/jobs/${jobId}/config-step`, {
         method: 'PUT',
@@ -121,16 +131,16 @@ export default function JobFieldsPage() {
       })
       
       toast({
-        title: "Configuration saved",
-        description: "Field configuration and processing modes have been saved successfully"
+        title: "Ready for review",
+        description: "Configuration saved. Ready to start processing."
       })
       
       // Navigate to next step
       router.push(`/dashboard/jobs/${jobId}/review`)
     } catch (error) {
       toast({
-        title: "Error saving configuration",
-        description: "Failed to save configuration",
+        title: "Error proceeding",
+        description: "Failed to proceed to next step",
         variant: "destructive"
       })
     }
@@ -181,7 +191,8 @@ export default function JobFieldsPage() {
             initialFields={job?.job_fields || []}
             initialTaskDefinitions={job?.extraction_tasks || []}
             initialTemplateId={job?.template_id}
-            onFieldsConfigured={handleFieldsConfigured}
+            onFieldsSaved={handleFieldsSaved}
+            onContinue={handleContinue}
             onBack={handleBack}
           />
         </CardContent>

@@ -99,10 +99,10 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
     }
   };
 
-  // Check if all files are ready
-  const allFilesReady = files.length > 0 && files.every(f => 
+  // Check if all files are ready (allow continuing with no files for testing)
+  const allFilesReady = files.length === 0 || (files.every(f => 
     f.status === 'unpacked' || f.status === 'uploaded'
-  ) && files.filter(f => f.status === 'unpacking' || f.status === 'importing').length === 0
+  ) && files.filter(f => f.status === 'unpacking' || f.status === 'importing').length === 0)
 
   // Get files by status for display
   const readyFiles = files.filter(f => f.status === 'unpacked' || f.status === 'uploaded')
@@ -1165,7 +1165,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
           {allFilesReady ? (
             <>
               <CheckCircle className="w-4 h-4 mr-2" />
-              Continue to Configuration
+              {files.length === 0 ? 'Continue (No Files)' : 'Continue to Configuration'}
             </>
           ) : (
             <>
