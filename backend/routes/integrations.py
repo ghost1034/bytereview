@@ -224,12 +224,26 @@ async def exchange_google_code(
         
         logger.info(f"Google OAuth successful for user {current_user_id}")
         
+        # Automatically set up Gmail watch if Gmail scopes are present
+        gmail_watch_setup = False
+        if any("gmail" in scope for scope in scopes):
+            try:
+                from services.gmail_watch_manager import gmail_watch_manager
+                gmail_watch_setup = await gmail_watch_manager.setup_watch_for_new_integration(db, current_user_id)
+                if gmail_watch_setup:
+                    logger.info(f"Gmail watch automatically set up for user {current_user_id}")
+                else:
+                    logger.warning(f"Failed to automatically set up Gmail watch for user {current_user_id}")
+            except Exception as e:
+                logger.error(f"Error setting up Gmail watch for user {current_user_id}: {e}")
+        
         return {
             "success": True,
             "provider": "google",
             "scopes": scopes,
             "user_email": user_info.get("email"),
-            "expires_at": expires_at.isoformat() if expires_at else None
+            "expires_at": expires_at.isoformat() if expires_at else None,
+            "gmail_watch_setup": gmail_watch_setup
         }
         
     except requests.RequestException as e:

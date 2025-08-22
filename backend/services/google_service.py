@@ -973,11 +973,17 @@ class GoogleService:
                     if part.lower().startswith('subject:'):
                         subject_criteria.append(part.split('subject:')[1])
                 
+                logger.info(f"Subject criteria extracted: {subject_criteria}")
                 if subject_criteria:
                     headers = message.get('payload', {}).get('headers', [])
                     subject_header = next((h['value'] for h in headers if h['name'].lower() == 'subject'), '')
+                    logger.info(f"Message subject header: '{subject_header}'")
+                    logger.info(f"Checking if any of {subject_criteria} is in '{subject_header.lower()}'")
                     if not any(criteria.lower() in subject_header.lower() for criteria in subject_criteria):
+                        logger.info(f"Subject match failed: '{subject_header}' does not contain any of {subject_criteria}")
                         return False
+                    else:
+                        logger.info(f"Subject match successful!")
             
             logger.info(f"Message {message_id} matches query: {query}")
             return True

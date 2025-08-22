@@ -763,6 +763,59 @@ async def schedule_opt_out_cleanup(ctx: Dict[str, Any]) -> Dict[str, Any]:
         logger.error(f"Scheduled opt-out cleanup failed: {e}")
         return {"success": False, "error": str(e)}
 
+async def run_gmail_watch_renewal(ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Check and renew Gmail watch subscriptions for all users
+    """
+    logger.info("Starting Gmail watch renewal check")
+    
+    try:
+        from core.database import get_db
+        from services.gmail_watch_manager import gmail_watch_manager
+        
+        # Get database session
+        db = next(get_db())
+        
+        try:
+            # Check and renew watches for all users
+            results = await gmail_watch_manager.ensure_watches_for_all_users(db)
+            
+            logger.info(f"Gmail watch renewal completed: {results}")
+            
+            if results['failures'] > 0:
+                logger.warning(f"Gmail watch renewal had {results['failures']} failures")
+                for error in results['errors']:
+                    logger.error(f"Gmail watch error: {error}")
+            
+            return {
+                'success': True,
+                'results': results
+            }
+            
+        finally:
+            db.close()
+            
+    except Exception as e:
+        logger.error(f"Failed to check and renew Gmail watches: {e}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+async def schedule_gmail_watch_renewal(ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Scheduled task to renew Gmail watch subscriptions
+    Runs every 6 hours to ensure watches stay active
+    """
+    logger.info("Scheduled: Gmail watch renewal")
+    try:
+        result = await run_gmail_watch_renewal(ctx)
+        logger.info(f"Scheduled Gmail watch renewal completed: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Scheduled Gmail watch renewal failed: {e}")
+        return {"success": False, "error": str(e)}
+
 # ARQ worker settings
 class WorkerSettings:
     """ARQ worker configuration for AI extraction tasks (default queue)"""
@@ -1320,10 +1373,6 @@ async def automation_trigger_worker(
                                 logger.warning(f"Job {automation.job_id} is currently running, skipping automation trigger")
                                 continue
                             
-                            # Clear existing data for automation runs to support multiple runs
-                            logger.info(f"Clearing existing data for automation job {automation.job_id}")
-                            await _clear_job_data_for_automation(db, automation.job_id)
-                            
                             # Create automation run with import tracking
                             automation_run = await automation_service.create_automation_run(
                                 db, automation.id, automation.job_id
@@ -1587,6 +1636,7 @@ class MaintenanceWorkerSettings:
         run_free_user_period_reset,
         run_stripe_usage_reconciliation,
         run_usage_counter_cleanup,
+        run_gmail_watch_renewal,
         # Scheduled wrapper functions
         schedule_free_user_period_reset,
         schedule_stripe_usage_reconciliation,
@@ -1594,6 +1644,7 @@ class MaintenanceWorkerSettings:
         schedule_abandoned_cleanup,
         schedule_artifact_cleanup,
         schedule_opt_out_cleanup,
+        schedule_gmail_watch_renewal,
     ]
     
     # Cron jobs schedule
@@ -1615,6 +1666,9 @@ class MaintenanceWorkerSettings:
         
         # Opt-out data cleanup - Weekly on Saturdays at 04:00 UTC
         cron(schedule_opt_out_cleanup, weekday=5, hour=4, minute=0, run_at_startup=False),
+        
+        # Gmail watch renewal - Every 6 hours to ensure watches stay active
+        cron(schedule_gmail_watch_renewal, hour={0, 6, 12, 18}, minute=45, run_at_startup=True),
     ]
     
     # Worker configuration

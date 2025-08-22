@@ -108,10 +108,7 @@ class GmailPubSubService:
     
     def get_user_id_from_email(self, db: Session, email_address: str) -> Optional[str]:
         """
-        Get user ID from email address using integration accounts
-        
-        For development, we'll just return the first Google integration user
-        since we don't store email addresses in the integration table.
+        Get user ID from email address using Gmail API lookup
         
         Args:
             db: Database session
@@ -121,18 +118,36 @@ class GmailPubSubService:
             User ID if found, None otherwise
         """
         try:
-            # For development: find any Google integration
-            # In production, you'd need to match the email address properly
-            integration = db.query(IntegrationAccount).filter(
+            # Get all Google integrations and check each one via Gmail API
+            integrations = db.query(IntegrationAccount).filter(
                 IntegrationAccount.provider == 'google'
-            ).first()
+            ).all()
             
-            if integration:
-                logger.info(f"Found user {integration.user_id} for Gmail integration (development mode)")
-                return integration.user_id
-            else:
-                logger.warning(f"No Google integration found for email address: {email_address}")
+            if not integrations:
+                logger.warning(f"No Google integrations found for email lookup: {email_address}")
                 return None
+            
+            from services.google_service import google_service
+            
+            for integration in integrations:
+                try:
+                    gmail_service = google_service.get_gmail_service(db, integration.user_id)
+                    if gmail_service:
+                        profile = gmail_service.users().getProfile(userId='me').execute()
+                        profile_email = profile.get('emailAddress', '').lower()
+                        
+                        if profile_email == email_address.lower():
+                            logger.info(f"Found user {integration.user_id} for email {email_address}")
+                            return integration.user_id
+                        else:
+                            logger.debug(f"User {integration.user_id} has email {profile_email}, not {email_address}")
+                            
+                except Exception as e:
+                    logger.warning(f"Failed to get Gmail profile for user {integration.user_id}: {e}")
+                    continue
+            
+            logger.warning(f"No user found for email address: {email_address}")
+            return None
                 
         except Exception as e:
             logger.error(f"Failed to get user ID for email {email_address}: {e}")

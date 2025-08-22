@@ -309,8 +309,8 @@ class JobService:
         """Prepare job for automation run by clearing existing data and creating new tasks"""
         logger.info(f"Preparing job {job_id} for automation run")
         
-        # Clear existing job data for automation runs
-        await self._clear_job_data_for_automation(db, job_id)
+        # # Clear existing job data for automation runs
+        # await self._clear_job_data_for_automation(db, job_id)
         
         # Create extraction tasks for all uploaded source files
         await self._create_extraction_tasks_for_automation(db, job_id)
