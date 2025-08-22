@@ -108,6 +108,8 @@ export default function JobCard({ job, onDelete }: JobCardProps) {
         return <CheckCircle className="w-4 h-4" />;
       case "failed":
         return <AlertCircle className="w-4 h-4" />;
+      case "in_progress":
+        return <Loader2 className="w-4 h-4 animate-spin" />;
       default:
         return <Clock className="w-4 h-4" />;
     }

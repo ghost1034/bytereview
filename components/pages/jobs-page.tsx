@@ -69,20 +69,9 @@ export function JobsPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <CardTitle>
+            <CardTitle>
                 All Jobs {loading ? "" : `(${totalJobs} total)`}
-              </CardTitle>
-              <Button 
-                variant="outline" 
-                onClick={() => refetch()}
-                disabled={loading}
-                size="sm"
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-            </div>
+            </CardTitle>
             <Button onClick={() => setShowCreateModal(true)} size="sm">
               <Plus className="w-4 h-4 mr-2" />
               Create New Job

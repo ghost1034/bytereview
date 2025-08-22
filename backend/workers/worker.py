@@ -1086,12 +1086,14 @@ async def export_job_to_google_drive(
             
             # Generate export content based on file type
             if file_type == "csv":
-                content = _generate_csv_content(results_response)
+                from services.export_service import generate_csv_content
+                content = generate_csv_content(results_response)
                 filename = f"job_{job_id}_results.csv"
                 mime_type = "text/csv"
                 content_bytes = content.encode('utf-8')
             elif file_type == "xlsx":
-                content_bytes = _generate_excel_content(results_response)
+                from services.export_service import generate_excel_content
+                content_bytes = generate_excel_content(results_response)
                 filename = f"job_{job_id}_results.xlsx"
                 mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             else:
@@ -1162,96 +1164,6 @@ async def export_job_to_google_drive(
             
             raise
 
-def _generate_csv_content(results_response) -> str:
-    """Generate CSV content from job results (sync version for worker)"""
-    import csv
-    from io import StringIO
-    
-    if not results_response.results:
-        raise ValueError("No results found for this job")
-    
-    # Create CSV content
-    output = StringIO()
-    
-    # Determine field names from the first result
-    first_result = results_response.results[0]
-    if not first_result.extracted_data:
-        raise ValueError("No extracted data found")
-    
-    # Get field names from the columns snapshot in extracted_data
-    if "columns" not in first_result.extracted_data:
-        raise ValueError("Invalid extracted data format - missing columns")
-    
-    field_names = first_result.extracted_data["columns"]
-    
-    # Process array-based results
-    writer = csv.DictWriter(output, fieldnames=field_names)
-    writer.writeheader()
-    
-    for result in results_response.results:
-        if result.extracted_data and "results" in result.extracted_data:
-            for result_array in result.extracted_data["results"]:
-                row = {}
-                for i, field_name in enumerate(field_names):
-                    if i < len(result_array):
-                        value = result_array[i]
-                        row[field_name] = str(value) if value is not None else ""
-                    else:
-                        row[field_name] = ""
-                writer.writerow(row)
-    
-    # Get CSV content
-    csv_content = output.getvalue()
-    output.close()
-    return csv_content
-
-def _generate_excel_content(results_response) -> bytes:
-    """Generate Excel content from job results (sync version for worker)"""
-    import openpyxl
-    from io import BytesIO
-    
-    if not results_response.results:
-        raise ValueError("No results found for this job")
-    
-    # Create Excel workbook
-    workbook = openpyxl.Workbook()
-    worksheet = workbook.active
-    worksheet.title = "Extraction Results"
-    
-    # Determine field names from the first result
-    first_result = results_response.results[0]
-    if not first_result.extracted_data:
-        raise ValueError("No extracted data found")
-    
-    # Get field names from the columns snapshot in extracted_data
-    if "columns" not in first_result.extracted_data:
-        raise ValueError("Invalid extracted data format - missing columns")
-    
-    field_names = first_result.extracted_data["columns"]
-    
-    # Write headers
-    for col_idx, field_name in enumerate(field_names, 1):
-        worksheet.cell(row=1, column=col_idx, value=field_name)
-    
-    # Process array-based results
-    row_idx = 2
-    for result in results_response.results:
-        if result.extracted_data and "results" in result.extracted_data:
-            for result_array in result.extracted_data["results"]:
-                for col_idx, field_name in enumerate(field_names, 1):
-                    if col_idx - 1 < len(result_array):
-                        value = result_array[col_idx - 1]
-                        cell_value = str(value) if value is not None else ""
-                    else:
-                        cell_value = ""
-                    worksheet.cell(row=row_idx, column=col_idx, value=cell_value)
-                row_idx += 1
-    
-    # Save to BytesIO
-    output = BytesIO()
-    workbook.save(output)
-    output.seek(0)
-    return output.getvalue()
 
 class ExportWorkerSettings:
     """ARQ worker configuration for export tasks (exports queue)"""
