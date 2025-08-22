@@ -17,18 +17,30 @@ import { Separator } from "@/components/ui/separator"
 import { useCreateAutomation } from "@/hooks/useAutomations"
 import { useJobs } from "@/hooks/useJobs"
 import { useGoogleIntegration } from "@/hooks/useGoogleIntegration"
-import { Mail, FileText, Upload, HelpCircle } from "lucide-react"
+import { Mail, FileText, Upload, HelpCircle, Cloud, Folder, Database } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 const automationSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
-  gmail_query: z.string().min(1, "Gmail query is required"),
+  trigger_type: z.enum(["gmail", "google_drive", "outlook", "onedrive", "sharepoint"]),
+  gmail_query: z.string().optional(),
   job_id: z.string().min(1, "Please select a job template"),
   is_enabled: z.boolean().default(true),
-  dest_type: z.enum(["", "gdrive", "gmail"]),
+  processing_mode: z.enum(["individual", "combined"]).default("individual"),
+  keep_source_files: z.boolean().default(true),
+  dest_type: z.enum(["", "gdrive", "gmail", "outlook", "onedrive", "sharepoint"]),
   folder_id: z.string().optional(),
   to_email: z.string().email("Invalid email address").optional().or(z.literal("")),
   file_type: z.enum(["csv", "xlsx"]).default("csv"),
+}).refine((data) => {
+  // Gmail query is required only when trigger type is gmail
+  if (data.trigger_type === "gmail") {
+    return data.gmail_query && data.gmail_query.trim().length > 0;
+  }
+  return true;
+}, {
+  message: "Gmail query is required for Gmail trigger",
+  path: ["gmail_query"]
 })
 
 type AutomationFormData = z.infer<typeof automationSchema>
@@ -40,6 +52,7 @@ interface CreateAutomationModalProps {
 
 export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationModalProps) {
   const [step, setStep] = useState(1)
+  const [selectedGDriveFolder, setSelectedGDriveFolder] = useState<{id: string, name: string} | null>(null)
   const { data: jobs, isLoading: jobsLoading } = useJobs()
   const { status: googleStatus } = useGoogleIntegration()
   const createAutomation = useCreateAutomation()
@@ -55,12 +68,15 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
     resolver: zodResolver(automationSchema),
     defaultValues: {
       is_enabled: true,
+      processing_mode: "individual",
+      keep_source_files: true,
     },
     mode: "onChange"
   })
 
   const watchedDestType = watch("dest_type")
   const watchedJobId = watch("job_id")
+  const watchedTriggerType = watch("trigger_type")
 
   const selectedJob = jobs?.jobs.find(job => job.id === watchedJobId)
 
@@ -69,11 +85,13 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
       const automationData = {
         name: data.name,
         is_enabled: data.is_enabled,
-        trigger_type: "gmail_attachment",
-        trigger_config: {
+        trigger_type: data.trigger_type === "gmail" ? "gmail_attachment" : data.trigger_type,
+        trigger_config: data.trigger_type === "gmail" && data.gmail_query ? {
           query: data.gmail_query
-        },
+        } : {},
         job_id: data.job_id,
+        processing_mode: data.processing_mode,
+        keep_source_files: data.keep_source_files,
         dest_type: data.dest_type || undefined,
         export_config: data.dest_type ? {
           ...(data.dest_type === "gdrive" && data.folder_id ? { folder_id: data.folder_id } : {}),
@@ -94,6 +112,7 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
   const handleClose = () => {
     reset()
     setStep(1)
+    setSelectedGDriveFolder(null)
     onOpenChange(false)
   }
 
@@ -101,6 +120,26 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
     setStep(step + 1)
   }
   const prevStep = () => setStep(step - 1)
+
+  // Helper functions for Gmail query quick actions
+  const addToGmailQuery = (queryPart: string) => {
+    const currentQuery = watch("gmail_query") || ""
+    const newQuery = currentQuery ? `${currentQuery} ${queryPart}` : queryPart
+    setValue("gmail_query", newQuery, { shouldValidate: true })
+  }
+
+  const setGmailQuery = (query: string) => {
+    setValue("gmail_query", query, { shouldValidate: true })
+  }
+
+  // Handle Google Drive folder selection (placeholder for Google Picker)
+  const handleSelectGDriveFolder = () => {
+    // TODO: Implement Google Picker integration
+    console.log("Google Drive folder picker will be implemented here")
+    // For now, simulate folder selection
+    setSelectedGDriveFolder({ id: "sample_folder_id", name: "Sample Folder" })
+    setValue("folder_id", "sample_folder_id", { shouldValidate: true })
+  }
 
 
   return (
@@ -119,7 +158,7 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
                 <Badge variant="default">Step 1</Badge>
-                <span className="font-medium">Basic Configuration</span>
+                <span className="font-medium">Trigger Configuration</span>
               </div>
 
               <div className="space-y-2">
@@ -134,41 +173,198 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
                 )}
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="gmail_query">Gmail Search Query</Label>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="w-4 h-4 text-gray-400" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <div className="max-w-xs">
-                          <p className="font-medium mb-2">Gmail Query Examples:</p>
-                          <ul className="text-sm space-y-1">
-                            <li>• <code>has:attachment</code> - Any email with attachments</li>
-                            <li>• <code>from:supplier@company.com has:attachment</code> - From specific sender</li>
-                            <li>• <code>subject:invoice has:attachment</code> - Subject contains "invoice"</li>
-                            <li>• <code>has:attachment filename:pdf</code> - PDF attachments only</li>
-                          </ul>
+              <div className="space-y-4">
+                <div>
+                  <Label>Automation Trigger</Label>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Choose what will trigger this automation to run
+                  </p>
+                  
+                  <div className="grid gap-3">
+                    {/* Gmail Trigger */}
+                    <Card 
+                      className={`cursor-pointer transition-colors ${watchedTriggerType === "gmail" ? "ring-2 ring-blue-500" : ""}`}
+                      onClick={() => setValue("trigger_type", "gmail", { shouldValidate: true })}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                            <Mail className="w-4 h-4 text-red-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium">Gmail</h4>
+                            <p className="text-sm text-gray-600">Process attachments from Gmail emails</p>
+                          </div>
                         </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                      </CardContent>
+                    </Card>
+
+                    {/* Google Drive Trigger */}
+                    <Card 
+                      className={`cursor-pointer transition-colors ${watchedTriggerType === "google_drive" ? "ring-2 ring-blue-500" : ""}`}
+                      onClick={() => setValue("trigger_type", "google_drive", { shouldValidate: true })}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                            <Cloud className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium">Google Drive</h4>
+                            <p className="text-sm text-gray-600">Process files added to Google Drive folders</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Outlook Trigger */}
+                    <Card 
+                      className={`cursor-pointer transition-colors ${watchedTriggerType === "outlook" ? "ring-2 ring-blue-500" : ""}`}
+                      onClick={() => setValue("trigger_type", "outlook", { shouldValidate: true })}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                            <Mail className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium">Outlook</h4>
+                            <p className="text-sm text-gray-600">Process attachments from Outlook emails</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* OneDrive Trigger */}
+                    <Card 
+                      className={`cursor-pointer transition-colors ${watchedTriggerType === "onedrive" ? "ring-2 ring-blue-500" : ""}`}
+                      onClick={() => setValue("trigger_type", "onedrive", { shouldValidate: true })}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                            <Cloud className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium">OneDrive</h4>
+                            <p className="text-sm text-gray-600">Process files added to OneDrive folders</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* SharePoint Trigger */}
+                    <Card 
+                      className={`cursor-pointer transition-colors ${watchedTriggerType === "sharepoint" ? "ring-2 ring-blue-500" : ""}`}
+                      onClick={() => setValue("trigger_type", "sharepoint", { shouldValidate: true })}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                            <Database className="w-4 h-4 text-purple-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium">SharePoint</h4>
+                            <p className="text-sm text-gray-600">Process files added to SharePoint document libraries</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
-                <Textarea
-                  id="gmail_query"
-                  placeholder="has:attachment from:invoices@supplier.com"
-                  rows={3}
-                  {...register("gmail_query")}
-                />
-                {errors.gmail_query && (
-                  <p className="text-sm text-red-600">{errors.gmail_query.message}</p>
-                )}
-                <p className="text-sm text-gray-600">
-                  Use Gmail search syntax to specify which emails should trigger this automation
-                </p>
               </div>
+
+              {/* Gmail Configuration - Only show when Gmail is selected */}
+              {watchedTriggerType === "gmail" && (
+                <div className="space-y-4 p-4 bg-blue-50 rounded-lg border">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="gmail_query">Gmail Search Query</Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-4 h-4 text-gray-400" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <div className="max-w-xs">
+                            <p className="font-medium mb-2">Gmail Query Examples:</p>
+                            <ul className="text-sm space-y-1">
+                              <li>• <code>has:attachment</code> - Any email with attachments</li>
+                              <li>• <code>from:supplier@company.com has:attachment</code> - From specific sender</li>
+                              <li>• <code>subject:invoice has:attachment</code> - Subject contains "invoice"</li>
+                              <li>• <code>has:attachment filename:pdf</code> - PDF attachments only</li>
+                            </ul>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+
+                  {/* Quick Action Buttons */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Quick Templates</Label>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setGmailQuery("has:attachment filename:pdf")}
+                        className="text-xs"
+                      >
+                        PDF Files
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setGmailQuery("has:attachment filename:zip")}
+                        className="text-xs"
+                      >
+                        ZIP Files
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setGmailQuery("has:attachment subject:invoice")}
+                        className="text-xs"
+                      >
+                        Invoices
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setGmailQuery("has:attachment subject:receipt")}
+                        className="text-xs"
+                      >
+                        Receipts
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setGmailQuery("has:attachment")}
+                        className="text-xs"
+                      >
+                        Any Attachment
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Textarea
+                    id="gmail_query"
+                    placeholder="has:attachment from:invoices@supplier.com"
+                    rows={3}
+                    {...register("gmail_query")}
+                  />
+                  {errors.gmail_query && (
+                    <p className="text-sm text-red-600">{errors.gmail_query.message}</p>
+                  )}
+                  <p className="text-sm text-gray-600">
+                    Use Gmail search syntax to specify which emails should trigger this automation. Click the buttons above for common patterns.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="job_id">Job Template</Label>
@@ -206,11 +402,95 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
             </div>
           )}
 
-          {/* Step 2: Export Configuration */}
+          {/* Step 2: Extraction Options */}
           {step === 2 && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
                 <Badge variant="default">Step 2</Badge>
+                <span className="font-medium">Extraction Options</span>
+              </div>
+
+              <div className="space-y-6">
+                {/* Processing Mode */}
+                <div className="space-y-4">
+                  <div>
+                    <Label>Processing Mode</Label>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Choose how files should be processed when multiple files are found
+                    </p>
+                    
+                    <div className="grid gap-3">
+                      <Card 
+                        className={`cursor-pointer transition-colors ${watch("processing_mode") === "individual" ? "ring-2 ring-blue-500" : ""}`}
+                        onClick={() => setValue("processing_mode", "individual", { shouldValidate: true })}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                              <FileText className="w-4 h-4 text-green-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-medium">Individual Processing</h4>
+                              <p className="text-sm text-gray-600">Process each file separately, creating individual results</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card 
+                        className={`cursor-pointer transition-colors ${watch("processing_mode") === "combined" ? "ring-2 ring-blue-500" : ""}`}
+                        onClick={() => setValue("processing_mode", "combined", { shouldValidate: true })}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                              <Folder className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-medium">Combined Processing</h4>
+                              <p className="text-sm text-gray-600">Process all files together, creating combined results</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Source File Storage */}
+                <div className="space-y-4">
+                  <div>
+                    <Label>Source File Storage</Label>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Choose whether to keep the original files for later access
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                        <Database className="w-4 h-4 text-purple-600" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium">Keep source files</h4>
+                        <p className="text-sm text-gray-600">Store original files for future reference and reprocessing</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={watch("keep_source_files")}
+                      onCheckedChange={(checked) => setValue("keep_source_files", checked, { shouldValidate: true })}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Export Configuration */}
+          {step === 3 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Badge variant="default">Step 3</Badge>
                 <span className="font-medium">Export Configuration (Optional)</span>
               </div>
 
@@ -223,7 +503,7 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
                   
                   <div className="grid gap-3">
                     <Card 
-                      className={`cursor-pointer transition-colors ${watchedDestType === "" && watchedDestType !== undefined ? "ring-2 ring-blue-500" : ""}`}
+                      className={`cursor-pointer transition-colors ${watchedDestType === "" ? "ring-2 ring-blue-500" : ""}`}
                       onClick={() => setValue("dest_type", "", { shouldValidate: true })}
                     >
                       <CardContent className="p-4">
@@ -249,15 +529,83 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
                       <CardContent className="p-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                            <Upload className="w-4 h-4 text-blue-600" />
+                            <Cloud className="w-4 h-4 text-blue-600" />
                           </div>
                           <div className="flex-1">
-                            <h4 className="font-medium">Export to Google Drive</h4>
-                            <p className="text-sm text-gray-600">Automatically save results as CSV/Excel files</p>
+                            <h4 className="font-medium">Google Drive</h4>
+                            <p className="text-sm text-gray-600">Save results as CSV/Excel files to Google Drive</p>
                           </div>
                           {!googleStatus?.connected && (
-                            <Badge variant="outline">Google Drive not connected</Badge>
+                            <Badge variant="outline">Not connected</Badge>
                           )}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card 
+                      className={`cursor-pointer transition-colors ${watchedDestType === "gmail" ? "ring-2 ring-blue-500" : ""}`}
+                      onClick={() => setValue("dest_type", "gmail", { shouldValidate: true })}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                            <Mail className="w-4 h-4 text-red-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium">Gmail</h4>
+                            <p className="text-sm text-gray-600">Email results as attachments via Gmail</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card 
+                      className={`cursor-pointer transition-colors ${watchedDestType === "outlook" ? "ring-2 ring-blue-500" : ""}`}
+                      onClick={() => setValue("dest_type", "outlook", { shouldValidate: true })}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                            <Mail className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium">Outlook</h4>
+                            <p className="text-sm text-gray-600">Email results as attachments via Outlook</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card 
+                      className={`cursor-pointer transition-colors ${watchedDestType === "onedrive" ? "ring-2 ring-blue-500" : ""}`}
+                      onClick={() => setValue("dest_type", "onedrive", { shouldValidate: true })}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                            <Cloud className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium">OneDrive</h4>
+                            <p className="text-sm text-gray-600">Save results as CSV/Excel files to OneDrive</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card 
+                      className={`cursor-pointer transition-colors ${watchedDestType === "sharepoint" ? "ring-2 ring-blue-500" : ""}`}
+                      onClick={() => setValue("dest_type", "sharepoint", { shouldValidate: true })}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                            <Database className="w-4 h-4 text-purple-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium">SharePoint</h4>
+                            <p className="text-sm text-gray-600">Save results to SharePoint document libraries</p>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -270,22 +618,75 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
                   <div className="space-y-4 mt-4 p-4 bg-blue-50 rounded-lg border">
                     <h4 className="font-medium text-blue-900">Google Drive Export Settings</h4>
                     
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Destination Folder (Default: My Drive)</Label>
+                        <div className="flex items-center gap-3">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleSelectGDriveFolder}
+                            className="flex items-center gap-2"
+                          >
+                            <Folder className="w-4 h-4" />
+                            {selectedGDriveFolder ? selectedGDriveFolder.name : "Select Destination Folder"}
+                          </Button>
+                          {selectedGDriveFolder && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedGDriveFolder(null)
+                                setValue("folder_id", "", { shouldValidate: true })
+                              }}
+                            >
+                              Clear
+                            </Button>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600">
+                          Choose the Google Drive folder where results will be saved
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="file_type">File Format</Label>
+                        <Select
+                          value={watch("file_type") || "csv"}
+                          onValueChange={(value: "csv" | "xlsx") => setValue("file_type", value, { shouldValidate: true })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select file format" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="csv">CSV (.csv)</SelectItem>
+                            <SelectItem value="xlsx">Excel (.xlsx)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-sm text-gray-600">
+                          Choose the format for exported files
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Gmail Export Configuration */}
+                {watchedDestType === "gmail" && (
+                  <div className="space-y-4 mt-4 p-4 bg-red-50 rounded-lg border">
+                    <h4 className="font-medium text-red-900">Gmail Export Settings</h4>
+                    
                     <div className="space-y-2">
-                      <Label htmlFor="file_type">File Format</Label>
-                      <Select
-                        value={watch("file_type") || "csv"}
-                        onValueChange={(value: "csv" | "xlsx") => setValue("file_type", value, { shouldValidate: true })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select file format" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="csv">CSV (.csv)</SelectItem>
-                          <SelectItem value="xlsx">Excel (.xlsx)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="to_email">Email Address</Label>
+                      <Input
+                        id="to_email"
+                        type="email"
+                        placeholder="recipient@example.com"
+                        {...register("to_email")}
+                      />
                       <p className="text-sm text-gray-600">
-                        Choose the format for exported files
+                        Email address where results will be sent
                       </p>
                     </div>
                   </div>
@@ -310,11 +711,18 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
                 <Button type="button" variant="outline" onClick={handleClose}>
                   Cancel
                 </Button>
-                {step < 2 ? (
+                {step < 3 ? (
                   <Button 
                     type="button" 
                     onClick={nextStep}
-                    disabled={!watch("name") || !watch("gmail_query") || !watch("job_id")}
+                    disabled={
+                      step === 1 && (
+                        !watch("name") || 
+                        !watch("trigger_type") || 
+                        !watch("job_id") ||
+                        (watch("trigger_type") === "gmail" && !watch("gmail_query"))
+                      )
+                    }
                   >
                     Next
                   </Button>
