@@ -103,9 +103,31 @@ export default function JobReviewPage() {
       // Navigate to processing page
       router.push(`/dashboard/jobs/${jobId}/processing`);
     } catch (error) {
+      // Extract the actual error message from the error object
+      let errorMessage = "Failed to submit job for processing"
+      
+      if (error instanceof Error) {
+        // The error message from the mutation includes "Failed to submit job: " prefix
+        // Extract just the actual API error message
+        const fullMessage = error.message
+        if (fullMessage.startsWith("Failed to submit job: ")) {
+          const apiErrorText = fullMessage.substring("Failed to submit job: ".length)
+          try {
+            // Try to parse as JSON in case it's a structured error response
+            const errorData = JSON.parse(apiErrorText)
+            errorMessage = errorData.detail || errorData.message || apiErrorText
+          } catch {
+            // If not JSON, use the raw error text
+            errorMessage = apiErrorText
+          }
+        } else {
+          errorMessage = fullMessage
+        }
+      }
+      
       toast({
         title: "Error submitting job",
-        description: "Failed to submit job for processing",
+        description: errorMessage,
         variant: "destructive"
       })
     }

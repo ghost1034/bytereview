@@ -248,9 +248,31 @@ export function useJobWorkflow(jobId: string, initialStep?: string | null) {
       router.push(`/dashboard/jobs/${job.id}`)
 
     } catch (error: any) {
+      // Extract the actual error message from the error object
+      let errorMessage = "Failed to submit job for processing"
+      
+      if (error && error.message) {
+        // The error message from the mutation may include prefixes
+        // Extract just the actual API error message
+        const fullMessage = error.message
+        if (fullMessage.includes("Failed to submit job: ")) {
+          const apiErrorText = fullMessage.substring(fullMessage.indexOf("Failed to submit job: ") + "Failed to submit job: ".length)
+          try {
+            // Try to parse as JSON in case it's a structured error response
+            const errorData = JSON.parse(apiErrorText)
+            errorMessage = errorData.detail || errorData.message || apiErrorText
+          } catch {
+            // If not JSON, use the raw error text
+            errorMessage = apiErrorText
+          }
+        } else {
+          errorMessage = fullMessage
+        }
+      }
+      
       toast({
         title: "Error submitting job",
-        description: error.message || "Failed to submit job for processing",
+        description: errorMessage,
         variant: "destructive"
       })
     }

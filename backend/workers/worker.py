@@ -1250,6 +1250,60 @@ async def automation_shutdown(ctx: Dict[str, Any]) -> None:
     """Cleanup automation worker resources"""
     logger.info("Automation worker shutting down...")
 
+async def _clear_job_data_for_automation(db: Session, job_id: str) -> None:
+    """Clear existing job data to support multiple automation runs"""
+    from models.db_models import (
+        SourceFile, ExtractionTask, ExtractionResult, 
+        SourceFileToTask, ExtractionJob
+    )
+    
+    logger.info(f"Clearing existing job data for automation run")
+    
+    # Get all source files for this job
+    source_files = db.query(SourceFile).filter(SourceFile.job_id == job_id).all()
+    source_file_ids = [sf.id for sf in source_files]
+    
+    if source_file_ids:
+        # Delete extraction results (via task relationship)
+        task_ids = db.query(SourceFileToTask.task_id).filter(
+            SourceFileToTask.source_file_id.in_(source_file_ids)
+        ).subquery()
+        
+        deleted_results = db.query(ExtractionResult).filter(
+            ExtractionResult.task_id.in_(task_ids)
+        ).delete(synchronize_session=False)
+        logger.info(f"Deleted {deleted_results} extraction results")
+        
+        # Delete source file to task mappings
+        db.query(SourceFileToTask).filter(
+            SourceFileToTask.source_file_id.in_(source_file_ids)
+        ).delete(synchronize_session=False)
+    
+    # Delete extraction tasks
+    deleted_tasks = db.query(ExtractionTask).filter(
+        ExtractionTask.job_id == job_id
+    ).delete(synchronize_session=False)
+    logger.info(f"Deleted {deleted_tasks} extraction tasks")
+    
+    # Delete source files
+    deleted_files = db.query(SourceFile).filter(
+        SourceFile.job_id == job_id
+    ).delete(synchronize_session=False)
+    logger.info(f"Deleted {deleted_files} source files")
+    
+    # Reset job status if completed
+    job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
+    if job and job.status in ['completed', 'partially_completed']:
+        job.status = 'pending'
+        job.completed_at = None
+        job.tasks_total = 0
+        job.tasks_completed = 0
+        job.tasks_failed = 0
+        logger.info(f"Reset job {job_id} status to pending")
+    
+    db.commit()
+    logger.info(f"Successfully cleared job data for automation run")
+
 async def automation_trigger_worker(
     ctx: Dict[str, Any],
     user_id: str,
