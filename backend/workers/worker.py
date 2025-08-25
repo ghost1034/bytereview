@@ -1427,6 +1427,9 @@ async def automation_trigger_worker(
                             if job and job.status == 'in_progress':
                                 logger.warning(f"Job {automation.job_id} is currently running, skipping automation trigger")
                                 continue
+                                      # Clear existing data for automation runs to support multiple runs
+                            logger.info(f"Clearing existing data for automation job {automation.job_id}")
+                            await _clear_job_data_for_automation(db, automation.job_id)
                             
                             # Create automation run with import tracking
                             automation_run = await automation_service.create_automation_run(
