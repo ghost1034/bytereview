@@ -60,7 +60,7 @@ export default function Home() {
                 True GenAI Customizable Extraction
               </h1>
               <p className="text-lg text-gray-500 mb-8">
-                Programmed by real CPAs and lawyers for practical professional use
+                Programmed by real CPAs for practical professional use
               </p>
               <p className="text-xl text-gray-600 mb-8">
                 Professional-grade AI extraction built with deep accounting and legal expertise.
@@ -231,11 +231,11 @@ export default function Home() {
                   <span className="text-blue-600 font-bold text-lg">AM</span>
                 </div>
                 <div className="mb-4">
-                  <h4 className="font-semibold text-gray-900">Apex Manufacturing</h4>
-                  <p className="text-gray-600 text-sm">David Wilson, Supply Chain Director</p>
+                  <h4 className="font-semibold text-gray-900">A*** Manufacturing</h4>
+                  <p className="text-gray-600 text-sm">D*** Wilton, Supply Chain Director</p>
                 </div>
                 <h5 className="font-bold text-lg mb-2">Handles complex supplier documents</h5>
-                <p className="text-gray-600">"We process thousands of supplier certifications, quality reports, and invoices monthly. The custom extraction feature lets us automatically categorize materials by grade and extract compliance codes for our ERP system."</p>
+                <p className="text-gray-600">"We process thousands of supplier certifications, quality reports, and invoices monthly. The custom extraction feature lets us automatically categorize materials by grade and extract compliance codes for our procurement system."</p>
               </CardContent>
             </Card>
             
@@ -245,11 +245,11 @@ export default function Home() {
                   <span className="text-green-600 font-bold text-lg">SV</span>
                 </div>
                 <div className="mb-4">
-                  <h4 className="font-semibold text-gray-900">Summit Ventures</h4>
-                  <p className="text-gray-600 text-sm">Jennifer Park, Partner</p>
+                  <h4 className="font-semibold text-gray-900">S****** Ventures</h4>
+                  <p className="text-gray-600 text-sm">J*** Park, Partner</p>
                 </div>
                 <h5 className="font-bold text-lg mb-2">Essential for due diligence</h5>
-                <p className="text-gray-600">"We evaluate hundreds of companies quarterly. Extracting financial metrics, revenue breakdowns, and key performance indicators from pitch decks and financial statements used to take weeks. Now it's done in hours."</p>
+                <p className="text-gray-600">"We evaluate hundreds of companies quarterly. Extracting financial metrics, revenue breakdowns, and key performance indicators from pitch decks and financial statements used to take weeks. Now it's literally done in minutes."</p>
               </CardContent>
             </Card>
             
@@ -259,11 +259,11 @@ export default function Home() {
                   <span className="text-purple-600 font-bold text-lg">NX</span>
                 </div>
                 <div className="mb-4">
-                  <h4 className="font-semibold text-gray-900">NexaFlow Technologies</h4>
-                  <p className="text-gray-600 text-sm">Alex Kumar, CTO</p>
+                  <h4 className="font-semibold text-gray-900">N********** Technologies</h4>
+                  <p className="text-gray-600 text-sm">A*** Kumar, CLO</p>
                 </div>
                 <h5 className="font-bold text-lg mb-2">Accelerates contract processing</h5>
-                <p className="text-gray-600">"Our legal team reviews hundreds of vendor agreements monthly. We now extract key terms, pricing structures, and SLA commitments automatically. What used to take 3 hours per contract now takes 15 minutes."</p>
+                <p className="text-gray-600">"Our legal team reviews hundreds of vendor agreements monthly. We now extract key terms, pricing structures, and SLA commitments automatically. What used to take 3 hours per contract now takes two minutes."</p>
               </CardContent>
             </Card>
           </div>
@@ -279,7 +279,7 @@ export default function Home() {
             <CardContent className="p-12 text-center">
               <img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?ixlib=rb-4.0.3&w=600&h=200&fit=crop" alt="NextWorld Capital" className="mx-auto mb-6 rounded-lg" />
               <h2 className="text-3xl font-bold mb-4">A fund-to-fund investment company saves hundreds of hours per year processing investment statements</h2>
-              <p className="text-xl mb-6">"Our team used to spend weeks manually extracting financial data from portfolio fund & company reports. Now we process quarterly statements from 200+ funds/companies in just minutes with perfect accuracy."</p>
+              <p className="text-xl mb-6">"Our team used to spend weeks manually extracting financial data from portfolio fund & company reports. Now we process quarterly statements from 100+ funds/portfolio companies in just minutes with perfect accuracy."</p>
               <Link href="/case-study/nextworld-capital">
                 <Button className="bg-white text-blue-600 hover:bg-gray-100">
                   Read the full case study →

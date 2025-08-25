@@ -12,10 +12,15 @@ export default function Footer() {
               <span className="text-xl font-bold">CPAAutomation</span>
             </div>
             <p className="text-gray-400 mb-4">
-              True GenAI customizable extraction programmed by real CPAs and lawyers for practical professional use
+              True GenAI customizable extraction programmed by real CPAs for professional use
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
+              <a
+                href="https://www.linkedin.com/company/cpa-automation-inc"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-400 hover:text-white transition-colors"
+              >
                 <FaLinkedin />
               </a>
             </div>

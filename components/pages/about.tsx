@@ -9,7 +9,7 @@ export default function About() {
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold text-gray-900 mb-6">About CPAAutomation</h1>
           <p className="text-xl text-gray-600 mb-8">
-            True GenAI customizable extraction programmed by real CPAs and lawyers for practical professional use
+            True GenAI customizable extraction programmed by real CPAs for professional use
           </p>
         </div>
 

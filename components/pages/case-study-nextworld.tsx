@@ -33,7 +33,7 @@ export default function CaseStudyNextWorld() {
             <Card>
               <CardContent className="p-6 text-center">
                 <Clock className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-                <div className="text-3xl font-bold text-gray-900 mb-2">400+</div>
+                <div className="text-3xl font-bold text-gray-900 mb-2">200+</div>
                 <p className="text-gray-600">Hours saved annually</p>
               </CardContent>
             </Card>
@@ -41,7 +41,7 @@ export default function CaseStudyNextWorld() {
             <Card>
               <CardContent className="p-6 text-center">
                 <Users className="w-12 h-12 text-green-600 mx-auto mb-4" />
-                <div className="text-3xl font-bold text-gray-900 mb-2">200+</div>
+                <div className="text-3xl font-bold text-gray-900 mb-2">100+</div>
                 <p className="text-gray-600">Portfolio companies processed</p>
               </CardContent>
             </Card>
@@ -57,7 +57,7 @@ export default function CaseStudyNextWorld() {
             <Card>
               <CardContent className="p-6 text-center">
                 <DollarSign className="w-12 h-12 text-orange-600 mx-auto mb-4" />
-                <div className="text-3xl font-bold text-gray-900 mb-2">$150K</div>
+                <div className="text-3xl font-bold text-gray-900 mb-2">$100K+</div>
                 <p className="text-gray-600">Annual cost savings</p>
               </CardContent>
             </Card>
@@ -72,18 +72,18 @@ export default function CaseStudyNextWorld() {
             <div>
               <h2 className="text-3xl font-bold text-gray-900 mb-6">About NextWorld Capital</h2>
               <p className="text-lg text-gray-600 mb-6">
-                NextWorld Capital is a leading venture capital firm managing over $2.5 billion in assets across 
-                multiple funds. With a portfolio of 200+ companies spanning fintech, healthcare, and enterprise 
+                NextWorld Capital is a leading ESG and technology focused venture capital firm managing assets across 
+                multiple funds. With a portfolio of 100+ companies spanning fintech, healthcare, and enterprise 
                 software, they require extensive due diligence and ongoing portfolio monitoring.
               </p>
               <div className="space-y-3">
                 <div className="flex items-center space-x-3">
                   <Check className="text-blue-500 w-5 h-5" />
-                  <span>$2.5B+ assets under management</span>
+                  <span>ESG & technology-focused venture capital</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Check className="text-blue-500 w-5 h-5" />
-                  <span>200+ portfolio companies</span>
+                  <span>100+ portfolio companies</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Check className="text-blue-500 w-5 h-5" />
@@ -122,7 +122,7 @@ export default function CaseStudyNextWorld() {
               <div className="space-y-4">
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-red-500 rounded-full mt-2"></div>
-                  <p className="text-gray-600">Manual extraction of financial metrics from 200+ portfolio companies quarterly</p>
+                  <p className="text-gray-600">Manual extraction of financial metrics from 100+ portfolio companies quarterly</p>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-red-500 rounded-full mt-2"></div>
@@ -169,15 +169,15 @@ export default function CaseStudyNextWorld() {
               <div className="space-y-3">
                 <div className="flex items-center space-x-3">
                   <Check className="text-green-500 w-5 h-5" />
-                  <span>Custom extraction templates for revenue, EBITDA, and growth metrics</span>
+                  <span>Custom extraction templates for revenue, equity, and valuation metrics</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Check className="text-green-500 w-5 h-5" />
-                  <span>Automated classification of financial statement types</span>
+                  <span>Automated classification of valuation types</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Check className="text-green-500 w-5 h-5" />
-                  <span>Integration with existing portfolio management systems</span>
+                  <span>Recognition of different foreign currencies used in statements</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Check className="text-green-500 w-5 h-5" />
@@ -198,13 +198,13 @@ export default function CaseStudyNextWorld() {
             <CardContent className="p-8">
               <blockquote className="text-xl text-gray-700 italic text-center mb-6">
                 "Our team used to spend weeks manually extracting financial data from portfolio reports. 
-                Now we process quarterly statements from 200+ companies in just hours with perfect accuracy. 
+                Now we process quarterly statements from 100+ companies in just minutes with perfect accuracy. 
                 This transformation has allowed our investment professionals to focus on what they do best: 
                 identifying opportunities and supporting our portfolio companies."
               </blockquote>
               <div className="text-center">
-                <p className="font-semibold text-gray-900">Sarah Chen</p>
-                <p className="text-gray-600">Managing Director, NextWorld Capital</p>
+                <p className="font-semibold text-gray-900">T**** Peterson</p>
+                <p className="text-gray-600">CFO & COO, NextWorld Capital</p>
               </div>
             </CardContent>
           </Card>
@@ -214,10 +214,10 @@ export default function CaseStudyNextWorld() {
               <CardContent className="p-6">
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">Time Savings</h3>
                 <ul className="space-y-2 text-gray-600">
-                  <li>• Quarterly processing reduced from 3 weeks to 2 days</li>
-                  <li>• Individual report processing: 2 hours → 5 minutes</li>
+                  <li>• Quarterly processing substantially reduced from 3 days to 2 hours</li>
+                  <li>• Individual report processing: 30 min → 5 sec</li>
                   <li>• 95% reduction in manual data entry</li>
-                  <li>• Freed up 400+ hours annually for strategic work</li>
+                  <li>• Freed up 200+ hours annually</li>
                 </ul>
               </CardContent>
             </Card>
