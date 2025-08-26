@@ -128,9 +128,9 @@ export function IntegrationBanner({
     const hasDriveAccess = status?.scopes?.some(scope => 
       scope.includes('drive.file') || scope.includes('auth/drive')
     );
-    // Gmail access now handled via service account - users no longer grant Gmail permissions
-    const hasGmailAccess = false;
-    description = `Connected services: ${hasDriveAccess ? 'Drive' : ''} ${hasGmailAccess ? 'Gmail' : ''}`.trim();
+    // Gmail access now handled via central mailbox - users no longer grant Gmail permissions
+    const hasEmailAutomation = true; // Always available with Google integration
+    description = `Connected services: ${hasDriveAccess ? 'Drive' : ''} ${hasEmailAutomation ? 'Email Automations' : ''}`.trim();
     actions = (
       <div className="flex gap-2 ml-auto">
         <Button

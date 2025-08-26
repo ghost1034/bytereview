@@ -179,6 +179,67 @@ console.log(data);
           </Card>
         </section>
 
+        {/* Email Automations */}
+        <section className="mb-16">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8">Email Automations</h2>
+          <Card>
+            <CardContent className="p-8">
+              <div className="space-y-6">
+                <p className="text-gray-600">
+                  Set up automated workflows to process documents sent via email without manual intervention.
+                </p>
+                
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                  <h4 className="font-semibold text-blue-900 mb-2">📧 Email Address for Automations</h4>
+                  <p className="text-blue-800 font-mono text-xl mb-2">document@cpaautomation.ai</p>
+                  <p className="text-sm text-blue-700">
+                    Send or forward emails with PDF attachments to this address to trigger your automations.
+                  </p>
+                </div>
+                
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4">How It Works</h3>
+                  <ol className="list-decimal pl-6 space-y-2 text-gray-600">
+                    <li><strong>Send Email:</strong> Send or forward emails with PDF attachments to document@cpaautomation.ai</li>
+                    <li><strong>Account Matching:</strong> System matches your sender email to your account</li>
+                    <li><strong>Filter Matching:</strong> Emails are checked against your automation filters</li>
+                    <li><strong>Processing:</strong> Matching attachments are automatically processed using your extraction template</li>
+                    <li><strong>Export:</strong> Results are exported to your configured destination (Google Drive, etc.)</li>
+                  </ol>
+                </div>
+                
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4">Email Filter Examples</h3>
+                  <div className="space-y-3">
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <code className="text-sm font-mono">has:attachment</code>
+                      <p className="text-xs text-gray-600 mt-1">Process any email with attachments</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <code className="text-sm font-mono">subject:invoice has:attachment</code>
+                      <p className="text-xs text-gray-600 mt-1">Process emails with "invoice" in subject and attachments</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <code className="text-sm font-mono">filename:pdf</code>
+                      <p className="text-xs text-gray-600 mt-1">Process emails with PDF file attachments</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4">Requirements</h3>
+                  <ul className="list-disc pl-6 space-y-2 text-gray-600">
+                    <li>Send from the same email address used for your Google integration</li>
+                    <li>Include PDF attachments for processing</li>
+                    <li>Email content should match your automation filters</li>
+                    <li>Have an active automation configured with appropriate filters</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
         {/* Authentication */}
         <section className="mb-16">
           <h2 className="text-3xl font-bold text-gray-900 mb-8">Authentication</h2>

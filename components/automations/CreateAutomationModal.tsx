@@ -191,7 +191,7 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
                           </div>
                           <div>
                             <h4 className="font-medium">Gmail</h4>
-                            <p className="text-sm text-gray-600">Process attachments from Gmail emails</p>
+                            <p className="text-sm text-gray-600">Process attachments from emails sent to document@cpaautomation.ai</p>
                           </div>
                         </div>
                       </CardContent>
@@ -349,9 +349,24 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
                     </div>
                   </div>
 
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 mb-4">
+                    <div className="flex items-start gap-3">
+                      <Mail className="w-5 h-5 text-blue-600 mt-0.5" />
+                      <div>
+                        <h4 className="font-medium text-blue-900">How Email Automations Work</h4>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Send or forward emails with attachments to <strong>document@cpaautomation.ai</strong>
+                        </p>
+                        <p className="text-sm text-blue-600 mt-2">
+                          The system will match your sender email to your account and trigger automations based on your filters below.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   <Textarea
                     id="gmail_query"
-                    placeholder="has:attachment from:invoices@supplier.com"
+                    placeholder="has:attachment subject:invoice"
                     rows={3}
                     {...register("gmail_query")}
                   />
@@ -359,7 +374,13 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
                     <p className="text-sm text-red-600">{errors.gmail_query.message}</p>
                   )}
                   <p className="text-sm text-gray-600">
-                    Use Gmail search syntax to specify which emails should trigger this automation. Click the buttons above for common patterns.
+                    Use Gmail search syntax to filter which emails trigger this automation.
+                    <br />
+                    Examples: "has:attachment", "subject:invoice", "filename:pdf"
+                    <br />
+                    <span className="text-xs text-gray-500">
+                      Note: Sender filtering is automatic based on your Google account email
+                    </span>
                   </p>
                 </div>
               )}

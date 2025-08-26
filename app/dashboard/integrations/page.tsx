@@ -47,6 +47,7 @@ export default function IntegrationsPage() {
   const hasDriveScope = scopes.some(scope => 
     scope.includes('drive.file') || scope.includes('auth/drive')
   );
+  const hasEmailAutomation = isConnected; // Email automations available when Google is connected
 
   return (
     <div className="container max-w-4xl mx-auto py-8 space-y-8">
@@ -76,7 +77,7 @@ export default function IntegrationsPage() {
               <div>
                 <CardTitle>Google Services</CardTitle>
                 <CardDescription>
-                  Connect Google Drive and Gmail for file import
+                  Connect Google Drive for file import and email automations
                 </CardDescription>
               </div>
             </div>
@@ -108,11 +109,10 @@ export default function IntegrationsPage() {
                         Google Drive
                       </Badge>
                     )}
-                    {hasGmailScope && (
-                      <Badge variant="outline" className="flex items-center gap-1 opacity-50">
+                    {hasEmailAutomation && (
+                      <Badge variant="outline" className="flex items-center gap-1">
                         <Mail className="h-3 w-3" />
-                        Gmail
-                        <Badge variant="secondary" className="ml-1 text-xs">Legacy</Badge>
+                        Email Automations
                       </Badge>
                     )}
                   </div>
@@ -214,11 +214,11 @@ export default function IntegrationsPage() {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm">
                       <FolderOpen className="h-4 w-4 text-muted-foreground" />
-                      <span>Google Drive - Import files and folders</span>
+                      <span>Google Drive - Import files and export results</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span>Gmail - Import email attachments</span>
+                      <span>Email Automations - Process emails sent to document@cpaautomation.ai</span>
                     </div>
                   </div>
                 </div>
@@ -226,8 +226,8 @@ export default function IntegrationsPage() {
                 <Alert>
                   <Shield className="h-4 w-4" />
                   <AlertDescription>
-                    CPAAutomation only requests read-only access to your Google services. 
-                    We cannot modify or delete your files or emails.
+                    CPAAutomation only requests access to files you explicitly select and uses a service account for email processing. 
+                    We cannot access your personal files or emails without permission.
                   </AlertDescription>
                 </Alert>
               </div>
@@ -249,7 +249,7 @@ export default function IntegrationsPage() {
                   ) : (
                     <>
                       <CheckCircle className="mr-2 h-4 w-4" />
-                      Connect Google Drive & Gmail
+                      Connect Google Drive & Email Automations
                     </>
                   )}
                 </Button>
@@ -264,12 +264,12 @@ export default function IntegrationsPage() {
                     Drive Only
                   </Button>
                   <Button
-                    onClick={() => connect('gmail')}
+                    onClick={() => connect('drive')}
                     disabled={isConnecting}
                     variant="outline"
                   >
                     <Mail className="mr-2 h-4 w-4" />
-                    Gmail Only
+                    Email Automations Only
                   </Button>
                 </div>
               </div>
@@ -277,6 +277,53 @@ export default function IntegrationsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Email Automation Information */}
+      {isConnected && hasEmailAutomation && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Mail className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <CardTitle>Email Automation Setup</CardTitle>
+                <CardDescription>
+                  How to use email-based document processing
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 mb-2">📧 Email Address for Automations</h4>
+              <p className="text-blue-800 font-mono text-lg mb-2">document@cpaautomation.ai</p>
+              <p className="text-sm text-blue-700">
+                Send or forward emails with PDF attachments to this address to trigger your automations.
+              </p>
+            </div>
+            
+            <div className="space-y-3">
+              <h4 className="font-medium">How it works:</h4>
+              <ol className="list-decimal pl-6 space-y-1 text-sm text-gray-600">
+                <li>Send emails with PDF attachments to document@cpaautomation.ai</li>
+                <li>System matches your sender email to your Google account</li>
+                <li>Emails are filtered based on your automation rules</li>
+                <li>Matching attachments are automatically processed</li>
+                <li>Results are exported to your configured destinations</li>
+              </ol>
+            </div>
+            
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Important:</strong> Make sure to send emails from the same email address ({status?.email || 'your Google account email'}) 
+                that you used to connect your Google integration.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Future integrations placeholder */}
       <Card className="opacity-60">

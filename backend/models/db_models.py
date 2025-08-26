@@ -250,6 +250,7 @@ class IntegrationAccount(Base):
     access_token = Column(LargeBinary)  # AES-GCM encrypted
     refresh_token = Column(LargeBinary)  # AES-GCM encrypted
     expires_at = Column(TIMESTAMP(timezone=True))
+    email = Column(String(255), nullable=True)  # User's email for sender matching
     last_history_id = Column(String(50), nullable=True)  # Gmail history ID for incremental sync
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
@@ -320,6 +321,7 @@ class Automation(Base):
     trigger_type = Column(String(30), nullable=False)  # 'gmail_attachment' for v1
     trigger_config = Column(JSONB, nullable=False)
     job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
+    integration_account_id = Column(UUID(as_uuid=True), ForeignKey("integration_accounts.id", ondelete="SET NULL"), nullable=True)
     dest_type = Column(String(30), nullable=True)  # 'gdrive', 'gmail' when present, NULL when no export
     export_config = Column(JSONB, nullable=True)  # MUST be NULL when dest_type is NULL
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
@@ -328,6 +330,7 @@ class Automation(Base):
     # Relationships
     user = relationship("User", back_populates="automations")
     job = relationship("ExtractionJob", back_populates="automations")
+    integration_account = relationship("IntegrationAccount")
     automation_runs = relationship("AutomationRun", back_populates="automation", cascade="all, delete-orphan")
 
 class AutomationRun(Base):
@@ -372,6 +375,17 @@ class AutomationProcessedMessage(Base):
         # Prevent duplicate processing of same message by same automation
         CheckConstraint("automation_id IS NOT NULL AND message_id IS NOT NULL", name="check_automation_message_required"),
     )
+
+class CentralMailboxState(Base):
+    """Track processing state for the central document@cpaautomation.ai mailbox"""
+    __tablename__ = "central_mailbox_state"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    mailbox_address = Column(String(255), nullable=False, unique=True)
+    last_history_id = Column(String(50), nullable=True)
+    last_processed_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
 # ===================================================================
 # Billing & Subscription Models
