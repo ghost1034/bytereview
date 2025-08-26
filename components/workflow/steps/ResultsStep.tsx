@@ -30,6 +30,7 @@ import { useJobDetails, useJobResults } from "@/hooks/useJobs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGoogleIntegration } from "@/hooks/useGoogleIntegration";
 import { apiClient } from "@/lib/api";
+import { GoogleDriveFolderPicker } from "@/components/integrations/GoogleDriveFolderPicker";
 
 // Type definitions for file tree structure
 type JobResult = {
@@ -371,6 +372,7 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
   };
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [fileTree, setFileTree] = useState<TreeNode[]>([]);
+  const [selectedExportFolder, setSelectedExportFolder] = useState<{id: string, name: string} | null>(null);
 
   // Build file tree from results with memoization
   const fileTreeMemo = useMemo(() => {
@@ -553,11 +555,20 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
       // Set up SSE connection before starting export
       await setupExportSSEConnection();
       
-      const result = await apiClient.exportJobToGoogleDriveCSV(jobId);
+      // Include folder_id if a specific folder is selected
+      const folderId = selectedExportFolder?.id && selectedExportFolder.id !== '' 
+        ? selectedExportFolder.id 
+        : undefined;
+      
+      const result = await apiClient.exportJobToGoogleDriveCSV(jobId, folderId);
+      
+      const folderText = selectedExportFolder?.name && selectedExportFolder.name !== 'My Drive' 
+        ? ` to "${selectedExportFolder.name}" folder` 
+        : '';
       
       toast({
         title: "Export started",
-        description: "Your CSV export is being processed. You'll be notified when it's ready.",
+        description: `Your CSV export is being processed${folderText}. You'll be notified when it's ready.`,
       });
       
       // Note: Export completion will be handled via SSE events
@@ -584,11 +595,20 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
       // Set up SSE connection before starting export
       await setupExportSSEConnection();
       
-      const result = await apiClient.exportJobToGoogleDriveExcel(jobId);
+      // Include folder_id if a specific folder is selected
+      const folderId = selectedExportFolder?.id && selectedExportFolder.id !== '' 
+        ? selectedExportFolder.id 
+        : undefined;
+      
+      const result = await apiClient.exportJobToGoogleDriveExcel(jobId, folderId);
+      
+      const folderText = selectedExportFolder?.name && selectedExportFolder.name !== 'My Drive' 
+        ? ` to "${selectedExportFolder.name}" folder` 
+        : '';
       
       toast({
         title: "Export started",
-        description: "Your Excel export is being processed. You'll be notified when it's ready.",
+        description: `Your Excel export is being processed${folderText}. You'll be notified when it's ready.`,
       });
       
       // Note: Export completion will be handled via SSE events
@@ -869,31 +889,44 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
             <div>
               <h4 className="text-sm font-medium text-gray-700 mb-2">Export to Google Drive</h4>
               {googleStatus?.connected ? (
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={handleExportToGoogleDriveCSV} 
-                    variant="outline"
-                    disabled={exportLoading === 'gdrive-csv' || !results?.results?.length}
-                  >
-                    {exportLoading === 'gdrive-csv' ? (
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Cloud className="w-4 h-4 mr-2" />
-                    )}
-                    Export CSV to Drive
-                  </Button>
-                  <Button 
-                    onClick={handleExportToGoogleDriveExcel} 
-                    variant="outline"
-                    disabled={exportLoading === 'gdrive-excel' || !results?.results?.length}
-                  >
-                    {exportLoading === 'gdrive-excel' ? (
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Cloud className="w-4 h-4 mr-2" />
-                    )}
-                    Export Excel to Drive
-                  </Button>
+                <div className="space-y-4">
+                  {/* Folder Selection */}
+                  <div>
+                    <GoogleDriveFolderPicker
+                      onFolderSelected={(folder) => setSelectedExportFolder(folder)}
+                      selectedFolder={selectedExportFolder}
+                      showCard={false}
+                      buttonText="Select Export Folder"
+                    />
+                  </div>
+                  
+                  {/* Export Buttons */}
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={handleExportToGoogleDriveCSV} 
+                      variant="outline"
+                      disabled={exportLoading === 'gdrive-csv' || !results?.results?.length}
+                    >
+                      {exportLoading === 'gdrive-csv' ? (
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Cloud className="w-4 h-4 mr-2" />
+                      )}
+                      Export CSV to Drive
+                    </Button>
+                    <Button 
+                      onClick={handleExportToGoogleDriveExcel} 
+                      variant="outline"
+                      disabled={exportLoading === 'gdrive-excel' || !results?.results?.length}
+                    >
+                      {exportLoading === 'gdrive-excel' ? (
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Cloud className="w-4 h-4 mr-2" />
+                      )}
+                      Export Excel to Drive
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">

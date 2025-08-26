@@ -19,6 +19,7 @@ import { useJobs } from "@/hooks/useJobs"
 import { useGoogleIntegration } from "@/hooks/useGoogleIntegration"
 import { Mail, FileText, Upload, HelpCircle, Cloud, Folder, Database } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { GoogleDriveFolderPicker } from "@/components/integrations/GoogleDriveFolderPicker"
 
 const automationSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
@@ -132,13 +133,10 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
     setValue("gmail_query", query, { shouldValidate: true })
   }
 
-  // Handle Google Drive folder selection (placeholder for Google Picker)
-  const handleSelectGDriveFolder = () => {
-    // TODO: Implement Google Picker integration
-    console.log("Google Drive folder picker will be implemented here")
-    // For now, simulate folder selection
-    setSelectedGDriveFolder({ id: "sample_folder_id", name: "Sample Folder" })
-    setValue("folder_id", "sample_folder_id", { shouldValidate: true })
+  // Handle Google Drive folder selection
+  const handleGDriveFolderSelected = (folder: {id: string, name: string}) => {
+    setSelectedGDriveFolder(folder)
+    setValue("folder_id", folder.id, { shouldValidate: true })
   }
 
 
@@ -620,33 +618,15 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
                     
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label>Destination Folder (Default: My Drive)</Label>
-                        <div className="flex items-center gap-3">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleSelectGDriveFolder}
-                            className="flex items-center gap-2"
-                          >
-                            <Folder className="w-4 h-4" />
-                            {selectedGDriveFolder ? selectedGDriveFolder.name : "Select Destination Folder"}
-                          </Button>
-                          {selectedGDriveFolder && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedGDriveFolder(null)
-                                setValue("folder_id", "", { shouldValidate: true })
-                              }}
-                            >
-                              Clear
-                            </Button>
-                          )}
-                        </div>
+                        <Label>Destination Folder</Label>
+                        <GoogleDriveFolderPicker
+                          onFolderSelected={handleGDriveFolderSelected}
+                          selectedFolder={selectedGDriveFolder}
+                          showCard={false}
+                          buttonText={selectedGDriveFolder ? selectedGDriveFolder.name : "Select Destination Folder"}
+                        />
                         <p className="text-sm text-gray-600">
-                          Choose the Google Drive folder where results will be saved
+                          Choose the Google Drive folder where results will be saved. If no folder is selected, files will be saved to My Drive.
                         </p>
                       </div>
 
