@@ -34,7 +34,6 @@ interface GoogleDrivePickerProps {
   onFilesSelected: (files: SelectedFile[]) => void;
   jobId?: string; // If provided, will trigger import automatically
   multiSelect?: boolean;
-  allowFolders?: boolean;
   mimeTypes?: string[];
   className?: string;
 }
@@ -43,7 +42,6 @@ export function GoogleDrivePicker({
   onFilesSelected,
   jobId,
   multiSelect = true,
-  allowFolders = true,
   mimeTypes = ['application/pdf'], // Default to PDFs
   className
 }: GoogleDrivePickerProps) {
@@ -175,10 +173,10 @@ export function GoogleDrivePicker({
         return;
       }
 
-      // Create picker showing My Drive in list mode to avoid thumbnail issues
+      // Create picker for individual files only (no folder selection)
       const driveView = new window.google.picker.DocsView()
-        .setIncludeFolders(true)
-        .setSelectFolderEnabled(allowFolders)
+        .setIncludeFolders(false)  // Disable folder selection for OAuth compliance
+        .setSelectFolderEnabled(false)  // Disable folder selection
         .setMimeTypes(mimeTypes.join(','))
         .setParent('root')  // Show actual My Drive content
         .setMode(window.google.picker.DocsViewMode.LIST);  // Use list mode to avoid thumbnails
@@ -201,7 +199,7 @@ export function GoogleDrivePicker({
     } finally {
       setIsPickerLoading(false);
     }
-  }, [isGoogleApiLoaded, status?.connected, multiSelect, allowFolders, mimeTypes]);
+  }, [isGoogleApiLoaded, status?.connected, multiSelect, mimeTypes]);
 
   const handlePickerCallback = useCallback(async (data: any) => {
     if (data.action === window.google.picker.Action.PICKED) {
@@ -315,14 +313,15 @@ export function GoogleDrivePicker({
           <Badge variant="secondary" className="ml-auto">Connected</Badge>
         </CardTitle>
         <CardDescription>
-          Browse and select files, folders, or ZIP archives from your Google Drive
+          Browse and select individual files or ZIP archives from your Google Drive
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           <div className="text-sm text-muted-foreground">
             Supported file types: {mimeTypes.includes('application/pdf') ? 'PDF' : 'Various'}
-            {allowFolders && ', Folders'}
+            <br />
+            <span className="text-xs text-amber-600">Note: Folder selection disabled for OAuth compliance. Select individual files or ZIP archives instead.</span>
           </div>
           
           <Button 

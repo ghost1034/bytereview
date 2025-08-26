@@ -415,31 +415,7 @@ class GoogleService:
             logger.error(f"Failed to get Gmail attachments: {e}")
             return []
 
-    def list_drive_folder_contents(self, db: Session, user_id: str, folder_id: str) -> list:
-        """
-        List contents of a Google Drive folder
-        """
-        try:
-            # Get Drive service using existing pattern
-            drive_service = self.get_drive_service(db, user_id)
-            if not drive_service:
-                raise ValueError("Could not get Drive service")
-            
-            # List files in the folder
-            results = drive_service.files().list(
-                q=f"'{folder_id}' in parents and trashed=false",
-                fields="files(id,name,mimeType,size,parents)",
-                pageSize=1000  # Get up to 1000 items per folder
-            ).execute()
-            
-            items = results.get('files', [])
-            
-            logger.info(f"Found {len(items)} items in Drive folder {folder_id}")
-            return items
-            
-        except Exception as e:
-            logger.error(f"Failed to list Drive folder contents: {e}")
-            return []
+    # REMOVED: list_drive_folder_contents() - folder traversal not supported for OAuth compliance
 
     def upload_to_drive(
         self, 
@@ -1124,11 +1100,10 @@ class GoogleService:
             
             logger.info(f"Importing Drive item: {filename} ({file_size} bytes), MIME: {mime_type}")
             
-            # Check if this is a folder
+            # Check if this is a folder - no longer supported for OAuth compliance
             if mime_type == 'application/vnd.google-apps.folder':
-                logger.info(f"Processing Drive folder: {filename}")
-                await self._import_drive_folder(db, job_id, user_id, file_id, filename)
-                return
+                logger.warning(f"Folder import not supported for OAuth compliance: {filename}")
+                raise ValueError(f"Folder import not supported. Please select individual files instead of folders.")
             
             logger.info(f"Creating source file record for {filename}")
             # Create source file record for regular file
@@ -1204,147 +1179,9 @@ class GoogleService:
                 db.commit()
             raise
     
-    async def _import_drive_folder(
-        self,
-        db: Session,
-        job_id: str,
-        user_id: str,
-        folder_id: str,
-        folder_name: str,
-        parent_path: str = ""
-    ) -> None:
-        """Import all files from a Google Drive folder recursively"""
-        
-        logger.info(f"Processing Drive folder: {folder_name} (ID: {folder_id})")
-        
-        try:
-            # Get folder contents from Google Drive
-            folder_contents = self.list_drive_folder_contents(db, user_id, folder_id)
-            if not folder_contents:
-                logger.info(f"Folder {folder_name} is empty or inaccessible")
-                return
-            
-            # Build current folder path
-            current_path = os.path.join(parent_path, folder_name) if parent_path else folder_name
-            
-            # Process each item in the folder
-            for item in folder_contents:
-                item_id = item['id']
-                item_name = item['name']
-                item_mime_type = item.get('mimeType', 'application/octet-stream')
-                item_size = int(item.get('size', 0))
-                
-                # Build full path for this item
-                item_path = os.path.join(current_path, item_name)
-                
-                logger.info(f"Processing folder item: {item_path} (MIME: {item_mime_type})")
-                
-                if item_mime_type == 'application/vnd.google-apps.folder':
-                    # Recursively process subfolder
-                    logger.info(f"Found subfolder: {item_name}")
-                    await self._import_drive_folder(db, job_id, user_id, item_id, item_name, current_path)
-                else:
-                    # Process regular file
-                    logger.info(f"Found file: {item_name} ({item_size} bytes)")
-                    await self._import_drive_file_from_folder(db, job_id, user_id, item_id, item_name, item_path, item_mime_type, item_size)
-                    
-        except Exception as e:
-            logger.error(f"Failed to process Drive folder {folder_name}: {e}")
-            raise
+    # REMOVED: _import_drive_folder() - recursive folder import not supported for OAuth compliance
     
-    async def _import_drive_file_from_folder(
-        self,
-        db: Session,
-        job_id: str,
-        user_id: str,
-        file_id: str,
-        filename: str,
-        full_path: str,
-        mime_type: str,
-        file_size: int
-    ) -> None:
-        """Import a single file from within a Drive folder"""
-        from models.db_models import SourceFile
-        from services.gcs_service import get_storage_service
-        from services.job_service import JobService
-        from services.sse_service import sse_manager
-        
-        logger.info(f"Importing file from folder: {full_path}")
-        
-        try:
-            # Create source file record
-            source_file = SourceFile(
-                job_id=job_id,
-                original_filename=filename,
-                original_path=full_path,  # Full path within folder structure
-                gcs_object_name=f"imports/{job_id}/{file_id}_{filename}",
-                file_type=mime_type,
-                file_size_bytes=file_size,
-                status='importing',
-                source_type='drive',
-                external_id=file_id
-            )
-            db.add(source_file)
-            db.commit()
-            db.refresh(source_file)
-            
-            # Send import progress event for this individual file
-            await sse_manager.send_import_progress(
-                job_id, 
-                filename, 
-                'importing',
-                file_size,
-                full_path
-            )
-            
-            # Download file from Drive
-            file_content = self.download_drive_file(db, user_id, file_id)
-            if not file_content:
-                raise ValueError(f"Could not download Drive file {file_id}")
-            
-            # Count pages in the file
-            from services.page_counting_service import page_counting_service
-            page_count = page_counting_service.count_pages_from_content(file_content, filename)
-            
-            # Update source file with page count
-            source_file.page_count = page_count
-            
-            # Upload to GCS
-            storage_service = get_storage_service()
-            await storage_service.upload_file_content(
-                file_content=file_content,
-                gcs_object_name=source_file.gcs_object_name
-            )
-            
-            # Update status to uploaded
-            source_file.status = 'uploaded'
-            source_file.updated_at = datetime.utcnow()
-            db.commit()
-            
-            # Handle ZIP detection using centralized logic
-            job_service = JobService()
-            await job_service._handle_zip_detection(db, source_file, mime_type, filename)
-            
-            # Send import completed event
-            await sse_manager.send_import_completed(
-                job_id, 
-                str(source_file.id), 
-                filename, 
-                file_size, 
-                source_file.status,  # Use actual status (uploaded or unpacking)
-                source_file.original_path  # Include original path
-            )
-            
-            logger.info(f"Successfully imported file from folder: {full_path}")
-            
-        except Exception as e:
-            # Update status to failed
-            if 'source_file' in locals():
-                source_file.status = 'failed'
-                source_file.updated_at = datetime.utcnow()
-                db.commit()
-            logger.error(f"Failed to import file from folder {full_path}: {e}")
-            raise
+    # REMOVED: _import_drive_file_from_folder() - folder-based import not supported for OAuth compliance
 
     
     async def _update_automation_import_tracking(

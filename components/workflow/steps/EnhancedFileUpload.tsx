@@ -1014,12 +1014,11 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
             onFilesSelected={handleDriveFiles}
             jobId={jobId}
             multiSelect
-            allowFolders
             mimeTypes={[
               'application/pdf',
               'application/zip',
-              'application/x-zip-compressed',
-              'application/vnd.google-apps.folder'
+              'application/x-zip-compressed'
+              // Note: Removed 'application/vnd.google-apps.folder' for OAuth compliance
             ]}
           />
         </TabsContent>
