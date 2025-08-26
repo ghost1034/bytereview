@@ -25,10 +25,10 @@ logger = logging.getLogger(__name__)
 class GoogleService:
     """Service for interacting with Google APIs using stored OAuth tokens"""
     
-    # Required scopes for limited Drive access
+    # Required scopes for OAuth-friendly Drive access
     REQUIRED_DRIVE_SCOPES = [
-        'https://www.googleapis.com/auth/drive.readonly',  # For importing files
-        'https://www.googleapis.com/auth/drive.file'       # For exporting results
+        'https://www.googleapis.com/auth/drive.file',      # For user-selected files only
+        'email'   # For user identification (part of openid scope)
     ]
     
     def __init__(self):
@@ -115,23 +115,8 @@ class GoogleService:
         
         return True
     
-    def has_drive_readonly_access(self, db: Session, user_id: str) -> bool:
-        """Check if user has read-only Drive access (for importing)"""
-        if not GOOGLE_AVAILABLE:
-            return False
-            
-        account = db.query(IntegrationAccount).filter(
-            IntegrationAccount.user_id == user_id,
-            IntegrationAccount.provider == "google"
-        ).first()
-        
-        if not account or not account.scopes:
-            return False
-        
-        return 'https://www.googleapis.com/auth/drive.readonly' in account.scopes
-    
-    def has_drive_file_access(self, db: Session, user_id: str) -> bool:
-        """Check if user has file creation access (for exporting)"""
+    def has_drive_access(self, db: Session, user_id: str) -> bool:
+        """Check if user has Drive access for user-selected files"""
         if not GOOGLE_AVAILABLE:
             return False
             
@@ -144,6 +129,7 @@ class GoogleService:
             return False
         
         return 'https://www.googleapis.com/auth/drive.file' in account.scopes
+    
     
     def get_drive_service(self, db: Session, user_id: str):
         """Get authenticated Google Drive service with limited scopes validation"""

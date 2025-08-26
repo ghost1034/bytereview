@@ -43,9 +43,9 @@ export default function IntegrationsPage() {
   const scopes = status?.scopes || [];
   const expiresAt = status?.expires_at ? new Date(status.expires_at) : null;
 
-  const hasGmailScope = scopes.some(scope => scope.includes('gmail'));
+  // Gmail scopes no longer used - handled via service account
   const hasDriveScope = scopes.some(scope => 
-    scope.includes('drive.readonly') || scope.includes('drive.file') || scope.includes('auth/drive')
+    scope.includes('drive.file') || scope.includes('auth/drive')
   );
 
   return (

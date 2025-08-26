@@ -126,9 +126,10 @@ export function IntegrationBanner({
 
     title = 'Google Connected';
     const hasDriveAccess = status?.scopes?.some(scope => 
-      scope.includes('drive.readonly') || scope.includes('drive.file') || scope.includes('auth/drive')
+      scope.includes('drive.file') || scope.includes('auth/drive')
     );
-    const hasGmailAccess = status?.scopes?.includes('https://www.googleapis.com/auth/gmail.readonly');
+    // Gmail access now handled via service account - users no longer grant Gmail permissions
+    const hasGmailAccess = false;
     description = `Connected services: ${hasDriveAccess ? 'Drive' : ''} ${hasGmailAccess ? 'Gmail' : ''}`.trim();
     actions = (
       <div className="flex gap-2 ml-auto">

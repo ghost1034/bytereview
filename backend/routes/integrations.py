@@ -39,13 +39,13 @@ def get_google_config():
     }
 
 # OAuth scopes for different services
-# Production release: Drive-only scopes
-# - drive.readonly: Read-only access to all files (for importing)
-# - drive.file: Read/write access only to files created by this app (for exporting)
+# OAuth-friendly scopes - no sensitive permissions
+# - drive.file: Read/write access only to files explicitly selected by user (for importing/exporting)
+# - openid, email, profile: Basic user identity information
 GOOGLE_SCOPES = {
-    "drive": "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email",
-    "gmail": "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email",
-    "combined": "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email"
+    "drive": "openid email profile https://www.googleapis.com/auth/drive.file",
+    # Note: Gmail scopes removed - we now use service account with domain-wide delegation
+    # for the central document@cpaautomation.ai mailbox instead of user Gmail access
 }
 
 @router.get("/google/auth-url")
@@ -224,18 +224,8 @@ async def exchange_google_code(
         
         logger.info(f"Google OAuth successful for user {current_user_id}")
         
-        # Automatically set up Gmail watch if Gmail scopes are present
-        gmail_watch_setup = False
-        if any("gmail" in scope for scope in scopes):
-            try:
-                from services.gmail_watch_manager import gmail_watch_manager
-                gmail_watch_setup = await gmail_watch_manager.setup_watch_for_new_integration(db, current_user_id)
-                if gmail_watch_setup:
-                    logger.info(f"Gmail watch automatically set up for user {current_user_id}")
-                else:
-                    logger.warning(f"Failed to automatically set up Gmail watch for user {current_user_id}")
-            except Exception as e:
-                logger.error(f"Error setting up Gmail watch for user {current_user_id}: {e}")
+        # Note: Gmail watch setup removed - we now use service account with domain-wide delegation
+        # for the central document@cpaautomation.ai mailbox instead of individual user Gmail access
         
         return {
             "success": True,
@@ -286,19 +276,18 @@ async def get_google_integration_status(
         is_expired = datetime.now(timezone.utc) > account.expires_at
     
     # Check Drive access capabilities with limited scopes
-    has_drive_readonly = google_service.has_drive_readonly_access(db, current_user_id)
-    has_drive_file = google_service.has_drive_file_access(db, current_user_id)
+    has_drive_access = google_service.has_drive_access(db, current_user_id)
     has_valid_drive_access = google_service.validate_drive_access(db, current_user_id)
     
     return {
         "connected": True,
+        "email": account.email,
         "scopes": account.scopes,
         "expires_at": account.expires_at.isoformat() if account.expires_at else None,
         "is_expired": is_expired,
         "drive_capabilities": {
-            "can_import": has_drive_readonly,
-            "can_export": has_drive_file,
-            "has_limited_access": has_valid_drive_access
+            "can_access_user_files": has_drive_access,
+            "has_valid_access": has_valid_drive_access
         }
     }
 
