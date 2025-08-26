@@ -134,34 +134,65 @@ async def gmail_push_webhook(
             logger.warning("Failed to process push notification data")
             return {"status": "ignored", "reason": "Invalid notification data"}
         
-        # Get user ID from email address
-        email_address = notification_data['email_address']
-        user_id = gmail_pubsub_service.get_user_id_from_email(db, email_address)
+        # Get new messages from Gmail history
+        history_id = notification_data['history_id']
+        new_messages = gmail_pubsub_service.get_new_messages_from_history(history_id)
         
-        if not user_id:
-            logger.info(f"No user found for email {email_address}, ignoring notification")
-            return {"status": "ignored", "reason": "No user found for email"}
+        if not new_messages:
+            logger.info("No new messages found in history")
+            return {"status": "ignored", "reason": "No new messages"}
         
-        # Trigger automations for the user
-        trigger_result = await gmail_pubsub_service.trigger_automations_for_user(
-            db, user_id, notification_data
-        )
+        # Process each new message
+        processed_messages = []
+        for message in new_messages:
+            sender_email = message.get('sender_email')
+            if not sender_email:
+                logger.warning("No sender email found in message")
+                continue
+            
+            # Get user ID from sender email
+            user_id = gmail_pubsub_service.get_user_id_from_sender_email(db, sender_email)
+            if not user_id:
+                logger.info(f"No user found for sender email {sender_email}, ignoring message")
+                continue
+            
+            # Trigger automations for the user
+            trigger_result = await gmail_pubsub_service.trigger_automations_for_email(
+                db, user_id, message
+            )
+            
+            processed_messages.append({
+                'sender_email': sender_email,
+                'user_id': user_id,
+                'trigger_result': trigger_result
+            })
+        
+        if not processed_messages:
+            return {"status": "ignored", "reason": "No messages matched any users"}
+        
+        # Return summary of processed messages
+        successful_triggers = [m for m in processed_messages if m['trigger_result']['success']]
+        trigger_result = {
+            'success': len(successful_triggers) > 0,
+            'processed_count': len(processed_messages),
+            'successful_count': len(successful_triggers)
+        }
         
         if trigger_result['success']:
-            logger.info(f"Successfully triggered automations for user {user_id}")
+            logger.info(f"Successfully processed {trigger_result['successful_count']} messages")
             return {
                 "status": "success",
-                "user_id": user_id,
-                "email_address": email_address,
-                "automation_job_id": trigger_result['job_id']
+                "processed_messages": trigger_result['processed_count'],
+                "successful_triggers": trigger_result['successful_count'],
+                "messages": processed_messages
             }
         else:
-            logger.error(f"Failed to trigger automations: {trigger_result['error']}")
+            logger.error(f"Failed to trigger any automations from {trigger_result['processed_count']} messages")
             return {
-                "status": "error",
-                "user_id": user_id,
-                "email_address": email_address,
-                "error": trigger_result['error']
+                "status": "partial_success",
+                "processed_messages": trigger_result['processed_count'],
+                "successful_triggers": trigger_result['successful_count'],
+                "messages": processed_messages
             }
         
     except HTTPException:
