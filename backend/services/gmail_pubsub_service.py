@@ -34,9 +34,9 @@ class GmailPubSubService:
         """
         try:
             # Get service account credentials
-            service_account_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE')
+            service_account_file = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
             if not service_account_file:
-                raise ValueError("GOOGLE_SERVICE_ACCOUNT_FILE environment variable is required")
+                raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable is required")
             
             # Create credentials with domain-wide delegation
             credentials = service_account.Credentials.from_service_account_file(

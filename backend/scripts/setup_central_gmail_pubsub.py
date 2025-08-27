@@ -49,7 +49,7 @@ def check_environment():
     
     required_vars = [
         'GOOGLE_CLOUD_PROJECT_ID',
-        'GOOGLE_SERVICE_ACCOUNT_FILE',
+        'GOOGLE_APPLICATION_CREDENTIALS',
     ]
     
     missing_vars = []
@@ -62,7 +62,7 @@ def check_environment():
         return False
     
     # Check if service account file exists
-    service_account_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE')
+    service_account_file = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
     if not os.path.exists(service_account_file):
         logger.error(f"Service account file not found: {service_account_file}")
         return False
@@ -150,7 +150,7 @@ def setup_central_gmail_watch():
     except Exception as e:
         logger.error(f"❌ Error setting up Gmail watch: {e}")
         logger.info("\nTroubleshooting:")
-        logger.info("1. Ensure GOOGLE_SERVICE_ACCOUNT_FILE environment variable is set")
+        logger.info("1. Ensure GOOGLE_APPLICATION_CREDENTIALS environment variable is set")
         logger.info("2. Ensure service account has domain-wide delegation configured")
         logger.info("3. Ensure document@cpaautomation.ai mailbox exists in Google Workspace")
         logger.info("4. Ensure service account has Gmail API access with domain-wide delegation")
@@ -197,7 +197,7 @@ def print_setup_instructions():
     logger.info("   - Create service account in Google Cloud Console")
     logger.info("   - Enable domain-wide delegation for the service account")
     logger.info("   - Download service account JSON key file")
-    logger.info("   - Set GOOGLE_SERVICE_ACCOUNT_FILE environment variable")
+    logger.info("   - Set GOOGLE_APPLICATION_CREDENTIALS environment variable")
     logger.info("\n3. Google Workspace Admin Setup:")
     logger.info("   - Go to Google Workspace Admin Console")
     logger.info("   - Navigate to Security > API Controls > Domain-wide Delegation")
@@ -205,7 +205,7 @@ def print_setup_instructions():
     logger.info("     https://www.googleapis.com/auth/gmail.readonly")
     logger.info("\n4. Environment Variables:")
     logger.info("   - GOOGLE_CLOUD_PROJECT_ID: Your Google Cloud project ID")
-    logger.info("   - GOOGLE_SERVICE_ACCOUNT_FILE: Path to service account JSON file")
+    logger.info("   - GOOGLE_APPLICATION_CREDENTIALS: Path to service account JSON file")
     logger.info("   - WEBHOOK_BASE_URL: Your application's base URL for webhooks")
     logger.info("\n5. Test the setup:")
     logger.info("   - Run: python setup_central_gmail_pubsub.py --test-only")

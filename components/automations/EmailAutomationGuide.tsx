@@ -34,12 +34,12 @@ export function EmailAutomationGuide({ className }: EmailAutomationGuideProps) {
             </div>
             <div className="flex-1">
               <h4 className="font-medium text-gray-900">Send Email with Attachments</h4>
-              <p className="text-sm text-gray-600 mt-1">
-                Send or forward emails with PDF attachments to{' '}
+              <div className="text-sm text-gray-600 mt-1">
+                <span>Send or forward emails with PDF attachments to </span>
                 <Badge variant="secondary" className="font-mono">
                   document@cpaautomation.ai
                 </Badge>
-              </p>
+              </div>
             </div>
           </div>
 
@@ -53,9 +53,9 @@ export function EmailAutomationGuide({ className }: EmailAutomationGuideProps) {
             </div>
             <div className="flex-1">
               <h4 className="font-medium text-gray-900">Automatic Matching</h4>
-              <p className="text-sm text-gray-600 mt-1">
+              <div className="text-sm text-gray-600 mt-1">
                 System matches your sender email to your account and applies your automation filters
-              </p>
+              </div>
             </div>
           </div>
 
@@ -69,9 +69,9 @@ export function EmailAutomationGuide({ className }: EmailAutomationGuideProps) {
             </div>
             <div className="flex-1">
               <h4 className="font-medium text-gray-900">Document Processing</h4>
-              <p className="text-sm text-gray-600 mt-1">
+              <div className="text-sm text-gray-600 mt-1">
                 Attachments are automatically processed using your configured extraction template
-              </p>
+              </div>
             </div>
           </div>
 
@@ -85,9 +85,9 @@ export function EmailAutomationGuide({ className }: EmailAutomationGuideProps) {
             </div>
             <div className="flex-1">
               <h4 className="font-medium text-gray-900">Results Delivered</h4>
-              <p className="text-sm text-gray-600 mt-1">
+              <div className="text-sm text-gray-600 mt-1">
                 Extracted data is automatically exported to your configured destination (Google Drive, etc.)
-              </p>
+              </div>
             </div>
           </div>
         </div>
@@ -117,15 +117,15 @@ export function EmailAutomationGuide({ className }: EmailAutomationGuideProps) {
           <div className="space-y-2">
             <div className="bg-gray-50 rounded p-3">
               <code className="text-sm text-gray-800">has:attachment</code>
-              <p className="text-xs text-gray-600 mt-1">Process any email with attachments</p>
+              <div className="text-xs text-gray-600 mt-1">Process any email with attachments</div>
             </div>
             <div className="bg-gray-50 rounded p-3">
               <code className="text-sm text-gray-800">subject:invoice has:attachment</code>
-              <p className="text-xs text-gray-600 mt-1">Process emails with "invoice" in subject and attachments</p>
+              <div className="text-xs text-gray-600 mt-1">Process emails with "invoice" in subject and attachments</div>
             </div>
             <div className="bg-gray-50 rounded p-3">
               <code className="text-sm text-gray-800">filename:pdf</code>
-              <p className="text-xs text-gray-600 mt-1">Process emails with PDF file attachments</p>
+              <div className="text-xs text-gray-600 mt-1">Process emails with PDF file attachments</div>
             </div>
           </div>
         </div>

@@ -169,7 +169,7 @@ export default function IntegrationsPage() {
                 </Button>
                 
                 <Button
-                  onClick={() => connect('drive')}
+                  onClick={() => connect('combined')}
                   disabled={isConnecting}
                   variant="outline"
                 >
@@ -181,7 +181,7 @@ export default function IntegrationsPage() {
                   ) : (
                     <>
                       <Settings className="mr-2 h-4 w-4" />
-                      Reconnect Drive
+                      Reconnect
                     </>
                   )}
                 </Button>
