@@ -169,7 +169,7 @@ export default function IntegrationsPage() {
                 </Button>
                 
                 <Button
-                  onClick={() => connect('combined')}
+                  onClick={() => connect('drive')}
                   disabled={isConnecting}
                   variant="outline"
                 >
@@ -237,7 +237,7 @@ export default function IntegrationsPage() {
               {/* Connect options */}
               <div className="space-y-3">
                 <Button
-                  onClick={() => connect('combined')}
+                  onClick={() => connect('drive')}
                   disabled={isConnecting}
                   className="w-full"
                 >
@@ -254,24 +254,6 @@ export default function IntegrationsPage() {
                   )}
                 </Button>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    onClick={() => connect('drive')}
-                    disabled={isConnecting}
-                    variant="outline"
-                  >
-                    <FolderOpen className="mr-2 h-4 w-4" />
-                    Drive Only
-                  </Button>
-                  <Button
-                    onClick={() => connect('drive')}
-                    disabled={isConnecting}
-                    variant="outline"
-                  >
-                    <Mail className="mr-2 h-4 w-4" />
-                    Email Automations Only
-                  </Button>
-                </div>
               </div>
             </>
           )}

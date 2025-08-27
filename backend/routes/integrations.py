@@ -227,13 +227,16 @@ async def exchange_google_code(
         # Note: Gmail watch setup removed - we now use service account with domain-wide delegation
         # for the central document@cpaautomation.ai mailbox instead of individual user Gmail access
         
+        # Store user email in integration account for sender matching
+        account.email = user_info.get("email")
+        db.commit()
+        
         return {
             "success": True,
             "provider": "google",
             "scopes": scopes,
             "user_email": user_info.get("email"),
-            "expires_at": expires_at.isoformat() if expires_at else None,
-            "gmail_watch_setup": gmail_watch_setup
+            "expires_at": expires_at.isoformat() if expires_at else None
         }
         
     except requests.RequestException as e:

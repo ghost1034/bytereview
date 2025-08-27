@@ -60,7 +60,7 @@ export function IntegrationBanner({
     description = 'Connect your Google account to import files from Drive and Gmail attachments.';
     actions = (
       <Button
-        onClick={() => connect('combined')}
+        onClick={() => connect('drive')}
         disabled={isConnecting}
         size={compact ? "sm" : "default"}
         className="ml-auto"
