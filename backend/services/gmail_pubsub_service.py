@@ -359,7 +359,7 @@ class GmailPubSubService:
     
     def get_user_id_from_sender_email(self, db: Session, sender_email: str) -> Optional[str]:
         """
-        Get user ID from sender email address by matching to Google integration
+        Get user ID from sender email address by matching to user account email
         
         Args:
             db: Database session
@@ -369,15 +369,16 @@ class GmailPubSubService:
             User ID if found, None otherwise
         """
         try:
-            # Look up user by their Google integration email address
-            account = db.query(IntegrationAccount).filter(
-                IntegrationAccount.provider == "google",
-                IntegrationAccount.email == sender_email.lower()
+            from models.db_models import User
+            
+            # Look up user by their account email address
+            user = db.query(User).filter(
+                User.email == sender_email.lower()
             ).first()
             
-            if account:
-                logger.info(f"Found user {account.user_id} for sender email {sender_email}")
-                return account.user_id
+            if user:
+                logger.info(f"Found user {user.id} for sender email {sender_email}")
+                return user.id
             else:
                 logger.info(f"No user found for sender email {sender_email}")
                 return None

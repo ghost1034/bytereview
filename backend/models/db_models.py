@@ -321,7 +321,6 @@ class Automation(Base):
     trigger_type = Column(String(30), nullable=False)  # 'gmail_attachment' for v1
     trigger_config = Column(JSONB, nullable=False)
     job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
-    integration_account_id = Column(UUID(as_uuid=True), ForeignKey("integration_accounts.id", ondelete="SET NULL"), nullable=True)
     dest_type = Column(String(30), nullable=True)  # 'gdrive', 'gmail' when present, NULL when no export
     export_config = Column(JSONB, nullable=True)  # MUST be NULL when dest_type is NULL
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
@@ -330,7 +329,6 @@ class Automation(Base):
     # Relationships
     user = relationship("User", back_populates="automations")
     job = relationship("ExtractionJob", back_populates="automations")
-    integration_account = relationship("IntegrationAccount")
     automation_runs = relationship("AutomationRun", back_populates="automation", cascade="all, delete-orphan")
 
 class AutomationRun(Base):

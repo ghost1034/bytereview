@@ -98,7 +98,7 @@ export function EmailAutomationGuide({ className }: EmailAutomationGuideProps) {
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm">
               <CheckCircle className="w-4 h-4 text-green-600" />
-              <span>Send from the same email address used for your Google integration</span>
+              <span>Send from the same email address as your account email</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <CheckCircle className="w-4 h-4 text-green-600" />

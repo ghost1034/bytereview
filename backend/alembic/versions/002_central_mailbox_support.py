@@ -17,17 +17,8 @@ depends_on = None
 
 
 def upgrade():
-    # Add email field to integration_accounts for better sender matching
+    # Add email field to integration_accounts for better sender matching (still useful for Google Drive)
     op.add_column('integration_accounts', sa.Column('email', sa.String(255), nullable=True))
-    
-    # Add integration_account_id foreign key to automations table
-    op.add_column('automations', sa.Column('integration_account_id', postgresql.UUID(as_uuid=True), nullable=True))
-    op.create_foreign_key(
-        'fk_automations_integration_account_id',
-        'automations', 'integration_accounts',
-        ['integration_account_id'], ['id'],
-        ondelete='SET NULL'
-    )
     
     # Create central_mailbox_state table
     op.create_table('central_mailbox_state',
@@ -50,10 +41,6 @@ def upgrade():
 def downgrade():
     # Drop central_mailbox_state table
     op.drop_table('central_mailbox_state')
-    
-    # Remove integration_account_id foreign key from automations
-    op.drop_constraint('fk_automations_integration_account_id', 'automations', type_='foreignkey')
-    op.drop_column('automations', 'integration_account_id')
     
     # Remove email column from integration_accounts
     op.drop_column('integration_accounts', 'email')

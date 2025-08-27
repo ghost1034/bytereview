@@ -379,7 +379,7 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
                     Examples: "has:attachment", "subject:invoice", "filename:pdf"
                     <br />
                     <span className="text-xs text-gray-500">
-                      Note: Sender filtering is automatic based on your Google account email
+                      Note: Sender filtering is automatic based on your account email
                     </span>
                   </p>
                 </div>

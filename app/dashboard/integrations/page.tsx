@@ -47,7 +47,6 @@ export default function IntegrationsPage() {
   const hasDriveScope = scopes.some(scope => 
     scope.includes('drive.file') || scope.includes('auth/drive')
   );
-  const hasEmailAutomation = isConnected; // Email automations available when Google is connected
 
   return (
     <div className="container max-w-4xl mx-auto py-8 space-y-8">
@@ -77,7 +76,7 @@ export default function IntegrationsPage() {
               <div>
                 <CardTitle>Google Services</CardTitle>
                 <CardDescription>
-                  Connect Google Drive for file import and email automations
+                  Connect Google Drive for file import and export
                 </CardDescription>
               </div>
             </div>
@@ -107,12 +106,6 @@ export default function IntegrationsPage() {
                       <Badge variant="outline" className="flex items-center gap-1">
                         <FolderOpen className="h-3 w-3" />
                         Google Drive
-                      </Badge>
-                    )}
-                    {hasEmailAutomation && (
-                      <Badge variant="outline" className="flex items-center gap-1">
-                        <Mail className="h-3 w-3" />
-                        Email Automations
                       </Badge>
                     )}
                   </div>
@@ -216,10 +209,6 @@ export default function IntegrationsPage() {
                       <FolderOpen className="h-4 w-4 text-muted-foreground" />
                       <span>Google Drive - Import files and export results</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span>Email Automations - Process emails sent to document@cpaautomation.ai</span>
-                    </div>
                   </div>
                 </div>
 
@@ -249,7 +238,7 @@ export default function IntegrationsPage() {
                   ) : (
                     <>
                       <CheckCircle className="mr-2 h-4 w-4" />
-                      Connect Google Drive & Email Automations
+                      Connect Google Drive
                     </>
                   )}
                 </Button>
@@ -261,7 +250,7 @@ export default function IntegrationsPage() {
       </Card>
 
       {/* Email Automation Information */}
-      {isConnected && hasEmailAutomation && (
+      {(
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -289,7 +278,7 @@ export default function IntegrationsPage() {
               <h4 className="font-medium">How it works:</h4>
               <ol className="list-decimal pl-6 space-y-1 text-sm text-gray-600">
                 <li>Send emails with PDF attachments to document@cpaautomation.ai</li>
-                <li>System matches your sender email to your Google account</li>
+                <li>System matches your sender email to your user account</li>
                 <li>Emails are filtered based on your automation rules</li>
                 <li>Matching attachments are automatically processed</li>
                 <li>Results are exported to your configured destinations</li>
@@ -299,8 +288,8 @@ export default function IntegrationsPage() {
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                <strong>Important:</strong> Make sure to send emails from the same email address ({status?.email || 'your Google account email'}) 
-                that you used to connect your Google integration.
+                <strong>Important:</strong> Make sure to send emails from the same email address as your account email 
+                to ensure proper automation matching.
               </AlertDescription>
             </Alert>
           </CardContent>

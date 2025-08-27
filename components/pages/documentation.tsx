@@ -229,7 +229,7 @@ console.log(data);
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-4">Requirements</h3>
                   <ul className="list-disc pl-6 space-y-2 text-gray-600">
-                    <li>Send from the same email address used for your Google integration</li>
+                    <li>Send from the same email address as your account email</li>
                     <li>Include PDF attachments for processing</li>
                     <li>Email content should match your automation filters</li>
                     <li>Have an active automation configured with appropriate filters</li>
