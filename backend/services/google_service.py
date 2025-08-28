@@ -175,7 +175,9 @@ class GoogleService:
             # Build query parameters
             params = {
                 'pageSize': page_size,
-                'fields': 'nextPageToken, files(id, name, mimeType, size, parents, createdTime, modifiedTime)'
+                'fields': 'nextPageToken, files(id, name, mimeType, size, parents, createdTime, modifiedTime, driveId)',
+                'supportsAllDrives': True,  # Required for Shared Drive files
+                'includeItemsFromAllDrives': True  # Include items from all drives in search
             }
             
             if query:
@@ -206,7 +208,8 @@ class GoogleService:
         try:
             file_metadata = drive_service.files().get(
                 fileId=file_id,
-                fields='id, name, mimeType, size, parents, createdTime, modifiedTime, webViewLink'
+                fields='id, name, mimeType, size, parents, createdTime, modifiedTime, webViewLink, driveId',
+                supportsAllDrives=True  # Required for Shared Drive files
             ).execute()
             return file_metadata
             
@@ -227,7 +230,10 @@ class GoogleService:
         
         try:
             # Get file content
-            request = drive_service.files().get_media(fileId=file_id)
+            request = drive_service.files().get_media(
+                fileId=file_id,
+                supportsAllDrives=True  # Required for Shared Drive files
+            )
             file_content = request.execute()
             return file_content
             
@@ -468,7 +474,8 @@ class GoogleService:
             file = drive_service.files().create(
                 body=file_metadata,
                 media_body=media,
-                fields='id,name,webViewLink,webContentLink'
+                fields='id,name,webViewLink,webContentLink',
+                supportsAllDrives=True  # Required for Shared Drive files
             ).execute()
             
             logger.info(f"Successfully uploaded file to Drive: {file.get('id')} - {filename}")
@@ -1089,23 +1096,23 @@ class GoogleService:
         
         try:
             logger.info(f"Getting metadata for Drive file {file_id}")
+            
             # Get file metadata from Drive
             file_metadata = self.get_drive_file_metadata(db, user_id, file_id)
             if not file_metadata:
-                raise ValueError(f"Could not get metadata for Drive file {file_id}")
+                raise ValueError(f"Could not access Drive file {file_id}. Please ensure you have permission to access this file.")
             
             filename = file_metadata['name']
             file_size = int(file_metadata.get('size', 0))
             mime_type = file_metadata.get('mimeType', 'application/octet-stream')
             
-            logger.info(f"Importing Drive item: {filename} ({file_size} bytes), MIME: {mime_type}")
+            logger.info(f"Importing Drive file: {filename} ({file_size} bytes)")
             
             # Check if this is a folder - no longer supported for OAuth compliance
             if mime_type == 'application/vnd.google-apps.folder':
                 logger.warning(f"Folder import not supported for OAuth compliance: {filename}")
                 raise ValueError(f"Folder import not supported. Please select individual files instead of folders.")
             
-            logger.info(f"Creating source file record for {filename}")
             # Create source file record for regular file
             source_file = SourceFile(
                 job_id=job_id,
@@ -1134,7 +1141,7 @@ class GoogleService:
             # Download file from Drive
             file_content = self.download_drive_file(db, user_id, file_id)
             if not file_content:
-                raise ValueError(f"Could not download Drive file {file_id}")
+                raise ValueError(f"Could not download Drive file {file_id}. Please ensure you have permission to access this file.")
             
             # Count pages in the file
             from services.page_counting_service import page_counting_service

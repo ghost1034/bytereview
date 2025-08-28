@@ -52,11 +52,17 @@ export function GoogleDrivePicker({
   const loadAttemptedRef = useRef(false);
 
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  const projectNumber = process.env.NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER;
 
   // Load Google APIs only when user is connected
   useEffect(() => {
     if (!clientId) {
       console.error('NEXT_PUBLIC_GOOGLE_CLIENT_ID not configured');
+      return;
+    }
+
+    if (!projectNumber) {
+      console.error('NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER not configured');
       return;
     }
 
@@ -184,6 +190,7 @@ export function GoogleDrivePicker({
       const picker = new window.google.picker.PickerBuilder()
         .enableFeature(multiSelect ? window.google.picker.Feature.MULTISELECT_ENABLED : null)
         .setOAuthToken(accessToken)
+        .setAppId(projectNumber) // Critical: Use numeric Project Number, not project ID
         .addView(driveView)
         .setCallback(handlePickerCallback)
         .build();
@@ -229,11 +236,22 @@ export function GoogleDrivePicker({
           });
         } catch (error) {
           console.error('Failed to start Drive import:', error);
-          toast({
-            title: "Import Failed",
-            description: "Failed to start importing files from Google Drive",
-            variant: "destructive"
-          });
+          
+          // Provide helpful error message based on the error
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (errorMessage.includes('same Google account') || errorMessage.includes('File not found')) {
+            toast({
+              title: "Access Issue",
+              description: "Cannot access the selected file. Please ensure you're logged into the same Google account that selected the file, or try uploading directly.",
+              variant: "destructive"
+            });
+          } else {
+            toast({
+              title: "Import Failed",
+              description: "Failed to start importing files from Google Drive",
+              variant: "destructive"
+            });
+          }
         }
       } else {
         toast({
@@ -256,13 +274,17 @@ export function GoogleDrivePicker({
     }
   };
 
-  if (!clientId) {
+  if (!clientId || !projectNumber) {
     return (
       <Card className={className}>
         <CardContent className="pt-6">
           <div className="flex items-center gap-2 text-muted-foreground">
             <AlertCircle className="h-4 w-4" />
-            <span className="text-sm">Google Drive integration not configured</span>
+            <span className="text-sm">
+              Google Drive integration not configured
+              {!clientId && " (missing NEXT_PUBLIC_GOOGLE_CLIENT_ID)"}
+              {!projectNumber && " (missing NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER)"}
+            </span>
           </div>
         </CardContent>
       </Card>
@@ -318,12 +340,6 @@ export function GoogleDrivePicker({
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="text-sm text-muted-foreground">
-            Supported file types: {mimeTypes.includes('application/pdf') ? 'PDF' : 'Various'}
-            <br />
-            <span className="text-xs text-amber-600">Note: Folder selection disabled for OAuth compliance. Select individual files or ZIP archives instead.</span>
-          </div>
-          
           <Button 
             onClick={openPicker}
             disabled={isPickerLoading || (!isGoogleApiLoaded && status?.connected)}
