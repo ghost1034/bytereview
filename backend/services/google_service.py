@@ -28,7 +28,7 @@ class GoogleService:
     # Required scopes for OAuth-friendly Drive access
     REQUIRED_DRIVE_SCOPES = [
         'https://www.googleapis.com/auth/drive.file',      # For user-selected files only
-        'email'   # For user identification (part of openid scope)
+        'https://www.googleapis.com/auth/userinfo.email'
     ]
     
     def __init__(self):

@@ -30,6 +30,7 @@ class GmailPubSubService:
     
     # Central mailbox configuration
     CENTRAL_MAILBOX = "ianstewart@cpaautomation.ai"  # Actual mailbox (document@cpaautomation.ai is an alias)
+    AUTOMATION_ALIAS = "document@cpaautomation.ai"  # Public alias for automation emails
     
     def _get_service_account_gmail_service(self):
         """
@@ -405,6 +406,9 @@ class GmailPubSubService:
             sender = None
             subject = None
             date = None
+            to_header = None
+            cc_header = None
+            delivered_to = None
             
             for header in headers:
                 name = header.get('name', '').lower()
@@ -416,9 +420,20 @@ class GmailPubSubService:
                     subject = value
                 elif name == 'date':
                     date = value
+                elif name == 'to':
+                    to_header = value
+                elif name == 'cc':
+                    cc_header = value
+                elif name == 'delivered-to':
+                    delivered_to = value
             
             if not sender:
                 logger.warning("No sender found in message")
+                return None
+            
+            # Check if email was sent to the automation alias
+            if not self._is_automation_email(to_header, cc_header, delivered_to):
+                logger.info(f"Email not sent to automation alias {self.AUTOMATION_ALIAS}, skipping")
                 return None
             
             # Extract sender email from "Name <email@domain.com>" format
@@ -447,6 +462,44 @@ class GmailPubSubService:
         except Exception as e:
             logger.error(f"Failed to parse Gmail message: {e}")
             return None
+    
+    def _is_automation_email(self, to_header: str, cc_header: str, delivered_to: str) -> bool:
+        """
+        Check if email was sent to the automation alias (document@cpaautomation.ai)
+        
+        Args:
+            to_header: To header value
+            cc_header: CC header value  
+            delivered_to: Delivered-To header value
+            
+        Returns:
+            True if email was sent to automation alias, False otherwise
+        """
+        try:
+            automation_alias = self.AUTOMATION_ALIAS.lower()
+            
+            # Check To header
+            if to_header and automation_alias in to_header.lower():
+                logger.info(f"Found automation alias in To header: {to_header}")
+                return True
+            
+            # Check CC header
+            if cc_header and automation_alias in cc_header.lower():
+                logger.info(f"Found automation alias in CC header: {cc_header}")
+                return True
+            
+            # Check Delivered-To header (covers BCC and alias delivery)
+            if delivered_to and automation_alias in delivered_to.lower():
+                logger.info(f"Found automation alias in Delivered-To header: {delivered_to}")
+                return True
+            
+            logger.info(f"Automation alias {automation_alias} not found in headers")
+            logger.debug(f"To: {to_header}, CC: {cc_header}, Delivered-To: {delivered_to}")
+            return False
+            
+        except Exception as e:
+            logger.error(f"Failed to check automation email headers: {e}")
+            return False
     
     def _extract_email_from_sender(self, sender: str) -> Optional[str]:
         """Extract email address from sender string"""
