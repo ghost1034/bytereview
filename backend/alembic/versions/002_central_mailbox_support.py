@@ -25,7 +25,8 @@ def upgrade():
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text('gen_random_uuid()')),
         sa.Column('mailbox_address', sa.String(255), nullable=False),
         sa.Column('last_history_id', sa.String(50), nullable=True),
-        sa.Column('last_processed_at', sa.TIMESTAMP(timezone=True), server_default=sa.func.now()),
+        sa.Column('last_internal_dt', sa.BigInteger, nullable=True),
+        sa.Column('watch_expire_at', sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.func.now()),
         sa.Column('updated_at', sa.TIMESTAMP(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()),
         sa.UniqueConstraint('mailbox_address', name='uq_central_mailbox_state_address')
@@ -34,7 +35,7 @@ def upgrade():
     # Insert initial record for our central mailbox
     op.execute("""
         INSERT INTO central_mailbox_state (mailbox_address) 
-        VALUES ('document@cpaautomation.ai')
+        VALUES ('ianstewart@cpaautomation.ai')
     """)
 
 

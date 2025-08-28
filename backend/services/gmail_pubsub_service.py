@@ -15,6 +15,10 @@ from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 from models.db_models import IntegrationAccount
 from services.encryption_service import encryption_service
@@ -25,7 +29,7 @@ class GmailPubSubService:
     """Service for managing central Gmail mailbox (document@cpaautomation.ai) notifications"""
     
     # Central mailbox configuration
-    CENTRAL_MAILBOX = "document@cpaautomation.ai"
+    CENTRAL_MAILBOX = "ianstewart@cpaautomation.ai"  # Actual mailbox (document@cpaautomation.ai is an alias)
     
     def _get_service_account_gmail_service(self):
         """
@@ -37,6 +41,14 @@ class GmailPubSubService:
             service_account_file = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
             if not service_account_file:
                 raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable is required")
+            
+            # Handle relative paths by making them absolute
+            if not os.path.isabs(service_account_file):
+                # If relative path, resolve relative to current working directory
+                service_account_file = os.path.abspath(service_account_file)
+            
+            if not os.path.exists(service_account_file):
+                raise ValueError(f"Service account file not found: {service_account_file}")
             
             # Create credentials with domain-wide delegation
             credentials = service_account.Credentials.from_service_account_file(
@@ -53,17 +65,21 @@ class GmailPubSubService:
             logger.error(f"Failed to create service account Gmail service: {e}")
             return None
     
-    def setup_central_mailbox_watch(self, topic_name: str) -> bool:
+    def setup_central_mailbox_watch(self, db: Session, topic_name: str) -> bool:
         """
         Set up Gmail watch on the central document@cpaautomation.ai mailbox
         
         Args:
+            db: Database session
             topic_name: Google Cloud Pub/Sub topic name
             
         Returns:
             True if setup successful, False otherwise
         """
         try:
+            from models.db_models import CentralMailboxState
+            from datetime import datetime, timezone
+            
             gmail_service = self._get_service_account_gmail_service()
             if not gmail_service:
                 raise ValueError("Could not get Gmail service for central mailbox")
@@ -79,11 +95,48 @@ class GmailPubSubService:
                 body=watch_request
             ).execute()
             
-            logger.info(f"Successfully set up Gmail watch for central mailbox: {result}")
+            # Extract watch details from response
+            history_id = result.get('historyId')
+            expiration_ms = result.get('expiration')  # Unix timestamp in milliseconds
+            
+            if not history_id:
+                raise ValueError("No historyId returned from Gmail watch setup")
+            
+            # Convert expiration from milliseconds to datetime
+            watch_expire_at = None
+            if expiration_ms:
+                watch_expire_at = datetime.fromtimestamp(int(expiration_ms) / 1000, tz=timezone.utc)
+            
+            # Get or create mailbox state record
+            mailbox_state = db.query(CentralMailboxState).filter(
+                CentralMailboxState.mailbox_address == self.CENTRAL_MAILBOX
+            ).first()
+            
+            if mailbox_state:
+                # Update existing record
+                mailbox_state.last_history_id = history_id
+                mailbox_state.watch_expire_at = watch_expire_at
+                mailbox_state.updated_at = datetime.now(timezone.utc)
+            else:
+                # Create new record
+                mailbox_state = CentralMailboxState(
+                    mailbox_address=self.CENTRAL_MAILBOX,
+                    last_history_id=history_id,
+                    watch_expire_at=watch_expire_at
+                )
+                db.add(mailbox_state)
+            
+            db.commit()
+            
+            logger.info(f"Successfully set up Gmail watch for central mailbox")
+            logger.info(f"History ID: {history_id}")
+            logger.info(f"Watch expires at: {watch_expire_at}")
+            
             return True
             
         except Exception as e:
             logger.error(f"Failed to set up Gmail watch for central mailbox: {e}")
+            db.rollback()
             return False
     
     def process_push_notification(self, notification_body: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -139,53 +192,200 @@ class GmailPubSubService:
             logger.error(f"Failed to process Gmail push notification: {e}")
             return None
     
-    def get_new_messages_from_history(self, history_id: str) -> List[Dict[str, Any]]:
+    def process_history_with_cursor(self, db: Session) -> List[Dict[str, Any]]:
         """
-        Get new messages from Gmail history for the central mailbox
+        Process Gmail history using stored cursor with proper locking and cursor advancement
         
         Args:
-            history_id: Gmail history ID from notification
+            db: Database session
             
         Returns:
-            List of new message data
+            List of processed message data
         """
         try:
+            from models.db_models import CentralMailboxState
+            from datetime import datetime, timezone
+            import time
+            
+            # Acquire per-mailbox lock (simple implementation using database)
+            mailbox_state = db.query(CentralMailboxState).filter(
+                CentralMailboxState.mailbox_address == self.CENTRAL_MAILBOX
+            ).with_for_update().first()
+            
+            if not mailbox_state:
+                logger.error("No mailbox state found - watch not set up")
+                return []
+            
+            cursor = mailbox_state.last_history_id
+            if not cursor:
+                logger.warning("No cursor available - watch may not be properly set up")
+                return []
+            
             gmail_service = self._get_service_account_gmail_service()
             if not gmail_service:
                 raise ValueError("Could not get Gmail service for central mailbox")
             
-            # Get history since the given history ID
-            history_response = gmail_service.users().history().list(
+            all_messages = []
+            current_cursor = cursor
+            
+            try:
+                # Loop through history pages
+                while True:
+                    logger.info(f"Fetching history from cursor: {current_cursor}")
+                    
+                    history_response = gmail_service.users().history().list(
+                        userId=self.CENTRAL_MAILBOX,
+                        startHistoryId=current_cursor,
+                        historyTypes=['messageAdded'],
+                        maxResults=100  # Process in batches
+                    ).execute()
+                    
+                    # Update cursor to the highest historyId from this response
+                    response_history_id = history_response.get('historyId')
+                    if response_history_id:
+                        current_cursor = response_history_id
+                    
+                    # Process messages from this page
+                    history_records = history_response.get('history', [])
+                    page_messages = []
+                    
+                    for record in history_records:
+                        if 'messagesAdded' in record:
+                            for message_added in record['messagesAdded']:
+                                message_id = message_added['message']['id']
+                                
+                                # Get full message details
+                                message_detail = gmail_service.users().messages().get(
+                                    userId=self.CENTRAL_MAILBOX,
+                                    id=message_id,
+                                    format='full'
+                                ).execute()
+                                
+                                # Parse message data
+                                parsed_message = self._parse_gmail_message(message_detail)
+                                if parsed_message:
+                                    page_messages.append(parsed_message)
+                                    
+                                    # Update last_internal_dt for 404 recovery
+                                    internal_date = message_detail.get('internalDate')
+                                    if internal_date:
+                                        mailbox_state.last_internal_dt = max(
+                                            mailbox_state.last_internal_dt or 0,
+                                            int(internal_date)
+                                        )
+                    
+                    all_messages.extend(page_messages)
+                    logger.info(f"Processed {len(page_messages)} messages from this page")
+                    
+                    # Check if there are more pages
+                    next_page_token = history_response.get('nextPageToken')
+                    if not next_page_token:
+                        break
+                
+                # Persist the final cursor position
+                mailbox_state.last_history_id = current_cursor
+                mailbox_state.updated_at = datetime.now(timezone.utc)
+                db.commit()
+                
+                logger.info(f"Successfully processed {len(all_messages)} total messages")
+                logger.info(f"Updated cursor to: {current_cursor}")
+                
+                return all_messages
+                
+            except Exception as api_error:
+                # Handle 404 (historyId too old) with fallback to message list
+                if "404" in str(api_error) or "historyId" in str(api_error).lower():
+                    logger.warning(f"History ID too old, falling back to message list: {api_error}")
+                    return self._recover_from_404(db, mailbox_state, gmail_service)
+                else:
+                    raise api_error
+            
+        except Exception as e:
+            logger.error(f"Failed to process history with cursor: {e}")
+            db.rollback()
+            return []
+    
+    def _recover_from_404(self, db: Session, mailbox_state, gmail_service) -> List[Dict[str, Any]]:
+        """
+        Recover from 404 (historyId too old) by using message list with time filter
+        """
+        try:
+            from datetime import datetime, timezone
+            
+            logger.info("Recovering from 404 using message list")
+            
+            # Use last_internal_dt as fallback, or last 24 hours if none
+            after_time_ms = mailbox_state.last_internal_dt
+            if not after_time_ms:
+                # Fallback to 24 hours ago
+                twenty_four_hours_ago = datetime.now(timezone.utc).timestamp() - (24 * 60 * 60)
+                after_time_ms = int(twenty_four_hours_ago * 1000)
+            
+            # Get recent messages using message list
+            query = f"in:inbox after:{after_time_ms // 1000}"  # Convert to seconds for Gmail query
+            
+            messages_response = gmail_service.users().messages().list(
                 userId=self.CENTRAL_MAILBOX,
-                startHistoryId=history_id,
-                historyTypes=['messageAdded']
+                q=query,
+                maxResults=100
             ).execute()
             
             messages = []
-            history_records = history_response.get('history', [])
+            message_list = messages_response.get('messages', [])
+            max_internal_date = after_time_ms
             
-            for record in history_records:
-                if 'messagesAdded' in record:
-                    for message_added in record['messagesAdded']:
-                        message_id = message_added['message']['id']
-                        
-                        # Get full message details
-                        message_detail = gmail_service.users().messages().get(
-                            userId=self.CENTRAL_MAILBOX,
-                            id=message_id,
-                            format='full'
-                        ).execute()
-                        
-                        # Parse message data
-                        parsed_message = self._parse_gmail_message(message_detail)
-                        if parsed_message:
-                            messages.append(parsed_message)
+            for msg_ref in message_list:
+                message_id = msg_ref['id']
+                
+                # Get full message details
+                message_detail = gmail_service.users().messages().get(
+                    userId=self.CENTRAL_MAILBOX,
+                    id=message_id,
+                    format='full'
+                ).execute()
+                
+                # Check if this message is newer than our last processed
+                internal_date = int(message_detail.get('internalDate', 0))
+                if internal_date > after_time_ms:
+                    parsed_message = self._parse_gmail_message(message_detail)
+                    if parsed_message:
+                        messages.append(parsed_message)
+                        max_internal_date = max(max_internal_date, internal_date)
             
-            logger.info(f"Found {len(messages)} new messages in history")
+            # Re-establish watch to get new historyId
+            logger.info("Re-establishing watch after 404 recovery")
+            topic_name = 'gmail-central-notifications'  # Should be configurable
+            watch_result = gmail_service.users().watch(
+                userId=self.CENTRAL_MAILBOX,
+                body={
+                    'topicName': f'projects/{self._get_project_id()}/topics/{topic_name}',
+                    'labelIds': ['INBOX']
+                }
+            ).execute()
+            
+            # Update state with new watch info
+            new_history_id = watch_result.get('historyId')
+            expiration_ms = watch_result.get('expiration')
+            
+            if new_history_id:
+                mailbox_state.last_history_id = new_history_id
+                mailbox_state.last_internal_dt = max_internal_date
+                
+                if expiration_ms:
+                    mailbox_state.watch_expire_at = datetime.fromtimestamp(
+                        int(expiration_ms) / 1000, tz=timezone.utc
+                    )
+                
+                mailbox_state.updated_at = datetime.now(timezone.utc)
+                db.commit()
+                
+                logger.info(f"404 recovery complete. New history ID: {new_history_id}")
+                logger.info(f"Processed {len(messages)} messages during recovery")
+            
             return messages
             
         except Exception as e:
-            logger.error(f"Failed to get new messages from history: {e}")
+            logger.error(f"Failed to recover from 404: {e}")
             return []
     
     def _parse_gmail_message(self, message_detail: Dict[str, Any]) -> Optional[Dict[str, Any]]:

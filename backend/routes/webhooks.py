@@ -134,9 +134,8 @@ async def gmail_push_webhook(
             logger.warning("Failed to process push notification data")
             return {"status": "ignored", "reason": "Invalid notification data"}
         
-        # Get new messages from Gmail history
-        history_id = notification_data['history_id']
-        new_messages = gmail_pubsub_service.get_new_messages_from_history(history_id)
+        # Process Gmail history using stored cursor (proper Gmail Pub/Sub pattern)
+        new_messages = gmail_pubsub_service.process_history_with_cursor(db)
         
         if not new_messages:
             logger.info("No new messages found in history")

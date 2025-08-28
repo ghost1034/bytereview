@@ -766,38 +766,79 @@ async def schedule_opt_out_cleanup(ctx: Dict[str, Any]) -> Dict[str, Any]:
 
 async def run_gmail_watch_renewal(ctx: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Check and renew Gmail watch subscriptions for all users
+    Check and renew Gmail watch subscription for the central mailbox
     """
-    logger.info("Starting Gmail watch renewal check")
+    logger.info("Starting Gmail watch renewal check for central mailbox")
     
     try:
         from core.database import get_db
-        from services.gmail_watch_manager import gmail_watch_manager
+        from services.gmail_pubsub_service import gmail_pubsub_service
+        from models.db_models import CentralMailboxState
+        from datetime import datetime, timezone, timedelta
         
         # Get database session
         db = next(get_db())
         
         try:
-            # Check and renew watches for all users
-            results = await gmail_watch_manager.ensure_watches_for_all_users(db)
+            # Get current watch state for central mailbox
+            mailbox_state = db.query(CentralMailboxState).filter(
+                CentralMailboxState.mailbox_address == gmail_pubsub_service.CENTRAL_MAILBOX
+            ).first()
             
-            logger.info(f"Gmail watch renewal completed: {results}")
+            if not mailbox_state:
+                logger.error("No central mailbox state found - watch not set up")
+                return {
+                    'success': False,
+                    'error': 'Central mailbox watch not configured'
+                }
             
-            if results['failures'] > 0:
-                logger.warning(f"Gmail watch renewal had {results['failures']} failures")
-                for error in results['errors']:
-                    logger.error(f"Gmail watch error: {error}")
+            # Check if watch needs renewal (renew 1 day before expiration)
+            now = datetime.now(timezone.utc)
+            renewal_threshold = timedelta(days=1)
             
-            return {
-                'success': True,
-                'results': results
-            }
+            if not mailbox_state.watch_expire_at:
+                logger.warning("No watch expiration time found - setting up new watch")
+                needs_renewal = True
+            else:
+                time_until_expiry = mailbox_state.watch_expire_at - now
+                needs_renewal = time_until_expiry <= renewal_threshold
+                
+                logger.info(f"Central mailbox watch expires at: {mailbox_state.watch_expire_at}")
+                logger.info(f"Time until expiry: {time_until_expiry}")
+                logger.info(f"Needs renewal: {needs_renewal}")
             
+            if needs_renewal:
+                logger.info("Renewing central mailbox Gmail watch...")
+                
+                topic_name = 'gmail-central-notifications'
+                success = gmail_pubsub_service.setup_central_mailbox_watch(db, topic_name)
+                
+                if success:
+                    logger.info("✅ Central mailbox Gmail watch renewed successfully")
+                    return {
+                        'success': True,
+                        'message': 'Central mailbox watch renewed successfully',
+                        'mailbox': gmail_pubsub_service.CENTRAL_MAILBOX
+                    }
+                else:
+                    logger.error("❌ Failed to renew central mailbox Gmail watch")
+                    return {
+                        'success': False,
+                        'error': 'Failed to renew central mailbox watch'
+                    }
+            else:
+                logger.info("✅ Central mailbox Gmail watch does not need renewal yet")
+                return {
+                    'success': True,
+                    'message': 'Central mailbox watch does not need renewal yet',
+                    'expires_at': mailbox_state.watch_expire_at.isoformat()
+                }
+                
         finally:
             db.close()
             
     except Exception as e:
-        logger.error(f"Failed to check and renew Gmail watches: {e}")
+        logger.error(f"Failed to check/renew central mailbox Gmail watch: {e}")
         return {
             'success': False,
             'error': str(e)
@@ -806,7 +847,7 @@ async def run_gmail_watch_renewal(ctx: Dict[str, Any]) -> Dict[str, Any]:
 async def schedule_gmail_watch_renewal(ctx: Dict[str, Any]) -> Dict[str, Any]:
     """
     Scheduled task to renew Gmail watch subscriptions
-    Runs every 6 hours to ensure watches stay active
+    Runs daily to ensure watches stay active (Gmail watches expire after ~7 days)
     """
     logger.info("Scheduled: Gmail watch renewal")
     try:
@@ -1725,8 +1766,8 @@ class MaintenanceWorkerSettings:
         # Opt-out data cleanup - Weekly on Saturdays at 04:00 UTC
         cron(schedule_opt_out_cleanup, weekday=5, hour=4, minute=0, run_at_startup=False),
         
-        # Gmail watch renewal - Every 6 hours to ensure watches stay active
-        cron(schedule_gmail_watch_renewal, hour={0, 6, 12, 18}, minute=45, run_at_startup=True),
+        # Gmail watch renewal - Daily to ensure watches stay active (Gmail watches expire after ~7 days)
+        cron(schedule_gmail_watch_renewal, hour=6, minute=45, run_at_startup=True),
     ]
     
     # Worker configuration

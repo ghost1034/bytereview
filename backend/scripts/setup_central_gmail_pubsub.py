@@ -63,8 +63,15 @@ def check_environment():
     
     # Check if service account file exists
     service_account_file = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+    if not os.path.isabs(service_account_file):
+        # If relative path, check relative to backend directory
+        service_account_file = os.path.join(backend_dir, service_account_file)
+    
     if not os.path.exists(service_account_file):
         logger.error(f"Service account file not found: {service_account_file}")
+        logger.info(f"Checked absolute path: {os.path.abspath(service_account_file)}")
+        logger.info(f"Current working directory: {os.getcwd()}")
+        logger.info(f"Backend directory: {backend_dir}")
         return False
     
     logger.info("✅ Environment configuration looks good")
@@ -103,7 +110,7 @@ def setup_pubsub_infrastructure():
             # Configure push endpoint
             webhook_url = os.getenv('WEBHOOK_BASE_URL', 'https://your-domain.com') + '/api/webhooks/gmail-push'
             
-            push_config = pubsub_v1.PushConfig(push_endpoint=webhook_url)
+            push_config = pubsub_v1.types.PushConfig(push_endpoint=webhook_url)
             
             subscriber.create_subscription(
                 request={
@@ -132,20 +139,29 @@ def setup_central_gmail_watch():
     
     try:
         from services.gmail_pubsub_service import gmail_pubsub_service
+        from core.database import get_db
         
         topic_name = 'gmail-central-notifications'
         
-        # Set up watch on central mailbox
-        success = gmail_pubsub_service.setup_central_mailbox_watch(topic_name)
+        # Get database session
+        db = next(get_db())
         
-        if success:
-            logger.info("✅ Gmail watch successfully configured for document@cpaautomation.ai")
-            logger.info(f"✅ Notifications will be sent to topic: {topic_name}")
-        else:
-            logger.error("❌ Failed to set up Gmail watch")
-            return False
-        
-        return True
+        try:
+            # Set up watch on central mailbox with proper state persistence
+            success = gmail_pubsub_service.setup_central_mailbox_watch(db, topic_name)
+            
+            if success:
+                logger.info("✅ Gmail watch successfully configured for document@cpaautomation.ai")
+                logger.info(f"✅ Notifications will be sent to topic: {topic_name}")
+                logger.info("✅ Watch state persisted to database")
+            else:
+                logger.error("❌ Failed to set up Gmail watch")
+                return False
+            
+            return True
+            
+        finally:
+            db.close()
         
     except Exception as e:
         logger.error(f"❌ Error setting up Gmail watch: {e}")
@@ -154,6 +170,7 @@ def setup_central_gmail_watch():
         logger.info("2. Ensure service account has domain-wide delegation configured")
         logger.info("3. Ensure document@cpaautomation.ai mailbox exists in Google Workspace")
         logger.info("4. Ensure service account has Gmail API access with domain-wide delegation")
+        logger.info("5. Ensure database is accessible and migrations are run")
         return False
 
 def test_service_account_access():
@@ -273,6 +290,7 @@ def main():
         logger.info("- Match sender emails to user accounts")
         logger.info("- Trigger automations based on user-configured filters")
         logger.info("- Process attachments for document extraction")
+        logger.info("- Automatically renew Gmail watch daily via maintenance worker (watches expire after ~7 days)")
     else:
         logger.error("\n❌ Setup completed with errors. Please check the logs above.")
         print_setup_instructions()

@@ -380,8 +380,9 @@ class CentralMailboxState(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     mailbox_address = Column(String(255), nullable=False, unique=True)
-    last_history_id = Column(String(50), nullable=True)
-    last_processed_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    last_history_id = Column(String(50), nullable=True)  # Cursor for users.history.list
+    last_internal_dt = Column(BigInteger, nullable=True)  # Fallback time cursor (ms since epoch) for 404 recovery
+    watch_expire_at = Column(TIMESTAMP(timezone=True), nullable=True)  # From users.watch().expiration
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
