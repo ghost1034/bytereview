@@ -338,7 +338,8 @@ async def refresh_google_token(
     current_user_id: str = Depends(get_current_user_id)
 ):
     """
-    Refresh Google access token using refresh token
+    Manually refresh Google access token using refresh token.
+    Uses the same centralized refresh logic as automatic refresh.
     """
     if not GOOGLE_AVAILABLE:
         raise HTTPException(
@@ -346,14 +347,7 @@ async def refresh_google_token(
             detail="Google client libraries not installed. Please install google-auth and google-api-python-client."
         )
     
-    config = get_google_config()
-    
-    if not config['client_id'] or not config['client_secret']:
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Google OAuth not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables."
-        )
-    
+    # Get the user's Google integration account
     account = db.query(IntegrationAccount).filter(
         IntegrationAccount.user_id == current_user_id,
         IntegrationAccount.provider == "google"
@@ -365,64 +359,28 @@ async def refresh_google_token(
             detail="Google integration not found"
         )
     
-    refresh_token = account.get_refresh_token()
-    if not refresh_token:
+    if not account.get_refresh_token():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No refresh token available. Please re-authorize."
         )
     
-    try:
-        import requests
-        
-        token_data = {
-            "client_id": config['client_id'],
-            "client_secret": config['client_secret'],
-            "refresh_token": refresh_token,
-            "grant_type": "refresh_token"
-        }
-        
-        response = requests.post(
-            "https://oauth2.googleapis.com/token",
-            data=token_data
-        )
-        response.raise_for_status()
-        tokens = response.json()
-        
-        # Update the access token
-        account.set_access_token(tokens["access_token"])
-        
-        # Update expiry time
-        if "expires_in" in tokens:
-            account.expires_at = datetime.now(timezone.utc) + timedelta(seconds=tokens["expires_in"])
-        
-        # Update refresh token if provided (Google sometimes issues new ones)
-        if "refresh_token" in tokens:
-            account.set_refresh_token(tokens["refresh_token"])
-        
-        account.updated_at = datetime.now(timezone.utc)
-        db.commit()
-        
-        logger.info(f"Google token refreshed for user {current_user_id}")
-        
-        return {
-            "success": True,
-            "expires_at": account.expires_at.isoformat() if account.expires_at else None
-        }
-        
-    except requests.RequestException as e:
-        logger.error(f"Google token refresh failed: {e}")
+    # Use centralized refresh logic
+    success = google_service.refresh_user_token(db, current_user_id, account)
+    
+    if not success:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to refresh token. Please re-authorize."
         )
-    except Exception as e:
-        logger.error(f"Unexpected error during token refresh: {e}")
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error during token refresh"
-        )
+    
+    # Refresh the account object to get updated data
+    db.refresh(account)
+    
+    return {
+        "success": True,
+        "expires_at": account.expires_at.isoformat() if account.expires_at else None
+    }
 
 @router.get("/google/picker-token")
 async def get_google_picker_token(
@@ -430,79 +388,26 @@ async def get_google_picker_token(
     current_user_id: str = Depends(get_current_user_id)
 ):
     """
-    Get Google access token for use with Google Picker API
+    Get Google access token for use with Google Picker API.
+    Token refresh is handled automatically by GoogleService._get_credentials().
     """
-    account = db.query(IntegrationAccount).filter(
-        IntegrationAccount.user_id == current_user_id,
-        IntegrationAccount.provider == "google"
-    ).first()
+    # Use GoogleService to get credentials - this automatically handles refresh
+    creds = google_service._get_credentials(db, current_user_id)
     
-    if not account:
+    if not creds:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Google integration not found"
+            detail="Google integration not found or token unavailable. Please re-authorize."
         )
     
-    access_token = account.get_access_token()
-    if not access_token:
+    if not creds.token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No access token available. Please re-authorize."
         )
     
-    # Check if token is expired and refresh if needed
-    if account.expires_at and datetime.now(timezone.utc) > account.expires_at:
-        refresh_token = account.get_refresh_token()
-        if not refresh_token:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Token expired and no refresh token available. Please re-authorize."
-            )
-        
-        try:
-            config = get_google_config()
-            import requests
-            
-            token_data = {
-                "client_id": config['client_id'],
-                "client_secret": config['client_secret'],
-                "refresh_token": refresh_token,
-                "grant_type": "refresh_token"
-            }
-            
-            response = requests.post(
-                "https://oauth2.googleapis.com/token",
-                data=token_data
-            )
-            response.raise_for_status()
-            tokens = response.json()
-            
-            # Update the access token
-            account.set_access_token(tokens["access_token"])
-            
-            # Update expiry time
-            if "expires_in" in tokens:
-                account.expires_at = datetime.now(timezone.utc) + timedelta(seconds=tokens["expires_in"])
-            
-            # Update refresh token if provided
-            if "refresh_token" in tokens:
-                account.set_refresh_token(tokens["refresh_token"])
-            
-            account.updated_at = datetime.now(timezone.utc)
-            db.commit()
-            
-            access_token = tokens["access_token"]
-            logger.info(f"Refreshed Google token for picker use for user {current_user_id}")
-            
-        except requests.RequestException as e:
-            logger.error(f"Failed to refresh token for picker: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to refresh token. Please re-authorize."
-            )
-    
     return {
-        "access_token": access_token
+        "access_token": creds.token
     }
 
 @router.get("/gmail/attachments")

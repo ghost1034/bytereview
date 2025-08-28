@@ -45,7 +45,7 @@ export function GoogleDrivePicker({
   mimeTypes = ['application/pdf'], // Default to PDFs
   className
 }: GoogleDrivePickerProps) {
-  const { status, connect, isConnecting } = useGoogleIntegration();
+  const { status, connect, isConnecting, refreshToken } = useGoogleIntegration();
   const [isPickerLoading, setIsPickerLoading] = useState(false);
   const [isGoogleApiLoaded, setIsGoogleApiLoaded] = useState(false);
   const [apiLoadError, setApiLoadError] = useState<string | null>(null);
@@ -263,13 +263,62 @@ export function GoogleDrivePicker({
     }
   }, [onFilesSelected, jobId]);
 
-  // Get access token from backend using apiClient
+  // Cache for access token to avoid unnecessary API calls
+  const [cachedToken, setCachedToken] = useState<{token: string, expiresAt: number} | null>(null);
+
+  // Clear cache when connection status changes
+  useEffect(() => {
+    if (!status?.connected) {
+      setCachedToken(null);
+    }
+  }, [status?.connected]);
+
+  // Get access token with smart caching and refresh
   const getAccessToken = async (): Promise<string | null> => {
     try {
+      // Check if we have a cached token that's still valid (with 5-minute buffer)
+      const now = Date.now();
+      const bufferMs = 5 * 60 * 1000; // 5 minutes
+      
+      if (cachedToken && now + bufferMs < cachedToken.expiresAt) {
+        console.log('Using cached access token');
+        return cachedToken.token;
+      }
+
+      // Clear expired cache
+      if (cachedToken) {
+        console.log('Cached token expired, fetching new one');
+        setCachedToken(null);
+      }
+
+      // Only call the API if we don't have a valid cached token
+      console.log('Fetching fresh access token from backend');
       const response = await apiClient.request('/api/integrations/google/picker-token');
+      
+      // Cache the new token (assume 1-hour expiry if not specified)
+      const expiresAt = now + (55 * 60 * 1000); // 55 minutes from now (5-minute buffer)
+      setCachedToken({
+        token: response.access_token,
+        expiresAt
+      });
+      
       return response.access_token;
     } catch (error) {
       console.error('Failed to get access token for picker:', error);
+      
+      // Clear cache on error
+      setCachedToken(null);
+      
+      // If it's a token-related error, suggest reconnection
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('expired') || errorMessage.includes('invalid') || errorMessage.includes('re-authorize')) {
+        toast({
+          title: "Authentication Expired",
+          description: "Your Google authorization has expired. Please reconnect to continue.",
+          variant: "destructive"
+        });
+      }
+      
       return null;
     }
   };

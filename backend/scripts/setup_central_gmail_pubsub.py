@@ -108,7 +108,7 @@ def setup_pubsub_infrastructure():
         # Create subscription if it doesn't exist
         try:
             # Configure push endpoint
-            webhook_url = os.getenv('WEBHOOK_BASE_URL', 'https://your-domain.com') + '/api/webhooks/gmail-push'
+            webhook_url = os.getenv('GMAIL_WEBHOOK_URL')
             
             push_config = pubsub_v1.types.PushConfig(push_endpoint=webhook_url)
             

@@ -82,7 +82,7 @@ export default function IntegrationsPage() {
             </div>
             <div className="flex items-center gap-2">
               {isConnected ? (
-                <Badge variant="default" className="bg-green-100 text-green-800">
+                <Badge variant="outline" className="bg-green-100 text-green-800">
                   <CheckCircle className="h-3 w-3 mr-1" />
                   Connected
                 </Badge>

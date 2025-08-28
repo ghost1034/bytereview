@@ -66,31 +66,102 @@ class GoogleService:
             scopes=account.scopes
         )
         
-        # Check if token needs refresh
-        if account.expires_at and datetime.now(timezone.utc) > account.expires_at:
-            logger.info(f"Token expired for user {user_id}, attempting refresh")
-            try:
-                creds.refresh(Request())
-                
-                # Update stored tokens
-                account.set_access_token(creds.token)
-                if creds.refresh_token:
-                    account.set_refresh_token(creds.refresh_token)
-                
-                # Update expiry
-                if creds.expiry:
-                    account.expires_at = creds.expiry
-                
-                account.updated_at = datetime.now(timezone.utc)
-                db.commit()
-                
-                logger.info(f"Token refreshed successfully for user {user_id}")
-                
-            except google.auth.exceptions.RefreshError as e:
-                logger.error(f"Failed to refresh token for user {user_id}: {e}")
+        # Check if token needs refresh (refresh 5 minutes before expiry to be safe)
+        needs_refresh = False
+        if account.expires_at:
+            # Refresh if expired or expiring within 5 minutes
+            buffer_time = timedelta(minutes=5)
+            needs_refresh = datetime.now(timezone.utc) + buffer_time >= account.expires_at
+        
+        if needs_refresh:
+            logger.info(f"Token expired or expiring soon for user {user_id}, attempting automatic refresh")
+            success = self.refresh_user_token(db, user_id, account)
+            if not success:
                 return None
+            
+            # Recreate credentials with fresh token
+            creds = Credentials(
+                token=account.get_access_token(),
+                refresh_token=account.get_refresh_token(),
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=None,
+                client_secret=None,
+                scopes=account.scopes
+            )
         
         return creds
+    
+    def refresh_user_token(self, db: Session, user_id: str, account: IntegrationAccount = None) -> bool:
+        """
+        Centralized token refresh logic for Google OAuth tokens.
+        
+        Args:
+            db: Database session
+            user_id: User ID for logging
+            account: Optional IntegrationAccount (will be fetched if not provided)
+            
+        Returns:
+            bool: True if refresh successful, False otherwise
+        """
+        if not GOOGLE_AVAILABLE:
+            logger.error("Google client libraries not available")
+            return False
+            
+        # Fetch account if not provided
+        if not account:
+            account = db.query(IntegrationAccount).filter(
+                IntegrationAccount.user_id == user_id,
+                IntegrationAccount.provider == "google"
+            ).first()
+            
+            if not account:
+                logger.error(f"No Google integration found for user {user_id}")
+                return False
+        
+        refresh_token = account.get_refresh_token()
+        if not refresh_token:
+            logger.error(f"No refresh token available for user {user_id}")
+            return False
+        
+        try:
+            # Create credentials for refresh
+            creds = Credentials(
+                token=account.get_access_token(),
+                refresh_token=refresh_token,
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=os.getenv("GOOGLE_CLIENT_ID"),
+                client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+                scopes=account.scopes
+            )
+            
+            # Perform the refresh
+            creds.refresh(Request())
+            
+            # Update stored tokens
+            account.set_access_token(creds.token)
+            if creds.refresh_token:
+                account.set_refresh_token(creds.refresh_token)
+            
+            # Update expiry
+            if creds.expiry:
+                account.expires_at = creds.expiry
+            
+            account.updated_at = datetime.now(timezone.utc)
+            db.commit()
+            
+            logger.info(f"Token refreshed successfully for user {user_id}")
+            return True
+            
+        except google.auth.exceptions.RefreshError as e:
+            logger.error(f"Failed to refresh token for user {user_id}: {e}")
+            # Check if it's an invalid_grant error (refresh token expired/revoked)
+            if "invalid_grant" in str(e).lower():
+                logger.warning(f"Refresh token invalid for user {user_id}, user needs to re-authorize")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error during token refresh for user {user_id}: {e}")
+            db.rollback()
+            return False
     
     def validate_drive_access(self, db: Session, user_id: str) -> bool:
         """Validate that user has the required limited Drive scopes"""

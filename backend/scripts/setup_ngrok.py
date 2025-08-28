@@ -107,8 +107,8 @@ def update_pubsub_subscription(webhook_url):
     """Update Google Cloud Pub/Sub subscription with new webhook URL"""
     try:
         project_id = os.getenv('GOOGLE_CLOUD_PROJECT_ID')
-        topic_name = os.getenv('GMAIL_PUBSUB_TOPIC', 'gmail-notifications')
-        subscription_name = os.getenv('GMAIL_PUBSUB_SUBSCRIPTION', 'gmail-notifications-sub')
+        topic_name = os.getenv('GMAIL_PUBSUB_TOPIC', 'gmail-central-notifications')
+        subscription_name = os.getenv('GMAIL_PUBSUB_SUBSCRIPTION', 'gmail-central-webhook')
         
         if not project_id:
             print("❌ GOOGLE_CLOUD_PROJECT_ID not set")
@@ -216,7 +216,7 @@ def main():
         print(f"\n📝 Next steps:")
         print(f"1. Make sure your FastAPI server is running on port {args.port}")
         print(f"2. Update your Pub/Sub subscription (if not done automatically):")
-        print(f"   gcloud pubsub subscriptions modify-push-config gmail-notifications-sub \\")
+        print(f"   gcloud pubsub subscriptions modify-push-config gmail-central-webhook \\")
         print(f"     --push-endpoint='{public_url}/api/webhooks/gmail-push'")
         print(f"3. Test your webhook endpoint")
         
