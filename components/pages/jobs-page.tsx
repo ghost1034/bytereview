@@ -60,18 +60,26 @@ export function JobsPage() {
             Manage your document extraction jobs
           </p>
         </div>
-
       </div>
-
-
 
       {/* Jobs List */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>
+            <div className="flex items-center gap-3">
+              <CardTitle>
                 All Jobs {loading ? "" : `(${totalJobs} total)`}
-            </CardTitle>
+              </CardTitle>
+              <Button 
+                variant="outline" 
+                onClick={() => refetch()}
+                disabled={loading}
+                size="sm"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
             <Button onClick={() => setShowCreateModal(true)} size="sm">
               <Plus className="w-4 h-4 mr-2" />
               Create New Job
