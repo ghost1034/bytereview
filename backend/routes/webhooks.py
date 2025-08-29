@@ -135,7 +135,13 @@ async def gmail_push_webhook(
             return {"status": "ignored", "reason": "Invalid notification data"}
         
         # Process Gmail history using stored cursor (proper Gmail Pub/Sub pattern)
+        logger.info("Calling gmail_pubsub_service.process_history_with_cursor()")
         new_messages = gmail_pubsub_service.process_history_with_cursor(db)
+        logger.info(f"Gmail Pub/Sub service returned {len(new_messages)} new messages")
+        
+        # Debug: log each message
+        for i, msg in enumerate(new_messages):
+            logger.info(f"Message {i+1}: {msg}")
         
         if not new_messages:
             logger.info("No new messages found in history")
@@ -144,6 +150,7 @@ async def gmail_push_webhook(
         # Process each new message
         processed_messages = []
         for message in new_messages:
+            logger.info(f"Processing message: {message}")
             sender_email = message.get('sender_email')
             if not sender_email:
                 logger.warning("No sender email found in message")
@@ -155,6 +162,7 @@ async def gmail_push_webhook(
                 logger.info(f"No user found for sender email {sender_email}, ignoring message")
                 continue
             
+            logger.info(f"Triggering automations for user {user_id} with message data: {message}")
             # Trigger automations for the user
             trigger_result = await gmail_pubsub_service.trigger_automations_for_email(
                 db, user_id, message

@@ -146,7 +146,7 @@ export function CreateAutomationModal({ open, onOpenChange }: CreateAutomationMo
         <DialogHeader>
           <DialogTitle>Create New Automation</DialogTitle>
           <DialogDescription>
-            Set up an automation to process email attachments automatically
+            Set up an automation to run extraction jobs automatically
           </DialogDescription>
         </DialogHeader>
 

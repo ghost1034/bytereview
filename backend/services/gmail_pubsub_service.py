@@ -92,7 +92,7 @@ class GmailPubSubService:
             }
             
             result = gmail_service.users().watch(
-                userId=self.CENTRAL_MAILBOX,
+                userId='me',
                 body=watch_request
             ).execute()
             
@@ -235,7 +235,7 @@ class GmailPubSubService:
                     logger.info(f"Fetching history from cursor: {current_cursor}")
                     
                     history_response = gmail_service.users().history().list(
-                        userId=self.CENTRAL_MAILBOX,
+                        userId='me',
                         startHistoryId=current_cursor,
                         historyTypes=['messageAdded'],
                         maxResults=100  # Process in batches
@@ -257,7 +257,7 @@ class GmailPubSubService:
                                 
                                 # Get full message details
                                 message_detail = gmail_service.users().messages().get(
-                                    userId=self.CENTRAL_MAILBOX,
+                                    userId='me',
                                     id=message_id,
                                     format='full'
                                 ).execute()
@@ -326,7 +326,7 @@ class GmailPubSubService:
             query = f"in:inbox after:{after_time_ms // 1000}"  # Convert to seconds for Gmail query
             
             messages_response = gmail_service.users().messages().list(
-                userId=self.CENTRAL_MAILBOX,
+                userId='me',
                 q=query,
                 maxResults=100
             ).execute()
@@ -340,7 +340,7 @@ class GmailPubSubService:
                 
                 # Get full message details
                 message_detail = gmail_service.users().messages().get(
-                    userId=self.CENTRAL_MAILBOX,
+                    userId='me',
                     id=message_id,
                     format='full'
                 ).execute()
@@ -357,7 +357,7 @@ class GmailPubSubService:
             logger.info("Re-establishing watch after 404 recovery")
             topic_name = 'gmail-central-notifications'  # Should be configurable
             watch_result = gmail_service.users().watch(
-                userId=self.CENTRAL_MAILBOX,
+                userId='me',
                 body={
                     'topicName': f'projects/{self._get_project_id()}/topics/{topic_name}',
                     'labelIds': ['INBOX']
@@ -444,6 +444,7 @@ class GmailPubSubService:
             
             # Extract attachments
             attachments = self._extract_attachments(message_detail)
+            logger.info(f"Extracted {len(attachments)} attachments from message {message_detail.get('id')}")
             
             # Extract message body
             body = self._extract_message_body(message_detail)
@@ -518,33 +519,50 @@ class GmailPubSubService:
             return None
     
     def _extract_attachments(self, message_detail: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Extract attachment information from Gmail message"""
+        """Extract attachment information from Gmail message by recursively walking MIME tree"""
         try:
-            attachments = []
-            
-            def process_part(part):
-                if part.get('filename'):
-                    # This is an attachment
-                    attachment_id = None
-                    if 'body' in part and 'attachmentId' in part['body']:
-                        attachment_id = part['body']['attachmentId']
-                    
-                    attachments.append({
-                        'filename': part['filename'],
-                        'mime_type': part.get('mimeType', 'application/octet-stream'),
-                        'size': part.get('body', {}).get('size', 0),
-                        'attachment_id': attachment_id
-                    })
+            def iter_parts(part, depth=0):
+                """Recursively iterate through all MIME parts to find attachments"""
+                if not part:
+                    return
                 
-                # Recursively process parts
-                if 'parts' in part:
-                    for subpart in part['parts']:
-                        process_part(subpart)
+                indent = "  " * depth
+                filename = part.get('filename', '')
+                mime_type = part.get('mimeType', '')
+                body = part.get('body', {})
+                attachment_id = body.get('attachmentId', '')
+                
+                logger.info(f"{indent}Processing part: filename='{filename}', mimeType='{mime_type}', attachmentId='{attachment_id}'")
+                
+                # If this part is an attachment (has both filename and attachmentId)
+                if filename and attachment_id:
+                    attachment_info = {
+                        'filename': filename,
+                        'mime_type': mime_type or 'application/octet-stream',
+                        'size': body.get('size', 0),
+                        'attachment_id': attachment_id
+                    }
+                    logger.info(f"{indent}Found attachment: {attachment_info}")
+                    yield attachment_info
+                
+                # Recursively process child parts
+                child_parts = part.get('parts', []) or []
+                if child_parts:
+                    logger.info(f"{indent}Processing {len(child_parts)} sub-parts")
+                    for child_part in child_parts:
+                        yield from iter_parts(child_part, depth + 1)
             
             payload = message_detail.get('payload', {})
-            process_part(payload)
+            logger.info(f"Processing message payload with mimeType: {payload.get('mimeType', 'unknown')}")
+            logger.info(f"Full payload structure: {payload}")
             
-            logger.info(f"Found {len(attachments)} attachments")
+            # Also log the full message structure for debugging
+            logger.info(f"Full message detail structure: {message_detail}")
+            
+            # Collect all attachments from the MIME tree
+            attachments = list(iter_parts(payload))
+            
+            logger.info(f"Found {len(attachments)} attachments total")
             return attachments
             
         except Exception as e:
@@ -595,7 +613,7 @@ class GmailPubSubService:
                 raise ValueError("Could not get Gmail service for central mailbox")
             
             attachment = gmail_service.users().messages().attachments().get(
-                userId=self.CENTRAL_MAILBOX,
+                userId='me',
                 messageId=message_id,
                 id=attachment_id
             ).execute()

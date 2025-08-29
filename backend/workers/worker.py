@@ -1351,11 +1351,11 @@ async def automation_trigger_worker(
     message_data: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Process Gmail push notifications and trigger automations
+    Process Gmail email data and trigger automations
     
     Args:
         user_id: User ID for the Gmail account
-        message_data: Gmail Pub/Sub message payload
+        message_data: Parsed email data from Gmail Pub/Sub service
         
     Returns:
         Dict with processing results
@@ -1365,7 +1365,6 @@ async def automation_trigger_worker(
     with next(get_db()) as db:
         try:
             from services.automation_service import automation_service
-            from services.google_service import google_service
             
             # Get enabled automations for this user
             automations = await automation_service.get_enabled_automations(db, user_id)
@@ -1391,126 +1390,122 @@ async def automation_trigger_worker(
             
             processed_count = 0
             
-            # Use Gmail History API to get new messages since last processed history ID
-            # Extract history ID from push notification (prefer snake_case, fallback to camelCase)
-            current_history_id = message_data.get('history_id') or message_data.get('raw_data', {}).get('historyId')
+            # Extract email information from the new format
+            message_id = message_data.get('message_id')
+            sender_email = message_data.get('sender_email')
+            subject = message_data.get('subject', '')
+            attachments = message_data.get('attachments', [])
             
-            if not current_history_id:
-                logger.warning("No history_id in push notification")
-                return {"processed": 0, "message": "No history_id in notification"}
+            if not message_id:
+                logger.warning("No message_id in email data")
+                return {"processed": 0, "message": "No message_id in email data"}
             
-            logger.info(f"Processing Gmail push notification with history ID: {current_history_id}")
+            if not sender_email:
+                logger.warning("No sender_email in email data")
+                return {"processed": 0, "message": "No sender_email in email data"}
             
-            # Get the last processed history ID for this user (stored in database)
-            last_processed_history_id = google_service.get_last_processed_history_id(db, user_id)
+            logger.info(f"Processing email from {sender_email} with subject: '{subject}' and {len(attachments)} attachments")
             
-            if last_processed_history_id and int(current_history_id) <= int(last_processed_history_id):
-                logger.info(f"History ID {current_history_id} already processed (last: {last_processed_history_id}), skipping")
-                return {"processed": 0, "message": "History already processed"}
-            
-            # Get new messages since the last processed history ID
-            start_history_id = last_processed_history_id or str(int(current_history_id) - 1)
-            message_ids_to_check = google_service.get_messages_since_history(db, user_id, start_history_id)
-            
-            if not message_ids_to_check:
-                logger.info(f"No messages to check for user {user_id}")
-                return {"processed": 0, "message": "No messages to check"}
-            
+            # Process each automation
+            logger.info(f"Found {len(gmail_automations)} Gmail automations for user {user_id}")
             for automation in gmail_automations:
                 try:
                     # Extract Gmail query from trigger config
                     gmail_query = automation.trigger_config.get('query', '')
+                    logger.info(f"Checking automation {automation.id} with query: '{gmail_query}'")
                     if not gmail_query:
                         logger.warning(f"Automation {automation.id} has no Gmail query configured")
                         continue
                     
-                    # Check each message against the automation query
-                    for message_id in message_ids_to_check:
-                        logger.info(f"Checking message {message_id} against automation {automation.id} query: '{gmail_query}'")
+                    # TODO: Implement full Gmail query matching
+                    email_matches = _check_email_matches_query(message_data, gmail_query)
+                    logger.info(f"Email matches automation {automation.id}: {email_matches}")
+                    
+                    if email_matches:
+                        logger.info(f"Email matches automation {automation.id} query: '{gmail_query}'")
                         
-                        # Check if this specific message matches the automation query
-                        if google_service.message_matches_query(db, user_id, message_id, gmail_query):
-                            logger.info(f"Message {message_id} matches automation {automation.id} query")
-                            
-                            # Check if we've already processed this message for this automation
-                            from models.db_models import AutomationProcessedMessage
-                            existing_processed = db.query(AutomationProcessedMessage).filter(
-                                AutomationProcessedMessage.automation_id == automation.id,
-                                AutomationProcessedMessage.message_id == message_id
-                            ).first()
-                            
-                            if existing_processed:
-                                logger.info(f"Message {message_id} already processed by automation {automation.id} at {existing_processed.processed_at}, skipping")
-                                continue
-                            
-                            # Get message attachments
-                            attachments = google_service.get_gmail_message_attachments(db, user_id, message_id)
-                            
-                            if not attachments:
-                                logger.info(f"Message {message_id} matches query but has no attachments")
-                                continue
-                            
-                            logger.info(f"Message {message_id} has {len(attachments)} attachments")
-                            
-                            # Mark message as processed BEFORE creating automation run
-                            from models.db_models import AutomationProcessedMessage
-                            processed_message = AutomationProcessedMessage(
-                                automation_id=automation.id,
-                                message_id=message_id
-                            )
-                            db.add(processed_message)
-                            db.commit()
-                            
-                            logger.info(f"Marked message {message_id} as processed for automation {automation.id}")
-                            
-                            # Check if job is currently running before proceeding
-                            job = db.query(ExtractionJob).filter(ExtractionJob.id == automation.job_id).first()
-                            if job and job.status == 'in_progress':
-                                logger.warning(f"Job {automation.job_id} is currently running, skipping automation trigger")
-                                continue
-                                      # Clear existing data for automation runs to support multiple runs
-                            logger.info(f"Clearing existing data for automation job {automation.job_id}")
-                            await _clear_job_data_for_automation(db, automation.job_id)
-                            
-                            # Create automation run with import tracking
-                            automation_run = await automation_service.create_automation_run(
-                                db, automation.id, automation.job_id
-                            )
-                            
-                            # Initialize import tracking
-                            automation_run.imports_total = len(attachments)
-                            automation_run.imports_successful = 0
-                            automation_run.imports_failed = 0
-                            automation_run.imports_processed = 0
-                            automation_run.imports_processing_failed = 0
-                            db.commit()
-                            
-                            # Enqueue Gmail import worker (now using consolidated function)
-                            from arq import create_pool
-                            redis = await create_pool(ImportWorkerSettings.redis_settings)
-                            
-                            await redis.enqueue_job(
-                                'import_gmail_attachments',
-                                job_id=automation.job_id,
-                                user_id=user_id,
-                                attachment_data=attachments,
-                                automation_run_id=str(automation_run.id),
-                                _queue_name='io_queue'
-                            )
-                            
-                            await redis.close()
-                            processed_count += 1
-                            
-                            logger.info(f"Triggered automation {automation.id} for new message {message_id}")
-                            processed_count += 1
+                        # Check if we've already processed this message for this automation
+                        from models.db_models import AutomationProcessedMessage
+                        existing_processed = db.query(AutomationProcessedMessage).filter(
+                            AutomationProcessedMessage.automation_id == automation.id,
+                            AutomationProcessedMessage.message_id == message_id
+                        ).first()
+                        
+                        if existing_processed:
+                            logger.info(f"Message {message_id} already processed by automation {automation.id} at {existing_processed.processed_at}, skipping")
+                            continue
+                        
+                        if not attachments:
+                            logger.info(f"Email matches query but has no attachments")
+                            continue
+                        
+                        logger.info(f"Email has {len(attachments)} attachments")
+                        
+                        # Mark message as processed BEFORE creating automation run
+                        processed_message = AutomationProcessedMessage(
+                            automation_id=automation.id,
+                            message_id=message_id
+                        )
+                        db.add(processed_message)
+                        db.commit()
+                        
+                        logger.info(f"Marked message {message_id} as processed for automation {automation.id}")
+                        
+                        # Check if job is currently running before proceeding
+                        job = db.query(ExtractionJob).filter(ExtractionJob.id == automation.job_id).first()
+                        if job and job.status == 'in_progress':
+                            logger.warning(f"Job {automation.job_id} is currently running, skipping automation trigger")
+                            continue
+                        
+                        # Clear existing data for automation runs to support multiple runs
+                        logger.info(f"Clearing existing data for automation job {automation.job_id}")
+                        await _clear_job_data_for_automation(db, automation.job_id)
+                        
+                        # Create automation run with import tracking
+                        automation_run = await automation_service.create_automation_run(
+                            db, automation.id, automation.job_id
+                        )
+                        
+                        # Convert attachment data to the format expected by import worker
+                        attachment_data = []
+                        for attachment in attachments:
+                            attachment_data.append({
+                                'messageId': message_id,
+                                'attachmentId': attachment.get('attachment_id'),
+                                'filename': attachment.get('filename'),
+                                'mimeType': attachment.get('mime_type'),
+                                'size': attachment.get('size', 0)
+                            })
+                        
+                        # Initialize import tracking
+                        automation_run.imports_total = len(attachment_data)
+                        automation_run.imports_successful = 0
+                        automation_run.imports_failed = 0
+                        automation_run.imports_processed = 0
+                        automation_run.imports_processing_failed = 0
+                        db.commit()
+                        
+                        # Enqueue Gmail import worker
+                        from arq import create_pool
+                        redis = await create_pool(ImportWorkerSettings.redis_settings)
+                        
+                        await redis.enqueue_job(
+                            'import_gmail_attachments',
+                            job_id=automation.job_id,
+                            user_id=user_id,
+                            attachment_data=attachment_data,
+                            automation_run_id=str(automation_run.id),
+                            _queue_name='io_queue'
+                        )
+                        
+                        await redis.close()
+                        processed_count += 1
+                        
+                        logger.info(f"Triggered automation {automation.id} for email {message_id}")
                 
                 except Exception as e:
                     logger.error(f"Failed to process automation {automation.id}: {e}")
                     continue
-            
-            # Update the last processed history ID after processing
-            google_service.update_last_processed_history_id(db, user_id, str(current_history_id))
-            logger.info(f"Updated last processed history ID to {current_history_id}")
             
             return {
                 "processed": processed_count,
@@ -1520,6 +1515,88 @@ async def automation_trigger_worker(
         except Exception as e:
             logger.error(f"Automation trigger worker failed for user {user_id}: {e}")
             raise
+
+def _check_email_matches_query(email_data: Dict[str, Any], gmail_query: str) -> bool:
+    """
+    Check if email matches Gmail query (simplified implementation)
+    
+    Args:
+        email_data: Parsed email data
+        gmail_query: Gmail search query
+        
+    Returns:
+        True if email matches query, False otherwise
+    """
+    try:
+        # For now, implement basic matching
+        # TODO: Implement full Gmail query parsing and matching
+        
+        subject = email_data.get('subject', '').lower()
+        sender = email_data.get('sender', '').lower()
+        sender_email = email_data.get('sender_email', '').lower()
+        
+        query_lower = gmail_query.lower()
+        
+        # Parse Gmail query components
+        import re
+        attachments = email_data.get('attachments', [])
+        
+        # Handle Gmail-specific operators
+        if 'has:attachment' in query_lower:
+            if len(attachments) == 0:
+                return False
+        
+        if 'filename:' in query_lower:
+            # Extract filename filter
+            filename_match = re.search(r'filename:([^\s]+)', query_lower)
+            if filename_match:
+                filename_keyword = filename_match.group(1).strip('"\'')
+                
+                # Check if any attachment filename contains the keyword
+                filename_found = False
+                for attachment in attachments:
+                    attachment_filename = attachment.get('filename', '').lower()
+                    if filename_keyword in attachment_filename:
+                        filename_found = True
+                        break
+                
+                if not filename_found:
+                    return False
+        
+        # Handle standard Gmail filters
+        if 'subject:' in query_lower:
+            # Extract subject filter
+            subject_match = re.search(r'subject:([^\s]+)', query_lower)
+            if subject_match:
+                subject_keyword = subject_match.group(1).strip('"\'')
+                if subject_keyword not in subject:
+                    return False
+        
+        if 'from:' in query_lower:
+            # Extract from filter
+            from_match = re.search(r'from:([^\s]+)', query_lower)
+            if from_match:
+                from_keyword = from_match.group(1).strip('"\'')
+                if from_keyword not in sender and from_keyword not in sender_email:
+                    return False
+        
+        # If no specific filters, do general keyword matching
+        gmail_operators = ['has:', 'filename:', 'subject:', 'from:']
+        has_gmail_operators = any(op in query_lower for op in gmail_operators)
+        
+        if not has_gmail_operators:
+            # Check if any word in the query appears in subject or sender
+            query_words = query_lower.split()
+            for word in query_words:
+                if word in subject or word in sender or word in sender_email:
+                    return True
+            return False
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to check email query match: {e}")
+        return False
 
 async def run_initializer_worker(
     ctx: Dict[str, Any],

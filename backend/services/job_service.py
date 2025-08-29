@@ -212,6 +212,7 @@ class JobService:
                 update(ExtractionJob)
                 .where(ExtractionJob.id == job_id)
                 .values(
+                    config_step='submitted',
                     status='in_progress',
                     tasks_total=total_tasks,
                     tasks_completed=0,

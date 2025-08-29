@@ -372,9 +372,13 @@ class GoogleService:
         message_id: str,
         attachment_id: str
     ) -> Optional[bytes]:
-        """Download a Gmail attachment"""
-        gmail_service = self.get_gmail_service(db, user_id)
+        """Download a Gmail attachment using service account"""
+        # Import here to avoid circular imports
+        from services.gmail_pubsub_service import gmail_pubsub_service
+        
+        gmail_service = gmail_pubsub_service._get_service_account_gmail_service()
         if not gmail_service:
+            logger.error("Could not get service account Gmail service")
             return None
         
         try:
@@ -690,7 +694,9 @@ class GoogleService:
                 raise ValueError(f"Job {job_id} not found")
             
             user_id = job.user_id
-            gmail_service = self.get_gmail_service(db, user_id)
+            # Use service account Gmail service for automation imports
+            from services.gmail_pubsub_service import gmail_pubsub_service
+            gmail_service = gmail_pubsub_service._get_service_account_gmail_service()
             if not gmail_service:
                 raise ValueError("Could not get Gmail service")
             
