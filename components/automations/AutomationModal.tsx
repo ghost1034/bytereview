@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -63,9 +63,10 @@ interface AutomationModalProps {
 
 export function AutomationModal({ open, onOpenChange, automationId }: AutomationModalProps) {
   const [selectedGDriveFolder, setSelectedGDriveFolder] = useState<{id: string, name: string} | null>(null)
+  const [hydrated, setHydrated] = useState<boolean>(!automationId)
   
   const isEditMode = !!automationId
-  const { data: automation, isLoading: automationLoading } = useAutomation(automationId || "", { enabled: isEditMode })
+  const { data: automation, isLoading: automationLoading } = useAutomation(automationId || "")
   const { data: jobs, isLoading: jobsLoading } = useJobs()
   const { status: googleStatus } = useGoogleIntegration()
   const createAutomation = useCreateAutomation()
@@ -77,6 +78,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
     watch,
     setValue,
     reset,
+    control,
     formState: { errors, isValid, isDirty }
   } = useForm<AutomationFormData>({
     resolver: zodResolver(automationSchema),
@@ -94,41 +96,51 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
   const watchedJobId = watch("job_id")
   const watchedTriggerType = watch("trigger_type")
 
-  const selectedJob = jobs?.jobs.find(job => job.id === watchedJobId)
+  // For async Selects: avoid passing a value until options are loaded and contain the value
+  const jobOptionsReady = !!jobs && !jobsLoading
+  const safeJobSelectValue = jobOptionsReady && jobs?.jobs.some(j => j.id === watchedJobId) ? watchedJobId : undefined
 
-  // Reset form when automation data loads (edit mode)
+  // When editing, hydrate form once data is ready and modal is open
   useEffect(() => {
-    if (isEditMode && automation) {
-      reset({
-        name: automation.name,
-        trigger_type: automation.trigger_type === "gmail_attachment" ? "gmail" : automation.trigger_type,
-        gmail_query: automation.trigger_config?.query || "",
-        job_id: automation.job_id,
-        is_enabled: automation.is_enabled,
-        processing_mode: automation.processing_mode || "individual",
-        keep_source_files: automation.keep_source_files ?? true,
-        dest_type: automation.dest_type || "none",
-        folder_id: automation.export_config?.folder_id || "",
-        to_email: automation.export_config?.to_email || "",
-        file_type: automation.export_config?.file_type || "csv",
-      }, {
-        keepErrors: false,
-        keepDirty: false,
-        keepIsSubmitted: false,
-        keepTouched: false,
-        keepIsValid: false,
-        keepSubmitCount: false
+    if (!isEditMode) return
+    if (!open) return
+    if (automationLoading || jobsLoading) return
+    if (!automation) return
+
+    const mappedTrigger = automation.trigger_type === "gmail_attachment" ? "gmail" : automation.trigger_type
+
+    reset({
+      name: automation.name,
+      trigger_type: mappedTrigger as any,
+      gmail_query: automation.trigger_config?.query || "",
+      job_id: automation.job_id,
+      is_enabled: automation.is_enabled,
+      processing_mode: (automation.processing_mode as any) || "individual",
+      keep_source_files: (automation.keep_source_files as any) ?? true,
+      dest_type: automation.dest_type || "none",
+      folder_id: automation.export_config?.folder_id || "",
+      to_email: automation.export_config?.to_email || "",
+      file_type: (automation.export_config?.file_type as any) || "csv",
+    }, {
+      keepErrors: false,
+      keepDirty: false,
+      keepIsSubmitted: false,
+      keepTouched: false,
+      keepIsValid: false,
+      keepSubmitCount: false
+    })
+
+    setHydrated(true)
+
+    if (automation.export_config?.folder_id && automation.export_config?.folder_name) {
+      setSelectedGDriveFolder({
+        id: automation.export_config.folder_id,
+        name: automation.export_config.folder_name
       })
-      
-      // Set selected folder if exists
-      if (automation.export_config?.folder_id && automation.export_config?.folder_name) {
-        setSelectedGDriveFolder({
-          id: automation.export_config.folder_id,
-          name: automation.export_config.folder_name
-        })
-      }
+    } else {
+      setSelectedGDriveFolder(null)
     }
-  }, [automation, reset, isEditMode])
+  }, [isEditMode, open, automation, automationLoading, jobsLoading, reset])
 
   // Reset form when modal closes
   useEffect(() => {
@@ -191,8 +203,8 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
     setValue("folder_id", folder.id, { shouldValidate: true })
   }
 
-  // Show loading state for edit mode
-  if (isEditMode && automationLoading) {
+  // Show loading state for edit mode until all data needed to hydrate the form is ready
+  if (isEditMode && open && (automationLoading || jobsLoading)) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="max-w-2xl">
@@ -214,8 +226,45 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
   }
 
   // Don't render if in edit mode but no automation data
-  if (isEditMode && !automation) {
-    return null
+  // If editing but data still not present while modal is open, render a lightweight skeleton
+  if (isEditMode && open && !automation) {
+    return (
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Automation</DialogTitle>
+            <DialogDescription>
+              Loading automation...
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
+  if (isEditMode && open && !hydrated) {
+    return (
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Automation</DialogTitle>
+            <DialogDescription>Loading configuration...</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </DialogContent>
+      </Dialog>
+    )
   }
 
   return (
@@ -245,22 +294,28 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
 
             <div className="space-y-2">
               <Label htmlFor="trigger_type">Trigger Type</Label>
-              <Select
-                value={watchedTriggerType}
-                onValueChange={(value: any) => setValue("trigger_type", value, { shouldValidate: true })}
-                disabled={isEditMode} // Don't allow changing trigger type in edit mode
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select what triggers this automation" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="gmail">Gmail (Email Attachments)</SelectItem>
-                  <SelectItem value="google_drive">Google Drive</SelectItem>
-                  <SelectItem value="outlook">Outlook</SelectItem>
-                  <SelectItem value="onedrive">OneDrive</SelectItem>
-                  <SelectItem value="sharepoint">SharePoint</SelectItem>
-                </SelectContent>
-              </Select>
+              <Controller
+                control={control}
+                name="trigger_type"
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={(v) => field.onChange(v)}
+                    disabled={isEditMode}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select what triggers this automation" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gmail">Gmail (Email Attachments)</SelectItem>
+                      <SelectItem value="google_drive">Google Drive</SelectItem>
+                      <SelectItem value="outlook">Outlook</SelectItem>
+                      <SelectItem value="onedrive">OneDrive</SelectItem>
+                      <SelectItem value="sharepoint">SharePoint</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
               {errors.trigger_type && (
                 <p className="text-sm text-red-600">{errors.trigger_type.message}</p>
               )}
@@ -268,27 +323,38 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
 
             <div className="space-y-2">
               <Label htmlFor="job_id">Job Template</Label>
-              <Select
-                value={watchedJobId}
-                onValueChange={(value) => setValue("job_id", value, { shouldValidate: true })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a job template to use for processing" />
-                </SelectTrigger>
-                <SelectContent>
-                  {jobsLoading ? (
-                    <SelectItem value="loading" disabled>Loading jobs...</SelectItem>
-                  ) : jobs?.jobs.length === 0 ? (
-                    <SelectItem value="no-jobs" disabled>No job templates available</SelectItem>
-                  ) : (
-                    jobs?.jobs.map((job) => (
-                      <SelectItem key={job.id} value={job.id}>
-                        {job.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              <Controller
+                control={control}
+                name="job_id"
+                render={({ field }) => {
+                  const isReady = !!jobs && !jobsLoading
+                  const valueInOptions = isReady && jobs?.jobs.some(j => j.id === field.value)
+                  const value = valueInOptions ? field.value : undefined
+                  return (
+                    <Select
+                      value={value}
+                      onValueChange={(v) => field.onChange(v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a job template to use for processing" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {jobsLoading ? (
+                          <SelectItem value="loading" disabled>Loading jobs...</SelectItem>
+                        ) : jobs?.jobs.length === 0 ? (
+                          <SelectItem value="no-jobs" disabled>No job templates available</SelectItem>
+                        ) : (
+                          jobs?.jobs.map((job) => (
+                            <SelectItem key={job.id} value={job.id}>
+                              {job.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  )
+                }}
+              />
               {errors.job_id && (
                 <p className="text-sm text-red-600">{errors.job_id.message}</p>
               )}
@@ -462,24 +528,36 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="dest_type">Export Results</Label>
-              <Select
-                value={watchedDestType}
-                onValueChange={(value: any) => setValue("dest_type", value, { shouldValidate: true })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select export destination" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No automatic export</SelectItem>
-                  <SelectItem value="gdrive" disabled={!googleStatus?.connected}>
-                    Google Drive {!googleStatus?.connected && "(Not connected)"}
-                  </SelectItem>
-                  <SelectItem value="gmail">Gmail (Email results)</SelectItem>
-                  <SelectItem value="outlook">Outlook</SelectItem>
-                  <SelectItem value="onedrive">OneDrive</SelectItem>
-                  <SelectItem value="sharepoint">SharePoint</SelectItem>
-                </SelectContent>
-              </Select>
+              <Controller
+                control={control}
+                name="dest_type"
+                render={({ field }) => {
+                  // Use the automation value directly if field value is empty/undefined
+                  // Map null/undefined dest_type to "none" to match our form schema
+                  const automationDestType = isEditMode ? (automation?.dest_type || "none") : undefined
+                  const value = field.value || automationDestType
+                  return (
+                    <Select
+                      value={value}
+                      onValueChange={(v) => field.onChange(v)}
+                    >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select export destination" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No automatic export</SelectItem>
+                      <SelectItem value="gdrive" disabled={!googleStatus?.connected}>
+                        Google Drive {!googleStatus?.connected && "(Not connected)"}
+                      </SelectItem>
+                      <SelectItem value="gmail">Gmail (Email results)</SelectItem>
+                      <SelectItem value="outlook">Outlook</SelectItem>
+                      <SelectItem value="onedrive">OneDrive</SelectItem>
+                      <SelectItem value="sharepoint">SharePoint</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  )
+                }}
+              />
               <p className="text-sm text-gray-600">
                 Choose where to automatically export the extraction results
               </p>
