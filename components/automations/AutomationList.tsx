@@ -7,8 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAutomations, useToggleAutomation, useDeleteAutomation } from "@/hooks/useAutomations"
-import { CreateAutomationModal } from "./CreateAutomationModal"
-import { EditAutomationModal } from "./EditAutomationModal"
+import { AutomationModal } from "./AutomationModal"
 import { AutomationRunsModal } from "./AutomationRunsModal"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { formatDistanceToNow } from "date-fns"
@@ -221,14 +220,14 @@ export function AutomationList() {
         </div>
       )}
 
-      <CreateAutomationModal
+      <AutomationModal
         open={createModalOpen}
         onOpenChange={setCreateModalOpen}
       />
 
       {selectedAutomationId && (
         <>
-          <EditAutomationModal
+          <AutomationModal
             automationId={selectedAutomationId}
             open={editModalOpen}
             onOpenChange={setEditModalOpen}
