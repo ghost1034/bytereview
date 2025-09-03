@@ -1418,7 +1418,7 @@ async def automation_trigger_worker(
                         continue
                     
                     # TODO: Implement full Gmail query matching
-                    email_matches = _check_email_matches_query(message_data, gmail_query)
+                    email_matches = await _check_email_matches_gmail_query(message_data, gmail_query)
                     logger.info(f"Email matches automation {automation.id}: {email_matches}")
                     
                     if email_matches:
@@ -1516,9 +1516,9 @@ async def automation_trigger_worker(
             logger.error(f"Automation trigger worker failed for user {user_id}: {e}")
             raise
 
-def _check_email_matches_query(email_data: Dict[str, Any], gmail_query: str) -> bool:
+async def _check_email_matches_gmail_query(email_data: Dict[str, Any], gmail_query: str) -> bool:
     """
-    Check if email matches Gmail query (simplified implementation)
+    Check if email matches Gmail query using Gmail's search API
     
     Args:
         email_data: Parsed email data
@@ -1528,74 +1528,46 @@ def _check_email_matches_query(email_data: Dict[str, Any], gmail_query: str) -> 
         True if email matches query, False otherwise
     """
     try:
-        # For now, implement basic matching
-        # TODO: Implement full Gmail query parsing and matching
+        from services.gmail_pubsub_service import gmail_pubsub_service
         
-        subject = email_data.get('subject', '').lower()
-        sender = email_data.get('sender', '').lower()
-        sender_email = email_data.get('sender_email', '').lower()
-        
-        query_lower = gmail_query.lower()
-        
-        # Parse Gmail query components
-        import re
-        attachments = email_data.get('attachments', [])
-        
-        # Handle Gmail-specific operators
-        if 'has:attachment' in query_lower:
-            if len(attachments) == 0:
-                return False
-        
-        if 'filename:' in query_lower:
-            # Extract filename filter
-            filename_match = re.search(r'filename:([^\s]+)', query_lower)
-            if filename_match:
-                filename_keyword = filename_match.group(1).strip('"\'')
-                
-                # Check if any attachment filename contains the keyword
-                filename_found = False
-                for attachment in attachments:
-                    attachment_filename = attachment.get('filename', '').lower()
-                    if filename_keyword in attachment_filename:
-                        filename_found = True
-                        break
-                
-                if not filename_found:
-                    return False
-        
-        # Handle standard Gmail filters
-        if 'subject:' in query_lower:
-            # Extract subject filter
-            subject_match = re.search(r'subject:([^\s]+)', query_lower)
-            if subject_match:
-                subject_keyword = subject_match.group(1).strip('"\'')
-                if subject_keyword not in subject:
-                    return False
-        
-        if 'from:' in query_lower:
-            # Extract from filter
-            from_match = re.search(r'from:([^\s]+)', query_lower)
-            if from_match:
-                from_keyword = from_match.group(1).strip('"\'')
-                if from_keyword not in sender and from_keyword not in sender_email:
-                    return False
-        
-        # If no specific filters, do general keyword matching
-        gmail_operators = ['has:', 'filename:', 'subject:', 'from:']
-        has_gmail_operators = any(op in query_lower for op in gmail_operators)
-        
-        if not has_gmail_operators:
-            # Check if any word in the query appears in subject or sender
-            query_words = query_lower.split()
-            for word in query_words:
-                if word in subject or word in sender or word in sender_email:
-                    return True
+        # Get Gmail service with service account
+        gmail_service = gmail_pubsub_service._get_service_account_gmail_service()
+        if not gmail_service:
+            logger.error("Could not get Gmail service for query matching")
             return False
         
-        return True
+        message_id = email_data.get('message_id')
+        if not message_id:
+            logger.error("No message_id in email data for query matching")
+            return False
+        
+        # Use Gmail's search API to check if this specific message matches the query
+        # Instead of using rfc822msgid (which needs the actual Message-ID header), 
+        # we'll search for the user's query and then check if our message ID is in the results
+        logger.info(f"Testing Gmail query: '{gmail_query}'")
+        
+        try:
+            # Search for messages matching the user's query
+            search_response = gmail_service.users().messages().list(
+                userId='me',
+                q=gmail_query,
+                maxResults=100  # Get more results to check if our message is in them
+            ).execute()
+            
+            messages = search_response.get('messages', [])
+            
+            # Check if our specific message ID is in the search results
+            message_matches = any(msg.get('id') == message_id for msg in messages)
+            
+            logger.info(f"Gmail query '{gmail_query}' returned {len(messages)} messages, our message {message_id} found: {message_matches}")
+            return message_matches
+            
+        except Exception as search_error:
+            logger.error(f"Gmail search API failed for query '{gmail_query}': {search_error}")
+            return False
         
     except Exception as e:
-        logger.error(f"Failed to check email query match: {e}")
+        logger.error(f"Failed to check email query match using Gmail API: {e}")
         return False
 
 async def run_initializer_worker(

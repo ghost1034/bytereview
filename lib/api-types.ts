@@ -1064,7 +1064,8 @@ export interface paths {
         put?: never;
         /**
          * Refresh Google Token
-         * @description Refresh Google access token using refresh token
+         * @description Manually refresh Google access token using refresh token.
+         *     Uses the same centralized refresh logic as automatic refresh.
          */
         post: operations["refresh_google_token_api_integrations_google_refresh_post"];
         delete?: never;
@@ -1082,7 +1083,8 @@ export interface paths {
         };
         /**
          * Get Google Picker Token
-         * @description Get Google access token for use with Google Picker API
+         * @description Get Google access token for use with Google Picker API.
+         *     Token refresh is handled automatically by GoogleService._get_credentials().
          */
         get: operations["get_google_picker_token_api_integrations_google_picker_token_get"];
         put?: never;

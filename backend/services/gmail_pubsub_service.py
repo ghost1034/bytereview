@@ -234,12 +234,15 @@ class GmailPubSubService:
                 while True:
                     logger.info(f"Fetching history from cursor: {current_cursor}")
                     
+                    # Try with all history types to see what's available
                     history_response = gmail_service.users().history().list(
                         userId='me',
                         startHistoryId=current_cursor,
-                        historyTypes=['messageAdded'],
+                        # Remove historyTypes filter to see all changes
                         maxResults=100  # Process in batches
                     ).execute()
+                    
+                    logger.info(f"Gmail history API response: {history_response}")
                     
                     # Update cursor to the highest historyId from this response
                     response_history_id = history_response.get('historyId')
@@ -248,13 +251,42 @@ class GmailPubSubService:
                     
                     # Process messages from this page
                     history_records = history_response.get('history', [])
+                    logger.info(f"Found {len(history_records)} history records")
                     page_messages = []
                     
                     for record in history_records:
+                        logger.info(f"Processing history record: {record}")
+                        
+                        # Handle different types of history events
+                        message_ids_to_process = []
+                        
                         if 'messagesAdded' in record:
+                            logger.info(f"Found messagesAdded: {len(record['messagesAdded'])} messages")
                             for message_added in record['messagesAdded']:
-                                message_id = message_added['message']['id']
-                                
+                                message_ids_to_process.append(message_added['message']['id'])
+                        
+                        if 'messagesDeleted' in record:
+                            logger.info(f"Found messagesDeleted: {len(record['messagesDeleted'])} messages")
+                            # We don't process deleted messages
+                        
+                        if 'labelsAdded' in record:
+                            logger.info(f"Found labelsAdded: {len(record['labelsAdded'])} messages")
+                            # Check if this might be a draft becoming a sent message
+                            for label_added in record['labelsAdded']:
+                                message_ids_to_process.append(label_added['message']['id'])
+                        
+                        if 'labelsRemoved' in record:
+                            logger.info(f"Found labelsRemoved: {len(record['labelsRemoved'])} messages")
+                            # Check if this might be a draft becoming a sent message
+                            for label_removed in record['labelsRemoved']:
+                                message_ids_to_process.append(label_removed['message']['id'])
+                        
+                        # Process unique message IDs
+                        unique_message_ids = list(set(message_ids_to_process))
+                        logger.info(f"Processing {len(unique_message_ids)} unique messages from this record")
+                        
+                        for message_id in unique_message_ids:
+                            try:
                                 # Get full message details
                                 message_detail = gmail_service.users().messages().get(
                                     userId='me',
@@ -274,6 +306,8 @@ class GmailPubSubService:
                                             mailbox_state.last_internal_dt or 0,
                                             int(internal_date)
                                         )
+                            except Exception as e:
+                                logger.error(f"Failed to process message {message_id}: {e}")
                     
                     all_messages.extend(page_messages)
                     logger.info(f"Processed {len(page_messages)} messages from this page")
