@@ -129,7 +129,16 @@ class JobService:
             if job.status == 'in_progress':
                 raise ValueError("Job already in progress")
             
-            # Validate existing configured tasks
+            # Delete any completed extraction tasks to allow re-running
+            completed_tasks_deleted = db.query(ExtractionTask).filter(
+                ExtractionTask.job_id == job_id,
+                ExtractionTask.status == 'completed'
+            ).delete()
+            
+            if completed_tasks_deleted > 0:
+                logger.info(f"Deleted {completed_tasks_deleted} completed extraction tasks for job {job_id}")
+            
+            # Validate remaining configured tasks
             total_tasks = db.query(ExtractionTask).filter(
                 ExtractionTask.job_id == job_id
             ).count()
@@ -1186,12 +1195,11 @@ class JobService:
             # Get the job
             job = db.query(ExtractionJob).filter(
                 ExtractionJob.id == job_id,
-                ExtractionJob.user_id == user_id,
-                ExtractionJob.status == JobStatus.PENDING.value
+                ExtractionJob.user_id == user_id
             ).first()
             
             if not job:
-                raise ValueError(f"Job {job_id} not found or not in correct state")
+                raise ValueError(f"Job {job_id} not found")
             
             uploaded_files = []
             storage_service = get_storage_service()
@@ -1306,12 +1314,11 @@ class JobService:
             # Get the job
             job = db.query(ExtractionJob).filter(
                 ExtractionJob.id == job_id,
-                ExtractionJob.user_id == user_id,
-                ExtractionJob.status == JobStatus.PENDING.value
+                ExtractionJob.user_id == user_id
             ).first()
             
             if not job:
-                raise ValueError(f"Job {job_id} not found or not in correct state")
+                raise ValueError(f"Job {job_id} not found")
             
             # Get the source file
             source_file = db.query(SourceFile).filter(

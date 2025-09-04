@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { Settings } from 'lucide-react'
 import ResultsStep from '@/components/workflow/steps/ResultsStep'
 
 async function getAuthToken(user: any): Promise<string> {
@@ -38,6 +38,10 @@ export default function JobResultsPage() {
     router.push('/dashboard/jobs/create')
   }
 
+  const handleAddMoreFiles = () => {
+    router.push(`/dashboard/jobs/${jobId}/upload`)
+  }
+
   if (isLoading) {
     return <div className="flex justify-center p-8">Loading...</div>
   }
@@ -46,11 +50,25 @@ export default function JobResultsPage() {
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold">Results</h1>
-        <p className="text-muted-foreground">
-          View and export your extracted data
-        </p>
+      <div className="text-center space-y-4">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold">Results</h1>
+          <p className="text-muted-foreground">
+            View and export your extracted data
+          </p>
+        </div>
+        
+        {/* Action Buttons */}
+        <div className="flex justify-center">
+          <Button 
+            onClick={handleAddMoreFiles}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <Settings className="w-4 h-4" />
+            Reconfigure Job
+          </Button>
+        </div>
       </div>
 
       {/* Results Step */}
