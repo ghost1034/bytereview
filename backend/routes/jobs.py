@@ -122,14 +122,15 @@ async def list_jobs(
     user_id: str = Depends(get_current_user_id),
     limit: int = Query(default=25, ge=1, le=100, description="Number of jobs to return"),
     offset: int = Query(default=0, ge=0, description="Number of jobs to skip"),
-    status: Optional[str] = Query(default=None, description="Filter by job status")
+    status: Optional[str] = Query(default=None, description="Filter by job status"),
+    include_field_status: bool = Query(default=False, description="Include field configuration status for automation selection")
 ):
     """
     List jobs for the current user with pagination and filtering
     """
     try:
         # TODO: Implement status filtering when needed
-        response = await job_service.list_user_jobs(user_id, limit, offset)
+        response = await job_service.list_user_jobs(user_id, limit, offset, include_field_status)
         return response
     except Exception as e:
         logger.error(f"Failed to list jobs for user {user_id}: {e}")

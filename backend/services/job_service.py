@@ -1049,41 +1049,57 @@ class JobService:
         finally:
             db.close()
 
-    async def list_user_jobs(self, user_id: str, limit: int = 25, offset: int = 0) -> JobListResponse:
+    async def list_user_jobs(self, user_id: str, limit: int = 25, offset: int = 0, include_field_status: bool = False) -> JobListResponse:
         """List jobs for a user with pagination"""
         db = self._get_session()
         try:
             # Get total count
             total = db.query(ExtractionJob).filter(ExtractionJob.user_id == user_id).count()
             
-            # Get jobs with processable file counts (excluding ZIP files)
-            jobs_query = db.query(
-                ExtractionJob,
-                func.count(SourceFile.id).label('file_count')
-            ).outerjoin(SourceFile).filter(
-                ExtractionJob.user_id == user_id
-            )
-            
-            # Apply processable files filter, allowing jobs with no files
-            jobs_query = self._filter_processable_files(jobs_query, allow_null_files=True)
-            
-            jobs_query = jobs_query.group_by(ExtractionJob.id).order_by(
-                ExtractionJob.created_at.desc()
-            ).limit(limit).offset(offset)
-            
-            jobs_with_counts = jobs_query.all()
-            
-            job_items = [
-                JobListItem(
-                    id=str(job.id),
-                    name=job.name,
-                    status=JobStatus(job.status),
-                    config_step=job.config_step,
-                    created_at=job.created_at,
-                    file_count=file_count or 0
-                )
-                for job, file_count in jobs_with_counts
-            ]
+            if include_field_status:
+                # Get jobs with field counts
+                jobs_query = db.query(
+                    ExtractionJob,
+                    func.count(JobField.id).label('field_count')
+                ).outerjoin(JobField).filter(
+                    ExtractionJob.user_id == user_id
+                ).group_by(ExtractionJob.id).order_by(
+                    ExtractionJob.created_at.desc()
+                ).limit(limit).offset(offset)
+                
+                jobs_with_counts = jobs_query.all()
+                
+                job_items = [
+                    JobListItem(
+                        id=str(job.id),
+                        name=job.name,
+                        status=JobStatus(job.status),
+                        config_step=job.config_step,
+                        created_at=job.created_at,
+                        has_configured_fields=(field_count or 0) > 0
+                    )
+                    for job, field_count in jobs_with_counts
+                ]
+            else:
+                # Get jobs only (no counts needed)
+                jobs_query = db.query(ExtractionJob).filter(
+                    ExtractionJob.user_id == user_id
+                ).order_by(
+                    ExtractionJob.created_at.desc()
+                ).limit(limit).offset(offset)
+                
+                jobs = jobs_query.all()
+                
+                job_items = [
+                    JobListItem(
+                        id=str(job.id),
+                        name=job.name,
+                        status=JobStatus(job.status),
+                        config_step=job.config_step,
+                        created_at=job.created_at
+                    )
+                    for job in jobs
+                ]
             
             return JobListResponse(
                 jobs=job_items,

@@ -118,6 +118,31 @@ export function useJobs(limit = 25, offset = 0, status?: string) {
 }
 
 /**
+ * Hook to get jobs for automation selection (includes field configuration status)
+ */
+export function useJobsForAutomation(limit = 100, offset = 0) {
+  const { user } = useAuth()
+  
+  return useQuery<JobListResponse>({
+    queryKey: ['jobs', 'for-automation', user?.uid, limit, offset],
+    queryFn: () => {
+      console.log('[JOBS] Automation jobs API call triggered at', new Date().toLocaleTimeString())
+      return apiClient.listJobs({ limit, offset, include_field_status: true })
+    },
+    enabled: !!user,
+    staleTime: 30000, // Cache for 30 seconds since this is used in modals
+    refetchOnWindowFocus: false, // Don't refetch on focus for modal usage
+    refetchOnMount: true,
+    onSuccess: (data) => {
+      console.log('[JOBS] Automation jobs API response received:', data)
+    },
+    onError: (error) => {
+      console.error('[JOBS] Automation jobs API error:', error)
+    }
+  })
+}
+
+/**
  * Hook to get job progress with real-time updates
  */
 export function useJobProgress(jobId: string | undefined) {

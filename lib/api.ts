@@ -316,11 +316,12 @@ export class ApiClient {
     return this.request(`/api/jobs/${jobId}`)
   }
 
-  async listJobs(params?: { limit?: number; offset?: number; status?: string }): Promise<ApiResponse<ApiPaths['/api/jobs']['get']>> {
+  async listJobs(params?: { limit?: number; offset?: number; status?: string; include_field_status?: boolean }): Promise<ApiResponse<ApiPaths['/api/jobs']['get']>> {
     const searchParams = new URLSearchParams()
     if (params?.limit) searchParams.set('limit', params.limit.toString())
     if (params?.offset) searchParams.set('offset', params.offset.toString())
     if (params?.status) searchParams.set('status', params.status)
+    if (params?.include_field_status) searchParams.set('include_field_status', params.include_field_status.toString())
     
     const query = searchParams.toString()
     return this.request(`/api/jobs${query ? `?${query}` : ''}`)

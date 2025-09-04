@@ -113,7 +113,7 @@ class JobListItem(BaseModel):
     status: JobStatus = Field(..., description="Job status")
     config_step: str = Field(..., description="Current configuration step")
     created_at: datetime = Field(..., description="Creation timestamp")
-    file_count: int = Field(..., description="Number of files")
+    has_configured_fields: Optional[bool] = Field(None, description="Whether the job has configured fields (for automation selection)")
 
 class JobListResponse(BaseModel):
     """Response for job listing"""

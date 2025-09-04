@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -17,7 +18,14 @@ interface AutomationRunsModalProps {
 
 export function AutomationRunsModal({ automationId, open, onOpenChange }: AutomationRunsModalProps) {
   const { data: automation, isLoading: automationLoading } = useAutomation(automationId)
-  const { data: runs, isLoading: runsLoading } = useAutomationRuns(automationId)
+  const { data: runs, isLoading: runsLoading, refetch } = useAutomationRuns(automationId)
+  
+  // Refetch runs data when modal opens
+  React.useEffect(() => {
+    if (open && automationId) {
+      refetch()
+    }
+  }, [open, automationId, refetch])
 
   const getStatusIcon = (status: string) => {
     switch (status) {

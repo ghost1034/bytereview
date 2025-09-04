@@ -1986,10 +1986,10 @@ export interface components {
              */
             created_at: string;
             /**
-             * File Count
-             * @description Number of files
+             * Has Configured Fields
+             * @description Whether the job has configured fields (for automation selection)
              */
-            file_count: number;
+            has_configured_fields?: boolean | null;
         };
         /**
          * JobListResponse
@@ -2618,6 +2618,8 @@ export interface operations {
                 offset?: number;
                 /** @description Filter by job status */
                 status?: string | null;
+                /** @description Include field configuration status for automation selection */
+                include_field_status?: boolean;
             };
             header?: never;
             path?: never;

@@ -114,8 +114,8 @@ const buildFileTree = (results: JobResult[]): TreeNode[] => {
       // Create ONE node for the combined result (not per row)
       const combinedName =
         sourceFiles.length > 1
-          ? `Combined (${sourceFiles.length} files, ${taskResults.length} rows)`
-          : `${sourceFiles[0].split("/").pop()} (${taskResults.length} rows)`;
+          ? `Combined (${sourceFiles.length} files)`
+          : `${sourceFiles[0].split("/").pop()}`;
 
       const combinedPath = commonPath
         ? `${commonPath}/${combinedName}`
@@ -183,13 +183,7 @@ const buildFileTree = (results: JobResult[]): TreeNode[] => {
       const pathSegments = filePath
         .split("/")
         .filter((segment) => segment.length > 0);
-      const baseFileName = pathSegments.pop() || filePath;
-
-      // Show row count in filename if multiple rows
-      const fileName =
-        taskResults.length > 1
-          ? `${baseFileName} (${taskResults.length} rows)`
-          : baseFileName;
+      const fileName = pathSegments.pop() || filePath;
 
       const fileNode: FileNode = {
         name: fileName,

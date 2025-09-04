@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { useCreateAutomation, useUpdateAutomation, useAutomation } from "@/hooks/useAutomations"
-import { useJobs } from "@/hooks/useJobs"
+import { useJobsForAutomation } from "@/hooks/useJobs"
 import { useGoogleIntegration } from "@/hooks/useGoogleIntegration"
 import { Mail, HelpCircle } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -67,7 +67,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
   
   const isEditMode = !!automationId
   const { data: automation, isLoading: automationLoading } = useAutomation(automationId || "")
-  const { data: jobs, isLoading: jobsLoading } = useJobs()
+  const { data: jobs, isLoading: jobsLoading } = useJobsForAutomation()
   const { status: googleStatus } = useGoogleIntegration()
   const createAutomation = useCreateAutomation()
   const updateAutomation = useUpdateAutomation()
@@ -352,8 +352,20 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                           <SelectItem value="no-jobs" disabled>No job templates available</SelectItem>
                         ) : (
                           jobs?.jobs.map((job) => (
-                            <SelectItem key={job.id} value={job.id}>
-                              {job.name}
+                            <SelectItem 
+                              key={job.id} 
+                              value={job.id}
+                              disabled={!job.has_configured_fields}
+                              className={!job.has_configured_fields ? "opacity-50 cursor-not-allowed" : ""}
+                            >
+                              <div className="flex flex-col">
+                                <span>{job.name}</span>
+                                {!job.has_configured_fields && (
+                                  <span className="text-xs text-muted-foreground">
+                                    Fields not configured
+                                  </span>
+                                )}
+                              </div>
                             </SelectItem>
                           ))
                         )}
@@ -364,6 +376,12 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
               />
               {errors.job_id && (
                 <p className="text-sm text-red-600">{errors.job_id.message}</p>
+              )}
+              {jobs && jobs.jobs.some(job => !job.has_configured_fields) && (
+                <p className="text-sm text-gray-600">
+                  <span className="text-amber-600">Note:</span> Jobs without configured fields are disabled. 
+                  Complete the field configuration step for those jobs to use them in automations.
+                </p>
               )}
             </div>
 
