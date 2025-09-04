@@ -264,40 +264,98 @@ class JobService:
 
     async def _create_extraction_tasks_for_automation(self, db: Session, job_id: str) -> None:
         """Create extraction tasks for all uploaded source files in an automation job"""
+        from models.db_models import Automation
+        
+        # Get the automation to determine processing mode
+        automation = db.query(Automation).filter(Automation.job_id == job_id).first()
+        if not automation:
+            logger.error(f"No automation found for job {job_id}")
+            return
+        
+        processing_mode = automation.processing_mode
+        logger.info(f"Creating extraction tasks for automation job {job_id} with processing mode: {processing_mode}")
+        
+        # Get all source files for this job
+        source_files_query = db.query(SourceFile).filter(SourceFile.job_id == job_id)
+        
+        # Filter to processable files only using existing method
+        processable_files_query = self._filter_processable_files(source_files_query)
+        processable_files = processable_files_query.all()
+        
+        if not processable_files:
+            logger.info(f"No processable source files found for automation job {job_id}")
+            return
+        
         import uuid
         from models.db_models import ExtractionTask, SourceFileToTask
         
-        # Get processable source files (exclude ZIP files)
-        source_files = await self.get_job_files(job_id, processable_only=True)
-        
-        if not source_files:
-            logger.info(f"No source files found for automation job {job_id}")
-            return
-        
         tasks_created = 0
-        for source_file in source_files:
-            # Create extraction task (individual mode for automation)
-            extraction_task = ExtractionTask(
-                id=str(uuid.uuid4()),
-                job_id=job_id,
-                processing_mode='individual',  # Default for automation
-                status='pending'
-            )
-            db.add(extraction_task)
-            db.flush()  # Get ID
+        
+        if processing_mode == 'individual':
+            # Create one task per file
+            for source_file in processable_files:
+                extraction_task = ExtractionTask(
+                    id=str(uuid.uuid4()),
+                    job_id=job_id,
+                    processing_mode='individual',
+                    status='pending'
+                )
+                db.add(extraction_task)
+                db.flush()  # Get ID
+                
+                # Create the many-to-many relationship
+                source_file_to_task = SourceFileToTask(
+                    source_file_id=source_file.id,
+                    task_id=extraction_task.id
+                )
+                db.add(source_file_to_task)
+                
+                tasks_created += 1
+                logger.info(f"Created individual extraction task {extraction_task.id} for file {source_file.original_filename}")
+        
+        elif processing_mode == 'combined':
+            # Group files by their folder paths and create combined tasks
+            files_by_folder = self._group_files_by_folder(processable_files)
             
-            # Create the many-to-many relationship
-            source_file_to_task = SourceFileToTask(
-                source_file_id=source_file.id,
-                task_id=extraction_task.id
-            )
-            db.add(source_file_to_task)
+            logger.info(f"Grouped {len(processable_files)} files into {len(files_by_folder)} folders: {list(files_by_folder.keys())}")
             
-            tasks_created += 1
-            logger.info(f"Created extraction task {extraction_task.id} for file {source_file.original_filename}")
+            # Create one task per folder
+            for folder_path, folder_files in files_by_folder.items():
+                extraction_task = ExtractionTask(
+                    id=str(uuid.uuid4()),
+                    job_id=job_id,
+                    processing_mode='combined',
+                    status='pending'
+                )
+                db.add(extraction_task)
+                db.flush()  # Get ID
+                
+                # Link all files in this folder to the task
+                for file in folder_files:
+                    source_file_to_task = SourceFileToTask(
+                        source_file_id=file.id,
+                        task_id=extraction_task.id
+                    )
+                    db.add(source_file_to_task)
+                
+                tasks_created += 1
+                logger.info(f"Created combined extraction task {extraction_task.id} for folder '{folder_path}' with {len(folder_files)} files")
         
         db.commit()
-        logger.info(f"Created {tasks_created} extraction tasks for automation job {job_id}")
+        logger.info(f"Created {tasks_created} extraction tasks for automation job {job_id} using {processing_mode} mode")
+
+    def _group_files_by_folder(self, source_files: List) -> Dict[str, List]:
+        """
+        Group source files by their folder paths
+        Returns a dictionary mapping folder paths to lists of files
+        """
+        files_by_folder = {}
+        for file in source_files:
+            folder_path = self._get_folder_path(file.original_path)
+            if folder_path not in files_by_folder:
+                files_by_folder[folder_path] = []
+            files_by_folder[folder_path].append(file)
+        return files_by_folder
 
     async def _check_job_plan_limits(self, db: Session, job_id: str, user_id: str) -> None:
         """Check if starting this job would exceed plan limits (job-start cap)"""
@@ -825,14 +883,8 @@ class JobService:
         # Get all source files for this job
         source_files = db.query(SourceFile).filter(SourceFile.job_id == job_id).all()
         
-        # Group files by their folder paths
-        files_by_path = {}
-        for file in source_files:
-            # Extract folder path from file path
-            folder_path = self._get_folder_path(file.original_path)
-            if folder_path not in files_by_path:
-                files_by_path[folder_path] = []
-            files_by_path[folder_path].append(file)
+        # Group files by their folder paths using shared logic
+        files_by_path = self._group_files_by_folder(source_files)
         
         # Create tasks based on definitions
         for task_def in task_definitions:
@@ -877,7 +929,7 @@ class JobService:
                 db.flush()  # Get task ID
                 
                 # Link all files to this task
-                for i, file in enumerate(matching_files):
+                for file in matching_files:
                     file_to_task = SourceFileToTask(
                         source_file_id=file.id,
                         task_id=task.id

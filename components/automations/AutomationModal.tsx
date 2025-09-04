@@ -28,7 +28,6 @@ const automationSchema = z.object({
   job_id: z.string().min(1, "Please select a job template"),
   is_enabled: z.boolean().default(true),
   processing_mode: z.enum(["individual", "combined"]).default("individual"),
-  keep_source_files: z.boolean().default(true),
   dest_type: z.enum(["none", "gdrive", "gmail", "outlook", "onedrive", "sharepoint"]),
   folder_id: z.string().optional(),
   to_email: z.string().email("Invalid email address").optional().or(z.literal("")),
@@ -86,7 +85,6 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
     defaultValues: {
       is_enabled: true,
       processing_mode: "individual",
-      keep_source_files: true,
       dest_type: "none",
       file_type: "csv",
     },
@@ -121,7 +119,6 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
       job_id: automation.job_id,
       is_enabled: automation.is_enabled,
       processing_mode: (automation.processing_mode as any) || "individual",
-      keep_source_files: (automation.keep_source_files as any) ?? true,
       dest_type: automation.dest_type || "none",
       folder_id: automation.export_config?.folder_id || "",
       to_email: automation.export_config?.to_email || "",
@@ -168,7 +165,6 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
         } : {},
         job_id: data.job_id,
         processing_mode: data.processing_mode,
-        keep_source_files: data.keep_source_files,
         dest_type: data.dest_type === "none" ? undefined : data.dest_type,
         export_config: data.dest_type && data.dest_type !== "none" ? {
           ...(data.dest_type === "gdrive" && data.folder_id ? { 
@@ -521,16 +517,6 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
               </p>
             </div>
 
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div>
-                <h4 className="font-medium">Keep source files</h4>
-                <p className="text-sm text-gray-600">Store original files for future reference and reprocessing</p>
-              </div>
-              <Switch
-                checked={watch("keep_source_files")}
-                onCheckedChange={(checked) => setValue("keep_source_files", checked, { shouldValidate: true, shouldDirty: true })}
-              />
-            </div>
           </div>
 
           <Separator />

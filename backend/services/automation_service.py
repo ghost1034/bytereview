@@ -50,6 +50,7 @@ class AutomationService:
                 trigger_type=automation_data.trigger_type,
                 trigger_config=automation_data.trigger_config,
                 job_id=automation_data.job_id,
+                processing_mode=automation_data.processing_mode,
                 dest_type=automation_data.dest_type,
                 export_config=automation_data.export_config or {}
             )
@@ -100,6 +101,8 @@ class AutomationService:
                 automation.is_enabled = automation_data.is_enabled
             if automation_data.trigger_config is not None:
                 automation.trigger_config = automation_data.trigger_config
+            if automation_data.processing_mode is not None:
+                automation.processing_mode = automation_data.processing_mode
             
             automation.dest_type = automation_data.dest_type
             automation.export_config = automation_data.export_config or {}

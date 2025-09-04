@@ -1384,6 +1384,12 @@ export interface components {
              */
             job_id: string;
             /**
+             * Processing Mode
+             * @description Processing mode (individual or combined)
+             * @default individual
+             */
+            processing_mode: string;
+            /**
              * Dest Type
              * @description Export destination type (gdrive, gmail)
              */
@@ -1433,6 +1439,8 @@ export interface components {
              * Format: uuid
              */
             job_id: string;
+            /** Processing Mode */
+            processing_mode: string;
             /** Dest Type */
             dest_type: string | null;
             /** Export Config */
@@ -1514,6 +1522,11 @@ export interface components {
             trigger_config?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Processing Mode
+             * @description Processing mode (individual or combined)
+             */
+            processing_mode?: string | null;
             /**
              * Dest Type
              * @description Export destination type (gdrive, gmail)

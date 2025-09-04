@@ -13,7 +13,6 @@ export interface Automation {
   }
   job_id: string
   processing_mode?: 'individual' | 'combined'
-  keep_source_files?: boolean
   dest_type?: string
   export_config?: {
     folder_id?: string
@@ -44,7 +43,6 @@ export interface CreateAutomationData {
   }
   job_id: string
   processing_mode?: 'individual' | 'combined'
-  keep_source_files?: boolean
   dest_type?: string
   export_config?: {
     folder_id?: string
@@ -61,7 +59,6 @@ export interface UpdateAutomationData {
     query?: string
   }
   processing_mode?: 'individual' | 'combined'
-  keep_source_files?: boolean
   dest_type?: string
   export_config?: {
     folder_id?: string

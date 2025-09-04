@@ -13,6 +13,7 @@ class AutomationCreate(BaseModel):
     trigger_type: str = Field(..., description="Type of trigger (gmail_attachment for v1)")
     trigger_config: Dict[str, Any] = Field(..., description="Configuration for the trigger")
     job_id: UUID = Field(..., description="ID of the extraction job to use as template")
+    processing_mode: str = Field(default='individual', description="Processing mode (individual or combined)")
     dest_type: Optional[str] = Field(None, description="Export destination type (gdrive, gmail)")
     export_config: Optional[Dict[str, Any]] = Field(None, description="Export configuration")
     
@@ -20,6 +21,12 @@ class AutomationCreate(BaseModel):
     def validate_trigger_type(cls, v):
         if v not in ['gmail_attachment']:
             raise ValueError('Only gmail_attachment trigger type is supported in v1')
+        return v
+    
+    @validator('processing_mode')
+    def validate_processing_mode(cls, v):
+        if v not in ['individual', 'combined']:
+            raise ValueError('processing_mode must be individual or combined')
         return v
     
     @validator('dest_type')
@@ -41,8 +48,15 @@ class AutomationUpdate(BaseModel):
     name: Optional[str] = Field(None, description="Human-readable name for the automation")
     is_enabled: Optional[bool] = Field(None, description="Whether the automation is enabled")
     trigger_config: Optional[Dict[str, Any]] = Field(None, description="Configuration for the trigger")
+    processing_mode: Optional[str] = Field(None, description="Processing mode (individual or combined)")
     dest_type: Optional[str] = Field(None, description="Export destination type (gdrive, gmail)")
     export_config: Optional[Dict[str, Any]] = Field(None, description="Export configuration")
+    
+    @validator('processing_mode')
+    def validate_processing_mode(cls, v):
+        if v is not None and v not in ['individual', 'combined']:
+            raise ValueError('processing_mode must be individual or combined')
+        return v
     
     @validator('dest_type')
     def validate_dest_type(cls, v):
@@ -67,6 +81,7 @@ class AutomationResponse(BaseModel):
     trigger_type: str
     trigger_config: Dict[str, Any]
     job_id: UUID
+    processing_mode: str
     dest_type: Optional[str]
     export_config: Optional[Dict[str, Any]]
     created_at: datetime

@@ -321,6 +321,7 @@ class Automation(Base):
     trigger_type = Column(String(30), nullable=False)  # 'gmail_attachment' for v1
     trigger_config = Column(JSONB, nullable=False)
     job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
+    processing_mode = Column(String(50), nullable=False, default='individual')  # 'individual' or 'combined'
     dest_type = Column(String(30), nullable=True)  # 'gdrive', 'gmail' when present, NULL when no export
     export_config = Column(JSONB, nullable=True)  # MUST be NULL when dest_type is NULL
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
