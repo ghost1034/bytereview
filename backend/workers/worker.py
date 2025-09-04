@@ -1374,20 +1374,6 @@ async def automation_trigger_worker(
                 logger.info(f"No Gmail automations found for user {user_id}")
                 return {"processed": 0, "message": "No Gmail automations configured"}
             
-            # Double-check automation limits before processing (in case plan was downgraded)
-            try:
-                from services.billing_service import get_billing_service
-                billing_service = get_billing_service(db)
-                can_run_automations = billing_service.check_automation_limit(user_id)
-                
-                if not can_run_automations:
-                    billing_info = billing_service.get_billing_info(user_id)
-                    logger.warning(f"User {user_id} has exceeded automation limits ({billing_info['automations_count']}/{billing_info['automations_limit']}), skipping automation processing")
-                    return {"processed": 0, "message": "Automation limit exceeded"}
-            except Exception as e:
-                logger.warning(f"Could not check automation limits for user {user_id}: {e}")
-                # Continue processing if we can't check limits
-            
             processed_count = 0
             
             # Extract email information from the new format
@@ -1417,7 +1403,6 @@ async def automation_trigger_worker(
                         logger.warning(f"Automation {automation.id} has no Gmail query configured")
                         continue
                     
-                    # TODO: Implement full Gmail query matching
                     email_matches = await _check_email_matches_gmail_query(message_data, gmail_query)
                     logger.info(f"Email matches automation {automation.id}: {email_matches}")
                     
