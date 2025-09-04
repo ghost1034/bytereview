@@ -25,7 +25,7 @@ const automationSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
   trigger_type: z.enum(["gmail", "google_drive", "outlook", "onedrive", "sharepoint"]),
   gmail_query: z.string().optional(),
-  job_id: z.string().min(1, "Please select a job template"),
+  job_id: z.string().min(1, "Please select an extraction job"),
   is_enabled: z.boolean().default(true),
   processing_mode: z.enum(["individual", "combined"]).default("individual"),
   dest_type: z.enum(["none", "gdrive", "gmail", "outlook", "onedrive", "sharepoint"]),
@@ -329,7 +329,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="job_id">Job Template</Label>
+              <Label htmlFor="job_id">Extraction Job</Label>
               <Controller
                 control={control}
                 name="job_id"
@@ -343,13 +343,13 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                       onValueChange={(v) => field.onChange(v)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a job template to use for processing" />
+                        <SelectValue placeholder="Select an extraction job to use for processing" />
                       </SelectTrigger>
                       <SelectContent>
                         {jobsLoading ? (
                           <SelectItem value="loading" disabled>Loading jobs...</SelectItem>
                         ) : jobs?.jobs.length === 0 ? (
-                          <SelectItem value="no-jobs" disabled>No job templates available</SelectItem>
+                          <SelectItem value="no-jobs" disabled>No extraction jobs available</SelectItem>
                         ) : (
                           jobs?.jobs.map((job) => (
                             <SelectItem 
