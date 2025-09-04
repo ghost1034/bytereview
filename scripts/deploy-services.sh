@@ -184,36 +184,59 @@ deploy_service \
      --command=python \
      --args=workers/entrypoint.py"
 
-# # Run database migrations
-# echo -e "${BLUE}=== Running Database Migrations ===${NC}"
-# echo -e "${YELLOW}🔄 Running Alembic migrations...${NC}"
+# Deploy Automation Worker (Gmail triggers, job initialization)
+echo -e "${BLUE}=== Deploying Automation Worker ===${NC}"
+deploy_service \
+    "worker-automation" \
+    "backend" \
+    "8000" \
+    "1Gi" \
+    "1" \
+    "1" \
+    "3" \
+    "1" \
+    "1800" \
+    "false" \
+    "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+     --vpc-connector=$VPC_CONNECTOR \
+     --vpc-egress=private-ranges-only \
+     --service-account=$SERVICE_ACCOUNT \
+     --no-cpu-throttling \
+     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=automation \
+     --command=python \
+     --args=workers/entrypoint.py"
 
-# # Create a temporary Cloud Run job to run migrations
-# gcloud run jobs create migration-job \
-#     --image=$ARTIFACT_REGISTRY_URL/backend:$GIT_HASH \
-#     --region=$REGION \
-#     --set-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-#     --vpc-connector=$VPC_CONNECTOR \
-#     --vpc-egress=private-ranges-only \
-#     --service-account=$SERVICE_ACCOUNT \
-#     --set-secrets=DATABASE_URL=DATABASE_URL:latest \
-#     --set-env-vars=ENVIRONMENT=$ENVIRONMENT \
-#     --args=alembic,upgrade,head \
-#     --max-retries=1 \
-#     --parallelism=1 \
-#     --tasks=1 \
-#     --task-timeout=600 || true
+# Run database migrations
+echo -e "${BLUE}=== Running Database Migrations ===${NC}"
+echo -e "${YELLOW}🔄 Running Alembic migrations...${NC}"
 
-# # Execute the migration job
-# if gcloud run jobs describe migration-job --region=$REGION >/dev/null 2>&1; then
-#     gcloud run jobs execute migration-job --region=$REGION --wait
-#     echo -e "${GREEN}✅ Database migrations completed${NC}"
+# Create a temporary Cloud Run job to run migrations
+gcloud run jobs create migration-job \
+    --image=$ARTIFACT_REGISTRY_URL/backend:$GIT_HASH \
+    --region=$REGION \
+    --set-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+    --vpc-connector=$VPC_CONNECTOR \
+    --vpc-egress=private-ranges-only \
+    --service-account=$SERVICE_ACCOUNT \
+    --set-secrets=DATABASE_URL=DATABASE_URL:latest \
+    --set-env-vars=ENVIRONMENT=$ENVIRONMENT \
+    --args=alembic,upgrade,head \
+    --max-retries=1 \
+    --parallelism=1 \
+    --tasks=1 \
+    --task-timeout=600 || true
+
+# Execute the migration job
+if gcloud run jobs describe migration-job --region=$REGION >/dev/null 2>&1; then
+    gcloud run jobs execute migration-job --region=$REGION --wait
+    echo -e "${GREEN}✅ Database migrations completed${NC}"
     
-#     # Clean up migration job
-#     gcloud run jobs delete migration-job --region=$REGION --quiet
-# else
-#     echo -e "${RED}❌ Failed to create migration job${NC}"
-# fi
+    # Clean up migration job
+    gcloud run jobs delete migration-job --region=$REGION --quiet
+else
+    echo -e "${RED}❌ Failed to create migration job${NC}"
+fi
 
 # Deployment summary
 echo -e "${GREEN}🎉 All services deployed successfully!${NC}"
@@ -226,12 +249,14 @@ if [ "$ENVIRONMENT" = "staging" ]; then
     echo -e "• Extract Worker: worker-extract-staging"
     echo -e "• I/O Worker: worker-io-staging"
     echo -e "• Maintenance Worker: worker-maint-staging"
+    echo -e "• Automation Worker: worker-automation-staging"
 else
     echo -e "• API: cpa-api"
     echo -e "• Frontend: cpa-web"
     echo -e "• Extract Worker: worker-extract"
     echo -e "• I/O Worker: worker-io"
     echo -e "• Maintenance Worker: worker-maint"
+    echo -e "• Automation Worker: worker-automation"
 fi
 
 echo ""

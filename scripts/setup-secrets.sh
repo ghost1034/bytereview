@@ -165,6 +165,37 @@ if ! gcloud secrets describe STRIPE_WEBHOOK_SECRET >/dev/null 2>&1; then
     prompt_for_secret "STRIPE_WEBHOOK_SECRET" "Stripe webhook secret (whsec_...)"
 fi
 
+# Stripe Product and Pricing Configuration
+echo -e "${BLUE}=== Stripe Products and Pricing ===${NC}"
+
+if ! gcloud secrets describe STRIPE_METER_PAGES >/dev/null 2>&1; then
+    create_secret_if_not_exists "STRIPE_METER_PAGES" "mtr_61TCvkRSBZSDgrl3h41GfqNUmLOfJ3M0" false
+fi
+
+if ! gcloud secrets describe STRIPE_PRODUCT_BASIC >/dev/null 2>&1; then
+    create_secret_if_not_exists "STRIPE_PRODUCT_BASIC" "prod_SzWqchnuvtqGMG" false
+fi
+
+if ! gcloud secrets describe STRIPE_PRICE_BASIC_RECURRING >/dev/null 2>&1; then
+    create_secret_if_not_exists "STRIPE_PRICE_BASIC_RECURRING" "price_1S3Xn5GfqNUmLOfJj9RIJSUE" false
+fi
+
+if ! gcloud secrets describe STRIPE_PRICE_BASIC_METERED >/dev/null 2>&1; then
+    create_secret_if_not_exists "STRIPE_PRICE_BASIC_METERED" "price_1S3Xn5GfqNUmLOfJyqCDY0H5" false
+fi
+
+if ! gcloud secrets describe STRIPE_PRODUCT_PRO >/dev/null 2>&1; then
+    create_secret_if_not_exists "STRIPE_PRODUCT_PRO" "prod_SzWqpBo1oTdMbF" false
+fi
+
+if ! gcloud secrets describe STRIPE_PRICE_PRO_RECURRING >/dev/null 2>&1; then
+    create_secret_if_not_exists "STRIPE_PRICE_PRO_RECURRING" "price_1S3Xn6GfqNUmLOfJwGIkq78C" false
+fi
+
+if ! gcloud secrets describe STRIPE_PRICE_PRO_METERED >/dev/null 2>&1; then
+    create_secret_if_not_exists "STRIPE_PRICE_PRO_METERED" "price_1S3Xn6GfqNUmLOfJY3tQ66d0" false
+fi
+
 # Firebase Service Account
 echo -e "${BLUE}=== Firebase Configuration ===${NC}"
 if ! gcloud secrets describe FIREBASE_SERVICE_ACCOUNT >/dev/null 2>&1; then
@@ -200,7 +231,7 @@ echo ""
 echo -e "${GREEN}🎉 Secrets setup complete!${NC}"
 echo ""
 echo -e "${BLUE}📋 Created secrets:${NC}"
-gcloud secrets list --filter="name:DATABASE_URL OR name:REDIS_URL OR name:GOOGLE_CLIENT_ID OR name:GOOGLE_CLIENT_SECRET OR name:GOOGLE_REDIRECT_URI OR name:ENCRYPTION_KEY OR name:APP_SECRET OR name:GEMINI_API_KEY OR name:STRIPE_SECRET_KEY OR name:STRIPE_WEBHOOK_SECRET OR name:FIREBASE_SERVICE_ACCOUNT OR name:ADMIN_TOKEN" --format="table(name,createTime)"
+gcloud secrets list --filter="name:DATABASE_URL OR name:REDIS_URL OR name:GOOGLE_CLIENT_ID OR name:GOOGLE_CLIENT_SECRET OR name:GOOGLE_REDIRECT_URI OR name:ENCRYPTION_KEY OR name:APP_SECRET OR name:GEMINI_API_KEY OR name:STRIPE_SECRET_KEY OR name:STRIPE_WEBHOOK_SECRET OR name:STRIPE_METER_PAGES OR name:STRIPE_PRODUCT_BASIC OR name:STRIPE_PRICE_BASIC_RECURRING OR name:STRIPE_PRICE_BASIC_METERED OR name:STRIPE_PRODUCT_PRO OR name:STRIPE_PRICE_PRO_RECURRING OR name:STRIPE_PRICE_PRO_METERED OR name:FIREBASE_SERVICE_ACCOUNT OR name:ADMIN_TOKEN" --format="table(name,createTime)"
 
 echo ""
 echo -e "${YELLOW}📝 Next steps:${NC}"
