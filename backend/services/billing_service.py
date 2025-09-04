@@ -340,6 +340,18 @@ class BillingService:
             acct.stripe_customer_id = customer.id
             self.db.commit()
 
+        # Cancel existing subscription if user is switching between paid plans
+        if acct.stripe_subscription_id and acct.plan_code in ("basic", "pro") and plan_code in ("basic", "pro"):
+            try:
+                logger.info(f"Canceling existing subscription {acct.stripe_subscription_id} for user {user_id} before creating new one")
+                stripe.Subscription.cancel(acct.stripe_subscription_id)
+                # Clear the subscription ID immediately to prevent conflicts
+                acct.stripe_subscription_id = None
+                self.db.commit()
+            except Exception as e:
+                logger.error(f"Failed to cancel existing subscription {acct.stripe_subscription_id}: {e}")
+                # Continue with checkout creation - the webhook will handle cleanup
+
         line_items = [
             {"price": plan.stripe_price_recurring_id, "quantity": 1},
             {"price": plan.stripe_price_metered_id},
@@ -366,6 +378,7 @@ class BillingService:
             return_url=return_url,
         )
         return session.url
+
 
     # ------------------------ Webhook handlers ------------------------
 

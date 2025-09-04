@@ -102,6 +102,7 @@ async def create_portal_session(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 # ===================================================================
 # Legacy Compatibility Endpoint
 # ===================================================================
