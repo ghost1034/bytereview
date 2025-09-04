@@ -139,16 +139,19 @@ export default function FieldConfigurationStep({
     }
   };
 
+  // Helper function to convert template fields to JobFieldConfig format
+  const convertTemplateToJobFields = (template: any): JobFieldConfig[] => {
+    return template.fields.map((field, index) => ({
+      field_name: field.name,
+      data_type_id: field.data_type,
+      ai_prompt: field.prompt,
+      display_order: index,
+    }));
+  };
+
   // Helper function to load template fields
   const loadTemplateFields = (template: any, showToast: boolean = true) => {
-    const templateFields: JobFieldConfig[] = template.fields.map(
-      (field, index) => ({
-        field_name: field.name,
-        data_type_id: field.data_type,
-        ai_prompt: field.prompt,
-        display_order: index,
-      })
-    );
+    const templateFields = convertTemplateToJobFields(template);
     setFields(templateFields);
 
     if (showToast) {
@@ -175,12 +178,34 @@ export default function FieldConfigurationStep({
   }, [configurationMode, userTemplates, publicTemplates, initialFields]); // Removed selectedTemplate and toast from dependencies
 
   // Handle template selection changes
-  const handleTemplateChange = (templateId: string) => {
+  const handleTemplateChange = async (templateId: string) => {
     setSelectedTemplate(templateId);
     
     const template = allTemplates.find((t) => t.id === templateId);
     if (template) {
-      loadTemplateFields(template);
+      loadTemplateFields(template, false);
+      
+      // Auto-save the configuration after loading template
+      try {
+        const templateFields = convertTemplateToJobFields(template);
+        
+        // Use shared helper for task definitions
+        const taskDefinitions = createTaskDefinitions();
+        
+        // Auto-save with template ID
+        await onFieldsSaved(templateFields, taskDefinitions, templateId);
+        
+        toast({
+          title: "Template applied and saved",
+          description: `Template "${template.name}" has been loaded and automatically saved to your job configuration.`,
+        });
+      } catch (error) {
+        toast({
+          title: "Auto-save failed",
+          description: "Template could not be automatically saved. Please use the Save Configuration button.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -258,14 +283,18 @@ export default function FieldConfigurationStep({
     return errors;
   };
 
-  // Helper function to prepare field data
-  const prepareFieldData = () => {
-    // Create task definitions based on processing mode and file structure
+  // Helper function to create task definitions
+  const createTaskDefinitions = (): TaskDefinition[] => {
     const folders = getFileFolders();
-    const taskDefinitions: TaskDefinition[] = folders.map((folder) => ({
+    return folders.map((folder) => ({
       path: folder,
       mode: folderProcessingModes[folder] || "individual",
     }));
+  };
+
+  // Helper function to prepare field data
+  const prepareFieldData = () => {
+    const taskDefinitions = createTaskDefinitions();
 
     // Update display order
     const orderedFields = fields.map((field, index) => ({

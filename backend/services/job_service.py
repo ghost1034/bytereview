@@ -1644,9 +1644,8 @@ class JobService:
                             )
                             db.add(file_to_task)
             
-            # Update template reference if provided
-            if template_id:
-                job.template_id = template_id
+            # Update template reference (set to provided value or clear if None)
+            job.template_id = template_id
             
             # Update last activity
             job.last_active_at = datetime.utcnow()

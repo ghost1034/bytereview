@@ -485,7 +485,7 @@ async def cancel_job(
 
 class JobFieldsUpdateRequest(BaseModel):
     fields: List[dict]
-    template_id: str = None
+    template_id: Optional[str] = None
     processing_modes: dict = None  # folder_path -> processing_mode mapping
 
 class JobNameUpdateRequest(BaseModel):
