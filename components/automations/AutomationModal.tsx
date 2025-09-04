@@ -315,10 +315,10 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="gmail">Gmail (Email Attachments)</SelectItem>
-                      <SelectItem value="google_drive">Google Drive</SelectItem>
-                      <SelectItem value="outlook">Outlook</SelectItem>
-                      <SelectItem value="onedrive">OneDrive</SelectItem>
-                      <SelectItem value="sharepoint">SharePoint</SelectItem>
+                      <SelectItem value="google_drive" disabled>Google Drive (Coming Soon)</SelectItem>
+                      <SelectItem value="outlook" disabled>Outlook (Coming Soon)</SelectItem>
+                      <SelectItem value="onedrive" disabled>OneDrive (Coming Soon)</SelectItem>
+                      <SelectItem value="sharepoint" disabled>SharePoint (Coming Soon)</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
@@ -564,10 +564,10 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                       <SelectItem value="gdrive" disabled={!googleStatus?.connected}>
                         Google Drive {!googleStatus?.connected && "(Not connected)"}
                       </SelectItem>
-                      <SelectItem value="gmail">Gmail (Email results)</SelectItem>
-                      <SelectItem value="outlook">Outlook</SelectItem>
-                      <SelectItem value="onedrive">OneDrive</SelectItem>
-                      <SelectItem value="sharepoint">SharePoint</SelectItem>
+                      <SelectItem value="gmail" disabled>Gmail (Coming Soon)</SelectItem>
+                      <SelectItem value="outlook" disabled>Outlook (Coming Soon)</SelectItem>
+                      <SelectItem value="onedrive" disabled>OneDrive (Coming Soon)</SelectItem>
+                      <SelectItem value="sharepoint" disabled>SharePoint (Coming Soon)</SelectItem>
                     </SelectContent>
                   </Select>
                   )

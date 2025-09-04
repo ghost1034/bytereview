@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Check, ArrowLeft, TrendingUp, Clock, Users, DollarSign } from "lucide-react";
 import Link from "next/link";
 
-export default function CaseStudyNextWorld() {
+export default function CaseStudyLFO() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -17,11 +17,11 @@ export default function CaseStudyNextWorld() {
           <div className="text-center">
             <img 
               src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?ixlib=rb-4.0.3&w=800&h=300&fit=crop" 
-              alt="NextWorld Capital office" 
+              alt="Leonardo Family Office" 
               className="mx-auto mb-8 rounded-xl shadow-lg"
             />
-            <h1 className="text-5xl font-bold mb-6">NextWorld Capital Case Study</h1>
-            <p className="text-xl text-blue-100">How a leading VC firm automated investment statement processing and saved hundreds of hours annually</p>
+            <h1 className="text-5xl font-bold mb-6">Leonardo Family Office Case Study</h1>
+            <p className="text-xl text-blue-100">How a leading family office firm automated investment statement processing and saved hundreds of hours annually</p>
           </div>
         </div>
       </section>
@@ -70,16 +70,14 @@ export default function CaseStudyNextWorld() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">About NextWorld Capital</h2>
+              <h2 className="text-3xl font-bold text-gray-900 mb-6">About Leonardo Family Office</h2>
               <p className="text-lg text-gray-600 mb-6">
-                NextWorld Capital is a leading ESG and technology focused venture capital firm managing assets across 
-                multiple funds. With a portfolio of 100+ companies spanning fintech, healthcare, and enterprise 
-                software, they require extensive due diligence and ongoing portfolio monitoring.
+                Leonardo Family Office (LFO) is a leading ESG and technology-focused family office management firm.
               </p>
               <div className="space-y-3">
                 <div className="flex items-center space-x-3">
                   <Check className="text-blue-500 w-5 h-5" />
-                  <span>ESG & technology-focused venture capital</span>
+                  <span>ESG & technology-focused family office</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Check className="text-blue-500 w-5 h-5" />
@@ -113,9 +111,7 @@ export default function CaseStudyNextWorld() {
           <Card>
             <CardContent className="p-8">
               <p className="text-lg text-gray-600 mb-6">
-                NextWorld Capital's investment team was spending an overwhelming amount of time manually processing 
-                quarterly financial statements from their portfolio companies. Each quarter, they received hundreds 
-                of documents in various formats containing critical financial metrics, KPIs, and performance data.
+                LFO's investment team was spending an overwhelming amount of time manually processing quarterly financial statements from their portfolio companies.
               </p>
               
               <h3 className="text-xl font-semibold text-gray-900 mb-4">Key Pain Points:</h3>
@@ -160,7 +156,7 @@ export default function CaseStudyNextWorld() {
             </div>
             <div>
               <p className="text-lg text-gray-600 mb-6">
-                NextWorld Capital implemented our PDF extraction platform to automate their quarterly 
+                Leonardo Family Office implemented our PDF extraction platform to automate their quarterly 
                 reporting workflow. The solution included custom extraction templates for financial 
                 metrics and automated data validation.
               </p>
@@ -197,14 +193,11 @@ export default function CaseStudyNextWorld() {
           <Card className="mb-8">
             <CardContent className="p-8">
               <blockquote className="text-xl text-gray-700 italic text-center mb-6">
-                "Our team used to spend weeks manually extracting financial data from portfolio reports. 
-                Now we process quarterly statements from 100+ companies in just minutes with perfect accuracy. 
-                This transformation has allowed our investment professionals to focus on what they do best: 
-                identifying opportunities and supporting our portfolio companies."
+                "Our team used to spend weeks manually extracting financial data from portfolio reports. Now we process quarterly statements from 100+ companies in just minutes with perfect accuracy. This transformation has allowed our investment professionals to focus on what they do best: identifying opportunities and supporting our portfolio companies."
               </blockquote>
               <div className="text-center">
-                <p className="font-semibold text-gray-900">T**** Peterson</p>
-                <p className="text-gray-600">CFO & COO, NextWorld Capital</p>
+                <p className="font-semibold text-gray-900">C**** Smith</p>
+                <p className="text-gray-600">CFO, Leonardo Family Office</p>
               </div>
             </CardContent>
           </Card>
@@ -244,12 +237,9 @@ export default function CaseStudyNextWorld() {
           <p className="text-xl text-gray-600 mb-8">
             See how our PDF extraction platform can help your organization save time and improve accuracy.
           </p>
-          <div className="space-x-4">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3">
-              Schedule a Demo
-            </Button>
+          <div>
             <Link href="/demo">
-              <Button variant="outline" className="px-8 py-3">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3">
                 Try It Now
               </Button>
             </Link>
