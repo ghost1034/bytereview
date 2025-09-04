@@ -64,6 +64,7 @@ interface AutomationModalProps {
 export function AutomationModal({ open, onOpenChange, automationId }: AutomationModalProps) {
   const [selectedGDriveFolder, setSelectedGDriveFolder] = useState<{id: string, name: string} | null>(null)
   const [hydrated, setHydrated] = useState<boolean>(!automationId)
+  const [isPickerOpen, setIsPickerOpen] = useState(false)
   
   const isEditMode = !!automationId
   const { data: automation, isLoading: automationLoading } = useAutomation(automationId || "")
@@ -95,6 +96,10 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
   const watchedDestType = watch("dest_type")
   const watchedJobId = watch("job_id")
   const watchedTriggerType = watch("trigger_type")
+
+  // For conditional rendering, use the actual automation data as fallback when form isn't hydrated yet
+  const effectiveDestType = watchedDestType || (isEditMode ? (automation?.dest_type || "none") : "none")
+  const effectiveTriggerType = watchedTriggerType || (isEditMode ? (automation?.trigger_type === "gmail_attachment" ? "gmail" : automation?.trigger_type) : undefined)
 
   // For async Selects: avoid passing a value until options are loaded and contain the value
   const jobOptionsReady = !!jobs && !jobsLoading
@@ -132,10 +137,12 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
 
     setHydrated(true)
 
-    if (automation.export_config?.folder_id && automation.export_config?.folder_name) {
+    if (automation.export_config?.folder_id) {
+      // If we have a folder_id but no folder_name, we'll show the folder_id as a fallback
+      // The GoogleDriveFolderPicker will handle fetching the actual name if needed
       setSelectedGDriveFolder({
         id: automation.export_config.folder_id,
-        name: automation.export_config.folder_name
+        name: automation.export_config?.folder_name || `Folder (${automation.export_config.folder_id})`
       })
     } else {
       setSelectedGDriveFolder(null)
@@ -164,7 +171,10 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
         keep_source_files: data.keep_source_files,
         dest_type: data.dest_type === "none" ? undefined : data.dest_type,
         export_config: data.dest_type && data.dest_type !== "none" ? {
-          ...(data.dest_type === "gdrive" && data.folder_id ? { folder_id: data.folder_id } : {}),
+          ...(data.dest_type === "gdrive" && data.folder_id ? { 
+            folder_id: data.folder_id,
+            folder_name: selectedGDriveFolder?.name || undefined
+          } : {}),
           ...(data.dest_type === "gdrive" ? { file_type: data.file_type } : {}),
           ...(data.dest_type === "gmail" && data.to_email ? { to_email: data.to_email } : {}),
         } : undefined
@@ -200,7 +210,8 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
   // Handle Google Drive folder selection
   const handleGDriveFolderSelected = (folder: {id: string, name: string}) => {
     setSelectedGDriveFolder(folder)
-    setValue("folder_id", folder.id, { shouldValidate: true })
+    setValue("folder_id", folder.id, { shouldValidate: true, shouldDirty: true })
+    setIsPickerOpen(false) // Picker closed after selection
   }
 
   // Show loading state for edit mode until all data needed to hydrate the form is ready
@@ -268,7 +279,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open && !isPickerOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditMode ? "Edit Automation" : "Create New Automation"}</DialogTitle>
@@ -364,7 +375,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
               <Switch
                 id="is_enabled"
                 checked={watch("is_enabled")}
-                onCheckedChange={(checked) => setValue("is_enabled", checked)}
+                onCheckedChange={(checked) => setValue("is_enabled", checked, { shouldDirty: true })}
               />
               <Label htmlFor="is_enabled">Enable automation immediately</Label>
             </div>
@@ -373,7 +384,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
           <Separator />
 
           {/* Gmail Configuration - Only show when Gmail is selected */}
-          {watchedTriggerType === "gmail" && (
+          {effectiveTriggerType === "gmail" && (
             <div className="space-y-4">
               <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <div className="flex items-start gap-3">
@@ -495,18 +506,18 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
               <Label htmlFor="processing_mode">Processing Mode</Label>
               <Select
                 value={watch("processing_mode")}
-                onValueChange={(value: "individual" | "combined") => setValue("processing_mode", value, { shouldValidate: true })}
+                onValueChange={(value: "individual" | "combined") => setValue("processing_mode", value, { shouldValidate: true, shouldDirty: true })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select processing mode" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="individual">Individual Processing - Process each file separately</SelectItem>
-                  <SelectItem value="combined">Combined Processing - Process all files together</SelectItem>
+                  <SelectItem value="individual">Individual Processing - Process each file in a folder separately</SelectItem>
+                  <SelectItem value="combined">Combined Processing - Process all files in a folder together</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-sm text-gray-600">
-                Choose how files should be processed when multiple files are found
+                Choose how folders should be processed
               </p>
             </div>
 
@@ -517,7 +528,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
               </div>
               <Switch
                 checked={watch("keep_source_files")}
-                onCheckedChange={(checked) => setValue("keep_source_files", checked, { shouldValidate: true })}
+                onCheckedChange={(checked) => setValue("keep_source_files", checked, { shouldValidate: true, shouldDirty: true })}
               />
             </div>
           </div>
@@ -564,7 +575,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
             </div>
 
             {/* Google Drive Export Configuration */}
-            {watchedDestType === "gdrive" && (
+            {effectiveDestType === "gdrive" && (
               <div className="space-y-4 p-4 bg-blue-50 rounded-lg border">
                 <h4 className="font-medium text-blue-900">Google Drive Export Settings</h4>
                 
@@ -576,6 +587,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                       selectedFolder={selectedGDriveFolder}
                       showCard={false}
                       buttonText={selectedGDriveFolder ? selectedGDriveFolder.name : "Select Destination Folder"}
+                      onPickerStateChange={setIsPickerOpen}
                     />
                     <p className="text-sm text-gray-600">
                       Choose the Google Drive folder where results will be saved. If no folder is selected, files will be saved to My Drive.
@@ -586,7 +598,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                     <Label htmlFor="file_type">File Format</Label>
                     <Select
                       value={watch("file_type") || "csv"}
-                      onValueChange={(value: "csv" | "xlsx") => setValue("file_type", value, { shouldValidate: true })}
+                      onValueChange={(value: "csv" | "xlsx") => setValue("file_type", value, { shouldValidate: true, shouldDirty: true })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select file format" />
@@ -605,7 +617,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
             )}
 
             {/* Gmail Export Configuration */}
-            {watchedDestType === "gmail" && (
+            {effectiveDestType === "gmail" && (
               <div className="space-y-4 p-4 bg-red-50 rounded-lg border">
                 <h4 className="font-medium text-red-900">Gmail Export Settings</h4>
                 

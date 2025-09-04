@@ -12,10 +12,14 @@ export interface Automation {
     query: string
   }
   job_id: string
+  processing_mode?: 'individual' | 'combined'
+  keep_source_files?: boolean
   dest_type?: string
   export_config?: {
     folder_id?: string
+    folder_name?: string
     to_email?: string
+    file_type?: 'csv' | 'xlsx'
   }
   created_at: string
   updated_at: string
@@ -39,10 +43,14 @@ export interface CreateAutomationData {
     query: string
   }
   job_id: string
+  processing_mode?: 'individual' | 'combined'
+  keep_source_files?: boolean
   dest_type?: string
   export_config?: {
     folder_id?: string
+    folder_name?: string
     to_email?: string
+    file_type?: 'csv' | 'xlsx'
   }
 }
 
@@ -50,12 +58,16 @@ export interface UpdateAutomationData {
   name?: string
   is_enabled?: boolean
   trigger_config?: {
-    query: string
+    query?: string
   }
+  processing_mode?: 'individual' | 'combined'
+  keep_source_files?: boolean
   dest_type?: string
   export_config?: {
     folder_id?: string
+    folder_name?: string
     to_email?: string
+    file_type?: 'csv' | 'xlsx'
   }
 }
 

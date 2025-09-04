@@ -33,6 +33,7 @@ interface GoogleDriveFolderPickerProps {
   className?: string;
   buttonText?: string;
   showCard?: boolean;
+  onPickerStateChange?: (isOpen: boolean) => void;
 }
 
 export function GoogleDriveFolderPicker({
@@ -40,7 +41,8 @@ export function GoogleDriveFolderPicker({
   selectedFolder,
   className,
   buttonText = "Select Export Folder",
-  showCard = true
+  showCard = true,
+  onPickerStateChange
 }: GoogleDriveFolderPickerProps) {
   const { status, connect, isConnecting } = useGoogleIntegration();
   const [isPickerLoading, setIsPickerLoading] = useState(false);
@@ -186,6 +188,9 @@ export function GoogleDriveFolderPicker({
         .build();
 
       picker.setVisible(true);
+      
+      // Notify parent that picker is open
+      onPickerStateChange?.(true);
     } catch (error) {
       console.error('Failed to open folder picker:', error);
       toast({
@@ -224,7 +229,13 @@ export function GoogleDriveFolderPicker({
         });
       }
     }
-  }, [onFolderSelected]);
+    
+    // Notify parent when picker is closed
+    if (data.action === window.google.picker.Action.CANCEL || 
+        data.action === window.google.picker.Action.PICKED) {
+      onPickerStateChange?.(false);
+    }
+  }, [onFolderSelected, onPickerStateChange]);
 
   // Get access token from backend using apiClient
   const getAccessToken = async (): Promise<string | null> => {
@@ -262,6 +273,7 @@ export function GoogleDriveFolderPicker({
           <span className="text-sm">Connect Google Drive to select export folder</span>
         </div>
         <Button 
+          type="button"
           onClick={() => connect('drive')}
           disabled={isConnecting}
           size="sm"
@@ -302,6 +314,7 @@ export function GoogleDriveFolderPicker({
 
   const pickerButton = (
     <Button 
+      type="button"
       onClick={openFolderPicker}
       disabled={isPickerLoading || (!isGoogleApiLoaded && status?.connected)}
       variant="outline"
@@ -350,6 +363,7 @@ export function GoogleDriveFolderPicker({
         
         {selectedFolder && (
           <Button
+            type="button"
             variant="ghost"
             size="sm"
             onClick={() => onFolderSelected({ id: '', name: 'My Drive' })}
@@ -371,6 +385,7 @@ export function GoogleDriveFolderPicker({
             Failed to load Google APIs: {apiLoadError}
           </div>
           <Button
+            type="button"
             variant="outline"
             size="sm"
             onClick={() => {
