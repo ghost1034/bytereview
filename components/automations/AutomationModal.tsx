@@ -200,7 +200,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
   }
 
   const setGmailQuery = (query: string) => {
-    setValue("gmail_query", query, { shouldValidate: true })
+    setValue("gmail_query", query, { shouldValidate: true, shouldDirty: true })
   }
 
   // Handle Google Drive folder selection
