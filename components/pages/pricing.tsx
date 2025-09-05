@@ -47,8 +47,8 @@ export default function Pricing() {
 
   const getPlanFeatures = (planCode: string, pagesIncluded: number, automationsLimit: number) => {
     const baseFeatures = [
-      `${pagesIncluded === 999999 ? 'Unlimited' : pagesIncluded.toLocaleString()} pages per month`,
-      `Up to ${automationsLimit} automations`,
+      `${pagesIncluded === 999999 ? 'Unlimited' : pagesIncluded.toLocaleString()} ${pagesIncluded === 1 ? 'page' : 'pages'} per month`,
+      `Up to ${automationsLimit} ${automationsLimit === 1 ? 'automation' : 'automations'}`,
       'Custom extraction templates',
       'Export to CSV, Excel, Google Sheets'
     ];

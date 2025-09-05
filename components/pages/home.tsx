@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Check, CloudUpload, Database, Table, Bot, Shield, ShieldX, Lock, Ban, Star, FileText, Grid3X3, Settings } from "lucide-react";
+import { Check, CloudUpload, Database, Table, Bot, Shield, ShieldX, Lock, Ban, Star, FileText, Grid3X3, Settings, MapPinCheck } from "lucide-react";
 import { FaGoogle, FaMicrosoft, FaFileExcel } from "react-icons/fa";
 
 export default function Home() {
@@ -306,8 +306,8 @@ export default function Home() {
             </div>
             
             <div className="text-center">
-              <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Shield className="text-blue-600 w-8 h-8" />
+              <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MapPinCheck className="text-green-600 w-8 h-8" />
               </div>
               <h4 className="font-semibold text-gray-900 mb-2">Servers Hosted in US Only</h4>
             </div>
