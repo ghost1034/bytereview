@@ -926,9 +926,12 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
             <Cloud className="h-4 w-4" />
             Google Drive
           </TabsTrigger>
-          <TabsTrigger value="gmail" className="flex items-center gap-2">
+          <TabsTrigger value="gmail" className="flex items-center gap-2 opacity-50 cursor-not-allowed" disabled>
             <Mail className="h-4 w-4" />
-            Gmail
+            Personal Gmail
+            <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full ml-1">
+              Coming Soon
+            </span>
           </TabsTrigger>
         </TabsList>
 

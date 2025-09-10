@@ -1880,7 +1880,7 @@ export interface components {
                 [key: string]: unknown;
             }[];
             /** Template Id */
-            template_id?: string;
+            template_id?: string | null;
             /** Processing Modes */
             processing_modes?: {
                 [key: string]: unknown;
