@@ -51,6 +51,9 @@ class SSEManager:
             buffer_callback
         )
         
+        # Give subscription time to be ready
+        await asyncio.sleep(0.1)
+
         try:
             # STEP 2: Get current snapshot from database
             from core.database import db_config
@@ -218,6 +221,9 @@ class SSEManager:
                     events.put_nowait(event)
         
         subscription_path = await self.pubsub_service.subscribe_to_topic("job_updates", import_callback)
+
+        # Give subscription time to be ready
+        await asyncio.sleep(0.1)
         
         try:
             # Send initial connection event
@@ -241,46 +247,6 @@ class SSEManager:
             if subscription_path:
                 await self.pubsub_service.unsubscribe(subscription_path)
     
-    async def listen_for_zip_events(self, job_id: str) -> AsyncGenerator[Dict[str, Any], None]:
-        """
-        Listen for ZIP extraction events for a specific job
-        Uses Cloud Pub/Sub for real-time updates
-        """
-        if not self._initialized:
-            await self.pubsub_service.setup_topics_and_subscriptions()
-            self._initialized = True
-        
-        events = asyncio.Queue()
-        
-        def zip_callback(message_data):
-            if message_data.get('job_id') == job_id:
-                event = message_data['data']
-                if event.get('type') in ['files_extracted', 'file_status_changed', 'extraction_failed']:
-                    events.put_nowait(event)
-        
-        subscription_path = await self.pubsub_service.subscribe_to_topic("job_updates", zip_callback)
-        
-        try:
-            # Send initial connection event
-            yield {"type": "connected", "job_id": job_id}
-            
-            # Listen for ZIP events
-            while True:
-                try:
-                    event = await asyncio.wait_for(events.get(), timeout=30.0)
-                    yield event
-                except asyncio.TimeoutError:
-                    yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
-                    continue
-                except asyncio.CancelledError:
-                    break
-                    
-        except Exception as e:
-            logger.error(f"ZIP SSE listener error for job {job_id}: {e}")
-            yield {"type": "error", "message": str(e)}
-        finally:
-            if subscription_path:
-                await self.pubsub_service.unsubscribe(subscription_path)
     
     async def listen_for_export_events(self, job_id: str) -> AsyncGenerator[Dict[str, Any], None]:
         """
@@ -300,6 +266,9 @@ class SSEManager:
                     events.put_nowait(event)
         
         subscription_path = await self.pubsub_service.subscribe_to_topic("export_updates", export_callback)
+
+        # Give subscription time to be ready
+        await asyncio.sleep(0.1)
         
         try:
             # Send initial connection event

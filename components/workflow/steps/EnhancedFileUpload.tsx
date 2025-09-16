@@ -123,7 +123,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
         return
       }
       
-      const sseUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/jobs/${jobId}/zip-events?token=${encodeURIComponent(token)}`
+      const sseUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/jobs/${jobId}/events?token=${encodeURIComponent(token)}`
       const eventSource = new EventSource(sseUrl)
       zipEventSourceRef.current = eventSource
 

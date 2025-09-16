@@ -307,49 +307,6 @@ async def stream_job_import_events(
         logger.error(f"Failed to start import SSE stream for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start import event stream: {str(e)}")
 
-@router.get("/{job_id}/zip-events")
-async def stream_job_zip_events(
-    job_id: str,
-    token: str = Query(...)
-):
-    """Server-Sent Events stream for real-time ZIP extraction updates"""
-    try:
-        # Verify the token and get user_id
-        from dependencies.auth import verify_token_string
-        user_id = await verify_token_string(token)
-        
-        # Verify user has access to this job
-        await job_service.verify_job_access(user_id, job_id)
-        
-        async def zip_event_generator():
-            try:
-                # Get SSE manager and listen for ZIP events
-                from services.sse_service import sse_manager
-                
-                async for event in sse_manager.listen_for_zip_events(job_id):
-                    yield f"data: {json.dumps(event)}\n\n"
-                    
-            except asyncio.CancelledError:
-                return
-            except Exception as e:
-                logger.error(f"Error in ZIP SSE stream for job {job_id}: {e}")
-                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-                return
-
-        return StreamingResponse(
-            zip_event_generator(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Cache-Control"
-            }
-        )
-        
-    except Exception as e:
-        logger.error(f"Failed to start ZIP SSE stream for job {job_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start ZIP event stream: {str(e)}")
 
 @router.get("/{job_id}/export-events")
 async def stream_job_export_events(
