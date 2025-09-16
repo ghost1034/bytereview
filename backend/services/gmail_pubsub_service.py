@@ -710,26 +710,20 @@ class GmailPubSubService:
             Dict with trigger results
         """
         try:
-            # Enqueue automation trigger worker with email data
-            from arq import create_pool
-            from workers.worker import AutomationWorkerSettings
+            # Enqueue automation trigger using Cloud Run Tasks
+            from services.cloud_run_task_service import cloud_run_task_service
             
-            redis = await create_pool(AutomationWorkerSettings.redis_settings)
-            
-            job_result = await redis.enqueue_job(
-                'automation_trigger_worker',
+            task_name = await cloud_run_task_service.enqueue_automation_task(
+                task_type="automation_trigger_worker",
                 user_id=user_id,
-                message_data=email_data,
-                _queue_name='automation'
+                message_data=email_data
             )
             
-            await redis.close()
-            
-            logger.info(f"Enqueued automation trigger job {job_result.job_id} for user {user_id}")
+            logger.info(f"Enqueued automation trigger task {task_name} for user {user_id}")
             
             return {
                 "success": True,
-                "job_id": str(job_result.job_id),
+                "task_name": task_name,
                 "user_id": user_id,
                 "message": "Automation trigger enqueued successfully"
             }

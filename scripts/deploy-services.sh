@@ -115,128 +115,128 @@ deploy_service \
     "true" \
     "--set-env-vars=NODE_ENV=production"
 
-# Deploy Extract Worker (AI tasks)
-echo -e "${BLUE}=== Deploying Extract Worker ===${NC}"
-deploy_service \
-    "worker-extract" \
-    "backend" \
-    "8000" \
-    "2Gi" \
-    "2" \
-    "1" \
-    "10" \
-    "1" \
-    "3600" \
-    "false" \
-    "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-     --vpc-connector=$VPC_CONNECTOR \
-     --vpc-egress=private-ranges-only \
-     --service-account=$SERVICE_ACCOUNT \
-     --no-cpu-throttling \
-     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=extract \
-     --command=python \
-     --args=workers/entrypoint.py"
+# # Deploy Extract Worker (AI tasks)
+# echo -e "${BLUE}=== Deploying Extract Worker ===${NC}"
+# deploy_service \
+#     "worker-extract" \
+#     "backend" \
+#     "8000" \
+#     "2Gi" \
+#     "2" \
+#     "1" \
+#     "10" \
+#     "1" \
+#     "3600" \
+#     "false" \
+#     "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+#      --vpc-connector=$VPC_CONNECTOR \
+#      --vpc-egress=private-ranges-only \
+#      --service-account=$SERVICE_ACCOUNT \
+#      --no-cpu-throttling \
+#      --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+#      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=extract \
+#      --command=python \
+#      --args=workers/entrypoint.py"
 
-# Deploy I/O Worker (imports, exports, ZIP)
-echo -e "${BLUE}=== Deploying I/O Worker ===${NC}"
-deploy_service \
-    "worker-io" \
-    "backend" \
-    "8000" \
-    "1Gi" \
-    "1" \
-    "1" \
-    "5" \
-    "1" \
-    "1800" \
-    "false" \
-    "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-     --vpc-connector=$VPC_CONNECTOR \
-     --vpc-egress=private-ranges-only \
-     --service-account=$SERVICE_ACCOUNT \
-     --no-cpu-throttling \
-     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=io \
-     --command=python \
-     --args=workers/entrypoint.py"
+# # Deploy I/O Worker (imports, exports, ZIP)
+# echo -e "${BLUE}=== Deploying I/O Worker ===${NC}"
+# deploy_service \
+#     "worker-io" \
+#     "backend" \
+#     "8000" \
+#     "1Gi" \
+#     "1" \
+#     "1" \
+#     "5" \
+#     "1" \
+#     "1800" \
+#     "false" \
+#     "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+#      --vpc-connector=$VPC_CONNECTOR \
+#      --vpc-egress=private-ranges-only \
+#      --service-account=$SERVICE_ACCOUNT \
+#      --no-cpu-throttling \
+#      --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+#      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=io \
+#      --command=python \
+#      --args=workers/entrypoint.py"
 
-# Deploy Maintenance Worker (cron tasks)
-echo -e "${BLUE}=== Deploying Maintenance Worker ===${NC}"
-deploy_service \
-    "worker-maint" \
-    "backend" \
-    "8000" \
-    "1Gi" \
-    "1" \
-    "1" \
-    "1" \
-    "1" \
-    "3600" \
-    "false" \
-    "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-     --vpc-connector=$VPC_CONNECTOR \
-     --vpc-egress=private-ranges-only \
-     --service-account=$SERVICE_ACCOUNT \
-     --no-cpu-throttling \
-     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=maint \
-     --command=python \
-     --args=workers/entrypoint.py"
+# # Deploy Maintenance Worker (cron tasks)
+# echo -e "${BLUE}=== Deploying Maintenance Worker ===${NC}"
+# deploy_service \
+#     "worker-maint" \
+#     "backend" \
+#     "8000" \
+#     "1Gi" \
+#     "1" \
+#     "1" \
+#     "1" \
+#     "1" \
+#     "3600" \
+#     "false" \
+#     "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+#      --vpc-connector=$VPC_CONNECTOR \
+#      --vpc-egress=private-ranges-only \
+#      --service-account=$SERVICE_ACCOUNT \
+#      --no-cpu-throttling \
+#      --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+#      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=maint \
+#      --command=python \
+#      --args=workers/entrypoint.py"
 
-# Deploy Automation Worker (Gmail triggers, job initialization)
-echo -e "${BLUE}=== Deploying Automation Worker ===${NC}"
-deploy_service \
-    "worker-automation" \
-    "backend" \
-    "8000" \
-    "1Gi" \
-    "1" \
-    "1" \
-    "3" \
-    "1" \
-    "1800" \
-    "false" \
-    "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-     --vpc-connector=$VPC_CONNECTOR \
-     --vpc-egress=private-ranges-only \
-     --service-account=$SERVICE_ACCOUNT \
-     --no-cpu-throttling \
-     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=automation \
-     --command=python \
-     --args=workers/entrypoint.py"
+# # Deploy Automation Worker (Gmail triggers, job initialization)
+# echo -e "${BLUE}=== Deploying Automation Worker ===${NC}"
+# deploy_service \
+#     "worker-automation" \
+#     "backend" \
+#     "8000" \
+#     "1Gi" \
+#     "1" \
+#     "1" \
+#     "3" \
+#     "1" \
+#     "1800" \
+#     "false" \
+#     "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+#      --vpc-connector=$VPC_CONNECTOR \
+#      --vpc-egress=private-ranges-only \
+#      --service-account=$SERVICE_ACCOUNT \
+#      --no-cpu-throttling \
+#      --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+#      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=automation \
+#      --command=python \
+#      --args=workers/entrypoint.py"
 
-# Run database migrations
-echo -e "${BLUE}=== Running Database Migrations ===${NC}"
-echo -e "${YELLOW}🔄 Running Alembic migrations...${NC}"
+# # Run database migrations
+# echo -e "${BLUE}=== Running Database Migrations ===${NC}"
+# echo -e "${YELLOW}🔄 Running Alembic migrations...${NC}"
 
-# Create a temporary Cloud Run job to run migrations
-gcloud run jobs create migration-job \
-    --image=$ARTIFACT_REGISTRY_URL/backend:$GIT_HASH \
-    --region=$REGION \
-    --set-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-    --vpc-connector=$VPC_CONNECTOR \
-    --vpc-egress=private-ranges-only \
-    --service-account=$SERVICE_ACCOUNT \
-    --set-secrets=DATABASE_URL=DATABASE_URL:latest \
-    --set-env-vars=ENVIRONMENT=$ENVIRONMENT \
-    --args=alembic,upgrade,head \
-    --max-retries=1 \
-    --parallelism=1 \
-    --tasks=1 \
-    --task-timeout=600 || true
+# # Create a temporary Cloud Run job to run migrations
+# gcloud run jobs create migration-job \
+#     --image=$ARTIFACT_REGISTRY_URL/backend:$GIT_HASH \
+#     --region=$REGION \
+#     --set-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+#     --vpc-connector=$VPC_CONNECTOR \
+#     --vpc-egress=private-ranges-only \
+#     --service-account=$SERVICE_ACCOUNT \
+#     --set-secrets=DATABASE_URL=DATABASE_URL:latest \
+#     --set-env-vars=ENVIRONMENT=$ENVIRONMENT \
+#     --args=alembic,upgrade,head \
+#     --max-retries=1 \
+#     --parallelism=1 \
+#     --tasks=1 \
+#     --task-timeout=600 || true
 
-# Execute the migration job
-if gcloud run jobs describe migration-job --region=$REGION >/dev/null 2>&1; then
-    gcloud run jobs execute migration-job --region=$REGION --wait
-    echo -e "${GREEN}✅ Database migrations completed${NC}"
+# # Execute the migration job
+# if gcloud run jobs describe migration-job --region=$REGION >/dev/null 2>&1; then
+#     gcloud run jobs execute migration-job --region=$REGION --wait
+#     echo -e "${GREEN}✅ Database migrations completed${NC}"
     
-    # Clean up migration job
-    gcloud run jobs delete migration-job --region=$REGION --quiet
-else
-    echo -e "${RED}❌ Failed to create migration job${NC}"
-fi
+#     # Clean up migration job
+#     gcloud run jobs delete migration-job --region=$REGION --quiet
+# else
+#     echo -e "${RED}❌ Failed to create migration job${NC}"
+# fi
 
 # Deployment summary
 echo -e "${GREEN}🎉 All services deployed successfully!${NC}"

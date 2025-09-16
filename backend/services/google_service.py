@@ -1326,22 +1326,16 @@ class GoogleService:
     
     async def _trigger_automation_initialization(self, automation_run):
         """Trigger job initialization for a specific automation run"""
-        from arq import create_pool
-        from workers.worker import AutomationWorkerSettings
+        from services.cloud_run_task_service import cloud_run_task_service
         
-        # Enqueue job initialization
-        redis = await create_pool(AutomationWorkerSettings.redis_settings)
-        
-        await redis.enqueue_job(
-            'run_initializer_worker',
+        # Enqueue job initialization using Cloud Run Tasks
+        task_name = await cloud_run_task_service.enqueue_automation_task(
+            task_type="run_initializer_worker",
             job_id=automation_run.job_id,
-            automation_run_id=str(automation_run.id),
-            _queue_name='automation'
+            automation_run_id=str(automation_run.id)
         )
         
-        await redis.close()
-        
-        logger.info(f"Enqueued job initialization for automation run {automation_run.id}")
+        logger.info(f"Enqueued job initialization for automation run {automation_run.id} as {task_name}")
 
 # Singleton instance
 google_service = GoogleService()
