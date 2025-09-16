@@ -11,6 +11,7 @@ from collections import defaultdict
 import os
 from sqlalchemy import func
 from models.db_models import SourceFile, SourceFileToTask, ExtractionJob, ExtractionTask
+from services.json_utils import make_json_serializable
 
 logger = logging.getLogger(__name__)
 
@@ -151,11 +152,15 @@ class SSEManager:
             # Set up live event callback
             def live_callback(message_data):
                 nonlocal job_completed
+                logger.info(f"SSE received Pub/Sub message for job {message_data.get('job_id')} (looking for {job_id})")
                 if message_data.get('job_id') == job_id:
                     event = message_data['data']
+                    logger.info(f"SSE processing event: {event.get('type')} for job {job_id}")
                     if event.get('type') == 'job_completed':
                         job_completed = True
                     live_events.put_nowait(event)
+                else:
+                    logger.debug(f"SSE ignoring message for different job: {message_data.get('job_id')}")
             
             # Update subscription callback for live events
             if subscription_path:
@@ -165,6 +170,9 @@ class SSEManager:
                 "job_updates", 
                 live_callback
             )
+            
+            # Give subscription time to be ready
+            await asyncio.sleep(0.1)
             
             while not job_completed:
                 try:
@@ -317,17 +325,6 @@ class SSEManager:
     
     # Redis methods removed - using Cloud Pub/Sub instead
     
-    def _make_json_serializable(self, obj):
-        """Convert objects to JSON-serializable format"""
-        import uuid
-        if isinstance(obj, dict):
-            return {k: self._make_json_serializable(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [self._make_json_serializable(item) for item in obj]
-        elif isinstance(obj, uuid.UUID):
-            return str(obj)
-        else:
-            return obj
 
     async def send_job_event(self, job_id: str, event: Dict[str, Any]) -> None:
         """
@@ -347,7 +344,7 @@ class SSEManager:
         
         # Send via Cloud Pub/Sub
         try:
-            serializable_event = self._make_json_serializable(event)
+            serializable_event = make_json_serializable(event)
             
             # Determine which topic to use based on event type
             topic_type = "job_updates"  # Default

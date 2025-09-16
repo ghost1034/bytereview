@@ -12,6 +12,7 @@ from google.cloud import pubsub_v1
 from google.api_core import retry
 import threading
 from dotenv import load_dotenv
+from services.json_utils import make_json_serializable
 
 load_dotenv()
 
@@ -58,7 +59,7 @@ class CloudPubSubService:
             for topic_name, topic_path in self.topics.items():
                 try:
                     def create_topic():
-                        return self.publisher.create_topic(request={"name": topic_path})
+                        return self.publisher.create_topic(name=topic_path)
                     
                     await loop.run_in_executor(self.executor, create_topic)
                     logger.info(f"Created topic: {topic_path}")
@@ -74,12 +75,11 @@ class CloudPubSubService:
                     topic_path = self.topics[sub_name]
                     
                     def create_subscription():
-                        return self.subscriber.create_subscription(request={
-                            "name": sub_path,
-                            "topic": topic_path,
-                            "ack_deadline_seconds": 30,
-                            "message_retention_duration": {"seconds": 600}  # 10 minutes
-                        })
+                        return self.subscriber.create_subscription(
+                            name=sub_path,
+                            topic=topic_path,
+                            ack_deadline_seconds=30
+                        )
                     
                     await loop.run_in_executor(self.executor, create_subscription)
                     logger.info(f"Created subscription: {sub_path}")
@@ -114,25 +114,23 @@ class CloudPubSubService:
                 "job_id": job_id
             }
             
-            # Convert to JSON bytes
-            message_bytes = json.dumps(message).encode('utf-8')
+            # Convert to JSON bytes with UUID serialization
+            serializable_message = make_json_serializable(message)
+            message_bytes = json.dumps(serializable_message).encode('utf-8')
             
-            # Add attributes for filtering
+            # Add attributes for filtering (must be strings)
             attributes = {}
             if user_id:
-                attributes["user_id"] = user_id
+                attributes["user_id"] = str(user_id)
             if job_id:
-                attributes["job_id"] = job_id
+                attributes["job_id"] = str(job_id)
             
             # Publish message
             loop = asyncio.get_event_loop()
-            future = await loop.run_in_executor(
-                self.executor,
-                self.publisher.publish,
-                topic_path,
-                message_bytes,
-                **attributes
-            )
+            def publish_message():
+                return self.publisher.publish(topic_path, message_bytes, **attributes)
+            
+            future = await loop.run_in_executor(self.executor, publish_message)
             
             logger.debug(f"Published message to {topic_type}: {future.result()}")
             return True
@@ -227,6 +225,7 @@ class CloudPubSubService:
             
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")
+
 
     # Convenience methods for specific message types
     async def publish_job_update(

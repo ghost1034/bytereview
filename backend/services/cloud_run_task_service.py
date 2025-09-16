@@ -23,13 +23,16 @@ class CloudRunTaskService:
         self.region = os.getenv("CLOUD_RUN_REGION", "us-central1")
         self.tasks_client = tasks_v2.CloudTasksClient()
         
-        # Task service URLs - get from environment or use default for local testing
+        # Task service URLs - get from environment variables (Secret Manager)
         self.task_services = {
-            "extract": os.getenv("TASK_EXTRACT_URL", f"https://task-extract-{self.project_id}.{self.region}.run.app"),
-            "io": os.getenv("TASK_IO_URL", f"https://task-io-{self.project_id}.{self.region}.run.app"), 
-            "automation": os.getenv("TASK_AUTOMATION_URL", f"https://task-automation-{self.project_id}.{self.region}.run.app"),
-            "maintenance": os.getenv("TASK_MAINTENANCE_URL", f"https://task-maintenance-{self.project_id}.{self.region}.run.app")
+            "extract": os.getenv("TASK_EXTRACT_URL", "https://task-extract-oyrpyor7wq-uc.a.run.app"),
+            "io": os.getenv("TASK_IO_URL", "https://task-io-oyrpyor7wq-uc.a.run.app"), 
+            "automation": os.getenv("TASK_AUTOMATION_URL", "https://task-automation-oyrpyor7wq-uc.a.run.app"),
+            "maintenance": os.getenv("TASK_MAINTENANCE_URL", "https://task-maintenance-oyrpyor7wq-uc.a.run.app")
         }
+        
+        # Debug logging
+        logger.info(f"Initialized CloudRunTaskService with URLs: {self.task_services}")
         
         # Cloud Tasks queue names
         self.queue_names = {
@@ -173,6 +176,10 @@ class CloudRunTaskService:
     ) -> str:
         """Create a Cloud Task"""
         try:
+            # Debug logging
+            logger.info(f"Creating Cloud Task with URL: {service_url}")
+            logger.info(f"Queue: {queue_name}")
+            logger.info(f"Task data: {task_data}")
             # Create the task
             task = {
                 "http_request": {
