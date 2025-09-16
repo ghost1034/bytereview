@@ -5,7 +5,7 @@ Handles real-time updates for job events with minimal complexity
 import asyncio
 import json
 import logging
-import redis.asyncio as redis
+# Redis removed - using Cloud Pub/Sub instead
 from typing import Dict, Any, AsyncGenerator, Set
 from collections import defaultdict
 import os
@@ -15,52 +15,46 @@ from models.db_models import SourceFile, SourceFileToTask, ExtractionJob, Extrac
 logger = logging.getLogger(__name__)
 
 class SSEManager:
-    """Simplified SSE Manager for real-time job updates"""
+    """SSE Manager for real-time job updates using Cloud Pub/Sub"""
     
     def __init__(self):
-        # Store active listeners for each job
-        self._job_listeners: Dict[str, Set[asyncio.Queue]] = defaultdict(set)
-        self._redis = None
+        # Import here to avoid circular imports
+        from services.cloud_pubsub_service import cloud_pubsub_service
+        self.pubsub_service = cloud_pubsub_service
+        self._initialized = False
     
     async def listen_for_job_events(self, job_id: str) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Listen for events related to a specific job using full_state approach
-        Eliminates race conditions by sending complete state first, then incremental updates
+        Uses Cloud Pub/Sub for real-time updates
         """
-        # STEP 1: Subscribe to Redis pub/sub (start buffering)
-        redis_client = await self._get_redis()
-        pubsub = redis_client.pubsub()
-        channel = f"job_events_{job_id}"
-        await pubsub.subscribe(channel)
+        # Initialize Pub/Sub if needed
+        if not self._initialized:
+            await self.pubsub_service.setup_topics_and_subscriptions()
+            self._initialized = True
         
         # Buffer for events that arrive during snapshot
         event_buffer = []
         buffering = True
         
-        # Start background task to buffer events
-        async def buffer_events():
+        # Set up message callback for buffering
+        def buffer_callback(message_data):
             nonlocal buffering, event_buffer
-            while buffering:
-                try:
-                    message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
-                    if message and message['data']:
-                        event_data = json.loads(message['data'])
-                        event_buffer.append(event_data)
-                        logger.debug(f"Buffered event for job {job_id}: {event_data.get('type')}")
-                except Exception as e:
-                    logger.debug(f"Error buffering event: {e}")
-                await asyncio.sleep(0.1)
+            if buffering and message_data.get('job_id') == job_id:
+                event_buffer.append(message_data['data'])
+                logger.debug(f"Buffered event for job {job_id}: {message_data['data'].get('type')}")
         
-        buffer_task = asyncio.create_task(buffer_events())
+        # Subscribe to job updates with filtering
+        subscription_path = await self.pubsub_service.subscribe_to_topic(
+            "job_updates", 
+            buffer_callback
+        )
         
         try:
             # STEP 2: Get current snapshot from database
             from core.database import db_config
             from models.db_models import ExtractionJob, ExtractionTask
             from services.job_service import JobService
-            
-            # Small delay to ensure subscription is active
-            await asyncio.sleep(0.1)
             
             db = db_config.get_session()
             try:
@@ -143,7 +137,6 @@ class SSEManager:
             
             # STEP 4: Stop buffering and flush buffered events
             buffering = False
-            await buffer_task
             
             # Send buffered events that occurred after our snapshot
             for buffered_event in event_buffer:
@@ -151,35 +144,40 @@ class SSEManager:
                     yield buffered_event
                     logger.debug(f"Flushed buffered event: {buffered_event.get('type')}")
             
-            # STEP 5: Stream live events
+            # STEP 5: Stream live events using Cloud Pub/Sub
             job_completed = job.status == 'completed'
+            live_events = asyncio.Queue()
+            
+            # Set up live event callback
+            def live_callback(message_data):
+                nonlocal job_completed
+                if message_data.get('job_id') == job_id:
+                    event = message_data['data']
+                    if event.get('type') == 'job_completed':
+                        job_completed = True
+                    live_events.put_nowait(event)
+            
+            # Update subscription callback for live events
+            if subscription_path:
+                await self.pubsub_service.unsubscribe(subscription_path)
+            
+            subscription_path = await self.pubsub_service.subscribe_to_topic(
+                "job_updates", 
+                live_callback
+            )
             
             while not job_completed:
                 try:
-                    # Only wait for Redis events - no local queue
-                    message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=30.0)
+                    # Wait for events with timeout
+                    event = await asyncio.wait_for(live_events.get(), timeout=30.0)
+                    yield event
                     
-                    if message is not None and message['data']:
-                        try:
-                            event = json.loads(message['data'])
-                            
-                            # Check if this is a job completion event
-                            if event.get('type') == 'job_completed':
-                                job_completed = True
-                                yield event
-                                logger.info(f"Job {job_id} completed, closing SSE connection")
-                                break
-                            else:
-                                yield event
-                        except json.JSONDecodeError:
-                            continue
-                    else:
-                        # Timeout - only send keepalive if job is not completed
-                        if not job_completed:
-                            yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
+                    if event.get('type') == 'job_completed':
+                        logger.info(f"Job {job_id} completed, closing SSE connection")
+                        break
                         
                 except asyncio.TimeoutError:
-                    # Only send keepalive if job is not completed
+                    # Send keepalive on timeout
                     if not job_completed:
                         yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
                     continue
@@ -190,45 +188,38 @@ class SSEManager:
             logger.error(f"SSE listener error for job {job_id}: {e}")
             yield {"type": "error", "message": str(e)}
         finally:
-            # Clean up Redis subscription
-            try:
-                await pubsub.unsubscribe(channel)
-                await pubsub.close()
-            except Exception:
-                pass
+            # Clean up Pub/Sub subscription
+            if subscription_path:
+                await self.pubsub_service.unsubscribe(subscription_path)
     
     async def listen_for_import_events(self, job_id: str) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Listen for import events for a specific job (Drive/Gmail imports)
-        Uses the same Redis pub/sub system but filters for import events only
+        Uses Cloud Pub/Sub for real-time updates
         """
-        redis_client = await self._get_redis()
-        pubsub = redis_client.pubsub()
-        channel = f"job_events_{job_id}"
-        await pubsub.subscribe(channel)
+        if not self._initialized:
+            await self.pubsub_service.setup_topics_and_subscriptions()
+            self._initialized = True
+        
+        events = asyncio.Queue()
+        
+        def import_callback(message_data):
+            if message_data.get('job_id') == job_id:
+                event = message_data['data']
+                if event.get('type') in ['import_started', 'import_progress', 'import_completed', 'import_failed', 'import_batch_completed']:
+                    events.put_nowait(event)
+        
+        subscription_path = await self.pubsub_service.subscribe_to_topic("job_updates", import_callback)
         
         try:
             # Send initial connection event
             yield {"type": "connected", "job_id": job_id}
             
-            # Listen for import events only
+            # Listen for import events
             while True:
                 try:
-                    message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=30.0)
-                    
-                    if message is not None and message['data']:
-                        try:
-                            event = json.loads(message['data'])
-                            
-                            # Only yield import-related events
-                            if event.get('type') in ['import_started', 'import_progress', 'import_completed', 'import_failed', 'import_batch_completed']:
-                                yield event
-                        except json.JSONDecodeError:
-                            continue
-                    else:
-                        # Send keepalive on timeout
-                        yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
-                        
+                    event = await asyncio.wait_for(events.get(), timeout=30.0)
+                    yield event
                 except asyncio.TimeoutError:
                     yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
                     continue
@@ -239,45 +230,37 @@ class SSEManager:
             logger.error(f"Import SSE listener error for job {job_id}: {e}")
             yield {"type": "error", "message": str(e)}
         finally:
-            # Clean up Redis subscription
-            try:
-                await pubsub.unsubscribe(channel)
-                await pubsub.close()
-            except Exception:
-                pass
+            if subscription_path:
+                await self.pubsub_service.unsubscribe(subscription_path)
     
     async def listen_for_zip_events(self, job_id: str) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Listen for ZIP extraction events for a specific job
-        Uses the same Redis pub/sub system but filters for ZIP events only
+        Uses Cloud Pub/Sub for real-time updates
         """
-        redis_client = await self._get_redis()
-        pubsub = redis_client.pubsub()
-        channel = f"job_events_{job_id}"
-        await pubsub.subscribe(channel)
+        if not self._initialized:
+            await self.pubsub_service.setup_topics_and_subscriptions()
+            self._initialized = True
+        
+        events = asyncio.Queue()
+        
+        def zip_callback(message_data):
+            if message_data.get('job_id') == job_id:
+                event = message_data['data']
+                if event.get('type') in ['files_extracted', 'file_status_changed', 'extraction_failed']:
+                    events.put_nowait(event)
+        
+        subscription_path = await self.pubsub_service.subscribe_to_topic("job_updates", zip_callback)
         
         try:
             # Send initial connection event
             yield {"type": "connected", "job_id": job_id}
             
-            # Listen for ZIP events only
+            # Listen for ZIP events
             while True:
                 try:
-                    message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=30.0)
-                    
-                    if message is not None and message['data']:
-                        try:
-                            event = json.loads(message['data'])
-                            
-                            # Only yield ZIP extraction related events
-                            if event.get('type') in ['files_extracted', 'file_status_changed', 'extraction_failed']:
-                                yield event
-                        except json.JSONDecodeError:
-                            continue
-                    else:
-                        # Send keepalive on timeout
-                        yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
-                        
+                    event = await asyncio.wait_for(events.get(), timeout=30.0)
+                    yield event
                 except asyncio.TimeoutError:
                     yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
                     continue
@@ -288,45 +271,37 @@ class SSEManager:
             logger.error(f"ZIP SSE listener error for job {job_id}: {e}")
             yield {"type": "error", "message": str(e)}
         finally:
-            # Clean up Redis subscription
-            try:
-                await pubsub.unsubscribe(channel)
-                await pubsub.close()
-            except Exception:
-                pass
+            if subscription_path:
+                await self.pubsub_service.unsubscribe(subscription_path)
     
     async def listen_for_export_events(self, job_id: str) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Listen for export events for a specific job (Google Drive exports)
-        Uses the same Redis pub/sub system but filters for export events only
+        Uses Cloud Pub/Sub for real-time updates
         """
-        redis_client = await self._get_redis()
-        pubsub = redis_client.pubsub()
-        channel = f"job_events_{job_id}"
-        await pubsub.subscribe(channel)
+        if not self._initialized:
+            await self.pubsub_service.setup_topics_and_subscriptions()
+            self._initialized = True
+        
+        events = asyncio.Queue()
+        
+        def export_callback(message_data):
+            if message_data.get('job_id') == job_id:
+                event = message_data['data']
+                if event.get('type') in ['export_started', 'export_completed', 'export_failed']:
+                    events.put_nowait(event)
+        
+        subscription_path = await self.pubsub_service.subscribe_to_topic("export_updates", export_callback)
         
         try:
             # Send initial connection event
             yield {"type": "connected", "job_id": job_id}
             
-            # Listen for export events only
+            # Listen for export events
             while True:
                 try:
-                    message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=30.0)
-                    
-                    if message is not None and message['data']:
-                        try:
-                            event = json.loads(message['data'])
-                            
-                            # Only yield export-related events
-                            if event.get('type') in ['export_started', 'export_completed', 'export_failed']:
-                                yield event
-                        except json.JSONDecodeError:
-                            continue
-                    else:
-                        # Send keepalive on timeout
-                        yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
-                        
+                    event = await asyncio.wait_for(events.get(), timeout=30.0)
+                    yield event
                 except asyncio.TimeoutError:
                     yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
                     continue
@@ -337,19 +312,10 @@ class SSEManager:
             logger.error(f"Export SSE listener error for job {job_id}: {e}")
             yield {"type": "error", "message": str(e)}
         finally:
-            # Clean up Redis subscription
-            try:
-                await pubsub.unsubscribe(channel)
-                await pubsub.close()
-            except Exception:
-                pass
+            if subscription_path:
+                await self.pubsub_service.unsubscribe(subscription_path)
     
-    async def _get_redis(self):
-        """Get Redis connection for cross-process communication"""
-        if self._redis is None:
-            redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
-            self._redis = redis.from_url(redis_url)
-        return self._redis
+    # Redis methods removed - using Cloud Pub/Sub instead
     
     def _make_json_serializable(self, obj):
         """Convert objects to JSON-serializable format"""
@@ -366,32 +332,44 @@ class SSEManager:
     async def send_job_event(self, job_id: str, event: Dict[str, Any]) -> None:
         """
         Send an event to all listeners of a specific job
-        Simplified to use Redis pub/sub only
+        Uses Cloud Pub/Sub for real-time communication
         """
         logger.info(f"Sending SSE event for job {job_id}: {event.get('type', 'unknown')} - task_id: {event.get('task_id', 'N/A')}")
+        
+        # Initialize if needed
+        if not self._initialized:
+            await self.pubsub_service.setup_topics_and_subscriptions()
+            self._initialized = True
         
         # Add metadata to event
         event["job_id"] = job_id
         event["timestamp"] = asyncio.get_event_loop().time()
         
-        # Check if there are local listeners (for logging)
-        local_listeners = len(self._job_listeners.get(job_id, set()))
-        if local_listeners > 0:
-            logger.info(f"Found {local_listeners} local listeners for job {job_id}")
-        else:
-            logger.info(f"No local listeners for job {job_id}")
-        
-        # Don't send to local listeners - only use Redis to avoid duplicates
-        
-        # Send via Redis for cross-process communication
+        # Send via Cloud Pub/Sub
         try:
-            redis_client = await self._get_redis()
-            channel = f"job_events_{job_id}"
             serializable_event = self._make_json_serializable(event)
-            await redis_client.publish(channel, json.dumps(serializable_event))
-            logger.info(f"Published SSE event to Redis channel {channel} - event: {event.get('type')} task: {event.get('task_id', 'N/A')}")
+            
+            # Determine which topic to use based on event type
+            topic_type = "job_updates"  # Default
+            if event.get('type') in ['export_started', 'export_completed', 'export_failed']:
+                topic_type = "export_updates"
+            elif event.get('type') in ['automation_started', 'automation_completed', 'automation_failed']:
+                topic_type = "automation_updates"
+            
+            success = await self.pubsub_service.publish_message(
+                topic_type=topic_type,
+                message_data=serializable_event,
+                user_id=event.get('user_id'),
+                job_id=job_id
+            )
+            
+            if success:
+                logger.info(f"Published SSE event to Cloud Pub/Sub topic {topic_type} - event: {event.get('type')} task: {event.get('task_id', 'N/A')}")
+            else:
+                logger.warning(f"Failed to publish event to Cloud Pub/Sub")
+                
         except Exception as e:
-            logger.warning(f"Failed to publish event to Redis: {e}")
+            logger.warning(f"Failed to publish event to Cloud Pub/Sub: {e}")
     
     # Convenience methods for common events
     async def send_file_uploaded(self, job_id: str, file_data: Dict[str, Any]) -> None:

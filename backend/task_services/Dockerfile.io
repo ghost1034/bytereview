@@ -30,4 +30,4 @@ RUN chown -R appuser:appuser /app
 USER appuser
 
 # Run the I/O task service
-CMD ["python", "task_services/io_task_service.py"]
+CMD ["python", "-m", "task_services.io_task_service"]

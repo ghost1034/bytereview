@@ -6,10 +6,12 @@ import os
 import json
 import logging
 from typing import Dict, Any, Optional, List
-from google.cloud import run_v2
 from google.cloud import tasks_v2
 from google.protobuf import timestamp_pb2
 from datetime import datetime, timezone, timedelta
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -17,17 +19,16 @@ class CloudRunTaskService:
     """Service for managing Cloud Run Tasks execution"""
     
     def __init__(self):
-        self.project_id = os.getenv("GOOGLE_CLOUD_PROJECT_ID")
+        self.project_id = os.getenv("GOOGLE_CLOUD_PROJECT_ID", "ace-rider-383100")
         self.region = os.getenv("CLOUD_RUN_REGION", "us-central1")
         self.tasks_client = tasks_v2.CloudTasksClient()
-        self.run_client = run_v2.ServicesClient()
         
-        # Task service URLs (to be configured after deployment)
+        # Task service URLs - get from environment or use default for local testing
         self.task_services = {
-            "extract": f"https://task-extract-{self.project_id}.{self.region}.run.app",
-            "io": f"https://task-io-{self.project_id}.{self.region}.run.app", 
-            "automation": f"https://task-automation-{self.project_id}.{self.region}.run.app",
-            "maintenance": f"https://task-maintenance-{self.project_id}.{self.region}.run.app"
+            "extract": os.getenv("TASK_EXTRACT_URL", f"https://task-extract-{self.project_id}.{self.region}.run.app"),
+            "io": os.getenv("TASK_IO_URL", f"https://task-io-{self.project_id}.{self.region}.run.app"), 
+            "automation": os.getenv("TASK_AUTOMATION_URL", f"https://task-automation-{self.project_id}.{self.region}.run.app"),
+            "maintenance": os.getenv("TASK_MAINTENANCE_URL", f"https://task-maintenance-{self.project_id}.{self.region}.run.app")
         }
         
         # Cloud Tasks queue names
@@ -216,14 +217,21 @@ class CloudRunTaskService:
         try:
             location_path = f"projects/{self.project_id}/locations/{self.region}"
             
-            for queue_type, queue_name in self.queue_names.items():
+            # Queue IDs (just the names, not full paths)
+            queue_ids = ["extract-tasks", "io-tasks", "automation-tasks", "maintenance-tasks"]
+            
+            for queue_id in queue_ids:
                 try:
+                    # Full queue name for checking existence
+                    full_queue_name = f"{location_path}/queues/{queue_id}"
+                    
                     # Check if queue exists
-                    self.tasks_client.get_queue(name=queue_name)
-                    logger.info(f"Queue {queue_name} already exists")
+                    self.tasks_client.get_queue(name=full_queue_name)
+                    logger.info(f"Queue {queue_id} already exists")
                 except:
                     # Create queue
                     queue = {
+                        "name": f"{location_path}/queues/{queue_id}",
                         "rate_limits": {
                             "max_dispatches_per_second": 10.0,
                             "max_burst_size": 100,
@@ -244,7 +252,7 @@ class CloudRunTaskService:
                     )
                     
                     self.tasks_client.create_queue(request=request)
-                    logger.info(f"Created queue: {queue_name}")
+                    logger.info(f"Created queue: {queue_id}")
                     
         except Exception as e:
             logger.error(f"Failed to setup task queues: {e}")

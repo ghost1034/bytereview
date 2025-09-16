@@ -30,4 +30,4 @@ RUN chown -R appuser:appuser /app
 USER appuser
 
 # Run the automation task service
-CMD ["python", "task_services/automation_task_service.py"]
+CMD ["python", "-m", "task_services.automation_task_service"]

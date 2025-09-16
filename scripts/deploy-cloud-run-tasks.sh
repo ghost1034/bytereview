@@ -32,20 +32,30 @@ echo ""
 # Function to build and push task service image
 build_and_push_task_image() {
     local service_name=$1
-    local dockerfile_path=$2
+    local dockerfile_name=$2
     
     echo -e "${YELLOW}🔨 Building ${service_name} image...${NC}"
     
     local image_name="task-${service_name}"
-    local full_image_url="${ARTIFACT_REGISTRY_URL}/${image_name}:${GIT_HASH}"
+    local image_tag="${ARTIFACT_REGISTRY_URL}/${image_name}:${GIT_HASH}"
+    local latest_tag="${ARTIFACT_REGISTRY_URL}/${image_name}:latest"
+    local dockerfile_path="backend/task_services/${dockerfile_name}"
     
-    # Build the image
-    docker build -f "${dockerfile_path}" -t "${full_image_url}" ./backend/
+    echo -e "${BLUE}Context: ./backend/${NC}"
+    echo -e "${BLUE}Dockerfile: ${dockerfile_path}${NC}"
+    echo -e "${BLUE}Tag: ${image_tag}${NC}"
     
-    # Push to Artifact Registry
-    docker push "${full_image_url}"
+    # Build and push using buildx (same as build-images.sh)
+    docker buildx build \
+        --platform linux/amd64 \
+        -f "${dockerfile_path}" \
+        -t "${image_tag}" \
+        -t "${latest_tag}" \
+        --push \
+        "./backend/"
     
-    echo -e "${GREEN}✅ ${service_name} image built and pushed${NC}"
+    echo -e "${GREEN}✅ ${service_name} built and pushed successfully${NC}"
+    echo ""
 }
 
 # Function to deploy Cloud Run service
@@ -99,100 +109,118 @@ deploy_service() {
     echo ""
 }
 
-# Build task service images
-echo -e "${BLUE}=== Building Task Service Images ===${NC}"
+# Check if Docker is running
+if ! docker info >/dev/null 2>&1; then
+    echo -e "${RED}❌ Docker is not running. Please start Docker and try again.${NC}"
+    exit 1
+fi
 
-build_and_push_task_image "extract" "task_services/Dockerfile.extract"
-build_and_push_task_image "io" "task_services/Dockerfile.io" 
-build_and_push_task_image "automation" "task_services/Dockerfile.automation"
-build_and_push_task_image "maintenance" "task_services/Dockerfile.maintenance"
+# Set up Docker Buildx for multi-platform builds
+echo -e "${YELLOW}🔧 Setting up Docker Buildx for multi-platform builds...${NC}"
+docker buildx create --use --name cpa-builder --driver docker-container || true
+docker buildx inspect --bootstrap
+echo -e "${GREEN}✅ Docker Buildx setup complete${NC}"
 
-# Deploy task services
-echo -e "${BLUE}=== Deploying Task Services ===${NC}"
+# Authenticate Docker with Artifact Registry
+echo -e "${YELLOW}🔐 Authenticating Docker with Artifact Registry...${NC}"
+gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+echo -e "${GREEN}✅ Docker authentication complete${NC}"
+echo ""
 
-# Deploy Extract Task Service
-echo -e "${BLUE}=== Deploying Extract Task Service ===${NC}"
-deploy_service \
-    "task-extract" \
-    "task-extract" \
-    "8080" \
-    "2Gi" \
-    "2" \
-    "0" \
-    "100" \
-    "1" \
-    "3600" \
-    "false" \
-    "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-     --vpc-connector=$VPC_CONNECTOR \
-     --vpc-egress=private-ranges-only \
-     --service-account=$SERVICE_ACCOUNT \
-     --no-cpu-throttling \
-     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
+# # Build task service images
+# echo -e "${BLUE}=== Building Task Service Images ===${NC}"
 
-# Deploy I/O Task Service
-echo -e "${BLUE}=== Deploying I/O Task Service ===${NC}"
-deploy_service \
-    "task-io" \
-    "task-io" \
-    "8080" \
-    "1Gi" \
-    "1" \
-    "0" \
-    "50" \
-    "1" \
-    "1800" \
-    "false" \
-    "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-     --vpc-connector=$VPC_CONNECTOR \
-     --vpc-egress=private-ranges-only \
-     --service-account=$SERVICE_ACCOUNT \
-     --no-cpu-throttling \
-     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
+# build_and_push_task_image "extract" "Dockerfile.extract"
+# build_and_push_task_image "io" "Dockerfile.io" 
+# build_and_push_task_image "automation" "Dockerfile.automation"
+# build_and_push_task_image "maintenance" "Dockerfile.maintenance"
 
-# Deploy Automation Task Service
-echo -e "${BLUE}=== Deploying Automation Task Service ===${NC}"
-deploy_service \
-    "task-automation" \
-    "task-automation" \
-    "8080" \
-    "1Gi" \
-    "1" \
-    "0" \
-    "10" \
-    "1" \
-    "1800" \
-    "false" \
-    "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-     --vpc-connector=$VPC_CONNECTOR \
-     --vpc-egress=private-ranges-only \
-     --service-account=$SERVICE_ACCOUNT \
-     --no-cpu-throttling \
-     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
+# # Deploy task services
+# echo -e "${BLUE}=== Deploying Task Services ===${NC}"
 
-# Deploy Maintenance Task Service
-echo -e "${BLUE}=== Deploying Maintenance Task Service ===${NC}"
-deploy_service \
-    "task-maintenance" \
-    "task-maintenance" \
-    "8080" \
-    "1Gi" \
-    "1" \
-    "0" \
-    "5" \
-    "1" \
-    "3600" \
-    "false" \
-    "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-     --vpc-connector=$VPC_CONNECTOR \
-     --vpc-egress=private-ranges-only \
-     --service-account=$SERVICE_ACCOUNT \
-     --no-cpu-throttling \
-     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
+# # Deploy Extract Task Service
+# echo -e "${BLUE}=== Deploying Extract Task Service ===${NC}"
+# deploy_service \
+#     "task-extract" \
+#     "task-extract" \
+#     "8080" \
+#     "2Gi" \
+#     "2" \
+#     "0" \
+#     "100" \
+#     "1" \
+#     "3600" \
+#     "false" \
+#     "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+#      --vpc-connector=$VPC_CONNECTOR \
+#      --vpc-egress=private-ranges-only \
+#      --service-account=$SERVICE_ACCOUNT \
+#      --no-cpu-throttling \
+#      --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+#      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
+
+# # Deploy I/O Task Service
+# echo -e "${BLUE}=== Deploying I/O Task Service ===${NC}"
+# deploy_service \
+#     "task-io" \
+#     "task-io" \
+#     "8080" \
+#     "1Gi" \
+#     "1" \
+#     "0" \
+#     "50" \
+#     "1" \
+#     "1800" \
+#     "false" \
+#     "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+#      --vpc-connector=$VPC_CONNECTOR \
+#      --vpc-egress=private-ranges-only \
+#      --service-account=$SERVICE_ACCOUNT \
+#      --no-cpu-throttling \
+#      --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+#      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
+
+# # Deploy Automation Task Service
+# echo -e "${BLUE}=== Deploying Automation Task Service ===${NC}"
+# deploy_service \
+#     "task-automation" \
+#     "task-automation" \
+#     "8080" \
+#     "1Gi" \
+#     "1" \
+#     "0" \
+#     "10" \
+#     "1" \
+#     "1800" \
+#     "false" \
+#     "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+#      --vpc-connector=$VPC_CONNECTOR \
+#      --vpc-egress=private-ranges-only \
+#      --service-account=$SERVICE_ACCOUNT \
+#      --no-cpu-throttling \
+#      --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+#      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
+
+# # Deploy Maintenance Task Service
+# echo -e "${BLUE}=== Deploying Maintenance Task Service ===${NC}"
+# deploy_service \
+#     "task-maintenance" \
+#     "task-maintenance" \
+#     "8080" \
+#     "1Gi" \
+#     "1" \
+#     "0" \
+#     "5" \
+#     "1" \
+#     "3600" \
+#     "false" \
+#     "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+#      --vpc-connector=$VPC_CONNECTOR \
+#      --vpc-egress=private-ranges-only \
+#      --service-account=$SERVICE_ACCOUNT \
+#      --no-cpu-throttling \
+#      --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+#      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
 
 # Setup Cloud Tasks queues
 echo -e "${BLUE}=== Setting up Cloud Tasks Queues ===${NC}"
@@ -204,15 +232,103 @@ cloud_run_task_service.setup_task_queues()
 print('✅ Cloud Tasks queues set up successfully')
 "
 
-# Setup Cloud Scheduler jobs
-echo -e "${BLUE}=== Setting up Cloud Scheduler Jobs ===${NC}"
+# Setup Cloud Pub/Sub topics and subscriptions
+echo -e "${BLUE}=== Setting up Cloud Pub/Sub Topics ===${NC}"
 python3 -c "
 import sys
 sys.path.append('./backend')
-from services.cloud_scheduler_service import cloud_scheduler_service
-cloud_scheduler_service.setup_scheduled_jobs()
-print('✅ Cloud Scheduler jobs set up successfully')
+from services.cloud_pubsub_service import cloud_pubsub_service
+import asyncio
+asyncio.run(cloud_pubsub_service.setup_topics_and_subscriptions())
+print('✅ Cloud Pub/Sub topics and subscriptions set up successfully')
 "
+
+# Setup Cloud Scheduler jobs with actual service URLs
+echo -e "${BLUE}=== Setting up Cloud Scheduler Jobs ===${NC}"
+
+# Get the actual maintenance service URL
+maintenance_url=$(gcloud run services describe task-maintenance --region=$REGION --format="value(status.url)")
+echo -e "${YELLOW}Maintenance service URL: ${maintenance_url}${NC}"
+
+# Create scheduled jobs with actual URLs
+gcloud scheduler jobs create http cpaautomation-free-user-period-reset \
+    --location=$REGION \
+    --schedule="30 0 * * *" \
+    --uri="${maintenance_url}/execute" \
+    --http-method=POST \
+    --headers="Content-Type=application/json" \
+    --message-body='{"task_type":"run_free_user_period_reset"}' \
+    --oidc-service-account-email="cpaautomation-runner@$PROJECT_ID.iam.gserviceaccount.com" \
+    --time-zone="UTC" \
+    --quiet || echo "Job may already exist"
+
+gcloud scheduler jobs create http cpaautomation-stripe-usage-reconciliation \
+    --location=$REGION \
+    --schedule="15 */2 * * *" \
+    --uri="${maintenance_url}/execute" \
+    --http-method=POST \
+    --headers="Content-Type=application/json" \
+    --message-body='{"task_type":"run_stripe_usage_reconciliation"}' \
+    --oidc-service-account-email="cpaautomation-runner@$PROJECT_ID.iam.gserviceaccount.com" \
+    --time-zone="UTC" \
+    --quiet || echo "Job may already exist"
+
+gcloud scheduler jobs create http cpaautomation-usage-counter-cleanup \
+    --location=$REGION \
+    --schedule="0 2 * * 0" \
+    --uri="${maintenance_url}/execute" \
+    --http-method=POST \
+    --headers="Content-Type=application/json" \
+    --message-body='{"task_type":"run_usage_counter_cleanup"}' \
+    --oidc-service-account-email="cpaautomation-runner@$PROJECT_ID.iam.gserviceaccount.com" \
+    --time-zone="UTC" \
+    --quiet || echo "Job may already exist"
+
+gcloud scheduler jobs create http cpaautomation-abandoned-cleanup \
+    --location=$REGION \
+    --schedule="0 1 * * *" \
+    --uri="${maintenance_url}/execute" \
+    --http-method=POST \
+    --headers="Content-Type=application/json" \
+    --message-body='{"task_type":"run_abandoned_cleanup"}' \
+    --oidc-service-account-email="cpaautomation-runner@$PROJECT_ID.iam.gserviceaccount.com" \
+    --time-zone="UTC" \
+    --quiet || echo "Job may already exist"
+
+gcloud scheduler jobs create http cpaautomation-artifact-cleanup \
+    --location=$REGION \
+    --schedule="0 3 * * *" \
+    --uri="${maintenance_url}/execute" \
+    --http-method=POST \
+    --headers="Content-Type=application/json" \
+    --message-body='{"task_type":"run_artifact_cleanup"}' \
+    --oidc-service-account-email="cpaautomation-runner@$PROJECT_ID.iam.gserviceaccount.com" \
+    --time-zone="UTC" \
+    --quiet || echo "Job may already exist"
+
+gcloud scheduler jobs create http cpaautomation-opt-out-cleanup \
+    --location=$REGION \
+    --schedule="0 4 * * 6" \
+    --uri="${maintenance_url}/execute" \
+    --http-method=POST \
+    --headers="Content-Type=application/json" \
+    --message-body='{"task_type":"run_opt_out_cleanup"}' \
+    --oidc-service-account-email="cpaautomation-runner@$PROJECT_ID.iam.gserviceaccount.com" \
+    --time-zone="UTC" \
+    --quiet || echo "Job may already exist"
+
+gcloud scheduler jobs create http cpaautomation-gmail-watch-renewal \
+    --location=$REGION \
+    --schedule="45 6 * * *" \
+    --uri="${maintenance_url}/execute" \
+    --http-method=POST \
+    --headers="Content-Type=application/json" \
+    --message-body='{"task_type":"run_gmail_watch_renewal"}' \
+    --oidc-service-account-email="cpaautomation-runner@$PROJECT_ID.iam.gserviceaccount.com" \
+    --time-zone="UTC" \
+    --quiet || echo "Job may already exist"
+
+echo -e "${GREEN}✅ Cloud Scheduler jobs set up successfully with URL: ${maintenance_url}${NC}"
 
 # Deployment summary
 echo -e "${GREEN}🎉 All Cloud Run Tasks deployed successfully!${NC}"

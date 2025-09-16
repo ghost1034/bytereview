@@ -9,6 +9,9 @@ from typing import Dict, Any, List
 from google.cloud import scheduler_v1
 from google.protobuf import timestamp_pb2
 from datetime import datetime, timezone
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +19,7 @@ class CloudSchedulerService:
     """Service for managing Cloud Scheduler jobs"""
     
     def __init__(self):
-        self.project_id = os.getenv("GOOGLE_CLOUD_PROJECT_ID")
+        self.project_id = os.getenv("GOOGLE_CLOUD_PROJECT_ID", "ace-rider-383100")
         self.region = os.getenv("CLOUD_RUN_REGION", "us-central1")
         self.scheduler_client = scheduler_v1.CloudSchedulerClient()
         
