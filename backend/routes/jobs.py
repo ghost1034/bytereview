@@ -222,7 +222,8 @@ async def remove_file_from_job(
 @router.get("/{job_id}/events")
 async def stream_job_events(
     job_id: str,
-    token: str = Query(...)
+    token: str = Query(...),
+    include_full_state: bool = Query(default=False, description="Include full_state snapshot (only needed on Processing page)")
 ):
     """Simplified Server-Sent Events stream for real-time job updates"""
     try:
@@ -238,7 +239,7 @@ async def stream_job_events(
                 # Get SSE manager and listen for events
                 from services.sse_service import sse_manager
                 
-                async for event in sse_manager.listen_for_job_events(job_id):
+                async for event in sse_manager.listen_for_job_events(job_id, include_full_state=include_full_state):
                     yield f"data: {json.dumps(event)}\n\n"
                     
             except asyncio.CancelledError:
@@ -262,95 +263,6 @@ async def stream_job_events(
     except Exception as e:
         logger.error(f"Failed to start SSE stream for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start event stream: {str(e)}")
-
-@router.get("/{job_id}/import-events")
-async def stream_job_import_events(
-    job_id: str,
-    token: str = Query(...)
-):
-    """Server-Sent Events stream for real-time import updates (Drive/Gmail imports)"""
-    try:
-        # Verify the token and get user_id
-        from dependencies.auth import verify_token_string
-        user_id = await verify_token_string(token)
-        
-        # Verify user has access to this job
-        await job_service.verify_job_access(user_id, job_id)
-        
-        async def import_event_generator():
-            try:
-                # Get SSE manager and listen for import events
-                from services.sse_service import sse_manager
-                
-                async for event in sse_manager.listen_for_import_events(job_id):
-                    yield f"data: {json.dumps(event)}\n\n"
-                    
-            except asyncio.CancelledError:
-                return
-            except Exception as e:
-                logger.error(f"Error in import SSE stream for job {job_id}: {e}")
-                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-                return
-
-        return StreamingResponse(
-            import_event_generator(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Cache-Control"
-            }
-        )
-        
-    except Exception as e:
-        logger.error(f"Failed to start import SSE stream for job {job_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start import event stream: {str(e)}")
-
-
-@router.get("/{job_id}/export-events")
-async def stream_job_export_events(
-    job_id: str,
-    token: str = Query(...)
-):
-    """Server-Sent Events stream for real-time export updates (Google Drive exports)"""
-    try:
-        # Verify the token and get user_id
-        from dependencies.auth import verify_token_string
-        user_id = await verify_token_string(token)
-        
-        # Verify user has access to this job
-        await job_service.verify_job_access(user_id, job_id)
-        
-        async def export_event_generator():
-            try:
-                # Get SSE manager and listen for export events
-                from services.sse_service import sse_manager
-                
-                async for event in sse_manager.listen_for_export_events(job_id):
-                    yield f"data: {json.dumps(event)}\n\n"
-                    
-            except asyncio.CancelledError:
-                return
-            except Exception as e:
-                logger.error(f"Error in export SSE stream for job {job_id}: {e}")
-                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-                return
-
-        return StreamingResponse(
-            export_event_generator(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Cache-Control"
-            }
-        )
-        
-    except Exception as e:
-        logger.error(f"Failed to start export SSE stream for job {job_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start export event stream: {str(e)}")
 
 @router.get("/{job_id}/results", response_model=JobResultsResponse)
 async def get_job_results(

@@ -235,7 +235,7 @@ export default function ProcessingStep({
         return;
       }
 
-      const sseUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/jobs/${jobId}/events?token=${token}`;
+      const sseUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/jobs/${jobId}/events?token=${token}&include_full_state=true`;
       const eventSource = new EventSource(sseUrl);
 
       // Store in both ref and global manager

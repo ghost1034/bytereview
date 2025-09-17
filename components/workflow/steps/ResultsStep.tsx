@@ -429,7 +429,7 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
         return;
       }
       
-      const sseUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/jobs/${jobId}/export-events?token=${encodeURIComponent(token)}`;
+      const sseUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/jobs/${jobId}/events?token=${encodeURIComponent(token)}&include_full_state=false`;
       const eventSource = new EventSource(sseUrl);
       eventSourceRef.current = eventSource;
 
@@ -502,8 +502,26 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
               // Ignore keepalive events
               break;
 
+            // Ignore other event types not related to exports
+            case 'task_started':
+            case 'task_completed':
+            case 'task_failed':
+            case 'import_started':
+            case 'import_progress':
+            case 'import_completed':
+            case 'import_failed':
+            case 'import_batch_completed':
+            case 'files_extracted':
+            case 'file_status_changed':
+            case 'extraction_failed':
+            case 'job_completed':
+            case 'job_submitted':
+            case 'job_cancelled':
+              // Ignore non-export events
+              break;
+
             default:
-              // Ignore other event types for export connection
+              console.log('Unknown export SSE event type:', data.type);
               break;
           }
         } catch (error) {

@@ -53,9 +53,8 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
   const [hasTriggeredImports, setHasTriggeredImports] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
-  const zipEventSourceRef = useRef<EventSource | null>(null)
-  const importEventSourceRef = useRef<EventSource | null>(null)
-  const zipConnectionAttemptedRef = useRef<boolean>(false)
+  const eventSourceRef = useRef<EventSource | null>(null)
+  const connectionAttemptedRef = useRef<boolean>(false)
   const pendingFilesRef = useRef<Set<string>>(new Set())
   const expectedFilesRef = useRef<Set<string>>(new Set())
   const receivedFilesRef = useRef<Set<string>>(new Set())
@@ -80,9 +79,9 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
     if (driveFiles.length > 0) {
       setHasTriggeredImports(true);
       
-      // Setup import SSE connection if not already active
-      if (!importEventSourceRef.current) {
-        setupImportSSEConnection();
+      // Setup SSE connection if not already active
+      if (!eventSourceRef.current) {
+        setupSSEConnection();
       }
     }
   };
@@ -92,9 +91,9 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
     if (attachments.length > 0) {
       setHasTriggeredImports(true);
       
-      // Setup import SSE connection if not already active
-      if (!importEventSourceRef.current) {
-        setupImportSSEConnection();
+      // Setup SSE connection if not already active
+      if (!eventSourceRef.current) {
+        setupSSEConnection();
       }
     }
   };
@@ -110,25 +109,25 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
   const unpackingFiles = files.filter(f => f.status === 'unpacking')
   const failedFiles = files.filter(f => f.status === 'failed')
 
-  // ZIP SSE connection setup - for ZIP extraction monitoring only
-  const setupZipSSEConnection = async () => {
-    if (!jobId || zipEventSourceRef.current || zipConnectionAttemptedRef.current) return
+  // Unified SSE connection setup - handles all job events
+  const setupSSEConnection = async () => {
+    if (!jobId || eventSourceRef.current || connectionAttemptedRef.current) return
 
-    zipConnectionAttemptedRef.current = true
+    connectionAttemptedRef.current = true
     try {
-      console.log('Setting up ZIP SSE connection for extraction monitoring')
+      console.log('Setting up unified SSE connection for job events')
       const token = await apiClient.getAuthTokenForSSE()
       if (!token) {
-        console.warn('No auth token available for ZIP SSE')
+        console.warn('No auth token available for SSE')
         return
       }
       
-      const sseUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/jobs/${jobId}/events?token=${encodeURIComponent(token)}`
+      const sseUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/jobs/${jobId}/events?token=${encodeURIComponent(token)}&include_full_state=false`
       const eventSource = new EventSource(sseUrl)
-      zipEventSourceRef.current = eventSource
+      eventSourceRef.current = eventSource
 
       eventSource.onopen = () => {
-        console.log('ZIP SSE connection established for extraction monitoring')
+        console.log('Unified SSE connection established')
       }
 
       eventSource.onmessage = (event) => {
@@ -137,124 +136,11 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
 
           switch (data.type) {
             case 'connected':
-              console.log('ZIP SSE connection confirmed')
+              console.log('SSE connection confirmed')
               break
 
-            case 'files_extracted':
-              // Add files unpacked from ZIP to the list in alphabetical order
-              console.log('ZIP extraction completed, adding extracted files')
-              const mappedFiles: JobFileInfo[] = data.files.map((file: any) => ({
-                id: file.id,
-                original_filename: file.filename,
-                original_path: file.original_path,
-                file_size_bytes: file.file_size,
-                status: file.status as FileStatus
-              }))
-              
-              setFiles(prev => {
-                const newFiles = mappedFiles.filter(newFile => 
-                  !prev.some(existingFile => existingFile.id === newFile.id)
-                )
-                console.log(`Adding ${newFiles.length} extracted files`)
-                
-                // Add new files and sort alphabetically
-                const updatedFiles = sortFilesByPath([...prev, ...newFiles])
-                checkAndCloseZipSSEIfDone(updatedFiles)
-                
-                // Invalidate job files queries if new files were added
-                if (newFiles.length > 0) {
-                  invalidateJobFiles()
-                }
-                
-                return updatedFiles
-              })
-              break
-
-            case 'file_status_changed':
-              // Update file status (e.g., unpacking to unpacked)
-              console.log(`File status changed: ${data.file_id} to ${data.status}`)
-              setFiles(prev => {
-                const updatedFiles = prev.map(f => 
-                  f.id === data.file_id ? { ...f, status: data.status as FileStatus } : f
-                )
-                
-                // Check if all ZIP files are done extracting after this status change
-                setTimeout(() => checkAndCloseZipSSEIfDone(updatedFiles), 1000)
-                
-                // Status changes don't affect order, so no need to re-sort
-                return updatedFiles
-              })
-              break
-
-            case 'extraction_failed':
-              // Update file status to failed
-              console.log(`ZIP extraction failed for file: ${data.file_id}`)
-              setFiles(prev => prev.map(f => 
-                f.id === data.file_id ? { ...f, status: 'failed' as FileStatus } : f
-              ))
-              toast({
-                title: "ZIP unpacking failed",
-                description: data.error,
-                variant: "destructive"
-              })
-              break
-
-            case 'keepalive':
-              // Ignore keepalive events
-              break
-
-            default:
-              // Ignore other event types for ZIP connection
-              break
-          }
-        } catch (error) {
-          console.error('Error parsing ZIP SSE event:', error)
-        }
-      }
-
-      eventSource.onerror = (error) => {
-        console.error('ZIP SSE connection error:', error)
-        if (eventSource.readyState === EventSource.CLOSED) {
-          zipEventSourceRef.current = null
-        }
-      }
-
-    } catch (error) {
-      console.error('Error setting up ZIP SSE:', error)
-    }
-  }
-
-  // Import SSE connection setup - for import monitoring only
-  const setupImportSSEConnection = async () => {
-    if (!jobId || importEventSourceRef.current) return
-
-    try {
-      console.log('Setting up Import SSE connection for import monitoring')
-      const token = await apiClient.getAuthTokenForSSE()
-      if (!token) {
-        console.warn('No auth token available for Import SSE')
-        return
-      }
-      
-      const sseUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/jobs/${jobId}/events?token=${encodeURIComponent(token)}`
-      const eventSource = new EventSource(sseUrl)
-      importEventSourceRef.current = eventSource
-
-      eventSource.onopen = () => {
-        console.log('Import SSE connection established for import monitoring')
-      }
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data)
-
-          switch (data.type) {
-            case 'connected':
-              console.log('Import SSE connection confirmed')
-              break
-
+            // Import events
             case 'import_started':
-              // Import operation started
               console.log(`Import started: ${data.source} - ${data.file_count} files`)
               toast({
                 title: `${data.source} Import Started`,
@@ -263,13 +149,12 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
               break
 
             case 'import_progress':
-              // Individual file import progress (e.g., started importing)
               console.log(`Import progress: ${data.filename} - ${data.status}`)
               if (data.status === 'importing') {
                 setFiles(prev => updateOrAddFile(
                   prev,
                   {
-                    id: `importing-${Date.now()}-${data.filename}`,
+                    id: `importing-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${data.filename}`,
                     original_filename: data.filename,
                     original_path: data.original_path || data.filename,
                     file_size_bytes: data.file_size || 0,
@@ -281,13 +166,11 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
               break
 
             case 'import_completed':
-              // Individual file import completed
               console.log(`Import completed: ${data.filename}`)
-              // Add the imported file to the list
               const importedFile: JobFileInfo = {
                 id: data.file_id,
                 original_filename: data.filename,
-                original_path: data.original_path || data.filename, // Use original_path from backend
+                original_path: data.original_path || data.filename,
                 file_size_bytes: data.file_size || 0,
                 status: data.status as FileStatus
               }
@@ -302,22 +185,12 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                        (f.id.startsWith('importing-') && f.original_filename === data.filename)
                 )
                 
-                // Check if we need to establish ZIP SSE connection for unpacking files
-                const hasUnpackingFiles = updatedFiles.some(f => f.status === 'unpacking')
-                if (hasUnpackingFiles && !zipEventSourceRef.current && !zipConnectionAttemptedRef.current) {
-                  console.log('Imported file with unpacking status detected, setting up ZIP SSE connection')
-                  setupZipSSEConnection()
-                }
-                
-                // Invalidate job files queries when new file is imported
                 invalidateJobFiles()
-                
                 return updatedFiles
               })
               break
 
             case 'import_failed':
-              // Import operation failed
               console.log(`Import failed: ${data.filename} - ${data.error}`)
               toast({
                 title: "Import Failed",
@@ -327,97 +200,131 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
               break
 
             case 'import_batch_completed':
-              // All imports in a batch completed
               console.log(`Import batch completed: ${data.source} - ${data.successful}/${data.total} items`)
               toast({
                 title: `${data.source} Import Completed`,
                 description: `Successfully imported ${data.successful} of ${data.total} item(s)`,
               });
-              // Check if we can close the import connection
-              setTimeout(() => checkAndCloseImportSSEIfDone(), 1000)
+              setTimeout(() => checkAndCloseSSEIfDone(), 1000)
+              break
+
+            // ZIP extraction events
+            case 'files_extracted':
+              console.log('ZIP extraction completed, adding extracted files')
+              const extractedFiles: JobFileInfo[] = data.files.map((file: any) => ({
+                id: file.id,
+                original_filename: file.filename,
+                original_path: file.original_path,
+                file_size_bytes: file.file_size,
+                status: file.status as FileStatus
+              }))
+              
+              setFiles(prev => {
+                const newFiles = extractedFiles.filter(newFile => 
+                  !prev.some(existingFile => existingFile.id === newFile.id)
+                )
+                console.log(`Adding ${newFiles.length} extracted files`)
+                
+                const updatedFiles = sortFilesByPath([...prev, ...newFiles])
+                
+                // Update ZIP files to "unpacked" status
+                const finalFiles = updatedFiles.map(file => {
+                  if (file.original_filename?.toLowerCase().endsWith('.zip') && 
+                      (file.status === 'unpacking' || file.status === 'uploaded')) {
+                    console.log(`Updating ZIP file ${file.original_filename} status to unpacked`)
+                    return { ...file, status: 'unpacked' as FileStatus }
+                  }
+                  return file
+                })
+                
+                setTimeout(() => checkAndCloseSSEIfDone(), 1000)
+                
+                if (newFiles.length > 0) {
+                  invalidateJobFiles()
+                }
+                
+                return finalFiles
+              })
+              break
+
+            case 'file_status_changed':
+              console.log(`File status changed: ${data.file_id} to ${data.status}`)
+              setFiles(prev => {
+                const updatedFiles = prev.map(f => 
+                  f.id === data.file_id ? { ...f, status: data.status as FileStatus } : f
+                )
+                setTimeout(() => checkAndCloseSSEIfDone(), 1000)
+                return updatedFiles
+              })
+              break
+
+            case 'extraction_failed':
+              console.log(`ZIP extraction failed for file: ${data.file_id}`)
+              setFiles(prev => prev.map(f => 
+                f.id === data.file_id ? { ...f, status: 'failed' as FileStatus } : f
+              ))
+              toast({
+                title: "ZIP unpacking failed",
+                description: data.error,
+                variant: "destructive"
+              })
               break
 
             case 'keepalive':
-              // Ignore keepalive events
               break
 
             default:
-              // Ignore other event types for import connection
+              console.log('Unknown SSE event type:', data.type)
               break
           }
         } catch (error) {
-          console.error('Error parsing Import SSE event:', error)
+          console.error('Error parsing SSE event:', error)
         }
       }
 
       eventSource.onerror = (error) => {
-        console.error('Import SSE connection error:', error)
+        console.error('SSE connection error:', error)
         if (eventSource.readyState === EventSource.CLOSED) {
-          importEventSourceRef.current = null
+          eventSourceRef.current = null
         }
       }
 
     } catch (error) {
-      console.error('Error setting up Import SSE:', error)
+      console.error('Error setting up SSE:', error)
     }
   }
 
-  // Close ZIP SSE connection when no longer needed
-  const closeZipSSEConnection = () => {
-    if (zipEventSourceRef.current) {
-      console.log('Closing ZIP SSE connection')
-      zipEventSourceRef.current.close()
-      zipEventSourceRef.current = null
+  // Close SSE connection when no longer needed
+  const closeSSEConnection = () => {
+    if (eventSourceRef.current) {
+      console.log('Closing SSE connection')
+      eventSourceRef.current.close()
+      eventSourceRef.current = null
     }
-    zipConnectionAttemptedRef.current = false
+    connectionAttemptedRef.current = false
   }
 
-  // Close Import SSE connection when no longer needed
-  const closeImportSSEConnection = () => {
-    if (importEventSourceRef.current) {
-      console.log('Closing Import SSE connection')
-      importEventSourceRef.current.close()
-      importEventSourceRef.current = null
-    }
-  }
+  // Check if all processing is complete and close SSE if so
+  const checkAndCloseSSEIfDone = () => {
+    if (!eventSourceRef.current) return
 
-  // Check if all ZIP extraction is complete and close ZIP SSE if so
-  const checkAndCloseZipSSEIfDone = (currentFiles: JobFileInfo[]) => {
-    if (!zipEventSourceRef.current) return
-
-    // Check if there are any ZIP files still being processed
-    const hasUnpackingFiles = currentFiles.some(f => 
-      f.status === 'unpacking' || f.status === 'uploading'
+    // Check if any files still need processing (unpacking, importing, uploading)
+    const hasProcessingFiles = files.some(f => 
+      f.status === 'unpacking' || f.status === 'importing' || f.status === 'uploading'
     )
     
-    const hasZipFiles = currentFiles.some(f => 
-      f.original_filename?.toLowerCase().endsWith('.zip')
-    )
-    
-    // If we have ZIP files but none are currently unpacking, close ZIP SSE
-    if (hasZipFiles && !hasUnpackingFiles) {
-      console.log('All ZIP extraction completed, closing ZIP SSE connection')
-      closeZipSSEConnection()
-    } else if (hasUnpackingFiles) {
-      console.log('ZIP extraction still in progress, keeping ZIP SSE connection open')
+    if (hasProcessingFiles) {
+      console.log('Files still processing - keeping SSE connection open')
+    } else {
+      console.log('All processing completed - closing SSE connection')
+      closeSSEConnection()
     }
   }
 
-  // Check if all imports are complete and close Import SSE if so
-  const checkAndCloseImportSSEIfDone = () => {
-    if (!importEventSourceRef.current) return
-
-    // For imports, we close the connection after batch completion
-    // since we get explicit batch completion events
-    console.log('Import batch completed, closing Import SSE connection')
-    closeImportSSEConnection()
-  }
-
-  // Cleanup both SSE connections
+  // Cleanup SSE connection
   useEffect(() => {
     return () => {
-      closeZipSSEConnection()
-      closeImportSSEConnection()
+      closeSSEConnection()
     }
   }, [])
 
@@ -432,25 +339,17 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
       const data = await apiClient.getJobFiles(jobId)
       setFiles(sortFilesByPath(data.files || []))
       
-      // Check if there are unpacking files and setup ZIP SSE if needed
-      const hasUnpackingFiles = (data.files || []).some(file => 
-        file.status === 'unpacking'
+      // Check if there are processing files and setup SSE if needed
+      const hasProcessingFiles = (data.files || []).some(file => 
+        file.status === 'unpacking' || file.status === 'importing'
       )
       
-      if (hasUnpackingFiles && !zipEventSourceRef.current && !zipConnectionAttemptedRef.current) {
-        console.log('Unpacking files detected on load, setting up ZIP SSE connection')
-        setupZipSSEConnection()
-      }
-      
-      // Check if there are importing files and setup Import SSE if needed
-      const hasImportingFiles = (data.files || []).some(file => 
-        file.status === 'importing'
-      )
-      
-      if (hasImportingFiles && !importEventSourceRef.current) {
-        console.log('Importing files detected on load, setting up Import SSE connection')
-        setHasTriggeredImports(true)
-        setupImportSSEConnection()
+      if (hasProcessingFiles && !eventSourceRef.current && !connectionAttemptedRef.current) {
+        console.log('Processing files detected on load, setting up SSE connection')
+        if ((data.files || []).some(file => file.status === 'importing')) {
+          setHasTriggeredImports(true)
+        }
+        setupSSEConnection()
       }
     } catch (error) {
       console.error('Error loading existing files:', error)
@@ -625,10 +524,12 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
       )
       
       if (hasZipFiles) {
-        console.log('ZIP files detected, setting up ZIP SSE connection for extraction monitoring')
-        await setupZipSSEConnection()
+        console.log('ZIP files detected, setting up SSE connection for extraction monitoring')
+        if (!eventSourceRef.current && !connectionAttemptedRef.current) {
+          await setupSSEConnection()
+        }
       } else {
-        console.log('No ZIP files detected, skipping ZIP SSE connection')
+        console.log('No ZIP files detected, skipping SSE connection setup')
       }
 
       // Clear progress and uploading files after all uploads complete

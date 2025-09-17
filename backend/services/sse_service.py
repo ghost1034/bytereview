@@ -24,7 +24,7 @@ class SSEManager:
         self.pubsub_service = cloud_pubsub_service
         self._initialized = False
     
-    async def listen_for_job_events(self, job_id: str) -> AsyncGenerator[Dict[str, Any], None]:
+    async def listen_for_job_events(self, job_id: str, include_full_state: bool = False) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Listen for events related to a specific job using full_state approach
         Uses Cloud Pub/Sub for real-time updates
@@ -37,160 +37,183 @@ class SSEManager:
         # Buffer for events that arrive during snapshot
         event_buffer = []
         buffering = True
+
+        subscription_path_job = None
+        subscription_path_export = None
         
-        # Set up message callback for buffering
-        def buffer_callback(message_data):
-            nonlocal buffering, event_buffer
-            if buffering and message_data.get('job_id') == job_id:
-                event_buffer.append(message_data['data'])
-                logger.debug(f"Buffered event for job {job_id}: {message_data['data'].get('type')}")
-        
-        # Subscribe to job updates with filtering
-        subscription_path = await self.pubsub_service.subscribe_to_topic(
-            "job_updates", 
-            buffer_callback
-        )
-        
-        # Give subscription time to be ready
-        await asyncio.sleep(0.1)
+        # If full_state is requested, set up buffering on both job and export topics
+        if include_full_state:
+            def buffer_callback(message_data):
+                nonlocal buffering, event_buffer
+                if buffering and message_data.get('job_id') == job_id:
+                    event_buffer.append(message_data['data'])
+                    logger.debug(f"Buffered event for job {job_id}: {message_data['data'].get('type')}")
+            
+            subscription_path_job = await self.pubsub_service.subscribe_to_topic(
+                "job_updates", 
+                buffer_callback
+            )
+            await asyncio.sleep(0.1)
+            subscription_path_export = await self.pubsub_service.subscribe_to_topic(
+                "export_updates",
+                buffer_callback
+            )
+            await asyncio.sleep(0.1)
 
         try:
-            # STEP 2: Get current snapshot from database
-            from core.database import db_config
-            from models.db_models import ExtractionJob, ExtractionTask
-            from services.job_service import JobService
-            
-            db = db_config.get_session()
-            try:
-                job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
-                if not job:
-                    yield {"type": "error", "message": "Job not found"}
-                    return
+            if include_full_state:
+                # Build and send full_state snapshot
+                from core.database import db_config
+                from models.db_models import ExtractionJob, ExtractionTask
+                from services.job_service import JobService
                 
-                # Get all tasks for this job, ordered by first source file path
-                # Use subquery to get first source file path for each task
-                first_file_subquery = db.query(
-                    SourceFileToTask.task_id,
-                    func.min(SourceFile.original_path).label('first_file_path')
-                ).join(
-                    SourceFile, SourceFile.id == SourceFileToTask.source_file_id
-                ).group_by(SourceFileToTask.task_id).subquery()
-                
-                # Get tasks ordered by first source file path
-                tasks = db.query(ExtractionTask).join(
-                    first_file_subquery, first_file_subquery.c.task_id == ExtractionTask.id
-                ).filter(
-                    ExtractionTask.job_id == job.id
-                ).order_by(
-                    first_file_subquery.c.first_file_path
-                ).all()
-                
-                # Get progress from job record (more efficient and consistent)
-                total_tasks = job.tasks_total or 0
-                completed = job.tasks_completed or 0
-                failed = job.tasks_failed or 0
-                
-                # Create task list
-                # Build task list with source file names
-                task_list = []
-                for task in tasks:
-                    # Get source files for this task
-                    source_files = db.query(SourceFile).join(
-                        SourceFileToTask, SourceFile.id == SourceFileToTask.source_file_id
+                db = db_config.get_session()
+                try:
+                    job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
+                    if not job:
+                        yield {"type": "error", "message": "Job not found"}
+                        return
+                    
+                    # Get all tasks for this job, ordered by first source file path
+                    first_file_subquery = db.query(
+                        SourceFileToTask.task_id,
+                        func.min(SourceFile.original_path).label('first_file_path')
+                    ).join(
+                        SourceFile, SourceFile.id == SourceFileToTask.source_file_id
+                    ).group_by(SourceFileToTask.task_id).subquery()
+                    
+                    tasks = db.query(ExtractionTask).join(
+                        first_file_subquery, first_file_subquery.c.task_id == ExtractionTask.id
                     ).filter(
-                        SourceFileToTask.task_id == task.id
-                    ).order_by(SourceFile.original_path, SourceFile.id).all()
+                        ExtractionTask.job_id == job.id
+                    ).order_by(
+                        first_file_subquery.c.first_file_path
+                    ).all()
                     
-                    # Create a reasonable display name from source files
-                    if len(source_files) == 1:
-                        display_name = source_files[0].original_filename
-                    elif len(source_files) <= 3:
-                        display_name = ", ".join([f.original_filename for f in source_files])
-                    else:
-                        display_name = f"{source_files[0].original_filename} and {len(source_files)-1} others"
+                    total_tasks = job.tasks_total or 0
+                    completed = job.tasks_completed or 0
+                    failed = job.tasks_failed or 0
                     
-                    task_list.append({
-                        "id": str(task.id),
-                        "status": task.status,
-                        "display_name": display_name,
-                        "file_count": len(source_files)
-                    })
+                    task_list = []
+                    for task in tasks:
+                        source_files = db.query(SourceFile).join(
+                            SourceFileToTask, SourceFile.id == SourceFileToTask.source_file_id
+                        ).filter(
+                            SourceFileToTask.task_id == task.id
+                        ).order_by(SourceFile.original_path, SourceFile.id).all()
+                        
+                        if len(source_files) == 1:
+                            display_name = source_files[0].original_filename
+                        elif len(source_files) <= 3:
+                            display_name = ", ".join([f.original_filename for f in source_files])
+                        else:
+                            display_name = f"{source_files[0].original_filename} and {len(source_files)-1} others"
+                        
+                        task_list.append({
+                            "id": str(task.id),
+                            "status": task.status,
+                            "display_name": display_name,
+                            "file_count": len(source_files)
+                        })
+                    
+                    current_version = int(asyncio.get_event_loop().time() * 1000)
+                    
+                finally:
+                    db.close()
                 
-                current_version = int(asyncio.get_event_loop().time() * 1000)
+                full_state = {
+                    "type": "full_state",
+                    "version": current_version,
+                    "job_id": job_id,
+                    "status": job.status,
+                    "progress": {
+                        "total_tasks": total_tasks,
+                        "completed": completed,
+                        "failed": failed,
+                        "tasks": task_list
+                    },
+                    "timestamp": current_version
+                }
                 
-            finally:
-                db.close()
+                yield full_state
+                logger.info(f"Sent full_state for job {job_id}: {completed}/{total_tasks} tasks")
+                
+                # Stop buffering and flush buffered events
+                buffering = False
+                for buffered_event in event_buffer:
+                    if buffered_event.get('timestamp', 0) > current_version:
+                        yield buffered_event
+                        logger.debug(f"Flushed buffered event: {buffered_event.get('type')}")
+                
+                # If job already completed, notify client and end stream
+                if job.status == 'completed':
+                    yield {"type": "job_already_completed"}
+                    return
             
-            # STEP 3: Send full_state event
-            full_state = {
-                "type": "full_state",
-                "version": current_version,
-                "job_id": job_id,
-                "status": job.status,
-                "progress": {
-                    "total_tasks": total_tasks,
-                    "completed": completed,
-                    "failed": failed,
-                    "tasks": task_list
-                },
-                "timestamp": current_version
-            }
-            
-            yield full_state
-            logger.info(f"Sent full_state for job {job_id}: {completed}/{total_tasks} tasks")
-            
-            # STEP 4: Stop buffering and flush buffered events
-            buffering = False
-            
-            # Send buffered events that occurred after our snapshot
-            for buffered_event in event_buffer:
-                if buffered_event.get('timestamp', 0) > current_version:
-                    yield buffered_event
-                    logger.debug(f"Flushed buffered event: {buffered_event.get('type')}")
-            
-            # STEP 5: Stream live events using Cloud Pub/Sub
-            job_completed = job.status == 'completed'
+            # Stream live events using Cloud Pub/Sub
+            # If full_state was included, respect job completion to allow closing
+            job_completed = False
+            if include_full_state:
+                job_completed = job.status == 'completed'
             live_events = asyncio.Queue()
             
-            # Set up live event callback
             def live_callback(message_data):
                 nonlocal job_completed
                 logger.info(f"SSE received Pub/Sub message for job {message_data.get('job_id')} (looking for {job_id})")
                 if message_data.get('job_id') == job_id:
                     event = message_data['data']
-                    logger.info(f"SSE processing event: {event.get('type')} for job {job_id}")
-                    if event.get('type') == 'job_completed':
-                        job_completed = True
-                    live_events.put_nowait(event)
+                    event_type = event.get('type')
+                    logger.info(f"SSE processing event: {event_type} for job {job_id}")
+                    
+                    if event_type in [
+                        'job_completed', 'job_submitted', 'job_cancelled',
+                        'task_started', 'task_completed', 'task_failed',
+                        'import_started', 'import_progress', 'import_completed', 
+                        'import_failed', 'import_batch_completed',
+                        'export_started', 'export_completed', 'export_failed',
+                        'files_extracted', 'file_status_changed', 'extraction_failed',
+                        'file_uploaded', 'file_deleted',
+                        'workflow_progress', 'config_step_changed', 'auto_save'
+                    ]:
+                        if include_full_state and event_type == 'job_completed':
+                            job_completed = True
+                        live_events.put_nowait(event)
+                    else:
+                        logger.debug(f"SSE ignoring event type: {event_type}")
                 else:
                     logger.debug(f"SSE ignoring message for different job: {message_data.get('job_id')}")
             
-            # Update subscription callback for live events
-            if subscription_path:
-                await self.pubsub_service.unsubscribe(subscription_path)
+            # Switch subscriptions to live callbacks
+            if subscription_path_job:
+                await self.pubsub_service.unsubscribe(subscription_path_job)
+                subscription_path_job = None
+            if subscription_path_export:
+                await self.pubsub_service.unsubscribe(subscription_path_export)
+                subscription_path_export = None
             
-            subscription_path = await self.pubsub_service.subscribe_to_topic(
+            # Subscribe to both job and export updates for live events
+            subscription_path_job = await self.pubsub_service.subscribe_to_topic(
                 "job_updates", 
                 live_callback
             )
-            
-            # Give subscription time to be ready
+            await asyncio.sleep(0.1)
+            subscription_path_export = await self.pubsub_service.subscribe_to_topic(
+                "export_updates",
+                live_callback
+            )
             await asyncio.sleep(0.1)
             
-            while not job_completed:
+            while True:
                 try:
-                    # Wait for events with timeout
                     event = await asyncio.wait_for(live_events.get(), timeout=30.0)
                     yield event
                     
-                    if event.get('type') == 'job_completed':
+                    if include_full_state and event.get('type') == 'job_completed':
                         logger.info(f"Job {job_id} completed, closing SSE connection")
                         break
-                        
                 except asyncio.TimeoutError:
                     # Send keepalive on timeout
-                    if not job_completed:
-                        yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
+                    yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
                     continue
                 except asyncio.CancelledError:
                     break
@@ -199,102 +222,14 @@ class SSEManager:
             logger.error(f"SSE listener error for job {job_id}: {e}")
             yield {"type": "error", "message": str(e)}
         finally:
-            # Clean up Pub/Sub subscription
-            if subscription_path:
-                await self.pubsub_service.unsubscribe(subscription_path)
-    
-    async def listen_for_import_events(self, job_id: str) -> AsyncGenerator[Dict[str, Any], None]:
-        """
-        Listen for import events for a specific job (Drive/Gmail imports)
-        Uses Cloud Pub/Sub for real-time updates
-        """
-        if not self._initialized:
-            await self.pubsub_service.setup_topics_and_subscriptions()
-            self._initialized = True
-        
-        events = asyncio.Queue()
-        
-        def import_callback(message_data):
-            if message_data.get('job_id') == job_id:
-                event = message_data['data']
-                if event.get('type') in ['import_started', 'import_progress', 'import_completed', 'import_failed', 'import_batch_completed']:
-                    events.put_nowait(event)
-        
-        subscription_path = await self.pubsub_service.subscribe_to_topic("job_updates", import_callback)
+            # Clean up Pub/Sub subscriptions
+            if subscription_path_job:
+                await self.pubsub_service.unsubscribe(subscription_path_job)
+            if subscription_path_export:
+                await self.pubsub_service.unsubscribe(subscription_path_export)
 
-        # Give subscription time to be ready
-        await asyncio.sleep(0.1)
-        
-        try:
-            # Send initial connection event
-            yield {"type": "connected", "job_id": job_id}
-            
-            # Listen for import events
-            while True:
-                try:
-                    event = await asyncio.wait_for(events.get(), timeout=30.0)
-                    yield event
-                except asyncio.TimeoutError:
-                    yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
-                    continue
-                except asyncio.CancelledError:
-                    break
-                    
-        except Exception as e:
-            logger.error(f"Import SSE listener error for job {job_id}: {e}")
-            yield {"type": "error", "message": str(e)}
-        finally:
-            if subscription_path:
-                await self.pubsub_service.unsubscribe(subscription_path)
-    
-    
-    async def listen_for_export_events(self, job_id: str) -> AsyncGenerator[Dict[str, Any], None]:
-        """
-        Listen for export events for a specific job (Google Drive exports)
-        Uses Cloud Pub/Sub for real-time updates
-        """
-        if not self._initialized:
-            await self.pubsub_service.setup_topics_and_subscriptions()
-            self._initialized = True
-        
-        events = asyncio.Queue()
-        
-        def export_callback(message_data):
-            if message_data.get('job_id') == job_id:
-                event = message_data['data']
-                if event.get('type') in ['export_started', 'export_completed', 'export_failed']:
-                    events.put_nowait(event)
-        
-        subscription_path = await self.pubsub_service.subscribe_to_topic("export_updates", export_callback)
-
-        # Give subscription time to be ready
-        await asyncio.sleep(0.1)
-        
-        try:
-            # Send initial connection event
-            yield {"type": "connected", "job_id": job_id}
-            
-            # Listen for export events
-            while True:
-                try:
-                    event = await asyncio.wait_for(events.get(), timeout=30.0)
-                    yield event
-                except asyncio.TimeoutError:
-                    yield {"type": "keepalive", "timestamp": asyncio.get_event_loop().time()}
-                    continue
-                except asyncio.CancelledError:
-                    break
-                    
-        except Exception as e:
-            logger.error(f"Export SSE listener error for job {job_id}: {e}")
-            yield {"type": "error", "message": str(e)}
-        finally:
-            if subscription_path:
-                await self.pubsub_service.unsubscribe(subscription_path)
-    
     # Redis methods removed - using Cloud Pub/Sub instead
     
-
     async def send_job_event(self, job_id: str, event: Dict[str, Any]) -> None:
         """
         Send an event to all listeners of a specific job
