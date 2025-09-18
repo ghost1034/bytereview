@@ -35,7 +35,6 @@ import { apiClient, type JobFileInfo, type FileStatus } from '@/lib/api'
 import { GoogleDrivePicker } from '@/components/integrations/GoogleDrivePicker'
 import { GmailPicker } from '@/components/integrations/GmailPicker'
 import { IntegrationPrompt } from '@/components/integrations/IntegrationBanner'
-import { ImportStatusDisplay } from '@/components/upload/ImportStatusDisplay'
 
 interface EnhancedFileUploadProps {
   jobId: string
@@ -205,7 +204,8 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                 title: `${data.source} Import Completed`,
                 description: `Successfully imported ${data.successful} of ${data.total} item(s)`,
               });
-              setTimeout(() => checkAndCloseSSEIfDone(), 1000)
+              // Don't close SSE immediately; wait to see if ZIP unpacking triggers follow-up events
+              setTimeout(() => checkAndCloseSSEIfDone(), 1500)
               break
 
             // ZIP extraction events
@@ -237,7 +237,8 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                   return file
                 })
                 
-                setTimeout(() => checkAndCloseSSEIfDone(), 1000)
+                // Let UI update before evaluating closure
+                setTimeout(() => checkAndCloseSSEIfDone(), 500)
                 
                 if (newFiles.length > 0) {
                   invalidateJobFiles()
@@ -253,7 +254,8 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                 const updatedFiles = prev.map(f => 
                   f.id === data.file_id ? { ...f, status: data.status as FileStatus } : f
                 )
-                setTimeout(() => checkAndCloseSSEIfDone(), 1000)
+                // Delay slightly to ensure state update lands before we evaluate closure
+                setTimeout(() => checkAndCloseSSEIfDone(), 500)
                 return updatedFiles
               })
               break
@@ -304,12 +306,19 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
     connectionAttemptedRef.current = false
   }
 
+  // Keep a ref to the latest files to avoid stale closures in delayed checks
+  const filesRef = useRef<JobFileInfo[]>(files)
+  useEffect(() => { filesRef.current = files }, [files])
+
   // Check if all processing is complete and close SSE if so
   const checkAndCloseSSEIfDone = () => {
     if (!eventSourceRef.current) return
 
+    // Use the latest files snapshot to avoid stale state
+    const currentFiles = filesRef.current
+
     // Check if any files still need processing (unpacking, importing, uploading)
-    const hasProcessingFiles = files.some(f => 
+    const hasProcessingFiles = currentFiles.some(f => 
       f.status === 'unpacking' || f.status === 'importing' || f.status === 'uploading'
     )
     
