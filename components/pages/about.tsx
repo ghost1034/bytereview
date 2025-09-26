@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, Target, Award, CheckCircle } from "lucide-react";
+import Image from "next/image";
 
 export default function About() {
   return (
@@ -7,11 +8,99 @@ export default function About() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Hero Section */}
         <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold text-gray-900 mb-6">About CPAAutomation</h1>
+          <h1 className="text-5xl font-bold text-gray-900 mb-6">About Us</h1>
           <p className="text-xl text-gray-600 mb-8">
             True GenAI customizable extraction programmed by real CPAs for professional use
           </p>
         </div>
+
+        {/* Founder's Story Section */}
+        <section className="mb-16">
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">Founder's Story</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div className="order-2 lg:order-1">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Ian Stewart</h3>
+              <p className="text-gray-600 text-sm mb-6">Senior at Abraham Lincoln High School in San Francisco</p>
+              <div className="space-y-4 text-gray-600">
+                <p>
+                  CPAAutomation.ai started with a simple question: why are CPAs still buried in repetitive, manual tasks when technology can assist?
+                </p>
+                <p>
+                  For me, this mission is personal. I grew up watching my mom work long hours as a CPA, juggling endless paperwork that kept her from focusing on the parts of the job that truly mattered: serving clients and solving problems.
+                </p>
+                <p>
+                  I combined my passion for coding with this firsthand perspective. The result was CPAAutomation.ai: a platform built to streamline workflows, reduce busywork, and give CPAs back their time.
+                </p>
+                <p>
+                  What began as a personal project has grown into a bigger vision: empowering accountants everywhere to work smarter, not harder.
+                </p>
+              </div>
+            </div>
+            <div className="order-1 lg:order-2 flex justify-center">
+              <div className="w-80 h-80 rounded-lg overflow-hidden shadow-lg">
+                <Image
+                  src="/ian.jpg"
+                  alt="Ian Stewart, Founder of CPAAutomation"
+                  width={320}
+                  height={320}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CPA Validation Section */}
+        <section className="mb-16">
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">Vetted by Industry Experts</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+            <Card>
+              <CardContent className="p-8">
+                <div className="flex items-start space-x-4">
+                  <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0 shadow-md">
+                    <Image
+                      src="/rae.jpg"
+                      alt="Rae Stewart, Senior Director at Kaiser Permanente"
+                      width={64}
+                      height={64}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Rae Stewart</h3>
+                    <p className="text-sm text-gray-600 mb-3">Senior Director, Accounting at Kaiser Permanente</p>
+                    <p className="text-gray-600 text-sm">
+                      Provided extensive validation of our extraction algorithms for healthcare industry financial documents and compliance requirements.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-8">
+                <div className="flex items-start space-x-4">
+                  <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0 shadow-md">
+                    <Image
+                      src="/ray.jpg"
+                      alt="Ray Sang, Director at SentinelOne"
+                      width={64}
+                      height={64}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Ray Sang</h3>
+                    <p className="text-sm text-gray-600 mb-3">Director of Accounting Systems & Process Transformation, SentinelOne</p>
+                    <p className="text-gray-600 text-sm">
+                      Validated our platform's ability to handle complex technology sector financial processes and automation workflows.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
 
         {/* Mission Section */}
         <section className="mb-16">

@@ -1,7 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Code, FileText, Zap, Database, Shield, ArrowRight, Copy, ExternalLink } from "lucide-react";
+import { Code, FileText, Zap, Database, Shield } from "lucide-react";
+import Link from "next/link";
 
 export default function Documentation() {
   const apiEndpoints = [
@@ -147,33 +148,18 @@ console.log(data);
           <Card>
             <CardContent className="p-0">
               <div className="bg-gray-900 text-green-400 p-6 rounded-t-lg">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-2">
-                    <Code className="w-5 h-5" />
-                    <span className="font-medium">JavaScript SDK</span>
-                  </div>
-                  <Button variant="ghost" size="sm" className="text-green-400 hover:text-green-300">
-                    <Copy className="w-4 h-4 mr-2" />
-                    Copy
-                  </Button>
+                <div className="flex items-center space-x-2 mb-4">
+                  <Code className="w-5 h-5" />
+                  <span className="font-medium">JavaScript SDK</span>
                 </div>
                 <pre className="text-sm overflow-x-auto">
                   <code>{codeExample}</code>
                 </pre>
               </div>
               <div className="p-6 bg-gray-50">
-                <p className="text-gray-600 mb-4">
+                <p className="text-gray-600">
                   This example shows how to extract data from a document using our JavaScript SDK.
                 </p>
-                <div className="flex space-x-4">
-                  <Button variant="outline" size="sm">
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    View Full SDK Docs
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    Download SDK
-                  </Button>
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -283,51 +269,18 @@ console.log(data);
           </Card>
         </section>
 
-        {/* SDKs and Libraries */}
-        <section className="mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">SDKs & Libraries</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              { name: "JavaScript/Node.js", status: "Available" },
-              { name: "Python", status: "Available" },
-              { name: "PHP", status: "Available" },
-              { name: "C# / .NET", status: "Coming Soon" },
-              { name: "Java", status: "Coming Soon" },
-              { name: "Ruby", status: "Coming Soon" }
-            ].map((sdk, index) => (
-              <Card key={index}>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{sdk.name}</h3>
-                  <Badge variant={sdk.status === "Available" ? "default" : "secondary"}>
-                    {sdk.status}
-                  </Badge>
-                  {sdk.status === "Available" && (
-                    <div className="mt-4">
-                      <Button variant="outline" size="sm" className="w-full">
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        View Docs
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-
         {/* Support Section */}
         <section className="text-center bg-gray-50 rounded-lg p-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Need Integration Help?</h2>
           <p className="text-lg text-gray-600 mb-6">
             Our technical team can help you integrate CPAAutomation into your existing workflow
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button className="lido-green hover:lido-green-dark text-white">
-              Contact Technical Support
-            </Button>
-            <Button variant="outline">
-              Schedule Integration Call
-            </Button>
+          <div className="flex justify-center">
+            <Link href="/contact">
+              <Button className="lido-green hover:lido-green-dark text-white">
+                Contact Technical Support
+              </Button>
+            </Link>
           </div>
         </section>
       </div>
