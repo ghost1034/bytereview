@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Calendar, Clock, CheckCircle, AlertCircle, PlayCircle } from 'lucide-react';
 import { JobRunListItem } from '@/lib/api';
 
@@ -13,6 +14,7 @@ interface RunSelectorProps {
   latestRunId: string;
   selectedRunId?: string;
   onChange: (runId: string) => void;
+  onCreateNewRun?: () => void;
   disabled?: boolean;
   className?: string;
 }
@@ -49,20 +51,14 @@ const getStatusColor = (status: string) => {
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffHours < 1) {
-    return 'Just now';
-  } else if (diffHours < 24) {
-    return `${diffHours}h ago`;
-  } else if (diffDays < 7) {
-    return `${diffDays}d ago`;
-  } else {
-    return date.toLocaleDateString();
-  }
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
 };
 
 export default function RunSelector({
@@ -71,6 +67,7 @@ export default function RunSelector({
   latestRunId,
   selectedRunId,
   onChange,
+  onCreateNewRun,
   disabled = false,
   className = ''
 }: RunSelectorProps) {
@@ -82,6 +79,10 @@ export default function RunSelector({
 
   // Find the selected run
   const selectedRun = runs.find(run => run.id === currentRunId);
+  
+  // Check if we can create a new run (latest run must be completed or failed)
+  const latestRun = runs.find(run => run.id === latestRunId);
+  const canCreateNewRun = latestRun && (latestRun.status === 'completed' || latestRun.status === 'failed');
 
   const handleRunChange = (runId: string) => {
     // Update URL with new run_id
@@ -105,76 +106,56 @@ export default function RunSelector({
   if (runs.length === 1) {
     const run = runs[0];
     return (
-      <div className={`flex items-center gap-2 p-2 bg-gray-50 rounded-md border ${className}`}>
-        <Calendar className="w-4 h-4 text-gray-500" />
-        <span className="text-sm text-gray-700">
-          Run created {formatDate(run.created_at)}
-        </span>
-        <Badge variant="outline" className={getStatusColor(run.status)}>
-          <div className="flex items-center gap-1">
-            {getStatusIcon(run.status)}
-            {run.status}
-          </div>
-        </Badge>
+      <div className={`flex items-center gap-3 ${className}`}>
+        <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md border">
+          <Calendar className="w-4 h-4 text-gray-500" />
+          <span className="text-sm text-gray-700">
+            {formatDate(run.created_at)}
+          </span>
+          <Badge variant="outline" className={getStatusColor(run.status)}>
+            <div className="flex items-center gap-1">
+              {getStatusIcon(run.status)}
+              {run.status}
+            </div>
+          </Badge>
+        </div>
+        
+        {canCreateNewRun && onCreateNewRun && (
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={onCreateNewRun}
+            className="text-xs px-3 py-1"
+          >
+            + New Run
+          </Button>
+        )}
       </div>
     );
   }
 
   return (
-    <div className={`space-y-2 ${className}`}>
-      <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-gray-700">
-          Job Run
-        </label>
-        {selectedRun && (
-          <Badge variant="outline" className={getStatusColor(selectedRun.status)}>
-            <div className="flex items-center gap-1">
-              {getStatusIcon(selectedRun.status)}
-              {selectedRun.status}
-            </div>
-          </Badge>
-        )}
-      </div>
-      
+    <div className={`flex items-center gap-3 ${className}`}>
       <Select
         value={currentRunId}
         onValueChange={handleRunChange}
         disabled={disabled}
       >
-        <SelectTrigger className="w-full">
+        <SelectTrigger className="w-auto min-w-[200px]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {runs.map((run, index) => (
+          {runs.map((run) => (
             <SelectItem key={run.id} value={run.id}>
-              <div className="flex items-center justify-between w-full">
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(run.status)}
-                  <div className="flex flex-col items-start">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">
-                        {run.id === latestRunId ? 'Latest' : `Run ${runs.length - index}`}
-                      </span>
-                      {run.id === latestRunId && (
-                        <Badge variant="secondary" className="text-xs px-1 py-0">
-                          Latest
-                        </Badge>
-                      )}
-                    </div>
-                    <span className="text-xs text-gray-500">
-                      {formatDate(run.created_at)}
-                      {run.completed_at && run.status === 'completed' && (
-                        <span> • Completed {formatDate(run.completed_at)}</span>
-                      )}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 ml-2">
-                  {run.tasks_total > 0 && (
-                    <span className="text-xs text-gray-500">
-                      {run.tasks_completed}/{run.tasks_total}
-                    </span>
-                  )}
+              <div className="flex items-center gap-2">
+                {getStatusIcon(run.status)}
+                <div className="flex flex-col items-start">
+                  <span className="text-sm">
+                    {formatDate(run.created_at)}
+                  </span>
+                  <span className="text-xs text-gray-500 capitalize">
+                    {run.status}
+                  </span>
                 </div>
               </div>
             </SelectItem>
@@ -182,18 +163,15 @@ export default function RunSelector({
         </SelectContent>
       </Select>
       
-      {selectedRun && (
-        <div className="text-xs text-gray-500 flex items-center gap-4">
-          <span className="flex items-center gap-1">
-            <Calendar className="w-3 h-3" />
-            Created {formatDate(selectedRun.created_at)}
-          </span>
-          {selectedRun.tasks_total > 0 && (
-            <span>
-              {selectedRun.tasks_completed} of {selectedRun.tasks_total} tasks
-            </span>
-          )}
-        </div>
+      {canCreateNewRun && onCreateNewRun && (
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={onCreateNewRun}
+          className="text-xs px-3 py-1"
+        >
+          + New Run
+        </Button>
       )}
     </div>
   );

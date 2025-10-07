@@ -118,31 +118,17 @@ export default function JobUploadPage() {
 
       {/* Run Selector */}
       {runs.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              Job Run Selection
-              {isReadOnly && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleCreateNewRun}
-                >
-                  Create New Run
-                </Button>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RunSelector
-              jobId={jobId}
-              runs={runs}
-              latestRunId={latestRunId}
-              selectedRunId={selectedRunId}
-              onChange={setSelectedRunId}
-            />
-          </CardContent>
-        </Card>
+        <div className="flex items-center justify-center gap-3">
+          <label className="text-sm font-medium text-gray-700">Job Run:</label>
+          <RunSelector
+            jobId={jobId}
+            runs={runs}
+            latestRunId={latestRunId}
+            selectedRunId={selectedRunId}
+            onChange={setSelectedRunId}
+            onCreateNewRun={handleCreateNewRun}
+          />
+        </div>
       )}
 
       {/* Read-only Alert */}
@@ -152,7 +138,6 @@ export default function JobUploadPage() {
           <AlertDescription>
             This run is {isCompleted ? 'completed' : 'in progress'} and cannot be modified. 
             You can view the files but cannot upload or remove files. 
-            Create a new run to make changes.
           </AlertDescription>
         </Alert>
       )}

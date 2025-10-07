@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Settings, Plus } from 'lucide-react'
 import ResultsStep from '@/components/workflow/steps/ResultsStep'
 import RunSelector from '@/components/jobs/RunSelector'
 import { useJobRunSelection } from '@/hooks/useJobRunSelection'
@@ -24,13 +23,9 @@ export default function JobResultsPage() {
     runs,
     latestRunId,
     selectedRunId,
-    selectedRun,
     isLoading: runsLoading,
-    isReadOnly,
     setSelectedRunId,
-    createNewRun,
-    canEdit,
-    isCompleted
+    createNewRun
   } = useJobRunSelection({ 
     jobId,
     enabled: !!user && !!jobId 
@@ -53,10 +48,6 @@ export default function JobResultsPage() {
     router.push('/dashboard/jobs/create')
   }
 
-  const handleAddMoreFiles = () => {
-    router.push(`/dashboard/jobs/${jobId}/upload?run_id=${selectedRunId}`)
-  }
-
   const handleCreateNewRun = async () => {
     try {
       await createNewRun({ 
@@ -77,6 +68,7 @@ export default function JobResultsPage() {
     }
   }
 
+
   if (isLoading) {
     return <div className="flex justify-center p-8">Loading...</div>
   }
@@ -93,42 +85,21 @@ export default function JobResultsPage() {
           </p>
         </div>
         
-        {/* Action Buttons */}
-        <div className="flex justify-center gap-3">
-          <Button 
-            onClick={handleCreateNewRun}
-            className="flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            New Run
-          </Button>
-          <Button 
-            onClick={handleAddMoreFiles}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <Settings className="w-4 h-4" />
-            {canEdit ? 'Reconfigure Run' : 'View Configuration'}
-          </Button>
-        </div>
       </div>
 
       {/* Run Selector */}
       {runs.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Job Run Selection</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RunSelector
-              jobId={jobId}
-              runs={runs}
-              latestRunId={latestRunId}
-              selectedRunId={selectedRunId}
-              onChange={setSelectedRunId}
-            />
-          </CardContent>
-        </Card>
+        <div className="flex items-center justify-center gap-3">
+          <label className="text-sm font-medium text-gray-700">Job Run:</label>
+          <RunSelector
+            jobId={jobId}
+            runs={runs}
+            latestRunId={latestRunId}
+            selectedRunId={selectedRunId}
+            onChange={setSelectedRunId}
+            onCreateNewRun={handleCreateNewRun}
+          />
+        </div>
       )}
 
       {/* Results Step */}
