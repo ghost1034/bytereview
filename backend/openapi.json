@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "ByteReview API",
-    "description": "AI-powered document data extraction service with asynchronous job processing",
-    "version": "2.0.0"
+    "title": "CPAAutomation API",
+    "description": "AI-powered document data extraction service for CPAs and accounting professionals",
+    "version": "1.0.0"
   },
   "paths": {
     "/": {
@@ -108,6 +108,29 @@
             "HTTPBearer": []
           }
         ]
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete Current User",
+        "description": "Permanently delete the current user's account and all associated data\nThis action cannot be undone",
+        "operationId": "delete_current_user_api_users_me_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/users/me/sync": {
@@ -202,64 +225,6 @@
             "HTTPBearer": []
           }
         ]
-      }
-    },
-    "/api/jobs/{job_id}/start": {
-      "post": {
-        "tags": [
-          "jobs"
-        ],
-        "summary": "Start Job",
-        "description": "Step 2: Start job processing with field configuration and task definitions",
-        "operationId": "start_job_api_jobs__job_id__start_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "job_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Job Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/JobStartRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobStartResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
       }
     },
     "/api/jobs/resumable": {
@@ -433,6 +398,167 @@
         }
       }
     },
+    "/api/jobs/{job_id}/runs": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Job Runs",
+        "description": "Get all job runs for a specific job",
+        "operationId": "get_job_runs_api_jobs__job_id__runs_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRunListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Create Job Run",
+        "description": "Create a new job run",
+        "operationId": "create_job_run_api_jobs__job_id__runs_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobRunCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRunCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Job Run Details",
+        "description": "Get detailed information about a specific job run",
+        "operationId": "get_job_run_details_api_jobs__job_id__runs__run_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRunDetailsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/jobs": {
       "get": {
         "tags": [
@@ -491,6 +617,18 @@
               "title": "Status"
             },
             "description": "Filter by job status"
+          },
+          {
+            "name": "include_field_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include field configuration status for automation selection",
+              "default": false,
+              "title": "Include Field Status"
+            },
+            "description": "Include field configuration status for automation selection"
           }
         ],
         "responses": {
@@ -539,6 +677,24 @@
               "type": "string",
               "title": "Job Id"
             }
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific run ID (defaults to latest)",
+              "title": "Run Id"
+            },
+            "description": "Specific run ID (defaults to latest)"
           }
         ],
         "responses": {
@@ -625,7 +781,7 @@
           "jobs"
         ],
         "summary": "Get Job Files",
-        "description": "Get flat list of files in a job",
+        "description": "Get flat list of files in a job run",
         "operationId": "get_job_files_api_jobs__job_id__files_get",
         "security": [
           {
@@ -653,6 +809,24 @@
               "title": "Processable"
             },
             "description": "Only return files that can be processed for data extraction (excludes ZIP files)"
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific run ID (defaults to latest)",
+              "title": "Run Id"
+            },
+            "description": "Specific run ID (defaults to latest)"
           }
         ],
         "responses": {
@@ -784,13 +958,163 @@
         }
       }
     },
+    "/api/jobs/{job_id}/import-events": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Stream Job Import Events",
+        "description": "Server-Sent Events stream for real-time import updates (Drive/Gmail imports)",
+        "operationId": "stream_job_import_events_api_jobs__job_id__import_events_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/zip-events": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Stream Job Zip Events",
+        "description": "Server-Sent Events stream for real-time ZIP extraction updates",
+        "operationId": "stream_job_zip_events_api_jobs__job_id__zip_events_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/export-events": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Stream Job Export Events",
+        "description": "Server-Sent Events stream for real-time export updates (Google Drive exports)",
+        "operationId": "stream_job_export_events_api_jobs__job_id__export_events_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/jobs/{job_id}/results": {
       "get": {
         "tags": [
           "jobs"
         ],
         "summary": "Get Job Results",
-        "description": "Get extraction results for a completed job",
+        "description": "Get extraction results for a completed job run",
         "operationId": "get_job_results_api_jobs__job_id__results_get",
         "security": [
           {
@@ -833,6 +1157,24 @@
               "title": "Offset"
             },
             "description": "Number of results to skip"
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific run ID (defaults to latest)",
+              "title": "Run Id"
+            },
+            "description": "Specific run ID (defaults to latest)"
           }
         ],
         "responses": {
@@ -865,7 +1207,7 @@
           "jobs"
         ],
         "summary": "Update Config Step",
-        "description": "Update job configuration step",
+        "description": "Update job run configuration step",
         "operationId": "update_config_step_api_jobs__job_id__config_step_put",
         "security": [
           {
@@ -881,6 +1223,24 @@
               "type": "string",
               "title": "Job Id"
             }
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific run ID (defaults to latest)",
+              "title": "Run Id"
+            },
+            "description": "Specific run ID (defaults to latest)"
           }
         ],
         "requestBody": {
@@ -921,7 +1281,7 @@
           "jobs"
         ],
         "summary": "Submit Job For Processing",
-        "description": "Submit job for processing",
+        "description": "Submit job run for processing",
         "operationId": "submit_job_for_processing_api_jobs__job_id__submit_post",
         "security": [
           {
@@ -937,6 +1297,24 @@
               "type": "string",
               "title": "Job Id"
             }
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific run ID (defaults to latest)",
+              "title": "Run Id"
+            },
+            "description": "Specific run ID (defaults to latest)"
           }
         ],
         "responses": {
@@ -1069,7 +1447,7 @@
           "jobs"
         ],
         "summary": "Export Job Results Csv",
-        "description": "Export job results to CSV format",
+        "description": "Export job run results to CSV format",
         "operationId": "export_job_results_csv_api_jobs__job_id__export_csv_get",
         "security": [
           {
@@ -1085,6 +1463,24 @@
               "type": "string",
               "title": "Job Id"
             }
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific run ID (defaults to latest)",
+              "title": "Run Id"
+            },
+            "description": "Specific run ID (defaults to latest)"
           }
         ],
         "responses": {
@@ -1115,8 +1511,200 @@
           "jobs"
         ],
         "summary": "Export Job Results Excel",
-        "description": "Export job results to Excel format",
+        "description": "Export job run results to Excel format",
         "operationId": "export_job_results_excel_api_jobs__job_id__export_excel_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific run ID (defaults to latest)",
+              "title": "Run Id"
+            },
+            "description": "Specific run ID (defaults to latest)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/export/gdrive/csv": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Export Job Results To Drive Csv",
+        "description": "Export job results to Google Drive as CSV format (async)",
+        "operationId": "export_job_results_to_drive_csv_api_jobs__job_id__export_gdrive_csv_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "folder_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Google Drive folder ID (optional)",
+              "title": "Folder Id"
+            },
+            "description": "Google Drive folder ID (optional)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/export/gdrive/excel": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Export Job Results To Drive Excel",
+        "description": "Export job results to Google Drive as Excel format (async)",
+        "operationId": "export_job_results_to_drive_excel_api_jobs__job_id__export_gdrive_excel_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "folder_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Google Drive folder ID (optional)",
+              "title": "Folder Id"
+            },
+            "description": "Google Drive folder ID (optional)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/files:gdrive": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Import Drive Files",
+        "description": "Import files from Google Drive for a job",
+        "operationId": "import_drive_files_api_jobs__job_id__files_gdrive_post",
         "security": [
           {
             "HTTPBearer": []
@@ -1155,13 +1743,185 @@
         }
       }
     },
+    "/api/jobs/{job_id}/files:gmail": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Import Gmail Attachments",
+        "description": "Import attachments from Gmail for a job",
+        "operationId": "import_gmail_attachments_api_jobs__job_id__files_gmail_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/import-status": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Import Status",
+        "description": "Get import status for a job's source files",
+        "operationId": "get_import_status_api_jobs__job_id__import_status_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stripe/account": {
+      "get": {
+        "tags": [
+          "stripe"
+        ],
+        "summary": "Get Billing Account",
+        "description": "Get user's billing account information",
+        "operationId": "get_billing_account_api_stripe_account_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingAccountResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/stripe/usage": {
+      "get": {
+        "tags": [
+          "stripe"
+        ],
+        "summary": "Get Usage Stats",
+        "description": "Get current usage statistics",
+        "operationId": "get_usage_stats_api_stripe_usage_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageStatsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/stripe/plans": {
+      "get": {
+        "tags": [
+          "stripe"
+        ],
+        "summary": "Get Subscription Plans",
+        "description": "Get all available subscription plans",
+        "operationId": "get_subscription_plans_api_stripe_plans_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SubscriptionPlanResponse"
+                  },
+                  "type": "array",
+                  "title": "Response Get Subscription Plans Api Stripe Plans Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/stripe/create-checkout-session": {
       "post": {
         "tags": [
           "stripe"
         ],
         "summary": "Create Checkout Session",
-        "description": "Create a Stripe checkout session",
+        "description": "Create a Stripe checkout session for plan upgrade",
         "operationId": "create_checkout_session_api_stripe_create_checkout_session_post",
         "requestBody": {
           "content": {
@@ -1178,7 +1938,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutSessionResponse"
+                }
               }
             }
           },
@@ -1223,7 +1985,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/PortalSessionResponse"
+                }
               }
             }
           },
@@ -1251,7 +2015,7 @@
           "stripe"
         ],
         "summary": "Get Subscription Status",
-        "description": "Get user's subscription status",
+        "description": "Get user's subscription status (legacy compatibility)",
         "operationId": "get_subscription_status_api_stripe_subscription_status_get",
         "responses": {
           "200": {
@@ -1261,6 +2025,111 @@
                 "schema": {
                   "$ref": "#/components/schemas/SubscriptionStatus"
                 }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/billing/account": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Get Billing Account",
+        "description": "Get user's billing account information",
+        "operationId": "get_billing_account_api_billing_account_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingAccountResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/billing/usage": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Get Usage Stats",
+        "description": "Get current usage statistics",
+        "operationId": "get_usage_stats_api_billing_usage_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageStatsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/billing/plans": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Get Subscription Plans",
+        "description": "Get all available subscription plans",
+        "operationId": "get_subscription_plans_api_billing_plans_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SubscriptionPlanResponse"
+                  },
+                  "type": "array",
+                  "title": "Response Get Subscription Plans Api Billing Plans Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/billing/limits/check": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Check Limits",
+        "description": "Check current plan limits and usage",
+        "operationId": "check_limits_api_billing_limits_check_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -1390,98 +2259,6 @@
                 "schema": {
                   "$ref": "#/components/schemas/ExtractionResponse"
                 }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/extraction/export/csv": {
-      "post": {
-        "tags": [
-          "extraction"
-        ],
-        "summary": "Export Results To Csv",
-        "description": "Export extraction results to CSV format",
-        "operationId": "export_results_to_csv_api_extraction_export_csv_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "title": "Extraction Data"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/extraction/export/excel": {
-      "post": {
-        "tags": [
-          "extraction"
-        ],
-        "summary": "Export Results To Excel",
-        "description": "Export extraction results to Excel format",
-        "operationId": "export_results_to_excel_api_extraction_export_excel_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "title": "Extraction Data"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
               }
             }
           },
@@ -1645,14 +2422,14 @@
         ]
       }
     },
-    "/api/templates/": {
+    "/api/templates": {
       "get": {
         "tags": [
           "templates"
         ],
         "summary": "Get User Templates",
         "description": "Get user's extraction templates",
-        "operationId": "get_user_templates_api_templates__get",
+        "operationId": "get_user_templates_api_templates_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1675,7 +2452,7 @@
         ],
         "summary": "Create Template",
         "description": "Create a new extraction template",
-        "operationId": "create_template_api_templates__post",
+        "operationId": "create_template_api_templates_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1877,14 +2654,14 @@
         }
       }
     },
-    "/api/data-types/": {
+    "/api/data-types": {
       "get": {
         "tags": [
           "data-types"
         ],
         "summary": "Get Data Types",
         "description": "Get all available data types",
-        "operationId": "get_data_types_api_data_types__get",
+        "operationId": "get_data_types_api_data_types_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1895,7 +2672,7 @@
                     "$ref": "#/components/schemas/DataTypeResponse"
                   },
                   "type": "array",
-                  "title": "Response Get Data Types Api Data Types  Get"
+                  "title": "Response Get Data Types Api Data Types Get"
                 }
               }
             }
@@ -1915,7 +2692,7 @@
           "integrations"
         ],
         "summary": "Get Google Auth Url",
-        "description": "Generate Google OAuth authorization URL",
+        "description": "Generate Google OAuth authorization URL (Drive only for this release)",
         "operationId": "get_google_auth_url_api_integrations_google_auth_url_get",
         "security": [
           {
@@ -1929,7 +2706,7 @@
             "required": false,
             "schema": {
               "type": "string",
-              "default": "combined",
+              "default": "drive",
               "title": "Scopes"
             }
           }
@@ -2041,7 +2818,7 @@
           "integrations"
         ],
         "summary": "Refresh Google Token",
-        "description": "Refresh Google access token using refresh token",
+        "description": "Manually refresh Google access token using refresh token.\nUses the same centralized refresh logic as automatic refresh.",
         "operationId": "refresh_google_token_api_integrations_google_refresh_post",
         "responses": {
           "200": {
@@ -2059,10 +2836,1144 @@
           }
         ]
       }
+    },
+    "/api/integrations/google/picker-token": {
+      "get": {
+        "tags": [
+          "integrations",
+          "integrations"
+        ],
+        "summary": "Get Google Picker Token",
+        "description": "Get Google access token for use with Google Picker API.\nToken refresh is handled automatically by GoogleService._get_credentials().",
+        "operationId": "get_google_picker_token_api_integrations_google_picker_token_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/integrations/gmail/attachments": {
+      "get": {
+        "tags": [
+          "integrations",
+          "integrations"
+        ],
+        "summary": "Get Gmail Attachments",
+        "description": "Get Gmail attachments matching the specified criteria",
+        "operationId": "get_gmail_attachments_api_integrations_gmail_attachments_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Gmail search query",
+              "default": "has:attachment",
+              "title": "Query"
+            },
+            "description": "Gmail search query"
+          },
+          {
+            "name": "mimeTypes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Comma-separated MIME types to filter",
+              "default": "",
+              "title": "Mimetypes"
+            },
+            "description": "Comma-separated MIME types to filter"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of attachments to return",
+              "max": 100,
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Maximum number of attachments to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/automations": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "List Automations",
+        "description": "Get all automations for the current user",
+        "operationId": "list_automations_api_automations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationListResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Create Automation",
+        "description": "Create a new automation",
+        "operationId": "create_automation_api_automations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/automations/{automation_id}": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Get Automation",
+        "description": "Get a specific automation by ID",
+        "operationId": "get_automation_api_automations__automation_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "automation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Automation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Update Automation",
+        "description": "Update an existing automation",
+        "operationId": "update_automation_api_automations__automation_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "automation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Automation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Delete Automation",
+        "description": "Delete an automation",
+        "operationId": "delete_automation_api_automations__automation_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "automation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Automation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/automations/{automation_id}/toggle": {
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Toggle Automation",
+        "description": "Toggle automation enabled/disabled state",
+        "operationId": "toggle_automation_api_automations__automation_id__toggle_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "automation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Automation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/automations/{automation_id}/runs": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Get Automation Runs",
+        "description": "Get automation runs for a specific automation",
+        "operationId": "get_automation_runs_api_automations__automation_id__runs_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "automation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Automation Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Maximum number of runs to return",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Maximum number of runs to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationRunListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/webhooks/stripe": {
+      "post": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Stripe Webhook",
+        "description": "Handle Stripe webhook events for billing and subscription management",
+        "operationId": "stripe_webhook_api_webhooks_stripe_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/webhooks/gmail-push": {
+      "get": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Gmail Push Verification",
+        "description": "Handle Gmail Pub/Sub subscription verification\n\nGoogle Cloud Pub/Sub may send a GET request to verify the webhook endpoint\nduring subscription setup. Simple authentication for development.",
+        "operationId": "gmail_push_verification_api_webhooks_gmail_push_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Gmail Push Webhook",
+        "description": "Handle Gmail Pub/Sub push notifications\n\nThis endpoint receives notifications when Gmail messages are received\nand triggers automations for users who have Gmail automations configured.\n\nSecurity: Simple authentication for development. Implement proper JWT verification for production.",
+        "operationId": "gmail_push_webhook_api_webhooks_gmail_push_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/webhooks/test-automation": {
+      "post": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Test Automation Trigger",
+        "description": "Test endpoint for triggering automations manually (development/testing only)",
+        "operationId": "test_automation_trigger_api_webhooks_test_automation_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "User ID to test",
+              "title": "User Id"
+            },
+            "description": "User ID to test"
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Test token",
+              "title": "Token"
+            },
+            "description": "Test token"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/setup-gmail-pubsub": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Setup Gmail Pubsub",
+        "description": "Set up Gmail Pub/Sub infrastructure and watch for all users\n\nThis endpoint should be called once during deployment to set up:\n1. Google Cloud Pub/Sub topic and subscription\n2. Gmail watch for all existing users with Google integrations",
+        "operationId": "setup_gmail_pubsub_api_admin_setup_gmail_pubsub_post",
+        "parameters": [
+          {
+            "name": "admin_token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Admin token for authentication",
+              "title": "Admin Token"
+            },
+            "description": "Admin token for authentication"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/setup-gmail-watch/{user_id}": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Setup Gmail Watch For User",
+        "description": "Set up Gmail watch for a specific user\n\nThis can be used to set up Gmail watch for new users or retry failed setups.",
+        "operationId": "setup_gmail_watch_for_user_api_admin_setup_gmail_watch__user_id__post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "admin_token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Admin token for authentication",
+              "title": "Admin Token"
+            },
+            "description": "Admin token for authentication"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/gmail-pubsub-status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Gmail Pubsub Status",
+        "description": "Get Gmail Pub/Sub configuration status",
+        "operationId": "get_gmail_pubsub_status_api_admin_gmail_pubsub_status_get",
+        "parameters": [
+          {
+            "name": "admin_token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Admin token for authentication",
+              "title": "Admin Token"
+            },
+            "description": "Admin token for authentication"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AutomationCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Human-readable name for the automation"
+          },
+          "is_enabled": {
+            "type": "boolean",
+            "title": "Is Enabled",
+            "description": "Whether the automation is enabled",
+            "default": true
+          },
+          "trigger_type": {
+            "type": "string",
+            "title": "Trigger Type",
+            "description": "Type of trigger (gmail_attachment for v1)"
+          },
+          "trigger_config": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Trigger Config",
+            "description": "Configuration for the trigger"
+          },
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Job Id",
+            "description": "ID of the extraction job to use as template"
+          },
+          "processing_mode": {
+            "type": "string",
+            "title": "Processing Mode",
+            "description": "Processing mode (individual or combined)",
+            "default": "individual"
+          },
+          "dest_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dest Type",
+            "description": "Export destination type (gdrive, gmail)"
+          },
+          "export_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Export Config",
+            "description": "Export configuration"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "trigger_type",
+          "trigger_config",
+          "job_id"
+        ],
+        "title": "AutomationCreate",
+        "description": "Request model for creating an automation"
+      },
+      "AutomationListResponse": {
+        "properties": {
+          "automations": {
+            "items": {
+              "$ref": "#/components/schemas/AutomationResponse"
+            },
+            "type": "array",
+            "title": "Automations"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "automations",
+          "total"
+        ],
+        "title": "AutomationListResponse",
+        "description": "Response model for list of automations"
+      },
+      "AutomationResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "is_enabled": {
+            "type": "boolean",
+            "title": "Is Enabled"
+          },
+          "trigger_type": {
+            "type": "string",
+            "title": "Trigger Type"
+          },
+          "trigger_config": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Trigger Config"
+          },
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Job Id"
+          },
+          "processing_mode": {
+            "type": "string",
+            "title": "Processing Mode"
+          },
+          "dest_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dest Type"
+          },
+          "export_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Export Config"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "name",
+          "is_enabled",
+          "trigger_type",
+          "trigger_config",
+          "job_id",
+          "processing_mode",
+          "dest_type",
+          "export_config",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AutomationResponse",
+        "description": "Response model for automation data"
+      },
+      "AutomationRunListResponse": {
+        "properties": {
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/AutomationRunResponse"
+            },
+            "type": "array",
+            "title": "Runs"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "runs",
+          "total"
+        ],
+        "title": "AutomationRunListResponse",
+        "description": "Response model for list of automation runs"
+      },
+      "AutomationRunResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "automation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Automation Id"
+          },
+          "job_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Job Run Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "triggered_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Triggered At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "automation_id",
+          "job_run_id",
+          "status",
+          "error_message",
+          "triggered_at",
+          "completed_at"
+        ],
+        "title": "AutomationRunResponse",
+        "description": "Response model for automation run data"
+      },
+      "AutomationUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Human-readable name for the automation"
+          },
+          "is_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Enabled",
+            "description": "Whether the automation is enabled"
+          },
+          "trigger_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger Config",
+            "description": "Configuration for the trigger"
+          },
+          "processing_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processing Mode",
+            "description": "Processing mode (individual or combined)"
+          },
+          "dest_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dest Type",
+            "description": "Export destination type (gdrive, gmail)"
+          },
+          "export_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Export Config",
+            "description": "Export configuration"
+          }
+        },
+        "type": "object",
+        "title": "AutomationUpdate",
+        "description": "Request model for updating an automation"
+      },
+      "BillingAccountResponse": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "plan_code": {
+            "type": "string",
+            "title": "Plan Code"
+          },
+          "plan_display_name": {
+            "type": "string",
+            "title": "Plan Display Name"
+          },
+          "pages_included": {
+            "type": "integer",
+            "title": "Pages Included"
+          },
+          "pages_used": {
+            "type": "integer",
+            "title": "Pages Used"
+          },
+          "automations_limit": {
+            "type": "integer",
+            "title": "Automations Limit"
+          },
+          "automations_count": {
+            "type": "integer",
+            "title": "Automations Count"
+          },
+          "overage_cents": {
+            "type": "integer",
+            "title": "Overage Cents"
+          },
+          "current_period_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Period Start"
+          },
+          "current_period_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Period End"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "stripe_customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripe Customer Id"
+          },
+          "stripe_subscription_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripe Subscription Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "plan_code",
+          "plan_display_name",
+          "pages_included",
+          "pages_used",
+          "automations_limit",
+          "automations_count",
+          "overage_cents",
+          "current_period_start",
+          "current_period_end",
+          "status",
+          "stripe_customer_id",
+          "stripe_subscription_id"
+        ],
+        "title": "BillingAccountResponse",
+        "description": "User's billing account information"
+      },
       "Body_add_files_to_job_api_jobs__job_id__files_post": {
         "properties": {
           "files": {
@@ -2153,6 +4064,20 @@
         ],
         "title": "Body_upload_files_api_extraction_upload_post"
       },
+      "CheckoutSessionResponse": {
+        "properties": {
+          "checkout_url": {
+            "type": "string",
+            "title": "Checkout Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkout_url"
+        ],
+        "title": "CheckoutSessionResponse",
+        "description": "Response containing checkout session URL"
+      },
       "ConfigStepRequest": {
         "properties": {
           "config_step": {
@@ -2172,10 +4097,10 @@
       },
       "CreateCheckoutSessionRequest": {
         "properties": {
-          "price_id": {
+          "plan_code": {
             "type": "string",
-            "title": "Price Id",
-            "description": "Stripe price ID for the subscription"
+            "title": "Plan Code",
+            "description": "Plan code (basic, pro)"
           },
           "success_url": {
             "type": "string",
@@ -2196,7 +4121,7 @@
         },
         "type": "object",
         "required": [
-          "price_id",
+          "plan_code",
           "success_url",
           "cancel_url"
         ],
@@ -2386,6 +4311,7 @@
             "anyOf": [
               {
                 "items": {
+                  "additionalProperties": true,
                   "type": "object"
                 },
                 "type": "array"
@@ -2419,16 +4345,13 @@
             "description": "Source file names"
           },
           "extracted_data": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Extracted Data",
             "description": "Extracted data"
           },
           "processing_mode": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ProcessingMode"
-              }
-            ],
+            "$ref": "#/components/schemas/ProcessingMode",
             "description": "Processing mode used"
           }
         },
@@ -2473,7 +4396,7 @@
         "enum": [
           "uploading",
           "uploaded",
-          "ready",
+          "importing",
           "unpacking",
           "unpacked",
           "failed"
@@ -2547,11 +4470,7 @@
             "description": "Job name"
           },
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/JobStatus"
-              }
-            ],
+            "$ref": "#/components/schemas/JobStatus",
             "description": "Current job status"
           },
           "persist_data": {
@@ -2600,6 +4519,7 @@
           },
           "extraction_tasks": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -2617,39 +4537,6 @@
         ],
         "title": "JobDetailsResponse",
         "description": "Detailed job information"
-      },
-      "JobFieldConfig": {
-        "properties": {
-          "field_name": {
-            "type": "string",
-            "title": "Field Name",
-            "description": "Name of the field"
-          },
-          "data_type_id": {
-            "type": "string",
-            "title": "Data Type Id",
-            "description": "Data type identifier"
-          },
-          "ai_prompt": {
-            "type": "string",
-            "title": "Ai Prompt",
-            "description": "AI extraction prompt"
-          },
-          "display_order": {
-            "type": "integer",
-            "title": "Display Order",
-            "description": "Display order",
-            "default": 0
-          }
-        },
-        "type": "object",
-        "required": [
-          "field_name",
-          "data_type_id",
-          "ai_prompt"
-        ],
-        "title": "JobFieldConfig",
-        "description": "Field configuration for a job (snapshot from template)"
       },
       "JobFieldInfo": {
         "properties": {
@@ -2688,16 +4575,25 @@
         "properties": {
           "fields": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
             "title": "Fields"
           },
           "template_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Template Id"
           },
           "processing_modes": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Processing Modes"
           }
@@ -2731,11 +4627,7 @@
             "description": "File size"
           },
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/FileStatus"
-              }
-            ],
+            "$ref": "#/components/schemas/FileStatus",
             "description": "File processing status"
           }
         },
@@ -2842,11 +4734,7 @@
             "description": "Job name"
           },
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/JobStatus"
-              }
-            ],
+            "$ref": "#/components/schemas/JobStatus",
             "description": "Job status"
           },
           "config_step": {
@@ -2860,10 +4748,17 @@
             "title": "Created At",
             "description": "Creation timestamp"
           },
-          "file_count": {
-            "type": "integer",
-            "title": "File Count",
-            "description": "Number of files"
+          "has_configured_fields": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Configured Fields",
+            "description": "Whether the job has configured fields (for automation selection)"
           }
         },
         "type": "object",
@@ -2871,8 +4766,7 @@
           "id",
           "status",
           "config_step",
-          "created_at",
-          "file_count"
+          "created_at"
         ],
         "title": "JobListItem",
         "description": "Job list item for job listing"
@@ -2932,11 +4826,7 @@
             "description": "Failed tasks"
           },
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/JobStatus"
-              }
-            ],
+            "$ref": "#/components/schemas/JobStatus",
             "description": "Overall job status"
           },
           "tasks": {
@@ -2988,8 +4878,20 @@
         "title": "JobResultsResponse",
         "description": "Job results with pagination"
       },
-      "JobStartRequest": {
+      "JobRunCreateRequest": {
         "properties": {
+          "clone_from_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clone From Run Id",
+            "description": "Run ID to clone field configuration from (defaults to latest)"
+          },
           "template_id": {
             "anyOf": [
               {
@@ -3000,59 +4902,245 @@
               }
             ],
             "title": "Template Id",
-            "description": "Template ID to use"
-          },
-          "persist_data": {
-            "type": "boolean",
-            "title": "Persist Data",
-            "description": "Whether to persist data",
-            "default": true
-          },
-          "fields": {
-            "items": {
-              "$ref": "#/components/schemas/JobFieldConfig"
-            },
-            "type": "array",
-            "title": "Fields",
-            "description": "Field configuration"
-          },
-          "task_definitions": {
-            "items": {
-              "$ref": "#/components/schemas/TaskDefinition"
-            },
-            "type": "array",
-            "title": "Task Definitions",
-            "description": "Processing definitions"
+            "description": "Template ID to use for field configuration"
           }
         },
         "type": "object",
-        "required": [
-          "fields",
-          "task_definitions"
-        ],
-        "title": "JobStartRequest",
-        "description": "Request to start job processing"
+        "title": "JobRunCreateRequest",
+        "description": "Request to create a new job run"
       },
-      "JobStartResponse": {
+      "JobRunCreateResponse": {
         "properties": {
+          "job_run_id": {
+            "type": "string",
+            "title": "Job Run Id",
+            "description": "Created job run identifier"
+          },
           "message": {
             "type": "string",
             "title": "Message",
             "description": "Success message"
-          },
-          "job_id": {
-            "type": "string",
-            "title": "Job Id",
-            "description": "Job identifier"
           }
         },
         "type": "object",
         "required": [
-          "message",
-          "job_id"
+          "job_run_id",
+          "message"
         ],
-        "title": "JobStartResponse",
-        "description": "Response for job start"
+        "title": "JobRunCreateResponse",
+        "description": "Response for job run creation"
+      },
+      "JobRunDetailsResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Job run identifier"
+          },
+          "job_id": {
+            "type": "string",
+            "title": "Job Id",
+            "description": "Parent job identifier"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus",
+            "description": "Current run status"
+          },
+          "config_step": {
+            "type": "string",
+            "title": "Config Step",
+            "description": "Current configuration step"
+          },
+          "persist_data": {
+            "type": "boolean",
+            "title": "Persist Data",
+            "description": "Data persistence setting"
+          },
+          "tasks_total": {
+            "type": "integer",
+            "title": "Tasks Total",
+            "description": "Total number of tasks"
+          },
+          "tasks_completed": {
+            "type": "integer",
+            "title": "Tasks Completed",
+            "description": "Completed tasks"
+          },
+          "tasks_failed": {
+            "type": "integer",
+            "title": "Tasks Failed",
+            "description": "Failed tasks"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Creation timestamp"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At",
+            "description": "Completion timestamp"
+          },
+          "job_fields": {
+            "items": {
+              "$ref": "#/components/schemas/JobFieldInfo"
+            },
+            "type": "array",
+            "title": "Job Fields",
+            "description": "Field configuration"
+          },
+          "template_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Id",
+            "description": "Template ID used for this run"
+          },
+          "extraction_tasks": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Extraction Tasks",
+            "description": "Task definitions for processing modes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "job_id",
+          "status",
+          "config_step",
+          "persist_data",
+          "tasks_total",
+          "tasks_completed",
+          "tasks_failed",
+          "created_at",
+          "job_fields"
+        ],
+        "title": "JobRunDetailsResponse",
+        "description": "Detailed job run information"
+      },
+      "JobRunListItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Job run identifier"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus",
+            "description": "Run status"
+          },
+          "config_step": {
+            "type": "string",
+            "title": "Config Step",
+            "description": "Current configuration step"
+          },
+          "tasks_total": {
+            "type": "integer",
+            "title": "Tasks Total",
+            "description": "Total number of tasks"
+          },
+          "tasks_completed": {
+            "type": "integer",
+            "title": "Tasks Completed",
+            "description": "Completed tasks"
+          },
+          "tasks_failed": {
+            "type": "integer",
+            "title": "Tasks Failed",
+            "description": "Failed tasks"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Creation timestamp"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At",
+            "description": "Completion timestamp"
+          },
+          "template_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Id",
+            "description": "Template ID used for this run"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "config_step",
+          "tasks_total",
+          "tasks_completed",
+          "tasks_failed",
+          "created_at"
+        ],
+        "title": "JobRunListItem",
+        "description": "Job run list item for run listing"
+      },
+      "JobRunListResponse": {
+        "properties": {
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/JobRunListItem"
+            },
+            "type": "array",
+            "title": "Runs",
+            "description": "List of job runs"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total number of runs"
+          },
+          "latest_run_id": {
+            "type": "string",
+            "title": "Latest Run Id",
+            "description": "ID of the latest run"
+          }
+        },
+        "type": "object",
+        "required": [
+          "runs",
+          "total",
+          "latest_run_id"
+        ],
+        "title": "JobRunListResponse",
+        "description": "Response for job run listing"
       },
       "JobStatus": {
         "type": "string",
@@ -3066,6 +5154,20 @@
         ],
         "title": "JobStatus",
         "description": "Job status enumeration"
+      },
+      "PortalSessionResponse": {
+        "properties": {
+          "portal_url": {
+            "type": "string",
+            "title": "Portal Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "portal_url"
+        ],
+        "title": "PortalSessionResponse",
+        "description": "Response containing portal session URL"
       },
       "ProcessedFile": {
         "properties": {
@@ -3084,6 +5186,7 @@
           "metadata": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -3110,6 +5213,57 @@
         "title": "ProcessingMode",
         "description": "File processing mode enumeration"
       },
+      "SubscriptionPlanResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "pages_included": {
+            "type": "integer",
+            "title": "Pages Included"
+          },
+          "automations_limit": {
+            "type": "integer",
+            "title": "Automations Limit"
+          },
+          "overage_cents": {
+            "type": "integer",
+            "title": "Overage Cents"
+          },
+          "stripe_price_recurring_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripe Price Recurring Id"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "display_name",
+          "pages_included",
+          "automations_limit",
+          "overage_cents",
+          "stripe_price_recurring_id",
+          "sort_order"
+        ],
+        "title": "SubscriptionPlanResponse",
+        "description": "Subscription plan information"
+      },
       "SubscriptionStatus": {
         "properties": {
           "has_subscription": {
@@ -3119,7 +5273,7 @@
           "plan": {
             "type": "string",
             "title": "Plan",
-            "description": "Plan name (free, starter, professional, enterprise)"
+            "description": "Plan name (free, basic, pro)"
           },
           "status": {
             "anyOf": [
@@ -3152,31 +5306,7 @@
           "plan"
         ],
         "title": "SubscriptionStatus",
-        "description": "User's subscription status information"
-      },
-      "TaskDefinition": {
-        "properties": {
-          "path": {
-            "type": "string",
-            "title": "Path",
-            "description": "Folder path to process"
-          },
-          "mode": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ProcessingMode"
-              }
-            ],
-            "description": "Processing mode for this path"
-          }
-        },
-        "type": "object",
-        "required": [
-          "path",
-          "mode"
-        ],
-        "title": "TaskDefinition",
-        "description": "Definition of how files should be processed"
+        "description": "Legacy subscription status (for backward compatibility)"
       },
       "TaskInfo": {
         "properties": {
@@ -3342,6 +5472,7 @@
           },
           "extracted_files": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -3357,6 +5488,76 @@
         ],
         "title": "UploadedFileInfo",
         "description": "Information about an uploaded file"
+      },
+      "UsageStatsResponse": {
+        "properties": {
+          "pages_used": {
+            "type": "integer",
+            "title": "Pages Used"
+          },
+          "pages_included": {
+            "type": "integer",
+            "title": "Pages Included"
+          },
+          "pages_remaining": {
+            "type": "integer",
+            "title": "Pages Remaining"
+          },
+          "automations_count": {
+            "type": "integer",
+            "title": "Automations Count"
+          },
+          "automations_limit": {
+            "type": "integer",
+            "title": "Automations Limit"
+          },
+          "period_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Start"
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End"
+          },
+          "plan_code": {
+            "type": "string",
+            "title": "Plan Code"
+          },
+          "plan_display_name": {
+            "type": "string",
+            "title": "Plan Display Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pages_used",
+          "pages_included",
+          "pages_remaining",
+          "automations_count",
+          "automations_limit",
+          "period_start",
+          "period_end",
+          "plan_code",
+          "plan_display_name"
+        ],
+        "title": "UsageStatsResponse",
+        "description": "Usage statistics for current period"
       },
       "UserResponse": {
         "properties": {

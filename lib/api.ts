@@ -312,8 +312,11 @@ export class ApiClient {
     })
   }
 
-  async getJobDetails(jobId: string): Promise<ApiResponse<ApiPaths['/api/jobs/{job_id}']['get']>> {
-    return this.request(`/api/jobs/${jobId}`)
+  async getJobDetails(jobId: string, runId?: string): Promise<ApiResponse<ApiPaths['/api/jobs/{job_id}']['get']>> {
+    const params = new URLSearchParams()
+    if (runId) params.set('run_id', runId)
+    const query = params.toString()
+    return this.request(`/api/jobs/${jobId}${query ? `?${query}` : ''}`)
   }
 
   async listJobs(params?: { limit?: number; offset?: number; status?: string; include_field_status?: boolean }): Promise<ApiResponse<ApiPaths['/api/jobs']['get']>> {
@@ -327,18 +330,40 @@ export class ApiClient {
     return this.request(`/api/jobs${query ? `?${query}` : ''}`)
   }
 
-  async getJobProgress(jobId: string): Promise<ApiResponse<ApiPaths['/api/jobs/{job_id}/progress']['get']>> {
-    return this.request(`/api/jobs/${jobId}/progress`)
+  async getJobProgress(jobId: string, runId?: string): Promise<ApiResponse<ApiPaths['/api/jobs/{job_id}/progress']['get']>> {
+    const params = new URLSearchParams()
+    if (runId) params.set('run_id', runId)
+    const query = params.toString()
+    return this.request(`/api/jobs/${jobId}/progress${query ? `?${query}` : ''}`)
   }
 
-  async getJobFiles(jobId: string, options?: { processable?: boolean }): Promise<ApiResponse<ApiPaths['/api/jobs/{job_id}/files']['get']>> {
+  async getJobFiles(jobId: string, options?: { processable?: boolean; runId?: string }): Promise<ApiResponse<ApiPaths['/api/jobs/{job_id}/files']['get']>> {
     const searchParams = new URLSearchParams()
     if (options?.processable) {
       searchParams.set('processable', 'true')
     }
+    if (options?.runId) {
+      searchParams.set('run_id', options.runId)
+    }
     
     const query = searchParams.toString()
     return this.request(`/api/jobs/${jobId}/files${query ? `?${query}` : ''}`)
+  }
+
+  // Job Runs endpoints
+  async getJobRuns(jobId: string): Promise<ApiResponse<ApiPaths['/api/jobs/{job_id}/runs']['get']>> {
+    return this.request(`/api/jobs/${jobId}/runs`)
+  }
+
+  async createJobRun(jobId: string, request: ApiRequest<ApiPaths['/api/jobs/{job_id}/runs']['post']>): Promise<ApiResponse<ApiPaths['/api/jobs/{job_id}/runs']['post']>> {
+    return this.request(`/api/jobs/${jobId}/runs`, {
+      method: 'POST',
+      body: JSON.stringify(request)
+    })
+  }
+
+  async getJobRun(jobId: string, runId: string): Promise<ApiResponse<ApiPaths['/api/jobs/{job_id}/runs/{run_id}']['get']>> {
+    return this.request(`/api/jobs/${jobId}/runs/${runId}`)
   }
 
   async addFilesToJob(
@@ -443,13 +468,47 @@ export class ApiClient {
     })
   }
 
-  async getJobResults(jobId: string, params?: { limit?: number; offset?: number }): Promise<JobResultsResponse> {
+  async getJobResults(jobId: string, params?: { limit?: number; offset?: number; runId?: string }): Promise<JobResultsResponse> {
     const searchParams = new URLSearchParams()
     if (params?.limit) searchParams.set('limit', params.limit.toString())
     if (params?.offset) searchParams.set('offset', params.offset.toString())
+    if (params?.runId) searchParams.set('run_id', params.runId)
     
     const query = searchParams.toString()
     return this.request(`/api/jobs/${jobId}/results${query ? `?${query}` : ''}`)
+  }
+
+  async submitJob(jobId: string, runId?: string): Promise<{ message: string; job_run_id: string }> {
+    const params = new URLSearchParams()
+    if (runId) params.set('run_id', runId)
+    const query = params.toString()
+    return this.request(`/api/jobs/${jobId}/submit${query ? `?${query}` : ''}`, {
+      method: 'POST'
+    })
+  }
+
+  async updateJobConfigStep(jobId: string, configStep: string, runId?: string): Promise<{ message: string }> {
+    const params = new URLSearchParams()
+    if (runId) params.set('run_id', runId)
+    const query = params.toString()
+    return this.request(`/api/jobs/${jobId}/config-step${query ? `?${query}` : ''}`, {
+      method: 'PUT',
+      body: JSON.stringify({ config_step: configStep })
+    })
+  }
+
+  async updateJobFields(jobId: string, fields: any[], templateId?: string, processingModes?: Record<string, string>, runId?: string): Promise<{ message: string }> {
+    const params = new URLSearchParams()
+    if (runId) params.set('run_id', runId)
+    const query = params.toString()
+    return this.request(`/api/jobs/${jobId}/fields${query ? `?${query}` : ''}`, {
+      method: 'PUT',
+      body: JSON.stringify({ 
+        fields, 
+        template_id: templateId, 
+        processing_modes: processingModes 
+      })
+    })
   }
 
   async getDataTypes(): Promise<DataType[]> {
@@ -517,8 +576,55 @@ export class ApiClient {
     return this.request(`/api/jobs/${jobId}/import-status`)
   }
 
+  // Job Export endpoints
+  async exportJobCSV(jobId: string, runId?: string): Promise<{ blob: Blob; filename: string }> {
+    const token = await this.getAuthToken()
+    const params = new URLSearchParams()
+    if (runId) params.set('run_id', runId)
+    const query = params.toString()
+    
+    const response = await fetch(`${this.baseURL}/api/jobs/${jobId}/export/csv${query ? `?${query}` : ''}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'CSV export failed' }))
+      throw new Error(error.detail || error.message || 'CSV export failed')
+    }
+
+    const blob = await response.blob()
+    const filename = response.headers.get('Content-Disposition')?.match(/filename=(.+)/)?.[1] || 'export.csv'
+    return { blob, filename: filename.replace(/"/g, '') }
+  }
+
+  async exportJobExcel(jobId: string, runId?: string): Promise<{ blob: Blob; filename: string }> {
+    const token = await this.getAuthToken()
+    const params = new URLSearchParams()
+    if (runId) params.set('run_id', runId)
+    const query = params.toString()
+    
+    const response = await fetch(`${this.baseURL}/api/jobs/${jobId}/export/excel${query ? `?${query}` : ''}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Excel export failed' }))
+      throw new Error(error.detail || error.message || 'Excel export failed')
+    }
+
+    const blob = await response.blob()
+    const filename = response.headers.get('Content-Disposition')?.match(/filename=(.+)/)?.[1] || 'export.xlsx'
+    return { blob, filename: filename.replace(/"/g, '') }
+  }
+
   // Google Drive Export endpoints
-  async exportJobToGoogleDriveCSV(jobId: string, folderId?: string): Promise<{
+  async exportJobToGoogleDriveCSV(jobId: string, folderId?: string, runId?: string): Promise<{
     success: boolean;
     message: string;
     drive_file_id: string;
@@ -530,6 +636,9 @@ export class ApiClient {
     const params = new URLSearchParams();
     if (folderId) {
       params.append('folder_id', folderId);
+    }
+    if (runId) {
+      params.append('run_id', runId);
     }
     
     const url = `${this.baseURL}/api/jobs/${jobId}/export/gdrive/csv${params.toString() ? `?${params.toString()}` : ''}`;
@@ -549,7 +658,7 @@ export class ApiClient {
     return await response.json();
   }
 
-  async exportJobToGoogleDriveExcel(jobId: string, folderId?: string): Promise<{
+  async exportJobToGoogleDriveExcel(jobId: string, folderId?: string, runId?: string): Promise<{
     success: boolean;
     message: string;
     drive_file_id: string;
@@ -561,6 +670,9 @@ export class ApiClient {
     const params = new URLSearchParams();
     if (folderId) {
       params.append('folder_id', folderId);
+    }
+    if (runId) {
+      params.append('run_id', runId);
     }
     
     const url = `${this.baseURL}/api/jobs/${jobId}/export/gdrive/excel${params.toString() ? `?${params.toString()}` : ''}`;
@@ -608,6 +720,12 @@ export type JobResultsResponse = {
   }>
 }
 
+// Job Runs types
+export type JobRunListResponse = ApiResponse<ApiPaths['/api/jobs/{job_id}/runs']['get']>
+export type JobRunCreateRequest = ApiRequest<ApiPaths['/api/jobs/{job_id}/runs']['post']>
+export type JobRunCreateResponse = ApiResponse<ApiPaths['/api/jobs/{job_id}/runs']['post']>
+export type JobRunDetailsResponse = ApiResponse<ApiPaths['/api/jobs/{job_id}/runs/{run_id}']['get']>
+
 // Import types from generated OpenAPI schema
 import { components } from './api-types'
 
@@ -619,6 +737,9 @@ export type JobFieldConfig = components['schemas']['JobFieldConfig']
 export type JobListItem = components['schemas']['JobListItem']
 export type JobFileInfo = components['schemas']['JobFileInfo']
 export type FileStatus = components['schemas']['FileStatus']
+
+// Job Runs component types
+export type JobRunListItem = components['schemas']['JobRunListItem']
 
 // Frontend-specific types for the multi-step workflow
 export interface FrontendUploadFile {
