@@ -83,6 +83,22 @@ export default function FieldConfigurationStep({
         ]
   );
 
+  // Resync fields when initialFields prop changes (e.g., when run changes)
+  useEffect(() => {
+    if (initialFields) {
+      setFields(
+        initialFields.length > 0 ? initialFields : [
+          {
+            field_name: "",
+            data_type_id: "text",
+            ai_prompt: "",
+            display_order: 0,
+          },
+        ]
+      );
+    }
+  }, [initialFields]);
+
   // Convert JobFieldConfig to FieldConfig for the shared component
   const convertToFieldConfig = (jobFields: JobFieldConfig[]): FieldConfig[] => {
     return jobFields.map((field) => ({
@@ -119,6 +135,12 @@ export default function FieldConfigurationStep({
   const [configurationMode, setConfigurationMode] = useState<
     "template" | "custom"
   >(initialTemplateId ? "template" : "custom");
+
+  // Resync template selection and mode when initialTemplateId changes (e.g., when run changes)
+  useEffect(() => {
+    setSelectedTemplate(initialTemplateId || "");
+    setConfigurationMode(initialTemplateId ? "template" : "custom");
+  }, [initialTemplateId]);
   const [folderProcessingModes, setFolderProcessingModes] = useState<
     Record<string, ProcessingMode>
   >({});

@@ -3374,7 +3374,10 @@ export interface operations {
     };
     update_job_fields_api_jobs__job_id__fields_put: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Specific run ID (defaults to latest) */
+                run_id?: string | null;
+            };
             header?: never;
             path: {
                 job_id: string;

@@ -632,16 +632,18 @@ class JobNameUpdateRequest(BaseModel):
 async def update_job_fields(
     job_id: str,
     request: JobFieldsUpdateRequest,
-    user_id: str = Depends(get_current_user_id)
+    user_id: str = Depends(get_current_user_id),
+    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)")
 ):
     """Update job field configuration and processing modes"""
     try:
         await job_service.update_job_fields(
-            job_id, 
-            user_id, 
-            request.fields, 
-            request.template_id, 
-            request.processing_modes
+            job_id=job_id,
+            user_id=user_id,
+            fields=request.fields,
+            template_id=request.template_id,
+            processing_modes=request.processing_modes,
+            run_id=run_id
         )
         return {"message": "Job configuration updated successfully"}
     except ValueError as e:

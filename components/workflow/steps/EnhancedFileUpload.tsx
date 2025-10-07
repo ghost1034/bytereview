@@ -423,8 +423,8 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
   }, [])
 
 
-  // Track if we've already loaded files for this job to prevent Strict Mode double execution
-  const loadedJobRef = useRef<string | null>(null)
+  // Track if we've already loaded files for this job+run to prevent duplicate loads
+  const loadedKeyRef = useRef<string | null>(null)
 
   // Load existing files function
   const loadExistingFiles = async () => {
@@ -458,14 +458,21 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
     }
   }
 
-  // Load existing files when component mounts (prevent Strict Mode double execution)
+  // Load existing files when jobId or runId changes
   useEffect(() => {
-    if (jobId && loadedJobRef.current !== jobId) {
-      loadedJobRef.current = jobId
+    const key = `${jobId}:${runId || 'latest'}`
+    if (jobId && loadedKeyRef.current !== key) {
+      // On run change, close SSE and reset state to avoid showing stale data
+      if (loadedKeyRef.current && loadedKeyRef.current.split(':')[1] !== (runId || 'latest')) {
+        closeZipSSEConnection()
+        closeImportSSEConnection()
+        setFiles([])
+        setUploadProgress({})
+      }
+      loadedKeyRef.current = key
       loadExistingFiles()
     }
-    // Skip duplicate loads in Strict Mode
-  }, [jobId])
+  }, [jobId, runId])
 
   // Helper function to check if a file is a system file
   const isSystemFile = (fileName: string): boolean => {
