@@ -5,9 +5,13 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Info } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import EnhancedFileUpload from '@/components/workflow/steps/EnhancedFileUpload';
+import RunSelector from '@/components/jobs/RunSelector';
+import { useJobRunSelection } from '@/hooks/useJobRunSelection';
 import { useToast } from '@/hooks/use-toast'
+import { apiClient } from '@/lib/api'
 
 async function getAuthToken(user: any): Promise<string> {
   if (!user) throw new Error('User not authenticated')
@@ -21,39 +25,46 @@ export default function JobUploadPage() {
   const { toast } = useToast()
   const jobId = params.jobId as string
 
-  // Fetch job data
-  const { data: job, isLoading } = useQuery({
-    queryKey: ['job', jobId],
+  // Job run selection
+  const {
+    runs,
+    latestRunId,
+    selectedRunId,
+    selectedRun,
+    isLoading: runsLoading,
+    isReadOnly,
+    setSelectedRunId,
+    createNewRun,
+    canEdit,
+    isCompleted
+  } = useJobRunSelection({ 
+    jobId,
+    enabled: !!user && !!jobId 
+  })
+
+  // Fetch job data for the selected run
+  const { data: job, isLoading: jobLoading } = useQuery({
+    queryKey: ['job', jobId, selectedRunId],
     queryFn: async () => {
-      const token = await getAuthToken(user)
-      const response = await fetch(`/api/jobs/${jobId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (!response.ok) throw new Error('Failed to load job')
-      return response.json()
+      if (!selectedRunId) return null
+      return apiClient.getJobDetails(jobId, selectedRunId)
     },
-    enabled: !!user && !!jobId,
+    enabled: !!user && !!jobId && !!selectedRunId,
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
+
+  const isLoading = runsLoading || jobLoading
 
   const handleFilesReady = async (files: any[]) => {
     // Files are ready for the next step
     console.log('Files ready:', files.length, 'files uploaded/imported')
     
     try {
-      // Update config step to fields
-      const token = await getAuthToken(user)
-      await fetch(`/api/jobs/${jobId}/config-step`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ config_step: 'fields' })
-      })
+      // Update config step to fields for the selected run
+      await apiClient.updateJobConfigStep(jobId, 'fields', selectedRunId)
       
-      // Navigate to next step
-      router.push(`/dashboard/jobs/${jobId}/fields`)
+      // Navigate to next step with run_id
+      router.push(`/dashboard/jobs/${jobId}/fields?run_id=${selectedRunId}`)
     } catch (error) {
       console.error('Error updating config step:', error)
       toast({
@@ -62,7 +73,27 @@ export default function JobUploadPage() {
         variant: "destructive"
       })
       // Still navigate even if step update fails
-      router.push(`/dashboard/jobs/${jobId}/fields`)
+      router.push(`/dashboard/jobs/${jobId}/fields?run_id=${selectedRunId}`)
+    }
+  }
+
+  const handleCreateNewRun = async () => {
+    try {
+      await createNewRun({ 
+        cloneFromRunId: selectedRunId,
+        redirectTo: 'upload' 
+      })
+      toast({
+        title: "New Run Created",
+        description: "Created a new run for this job."
+      })
+    } catch (error) {
+      console.error('Error creating new run:', error)
+      toast({
+        title: "Error",
+        description: "Failed to create new run.",
+        variant: "destructive"
+      })
     }
   }
 
@@ -85,10 +116,53 @@ export default function JobUploadPage() {
         Step 1 of 3
       </div>
 
+      {/* Run Selector */}
+      {runs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              Job Run Selection
+              {isReadOnly && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleCreateNewRun}
+                >
+                  Create New Run
+                </Button>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <RunSelector
+              jobId={jobId}
+              runs={runs}
+              latestRunId={latestRunId}
+              selectedRunId={selectedRunId}
+              onChange={setSelectedRunId}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Read-only Alert */}
+      {isReadOnly && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            This run is {isCompleted ? 'completed' : 'in progress'} and cannot be modified. 
+            You can view the files but cannot upload or remove files. 
+            Create a new run to make changes.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Enhanced File Upload with Multi-Source Support */}
       <EnhancedFileUpload
         jobId={jobId}
+        runId={selectedRunId}
         onFilesReady={handleFilesReady}
+        readOnly={isReadOnly}
       />
 
     </div>

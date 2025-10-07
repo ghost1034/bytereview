@@ -5,14 +5,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, ArrowRight } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Info } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import ReviewAndStartStep from '@/components/workflow/steps/ReviewAndStartStep'
+import RunSelector from '@/components/jobs/RunSelector'
+import { useJobRunSelection } from '@/hooks/useJobRunSelection'
+import { apiClient } from '@/lib/api'
 import { useToast } from '@/hooks/use-toast'
-
-async function getAuthToken(user: any): Promise<string> {
-  if (!user) throw new Error('User not authenticated')
-  return await user.getIdToken()
-}
 
 export default function JobReviewPage() {
   const params = useParams()
@@ -22,70 +21,70 @@ export default function JobReviewPage() {
   const queryClient = useQueryClient()
   const jobId = params.jobId as string
 
-  // Fetch job data
-  const { data: job, isLoading } = useQuery({
-    queryKey: ['job', jobId],
+  // Job run selection
+  const {
+    runs,
+    latestRunId,
+    selectedRunId,
+    selectedRun,
+    isLoading: runsLoading,
+    isReadOnly,
+    setSelectedRunId,
+    createNewRun,
+    canEdit,
+    isCompleted
+  } = useJobRunSelection({ 
+    jobId,
+    enabled: !!user && !!jobId 
+  })
+
+  // Fetch job data for the selected run
+  const { data: job, isLoading: jobLoading } = useQuery({
+    queryKey: ['job', jobId, selectedRunId],
     queryFn: async () => {
-      const token = await getAuthToken(user)
-      const response = await fetch(`/api/jobs/${jobId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (!response.ok) throw new Error('Failed to load job')
-      return response.json()
+      if (!selectedRunId) return null
+      return apiClient.getJobDetails(jobId, selectedRunId)
     },
-    enabled: !!user && !!jobId,
+    enabled: !!user && !!jobId && !!selectedRunId,
     staleTime: 5 * 60 * 1000,
   })
 
-  // Fetch job files
+  // Fetch job files for the selected run
   const { data: filesData } = useQuery({
-    queryKey: ['job-files', jobId],
+    queryKey: ['job-files', jobId, selectedRunId],
     queryFn: async () => {
-      const token = await getAuthToken(user)
-      const response = await fetch(`/api/jobs/${jobId}/files?processable=true`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (!response.ok) throw new Error('Failed to load files')
-      return response.json()
+      if (!selectedRunId) return null
+      return apiClient.getJobFiles(jobId, { processable: true, runId: selectedRunId })
     },
-    enabled: !!user && !!jobId,
+    enabled: !!user && !!jobId && !!selectedRunId,
     staleTime: 5 * 60 * 1000, // 5 minutes - invalidated when files are added/removed
   })
+
+  const isLoading = runsLoading || jobLoading
 
   // Submit job mutation
   const submitJobMutation = useMutation({
     mutationFn: async (jobName?: string) => {
-      const token = await getAuthToken(user)
+      if (!selectedRunId) throw new Error('No run selected')
       
-      // Update job name if provided
+      // Update job name if provided (job-level, not run-level)
       if (jobName && jobName !== job?.name) {
-        await fetch(`/api/jobs/${jobId}`, {
+        await apiClient.request(`/api/jobs/${jobId}`, {
           method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
           body: JSON.stringify({ name: jobName })
         })
       }
       
-      // Submit job for processing
-      console.log('Submitting job for processing:', jobId)
-      const response = await fetch(`/api/jobs/${jobId}/submit`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      // Submit job run for processing
+      console.log('Submitting job run for processing:', selectedRunId)
+      const response = await apiClient.submitJob(jobId, selectedRunId)
       
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Failed to submit job: ${errorText}`)
-      }
-      
-      console.log('Job submitted successfully:', jobId)
-      return response.json()
+      console.log('Job run submitted successfully:', response.job_run_id)
+      return response
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['job', jobId] })
+      queryClient.invalidateQueries({ queryKey: ['job', jobId, selectedRunId] })
+      queryClient.invalidateQueries({ queryKey: ['job-runs', jobId] })
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
       queryClient.invalidateQueries({ queryKey: ['jobs', 'resumable'] })
     }
@@ -100,29 +99,14 @@ export default function JobReviewPage() {
         description: "Your job has been submitted for processing!"
       })
       
-      // Navigate to processing page
+      // Navigate to processing page (no run_id needed - processing always shows latest)
       router.push(`/dashboard/jobs/${jobId}/processing`);
     } catch (error) {
       // Extract the actual error message from the error object
       let errorMessage = "Failed to submit job for processing"
       
       if (error instanceof Error) {
-        // The error message from the mutation includes "Failed to submit job: " prefix
-        // Extract just the actual API error message
-        const fullMessage = error.message
-        if (fullMessage.startsWith("Failed to submit job: ")) {
-          const apiErrorText = fullMessage.substring("Failed to submit job: ".length)
-          try {
-            // Try to parse as JSON in case it's a structured error response
-            const errorData = JSON.parse(apiErrorText)
-            errorMessage = errorData.detail || errorData.message || apiErrorText
-          } catch {
-            // If not JSON, use the raw error text
-            errorMessage = apiErrorText
-          }
-        } else {
-          errorMessage = fullMessage
-        }
+        errorMessage = error.message
       }
       
       toast({
@@ -134,7 +118,27 @@ export default function JobReviewPage() {
   }
 
   const handleBack = () => {
-    router.push(`/dashboard/jobs/${jobId}/fields`)
+    router.push(`/dashboard/jobs/${jobId}/fields?run_id=${selectedRunId}`)
+  }
+
+  const handleCreateNewRun = async () => {
+    try {
+      await createNewRun({ 
+        cloneFromRunId: selectedRunId,
+        redirectTo: 'upload' 
+      })
+      toast({
+        title: "New Run Created",
+        description: "Created a new run for this job."
+      })
+    } catch (error) {
+      console.error('Error creating new run:', error)
+      toast({
+        title: "Error",
+        description: "Failed to create new run.",
+        variant: "destructive"
+      })
+    }
   }
 
   if (isLoading) {
@@ -178,6 +182,47 @@ export default function JobReviewPage() {
         Step 3 of 3
       </div>
 
+      {/* Run Selector */}
+      {runs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              Job Run Selection
+              {isReadOnly && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleCreateNewRun}
+                >
+                  Create New Run
+                </Button>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <RunSelector
+              jobId={jobId}
+              runs={runs}
+              latestRunId={latestRunId}
+              selectedRunId={selectedRunId}
+              onChange={setSelectedRunId}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Read-only Alert */}
+      {isReadOnly && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            This run is {isCompleted ? 'completed' : 'in progress'} and cannot be modified or re-submitted. 
+            You can review the configuration but cannot start processing again. 
+            Create a new run to process with different settings.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Review Step */}
       <Card>
         <CardHeader>
@@ -189,6 +234,7 @@ export default function JobReviewPage() {
             onJobStarted={handleJobStarted}
             onBack={handleBack}
             isLoading={submitJobMutation.isPending}
+            readOnly={isReadOnly}
           />
         </CardContent>
       </Card>

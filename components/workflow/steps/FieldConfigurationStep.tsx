@@ -52,6 +52,7 @@ interface FieldConfigurationStepProps {
   ) => Promise<void>;
   onContinue: () => Promise<void>;
   onBack: () => void;
+  readOnly?: boolean;
 }
 
 export default function FieldConfigurationStep({
@@ -62,6 +63,7 @@ export default function FieldConfigurationStep({
   onFieldsSaved,
   onContinue,
   onBack,
+  readOnly = false,
 }: FieldConfigurationStepProps) {
   const { toast } = useToast();
   const { data: userTemplates } = useTemplates();
@@ -389,8 +391,9 @@ export default function FieldConfigurationStep({
         <CardContent className="space-y-6">
           <RadioGroup
             value={configurationMode}
-            onValueChange={handleConfigurationModeChange}
+            onValueChange={readOnly ? undefined : handleConfigurationModeChange}
             className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            disabled={readOnly}
           >
             {/* Custom Configuration Option */}
             <div className="flex items-center space-x-2 border rounded-lg p-4 hover:bg-gray-50 transition-colors">
@@ -442,7 +445,8 @@ export default function FieldConfigurationStep({
                 <Label className="text-sm font-medium">Select Template</Label>
                 <Select
                   value={selectedTemplate}
-                  onValueChange={handleTemplateChange}
+                  onValueChange={readOnly ? undefined : handleTemplateChange}
+                  disabled={readOnly}
                 >
                   <SelectTrigger className="mt-2">
                     <SelectValue placeholder="Choose a template to start with..." />
@@ -504,12 +508,13 @@ export default function FieldConfigurationStep({
                       </div>
                       <Select
                         value={folderProcessingModes[folder] || "individual"}
-                        onValueChange={(value: ProcessingMode) =>
+                        onValueChange={readOnly ? undefined : (value: ProcessingMode) =>
                           setFolderProcessingModes((prev) => ({
                             ...prev,
                             [folder]: value,
                           }))
                         }
+                        disabled={readOnly}
                       >
                         <SelectTrigger className="w-48">
                           <SelectValue />
@@ -580,9 +585,10 @@ export default function FieldConfigurationStep({
           ) : (
             <FieldConfigurationEditor
               fields={convertToFieldConfig(fields)}
-              onFieldsChange={handleFieldsChange}
+              onFieldsChange={readOnly ? () => {} : handleFieldsChange}
               dataTypes={dataTypes}
               mode="job"
+              readOnly={readOnly}
             />
           )}
         </CardContent>
@@ -596,16 +602,20 @@ export default function FieldConfigurationStep({
         </Button>
 
         <div className="flex gap-3">
-          <Button variant="outline" onClick={handleSave}>
+          <Button 
+            variant="outline" 
+            onClick={handleSave}
+            disabled={readOnly}
+          >
             <Save className="w-4 h-4 mr-2" />
-            Save Configuration
+            {readOnly ? 'View Only' : 'Save Configuration'}
           </Button>
           
           <Button 
             onClick={handleContinue}
-            disabled={files.length === 0}
+            disabled={files.length === 0 || readOnly}
           >
-            Save and Continue
+            {readOnly ? 'View Only' : 'Save and Continue'}
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </div>

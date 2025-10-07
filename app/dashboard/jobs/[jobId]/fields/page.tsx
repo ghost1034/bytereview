@@ -5,15 +5,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, ArrowRight } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Info } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import FieldConfigurationStep from '@/components/workflow/steps/FieldConfigurationStep'
-import { JobFieldConfig, TaskDefinition } from '@/lib/api'
+import RunSelector from '@/components/jobs/RunSelector'
+import { useJobRunSelection } from '@/hooks/useJobRunSelection'
+import { JobFieldConfig, TaskDefinition, apiClient } from '@/lib/api'
 import { useToast } from '@/hooks/use-toast'
-
-async function getAuthToken(user: any): Promise<string> {
-  if (!user) throw new Error('User not authenticated')
-  return await user.getIdToken()
-}
 
 export default function JobFieldsPage() {
   const params = useParams()
@@ -23,35 +21,46 @@ export default function JobFieldsPage() {
   const queryClient = useQueryClient()
   const jobId = params.jobId as string
 
-  // Fetch job data
-  const { data: job, isLoading } = useQuery({
-    queryKey: ['job', jobId],
+  // Job run selection
+  const {
+    runs,
+    latestRunId,
+    selectedRunId,
+    selectedRun,
+    isLoading: runsLoading,
+    isReadOnly,
+    setSelectedRunId,
+    createNewRun,
+    canEdit,
+    isCompleted
+  } = useJobRunSelection({ 
+    jobId,
+    enabled: !!user && !!jobId 
+  })
+
+  // Fetch job data for the selected run
+  const { data: job, isLoading: jobLoading } = useQuery({
+    queryKey: ['job', jobId, selectedRunId],
     queryFn: async () => {
-      const token = await getAuthToken(user)
-      const response = await fetch(`/api/jobs/${jobId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (!response.ok) throw new Error('Failed to load job')
-      return response.json()
+      if (!selectedRunId) return null
+      return apiClient.getJobDetails(jobId, selectedRunId)
     },
-    enabled: !!user && !!jobId,
+    enabled: !!user && !!jobId && !!selectedRunId,
     staleTime: 5 * 60 * 1000,
   })
 
-  // Fetch job files
+  // Fetch job files for the selected run
   const { data: filesData } = useQuery({
-    queryKey: ['job-files', jobId],
+    queryKey: ['job-files', jobId, selectedRunId],
     queryFn: async () => {
-      const token = await getAuthToken(user)
-      const response = await fetch(`/api/jobs/${jobId}/files?processable=true`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (!response.ok) throw new Error('Failed to load files')
-      return response.json()
+      if (!selectedRunId) return null
+      return apiClient.getJobFiles(jobId, { processable: true, runId: selectedRunId })
     },
-    enabled: !!user && !!jobId,
+    enabled: !!user && !!jobId && !!selectedRunId,
     staleTime: 5 * 60 * 1000, // 5 minutes - invalidated when files are added/removed
   })
+
+  const isLoading = runsLoading || jobLoading
 
   // Save field configuration mutation
   const saveFieldsMutation = useMutation({
@@ -60,25 +69,12 @@ export default function JobFieldsPage() {
       templateId?: string,
       processingModes?: Record<string, string>
     }) => {
-      const token = await getAuthToken(user)
-      const response = await fetch(`/api/jobs/${jobId}/fields`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          fields, 
-          template_id: templateId,
-          processing_modes: processingModes
-        })
-      })
-      if (!response.ok) throw new Error('Failed to save configuration')
-      return response.json()
+      if (!selectedRunId) throw new Error('No run selected')
+      return apiClient.updateJobFields(jobId, fields, templateId, processingModes, selectedRunId)
     },
     onSuccess: () => {
       // Invalidate job data to refresh
-      queryClient.invalidateQueries({ queryKey: ['job', jobId] })
+      queryClient.invalidateQueries({ queryKey: ['job', jobId, selectedRunId] })
     }
   })
 
@@ -120,23 +116,15 @@ export default function JobFieldsPage() {
   const handleContinue = async () => {
     try {
       // Update config step to review and navigate
-      const token = await getAuthToken(user)
-      await fetch(`/api/jobs/${jobId}/config-step`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ config_step: 'review' })
-      })
+      await apiClient.updateJobConfigStep(jobId, 'review', selectedRunId)
       
       toast({
         title: "Ready for review",
         description: "Configuration saved. Ready to start processing."
       })
       
-      // Navigate to next step
-      router.push(`/dashboard/jobs/${jobId}/review`)
+      // Navigate to next step with run_id
+      router.push(`/dashboard/jobs/${jobId}/review?run_id=${selectedRunId}`)
     } catch (error) {
       toast({
         title: "Error proceeding",
@@ -147,7 +135,27 @@ export default function JobFieldsPage() {
   }
 
   const handleBack = () => {
-    router.push(`/dashboard/jobs/${jobId}/upload`)
+    router.push(`/dashboard/jobs/${jobId}/upload?run_id=${selectedRunId}`)
+  }
+
+  const handleCreateNewRun = async () => {
+    try {
+      await createNewRun({ 
+        cloneFromRunId: selectedRunId,
+        redirectTo: 'fields' 
+      })
+      toast({
+        title: "New Run Created",
+        description: "Created a new run for this job."
+      })
+    } catch (error) {
+      console.error('Error creating new run:', error)
+      toast({
+        title: "Error",
+        description: "Failed to create new run.",
+        variant: "destructive"
+      })
+    }
   }
 
   if (isLoading) {
@@ -180,6 +188,47 @@ export default function JobFieldsPage() {
         Step 2 of 3
       </div>
 
+      {/* Run Selector */}
+      {runs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              Job Run Selection
+              {isReadOnly && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleCreateNewRun}
+                >
+                  Create New Run
+                </Button>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <RunSelector
+              jobId={jobId}
+              runs={runs}
+              latestRunId={latestRunId}
+              selectedRunId={selectedRunId}
+              onChange={setSelectedRunId}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Read-only Alert */}
+      {isReadOnly && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            This run is {isCompleted ? 'completed' : 'in progress'} and cannot be modified. 
+            You can view the field configuration but cannot make changes. 
+            Create a new run to modify the configuration.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Configuration Step */}
       <Card>
         <CardHeader>
@@ -194,6 +243,7 @@ export default function JobFieldsPage() {
             onFieldsSaved={handleFieldsSaved}
             onContinue={handleContinue}
             onBack={handleBack}
+            readOnly={isReadOnly}
           />
         </CardContent>
       </Card>

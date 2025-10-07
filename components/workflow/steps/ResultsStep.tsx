@@ -321,18 +321,19 @@ const FileTreeNode = memo(
 
 interface ResultsStepProps {
   jobId: string;
+  runId?: string;
   onStartNew: () => void;
 }
 
-export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
+export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepProps) {
   const { toast } = useToast();
   const { user } = useAuth();
-  const { data: jobDetails } = useJobDetails(jobId);
+  const { data: jobDetails } = useJobDetails(jobId, runId);
   const {
     data: results,
     isLoading: resultsLoading,
     error,
-  } = useJobResults(jobId, 1000); // Get up to 1000 results
+  } = useJobResults(jobId, 1000, runId); // Get up to 1000 results for the specific run
   const { status: googleStatus, connect: connectGoogle, isConnecting } = useGoogleIntegration();
 
   const getAuthToken = async () => {
@@ -554,7 +555,7 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
         ? selectedExportFolder.id 
         : undefined;
       
-      const result = await apiClient.exportJobToGoogleDriveCSV(jobId, folderId);
+      const result = await apiClient.exportJobToGoogleDriveCSV(jobId, folderId, runId);
       
       const folderText = selectedExportFolder?.name && selectedExportFolder.name !== 'My Drive' 
         ? ` to "${selectedExportFolder.name}" folder` 
@@ -594,7 +595,7 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
         ? selectedExportFolder.id 
         : undefined;
       
-      const result = await apiClient.exportJobToGoogleDriveExcel(jobId, folderId);
+      const result = await apiClient.exportJobToGoogleDriveExcel(jobId, folderId, runId);
       
       const folderText = selectedExportFolder?.name && selectedExportFolder.name !== 'My Drive' 
         ? ` to "${selectedExportFolder.name}" folder` 
@@ -626,24 +627,14 @@ export default function ResultsStep({ jobId, onStartNew }: ResultsStepProps) {
     try {
       setExportLoading('csv');
       
-      // Use the new backend export endpoint
-      const response = await fetch(`/api/jobs/${jobId}/export/csv`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${await getAuthToken()}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
+      // Use the API client export method with runId
+      const { blob, filename } = await apiClient.exportJobCSV(jobId, runId);
 
       // Download the file
-      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `job_${jobId}_results.csv`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);

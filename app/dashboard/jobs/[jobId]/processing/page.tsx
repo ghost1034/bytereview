@@ -7,12 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import ProcessingStep from "@/components/workflow/steps/ProcessingStep";
+import { apiClient } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-
-async function getAuthToken(user: any): Promise<string> {
-  if (!user) throw new Error("User not authenticated");
-  return await user.getIdToken();
-}
 
 export default function JobProcessingPage() {
   const params = useParams();
@@ -21,16 +17,11 @@ export default function JobProcessingPage() {
   const { toast } = useToast();
   const jobId = params.jobId as string;
 
-  // Fetch job data
+  // Fetch job data (always use latest run for processing)
   const { data: job, isLoading } = useQuery({
     queryKey: ["job", jobId],
     queryFn: async () => {
-      const token = await getAuthToken(user);
-      const response = await fetch(`/api/jobs/${jobId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error("Failed to load job");
-      return response.json();
+      return apiClient.getJobDetails(jobId); // No runId = latest run
     },
     enabled: !!user && !!jobId,
     staleTime: 5 * 60 * 1000, // 5 minutes - SSE provides real-time updates

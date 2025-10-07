@@ -29,13 +29,15 @@ interface ReviewAndStartStepProps {
   onJobStarted: (jobName?: string, templateId?: string) => void
   onBack: () => void
   isLoading?: boolean
+  readOnly?: boolean
 }
 
 export default function ReviewAndStartStep({ 
   workflowState, 
   onJobStarted, 
   onBack, 
-  isLoading 
+  isLoading,
+  readOnly = false
 }: ReviewAndStartStepProps) {
   const { toast } = useToast()
   
@@ -83,7 +85,8 @@ export default function ReviewAndStartStep({
             <Checkbox
               id="persist-data"
               checked={persistData}
-              onCheckedChange={(checked) => setPersistData(checked as boolean)}
+              onCheckedChange={readOnly ? undefined : (checked) => setPersistData(checked as boolean)}
+              disabled={readOnly}
             />
             <Label htmlFor="persist-data" className="text-sm">
               Keep source files for future reference
@@ -239,10 +242,15 @@ export default function ReviewAndStartStep({
         
         <Button 
           onClick={handleStartJob} 
-          disabled={isLoading}
+          disabled={isLoading || readOnly}
           size="lg"
         >
-          {isLoading ? (
+          {readOnly ? (
+            <>
+              <Play className="w-4 h-4 mr-2" />
+              View Only
+            </>
+          ) : isLoading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               Starting Job...

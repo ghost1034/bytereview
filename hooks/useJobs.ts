@@ -79,10 +79,10 @@ export function useInitiateAndUploadFiles() {
 /**
  * Hook to get job details
  */
-export function useJobDetails(jobId: string | undefined) {
+export function useJobDetails(jobId: string | undefined, runId?: string) {
   return useQuery<JobDetailsResponse>({
-    queryKey: ['job', jobId],
-    queryFn: () => apiClient.getJobDetails(jobId!),
+    queryKey: ['job', jobId, runId],
+    queryFn: () => apiClient.getJobDetails(jobId!, runId),
     enabled: !!jobId,
     refetchInterval: (data) => {
       // Poll every 2 seconds if job is processing
@@ -160,10 +160,10 @@ export function useJobProgress(jobId: string | undefined) {
 /**
  * Hook to get job results
  */
-export function useJobResults(jobId: string | undefined, limit = 50, offset = 0) {
+export function useJobResults(jobId: string | undefined, limit = 50, runId?: string) {
   return useQuery<JobResultsResponse>({
-    queryKey: ['job-results', jobId, limit, offset],
-    queryFn: () => apiClient.getJobResults(jobId!, { limit, offset }),
+    queryKey: ['job-results', jobId, limit, runId],
+    queryFn: () => apiClient.getJobResults(jobId!, { limit, runId }),
     enabled: !!jobId,
     staleTime: 5 * 60 * 1000, // 5 minutes
   })

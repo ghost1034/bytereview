@@ -35,15 +35,16 @@ import { apiClient, type JobFileInfo, type FileStatus } from '@/lib/api'
 import { GoogleDrivePicker } from '@/components/integrations/GoogleDrivePicker'
 import { GmailPicker } from '@/components/integrations/GmailPicker'
 import { IntegrationPrompt } from '@/components/integrations/IntegrationBanner'
-import { ImportStatusDisplay } from '@/components/upload/ImportStatusDisplay'
 
 interface EnhancedFileUploadProps {
   jobId: string
+  runId?: string
   onFilesReady: (files: JobFileInfo[]) => void
   onBack?: () => void
+  readOnly?: boolean
 }
 
-export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: EnhancedFileUploadProps) {
+export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack, readOnly = false }: EnhancedFileUploadProps) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [files, setFiles] = useState<JobFileInfo[]>([])
@@ -62,7 +63,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
 
   // Helper function to invalidate job files queries
   const invalidateJobFiles = () => {
-    queryClient.invalidateQueries({ queryKey: ['job-files', jobId] })
+    queryClient.invalidateQueries({ queryKey: ['job-files', jobId, runId] })
   }
 
   // Helper function to sort files alphabetically by full path
@@ -429,7 +430,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
   const loadExistingFiles = async () => {
     try {
       // Load all files for display purposes (including ZIP files for transparency)
-      const data = await apiClient.getJobFiles(jobId)
+      const data = await apiClient.getJobFiles(jobId, { runId })
       setFiles(sortFilesByPath(data.files || []))
       
       // Check if there are unpacking files and setup ZIP SSE if needed
@@ -615,7 +616,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
       }
       
       // Upload files with real progress tracking and individual completion
-      const result = await apiClient.addFilesToJob(jobId, validFiles, handleProgress, handleFileComplete)
+      const result = await apiClient.addFilesToJob(jobId, validFiles, handleProgress, handleFileComplete, runId)
       
       // Check if any uploaded files are ZIP files that need extraction
       const hasZipFiles = result.files.some(file => 
@@ -665,8 +666,10 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
 
   // Handle file removal
   const handleRemoveFile = async (fileId: string) => {
+    if (readOnly) return
+    
     try {
-      await apiClient.removeFileFromJob(jobId, fileId)
+      await apiClient.removeFileFromJob(jobId, fileId, runId)
       
       // Directly remove the file from the list - no need to wait for SSE
       setFiles(prev => prev.filter(f => f.id !== fileId))
@@ -703,6 +706,8 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault()
     setDragOver(false)
+    
+    if (readOnly) return
     
     console.log('Drop event - files:', e.dataTransfer.files.length, 'items:', e.dataTransfer.items?.length)
     
@@ -962,7 +967,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
               <Button
                 variant="outline"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
+                disabled={uploading || readOnly}
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Files
@@ -977,7 +982,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                     folderInputRef.current.click()
                   }
                 }}
-                disabled={uploading}
+                disabled={uploading || readOnly}
               >
                 <Folder className="w-4 h-4 mr-2" />
                 Add Folder
@@ -1075,8 +1080,8 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {getStatusBadge(file.status)}
                     
-                    {/* Delete button - only show for uploaded/unpacked files */}
-                    {(file.status === 'uploaded' || file.status === 'unpacked') && (
+                    {/* Delete button - only show for uploaded/unpacked files and when not readOnly */}
+                    {(file.status === 'uploaded' || file.status === 'unpacked') && !readOnly && (
                       <>
                         <Button
                           variant="ghost"
@@ -1147,7 +1152,7 @@ export default function EnhancedFileUpload({ jobId, onFilesReady, onBack }: Enha
           onClick={async () => {
             // Get only processable files from the backend for data extraction
             try {
-              const data = await apiClient.getJobFiles(jobId, { processable: true })
+              const data = await apiClient.getJobFiles(jobId, { processable: true, runId })
               onFilesReady(data.files || [])
             } catch (error) {
               console.error('Error getting processable files:', error)
