@@ -156,6 +156,50 @@ export interface paths {
         patch: operations["update_job_details_api_jobs__job_id__patch"];
         trace?: never;
     };
+    "/api/jobs/{job_id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Job Runs
+         * @description Get all job runs for a specific job
+         */
+        get: operations["get_job_runs_api_jobs__job_id__runs_get"];
+        put?: never;
+        /**
+         * Create Job Run
+         * @description Create a new job run
+         */
+        post: operations["create_job_run_api_jobs__job_id__runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Job Run Details
+         * @description Get detailed information about a specific job run
+         */
+        get: operations["get_job_run_details_api_jobs__job_id__runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/jobs": {
         parameters: {
             query?: never;
@@ -205,7 +249,7 @@ export interface paths {
         };
         /**
          * Get Job Files
-         * @description Get flat list of files in a job
+         * @description Get flat list of files in a job run
          */
         get: operations["get_job_files_api_jobs__job_id__files_get"];
         put?: never;
@@ -330,7 +374,7 @@ export interface paths {
         };
         /**
          * Get Job Results
-         * @description Get extraction results for a completed job
+         * @description Get extraction results for a completed job run
          */
         get: operations["get_job_results_api_jobs__job_id__results_get"];
         put?: never;
@@ -351,7 +395,7 @@ export interface paths {
         get?: never;
         /**
          * Update Config Step
-         * @description Update job configuration step
+         * @description Update job run configuration step
          */
         put: operations["update_config_step_api_jobs__job_id__config_step_put"];
         post?: never;
@@ -372,7 +416,7 @@ export interface paths {
         put?: never;
         /**
          * Submit Job For Processing
-         * @description Submit job for processing
+         * @description Submit job run for processing
          */
         post: operations["submit_job_for_processing_api_jobs__job_id__submit_post"];
         delete?: never;
@@ -430,7 +474,7 @@ export interface paths {
         };
         /**
          * Export Job Results Csv
-         * @description Export job results to CSV format
+         * @description Export job run results to CSV format
          */
         get: operations["export_job_results_csv_api_jobs__job_id__export_csv_get"];
         put?: never;
@@ -450,7 +494,7 @@ export interface paths {
         };
         /**
          * Export Job Results Excel
-         * @description Export job results to Excel format
+         * @description Export job run results to Excel format
          */
         get: operations["export_job_results_excel_api_jobs__job_id__export_excel_get"];
         put?: never;
@@ -1484,10 +1528,10 @@ export interface components {
              */
             automation_id: string;
             /**
-             * Job Id
+             * Job Run Id
              * Format: uuid
              */
-            job_id: string;
+            job_run_id: string;
             /** Status */
             status: string;
             /** Error Message */
@@ -2062,6 +2106,179 @@ export interface components {
             results: components["schemas"]["ExtractionTaskResult"][];
         };
         /**
+         * JobRunCreateRequest
+         * @description Request to create a new job run
+         */
+        JobRunCreateRequest: {
+            /**
+             * Clone From Run Id
+             * @description Run ID to clone field configuration from (defaults to latest)
+             */
+            clone_from_run_id?: string | null;
+            /**
+             * Template Id
+             * @description Template ID to use for field configuration
+             */
+            template_id?: string | null;
+        };
+        /**
+         * JobRunCreateResponse
+         * @description Response for job run creation
+         */
+        JobRunCreateResponse: {
+            /**
+             * Job Run Id
+             * @description Created job run identifier
+             */
+            job_run_id: string;
+            /**
+             * Message
+             * @description Success message
+             */
+            message: string;
+        };
+        /**
+         * JobRunDetailsResponse
+         * @description Detailed job run information
+         */
+        JobRunDetailsResponse: {
+            /**
+             * Id
+             * @description Job run identifier
+             */
+            id: string;
+            /**
+             * Job Id
+             * @description Parent job identifier
+             */
+            job_id: string;
+            /** @description Current run status */
+            status: components["schemas"]["JobStatus"];
+            /**
+             * Config Step
+             * @description Current configuration step
+             */
+            config_step: string;
+            /**
+             * Persist Data
+             * @description Data persistence setting
+             */
+            persist_data: boolean;
+            /**
+             * Tasks Total
+             * @description Total number of tasks
+             */
+            tasks_total: number;
+            /**
+             * Tasks Completed
+             * @description Completed tasks
+             */
+            tasks_completed: number;
+            /**
+             * Tasks Failed
+             * @description Failed tasks
+             */
+            tasks_failed: number;
+            /**
+             * Created At
+             * Format: date-time
+             * @description Creation timestamp
+             */
+            created_at: string;
+            /**
+             * Completed At
+             * @description Completion timestamp
+             */
+            completed_at?: string | null;
+            /**
+             * Job Fields
+             * @description Field configuration
+             */
+            job_fields: components["schemas"]["JobFieldInfo"][];
+            /**
+             * Template Id
+             * @description Template ID used for this run
+             */
+            template_id?: string | null;
+            /**
+             * Extraction Tasks
+             * @description Task definitions for processing modes
+             */
+            extraction_tasks?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
+         * JobRunListItem
+         * @description Job run list item for run listing
+         */
+        JobRunListItem: {
+            /**
+             * Id
+             * @description Job run identifier
+             */
+            id: string;
+            /** @description Run status */
+            status: components["schemas"]["JobStatus"];
+            /**
+             * Config Step
+             * @description Current configuration step
+             */
+            config_step: string;
+            /**
+             * Tasks Total
+             * @description Total number of tasks
+             */
+            tasks_total: number;
+            /**
+             * Tasks Completed
+             * @description Completed tasks
+             */
+            tasks_completed: number;
+            /**
+             * Tasks Failed
+             * @description Failed tasks
+             */
+            tasks_failed: number;
+            /**
+             * Created At
+             * Format: date-time
+             * @description Creation timestamp
+             */
+            created_at: string;
+            /**
+             * Completed At
+             * @description Completion timestamp
+             */
+            completed_at?: string | null;
+            /**
+             * Template Id
+             * @description Template ID used for this run
+             */
+            template_id?: string | null;
+        };
+        /**
+         * JobRunListResponse
+         * @description Response for job run listing
+         */
+        JobRunListResponse: {
+            /**
+             * Runs
+             * @description List of job runs
+             */
+            runs: components["schemas"]["JobRunListItem"][];
+            /**
+             * Total
+             * @description Total number of runs
+             */
+            total: number;
+            /**
+             * Latest Run Id
+             * @description ID of the latest run
+             */
+            latest_run_id: string;
+        };
+        /**
          * JobStatus
          * @description Job status enumeration
          * @enum {string}
@@ -2609,6 +2826,104 @@ export interface operations {
             };
         };
     };
+    get_job_runs_api_jobs__job_id__runs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobRunListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_job_run_api_jobs__job_id__runs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobRunCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobRunCreateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_job_run_details_api_jobs__job_id__runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobRunDetailsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_jobs_api_jobs_get: {
         parameters: {
             query?: {
@@ -2649,7 +2964,10 @@ export interface operations {
     };
     get_job_progress_api_jobs__job_id__progress_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Specific run ID (defaults to latest) */
+                run_id?: string | null;
+            };
             header?: never;
             path: {
                 job_id: string;
@@ -2683,6 +3001,8 @@ export interface operations {
             query?: {
                 /** @description Only return files that can be processed for data extraction (excludes ZIP files) */
                 processable?: boolean;
+                /** @description Specific run ID (defaults to latest) */
+                run_id?: string | null;
             };
             header?: never;
             path: {
@@ -2918,6 +3238,8 @@ export interface operations {
                 limit?: number;
                 /** @description Number of results to skip */
                 offset?: number;
+                /** @description Specific run ID (defaults to latest) */
+                run_id?: string | null;
             };
             header?: never;
             path: {
@@ -2949,7 +3271,10 @@ export interface operations {
     };
     update_config_step_api_jobs__job_id__config_step_put: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Specific run ID (defaults to latest) */
+                run_id?: string | null;
+            };
             header?: never;
             path: {
                 job_id: string;
@@ -2984,7 +3309,10 @@ export interface operations {
     };
     submit_job_for_processing_api_jobs__job_id__submit_post: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Specific run ID (defaults to latest) */
+                run_id?: string | null;
+            };
             header?: never;
             path: {
                 job_id: string;
@@ -3081,7 +3409,10 @@ export interface operations {
     };
     export_job_results_csv_api_jobs__job_id__export_csv_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Specific run ID (defaults to latest) */
+                run_id?: string | null;
+            };
             header?: never;
             path: {
                 job_id: string;
@@ -3112,7 +3443,10 @@ export interface operations {
     };
     export_job_results_excel_api_jobs__job_id__export_excel_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Specific run ID (defaults to latest) */
+                run_id?: string | null;
+            };
             header?: never;
             path: {
                 job_id: string;

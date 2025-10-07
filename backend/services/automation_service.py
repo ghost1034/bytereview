@@ -194,11 +194,27 @@ class AutomationService:
         automation_id: str, 
         job_id: str
     ) -> AutomationRun:
-        """Create a new automation run"""
+        """Create a new automation run with a new job run"""
         try:
+            # Get automation to access user_id and job configuration
+            automation = db.query(Automation).filter(Automation.id == automation_id).first()
+            if not automation:
+                raise ValueError(f"Automation {automation_id} not found")
+            
+            # Create a new job run for this automation trigger
+            from services.job_service import JobService
+            job_service = JobService()
+            
+            # Create new job run (will clone from latest run by default)
+            job_run_id = await job_service.create_job_run(
+                job_id=job_id,
+                user_id=automation.user_id
+            )
+            
+            # Create automation run linked to the new job run
             automation_run = AutomationRun(
                 automation_id=automation_id,
-                job_id=job_id,
+                job_run_id=job_run_id,
                 status='pending'
             )
             
@@ -206,7 +222,7 @@ class AutomationService:
             db.commit()
             db.refresh(automation_run)
             
-            logger.info(f"Created automation run {automation_run.id} for automation {automation_id}")
+            logger.info(f"Created automation run {automation_run.id} with job run {job_run_id} for automation {automation_id}")
             return automation_run
             
         except Exception as e:

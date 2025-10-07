@@ -664,17 +664,17 @@ class GoogleService:
     async def import_gmail_attachments(
         self, 
         db: Session, 
-        job_id: str, 
+        job_run_id: str, 
         attachments: List[Dict[str, Any]],
         automation_run_id: str = None
     ) -> Dict[str, Any]:
         """
-        Import Gmail attachments into a job - creates SourceFiles only
+        Import Gmail attachments into a job run - creates SourceFiles only
         ExtractionTasks will be created later by run_initializer_worker
         
         Args:
             db: Database session
-            job_id: Extraction job ID
+            job_run_id: Job run ID to import files into
             attachments: List of attachment metadata with messageId, attachmentId, filename, etc.
             automation_run_id: Optional automation run ID for tracking
             
@@ -688,11 +688,16 @@ class GoogleService:
             import uuid
             import os
             
-            # Get the job to verify it exists
-            job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
-            if not job:
-                raise ValueError(f"Job {job_id} not found")
+            # Verify job run exists and get parent job ID for SSE events
+            from models.db_models import JobRun
+            job_run = db.query(JobRun).filter(JobRun.id == job_run_id).first()
+            if not job_run:
+                raise ValueError(f"Job run {job_run_id} not found")
             
+            parent_job_id = str(job_run.job_id)
+            
+            # Get parent job for user_id
+            job = db.query(ExtractionJob).filter(ExtractionJob.id == job_run.job_id).first()
             user_id = job.user_id
             # Use service account Gmail service for automation imports
             from services.gmail_pubsub_service import gmail_pubsub_service
@@ -701,7 +706,7 @@ class GoogleService:
                 raise ValueError("Could not get Gmail service")
             
             # Send import started event
-            await sse_manager.send_import_started(job_id, "Gmail", len(attachments))
+            await sse_manager.send_import_started(parent_job_id, "Gmail", len(attachments))
             
             successful = 0
             ready = 0
@@ -739,7 +744,7 @@ class GoogleService:
                     # Generate unique filename for GCS
                     file_extension = os.path.splitext(filename)[1] if '.' in filename else ''
                     unique_filename = f"{uuid.uuid4()}{file_extension}"
-                    gcs_path = f"jobs/{job_id}/gmail_imports/{unique_filename}"
+                    gcs_path = f"jobs/{parent_job_id}/runs/{job_run_id}/gmail_imports/{unique_filename}"
                     
                     # Upload to GCS
                     logger.info(f"Uploading {filename} to GCS: {gcs_path}")
@@ -755,7 +760,7 @@ class GoogleService:
                     # Create SourceFile record
                     source_file = SourceFile(
                         id=str(uuid.uuid4()),
-                        job_id=job_id,
+                        job_run_id=job_run_id,
                         original_filename=filename,
                         original_path=filename,  # Just the filename for Gmail (no folder structure)
                         gcs_object_name=gcs_path,  # GCS object name for storage
@@ -777,7 +782,7 @@ class GoogleService:
                     
                     # Send import completed event for individual file
                     await sse_manager.send_import_completed(
-                        job_id, 
+                        parent_job_id, 
                         str(source_file.id), 
                         filename, 
                         len(file_data), 
@@ -816,7 +821,7 @@ class GoogleService:
             db.commit()
             
             # Send import batch completed event
-            await sse_manager.send_import_batch_completed(job_id, "Gmail", successful, len(attachments))
+            await sse_manager.send_import_batch_completed(parent_job_id, "Gmail", successful, len(attachments))
             
             logger.info(f"Gmail import completed: {successful} successful, {failed} failed, {ready} ready for processing")
             
@@ -828,7 +833,7 @@ class GoogleService:
             
         except Exception as e:
             db.rollback()
-            logger.error(f"Gmail import failed for job {job_id}: {e}")
+            logger.error(f"Gmail import failed for job run {job_run_id}: {e}")
             return {
                 "successful": 0,
                 "failed": len(attachments),
@@ -1108,16 +1113,16 @@ class GoogleService:
     async def import_drive_files(
         self, 
         db: Session, 
-        job_id: str, 
+        job_run_id: str, 
         user_id: str, 
         drive_file_ids: List[str]
     ) -> Dict[str, Any]:
         """
-        Import files from Google Drive - creates SourceFiles only
+        Import files from Google Drive into a job run - creates SourceFiles only
         
         Args:
             db: Database session
-            job_id: Extraction job ID
+            job_run_id: Job run ID to import files into
             user_id: User ID for OAuth credentials
             drive_file_ids: List of Google Drive file IDs to import
             
@@ -1127,7 +1132,15 @@ class GoogleService:
         from services.sse_service import sse_manager
         
         # Send import started event
-        await sse_manager.send_import_started(job_id, "Google Drive", len(drive_file_ids))
+        # Get parent job ID for SSE events
+        from models.db_models import JobRun
+        job_run = db.query(JobRun).filter(JobRun.id == job_run_id).first()
+        if not job_run:
+            raise ValueError(f"Job run {job_run_id} not found")
+        
+        parent_job_id = str(job_run.job_id)
+        
+        await sse_manager.send_import_started(parent_job_id, "Google Drive", len(drive_file_ids))
         
         successful = 0
         failed = 0
@@ -1136,7 +1149,7 @@ class GoogleService:
         # Process each Drive file
         for file_id in drive_file_ids:
             try:
-                await self._import_single_drive_file(db, job_id, user_id, file_id)
+                await self._import_single_drive_file(db, job_run_id, user_id, file_id)
                 successful += 1
                 logger.info(f"Successfully imported Drive file {file_id}")
                 
@@ -1149,7 +1162,7 @@ class GoogleService:
                 })
         
         # Send import batch completed event
-        await sse_manager.send_import_batch_completed(job_id, "Google Drive", successful, len(drive_file_ids))
+        await sse_manager.send_import_batch_completed(parent_job_id, "Google Drive", successful, len(drive_file_ids))
         
         return {
             'total': len(drive_file_ids),
@@ -1161,14 +1174,20 @@ class GoogleService:
     async def _import_single_drive_file(
         self, 
         db: Session, 
-        job_id: str, 
+        job_run_id: str, 
         user_id: str, 
         file_id: str
     ) -> None:
-        """Import a single file or folder from Google Drive"""
-        from models.db_models import SourceFile
+        """Import a single file or folder from Google Drive into a job run"""
+        from models.db_models import SourceFile, JobRun
         from services.gcs_service import get_storage_service
         from services.job_service import JobService
+        
+        # Get parent job ID for SSE events
+        job_run = db.query(JobRun).filter(JobRun.id == job_run_id).first()
+        if not job_run:
+            raise ValueError(f"Job run {job_run_id} not found")
+        parent_job_id = str(job_run.job_id)
         from services.sse_service import sse_manager
         
         try:
@@ -1192,10 +1211,10 @@ class GoogleService:
             
             # Create source file record for regular file
             source_file = SourceFile(
-                job_id=job_id,
+                job_run_id=job_run_id,
                 original_filename=filename,
                 original_path=filename,
-                gcs_object_name=f"imports/{job_id}/{file_id}_{filename}",
+                gcs_object_name=f"imports/{job_run_id}/{file_id}_{filename}",
                 file_type=mime_type,
                 file_size_bytes=file_size,
                 status='importing',
@@ -1208,7 +1227,7 @@ class GoogleService:
             
             # Send import progress event for this individual file
             await sse_manager.send_import_progress(
-                job_id, 
+                parent_job_id, 
                 filename, 
                 'importing',
                 file_size,
@@ -1245,7 +1264,7 @@ class GoogleService:
             
             # Send import completed event
             await sse_manager.send_import_completed(
-                job_id, 
+                parent_job_id, 
                 str(source_file.id), 
                 filename, 
                 file_size, 

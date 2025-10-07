@@ -8,7 +8,7 @@ from datetime import datetime
 from enum import Enum
 
 # Export the enums for OpenAPI generation
-__all__ = ["JobStatus", "ProcessingMode", "FileStatus", "JobInitiateRequest", "JobInitiateResponse", "JobStartRequest", "JobStartResponse", "JobDetailsResponse", "JobListResponse", "JobProgressResponse", "JobResultsResponse"]
+__all__ = ["JobStatus", "ProcessingMode", "FileStatus", "JobInitiateRequest", "JobInitiateResponse", "JobStartRequest", "JobStartResponse", "JobDetailsResponse", "JobListResponse", "JobProgressResponse", "JobResultsResponse", "JobRunListItem", "JobRunDetailsResponse", "JobRunCreateRequest", "JobRunCreateResponse", "JobRunListResponse"]
 
 class JobStatus(str, Enum):
     """Job status enumeration"""
@@ -149,3 +149,51 @@ class JobResultsResponse(BaseModel):
 class JobFilesResponse(BaseModel):
     """Response for job files listing"""
     files: List[JobFileInfo] = Field(..., description="List of files in the job")
+
+# ===================================================================
+# Job Run Models
+# ===================================================================
+
+class JobRunListItem(BaseModel):
+    """Job run list item for run listing"""
+    id: str = Field(..., description="Job run identifier")
+    status: JobStatus = Field(..., description="Run status")
+    config_step: str = Field(..., description="Current configuration step")
+    tasks_total: int = Field(..., description="Total number of tasks")
+    tasks_completed: int = Field(..., description="Completed tasks")
+    tasks_failed: int = Field(..., description="Failed tasks")
+    created_at: datetime = Field(..., description="Creation timestamp")
+    completed_at: Optional[datetime] = Field(None, description="Completion timestamp")
+    template_id: Optional[str] = Field(None, description="Template ID used for this run")
+
+class JobRunDetailsResponse(BaseModel):
+    """Detailed job run information"""
+    id: str = Field(..., description="Job run identifier")
+    job_id: str = Field(..., description="Parent job identifier")
+    status: JobStatus = Field(..., description="Current run status")
+    config_step: str = Field(..., description="Current configuration step")
+    persist_data: bool = Field(..., description="Data persistence setting")
+    tasks_total: int = Field(..., description="Total number of tasks")
+    tasks_completed: int = Field(..., description="Completed tasks")
+    tasks_failed: int = Field(..., description="Failed tasks")
+    created_at: datetime = Field(..., description="Creation timestamp")
+    completed_at: Optional[datetime] = Field(None, description="Completion timestamp")
+    job_fields: List[JobFieldInfo] = Field(..., description="Field configuration")
+    template_id: Optional[str] = Field(None, description="Template ID used for this run")
+    extraction_tasks: List[dict] = Field(default_factory=list, description="Task definitions for processing modes")
+
+class JobRunCreateRequest(BaseModel):
+    """Request to create a new job run"""
+    clone_from_run_id: Optional[str] = Field(None, description="Run ID to clone field configuration from (defaults to latest)")
+    template_id: Optional[str] = Field(None, description="Template ID to use for field configuration")
+
+class JobRunCreateResponse(BaseModel):
+    """Response for job run creation"""
+    job_run_id: str = Field(..., description="Created job run identifier")
+    message: str = Field(..., description="Success message")
+
+class JobRunListResponse(BaseModel):
+    """Response for job run listing"""
+    runs: List[JobRunListItem] = Field(..., description="List of job runs")
+    total: int = Field(..., description="Total number of runs")
+    latest_run_id: str = Field(..., description="ID of the latest run")

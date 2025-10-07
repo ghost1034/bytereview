@@ -94,7 +94,7 @@ class AutomationRunResponse(BaseModel):
     """Response model for automation run data"""
     id: UUID
     automation_id: UUID
-    job_id: UUID
+    job_run_id: UUID
     status: str
     error_message: Optional[str]
     triggered_at: datetime

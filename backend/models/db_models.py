@@ -71,7 +71,7 @@ class Template(Base):
     # Relationships
     user = relationship("User", back_populates="templates")
     template_fields = relationship("TemplateField", back_populates="template", cascade="all, delete-orphan")
-    extraction_jobs = relationship("ExtractionJob", back_populates="template")
+    job_runs = relationship("JobRun", back_populates="template")
     
     __table_args__ = (
         {"schema": None}  # Ensure unique constraint on (user_id, name)
@@ -99,6 +99,47 @@ class ExtractionJob(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255))  # User-friendly, nullable name
     user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    
+    # Activity and Concurrency Control
+    last_active_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    version = Column(Integer, nullable=False, default=1)  # For optimistic locking
+    
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    
+    # Relationships
+    user = relationship("User", back_populates="extraction_jobs")
+    job_runs = relationship("JobRun", back_populates="job", cascade="all, delete-orphan")
+    automations = relationship("Automation", back_populates="job", cascade="all, delete-orphan")
+    
+    @property
+    def latest_run(self):
+        """Get the latest job run"""
+        if not self.job_runs:
+            return None
+        return max(self.job_runs, key=lambda run: run.created_at)
+    
+    @property
+    def is_resumable(self) -> bool:
+        """A job is resumable if latest run is resumable"""
+        latest = self.latest_run
+        if not latest:
+            return False
+        return latest.is_resumable
+    
+    @property 
+    def progress_percentage(self) -> float:
+        """Calculate progress based on latest run"""
+        latest = self.latest_run
+        if not latest:
+            return 0
+        return latest.progress_percentage
+
+class JobRun(Base):
+    """A single run of an extraction job, allowing multiple executions"""
+    __tablename__ = "job_runs"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
     template_id = Column(UUID(as_uuid=True), ForeignKey("templates.id", ondelete="SET NULL"))
     
     # Wizard/Configuration State
@@ -112,27 +153,26 @@ class ExtractionJob(Base):
     tasks_completed = Column(Integer, nullable=False, default=0)
     tasks_failed = Column(Integer, nullable=False, default=0)
     
-    # Activity and Concurrency Control
-    last_active_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
-    version = Column(Integer, nullable=False, default=1)  # For optimistic locking
-    
+    # Configuration
     persist_data = Column(Boolean, nullable=False, default=True)
+    
+    # Timestamps
+    last_active_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     completed_at = Column(TIMESTAMP(timezone=True))
     
     # Relationships
-    user = relationship("User", back_populates="extraction_jobs")
-    template = relationship("Template", back_populates="extraction_jobs")
-    job_fields = relationship("JobField", back_populates="job", cascade="all, delete-orphan")
-    source_files = relationship("SourceFile", back_populates="job", cascade="all, delete-orphan")
-    extraction_tasks = relationship("ExtractionTask", back_populates="job", cascade="all, delete-orphan")
-    automations = relationship("Automation", back_populates="job", cascade="all, delete-orphan")
-    job_exports = relationship("JobExport", back_populates="job", cascade="all, delete-orphan")
-    automation_runs = relationship("AutomationRun", back_populates="job", cascade="all, delete-orphan")
+    job = relationship("ExtractionJob", back_populates="job_runs")
+    template = relationship("Template", back_populates="job_runs")
+    job_fields = relationship("JobField", back_populates="job_run", cascade="all, delete-orphan")
+    source_files = relationship("SourceFile", back_populates="job_run", cascade="all, delete-orphan")
+    extraction_tasks = relationship("ExtractionTask", back_populates="job_run", cascade="all, delete-orphan")
+    job_exports = relationship("JobExport", back_populates="job_run", cascade="all, delete-orphan")
+    automation_runs = relationship("AutomationRun", back_populates="job_run", cascade="all, delete-orphan")
     
     @property
     def is_resumable(self) -> bool:
-        """A job is resumable if wizard not done OR processing incomplete/errored"""
+        """A run is resumable if wizard not done OR processing incomplete/errored"""
         return (
             self.config_step != 'submitted' or 
             (self.status in ('in_progress', 'partially_completed', 'failed') and 
@@ -160,18 +200,18 @@ class ExtractionJob(Base):
             return min(100, (completed / total) * 100)
 
 class JobField(Base):
-    """Snapshot of fields used for a specific job, ensuring immutability"""
+    """Snapshot of fields used for a specific job run, ensuring immutability"""
     __tablename__ = "job_fields"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
+    job_run_id = Column(UUID(as_uuid=True), ForeignKey("job_runs.id", ondelete="CASCADE"), nullable=False)
     field_name = Column(String(100), nullable=False)
     data_type_id = Column(String(50), ForeignKey("data_types.id"), nullable=False)
     ai_prompt = Column(Text, nullable=False)
     display_order = Column(Integer, nullable=False, default=0)
     
     # Relationships
-    job = relationship("ExtractionJob", back_populates="job_fields")
+    job_run = relationship("JobRun", back_populates="job_fields")
     data_type = relationship("DataType", back_populates="job_fields")
 
 class SourceFile(Base):
@@ -179,7 +219,7 @@ class SourceFile(Base):
     __tablename__ = "source_files"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
+    job_run_id = Column(UUID(as_uuid=True), ForeignKey("job_runs.id", ondelete="CASCADE"), nullable=False)
     original_filename = Column(Text, nullable=False)
     original_path = Column(Text, nullable=False)
     gcs_object_name = Column(Text, unique=True, nullable=False)
@@ -192,7 +232,7 @@ class SourceFile(Base):
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
     
     # Relationships
-    job = relationship("ExtractionJob", back_populates="source_files")
+    job_run = relationship("JobRun", back_populates="source_files")
     source_files_to_tasks = relationship("SourceFileToTask", back_populates="source_file", cascade="all, delete-orphan")
 
 class ExtractionTask(Base):
@@ -200,7 +240,7 @@ class ExtractionTask(Base):
     __tablename__ = "extraction_tasks"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
+    job_run_id = Column(UUID(as_uuid=True), ForeignKey("job_runs.id", ondelete="CASCADE"), nullable=False)
     processing_mode = Column(String(50), nullable=False, default='individual')  # 'individual' or 'combined'
     status = Column(String(50), nullable=False, default='pending')
     error_message = Column(Text)
@@ -208,7 +248,7 @@ class ExtractionTask(Base):
     processed_at = Column(TIMESTAMP(timezone=True))
     
     # Relationships
-    job = relationship("ExtractionJob", back_populates="extraction_tasks")
+    job_run = relationship("JobRun", back_populates="extraction_tasks")
     source_files_to_tasks = relationship("SourceFileToTask", back_populates="task", cascade="all, delete-orphan")
     extraction_result = relationship("ExtractionResult", back_populates="task", uselist=False, cascade="all, delete-orphan")
 
@@ -288,11 +328,11 @@ class IntegrationAccount(Base):
         return encryption_service.decrypt_token(self.refresh_token)
 
 class JobExport(Base):
-    """Export operations for job results to various destinations"""
+    """Export operations for job run results to various destinations"""
     __tablename__ = "job_exports"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
+    job_run_id = Column(UUID(as_uuid=True), ForeignKey("job_runs.id", ondelete="CASCADE"), nullable=False)
     dest_type = Column(String(15), nullable=False)
     file_type = Column(String(10), nullable=False)
     status = Column(String(20), nullable=False, default='pending')
@@ -308,7 +348,7 @@ class JobExport(Base):
     )
     
     # Relationships
-    job = relationship("ExtractionJob", back_populates="job_exports")
+    job_run = relationship("JobRun", back_populates="job_exports")
 
 class Automation(Base):
     """Automated workflows triggered by external events"""
@@ -338,7 +378,7 @@ class AutomationRun(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     automation_id = Column(UUID(as_uuid=True), ForeignKey("automations.id", ondelete="CASCADE"), nullable=False)
-    job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
+    job_run_id = Column(UUID(as_uuid=True), ForeignKey("job_runs.id", ondelete="CASCADE"), nullable=False)
     status = Column(String(20), nullable=False, default='pending')  # pending, running, completed, failed
     error_message = Column(Text)
     
@@ -354,7 +394,7 @@ class AutomationRun(Base):
     
     # Relationships
     automation = relationship("Automation", back_populates="automation_runs")
-    job = relationship("ExtractionJob", back_populates="automation_runs")
+    job_run = relationship("JobRun", back_populates="automation_runs")
 
 class AutomationProcessedMessage(Base):
     """Track which Gmail messages have been processed by which automations"""

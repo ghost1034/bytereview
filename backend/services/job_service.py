@@ -18,7 +18,7 @@ from models.job import (
     ExtractionTaskResult, JobFileInfo, FileStatus, TaskInfo
 )
 from models.db_models import (
-    ExtractionJob, SourceFile, JobField, ExtractionTask, SourceFileToTask,
+    ExtractionJob, JobRun, SourceFile, JobField, ExtractionTask, SourceFileToTask,
     ExtractionResult, Template, TemplateField
 )
 from core.database import db_config
@@ -51,18 +51,29 @@ class JobService:
         return db_config.get_session()
     
     async def create_job(self, user_id: str, name: str = None) -> str:
-        """Create new job starting at upload step"""
+        """Create new job with initial job run starting at upload step"""
         db = self._get_session()
         try:
+            # Create extraction job
             job = ExtractionJob(
                 user_id=user_id,
                 name=name,
+                last_active_at=datetime.utcnow()
+            )
+            db.add(job)
+            db.flush()  # Get the job ID
+            
+            # Create initial job run
+            initial_run = JobRun(
+                job_id=job.id,
                 config_step='upload',
                 status='pending',
                 last_active_at=datetime.utcnow()
             )
-            db.add(job)
+            db.add(initial_run)
             db.commit()
+            
+            logger.info(f"Created job {job.id} with initial run {initial_run.id}")
             return str(job.id)
         except SQLAlchemyError as e:
             db.rollback()
@@ -71,32 +82,183 @@ class JobService:
         finally:
             db.close()
     
-    async def advance_config_step(self, job_id: str, user_id: str, next_step: str, expected_version: int = None):
-        """Advance wizard step with optimistic locking"""
+    async def create_job_run(self, job_id: str, user_id: str, clone_from_run_id: str = None, template_id: str = None) -> str:
+        """Create a new job run, optionally cloning configuration from an existing run"""
         db = self._get_session()
         try:
-            # Build update query with version check if provided
-            query = update(ExtractionJob).where(
+            # Verify job exists and user has access
+            job = db.query(ExtractionJob).filter(
                 ExtractionJob.id == job_id,
                 ExtractionJob.user_id == user_id
+            ).first()
+            
+            if not job:
+                raise ValueError("Job not found or access denied")
+            
+            # Create new job run
+            new_run = JobRun(
+                job_id=job.id,
+                config_step='upload',
+                status='pending',
+                last_active_at=datetime.utcnow()
             )
             
-            if expected_version is not None:
-                query = query.where(ExtractionJob.version == expected_version)
+            # If template_id is provided, use it
+            if template_id:
+                new_run.template_id = template_id
             
-            result = db.execute(
-                query.values(
+            db.add(new_run)
+            db.flush()  # Get the run ID
+            
+            # Clone field configuration if requested
+            if clone_from_run_id:
+                source_run = db.query(JobRun).filter(
+                    JobRun.id == clone_from_run_id,
+                    JobRun.job_id == job.id  # Ensure same job
+                ).first()
+                
+                if source_run:
+                    # Copy template_id if not already set
+                    if not new_run.template_id:
+                        new_run.template_id = source_run.template_id
+                    
+                    # Clone job fields
+                    source_fields = db.query(JobField).filter(
+                        JobField.job_run_id == source_run.id
+                    ).order_by(JobField.display_order).all()
+                    
+                    for source_field in source_fields:
+                        new_field = JobField(
+                            job_run_id=new_run.id,
+                            field_name=source_field.field_name,
+                            data_type_id=source_field.data_type_id,
+                            ai_prompt=source_field.ai_prompt,
+                            display_order=source_field.display_order
+                        )
+                        db.add(new_field)
+                    
+                    logger.info(f"Cloned {len(source_fields)} fields from run {clone_from_run_id} to new run {new_run.id}")
+            elif not clone_from_run_id:
+                # If no clone source specified, try to clone from latest run
+                latest_run = self._get_latest_run_internal(db, job.id)
+                if latest_run and latest_run.id != new_run.id:
+                    # Copy template_id if not already set
+                    if not new_run.template_id:
+                        new_run.template_id = latest_run.template_id
+                    
+                    # Clone job fields from latest run
+                    latest_fields = db.query(JobField).filter(
+                        JobField.job_run_id == latest_run.id
+                    ).order_by(JobField.display_order).all()
+                    
+                    for source_field in latest_fields:
+                        new_field = JobField(
+                            job_run_id=new_run.id,
+                            field_name=source_field.field_name,
+                            data_type_id=source_field.data_type_id,
+                            ai_prompt=source_field.ai_prompt,
+                            display_order=source_field.display_order
+                        )
+                        db.add(new_field)
+                    
+                    logger.info(f"Auto-cloned {len(latest_fields)} fields from latest run to new run {new_run.id}")
+            
+            db.commit()
+            logger.info(f"Created new job run {new_run.id} for job {job_id}")
+            return str(new_run.id)
+            
+        except SQLAlchemyError as e:
+            db.rollback()
+            logger.error(f"Error creating job run: {e}")
+            raise
+        finally:
+            db.close()
+    
+    def get_latest_run(self, job_id: str, user_id: str) -> Optional[JobRun]:
+        """Get the latest job run for a job"""
+        db = self._get_session()
+        try:
+            # Verify job access first
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id
+            ).first()
+            
+            if not job:
+                return None
+            
+            return self._get_latest_run_internal(db, job.id)
+        finally:
+            db.close()
+    
+    def _get_latest_run_internal(self, db: Session, job_id: str) -> Optional[JobRun]:
+        """Internal helper to get latest run (requires active db session)"""
+        return db.query(JobRun).filter(
+            JobRun.job_id == job_id
+        ).order_by(JobRun.created_at.desc()).first()
+    
+    def get_job_run(self, job_id: str, run_id: str, user_id: str) -> Optional[JobRun]:
+        """Get a specific job run"""
+        db = self._get_session()
+        try:
+            # Verify job access and get run
+            run = db.query(JobRun).join(ExtractionJob).filter(
+                JobRun.id == run_id,
+                JobRun.job_id == job_id,
+                ExtractionJob.user_id == user_id
+            ).first()
+            return run
+        finally:
+            db.close()
+    
+    def get_job_runs(self, job_id: str, user_id: str) -> List[JobRun]:
+        """Get all job runs for a job, ordered by creation date (newest first)"""
+        db = self._get_session()
+        try:
+            # Verify job access first
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id
+            ).first()
+            
+            if not job:
+                return []
+            
+            return db.query(JobRun).filter(
+                JobRun.job_id == job.id
+            ).order_by(JobRun.created_at.desc()).all()
+        finally:
+            db.close()
+
+    async def advance_config_step(self, job_id: str, user_id: str, next_step: str, run_id: str = None):
+        """Advance wizard step for a job run (defaults to latest run)"""
+        db = self._get_session()
+        try:
+            # Get the target run (latest if not specified)
+            if run_id:
+                target_run = self.get_job_run(job_id, run_id, user_id)
+            else:
+                target_run = self.get_latest_run(job_id, user_id)
+            
+            if not target_run:
+                raise ValueError("Job run not found or access denied")
+            
+            # Update the run's config step
+            db.execute(
+                update(JobRun)
+                .where(JobRun.id == target_run.id)
+                .values(
                     config_step=next_step,
-                    version=ExtractionJob.version + 1,
                     last_active_at=datetime.utcnow()
                 )
             )
             
-            if result.rowcount == 0:
-                if expected_version is not None:
-                    raise ValueError("Job was modified by another session")
-                else:
-                    raise ValueError("Job not found or access denied")
+            # Also update the parent job's last_active_at
+            db.execute(
+                update(ExtractionJob)
+                .where(ExtractionJob.id == job_id)
+                .values(last_active_at=datetime.utcnow())
+            )
             
             db.commit()
             
@@ -107,119 +269,52 @@ class JobService:
         finally:
             db.close()
     
-    async def submit_manual_job(self, job_id: str, user_id: str) -> str:
-        """Submit manually configured job for processing"""
-        logger.info(f"submit_manual_job called for job {job_id} by user {user_id}")
+    async def submit_manual_job(self, job_id: str, user_id: str, run_id: str = None) -> str:
+        """Submit manually configured job run for processing"""
+        logger.info(f"submit_manual_job called for job {job_id} by user {user_id}, run_id={run_id}")
         db = self._get_session()
         try:
-            # Get job with related data
-            job = db.query(ExtractionJob).filter(
-                ExtractionJob.id == job_id,
-                ExtractionJob.user_id == user_id
-            ).first()
+            # Get the target run (latest if not specified)
+            if run_id:
+                target_run = self.get_job_run(job_id, run_id, user_id)
+            else:
+                target_run = self.get_latest_run(job_id, user_id)
             
-            if not job:
-                raise ValueError("Job not found")
+            if not target_run:
+                raise ValueError("Job run not found")
             
             # Manual job specific validations
-            if job.config_step == 'submitted':
-                raise ValueError("Job already submitted")
+            if target_run.config_step == 'submitted':
+                raise ValueError("Job run already submitted")
             
-            # Check if job is already running
-            if job.status == 'in_progress':
-                raise ValueError("Job already in progress")
+            # Check if run is already running
+            if target_run.status == 'in_progress':
+                raise ValueError("Job run already in progress")
             
             # Delete any completed extraction tasks to allow re-running
             completed_tasks_deleted = db.query(ExtractionTask).filter(
-                ExtractionTask.job_id == job_id,
+                ExtractionTask.job_run_id == target_run.id,
                 ExtractionTask.status == 'completed'
             ).delete()
             
             if completed_tasks_deleted > 0:
-                logger.info(f"Deleted {completed_tasks_deleted} completed extraction tasks for job {job_id}")
+                logger.info(f"Deleted {completed_tasks_deleted} completed extraction tasks for run {target_run.id}")
             
             # Validate remaining configured tasks
             total_tasks = db.query(ExtractionTask).filter(
-                ExtractionTask.job_id == job_id
+                ExtractionTask.job_run_id == target_run.id
             ).count()
             
             if total_tasks == 0:
                 raise ValueError("No extraction tasks found. Please configure processing modes first.")
             
             # Check plan limits before starting job
-            await self._check_job_plan_limits(db, job_id, user_id)
+            await self._check_job_run_plan_limits(db, target_run.id, user_id)
             
-            # Update job for processing
+            # Update run for processing
             db.execute(
-                update(ExtractionJob)
-                .where(ExtractionJob.id == job_id)
-                .values(
-                    config_step='submitted',
-                    status='in_progress',
-                    tasks_total=total_tasks,
-                    tasks_completed=0,
-                    tasks_failed=0,
-                    last_active_at=datetime.utcnow(),
-                    version=ExtractionJob.version + 1
-                )
-            )
-            
-            db.commit()
-            
-            # Enqueue extraction tasks for processing
-            await self._enqueue_extraction_tasks_for_processing(job_id)
-            
-            logger.info(f"Submitted manual job {job_id} with {total_tasks} extraction tasks")
-            return job_id
-            
-        except SQLAlchemyError as e:
-            db.rollback()
-            logger.error(f"Error submitting manual job: {e}")
-            raise
-        finally:
-            db.close()
-
-    async def submit_automation_job(self, job_id: str, user_id: str, automation_run_id: str) -> str:
-        """Submit automation-triggered job for processing"""
-        logger.info(f"submit_automation_job called for job {job_id} by user {user_id}, automation_run_id={automation_run_id}")
-        db = self._get_session()
-        try:
-            # Get job with related data
-            job = db.query(ExtractionJob).filter(
-                ExtractionJob.id == job_id,
-                ExtractionJob.user_id == user_id
-            ).first()
-            
-            if not job:
-                raise ValueError("Job not found")
-            
-            # Check if job is already running
-            if job.status == 'in_progress':
-                logger.warning(f"Job {job_id} already in progress")
-                from services.automation_service import automation_service
-                await automation_service.update_automation_run_status(
-                    db, automation_run_id, 'failed', 'Job already in progress'
-                )
-                raise ValueError("Job already in progress")
-            
-            # Automation flow: clear existing data and create new tasks
-            await self._prepare_job_for_automation(db, job_id)
-            
-            # Count tasks after preparation
-            total_tasks = db.query(ExtractionTask).filter(
-                ExtractionTask.job_id == job_id
-            ).count()
-            
-            if total_tasks == 0:
-                raise ValueError("No tasks available for processing")
-            
-            # Check plan limits before starting job
-            await self._check_job_plan_limits(db, job_id, user_id)
-            
-            # Update job for processing
-            db.execute(
-                update(ExtractionJob)
-                .where(ExtractionJob.id == job_id)
+                update(JobRun)
+                .where(JobRun.id == target_run.id)
                 .values(
                     config_step='submitted',
                     status='in_progress',
@@ -228,6 +323,86 @@ class JobService:
                     tasks_failed=0,
                     last_active_at=datetime.utcnow()
                 )
+            )
+            
+            # Update parent job last_active_at
+            db.execute(
+                update(ExtractionJob)
+                .where(ExtractionJob.id == job_id)
+                .values(last_active_at=datetime.utcnow())
+            )
+            
+            db.commit()
+            
+            # Enqueue extraction tasks for processing
+            await self._enqueue_extraction_tasks_for_processing(target_run.id)
+            
+            logger.info(f"Submitted manual job run {target_run.id} with {total_tasks} extraction tasks")
+            return str(target_run.id)
+            
+        except SQLAlchemyError as e:
+            db.rollback()
+            logger.error(f"Error submitting manual job: {e}")
+            raise
+        finally:
+            db.close()
+
+    async def submit_automation_job_run(self, job_run_id: str, user_id: str, automation_run_id: str) -> str:
+        """Submit automation-triggered job run for processing"""
+        logger.info(f"submit_automation_job_run called for job run {job_run_id} by user {user_id}, automation_run_id={automation_run_id}")
+        db = self._get_session()
+        try:
+            # Get the job run and verify access
+            job_run = db.query(JobRun).join(ExtractionJob).filter(
+                JobRun.id == job_run_id,
+                ExtractionJob.user_id == user_id
+            ).first()
+            
+            if not job_run:
+                raise ValueError("Job run not found or access denied")
+            
+            # Check if run is already running
+            if job_run.status == 'in_progress':
+                logger.warning(f"Job run {job_run_id} already in progress")
+                from services.automation_service import automation_service
+                await automation_service.update_automation_run_status(
+                    db, automation_run_id, 'failed', 'Job run already in progress'
+                )
+                raise ValueError("Job run already in progress")
+            
+            # Create extraction tasks for all imported files in this job run
+            await self._create_extraction_tasks_for_automation_run(db, job_run_id)
+            
+            # Count tasks after creation
+            total_tasks = db.query(ExtractionTask).filter(
+                ExtractionTask.job_run_id == job_run_id
+            ).count()
+            
+            if total_tasks == 0:
+                raise ValueError("No tasks available for processing")
+            
+            # Check plan limits before starting job run
+            await self._check_job_run_plan_limits(db, job_run_id, user_id)
+            
+            # Update job run for processing
+            db.execute(
+                update(JobRun)
+                .where(JobRun.id == job_run_id)
+                .values(
+                    config_step='submitted',
+                    status='in_progress',
+                    tasks_total=total_tasks,
+                    tasks_completed=0,
+                    tasks_failed=0,
+                    last_active_at=datetime.utcnow()
+                )
+            )
+            
+            # Update parent job's last_active_at
+            db.execute(
+                update(ExtractionJob)
+                .where(ExtractionJob.id == job_run.job_id)
+                .values(last_active_at=datetime.utcnow())
             )
             
             db.commit()
@@ -239,14 +414,14 @@ class JobService:
             )
             
             # Enqueue extraction tasks for processing
-            await self._enqueue_extraction_tasks_for_processing(job_id, automation_run_id)
+            await self._enqueue_extraction_tasks_for_processing(job_run_id, automation_run_id)
             
-            logger.info(f"Submitted automation job {job_id} with {total_tasks} extraction tasks")
-            return job_id
+            logger.info(f"Submitted automation job run {job_run_id} with {total_tasks} extraction tasks")
+            return job_run_id
             
         except Exception as e:
             db.rollback()
-            logger.error(f"Error submitting automation job: {e}")
+            logger.error(f"Error submitting automation job run: {e}")
             
             # Update automation run status on failure
             try:
@@ -263,36 +438,33 @@ class JobService:
 
 
 
-    async def _prepare_job_for_automation(self, db: Session, job_id: str) -> None:
-        """Prepare job for automation run by creating new tasks"""
-        logger.info(f"Preparing job {job_id} for automation run")
+    async def _create_extraction_tasks_for_automation_run(self, db: Session, job_run_id: str) -> None:
+        """Create extraction tasks for all imported files in an automation job run"""
+        from models.db_models import Automation, AutomationRun
         
-        # Note: Job data clearing is now handled in worker.py before calling this method
-        # Create extraction tasks for all uploaded source files
-        await self._create_extraction_tasks_for_automation(db, job_id)
-
-    async def _create_extraction_tasks_for_automation(self, db: Session, job_id: str) -> None:
-        """Create extraction tasks for all uploaded source files in an automation job"""
-        from models.db_models import Automation
-        
-        # Get the automation to determine processing mode
-        automation = db.query(Automation).filter(Automation.job_id == job_id).first()
+        # Get the automation run and related automation to determine processing mode
+        automation_run = db.query(AutomationRun).filter(AutomationRun.job_run_id == job_run_id).first()
+        if not automation_run:
+            logger.error(f"No automation run found for job run {job_run_id}")
+            return
+            
+        automation = db.query(Automation).filter(Automation.id == automation_run.automation_id).first()
         if not automation:
-            logger.error(f"No automation found for job {job_id}")
+            logger.error(f"No automation found for automation run {automation_run.id}")
             return
         
         processing_mode = automation.processing_mode
-        logger.info(f"Creating extraction tasks for automation job {job_id} with processing mode: {processing_mode}")
+        logger.info(f"Creating extraction tasks for job run {job_run_id} with processing mode: {processing_mode}")
         
-        # Get all source files for this job
-        source_files_query = db.query(SourceFile).filter(SourceFile.job_id == job_id)
+        # Get all source files for this job run
+        source_files_query = db.query(SourceFile).filter(SourceFile.job_run_id == job_run_id)
         
         # Filter to processable files only using existing method
         processable_files_query = self._filter_processable_files(source_files_query)
         processable_files = processable_files_query.all()
         
         if not processable_files:
-            logger.info(f"No processable source files found for automation job {job_id}")
+            logger.info(f"No processable source files found for job run {job_run_id}")
             return
         
         import uuid
@@ -305,7 +477,7 @@ class JobService:
             for source_file in processable_files:
                 extraction_task = ExtractionTask(
                     id=str(uuid.uuid4()),
-                    job_id=job_id,
+                    job_run_id=job_run_id,
                     processing_mode='individual',
                     status='pending'
                 )
@@ -332,7 +504,7 @@ class JobService:
             for folder_path, folder_files in files_by_folder.items():
                 extraction_task = ExtractionTask(
                     id=str(uuid.uuid4()),
-                    job_id=job_id,
+                    job_run_id=job_run_id,
                     processing_mode='combined',
                     status='pending'
                 )
@@ -351,7 +523,7 @@ class JobService:
                 logger.info(f"Created combined extraction task {extraction_task.id} for folder '{folder_path}' with {len(folder_files)} files")
         
         db.commit()
-        logger.info(f"Created {tasks_created} extraction tasks for automation job {job_id} using {processing_mode} mode")
+        logger.info(f"Created {tasks_created} extraction tasks for job run {job_run_id} using {processing_mode} mode")
 
     def _group_files_by_folder(self, source_files: List) -> Dict[str, List]:
         """
@@ -366,24 +538,24 @@ class JobService:
             files_by_folder[folder_path].append(file)
         return files_by_folder
 
-    async def _check_job_plan_limits(self, db: Session, job_id: str, user_id: str) -> None:
-        """Check if starting this job would exceed plan limits (job-start cap)"""
+    async def _check_job_run_plan_limits(self, db: Session, run_id: str, user_id: str) -> None:
+        """Check if starting this job run would exceed plan limits"""
         try:
             from services.billing_service import get_billing_service
             from models.db_models import SourceFileToTask
             
-            # Calculate total pages for this job (only files with page_count set)
+            # Calculate total pages for this job run (only files with page_count set)
             total_pages = db.query(func.sum(SourceFile.page_count)).join(
                 SourceFileToTask, SourceFile.id == SourceFileToTask.source_file_id
             ).join(
                 ExtractionTask, SourceFileToTask.task_id == ExtractionTask.id
             ).filter(
-                ExtractionTask.job_id == job_id,
+                ExtractionTask.job_run_id == run_id,
                 SourceFile.page_count.isnot(None)
             ).scalar() or 0
             
             if total_pages <= 0:
-                logger.info(f"No pages to process for job {job_id}")
+                logger.info(f"No pages to process for job run {run_id}")
                 return
             
             # Check limits through billing service
@@ -407,31 +579,31 @@ class JobService:
                     # For paid plans, this shouldn't happen since they allow overage
                     logger.warning(f"Paid user {user_id} hitting page limit check - this shouldn't normally happen")
             
-            logger.info(f"Job {job_id} plan limits check passed: {total_pages} pages for user {user_id}")
+            logger.info(f"Job run {run_id} plan limits check passed: {total_pages} pages for user {user_id}")
             
         except ValueError:
             # Re-raise plan limit errors
             raise
         except Exception as e:
-            logger.error(f"Error checking job plan limits for job {job_id}: {e}")
+            logger.error(f"Error checking job run plan limits for run {run_id}: {e}")
             # Default to allowing processing if we can't check limits
             logger.warning("Allowing job to start due to limit check failure")
 
-    async def _enqueue_extraction_tasks_for_processing(self, job_id: str, automation_run_id: str = None) -> None:
+    async def _enqueue_extraction_tasks_for_processing(self, run_id: str, automation_run_id: str = None) -> None:
         """Enqueue extraction tasks for background processing"""
         try:
             # Get Redis connection
             redis = await create_pool(self.redis_settings)
             
-            # Get all pending tasks for this job
+            # Get all pending tasks for this job run
             db = self._get_session()
             try:
                 tasks = db.query(ExtractionTask).filter(
-                    ExtractionTask.job_id == job_id,
+                    ExtractionTask.job_run_id == run_id,
                     ExtractionTask.status == 'pending'
                 ).all()
                 
-                logger.info(f"Found {len(tasks)} pending extraction tasks for job {job_id}")
+                logger.info(f"Found {len(tasks)} pending extraction tasks for job run {run_id}")
                 
                 # Enqueue each task
                 for task in tasks:
@@ -443,68 +615,75 @@ class JobService:
                     )
                     logger.info(f"Enqueued extraction task {task.id} as job {job_info.job_id}")
                 
-                logger.info(f"Enqueued {len(tasks)} extraction tasks for job {job_id}")
+                logger.info(f"Enqueued {len(tasks)} extraction tasks for job run {run_id}")
                 
             finally:
                 db.close()
                 await redis.close()
                 
         except Exception as e:
-            logger.error(f"Failed to enqueue tasks for job {job_id}: {e}")
-            # Don't raise - job is still valid, tasks can be retried later
+            logger.error(f"Failed to enqueue tasks for job run {run_id}: {e}")
+            # Don't raise - job run is still valid, tasks can be retried later
     
-    async def increment_task_completion(self, job_id: str, success: bool = True, automation_run_id: str = None):
-        """Atomically update task progress from workers"""
+    async def increment_task_completion(self, run_id: str, success: bool = True, automation_run_id: str = None):
+        """Atomically update task progress from workers for a specific job run"""
         db = self._get_session()
         try:
             if success:
                 db.execute(
-                    update(ExtractionJob)
-                    .where(ExtractionJob.id == job_id)
+                    update(JobRun)
+                    .where(JobRun.id == run_id)
                     .values(
-                        tasks_completed=ExtractionJob.tasks_completed + 1,
+                        tasks_completed=JobRun.tasks_completed + 1,
                         last_active_at=datetime.utcnow()
                     )
                 )
             else:
                 db.execute(
-                    update(ExtractionJob)
-                    .where(ExtractionJob.id == job_id)
+                    update(JobRun)
+                    .where(JobRun.id == run_id)
                     .values(
-                        tasks_failed=ExtractionJob.tasks_failed + 1,
+                        tasks_failed=JobRun.tasks_failed + 1,
                         last_active_at=datetime.utcnow()
                     )
                 )
             
-            # Check if job is complete and send SSE events
-            job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
-            if job and job.tasks_completed + job.tasks_failed >= job.tasks_total:
-                final_status = 'completed' if job.tasks_failed == 0 else 'partially_completed'
+            # Check if job run is complete and send SSE events
+            job_run = db.query(JobRun).filter(JobRun.id == run_id).first()
+            if job_run and job_run.tasks_completed + job_run.tasks_failed >= job_run.tasks_total:
+                final_status = 'completed' if job_run.tasks_failed == 0 else 'partially_completed'
                 db.execute(
-                    update(ExtractionJob)
-                    .where(ExtractionJob.id == job_id)
+                    update(JobRun)
+                    .where(JobRun.id == run_id)
                     .values(
                         status=final_status,
                         completed_at=datetime.utcnow() if final_status == 'completed' else None
                     )
                 )
                 
+                # Update parent job's last_active_at
+                db.execute(
+                    update(ExtractionJob)
+                    .where(ExtractionJob.id == job_run.job_id)
+                    .values(last_active_at=datetime.utcnow())
+                )
+                
                 # Send job completion SSE event
                 try:
                     from services.sse_service import sse_manager
-                    await sse_manager.send_job_completed(job_id)
-                    logger.info(f"Job {job_id} completed - sent SSE event")
+                    await sse_manager.send_job_run_completed(str(job_run.job_id), run_id)
+                    logger.info(f"Job run {run_id} completed - sent SSE event")
                 except Exception as e:
-                    logger.warning(f"Failed to send job_completed SSE event: {e}")
+                    logger.warning(f"Failed to send job_run_completed SSE event: {e}")
                 
-                # Handle automation completion and exports when job finishes
+                # Handle automation completion and exports when job run finishes
                 if final_status == 'completed':
                     try:
-                        # Check if this job completion should trigger automation exports
-                        await self._trigger_automation_exports_if_needed(db, job_id, automation_run_id)
+                        # Check if this job run completion should trigger automation exports
+                        await self._trigger_automation_exports_if_needed(db, str(job_run.job_id), automation_run_id)
                         # Then complete automation runs (this will be handled by export completion)
                     except Exception as e:
-                        logger.error(f"Failed to handle automation completion for job {job_id}: {e}")
+                        logger.error(f"Failed to handle automation completion for job run {run_id}: {e}")
             
             db.commit()
             
@@ -515,21 +694,21 @@ class JobService:
         finally:
             db.close()
     
-    async def _complete_automation_runs_for_job(self, db: Session, job_id: str):
+    async def _complete_automation_runs_for_job_run(self, db: Session, job_run_id: str):
         """
-        Mark all running automation runs as completed when a job finishes
+        Mark all running automation runs as completed when a job run finishes
         This is called from increment_task_completion when all tasks are done
         """
         from models.db_models import AutomationRun
         
-        # Find all running automation runs for this job
+        # Find all running automation runs for this job run
         running_automation_runs = db.query(AutomationRun).filter(
-            AutomationRun.job_id == job_id,
+            AutomationRun.job_run_id == job_run_id,
             AutomationRun.status == 'running'
         ).all()
         
         if not running_automation_runs:
-            logger.info(f"No running automation runs found for completed job {job_id}")
+            logger.info(f"No running automation runs found for completed job run {job_run_id}")
             return
         
         # Mark all running automation runs as completed
@@ -538,9 +717,9 @@ class JobService:
             await automation_service.update_automation_run_status(
                 db, str(automation_run.id), 'completed'
             )
-            logger.info(f"Marked automation run {automation_run.id} as completed (job {job_id} finished)")
+            logger.info(f"Marked automation run {automation_run.id} as completed (job run {job_run_id} finished)")
         
-        logger.info(f"Completed {len(running_automation_runs)} automation runs for job {job_id}")
+        logger.info(f"Completed {len(running_automation_runs)} automation runs for job run {job_run_id}")
     
     async def _trigger_automation_exports_if_needed(self, db: Session, job_id: str, automation_run_id: str = None):
         """
@@ -588,18 +767,23 @@ class JobService:
                     
             else:
                 # Fallback: Find running automation runs for this job (for manual jobs or legacy)
+                # Note: This uses job_id for legacy compatibility, but in practice automation_run_id should always be provided
                 automation_runs = db.query(AutomationRun).join(
                     Automation, AutomationRun.automation_id == Automation.id
+                ).join(
+                    JobRun, AutomationRun.job_run_id == JobRun.id
                 ).filter(
-                    AutomationRun.job_id == job_id,
+                    JobRun.job_id == job_id,
                     AutomationRun.status == 'running',
                     Automation.dest_type.isnot(None)  # Has export destination configured
                 ).all()
                 
                 if not automation_runs:
                     logger.info(f"No running automation runs with exports found for job {job_id}")
-                    # If no exports needed, complete automation runs normally
-                    await self._complete_automation_runs_for_job(db, job_id)
+                    # If no exports needed, complete automation runs normally - need to find job runs
+                    job_runs = db.query(JobRun).filter(JobRun.job_id == job_id).all()
+                    for job_run in job_runs:
+                        await self._complete_automation_runs_for_job_run(db, str(job_run.id))
                     return
                 
                 for automation_run in automation_runs:
@@ -627,8 +811,10 @@ class JobService:
                     db, automation_run_id, 'failed', f'Export trigger failed: {str(e)}'
                 )
             else:
-                # Complete automation runs normally as fallback
-                await self._complete_automation_runs_for_job(db, job_id)
+                # Complete automation runs normally as fallback - need to find job runs
+                job_runs = db.query(JobRun).filter(JobRun.job_id == job_id).all()
+                for job_run in job_runs:
+                    await self._complete_automation_runs_for_job_run(db, str(job_run.id))
     
     async def _enqueue_drive_export(self, automation_run, automation):
         """
@@ -669,18 +855,32 @@ class JobService:
     
     
     def get_resumable_jobs(self, user_id: str) -> list[ExtractionJob]:
-        """Get all jobs user can resume (wizard incomplete OR processing incomplete/failed)"""
+        """Get all jobs user can resume based on latest run status"""
         db = self._get_session()
         try:
-            return db.query(ExtractionJob).filter(
+            # Create subquery for latest run per job
+            latest_runs_subquery = db.query(
+                JobRun.job_id,
+                func.max(JobRun.created_at).label('latest_created_at')
+            ).group_by(JobRun.job_id).subquery()
+            
+            # Get jobs where latest run is resumable
+            return db.query(ExtractionJob).join(
+                latest_runs_subquery, ExtractionJob.id == latest_runs_subquery.c.job_id
+            ).join(
+                JobRun, and_(
+                    JobRun.job_id == ExtractionJob.id,
+                    JobRun.created_at == latest_runs_subquery.c.latest_created_at
+                )
+            ).filter(
                 ExtractionJob.user_id == user_id,
                 or_(
                     # Wizard not complete
-                    ExtractionJob.config_step != 'submitted',
+                    JobRun.config_step != 'submitted',
                     # Processing incomplete/failed with remaining tasks
                     and_(
-                        ExtractionJob.status.in_(['in_progress', 'partially_completed', 'failed']),
-                        ExtractionJob.tasks_completed < ExtractionJob.tasks_total
+                        JobRun.status.in_(['in_progress', 'partially_completed', 'failed']),
+                        JobRun.tasks_completed < JobRun.tasks_total
                     )
                 )
             ).order_by(ExtractionJob.last_active_at.desc()).all()
@@ -691,17 +891,31 @@ class JobService:
             db.close()
     
     def get_active_jobs(self, user_id: str) -> list[ExtractionJob]:
-        """Get completed or fully processed jobs"""
+        """Get completed or fully processed jobs based on latest run status"""
         db = self._get_session()
         try:
-            return db.query(ExtractionJob).filter(
+            # Create subquery for latest run per job
+            latest_runs_subquery = db.query(
+                JobRun.job_id,
+                func.max(JobRun.created_at).label('latest_created_at')
+            ).group_by(JobRun.job_id).subquery()
+            
+            # Get jobs where latest run is completed/active
+            return db.query(ExtractionJob).join(
+                latest_runs_subquery, ExtractionJob.id == latest_runs_subquery.c.job_id
+            ).join(
+                JobRun, and_(
+                    JobRun.job_id == ExtractionJob.id,
+                    JobRun.created_at == latest_runs_subquery.c.latest_created_at
+                )
+            ).filter(
                 ExtractionJob.user_id == user_id,
-                ExtractionJob.config_step == 'submitted',
+                JobRun.config_step == 'submitted',
                 or_(
-                    ExtractionJob.status.in_(['completed', 'cancelled']),
+                    JobRun.status.in_(['completed', 'cancelled']),
                     and_(
-                        ExtractionJob.status == 'in_progress',
-                        ExtractionJob.tasks_completed >= ExtractionJob.tasks_total
+                        JobRun.status == 'in_progress',
+                        JobRun.tasks_completed >= JobRun.tasks_total
                     )
                 )
             ).order_by(ExtractionJob.created_at.desc()).all()
@@ -712,18 +926,18 @@ class JobService:
             db.close()
     
     async def cleanup_old_jobs(self):
-        """Mark old jobs for deletion instead of immediate delete"""
+        """Mark old job runs for deletion instead of immediate delete"""
         db = self._get_session()
         try:
             thirty_days_ago = datetime.utcnow() - timedelta(days=30)
             
-            # Mark abandoned wizard jobs as cancelled
-            await db.execute(
-                update(ExtractionJob)
+            # Mark abandoned wizard job runs as cancelled
+            db.execute(
+                update(JobRun)
                 .where(
-                    ExtractionJob.config_step != 'submitted',
-                    ExtractionJob.last_active_at < thirty_days_ago,
-                    ExtractionJob.status != 'cancelled'
+                    JobRun.config_step != 'submitted',
+                    JobRun.last_active_at < thirty_days_ago,
+                    JobRun.status != 'cancelled'
                 )
                 .values(
                     status='cancelled',
@@ -731,36 +945,56 @@ class JobService:
                 )
             )
             
+            # Also update parent jobs' last_active_at for cleanup tracking
+            db.execute(
+                update(ExtractionJob)
+                .where(
+                    ExtractionJob.id.in_(
+                        db.query(JobRun.job_id).filter(
+                            JobRun.config_step != 'submitted',
+                            JobRun.last_active_at < thirty_days_ago,
+                            JobRun.status == 'cancelled'
+                        )
+                    )
+                )
+                .values(last_active_at=datetime.utcnow())
+            )
+            
             db.commit()
-            logger.info("Marked old jobs for cleanup")
+            logger.info("Marked old job runs for cleanup")
             
         except SQLAlchemyError as e:
             db.rollback()
-            logger.error(f"Error during job cleanup: {e}")
+            logger.error(f"Error during job run cleanup: {e}")
             raise
         finally:
             db.close()
     
-    async def broadcast_workflow_progress(self, job_id: str, user_id: str):
-        """Broadcast workflow progress update via SSE"""
+    async def broadcast_workflow_progress(self, job_id: str, user_id: str, run_id: str = None):
+        """Broadcast workflow progress update via SSE for latest job run"""
         try:
             from services.sse_service import sse_manager
             
-            # Get current job state
+            # Get current job run state
             db = self._get_session()
             try:
-                job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
-                if job:
+                # Get the target run (latest if not specified)
+                if run_id:
+                    target_run = self.get_job_run(job_id, run_id, user_id)
+                else:
+                    target_run = self.get_latest_run(job_id, user_id)
+                
+                if target_run:
                     await sse_manager.send_workflow_progress(job_id, {
-                        'config_step': job.config_step,
-                        'status': job.status,
-                        'progress_percentage': job.progress_percentage,
-                        'tasks_completed': job.tasks_completed,
-                        'tasks_total': job.tasks_total,
-                        'tasks_failed': job.tasks_failed,
-                        'is_resumable': job.is_resumable,
-                        'last_active_at': job.last_active_at.isoformat(),
-                        'version': job.version
+                        'config_step': target_run.config_step,
+                        'status': target_run.status,
+                        'progress_percentage': target_run.progress_percentage,
+                        'tasks_completed': target_run.tasks_completed,
+                        'tasks_total': target_run.tasks_total,
+                        'tasks_failed': target_run.tasks_failed,
+                        'is_resumable': target_run.is_resumable,
+                        'last_active_at': target_run.last_active_at.isoformat(),
+                        'run_id': str(target_run.id)
                     })
             finally:
                 db.close()
@@ -768,30 +1002,41 @@ class JobService:
         except Exception as e:
             logger.warning(f"Failed to broadcast workflow progress for job {job_id}: {e}")
     
-    async def cancel_job(self, job_id: str, user_id: str):
-        """Cancel job (soft delete)"""
+    async def cancel_job(self, job_id: str, user_id: str, run_id: str = None):
+        """Cancel job run (soft delete)"""
         db = self._get_session()
         try:
-            result = await db.execute(
-                update(ExtractionJob)
-                .where(
-                    ExtractionJob.id == job_id,
-                    ExtractionJob.user_id == user_id
-                )
+            # Get the target run (latest if not specified)
+            if run_id:
+                target_run = self.get_job_run(job_id, run_id, user_id)
+            else:
+                target_run = self.get_latest_run(job_id, user_id)
+            
+            if not target_run:
+                raise ValueError("Job run not found or access denied")
+            
+            # Cancel the job run
+            db.execute(
+                update(JobRun)
+                .where(JobRun.id == target_run.id)
                 .values(
                     status='cancelled',
                     last_active_at=datetime.utcnow()
                 )
             )
             
-            if result.rowcount == 0:
-                raise ValueError("Job not found or access denied")
+            # Update parent job's last_active_at
+            db.execute(
+                update(ExtractionJob)
+                .where(ExtractionJob.id == job_id)
+                .values(last_active_at=datetime.utcnow())
+            )
             
             db.commit()
             
         except SQLAlchemyError as e:
             db.rollback()
-            logger.error(f"Error cancelling job: {e}")
+            logger.error(f"Error cancelling job run: {e}")
             raise
         finally:
             db.close()
@@ -830,12 +1075,19 @@ class JobService:
             # Create extraction job
             job = ExtractionJob(
                 user_id=user_id,
-                name=request.name,  # Set the job name from request
-                status='pending',  # Start with pending status
-                config_step='upload'  # Start at upload step
+                name=request.name  # Set the job name from request
             )
             db.add(job)
             db.flush()  # Get the job ID
+            
+            # Create initial job run
+            initial_run = JobRun(
+                job_id=job.id,
+                status='pending',  # Start with pending status
+                config_step='upload'  # Start at upload step
+            )
+            db.add(initial_run)
+            db.flush()  # Get the run ID
             
             job_id = str(job.id)
             upload_responses = []
@@ -851,7 +1103,7 @@ class JobService:
                 
                 # Create source file record
                 source_file = SourceFile(
-                    job_id=job.id,
+                    job_run_id=initial_run.id,
                     original_filename=file_info.filename,
                     original_path=normalized_path,
                     gcs_object_name=gcs_object_name,
@@ -887,10 +1139,10 @@ class JobService:
         finally:
             db.close()
 
-    async def _create_extraction_tasks(self, db: Session, job_id: uuid.UUID, task_definitions: List) -> None:
-        """Create extraction tasks based on task definitions"""
-        # Get all source files for this job
-        source_files = db.query(SourceFile).filter(SourceFile.job_id == job_id).all()
+    async def _create_extraction_tasks(self, db: Session, job_run_id: uuid.UUID, task_definitions: List) -> None:
+        """Create extraction tasks based on task definitions for a job run"""
+        # Get all source files for this job run
+        source_files = db.query(SourceFile).filter(SourceFile.job_run_id == job_run_id).all()
         
         # Group files by their folder paths using shared logic
         files_by_path = self._group_files_by_folder(source_files)
@@ -913,7 +1165,7 @@ class JobService:
                 # Create one task per file
                 for file in matching_files:
                     task = ExtractionTask(
-                        job_id=job_id,
+                        job_run_id=job_run_id,
                         processing_mode=task_def.mode.value,
                         status='pending'
                     )
@@ -930,7 +1182,7 @@ class JobService:
             elif task_def.mode == ProcessingMode.COMBINED:
                 # Create one task for all files in this path
                 task = ExtractionTask(
-                    job_id=job_id,
+                    job_run_id=job_run_id,
                     processing_mode=task_def.mode.value,
                     status='pending'
                 )
@@ -945,17 +1197,17 @@ class JobService:
                     )
                     db.add(file_to_task)
 
-    async def _enqueue_extraction_tasks(self, job_id: uuid.UUID) -> None:
+    async def _enqueue_extraction_tasks(self, job_run_id: uuid.UUID) -> None:
         """Enqueue extraction tasks for background processing"""
         try:
             # Get Redis connection
             redis = await create_pool(self.redis_settings)
             
-            # Get all pending tasks for this job
+            # Get all pending tasks for this job run
             db = self._get_session()
             try:
                 tasks = db.query(ExtractionTask).filter(
-                    ExtractionTask.job_id == job_id,
+                    ExtractionTask.job_run_id == job_run_id,
                     ExtractionTask.status == 'pending'
                 ).all()
                 
@@ -968,31 +1220,32 @@ class JobService:
                     )
                     logger.info(f"Enqueued extraction task {task.id} as job {job_info.job_id}")
                 
-                logger.info(f"Enqueued {len(tasks)} extraction tasks for job {job_id}")
+                logger.info(f"Enqueued {len(tasks)} extraction tasks for job run {job_run_id}")
                 
             finally:
                 db.close()
                 await redis.close()
                 
         except Exception as e:
-            logger.error(f"Failed to enqueue tasks for job {job_id}: {e}")
-            # Don't raise - job is still valid, tasks can be retried later
+            logger.error(f"Failed to enqueue tasks for job run {job_run_id}: {e}")
+            # Don't raise - job run is still valid, tasks can be retried later
             
-    async def get_job_details(self, user_id: str, job_id: str) -> JobDetailsResponse:
-        """Get detailed job information"""
+    async def get_job_details(self, user_id: str, job_id: str, run_id: str = None) -> JobDetailsResponse:
+        """Get detailed job run information"""
         db = self._get_session()
         try:
-            job = db.query(ExtractionJob).filter(
-                ExtractionJob.id == job_id,
-                ExtractionJob.user_id == user_id
-            ).first()
+            # Get the target run (latest if not specified)
+            if run_id:
+                target_run = self.get_job_run(job_id, run_id, user_id)
+            else:
+                target_run = self.get_latest_run(job_id, user_id)
             
-            if not job:
-                raise ValueError(f"Job {job_id} not found")
+            if not target_run:
+                raise ValueError(f"Job run not found")
             
-            # Get job fields
+            # Get job fields for this run
             job_fields = db.query(JobField).filter(
-                JobField.job_id == job.id
+                JobField.job_run_id == target_run.id
             ).order_by(JobField.display_order).all()
             
             field_info = [
@@ -1007,7 +1260,7 @@ class JobService:
             
             # Get extraction tasks for processing mode display
             extraction_tasks = db.query(ExtractionTask).filter(
-                ExtractionTask.job_id == job.id
+                ExtractionTask.job_run_id == target_run.id
             ).all()
             
             # Build task definitions by grouping files by folder and processing mode
@@ -1040,15 +1293,18 @@ class JobService:
                 for (folder_path, processing_mode), file_count in folder_mode_files.items()
             ]
             
+            # Get parent job for name and creation date
+            parent_job = db.query(ExtractionJob).filter(ExtractionJob.id == target_run.job_id).first()
+            
             return JobDetailsResponse(
-                id=str(job.id),
-                name=job.name,
-                status=JobStatus(job.status),
-                persist_data=job.persist_data,
-                created_at=job.created_at,
-                completed_at=job.completed_at,
+                id=str(target_run.job_id),  # Return job ID for API compatibility
+                name=parent_job.name if parent_job else None,
+                status=JobStatus(target_run.status),
+                persist_data=target_run.persist_data,
+                created_at=target_run.created_at,
+                completed_at=target_run.completed_at,
                 job_fields=field_info,
-                template_id=str(job.template_id) if job.template_id else None,
+                template_id=str(target_run.template_id) if target_run.template_id else None,
                 extraction_tasks=unique_task_definitions
             )
             
@@ -1059,20 +1315,37 @@ class JobService:
             db.close()
 
     async def list_user_jobs(self, user_id: str, limit: int = 25, offset: int = 0, include_field_status: bool = False) -> JobListResponse:
-        """List jobs for a user with pagination"""
+        """List jobs for a user with pagination, showing latest run status"""
         db = self._get_session()
         try:
             # Get total count
             total = db.query(ExtractionJob).filter(ExtractionJob.user_id == user_id).count()
             
+            # Create subquery for latest run per job
+            latest_runs_subquery = db.query(
+                JobRun.job_id,
+                func.max(JobRun.created_at).label('latest_created_at')
+            ).group_by(JobRun.job_id).subquery()
+            
             if include_field_status:
-                # Get jobs with field counts
+                # Get jobs with latest run data and field counts
                 jobs_query = db.query(
                     ExtractionJob,
+                    JobRun.status.label('latest_status'),
+                    JobRun.config_step.label('latest_config_step'),
                     func.count(JobField.id).label('field_count')
-                ).outerjoin(JobField).filter(
+                ).join(
+                    latest_runs_subquery, ExtractionJob.id == latest_runs_subquery.c.job_id
+                ).join(
+                    JobRun, and_(
+                        JobRun.job_id == ExtractionJob.id,
+                        JobRun.created_at == latest_runs_subquery.c.latest_created_at
+                    )
+                ).outerjoin(JobField, JobField.job_run_id == JobRun.id).filter(
                     ExtractionJob.user_id == user_id
-                ).group_by(ExtractionJob.id).order_by(
+                ).group_by(
+                    ExtractionJob.id, JobRun.status, JobRun.config_step
+                ).order_by(
                     ExtractionJob.created_at.desc()
                 ).limit(limit).offset(offset)
                 
@@ -1082,32 +1355,43 @@ class JobService:
                     JobListItem(
                         id=str(job.id),
                         name=job.name,
-                        status=JobStatus(job.status),
-                        config_step=job.config_step,
+                        status=JobStatus(latest_status),
+                        config_step=latest_config_step,
                         created_at=job.created_at,
                         has_configured_fields=(field_count or 0) > 0
                     )
-                    for job, field_count in jobs_with_counts
+                    for job, latest_status, latest_config_step, field_count in jobs_with_counts
                 ]
             else:
-                # Get jobs only (no counts needed)
-                jobs_query = db.query(ExtractionJob).filter(
+                # Get jobs with latest run data only
+                jobs_query = db.query(
+                    ExtractionJob,
+                    JobRun.status.label('latest_status'),
+                    JobRun.config_step.label('latest_config_step')
+                ).join(
+                    latest_runs_subquery, ExtractionJob.id == latest_runs_subquery.c.job_id
+                ).join(
+                    JobRun, and_(
+                        JobRun.job_id == ExtractionJob.id,
+                        JobRun.created_at == latest_runs_subquery.c.latest_created_at
+                    )
+                ).filter(
                     ExtractionJob.user_id == user_id
                 ).order_by(
                     ExtractionJob.created_at.desc()
                 ).limit(limit).offset(offset)
                 
-                jobs = jobs_query.all()
+                jobs_with_runs = jobs_query.all()
                 
                 job_items = [
                     JobListItem(
                         id=str(job.id),
                         name=job.name,
-                        status=JobStatus(job.status),
-                        config_step=job.config_step,
+                        status=JobStatus(latest_status),
+                        config_step=latest_config_step,
                         created_at=job.created_at
                     )
-                    for job in jobs
+                    for job, latest_status, latest_config_step in jobs_with_runs
                 ]
             
             return JobListResponse(
@@ -1121,22 +1405,22 @@ class JobService:
         finally:
             db.close()
 
-    async def get_job_progress(self, user_id: str, job_id: str) -> JobProgressResponse:
-        """Get job progress information"""
+    async def get_job_progress(self, user_id: str, job_id: str, run_id: str = None) -> JobProgressResponse:
+        """Get job run progress information"""
         db = self._get_session()
         try:
-            job = db.query(ExtractionJob).filter(
-                ExtractionJob.id == job_id,
-                ExtractionJob.user_id == user_id
-            ).first()
+            # Get the target run (latest if not specified)
+            if run_id:
+                target_run = self.get_job_run(job_id, run_id, user_id)
+            else:
+                target_run = self.get_latest_run(job_id, user_id)
             
-            if not job:
-                raise ValueError(f"Job {job_id} not found")
+            if not target_run:
+                raise ValueError(f"Job run not found")
             
-            # Get all tasks with their status
-            # Get all tasks with their status
+            # Get all tasks with their status for this job run
             tasks = db.query(ExtractionTask).filter(
-                ExtractionTask.job_id == job.id
+                ExtractionTask.job_run_id == target_run.id
             ).all()
             
             # Debug: Print what we're reading from database
@@ -1147,8 +1431,8 @@ class JobService:
             # Double-check with raw SQL to bypass any ORM caching
             from sqlalchemy import text
             raw_result = db.execute(
-                text("SELECT id, status FROM extraction_tasks WHERE job_id = :job_id ORDER BY created_at"),
-                {"job_id": str(job.id)}
+                text("SELECT id, status FROM extraction_tasks WHERE job_run_id = :job_run_id ORDER BY created_at"),
+                {"job_run_id": str(target_run.id)}
             ).fetchall()
             print(f"DEBUG: Raw SQL query results:")
             for row in raw_result:
@@ -1169,7 +1453,7 @@ class JobService:
                 total_tasks=total_tasks,
                 completed=completed,
                 failed=failed,
-                status=JobStatus(job.status),
+                status=JobStatus(target_run.status),
                 tasks=task_info_list
             )
             
@@ -1185,21 +1469,21 @@ class JobService:
         finally:
             db.close()
 
-    async def add_files_to_job(self, user_id: str, job_id: str, files: List[UploadFile]) -> List[Dict[str, Any]]:
+    async def add_files_to_job(self, user_id: str, job_id: str, files: List[UploadFile], run_id: str = None) -> List[Dict[str, Any]]:
         """
-        Add more files to an existing job
+        Add more files to an existing job run
         Immediately extracts ZIP files via ARQ workers
         """
         db = self._get_session()
         try:
-            # Get the job
-            job = db.query(ExtractionJob).filter(
-                ExtractionJob.id == job_id,
-                ExtractionJob.user_id == user_id
-            ).first()
+            # Get the target run (latest if not specified)
+            if run_id:
+                target_run = self.get_job_run(job_id, run_id, user_id)
+            else:
+                target_run = self.get_latest_run(job_id, user_id)
             
-            if not job:
-                raise ValueError(f"Job {job_id} not found")
+            if not target_run:
+                raise ValueError(f"Job run not found")
             
             uploaded_files = []
             storage_service = get_storage_service()
@@ -1207,7 +1491,7 @@ class JobService:
             for file in files:
                 # Generate unique GCS object name
                 file_extension = os.path.splitext(file.filename)[1] if file.filename else ""
-                gcs_object_name = f"jobs/{job_id}/{uuid.uuid4()}{file_extension}"
+                gcs_object_name = f"jobs/{job_id}/runs/{target_run.id}/{uuid.uuid4()}{file_extension}"
                 
                 # Upload to GCS
                 file_content = await file.read()
@@ -1223,7 +1507,7 @@ class JobService:
                 # Create SourceFile record (always start as ready, ZIP detection will update if needed)
                 filename = file.filename or "unknown"
                 source_file = SourceFile(
-                    job_id=job.id,
+                    job_run_id=target_run.id,
                     original_filename=os.path.basename(filename),  # Just the filename
                     original_path=filename,  # Full path as uploaded
                     gcs_object_name=gcs_object_name,
@@ -1262,26 +1546,32 @@ class JobService:
         finally:
             db.close()
 
-    async def get_job_files(self, job_id: str, processable_only: bool = False, user_id: str = None) -> List[JobFileInfo]:
-        """Get flat list of files in a job"""
+    async def get_job_files(self, job_id: str, processable_only: bool = False, user_id: str = None, run_id: str = None) -> List[JobFileInfo]:
+        """Get flat list of files in a job run"""
         db = self._get_session()
         try:
-            # Get the job (with optional user_id check for security)
-            if user_id:
-                job = db.query(ExtractionJob).filter(
-                    ExtractionJob.id == job_id,
-                    ExtractionJob.user_id == user_id
-                ).first()
+            # Get the target run (latest if not specified)
+            if run_id:
+                target_run = self.get_job_run(job_id, run_id, user_id) if user_id else None
+                if not target_run and user_id:
+                    raise ValueError(f"Job run not found")
             else:
-                job = db.query(ExtractionJob).filter(
-                    ExtractionJob.id == job_id
-                ).first()
+                target_run = self.get_latest_run(job_id, user_id) if user_id else None
+                if not target_run and user_id:
+                    raise ValueError(f"Job run not found")
             
-            if not job:
-                raise ValueError(f"Job {job_id} not found")
+            # If no user_id provided (internal use), get run directly
+            if not user_id and run_id:
+                target_run = db.query(JobRun).filter(JobRun.id == run_id).first()
+            elif not user_id and not run_id:
+                # Get latest run for job without user check
+                target_run = db.query(JobRun).filter(JobRun.job_id == job_id).order_by(JobRun.created_at.desc()).first()
+            
+            if not target_run:
+                raise ValueError(f"Job run not found")
             
             # Get source files with optional filtering
-            query = db.query(SourceFile).filter(SourceFile.job_id == job.id)
+            query = db.query(SourceFile).filter(SourceFile.job_run_id == target_run.id)
             
             if processable_only:
                 # Filter out archive files that are only used for unpacking, not data extraction
@@ -1307,27 +1597,27 @@ class JobService:
         finally:
             db.close()
 
-    async def remove_file_from_job(self, user_id: str, job_id: str, file_id: str) -> None:
-        """Remove a file from a job (synchronous deletion for now)"""
+    async def remove_file_from_job(self, user_id: str, job_id: str, file_id: str, run_id: str = None) -> None:
+        """Remove a file from a job run (synchronous deletion for now)"""
         db = self._get_session()
         try:
-            # Get the job
-            job = db.query(ExtractionJob).filter(
-                ExtractionJob.id == job_id,
-                ExtractionJob.user_id == user_id
-            ).first()
+            # Get the target run (latest if not specified)
+            if run_id:
+                target_run = self.get_job_run(job_id, run_id, user_id)
+            else:
+                target_run = self.get_latest_run(job_id, user_id)
             
-            if not job:
-                raise ValueError(f"Job {job_id} not found")
+            if not target_run:
+                raise ValueError(f"Job run not found")
             
             # Get the source file
             source_file = db.query(SourceFile).filter(
                 SourceFile.id == file_id,
-                SourceFile.job_id == job.id
+                SourceFile.job_run_id == target_run.id
             ).first()
             
             if not source_file:
-                raise ValueError(f"File {file_id} not found in job {job_id}")
+                raise ValueError(f"File {file_id} not found in job run {target_run.id}")
             
             # Delete from GCS
             storage_service = get_storage_service()
@@ -1420,18 +1710,18 @@ class JobService:
         finally:
             db.close()
 
-    async def get_job_results(self, user_id: str, job_id: str, limit: int = 50, offset: int = 0) -> JobResultsResponse:
-        """Get extraction results for a completed job"""
+    async def get_job_results(self, user_id: str, job_id: str, limit: int = 50, offset: int = 0, run_id: str = None) -> JobResultsResponse:
+        """Get extraction results for a completed job run"""
         db = self._get_session()
         try:
-            # Verify job exists and user has access
-            job = db.query(ExtractionJob).filter(
-                ExtractionJob.id == job_id,
-                ExtractionJob.user_id == user_id
-            ).first()
+            # Get the target run (latest if not specified)
+            if run_id:
+                target_run = self.get_job_run(job_id, run_id, user_id)
+            else:
+                target_run = self.get_latest_run(job_id, user_id)
             
-            if not job:
-                raise ValueError(f"Job {job_id} not found")
+            if not target_run:
+                raise ValueError(f"Job run not found")
             
             # Create subquery to get first source file path for each task
             first_file_subquery = db.query(
@@ -1447,7 +1737,7 @@ class JobService:
             ).join(
                 first_file_subquery, first_file_subquery.c.task_id == ExtractionTask.id
             ).filter(
-                ExtractionTask.job_id == job_id
+                ExtractionTask.job_run_id == target_run.id
             ).order_by(
                 first_file_subquery.c.first_file_path,
                 ExtractionResult.processed_at,
@@ -1461,7 +1751,7 @@ class JobService:
             results_with_tasks = results_query.offset(offset).limit(limit).all()
             
             # Calculate unique files processed count efficiently (excluding archive files)
-            unique_files_query = db.query(SourceFile.id).filter(SourceFile.job_id == job_id)
+            unique_files_query = db.query(SourceFile.id).filter(SourceFile.job_run_id == target_run.id)
             unique_files_query = self._filter_processable_files(unique_files_query).distinct()
             files_processed_count = unique_files_query.count()
             
@@ -1542,27 +1832,30 @@ class JobService:
         finally:
             db.close()
 
-    async def update_job_fields(self, job_id: str, user_id: str, fields: List[dict], template_id: str = None, processing_modes: dict = None) -> None:
-        """Update job field configuration and processing modes during wizard steps"""
+    async def update_job_fields(self, job_id: str, user_id: str, fields: List[dict], template_id: str = None, processing_modes: dict = None, run_id: str = None) -> None:
+        """Update job run field configuration and processing modes during wizard steps"""
         db = self._get_session()
         try:
-            # Get the job and verify ownership and state
-            job = db.query(ExtractionJob).filter(
-                ExtractionJob.id == job_id,
-                ExtractionJob.user_id == user_id,
-                ExtractionJob.config_step != 'submitted'  # Only allow updates during wizard
-            ).first()
+            # Get the target run (latest if not specified)
+            if run_id:
+                target_run = self.get_job_run(job_id, run_id, user_id)
+            else:
+                target_run = self.get_latest_run(job_id, user_id)
             
-            if not job:
-                raise ValueError(f"Job {job_id} not found or cannot be modified")
+            if not target_run:
+                raise ValueError("Job run not found or access denied")
             
-            # Delete existing job fields
-            db.query(JobField).filter(JobField.job_id == job_id).delete()
+            # Only allow updates during wizard (not submitted)
+            if target_run.config_step == 'submitted':
+                raise ValueError(f"Job run {target_run.id} cannot be modified after submission")
             
-            # Add new job fields
+            # Delete existing job fields for this run
+            db.query(JobField).filter(JobField.job_run_id == target_run.id).delete()
+            
+            # Add new job fields for this run
             for i, field_data in enumerate(fields):
                 job_field = JobField(
-                    job_id=job.id,
+                    job_run_id=target_run.id,
                     field_name=field_data.get('field_name', ''),
                     data_type_id=field_data.get('data_type_id', 'text'),
                     ai_prompt=field_data.get('ai_prompt', ''),
@@ -1570,8 +1863,8 @@ class JobService:
                 )
                 db.add(job_field)
             
-            # Delete existing extraction tasks
-            db.query(ExtractionTask).filter(ExtractionTask.job_id == job_id).delete()
+            # Delete existing extraction tasks for this run
+            db.query(ExtractionTask).filter(ExtractionTask.job_run_id == target_run.id).delete()
             
             # Debug: Log what we received
             logger.info(f"update_job_fields called with processing_modes: {processing_modes}")
@@ -1582,9 +1875,9 @@ class JobService:
             if processing_modes:
                 logger.info(f"Processing modes received: {processing_modes}")
                 
-                # Get all source files for this job
-                source_files = db.query(SourceFile).filter(SourceFile.job_id == job_id).all()
-                logger.info(f"Found {len(source_files)} source files for job {job_id}")
+                # Get all source files for this job run
+                source_files = db.query(SourceFile).filter(SourceFile.job_run_id == target_run.id).all()
+                logger.info(f"Found {len(source_files)} source files for job run {target_run.id}")
                 
                 # Group files by their folder paths
                 files_by_folder = {}
@@ -1612,7 +1905,7 @@ class JobService:
                         # Create one task per file
                         for file in matching_files:
                             extraction_task = ExtractionTask(
-                                job_id=job.id,
+                                job_run_id=target_run.id,
                                 processing_mode=processing_mode,
                                 status='pending'
                             )
@@ -1629,7 +1922,7 @@ class JobService:
                     elif processing_mode == 'combined':
                         # Create one task for all files in this folder
                         extraction_task = ExtractionTask(
-                            job_id=job.id,
+                            job_run_id=target_run.id,
                             processing_mode=processing_mode,
                             status='pending'
                         )
@@ -1644,11 +1937,18 @@ class JobService:
                             )
                             db.add(file_to_task)
             
-            # Update template reference (set to provided value or clear if None)
-            job.template_id = template_id
+            # Update template reference on the job run (set to provided value or clear if None)
+            target_run.template_id = template_id
             
-            # Update last activity
-            job.last_active_at = datetime.utcnow()
+            # Update last activity on both run and parent job
+            target_run.last_active_at = datetime.utcnow()
+            
+            # Also update parent job's last_active_at
+            db.execute(
+                update(ExtractionJob)
+                .where(ExtractionJob.id == job_id)
+                .values(last_active_at=datetime.utcnow())
+            )
             
             db.commit()
             logger.info(f"Updated {len(fields)} fields and {len(processing_modes or {})} processing modes for job {job_id}")

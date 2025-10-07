@@ -24,7 +24,9 @@ from models.job import (
     JobStartRequest, JobStartResponse,
     JobDetailsResponse, JobListResponse,
     JobProgressResponse, JobResultsResponse,
-    JobFilesResponse, FileStatus
+    JobFilesResponse, FileStatus,
+    JobRunListResponse, JobRunDetailsResponse,
+    JobRunCreateRequest, JobRunCreateResponse
 )
 from pydantic import BaseModel
 import logging
@@ -117,6 +119,133 @@ async def get_job_details(
         logger.error(f"Failed to get job details for {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get job details: {str(e)}")
 
+# ===================================================================
+# Job Run Endpoints
+# ===================================================================
+
+@router.get("/{job_id}/runs", response_model=JobRunListResponse)
+async def get_job_runs(
+    job_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    """
+    Get all job runs for a specific job
+    """
+    try:
+        runs = job_service.get_job_runs(job_id, user_id)
+        latest_run_id = runs[0].id if runs else None
+        
+        from models.job import JobRunListItem
+        run_items = [
+            JobRunListItem(
+                id=str(run.id),
+                status=run.status,
+                config_step=run.config_step,
+                tasks_total=run.tasks_total,
+                tasks_completed=run.tasks_completed,
+                tasks_failed=run.tasks_failed,
+                created_at=run.created_at,
+                completed_at=run.completed_at,
+                template_id=str(run.template_id) if run.template_id else None
+            )
+            for run in runs
+        ]
+        
+        return JobRunListResponse(
+            runs=run_items,
+            total=len(runs),
+            latest_run_id=str(latest_run_id) if latest_run_id else ""
+        )
+    except Exception as e:
+        logger.error(f"Failed to get job runs for {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get job runs: {str(e)}")
+
+@router.post("/{job_id}/runs", response_model=JobRunCreateResponse)
+async def create_job_run(
+    job_id: str,
+    request: JobRunCreateRequest,
+    user_id: str = Depends(get_current_user_id)
+):
+    """
+    Create a new job run
+    """
+    try:
+        run_id = await job_service.create_job_run(
+            job_id=job_id,
+            user_id=user_id,
+            clone_from_run_id=request.clone_from_run_id,
+            template_id=request.template_id
+        )
+        
+        return JobRunCreateResponse(
+            job_run_id=run_id,
+            message="Job run created successfully"
+        )
+    except ValueError as e:
+        logger.warning(f"Invalid create job run request for {job_id}: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to create job run for {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create job run: {str(e)}")
+
+@router.get("/{job_id}/runs/{run_id}", response_model=JobRunDetailsResponse)
+async def get_job_run_details(
+    job_id: str,
+    run_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    """
+    Get detailed information about a specific job run
+    """
+    try:
+        run = job_service.get_job_run(job_id, run_id, user_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Job run not found")
+        
+        # Get job fields for this run
+        from core.database import get_db
+        db = next(get_db())
+        try:
+            from models.db_models import JobField
+            job_fields = db.query(JobField).filter(
+                JobField.job_run_id == run.id
+            ).order_by(JobField.display_order).all()
+            
+            from models.job import JobFieldInfo
+            field_info = [
+                JobFieldInfo(
+                    field_name=field.field_name,
+                    data_type_id=field.data_type_id,
+                    ai_prompt=field.ai_prompt,
+                    display_order=field.display_order
+                )
+                for field in job_fields
+            ]
+            
+            return JobRunDetailsResponse(
+                id=str(run.id),
+                job_id=str(run.job_id),
+                status=run.status,
+                config_step=run.config_step,
+                persist_data=run.persist_data,
+                tasks_total=run.tasks_total,
+                tasks_completed=run.tasks_completed,
+                tasks_failed=run.tasks_failed,
+                created_at=run.created_at,
+                completed_at=run.completed_at,
+                job_fields=field_info,
+                template_id=str(run.template_id) if run.template_id else None,
+                extraction_tasks=[]  # TODO: Add extraction tasks if needed
+            )
+        finally:
+            db.close()
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get job run details for {job_id}/{run_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get job run details: {str(e)}")
+
 @router.get("", response_model=JobListResponse)
 async def list_jobs(
     user_id: str = Depends(get_current_user_id),
@@ -139,13 +268,14 @@ async def list_jobs(
 @router.get("/{job_id}/progress", response_model=JobProgressResponse)
 async def get_job_progress(
     job_id: str,
-    user_id: str = Depends(get_current_user_id)
+    user_id: str = Depends(get_current_user_id),
+    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)")
 ):
     """
     Get job progress information for real-time updates
     """
     try:
-        response = await job_service.get_job_progress(user_id, job_id)
+        response = await job_service.get_job_progress(user_id, job_id, run_id)
         return response
     except ValueError as e:
         logger.warning(f"Job {job_id} not found for user {user_id}: {e}")
@@ -188,11 +318,12 @@ async def add_files_to_job(
 async def get_job_files(
     job_id: str,
     user_id: str = Depends(get_current_user_id),
-    processable: bool = Query(default=False, description="Only return files that can be processed for data extraction (excludes ZIP files)")
+    processable: bool = Query(default=False, description="Only return files that can be processed for data extraction (excludes ZIP files)"),
+    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)")
 ):
-    """Get flat list of files in a job"""
+    """Get flat list of files in a job run"""
     try:
-        files = await job_service.get_job_files(job_id, processable_only=processable, user_id=user_id)
+        files = await job_service.get_job_files(job_id, processable_only=processable, user_id=user_id, run_id=run_id)
         return JobFilesResponse(files=files)
     except ValueError as e:
         logger.warning(f"Job {job_id} not found for user {user_id}: {e}")
@@ -400,12 +531,13 @@ async def get_job_results(
     job_id: str,
     user_id: str = Depends(get_current_user_id),
     limit: int = Query(default=50, ge=1, le=1000, description="Number of results to return"),
-    offset: int = Query(default=0, ge=0, description="Number of results to skip")
+    offset: int = Query(default=0, ge=0, description="Number of results to skip"),
+    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)")
 ):
-    """Get extraction results for a completed job"""
-    logger.info(f"Getting results for job {job_id}, user {user_id}")
+    """Get extraction results for a completed job run"""
+    logger.info(f"Getting results for job {job_id}, user {user_id}, run {run_id}")
     try:
-        response = await job_service.get_job_results(user_id, job_id, limit, offset)
+        response = await job_service.get_job_results(user_id, job_id, limit, offset, run_id)
         logger.info(f"Returning response: total={response.total}, results_count={len(response.results)}")
         return response
     except ValueError as e:
@@ -433,15 +565,16 @@ async def delete_job(job_id: str, user_id: str = Depends(get_current_user_id)):
 async def update_config_step(
     job_id: str,
     request: ConfigStepRequest,
-    user_id: str = Depends(get_current_user_id)
+    user_id: str = Depends(get_current_user_id),
+    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)")
 ):
-    """Update job configuration step"""
+    """Update job run configuration step"""
     try:
         await job_service.advance_config_step(
             job_id=job_id,
             user_id=user_id,
             next_step=request.config_step,
-            expected_version=request.version
+            run_id=run_id
         )
         return {"message": "Configuration step updated successfully"}
     except ValueError as e:
@@ -453,12 +586,16 @@ async def update_config_step(
 @router.post("/{job_id}/submit")
 async def submit_job_for_processing(
     job_id: str,
-    user_id: str = Depends(get_current_user_id)
+    user_id: str = Depends(get_current_user_id),
+    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)")
 ):
-    """Submit job for processing"""
+    """Submit job run for processing"""
     try:
-        await job_service.submit_manual_job(job_id, user_id)
-        return {"message": "Job submitted for processing"}
+        result_run_id = await job_service.submit_manual_job(job_id, user_id, run_id)
+        return {
+            "message": "Job run submitted for processing",
+            "job_run_id": result_run_id
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -534,21 +671,23 @@ async def update_job_details(
 @router.get("/{job_id}/export/csv")
 async def export_job_results_csv(
     job_id: str,
-    current_user_id: str = Depends(get_current_user_id)
+    current_user_id: str = Depends(get_current_user_id),
+    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)")
 ):
-    """Export job results to CSV format"""
+    """Export job run results to CSV format"""
     try:
-        # Get job results
-        results_response = await job_service.get_job_results(current_user_id, job_id)
+        # Get job results for specific run
+        results_response = await job_service.get_job_results(current_user_id, job_id, run_id=run_id)
         
         # Generate CSV content using helper function
         csv_content = generate_csv_content(results_response)
         
         # Return as downloadable file
+        run_suffix = f"_run_{run_id}" if run_id else ""
         return Response(
             content=csv_content,
             media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename=job_{job_id}_results.csv"}
+            headers={"Content-Disposition": f"attachment; filename=job_{job_id}{run_suffix}_results.csv"}
         )
         
     except ValueError as e:
@@ -560,21 +699,23 @@ async def export_job_results_csv(
 @router.get("/{job_id}/export/excel")
 async def export_job_results_excel(
     job_id: str,
-    current_user_id: str = Depends(get_current_user_id)
+    current_user_id: str = Depends(get_current_user_id),
+    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)")
 ):
-    """Export job results to Excel format"""
+    """Export job run results to Excel format"""
     try:
-        # Get job results
-        results_response = await job_service.get_job_results(current_user_id, job_id)
+        # Get job results for specific run
+        results_response = await job_service.get_job_results(current_user_id, job_id, run_id=run_id)
         
         # Generate Excel content using helper function
         excel_content = generate_excel_content(results_response)
         
         # Return as downloadable file
+        run_suffix = f"_run_{run_id}" if run_id else ""
         return Response(
             content=excel_content,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment; filename=job_{job_id}_results.xlsx"}
+            headers={"Content-Disposition": f"attachment; filename=job_{job_id}{run_suffix}_results.xlsx"}
         )
         
     except ValueError as e:

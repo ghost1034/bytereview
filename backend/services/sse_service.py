@@ -69,7 +69,17 @@ class SSEManager:
                     yield {"type": "error", "message": "Job not found"}
                     return
                 
-                # Get all tasks for this job, ordered by first source file path
+                # Get latest job run for this job
+                from models.db_models import JobRun
+                latest_run = db.query(JobRun).filter(
+                    JobRun.job_id == job.id
+                ).order_by(JobRun.created_at.desc()).first()
+                
+                if not latest_run:
+                    yield {"type": "error", "message": "No job run found"}
+                    return
+                
+                # Get all tasks for this job run, ordered by first source file path
                 # Use subquery to get first source file path for each task
                 first_file_subquery = db.query(
                     SourceFileToTask.task_id,
@@ -78,19 +88,19 @@ class SSEManager:
                     SourceFile, SourceFile.id == SourceFileToTask.source_file_id
                 ).group_by(SourceFileToTask.task_id).subquery()
                 
-                # Get tasks ordered by first source file path
+                # Get tasks ordered by first source file path for the latest run
                 tasks = db.query(ExtractionTask).join(
                     first_file_subquery, first_file_subquery.c.task_id == ExtractionTask.id
                 ).filter(
-                    ExtractionTask.job_id == job.id
+                    ExtractionTask.job_run_id == latest_run.id
                 ).order_by(
                     first_file_subquery.c.first_file_path
                 ).all()
                 
-                # Get progress from job record (more efficient and consistent)
-                total_tasks = job.tasks_total or 0
-                completed = job.tasks_completed or 0
-                failed = job.tasks_failed or 0
+                # Get progress from latest job run record (more efficient and consistent)
+                total_tasks = latest_run.tasks_total or 0
+                completed = latest_run.tasks_completed or 0
+                failed = latest_run.tasks_failed or 0
                 
                 # Create task list
                 # Build task list with source file names
@@ -128,7 +138,7 @@ class SSEManager:
                 "type": "full_state",
                 "version": current_version,
                 "job_id": job_id,
-                "status": job.status,
+                "status": latest_run.status,
                 "progress": {
                     "total_tasks": total_tasks,
                     "completed": completed,
@@ -152,7 +162,7 @@ class SSEManager:
                     logger.debug(f"Flushed buffered event: {buffered_event.get('type')}")
             
             # STEP 5: Stream live events
-            job_completed = job.status == 'completed'
+            job_completed = latest_run.status == 'completed'
             
             while not job_completed:
                 try:

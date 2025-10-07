@@ -31,7 +31,7 @@ from arq.connections import RedisSettings
 from arq.cron import cron
 from sqlalchemy.orm import Session
 from core.database import db_config, get_db
-from models.db_models import ExtractionTask, ExtractionResult, SourceFile, JobField, SystemPrompt, SourceFileToTask, ExtractionJob, DataType
+from models.db_models import ExtractionTask, ExtractionResult, SourceFile, JobField, SystemPrompt, SourceFileToTask, ExtractionJob, JobRun, DataType
 from models.job import FileStatus
 from services.ai_extraction_service import AIExtractionService
 from services.gcs_service import get_storage_service
@@ -72,21 +72,27 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
         task.status = "processing"
         db.commit()
         
+        # Get the job ID for SSE events (need to get parent job from job run)
+        job_run = db.query(JobRun).filter(JobRun.id == task.job_run_id).first()
+        if not job_run:
+            raise ValueError(f"Job run {task.job_run_id} not found")
+        parent_job_id = str(job_run.job_id)
+        
         # Send SSE event for task started
         try:
             from services.sse_service import sse_manager
-            await sse_manager.send_task_started(task.job_id, task_id)
+            await sse_manager.send_task_started(parent_job_id, task_id)
         except Exception as e:
             logger.warning(f"Failed to send task_started SSE event: {e}")
         
         if not source_files:
             raise ValueError(f"No source files found for task {task_id}")
         
-        # Get job fields (the snapshotted configuration)
-        job_fields = db.query(JobField).filter(JobField.job_id == task.job_id).order_by(JobField.display_order).all()
+        # Get job fields from the job run (the snapshotted configuration)
+        job_fields = db.query(JobField).filter(JobField.job_run_id == task.job_run_id).order_by(JobField.display_order).all()
         
         if not job_fields:
-            raise ValueError(f"No job fields found for job {task.job_id}")
+            raise ValueError(f"No job fields found for job run {task.job_run_id}")
         
         # Get active system prompt
         system_prompt_record = db.query(SystemPrompt).filter(SystemPrompt.is_active == True).first()
@@ -226,13 +232,13 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
             logger.error(f"Failed to record usage for billing: {e}")
             # Don't fail the task for billing errors
         
-        # Increment job-level task completion counter
+        # Increment run-level task completion counter
         try:
             from services.job_service import JobService
             job_service = JobService()
             automation_run_id = ctx.get('automation_run_id')
-            await job_service.increment_task_completion(task.job_id, success=True, automation_run_id=automation_run_id)
-            logger.info(f"Incremented task completion counter for job {task.job_id}")
+            await job_service.increment_task_completion(task.job_run_id, success=True, automation_run_id=automation_run_id)
+            logger.info(f"Incremented task completion counter for job run {task.job_run_id}")
         except Exception as e:
             logger.error(f"Failed to increment task completion counter: {e}")
         
@@ -240,7 +246,7 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
         # Send SSE event for task completed
         try:
             from services.sse_service import sse_manager
-            await sse_manager.send_task_completed(task.job_id, task_id, final_result)
+            await sse_manager.send_task_completed(parent_job_id, task_id, final_result)
         except Exception as e:
             logger.warning(f"Failed to send task_completed SSE event: {e}")
         
@@ -257,13 +263,17 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
             task.status = "failed"
             task.error_message = str(e)
             
-            # Increment job-level task failure counter
+            # Get parent job ID for SSE events
+            job_run = db.query(JobRun).filter(JobRun.id == task.job_run_id).first()
+            parent_job_id = str(job_run.job_id) if job_run else "unknown"
+            
+            # Increment run-level task failure counter
             try:
                 from services.job_service import JobService
                 job_service = JobService()
                 automation_run_id = ctx.get('automation_run_id')
-                await job_service.increment_task_completion(task.job_id, success=False, automation_run_id=automation_run_id)
-                logger.info(f"Incremented task failure counter for job {task.job_id}")
+                await job_service.increment_task_completion(task.job_run_id, success=False, automation_run_id=automation_run_id)
+                logger.info(f"Incremented task failure counter for job run {task.job_run_id}")
             except Exception as e:
                 logger.error(f"Failed to increment task failure counter: {e}")
             
@@ -272,7 +282,7 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
             # Send SSE event for task failed
             try:
                 from services.sse_service import sse_manager
-                await sse_manager.send_task_failed(task.job_id, task_id, str(e))
+                await sse_manager.send_task_failed(parent_job_id, task_id, str(e))
             except Exception as e:
                 logger.warning(f"Failed to send task_failed SSE event: {e}")
         else:
@@ -346,9 +356,9 @@ async def unpack_zip_file_task(ctx: Dict[str, Any], source_file_id: str, automat
                     normalized_path = normalize_path(rel_path)
                     
                     # Generate new GCS object name for extracted file
-                    job_id = zip_file.job_id
+                    job_run_id = zip_file.job_run_id
                     file_extension = os.path.splitext(file)[1]
-                    new_gcs_name = f"jobs/{job_id}/extracted/{uuid.uuid4()}{file_extension}"
+                    new_gcs_name = f"jobs/{job_run_id}/extracted/{uuid.uuid4()}{file_extension}"
                     
                     # Upload extracted file to GCS
                     await storage_service.upload_file(file_path, new_gcs_name)
@@ -370,7 +380,7 @@ async def unpack_zip_file_task(ctx: Dict[str, Any], source_file_id: str, automat
                     
                     # Create new SourceFile record for extracted file
                     extracted_file = SourceFile(
-                        job_id=job_id,
+                        job_run_id=job_run_id,
                         original_filename=file,
                         original_path=normalized_path,
                         gcs_object_name=new_gcs_name,
@@ -398,9 +408,13 @@ async def unpack_zip_file_task(ctx: Dict[str, Any], source_file_id: str, automat
                 spec.loader.exec_module(sse_module)
                 sse_manager = sse_module.sse_manager
             
+            # Get parent job ID for SSE events
+            job_run = db.query(JobRun).filter(JobRun.id == zip_file.job_run_id).first()
+            parent_job_id = str(job_run.job_id) if job_run else "unknown"
+            
             # Query only the newly extracted files in canonical alphabetical order
             extracted_files = db.query(SourceFile).filter(
-                SourceFile.job_id == zip_file.job_id,
+                SourceFile.job_run_id == zip_file.job_run_id,
                 SourceFile.status == FileStatus.UPLOADED.value,  # Extracted files are marked as "uploaded"
                 SourceFile.id != zip_file.id  # Exclude the original ZIP file
             ).order_by(SourceFile.original_path, SourceFile.id).all()
@@ -418,10 +432,10 @@ async def unpack_zip_file_task(ctx: Dict[str, Any], source_file_id: str, automat
                 })
             
             logger.info(f"Sending files_extracted event for {len(files_data)} files")
-            await sse_manager.send_files_extracted(zip_file.job_id, files_data)
+            await sse_manager.send_files_extracted(parent_job_id, files_data)
             logger.info(f"Sending file_status_changed event for ZIP file")
-            await sse_manager.send_file_status_changed(zip_file.job_id, str(zip_file.id), "unpacked")
-            logger.info(f"SSE events sent successfully for job {zip_file.job_id}")
+            await sse_manager.send_file_status_changed(parent_job_id, str(zip_file.id), "unpacked")
+            logger.info(f"SSE events sent successfully for job {parent_job_id}")
             
             logger.info(f"Successfully unpacked ZIP file {source_file_id}: {files_extracted} files extracted")
             
@@ -466,12 +480,16 @@ async def unpack_zip_file_task(ctx: Dict[str, Any], source_file_id: str, automat
                 logger.info(f"Marked ZIP processing as failed for automation run {automation_run_id}")
             
             # Send SSE event for extraction failure
-            from services.sse_service import sse_manager
             try:
                 from services.sse_service import sse_manager
-                await sse_manager.send_extraction_failed(zip_file.job_id, str(zip_file.id), str(e))
+                # Get parent job ID for SSE events
+                job_run = db.query(JobRun).filter(JobRun.id == zip_file.job_run_id).first()
+                parent_job_id = str(job_run.job_id) if job_run else "unknown"
+                await sse_manager.send_extraction_failed(parent_job_id, str(zip_file.id), str(e))
             except ImportError as import_err:
                 logger.error(f"Could not import SSE service for error notification: {import_err}")
+            except Exception as sse_err:
+                logger.error(f"Failed to send SSE event for extraction failure: {sse_err}")
         
         raise
     finally:
@@ -896,8 +914,6 @@ class ZipWorkerSettings:
     # Logging
     log_results = True
 
-# ImportWorkerSettings will be defined after the functions
-
 # ===================================================================
 # Import Worker Functions (Drive, Gmail)
 # ===================================================================
@@ -914,39 +930,45 @@ async def import_drive_files(
     ctx: Dict[str, Any],
     job_id: str, 
     user_id: str, 
-    drive_file_ids: List[str]
+    drive_file_ids: List[str],
+    run_id: str = None
 ) -> Dict[str, Any]:
     """
-    Import files from Google Drive (manual imports)
+    Import files from Google Drive (manual imports) for a job run
     
     Args:
         job_id: Extraction job ID
         user_id: User ID for OAuth credentials
         drive_file_ids: List of Google Drive file IDs to import
+        run_id: Job run ID (defaults to latest)
         
     Returns:
         Dict with import results and status
     """
-    logger.info(f"Starting Drive import for job {job_id}, {len(drive_file_ids)} files")
+    logger.info(f"Starting Drive import for job {job_id}, run {run_id}, {len(drive_file_ids)} files")
     
     with next(get_db()) as db:
         try:
-            # Verify job exists and user has access
-            job = db.query(ExtractionJob).filter(
-                ExtractionJob.id == job_id,
-                ExtractionJob.user_id == user_id
-            ).first()
+            # Get the target run (latest if not specified)
+            from services.job_service import JobService
+            job_service = JobService()
             
-            if not job:
-                raise ValueError(f"Job {job_id} not found or access denied")
+            if run_id:
+                target_run = job_service.get_job_run(job_id, run_id, user_id)
+            else:
+                target_run = job_service.get_latest_run(job_id, user_id)
+            
+            if not target_run:
+                raise ValueError(f"Job run not found or access denied")
             
             # Use service layer for actual import logic
             from services.google_service import google_service
-            import_result = await google_service.import_drive_files(db, job_id, user_id, drive_file_ids)
+            import_result = await google_service.import_drive_files(db, str(target_run.id), user_id, drive_file_ids)
             
             # Convert service result to worker result format
             results = {
                 'job_id': job_id,
+                'job_run_id': str(target_run.id),
                 'total_files': import_result.get('total', len(drive_file_ids)),
                 'successful': import_result.get('successful', 0),
                 'failed': import_result.get('failed', 0),
@@ -970,40 +992,58 @@ async def import_gmail_attachments(
     job_id: str,
     user_id: str,
     attachment_data: List[Dict[str, str]],
-    automation_run_id: str = None
+    automation_run_id: str = None,
+    run_id: str = None
 ) -> Dict[str, Any]:
     """
-    Import attachments from Gmail (manual imports)
+    Import attachments from Gmail for job runs (manual imports or automation)
     
     Args:
         job_id: Extraction job ID
         user_id: User ID for OAuth credentials
         attachment_data: List of dicts with messageId, attachmentId, filename
+        automation_run_id: Optional automation run ID
+        run_id: Job run ID (for automation, this comes from automation_run)
         
     Returns:
         Dict with import results and status
     """
-    logger.info(f"Starting Gmail import for job {job_id}, {len(attachment_data)} attachments")
+    logger.info(f"Starting Gmail import for job {job_id}, run {run_id}, {len(attachment_data)} attachments")
     
     with next(get_db()) as db:
         try:
-            # Verify job exists and user has access
-            job = db.query(ExtractionJob).filter(
-                ExtractionJob.id == job_id,
-                ExtractionJob.user_id == user_id
-            ).first()
+            # Get the target run 
+            target_run_id = run_id
             
-            if not job:
-                raise ValueError(f"Job {job_id} not found or access denied")
+            # If automation_run_id is provided, get run_id from automation_run
+            if automation_run_id and not target_run_id:
+                from models.db_models import AutomationRun
+                automation_run = db.query(AutomationRun).filter(AutomationRun.id == automation_run_id).first()
+                if automation_run:
+                    target_run_id = str(automation_run.job_run_id)
+                    logger.info(f"Gmail import: Found job_run_id {target_run_id} from automation_run {automation_run_id}")
+            
+            # If still no target_run_id, get latest run for manual imports
+            if not target_run_id:
+                from services.job_service import JobService
+                job_service = JobService()
+                target_run = job_service.get_latest_run(job_id, user_id)
+                if target_run:
+                    target_run_id = str(target_run.id)
+                    logger.info(f"Gmail import: Using latest run {target_run_id} for manual import")
+            
+            if not target_run_id:
+                raise ValueError(f"No job run ID available for Gmail import")
             
             # Use service layer for actual import logic
             from services.google_service import google_service
             logger.info(f"Gmail import worker: automation_run_id parameter = {automation_run_id}")
-            import_result = await google_service.import_gmail_attachments(db, job_id, attachment_data, automation_run_id)
+            import_result = await google_service.import_gmail_attachments(db, target_run_id, attachment_data, automation_run_id)
             
             # Convert service result to worker result format
             results = {
                 'job_id': job_id,
+                'job_run_id': target_run_id,
                 'total_files': import_result.get('total', len(attachment_data)),
                 'successful': import_result.get('successful', 0),
                 'failed': import_result.get('failed', 0),
@@ -1021,7 +1061,6 @@ async def import_gmail_attachments(
         except Exception as e:
             logger.error(f"Gmail import failed for job {job_id}: {e}")
             raise
-
 
 
 async def _handle_zip_file(
@@ -1051,10 +1090,10 @@ async def _handle_zip_file(
                 
                 # Create source file record for extracted file
                 extracted_source_file = SourceFile(
-                    job_id=source_file.job_id,
+                    job_run_id=source_file.job_run_id,
                     original_filename=extracted_filename,
                     original_path=file_info.filename,  # Full path within ZIP
-                    gcs_object_name=f"imports/{source_file.job_id}/extracted_{extracted_filename}",
+                    gcs_object_name=f"imports/{source_file.job_run_id}/extracted_{extracted_filename}",
                     file_type=mime_type,
                     file_size_bytes=len(extracted_content),
                     status='importing',
@@ -1125,41 +1164,56 @@ async def export_job_to_google_drive(
     user_id: str,
     file_type: str,  # 'csv' or 'xlsx'
     folder_id: str = None,
-    automation_run_id: str = None
+    automation_run_id: str = None,
+    run_id: str = None
 ) -> Dict[str, Any]:
     """
-    Export job results to Google Drive as CSV or Excel
+    Export job run results to Google Drive as CSV or Excel
     
     Args:
         job_id: Extraction job ID
         user_id: User ID for OAuth credentials
         file_type: Export format ('csv' or 'xlsx')
         folder_id: Optional Google Drive folder ID
+        automation_run_id: Optional automation run ID
+        run_id: Job run ID (defaults to latest, or from automation_run)
         
     Returns:
         Dict with export results and Google Drive file info
     """
-    logger.info(f"Starting Google Drive export for job {job_id}, format: {file_type}")
+    logger.info(f"Starting Google Drive export for job {job_id}, run {run_id}, format: {file_type}")
     
     with next(get_db()) as db:
         try:
             # Import here to avoid circular imports
-            from models.db_models import JobExport
+            from models.db_models import JobExport, AutomationRun
             from services.job_service import JobService
             from services.google_service import google_service
             
-            # Verify job exists and user has access
-            job = db.query(ExtractionJob).filter(
-                ExtractionJob.id == job_id,
-                ExtractionJob.user_id == user_id
-            ).first()
+            # Get the target run
+            target_run_id = run_id
             
-            if not job:
-                raise ValueError(f"Job {job_id} not found or access denied")
+            # If automation_run_id is provided, get run_id from automation_run
+            if automation_run_id and not target_run_id:
+                automation_run = db.query(AutomationRun).filter(AutomationRun.id == automation_run_id).first()
+                if automation_run:
+                    target_run_id = str(automation_run.job_run_id)
+                    logger.info(f"Export: Found job_run_id {target_run_id} from automation_run {automation_run_id}")
             
-            # Create JobExport record to track the export
+            # If still no target_run_id, get latest run
+            if not target_run_id:
+                job_service = JobService()
+                target_run = job_service.get_latest_run(job_id, user_id)
+                if target_run:
+                    target_run_id = str(target_run.id)
+                    logger.info(f"Export: Using latest run {target_run_id}")
+            
+            if not target_run_id:
+                raise ValueError(f"No job run ID available for export")
+            
+            # Create JobExport record to track the export (linked to job run)
             job_export = JobExport(
-                job_id=job_id,
+                job_run_id=target_run_id,
                 dest_type="gdrive",
                 file_type=file_type,
                 status="processing"
@@ -1172,24 +1226,24 @@ async def export_job_to_google_drive(
             from services.sse_service import sse_manager
             await sse_manager.send_export_started(job_id, "Google Drive", file_type)
             
-            # Get job results
+            # Get job run results
             job_service = JobService()
-            results_response = await job_service.get_job_results(user_id, job_id)
+            results_response = await job_service.get_job_results(user_id, job_id, run_id=target_run_id)
             
             if not results_response.results:
-                raise ValueError("No results found for this job")
+                raise ValueError("No results found for this job run")
             
             # Generate export content based on file type
             if file_type == "csv":
                 from services.export_service import generate_csv_content
                 content = generate_csv_content(results_response)
-                filename = f"job_{job_id}_results.csv"
+                filename = f"job_{job_id}_run_{target_run_id}_results.csv"
                 mime_type = "text/csv"
                 content_bytes = content.encode('utf-8')
             elif file_type == "xlsx":
                 from services.export_service import generate_excel_content
                 content_bytes = generate_excel_content(results_response)
-                filename = f"job_{job_id}_results.xlsx"
+                filename = f"job_{job_id}_run_{target_run_id}_results.xlsx"
                 mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             else:
                 raise ValueError(f"Unsupported file type: {file_type}")
@@ -1229,11 +1283,12 @@ async def export_job_to_google_drive(
                 )
                 logger.info(f"Marked automation run {automation_run_id} as completed after export")
             
-            logger.info(f"Successfully exported job {job_id} to Google Drive: {drive_file.get('id')}")
+            logger.info(f"Successfully exported job {job_id} run {target_run_id} to Google Drive: {drive_file.get('id')}")
             
             return {
                 "success": True,
                 "job_id": job_id,
+                "job_run_id": target_run_id,
                 "file_type": file_type,
                 "drive_file_id": drive_file.get('id'),
                 "drive_file_name": drive_file.get('name'),
@@ -1290,60 +1345,6 @@ async def automation_startup(ctx: Dict[str, Any]) -> None:
 async def automation_shutdown(ctx: Dict[str, Any]) -> None:
     """Cleanup automation worker resources"""
     logger.info("Automation worker shutting down...")
-
-async def _clear_job_data_for_automation(db: Session, job_id: str) -> None:
-    """Clear existing job data to support multiple automation runs"""
-    from models.db_models import (
-        SourceFile, ExtractionTask, ExtractionResult, 
-        SourceFileToTask, ExtractionJob
-    )
-    
-    logger.info(f"Clearing existing job data for automation run")
-    
-    # Get all source files for this job
-    source_files = db.query(SourceFile).filter(SourceFile.job_id == job_id).all()
-    source_file_ids = [sf.id for sf in source_files]
-    
-    if source_file_ids:
-        # Delete extraction results (via task relationship)
-        task_ids = db.query(SourceFileToTask.task_id).filter(
-            SourceFileToTask.source_file_id.in_(source_file_ids)
-        ).subquery()
-        
-        deleted_results = db.query(ExtractionResult).filter(
-            ExtractionResult.task_id.in_(task_ids)
-        ).delete(synchronize_session=False)
-        logger.info(f"Deleted {deleted_results} extraction results")
-        
-        # Delete source file to task mappings
-        db.query(SourceFileToTask).filter(
-            SourceFileToTask.source_file_id.in_(source_file_ids)
-        ).delete(synchronize_session=False)
-    
-    # Delete extraction tasks
-    deleted_tasks = db.query(ExtractionTask).filter(
-        ExtractionTask.job_id == job_id
-    ).delete(synchronize_session=False)
-    logger.info(f"Deleted {deleted_tasks} extraction tasks")
-    
-    # Delete source files
-    deleted_files = db.query(SourceFile).filter(
-        SourceFile.job_id == job_id
-    ).delete(synchronize_session=False)
-    logger.info(f"Deleted {deleted_files} source files")
-    
-    # Reset job status if completed
-    job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
-    if job and job.status in ['completed', 'partially_completed']:
-        job.status = 'pending'
-        job.completed_at = None
-        job.tasks_total = 0
-        job.tasks_completed = 0
-        job.tasks_failed = 0
-        logger.info(f"Reset job {job_id} status to pending")
-    
-    db.commit()
-    logger.info(f"Successfully cleared job data for automation run")
 
 async def automation_trigger_worker(
     ctx: Dict[str, Any],
@@ -1442,9 +1443,7 @@ async def automation_trigger_worker(
                             logger.warning(f"Job {automation.job_id} is currently running, skipping automation trigger")
                             continue
                         
-                        # Clear existing data for automation runs to support multiple runs
-                        logger.info(f"Clearing existing data for automation job {automation.job_id}")
-                        await _clear_job_data_for_automation(db, automation.job_id)
+                        # No need to clear data - each automation trigger creates a new job run
                         
                         # Create automation run with import tracking
                         automation_run = await automation_service.create_automation_run(
@@ -1561,7 +1560,7 @@ async def run_initializer_worker(
     automation_run_id: str = None
 ) -> Dict[str, Any]:
     """
-    Initialize job execution (now just delegates to consolidated job service)
+    Initialize job run execution for automation triggers
     
     Args:
         job_id: Extraction job ID to initialize
@@ -1570,36 +1569,50 @@ async def run_initializer_worker(
     Returns:
         Dict with initialization results
     """
-    logger.info(f"Initializing job execution for job {job_id}, automation_run_id={automation_run_id}")
+    logger.info(f"Initializing job run execution for job {job_id}, automation_run_id={automation_run_id}")
     
     with next(get_db()) as db:
         try:
             from services.job_service import JobService
+            from models.db_models import AutomationRun
             
             # Get user_id from job
             job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
             if not job:
                 raise ValueError(f"Job {job_id} not found")
             
-            # Use automation-specific job service method
-            job_service = JobService()
-            await job_service.submit_automation_job(job_id, job.user_id, automation_run_id)
+            # Get the job run ID from the automation run
+            job_run_id = None
+            if automation_run_id:
+                automation_run = db.query(AutomationRun).filter(AutomationRun.id == automation_run_id).first()
+                if automation_run:
+                    job_run_id = str(automation_run.job_run_id)
+                else:
+                    logger.warning(f"Automation run {automation_run_id} not found, proceeding without job run ID")
             
-            # Count tasks for response
+            if not job_run_id:
+                raise ValueError(f"No job run ID found for automation run {automation_run_id}")
+            
+            # Use automation-specific job run service method
+            job_service = JobService()
+            result_run_id = await job_service.submit_automation_job_run(job_run_id, job.user_id, automation_run_id)
+            
+            # Count tasks for response (now scoped to the job run)
             tasks_count = db.query(ExtractionTask).filter(
-                ExtractionTask.job_id == job_id
+                ExtractionTask.job_run_id == job_run_id
             ).count()
             
-            logger.info(f"Initialized job {job_id} with {tasks_count} tasks")
+            logger.info(f"Initialized job run {job_run_id} with {tasks_count} tasks")
             
             return {
-                "message": "Job initialization successful",
+                "message": "Job run initialization successful",
+                "job_run_id": result_run_id,
                 "tasks_queued": tasks_count,
                 "automation_run_id": automation_run_id
             }
             
         except Exception as e:
-            logger.error(f"Job initialization failed for job {job_id}: {e}")
+            logger.error(f"Job run initialization failed for job {job_id}: {e}")
             
             # Update automation run status if this is from automation
             if automation_run_id:
@@ -1644,8 +1657,6 @@ async def main():
     
     await redis.close()
 
-# These functions are now moved to job_service.py for better organization
-
 
 async def _record_usage_for_task(db: Session, task: ExtractionTask, source_files: List[SourceFile]):
     """
@@ -1668,10 +1679,15 @@ async def _record_usage_for_task(db: Session, task: ExtractionTask, source_files
             logger.info("No pages to record for billing")
             return
         
-        # Get user ID from the job
-        job = db.query(ExtractionJob).filter(ExtractionJob.id == task.job_id).first()
+        # Get user ID from the job via job run
+        job_run = db.query(JobRun).filter(JobRun.id == task.job_run_id).first()
+        if not job_run:
+            logger.error(f"Job run {task.job_run_id} not found for usage recording")
+            return
+            
+        job = db.query(ExtractionJob).filter(ExtractionJob.id == job_run.job_id).first()
         if not job:
-            logger.error(f"Job {task.job_id} not found for usage recording")
+            logger.error(f"Job {job_run.job_id} not found for usage recording")
             return
         
         # Record usage through billing service
