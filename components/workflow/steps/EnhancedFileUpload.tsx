@@ -42,9 +42,10 @@ interface EnhancedFileUploadProps {
   onFilesReady: (files: JobFileInfo[]) => void
   onBack?: () => void
   readOnly?: boolean
+  isLatestSelected?: boolean
 }
 
-export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack, readOnly = false }: EnhancedFileUploadProps) {
+export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack, readOnly = false, isLatestSelected = true }: EnhancedFileUploadProps) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [files, setFiles] = useState<JobFileInfo[]>([])
@@ -934,7 +935,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
             <HardDrive className="h-4 w-4" />
             Computer
           </TabsTrigger>
-          <TabsTrigger value="drive" className="flex items-center gap-2">
+          <TabsTrigger value="drive" className={`flex items-center gap-2 ${!isLatestSelected ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={!isLatestSelected}>
             <Cloud className="h-4 w-4" />
             Google Drive
           </TabsTrigger>

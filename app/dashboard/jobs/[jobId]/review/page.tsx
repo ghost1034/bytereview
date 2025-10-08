@@ -220,6 +220,7 @@ export default function JobReviewPage() {
             onBack={handleBack}
             isLoading={submitJobMutation.isPending}
             readOnly={isReadOnly}
+            isLatestSelected={selectedRunId === latestRunId}
           />
         </CardContent>
       </Card>

@@ -148,6 +148,7 @@ export default function JobUploadPage() {
         runId={selectedRunId}
         onFilesReady={handleFilesReady}
         readOnly={isReadOnly}
+        isLatestSelected={selectedRunId === latestRunId}
       />
 
     </div>

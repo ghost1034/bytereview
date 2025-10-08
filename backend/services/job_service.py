@@ -1937,11 +1937,15 @@ class JobService:
                             )
                             db.add(file_to_task)
             
-            # Update template reference on the job run (set to provided value or clear if None)
-            target_run.template_id = template_id
-            
-            # Update last activity on both run and parent job
-            target_run.last_active_at = datetime.utcnow()
+            # Update template reference and last activity on the job run using the active session
+            db.execute(
+                update(JobRun)
+                .where(JobRun.id == target_run.id)
+                .values(
+                    template_id=template_id,
+                    last_active_at=datetime.utcnow()
+                )
+            )
             
             # Also update parent job's last_active_at
             db.execute(

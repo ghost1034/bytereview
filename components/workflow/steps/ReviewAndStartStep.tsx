@@ -30,6 +30,7 @@ interface ReviewAndStartStepProps {
   onBack: () => void
   isLoading?: boolean
   readOnly?: boolean
+  isLatestSelected?: boolean
 }
 
 export default function ReviewAndStartStep({ 
@@ -37,7 +38,8 @@ export default function ReviewAndStartStep({
   onJobStarted, 
   onBack, 
   isLoading,
-  readOnly = false
+  readOnly = false,
+  isLatestSelected = true
 }: ReviewAndStartStepProps) {
   const { toast } = useToast()
   
@@ -72,36 +74,38 @@ export default function ReviewAndStartStep({
 
   return (
     <div className="space-y-6">
-      {/* Job Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5" />
-            Job Settings
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="persist-data"
-              checked={persistData}
-              onCheckedChange={readOnly ? undefined : (checked) => setPersistData(checked as boolean)}
-              disabled={readOnly}
-            />
-            <Label htmlFor="persist-data" className="text-sm">
-              Keep source files for future reference
-            </Label>
-          </div>
-
-          {!persistData && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <p className="text-sm text-yellow-800">
-                <strong>Note:</strong> If you choose not to keep source files, your files will be automatically discarded upon expiry.
-              </p>
+      {/* Job Settings (hide when viewing previous run) */}
+      {isLatestSelected && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Job Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="persist-data"
+                checked={persistData}
+                onCheckedChange={readOnly ? undefined : (checked) => setPersistData(checked as boolean)}
+                disabled={readOnly}
+              />
+              <Label htmlFor="persist-data" className="text-sm">
+                Keep source files for future reference
+              </Label>
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            {!persistData && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-sm text-yellow-800">
+                  <strong>Note:</strong> If you choose not to keep source files, your files will be automatically discarded upon expiry.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* File Summary */}
       <Card>
@@ -206,12 +210,15 @@ export default function ReviewAndStartStep({
               </div>
             </div>
             
-            <div className="flex justify-between">
-              <span>Data Persistence:</span>
-              <Badge variant={persistData ? "default" : "secondary"}>
-                {persistData ? 'Enabled' : 'Disabled'}
-              </Badge>
-            </div>
+            {/* Data Persistence indicator (hide when viewing previous run) */}
+            {isLatestSelected && (
+              <div className="flex justify-between">
+                <span>Data Persistence:</span>
+                <Badge variant={persistData ? "default" : "secondary"}>
+                  {persistData ? 'Enabled' : 'Disabled'}
+                </Badge>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

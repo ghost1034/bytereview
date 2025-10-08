@@ -104,13 +104,14 @@ async def list_resumable_jobs(
 @router.get("/{job_id}", response_model=JobDetailsResponse)
 async def get_job_details(
     job_id: str,
-    user_id: str = Depends(get_current_user_id)
+    user_id: str = Depends(get_current_user_id),
+    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)")
 ):
     """
     Get detailed information about a specific job
     """
     try:
-        response = await job_service.get_job_details(user_id, job_id)
+        response = await job_service.get_job_details(user_id, job_id, run_id)
         return response
     except ValueError as e:
         logger.warning(f"Job {job_id} not found for user {user_id}: {e}")
