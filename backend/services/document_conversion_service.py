@@ -25,9 +25,11 @@ class DocumentConversionService:
             return True
         return False
 
-    async def convert_docx_local_to_pdf_local(self, docx_path: str) -> str:
+    async def convert_docx_local_to_pdf_local(self, docx_path: str, out_dir: Optional[str] = None) -> str:
         """
         Convert a local DOCX file to a local PDF using headless LibreOffice.
+        If out_dir is provided, the PDF will be written there. Otherwise, a temporary
+        directory will be created for output.
         Returns the path to the generated PDF.
         """
         if not self.enabled:
@@ -36,45 +38,74 @@ class DocumentConversionService:
         if not os.path.exists(docx_path):
             raise FileNotFoundError(f"Input DOCX not found: {docx_path}")
 
-        work_dir = tempfile.mkdtemp(prefix="docx_to_pdf_")
-        try:
-            out_dir = os.path.join(work_dir, "out")
+        created_tmp = False
+        if out_dir is None:
+            # Create a temporary output directory if none provided
+            out_parent = tempfile.mkdtemp(prefix="docx_to_pdf_")
+            out_dir = os.path.join(out_parent, "out")
+            os.makedirs(out_dir, exist_ok=True)
+            created_tmp = True
+        else:
             os.makedirs(out_dir, exist_ok=True)
 
-            # Run soffice headless conversion
-            cmd = [
-                "soffice",
-                "--headless",
-                "--convert-to", "pdf",
-                "--outdir", out_dir,
-                docx_path,
-            ]
-            logger.info(f"Running LibreOffice conversion: {' '.join(cmd)}")
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+        # Run soffice headless conversion
+        cmd = [
+            "soffice",
+            "--headless",
+            "--convert-to", "pdf",
+            "--outdir", out_dir,
+            docx_path,
+        ]
+        logger.info(f"Running LibreOffice conversion: {' '.join(cmd)}")
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self.timeout)
+        except asyncio.TimeoutError:
+            proc.kill()
+            # Clean up created temp dir on timeout
+            if created_tmp:
+                try:
+                    shutil.rmtree(os.path.dirname(out_dir), ignore_errors=True)
+                except Exception:
+                    logger.warning(f"Failed to cleanup temp dir {os.path.dirname(out_dir)} after timeout")
+            raise TimeoutError(f"LibreOffice conversion timed out after {self.timeout}s for {docx_path}")
+
+        if proc.returncode != 0:
+            logger.error(
+                f"LibreOffice conversion failed (code {proc.returncode}). stdout={stdout.decode(errors='ignore')}, stderr={stderr.decode(errors='ignore')}"
             )
-            try:
-                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self.timeout)
-            except asyncio.TimeoutError:
-                proc.kill()
-                raise TimeoutError(f"LibreOffice conversion timed out after {self.timeout}s for {docx_path}")
+            # Clean up created temp dir on failure
+            if created_tmp:
+                try:
+                    shutil.rmtree(os.path.dirname(out_dir), ignore_errors=True)
+                except Exception:
+                    logger.warning(f"Failed to cleanup temp dir {os.path.dirname(out_dir)} after failure")
+            raise RuntimeError("LibreOffice conversion failed")
 
-            if proc.returncode != 0:
-                logger.error(f"LibreOffice conversion failed (code {proc.returncode}). stdout={stdout.decode(errors='ignore')}, stderr={stderr.decode(errors='ignore')}")
-                raise RuntimeError("LibreOffice conversion failed")
+        # Determine output PDF path
+        base = os.path.splitext(os.path.basename(docx_path))[0]
+        pdf_path = os.path.join(out_dir, base + ".pdf")
+        if not os.path.exists(pdf_path) or os.path.getsize(pdf_path) == 0:
+            if created_tmp:
+                try:
+                    shutil.rmtree(os.path.dirname(out_dir), ignore_errors=True)
+                except Exception:
+                    logger.warning(f"Failed to cleanup temp dir {os.path.dirname(out_dir)} after empty output")
+            raise RuntimeError("Expected PDF not produced or empty")
 
-            # Determine output PDF path
-            base = os.path.splitext(os.path.basename(docx_path))[0]
-            pdf_path = os.path.join(out_dir, base + ".pdf")
-            if not os.path.exists(pdf_path) or os.path.getsize(pdf_path) == 0:
-                raise RuntimeError("Expected PDF not produced or empty")
-
-            return pdf_path
-        finally:
-            # Do not remove out_dir here if caller needs to read file; caller can cleanup by deleting returned file and its parent.
-            pass
+        # If we created a temp output dir, we should not leak it; callers that didn't
+        # provide out_dir can't rely on this file path. Since our current code paths
+        # always pass out_dir (convert_docx_gcs_to_pdf_gcs), this branch shouldn't be hit.
+        # For safety, leave the file in place and log a warning for potential cleanup.
+        if created_tmp:
+            logger.warning(
+                "convert_docx_local_to_pdf_local was called without out_dir; a temporary directory was created."
+            )
+        return pdf_path
 
     async def convert_docx_gcs_to_pdf_gcs(self, storage_service, gcs_input_object_name: str, gcs_output_object_name: str) -> Tuple[str, int]:
         """
@@ -89,8 +120,8 @@ class DocumentConversionService:
             # Download source DOCX
             await storage_service.download_file(gcs_input_object_name, local_docx)
 
-            # Convert to PDF
-            local_pdf = await self.convert_docx_local_to_pdf_local(local_docx)
+            # Convert to PDF (use the same temp_dir as output to simplify cleanup)
+            local_pdf = await self.convert_docx_local_to_pdf_local(local_docx, out_dir=temp_dir)
 
             # Upload to destination
             await storage_service.upload_file(local_pdf, gcs_output_object_name)
