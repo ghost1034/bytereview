@@ -21,7 +21,7 @@ A modern web application for extracting structured data from PDFs using AI. Uplo
 - **ARQ** - Async task queue for background processing
 - **Firebase Admin SDK** - Authentication verification
 - **Google Cloud Storage** - File storage
-- **Google Gemini AI** - PDF data extraction
+- **Google Vertex AI (Gemini)** - PDF data extraction via GCS URIs
 - **Stripe** - Payment processing
 
 ## Getting Started
@@ -36,8 +36,8 @@ A modern web application for extracting structured data from PDFs using AI. Uplo
 - **Firebase project** with Authentication enabled
 - **Google Cloud account** with:
   - Cloud Storage bucket
-  - Gemini AI API access
-  - Service account with appropriate permissions
+  - Vertex AI Generative AI access
+  - Service account with appropriate permissions (Vertex AI User + Storage Object Viewer)
 - **Stripe account** for payment processing
 
 ### Quick Start with Docker (Recommended)
@@ -181,12 +181,13 @@ REDIS_URL=redis://localhost:6379
 FIREBASE_SERVICE_ACCOUNT_PATH=path/to/service-account-key.json
 
 # Google Cloud Configuration
-GOOGLE_CLOUD_PROJECT=your_gcp_project_id
-GOOGLE_CLOUD_STORAGE_BUCKET=your_storage_bucket
+GOOGLE_CLOUD_PROJECT_ID=your_gcp_project_id
+GCS_BUCKET_NAME=your_storage_bucket
+GOOGLE_CLOUD_LOCATION=global
 GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account-key.json
 
-# AI Configuration
-GEMINI_API_KEY=your_gemini_api_key
+# AI Configuration (Vertex AI)
+# Uses Application Default Credentials; no API key required
 
 # Stripe Configuration
 STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key

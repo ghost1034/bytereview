@@ -125,60 +125,36 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
         # Initialize services
         ai_service = AIExtractionService()
         storage_service = get_storage_service()
-        
-        # Download files from GCS and process them locally
-        temp_dir = None
+
+        # Ensure GCS service supports URI construction (Vertex requires GCS URIs)
+        if not hasattr(storage_service, 'construct_gcs_uri_for_object'):
+            raise Exception("GCS is not available in this environment; Vertex AI extraction requires GCS URIs.")
+
+        # Build files_data with GCS URIs (no downloads)
         files_data = []
-        
-        try:
-            # Create temporary directory for downloaded files
-            temp_dir = tempfile.mkdtemp(prefix=f"extraction_task_{task_id}_")
-            logger.info(f"Created temporary directory for extraction: {temp_dir}")
-            
-            for source_file in source_files:
-                logger.info(f"Downloading file for processing: {source_file.original_filename}")
-                
-                # Download file from GCS to temporary location
-                file_extension = os.path.splitext(source_file.original_filename)[1]
-                temp_file_path = os.path.join(temp_dir, f"{uuid.uuid4()}{file_extension}")
-                
-                await storage_service.download_file(source_file.gcs_object_name, temp_file_path)
-                logger.info(f"Downloaded {source_file.original_filename} to {temp_file_path}")
-                
-                # Read file content
-                with open(temp_file_path, 'rb') as f:
-                    file_content = f.read()
-                
-                files_data.append({
-                    'filename': source_file.original_filename,
-                    'content': file_content,
-                    'mime_type': source_file.file_type
-                })
-                
-                logger.info(f"Prepared file data for {source_file.original_filename}, size: {len(file_content)} bytes")
-            
-            # Process files using downloaded content instead of GCS URIs
-            logger.info(f"Processing {len(files_data)} files with AI using downloaded content")
-            
-            # Extract data using AI service with file content
-            logger.info(f"Using processing mode: {task.processing_mode}")
-            extraction_result = await ai_service.extract_data_from_files(
-                files_data,
-                field_configs,
-                data_types_map,
-                system_prompt_record.template_text,
-                processed_files=source_files,  # Pass source files for metadata
-                processing_mode=task.processing_mode  # Pass processing mode for routing
-            )
-            
-        finally:
-            # Clean up temporary directory
-            if temp_dir and os.path.exists(temp_dir):
-                try:
-                    shutil.rmtree(temp_dir)
-                    logger.info(f"Cleaned up temporary directory: {temp_dir}")
-                except Exception as e:
-                    logger.warning(f"Failed to clean up temporary directory {temp_dir}: {e}")
+        for source_file in source_files:
+            try:
+                gcs_uri = storage_service.construct_gcs_uri_for_object(source_file.gcs_object_name)
+            except Exception:
+                # Fallback manual construction
+                from services.gcs_service import construct_gcs_uri
+                gcs_uri = construct_gcs_uri(storage_service.get_bucket_name(), source_file.gcs_object_name)
+            files_data.append({
+                'filename': source_file.original_filename,
+                'uri': gcs_uri,
+                'mime_type': source_file.file_type or 'application/pdf',
+            })
+
+        logger.info(f"Processing {len(files_data)} files with AI via Vertex using GCS URIs")
+        logger.info(f"Using processing mode: {task.processing_mode}")
+        extraction_result = await ai_service.extract_data_from_files(
+            files_data,
+            field_configs,
+            data_types_map,
+            system_prompt_record.template_text,
+            processed_files=source_files,  # Pass source files for metadata
+            processing_mode=task.processing_mode  # Pass processing mode for routing
+        )
         
         # Process the extraction result based on processing mode
         if not extraction_result.success:
