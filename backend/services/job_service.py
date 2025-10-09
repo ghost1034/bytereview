@@ -671,7 +671,7 @@ class JobService:
                 # Send job completion SSE event
                 try:
                     from services.sse_service import sse_manager
-                    await sse_manager.send_job_run_completed(str(job_run.job_id), run_id)
+                    await sse_manager.send_job_completed(str(job_run.job_id))
                     logger.info(f"Job run {run_id} completed - sent SSE event")
                 except Exception as e:
                     logger.warning(f"Failed to send job_run_completed SSE event: {e}")

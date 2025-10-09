@@ -23,9 +23,9 @@ class AIExtractionService:
             logger.warning("GOOGLE_CLOUD_PROJECT_ID not set; AI extraction will not work")
             self.client = None
         else:
-            http_opts = types.HttpOptions(client_args={"timeout": int(os.getenv("GENAI_HTTP_TIMEOUT", "120"))})
             try:
-                self.client = genai.Client(vertexai=True, project=project, location=location, http_options=http_opts)
+                # Note: Some google-genai versions do not support types.HttpOptions; omit http_options for compatibility.
+                self.client = genai.Client(vertexai=True, project=project, location=location)
             except Exception as e:
                 logger.error(f"Failed to initialize Vertex AI client: {e}")
                 self.client = None
@@ -44,44 +44,32 @@ class AIExtractionService:
         return metadata
     
     
-    def _type_from_base(self, base: str) -> types.Type:
-        base_l = (base or "string").lower()
-        return {
-            "string": types.Type.STRING,
-            "number": types.Type.NUMBER,
-            "integer": types.Type.INTEGER,
-            "boolean": types.Type.BOOLEAN,
-            "array": types.Type.ARRAY,
-            "object": types.Type.OBJECT,
-        }.get(base_l, types.Type.STRING)
-
     def create_json_schema(self, fields: List[FieldConfig], data_types_map: Dict[str, Dict]) -> types.Schema:
-        """Create Vertex AI response schema using database data types (array of objects)."""
-        # Define object properties
+        """Create Vertex AI response schema using database data types (array of objects).
+        Uses string-based type names supported by newer google-genai versions.
+        """
         obj_properties: Dict[str, types.Schema] = {}
         for field in fields:
             data_type_info = data_types_map.get(field.data_type, {})
-            base_type = self._type_from_base(data_type_info.get("base_json_type", "string"))
+            base_type = (data_type_info.get("base_json_type") or "string").lower()
             schema_kwargs: Dict[str, Any] = {"type": base_type, "description": field.prompt}
             json_format = data_type_info.get("json_format")
             if json_format:
                 schema_kwargs["format"] = json_format
             obj_properties[field.name] = types.Schema(**schema_kwargs)
-        # items schema is an object
         item_schema = types.Schema(
-            type=types.Type.OBJECT,
+            type="object",
             properties=obj_properties,
             required=list(obj_properties.keys()),
         )
-        # top-level is array of those objects
-        return types.Schema(type=types.Type.ARRAY, items=item_schema)
+        return types.Schema(type="array", items=item_schema)
 
     def create_combined_json_schema(self, fields: List[FieldConfig], data_types_map: Dict[str, Dict]) -> types.Schema:
         """Create Vertex AI schema for combined processing with source attribution."""
         obj_properties: Dict[str, types.Schema] = {}
         for field in fields:
             data_type_info = data_types_map.get(field.data_type, {})
-            base_type = self._type_from_base(data_type_info.get("base_json_type", "string"))
+            base_type = (data_type_info.get("base_json_type") or "string").lower()
             schema_kwargs: Dict[str, Any] = {"type": base_type, "description": field.prompt}
             json_format = data_type_info.get("json_format")
             if json_format:
@@ -89,16 +77,16 @@ class AIExtractionService:
             obj_properties[field.name] = types.Schema(**schema_kwargs)
         # Add source_documents string array
         obj_properties["source_documents"] = types.Schema(
-            type=types.Type.ARRAY,
-            items=types.Schema(type=types.Type.STRING),
+            type="array",
+            items=types.Schema(type="string"),
             description="List of document filenames that contributed to this data",
         )
         item_schema = types.Schema(
-            type=types.Type.OBJECT,
+            type="object",
             properties=obj_properties,
             required=list(obj_properties.keys()),
         )
-        return types.Schema(type=types.Type.ARRAY, items=item_schema)
+        return types.Schema(type="array", items=item_schema)
 
     async def extract_data_individual(self, files_data: List[Dict], fields: List[FieldConfig], data_types_map: Dict[str, Dict], system_prompt: str, processed_files: List = None) -> ExtractionResult:
         """Extract structured data from files using Vertex AI with JSON schema - process each file separately."""
