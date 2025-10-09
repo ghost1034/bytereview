@@ -2731,7 +2731,10 @@ export interface operations {
     };
     get_job_details_api_jobs__job_id__get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Specific run ID (defaults to latest) */
+                run_id?: string | null;
+            };
             header?: never;
             path: {
                 job_id: string;

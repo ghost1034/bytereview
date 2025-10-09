@@ -130,20 +130,53 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
         if not hasattr(storage_service, 'construct_gcs_uri_for_object'):
             raise Exception("GCS is not available in this environment; Vertex AI extraction requires GCS URIs.")
 
-        # Build files_data with GCS URIs (no downloads)
+        # Build files_data with GCS URIs; convert DOCX to PDF when necessary
         files_data = []
+        from services.document_conversion_service import get_document_conversion_service, DOCX_MIME
+        conv = get_document_conversion_service()
+
         for source_file in source_files:
-            try:
-                gcs_uri = storage_service.construct_gcs_uri_for_object(source_file.gcs_object_name)
-            except Exception:
-                # Fallback manual construction
-                from services.gcs_service import construct_gcs_uri
-                gcs_uri = construct_gcs_uri(storage_service.get_bucket_name(), source_file.gcs_object_name)
-            files_data.append({
-                'filename': source_file.original_filename,
-                'uri': gcs_uri,
-                'mime_type': source_file.file_type or 'application/pdf',
-            })
+            filename = source_file.original_filename
+            mime_type = (source_file.file_type or '').lower()
+
+            # Determine if conversion is required (DOCX)
+            needs_docx_conv = mime_type == DOCX_MIME or (filename and filename.lower().endswith('.docx'))
+
+            if needs_docx_conv:
+                try:
+                    # Build destination object name under conversions/
+                    job_run_id = str(task.job_run_id)
+                    dest_object = f"jobs/{job_run_id}/conversions/{source_file.id}.pdf"
+                    # Convert: download docx, convert locally, upload pdf
+                    await conv.convert_docx_gcs_to_pdf_gcs(
+                        storage_service,
+                        source_file.gcs_object_name,
+                        dest_object,
+                    )
+                    # Use the converted PDF gs:// URI
+                    gcs_uri = storage_service.construct_gcs_uri_for_object(dest_object)
+                    files_data.append({
+                        'filename': (filename[:-5] + '.pdf') if filename and filename.lower().endswith('.docx') else (filename + '.pdf' if filename else 'converted.pdf'),
+                        'uri': gcs_uri,
+                        'mime_type': 'application/pdf',
+                    })
+                    logger.info(f"Converted DOCX to PDF for {filename} -> {dest_object}")
+                except Exception as e:
+                    logger.error(f"DOCX conversion failed for {filename}: {e}")
+                    # Mark this file as failed in document results later by leaving it out; AI will only see valid inputs.
+                    continue
+            else:
+                # No conversion needed; use the original GCS URI
+                try:
+                    gcs_uri = storage_service.construct_gcs_uri_for_object(source_file.gcs_object_name)
+                except Exception:
+                    from services.gcs_service import construct_gcs_uri
+                    gcs_uri = construct_gcs_uri(storage_service.get_bucket_name(), source_file.gcs_object_name)
+                files_data.append({
+                    'filename': filename,
+                    'uri': gcs_uri,
+                    'mime_type': mime_type or 'application/pdf',
+                })
 
         logger.info(f"Processing {len(files_data)} files with AI via Vertex using GCS URIs")
         logger.info(f"Using processing mode: {task.processing_mode}")
