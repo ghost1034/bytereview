@@ -374,8 +374,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
     if (jobId && loadedKeyRef.current !== key) {
       // On run change, close SSE and reset state to avoid showing stale data
       if (loadedKeyRef.current && loadedKeyRef.current.split(':')[1] !== (runId || 'latest')) {
-        closeZipSSEConnection()
-        closeImportSSEConnection()
+        closeSSEConnection()
         setFiles([])
         setUploadProgress({})
       }
