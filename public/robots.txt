@@ -1,0 +1,14 @@
+# *
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /api
+Disallow: /integrations
+Disallow: /subscribe
+
+# Host
+Host: https://cpaautomation.ai
+
+# Sitemaps
+Sitemap: https://cpaautomation.ai/sitemap.xml

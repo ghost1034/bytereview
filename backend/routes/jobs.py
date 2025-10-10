@@ -354,7 +354,8 @@ async def remove_file_from_job(
 @router.get("/{job_id}/events")
 async def stream_job_events(
     job_id: str,
-    token: str = Query(...)
+    token: str = Query(...),
+    include_full_state: bool = Query(default=False, description="Include full_state snapshot (only needed on Processing page)")
 ):
     """Simplified Server-Sent Events stream for real-time job updates"""
     try:
@@ -370,7 +371,7 @@ async def stream_job_events(
                 # Get SSE manager and listen for events
                 from services.sse_service import sse_manager
                 
-                async for event in sse_manager.listen_for_job_events(job_id):
+                async for event in sse_manager.listen_for_job_events(job_id, include_full_state=include_full_state):
                     yield f"data: {json.dumps(event)}\n\n"
                     
             except asyncio.CancelledError:
@@ -394,138 +395,6 @@ async def stream_job_events(
     except Exception as e:
         logger.error(f"Failed to start SSE stream for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start event stream: {str(e)}")
-
-@router.get("/{job_id}/import-events")
-async def stream_job_import_events(
-    job_id: str,
-    token: str = Query(...)
-):
-    """Server-Sent Events stream for real-time import updates (Drive/Gmail imports)"""
-    try:
-        # Verify the token and get user_id
-        from dependencies.auth import verify_token_string
-        user_id = await verify_token_string(token)
-        
-        # Verify user has access to this job
-        await job_service.verify_job_access(user_id, job_id)
-        
-        async def import_event_generator():
-            try:
-                # Get SSE manager and listen for import events
-                from services.sse_service import sse_manager
-                
-                async for event in sse_manager.listen_for_import_events(job_id):
-                    yield f"data: {json.dumps(event)}\n\n"
-                    
-            except asyncio.CancelledError:
-                return
-            except Exception as e:
-                logger.error(f"Error in import SSE stream for job {job_id}: {e}")
-                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-                return
-
-        return StreamingResponse(
-            import_event_generator(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Cache-Control"
-            }
-        )
-        
-    except Exception as e:
-        logger.error(f"Failed to start import SSE stream for job {job_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start import event stream: {str(e)}")
-
-@router.get("/{job_id}/zip-events")
-async def stream_job_zip_events(
-    job_id: str,
-    token: str = Query(...)
-):
-    """Server-Sent Events stream for real-time ZIP extraction updates"""
-    try:
-        # Verify the token and get user_id
-        from dependencies.auth import verify_token_string
-        user_id = await verify_token_string(token)
-        
-        # Verify user has access to this job
-        await job_service.verify_job_access(user_id, job_id)
-        
-        async def zip_event_generator():
-            try:
-                # Get SSE manager and listen for ZIP events
-                from services.sse_service import sse_manager
-                
-                async for event in sse_manager.listen_for_zip_events(job_id):
-                    yield f"data: {json.dumps(event)}\n\n"
-                    
-            except asyncio.CancelledError:
-                return
-            except Exception as e:
-                logger.error(f"Error in ZIP SSE stream for job {job_id}: {e}")
-                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-                return
-
-        return StreamingResponse(
-            zip_event_generator(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Cache-Control"
-            }
-        )
-        
-    except Exception as e:
-        logger.error(f"Failed to start ZIP SSE stream for job {job_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start ZIP event stream: {str(e)}")
-
-@router.get("/{job_id}/export-events")
-async def stream_job_export_events(
-    job_id: str,
-    token: str = Query(...)
-):
-    """Server-Sent Events stream for real-time export updates (Google Drive exports)"""
-    try:
-        # Verify the token and get user_id
-        from dependencies.auth import verify_token_string
-        user_id = await verify_token_string(token)
-        
-        # Verify user has access to this job
-        await job_service.verify_job_access(user_id, job_id)
-        
-        async def export_event_generator():
-            try:
-                # Get SSE manager and listen for export events
-                from services.sse_service import sse_manager
-                
-                async for event in sse_manager.listen_for_export_events(job_id):
-                    yield f"data: {json.dumps(event)}\n\n"
-                    
-            except asyncio.CancelledError:
-                return
-            except Exception as e:
-                logger.error(f"Error in export SSE stream for job {job_id}: {e}")
-                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-                return
-
-        return StreamingResponse(
-            export_event_generator(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Cache-Control"
-            }
-        )
-        
-    except Exception as e:
-        logger.error(f"Failed to start export SSE stream for job {job_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start export event stream: {str(e)}")
 
 @router.get("/{job_id}/results", response_model=JobResultsResponse)
 async def get_job_results(
@@ -745,29 +614,22 @@ async def export_job_results_to_drive_csv(
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
         
-        # Enqueue export job
-        from arq import create_pool
-        from workers.worker import ExportWorkerSettings
+        # Enqueue export job using Cloud Run Tasks
+        from services.cloud_run_task_service import cloud_run_task_service
         
-        redis = await create_pool(ExportWorkerSettings.redis_settings)
-        
-        job_result = await redis.enqueue_job(
-            'export_job_to_google_drive',
+        task_name = await cloud_run_task_service.enqueue_export_task(
             job_id=job_id,
             user_id=current_user_id,
             file_type='csv',
-            folder_id=folder_id,
-            _queue_name='io_queue'
+            folder_id=folder_id
         )
         
-        await redis.close()
-        
-        logger.info(f"Enqueued Google Drive CSV export job {job_result.job_id} for job {job_id}")
+        logger.info(f"Enqueued Google Drive CSV export task {task_name} for job {job_id}")
         
         return {
             "success": True,
             "message": "Export started. You will be notified when it completes.",
-            "export_job_id": job_result.job_id,
+            "export_task_name": task_name,
             "status": "processing"
         }
         
@@ -795,29 +657,22 @@ async def export_job_results_to_drive_excel(
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
         
-        # Enqueue export job
-        from arq import create_pool
-        from workers.worker import ExportWorkerSettings
+        # Enqueue export job using Cloud Run Tasks
+        from services.cloud_run_task_service import cloud_run_task_service
         
-        redis = await create_pool(ExportWorkerSettings.redis_settings)
-        
-        job_result = await redis.enqueue_job(
-            'export_job_to_google_drive',
+        task_name = await cloud_run_task_service.enqueue_export_task(
             job_id=job_id,
             user_id=current_user_id,
             file_type='xlsx',
-            folder_id=folder_id,
-            _queue_name='io_queue'
+            folder_id=folder_id
         )
         
-        await redis.close()
-        
-        logger.info(f"Enqueued Google Drive Excel export job {job_result.job_id} for job {job_id}")
+        logger.info(f"Enqueued Google Drive Excel export task {task_name} for job {job_id}")
         
         return {
             "success": True,
             "message": "Export started. You will be notified when it completes.",
-            "export_job_id": job_result.job_id,
+            "export_task_name": task_name,
             "status": "processing"
         }
         
@@ -858,27 +713,21 @@ async def import_drive_files(
         if not drive_file_ids:
             raise HTTPException(status_code=400, detail="No file IDs provided")
         
-        # Enqueue import job
-        from arq import create_pool
-        from workers.worker import ImportWorkerSettings
+        # Enqueue import job using Cloud Run Tasks
+        from services.cloud_run_task_service import cloud_run_task_service
         
-        redis = await create_pool(ImportWorkerSettings.redis_settings)
-        
-        job_result = await redis.enqueue_job(
-            'import_drive_files',
+        task_name = await cloud_run_task_service.enqueue_import_task(
+            task_type="import_drive_files",
             job_id=job_id,
             user_id=current_user_id,
-            drive_file_ids=drive_file_ids,
-            _queue_name='io_queue'
+            import_data={"drive_file_ids": drive_file_ids}
         )
         
-        await redis.close()
-        
-        logger.info(f"Enqueued Drive import job {job_result.job_id} for {len(drive_file_ids)} files")
+        logger.info(f"Enqueued Drive import task {task_name} for {len(drive_file_ids)} files")
         
         return {
             "success": True,
-            "import_job_id": job_result.job_id,
+            "import_task_name": task_name,
             "message": f"Import started for {len(drive_file_ids)} files",
             "file_count": len(drive_file_ids)
         }
@@ -926,27 +775,21 @@ async def import_gmail_attachments(
                         detail=f"Missing required field '{field}' in attachment data"
                     )
         
-        # Enqueue import job
-        from arq import create_pool
-        from workers.worker import ImportWorkerSettings
+        # Enqueue import job using Cloud Run Tasks
+        from services.cloud_run_task_service import cloud_run_task_service
         
-        redis = await create_pool(ImportWorkerSettings.redis_settings)
-        
-        job_result = await redis.enqueue_job(
-            'import_gmail_attachments',
+        task_name = await cloud_run_task_service.enqueue_import_task(
+            task_type="import_gmail_attachments",
             job_id=job_id,
             user_id=current_user_id,
-            attachment_data=attachments,
-            _queue_name='io_queue'
+            import_data={"attachment_data": attachments}
         )
         
-        await redis.close()
-        
-        logger.info(f"Enqueued Gmail import job {job_result.job_id} for {len(attachments)} attachments")
+        logger.info(f"Enqueued Gmail import task {task_name} for {len(attachments)} attachments")
         
         return {
             "success": True,
-            "import_job_id": job_result.job_id,
+            "import_task_name": task_name,
             "message": f"Import started for {len(attachments)} attachments",
             "attachment_count": len(attachments)
         }

@@ -8,8 +8,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from fastapi import UploadFile
-from arq import create_pool
-from arq.connections import RedisSettings
+from services.cloud_run_task_service import cloud_run_task_service
 
 from models.job import (
     JobInitiateRequest, JobInitiateResponse, JobStartRequest, JobStartResponse,
@@ -31,8 +30,7 @@ from typing import List, Optional, Dict, Any
 import logging
 import uuid
 import os
-from arq import create_pool
-from arq.connections import RedisSettings
+# Removed ARQ imports - using Cloud Run Tasks instead
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +40,6 @@ class JobService:
     def __init__(self):
         """Initialize job service"""
         self.storage_service = get_storage_service()
-        self.redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
-        self.redis_settings = RedisSettings.from_dsn(self.redis_url)
         logger.info("Job service initialized")
 
     def _get_session(self) -> Session:
@@ -592,9 +588,6 @@ class JobService:
     async def _enqueue_extraction_tasks_for_processing(self, run_id: str, automation_run_id: str = None) -> None:
         """Enqueue extraction tasks for background processing"""
         try:
-            # Get Redis connection
-            redis = await create_pool(self.redis_settings)
-            
             # Get all pending tasks for this job run
             db = self._get_session()
             try:
@@ -605,21 +598,18 @@ class JobService:
                 
                 logger.info(f"Found {len(tasks)} pending extraction tasks for job run {run_id}")
                 
-                # Enqueue each task
+                # Enqueue each task using Cloud Run Tasks
                 for task in tasks:
-                    job_info = await redis.enqueue_job(
-                        'process_extraction_task',
+                    task_name = await cloud_run_task_service.enqueue_extraction_task(
                         task_id=str(task.id),
-                        automation_run_id=automation_run_id,
-                        _queue_name='extract'
+                        automation_run_id=automation_run_id
                     )
-                    logger.info(f"Enqueued extraction task {task.id} as job {job_info.job_id}")
+                    logger.info(f"Enqueued extraction task {task.id} as {task_name}")
                 
                 logger.info(f"Enqueued {len(tasks)} extraction tasks for job run {run_id}")
                 
             finally:
                 db.close()
-                await redis.close()
                 
         except Exception as e:
             logger.error(f"Failed to enqueue tasks for job run {run_id}: {e}")
@@ -820,30 +810,22 @@ class JobService:
         """
         Enqueue Google Drive export for an automation run
         """
-        from arq import create_pool
-        
         try:
             # Get export configuration (default to CSV for now)
             export_config = automation.export_config or {}
             file_type = export_config.get('file_type', 'csv')
             folder_id = export_config.get('folder_id')
             
-            # Enqueue export worker
-            redis = await create_pool(self.redis_settings)
-            
-            await redis.enqueue_job(
-                'export_job_to_google_drive',
+            # Enqueue export using Cloud Run Tasks
+            task_name = await cloud_run_task_service.enqueue_export_task(
                 job_id=automation.job_id,
                 user_id=automation.user_id,
                 file_type=file_type,
                 folder_id=folder_id,
-                automation_run_id=str(automation_run.id),
-                _queue_name='io_queue'
+                automation_run_id=str(automation_run.id)
             )
             
-            await redis.close()
-            
-            logger.info(f"Enqueued Google Drive export for automation run {automation_run.id}")
+            logger.info(f"Enqueued Google Drive export for automation run {automation_run.id} as {task_name}")
             
         except Exception as e:
             logger.error(f"Failed to enqueue Drive export for automation run {automation_run.id}: {e}")
@@ -1200,9 +1182,6 @@ class JobService:
     async def _enqueue_extraction_tasks(self, job_run_id: uuid.UUID) -> None:
         """Enqueue extraction tasks for background processing"""
         try:
-            # Get Redis connection
-            redis = await create_pool(self.redis_settings)
-            
             # Get all pending tasks for this job run
             db = self._get_session()
             try:
@@ -1211,20 +1190,17 @@ class JobService:
                     ExtractionTask.status == 'pending'
                 ).all()
                 
-                # Enqueue each task
+                # Enqueue each task using Cloud Run Tasks
                 for task in tasks:
-                    job_info = await redis.enqueue_job(
-                        'process_extraction_task',
-                        str(task.id),
-                        _queue_name='extract'
+                    task_name = await cloud_run_task_service.enqueue_extraction_task(
+                        task_id=str(task.id)
                     )
-                    logger.info(f"Enqueued extraction task {task.id} as job {job_info.job_id}")
+                    logger.info(f"Enqueued extraction task {task.id} as {task_name}")
                 
                 logger.info(f"Enqueued {len(tasks)} extraction tasks for job run {job_run_id}")
                 
             finally:
                 db.close()
-                await redis.close()
                 
         except Exception as e:
             logger.error(f"Failed to enqueue tasks for job run {job_run_id}: {e}")
@@ -1672,21 +1648,12 @@ class JobService:
     async def _enqueue_zip_extraction(self, source_file_id: str, automation_run_id: str = None) -> None:
         """Enqueue ZIP extraction task"""
         try:
-            # Get Redis connection
-            redis = await create_pool(self.redis_settings)
-            
-            try:
-                # Enqueue to zip_queue
-                job_info = await redis.enqueue_job(
-                    'unpack_zip_file_task',
-                    source_file_id=source_file_id,
-                    automation_run_id=automation_run_id,
-                    _queue_name='io_queue'
-                )
-                logger.info(f"Enqueued ZIP extraction task for file {source_file_id} as job {job_info.job_id}")
-                
-            finally:
-                await redis.close()
+            # Enqueue using Cloud Run Tasks
+            task_name = await cloud_run_task_service.enqueue_zip_unpack_task(
+                source_file_id=source_file_id,
+                automation_run_id=automation_run_id
+            )
+            logger.info(f"Enqueued ZIP extraction task for file {source_file_id} as {task_name}")
                 
         except Exception as e:
             logger.error(f"Failed to enqueue ZIP extraction task: {e}")

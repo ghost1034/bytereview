@@ -17,6 +17,7 @@ REGION="us-central1"
 DOMAIN="cpaautomation.ai"          # apex
 WWW_DOMAIN="www.cpaautomation.ai"  # www subdomain -> frontend
 API_DOMAIN="api.cpaautomation.ai"  # api subdomain -> backend
+AUTH_DOMAIN="auth.cpaautomation.ai" # auth subdomain -> Firebase Hosting
 
 FRONTEND_SERVICE="cpa-web"
 API_SERVICE="cpa-api"
@@ -127,8 +128,16 @@ CNAME   api   ghs.googlehosted.com.
 EOF
   echo ""
 
+  echo -e "${BLUE}AUTH ${AUTH_DOMAIN} (Firebase Hosting):${NC}"
+  cat <<EOF
+Type    Host  Value
+CNAME   auth  (will be provided by Firebase Console)
+EOF
+  echo ""
+
   echo -e "${YELLOW}Keep existing MX/SPF/DMARC/TXT verifications you already use for Gmail and Google verification.${NC}"
-  echo -e "Remove GoDaddy 'Parked' A record if present.\n"
+  echo -e "Remove GoDaddy 'Parked' A record if present.\\n"
+  echo -e "${BLUE}Note: Auth subdomain DNS target will be provided when you add the custom domain in Firebase Console.${NC}"
 }
 
 # --- checks ---

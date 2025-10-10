@@ -26,9 +26,7 @@ from pathlib import Path
 backend_dir = Path(__file__).parent.parent  # Go up to backend/ directory
 sys.path.insert(0, str(backend_dir))
 
-from arq import create_pool
-from arq.connections import RedisSettings
-from arq.cron import cron
+# ARQ imports removed - now using Cloud Run Tasks
 from sqlalchemy.orm import Session
 from core.database import db_config, get_db
 from models.db_models import ExtractionTask, ExtractionResult, SourceFile, JobField, SystemPrompt, SourceFileToTask, ExtractionJob, JobRun, DataType
@@ -42,8 +40,7 @@ from typing import List
 
 logger = logging.getLogger(__name__)
 
-# Redis configuration
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+# Redis configuration removed - using Cloud Run Tasks instead
 
 async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_run_id: str = None) -> Dict[str, Any]:
     """
@@ -885,43 +882,9 @@ async def schedule_gmail_watch_renewal(ctx: Dict[str, Any]) -> Dict[str, Any]:
         logger.error(f"Scheduled Gmail watch renewal failed: {e}")
         return {"success": False, "error": str(e)}
 
-# ARQ worker settings
-class WorkerSettings:
-    """ARQ worker configuration for AI extraction tasks (default queue)"""
-    
-    redis_settings = RedisSettings.from_dsn(REDIS_URL)
-    
-    # Task functions that the worker can execute
-    functions = [
-        process_extraction_task,
-    ]
-    
-    # Worker configuration for AI tasks (low memory, high concurrency)
-    max_jobs = 5  # Reduce concurrent jobs to prevent Redis overload
-    job_timeout = 300  # 5 minutes timeout per job
-    keep_result = 3600  # Keep results for 1 hour
-    
-    # Logging
-    log_results = True
+# ARQ worker settings removed - using Cloud Run Tasks instead
 
-class ZipWorkerSettings:
-    """ARQ worker configuration for ZIP unpacking tasks (zip_queue)"""
-    
-    redis_settings = RedisSettings.from_dsn(REDIS_URL)
-    queue_name = "zip_queue"  # Dedicated queue for ZIP tasks
-    
-    # Task functions for ZIP processing
-    functions = [
-        unpack_zip_file_task,
-    ]
-    
-    # Worker configuration for ZIP tasks (high memory, low concurrency)
-    max_jobs = 1  # Low concurrency to prevent memory issues
-    job_timeout = 1800  # 30 minutes timeout for large ZIP files
-    keep_result = 3600  # Keep results for 1 hour
-    
-    # Logging
-    log_results = True
+# ZipWorkerSettings removed - using Cloud Run Tasks instead
 
 # ===================================================================
 # Import Worker Functions (Drive, Gmail)
@@ -1135,25 +1098,7 @@ async def _handle_zip_file(
         raise
 
 
-class ImportWorkerSettings:
-    """ARQ worker configuration for import tasks (imports queue)"""
-    
-    redis_settings = RedisSettings.from_dsn(REDIS_URL)
-    queue_name = "imports"  # Dedicated queue for import tasks
-    
-    # Task functions for import processing
-    functions = [
-        import_drive_files,
-        import_gmail_attachments
-    ]
-    
-    # Worker configuration for import tasks (moderate concurrency)
-    max_jobs = 10  # Higher concurrency for I/O bound tasks
-    job_timeout = 300  # 5 minutes timeout for import operations
-    keep_result = 3600  # Keep results for 1 hour
-    
-    # Logging
-    log_results = True
+# ImportWorkerSettings removed - using Cloud Run Tasks instead
 
 # ===================================================================
 # Export Worker Functions (Google Drive, etc.)
@@ -1324,24 +1269,7 @@ async def export_job_to_google_drive(
             raise
 
 
-class ExportWorkerSettings:
-    """ARQ worker configuration for export tasks (exports queue)"""
-    
-    redis_settings = RedisSettings.from_dsn(REDIS_URL)
-    queue_name = "exports"  # Dedicated queue for export tasks
-    
-    # Task functions for export processing
-    functions = [
-        export_job_to_google_drive
-    ]
-    
-    # Worker configuration for export tasks (moderate concurrency)
-    max_jobs = 5  # Moderate concurrency for export operations
-    job_timeout = 600  # 10 minutes timeout for export operations (longer for large datasets)
-    keep_result = 3600  # Keep results for 1 hour
-    
-    # Logging
-    log_results = True
+# ExportWorkerSettings removed - using Cloud Run Tasks instead
 
 # ===================================================================
 # Automation Worker Functions
@@ -1478,20 +1406,16 @@ async def automation_trigger_worker(
                         automation_run.imports_processing_failed = 0
                         db.commit()
                         
-                        # Enqueue Gmail import worker
-                        from arq import create_pool
-                        redis = await create_pool(ImportWorkerSettings.redis_settings)
+                        # Enqueue Gmail import using Cloud Run Tasks
+                        from services.cloud_run_task_service import cloud_run_task_service
                         
-                        await redis.enqueue_job(
-                            'import_gmail_attachments',
+                        await cloud_run_task_service.enqueue_import_task(
+                            task_type="import_gmail_attachments",
                             job_id=automation.job_id,
                             user_id=user_id,
-                            attachment_data=attachment_data,
-                            automation_run_id=str(automation_run.id),
-                            _queue_name='io_queue'
+                            import_data={"attachment_data": attachment_data},
+                            automation_run_id=str(automation_run.id)
                         )
-                        
-                        await redis.close()
                         processed_count += 1
                         
                         logger.info(f"Triggered automation {automation.id} for email {message_id}")
@@ -1636,35 +1560,15 @@ async def run_initializer_worker(
             raise
 
 
-class AutomationWorkerSettings:
-    """ARQ worker configuration for automation tasks (automation queue)"""
-    
-    redis_settings = RedisSettings.from_dsn(REDIS_URL)
-    queue_name = "automation"  # Dedicated queue for automation tasks
-    
-    # Task functions for automation processing
-    functions = [
-        automation_trigger_worker,
-        run_initializer_worker
-    ]
-    
-    # Worker configuration for automation tasks (lower concurrency)
-    max_jobs = 3  # Lower concurrency for automation triggers
-    job_timeout = 600  # 10 minutes timeout for automation operations
-    keep_result = 3600  # Keep results for 1 hour
-    
-    # Logging
-    log_results = True
+# AutomationWorkerSettings removed - using Cloud Run Tasks instead
 
 async def main():
     """For testing the worker locally"""
-    redis = await create_pool(WorkerSettings.redis_settings)
+    from services.cloud_run_task_service import cloud_run_task_service
     
-    # Example: enqueue a test task
-    job = await redis.enqueue_job('process_extraction_task', 'test-task-id')
-    print(f"Enqueued job: {job}")
-    
-    await redis.close()
+    # Example: enqueue a test task using Cloud Run Tasks
+    task_name = await cloud_run_task_service.enqueue_extraction_task('test-task-id')
+    print(f"Enqueued task: {task_name}")
 
 
 async def _record_usage_for_task(db: Session, task: ExtractionTask, source_files: List[SourceFile]):
@@ -1721,124 +1625,7 @@ async def _record_usage_for_task(db: Session, task: ExtractionTask, source_files
 
 # Removed per-task limit checking - now handled at job start
 
-class CronWorkerSettings:
-    """Settings for cron/scheduled tasks worker"""
-    redis_settings = RedisSettings.from_dsn(REDIS_URL)
-    queue_name = "cron_queue"
-
-
-# Hybrid worker settings for production deployment
-class ExtractWorkerSettings:
-    """Production worker for AI extraction tasks only"""
-    redis_settings = RedisSettings.from_dsn(REDIS_URL)
-    queue_name = "extract"  # Only handle extraction queue
-    
-    # Task functions for extraction
-    functions = [
-        process_extraction_task,
-    ]
-    
-    # Worker configuration
-    max_jobs = 10
-    job_timeout = 3600  # 1 hour for complex extractions
-    keep_result = 3600
-    
-    # Health check
-    health_check_interval = 30
-
-
-class IOWorkerSettings:
-    """Production worker for I/O operations: imports, exports, ZIP unpacking"""
-    redis_settings = RedisSettings.from_dsn(REDIS_URL)
-    
-    # Use a single queue name for ARQ compatibility (ARQ doesn't support multiple queues in one worker)
-    queue_name = "io_queue"
-    
-    # Task functions for I/O operations
-    functions = [
-        # Import tasks
-        import_drive_files,
-        import_gmail_attachments,
-        
-        # Export tasks
-        export_job_to_google_drive,
-        
-        # ZIP tasks
-        unpack_zip_file_task,
-    ]
-    
-    # Worker configuration
-    max_jobs = 5
-    job_timeout = 1800  # 30 minutes
-    keep_result = 3600
-    
-    # Startup/shutdown
-    on_startup = import_startup
-    on_shutdown = import_shutdown
-    
-    # Health check
-    health_check_interval = 30
-
-
-class MaintenanceWorkerSettings:
-    """Production worker for maintenance/cron tasks"""
-    redis_settings = RedisSettings.from_dsn(REDIS_URL)
-    queue_name = "cron_queue"
-    
-    # Worker functions (both manual and scheduled versions)
-    functions = [
-        # Manual cleanup functions (can be called directly)
-        run_abandoned_cleanup,
-        run_opt_out_cleanup,
-        run_artifact_cleanup,
-        run_free_user_period_reset,
-        run_stripe_usage_reconciliation,
-        run_usage_counter_cleanup,
-        run_gmail_watch_renewal,
-        # Scheduled wrapper functions
-        schedule_free_user_period_reset,
-        schedule_stripe_usage_reconciliation,
-        schedule_usage_counter_cleanup,
-        schedule_abandoned_cleanup,
-        schedule_artifact_cleanup,
-        schedule_opt_out_cleanup,
-        schedule_gmail_watch_renewal,
-    ]
-    
-    # Cron jobs schedule
-    cron_jobs = [
-        # Free user period reset - Daily at 00:30 UTC (after month rollover)
-        cron(schedule_free_user_period_reset, hour=0, minute=30, run_at_startup=False),
-        
-        # Stripe usage reconciliation - Every 2 hours
-        cron(schedule_stripe_usage_reconciliation, hour={0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22}, minute=15, run_at_startup=False),
-        
-        # Usage counter cleanup - Weekly on Sundays at 02:00 UTC
-        cron(schedule_usage_counter_cleanup, weekday=6, hour=2, minute=0, run_at_startup=False),
-        
-        # Abandoned job cleanup - Daily at 01:00 UTC
-        cron(schedule_abandoned_cleanup, hour=1, minute=0, run_at_startup=False),
-        
-        # Artifact cleanup - Daily at 03:00 UTC
-        cron(schedule_artifact_cleanup, hour=3, minute=0, run_at_startup=False),
-        
-        # Opt-out data cleanup - Weekly on Saturdays at 04:00 UTC
-        cron(schedule_opt_out_cleanup, weekday=5, hour=4, minute=0, run_at_startup=False),
-        
-        # Gmail watch renewal - Daily to ensure watches stay active (Gmail watches expire after ~7 days)
-        cron(schedule_gmail_watch_renewal, hour=6, minute=45, run_at_startup=True),
-    ]
-    
-    # Worker configuration
-    max_jobs = 5  # Lower concurrency for maintenance tasks
-    job_timeout = 1800  # 30 minutes timeout for cleanup tasks
-    keep_result = 86400  # Keep results for 24 hours
-    
-    # Health check
-    health_check_interval = 300  # 5 minutes
-    
-    # Logging
-    log_results = True
+# All ARQ worker settings classes removed - using Cloud Run Tasks and Cloud Scheduler instead
 
 if __name__ == "__main__":
     asyncio.run(main())
