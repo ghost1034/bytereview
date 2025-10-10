@@ -93,9 +93,6 @@ export default function ProcessingStep({
 }: ProcessingStepProps) {
   const { data: jobDetails, isLoading: jobLoading } = useJobDetails(jobId);
   // No longer need separate progress API call - SSE provides full_state
-  const [startTime] = useState(Date.now());
-  const [elapsedTime, setElapsedTime] = useState(0);
-
   // SSE connection for real-time updates
   const eventSourceRef = useRef<EventSource | null>(null);
   // Single source of truth for progress - starts with server data, gets updated by SSE
@@ -130,16 +127,6 @@ export default function ProcessingStep({
     `Job status check: status=${jobDetails?.status}, isCompleted=${isCompleted}, isProcessing=${isProcessing}`
   );
 
-  // Update elapsed time every second (stop when job completes)
-  useEffect(() => {
-    if (isCompleted) return; // Stop updating when job is completed
-
-    const interval = setInterval(() => {
-      setElapsedTime(Date.now() - startTime);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isCompleted, startTime]);
 
   // Handle full_state from SSE - this replaces the old progress API approach
   const handleFullState = (fullStateData: any) => {
@@ -481,16 +468,6 @@ export default function ProcessingStep({
     }
   }, [isCompleted, jobId]);
 
-  const formatElapsedTime = (ms: number) => {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-
-    if (minutes > 0) {
-      return `${minutes}m ${remainingSeconds}s`;
-    }
-    return `${remainingSeconds}s`;
-  };
 
   const getStatusIcon = () => {
     if (isCompleted) {
@@ -545,10 +522,6 @@ export default function ProcessingStep({
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Progress Overview</span>
-            <div className="text-sm font-normal text-muted-foreground">
-              Elapsed: {Math.floor(elapsedTime / 60000)}m{" "}
-              {Math.floor((elapsedTime % 60000) / 1000)}s
-            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
