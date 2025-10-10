@@ -82,6 +82,16 @@ class SSEManager:
                         yield {"type": "error", "message": "Job not found"}
                         return
 
+                    # Get latest job run for this job
+                    from models.db_models import JobRun
+                    latest_run = db.query(JobRun).filter(
+                        JobRun.job_id == job.id
+                    ).order_by(JobRun.created_at.desc()).first()
+                    
+                    if not latest_run:
+                        yield {"type": "error", "message": "No job run found"}
+                        return
+
                     # Build ordered task list using first source file path
                     first_file_subquery = (
                         db.query(
@@ -96,14 +106,14 @@ class SSEManager:
                     tasks = (
                         db.query(ExtractionTask)
                         .join(first_file_subquery, first_file_subquery.c.task_id == ExtractionTask.id)
-                        .filter(ExtractionTask.job_id == job.id)
+                        .filter(ExtractionTask.job_run_id == latest_run.id)
                         .order_by(first_file_subquery.c.first_file_path)
                         .all()
                     )
 
-                    total_tasks = job.tasks_total or 0
-                    completed = job.tasks_completed or 0
-                    failed = job.tasks_failed or 0
+                    total_tasks = latest_run.tasks_total or 0
+                    completed = latest_run.tasks_completed or 0
+                    failed = latest_run.tasks_failed or 0
 
                     task_list = []
                     for task in tasks:
@@ -148,7 +158,7 @@ class SSEManager:
                     "type": "full_state",
                     "version": current_version,
                     "job_id": job_id,
-                    "status": job.status,
+                    "status": latest_run.status,
                     "progress": {
                         "total_tasks": total_tasks,
                         "completed": completed,
@@ -179,7 +189,7 @@ class SSEManager:
                         pass
 
                 # If job already completed, short-circuit like before
-                if job.status == "completed":
+                if latest_run.status == "completed":
                     yield {"type": "job_already_completed"}
                     return
 
