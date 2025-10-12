@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, CheckCircle, AlertCircle, PlayCircle } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, AlertCircle, PlayCircle, Eye } from 'lucide-react';
 import { JobRunListItem } from '@/lib/api';
 
 interface RunSelectorProps {
@@ -120,17 +120,38 @@ export default function RunSelector({
           </Badge>
         </div>
         
-        {canCreateNewRun && onCreateNewRun && (
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={onCreateNewRun}
-            className="text-xs px-3 py-1"
-          >
-            + New Run
-          </Button>
-        )}
-      </div>
+       {/* Actions to the right of the selector */}
+       <div className="flex items-center gap-2">
+         {/* View Results when the selected run is completed */}
+         {selectedRun && selectedRun.status === 'completed' && (
+           <Button
+             variant="outline"
+             size="sm"
+             className="text-xs px-3 py-1 flex items-center gap-1"
+             onClick={() => {
+               const params = new URLSearchParams(searchParams.toString());
+               params.set('run_id', selectedRun.id);
+               router.push(`/dashboard/jobs/${jobId}/results?${params.toString()}`);
+             }}
+           >
+             <Eye className="w-4 h-4" />
+             View Results
+           </Button>
+         )}
+
+         {/* New Run button */}
+         {canCreateNewRun && onCreateNewRun && (
+           <Button 
+             variant="outline" 
+             size="sm"
+             onClick={onCreateNewRun}
+             className="text-xs px-3 py-1"
+           >
+             + New Run
+           </Button>
+         )}
+       </div>
+     </div>
     );
   }
 
@@ -162,17 +183,38 @@ export default function RunSelector({
           ))}
         </SelectContent>
       </Select>
-      
-      {canCreateNewRun && onCreateNewRun && (
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={onCreateNewRun}
-          className="text-xs px-3 py-1"
-        >
-          + New Run
-        </Button>
-      )}
+
+      {/* Actions to the right of the selector */}
+      <div className="flex items-center gap-2">
+        {/* View Results when the selected run is completed */}
+        {selectedRun && selectedRun.status === 'completed' && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs px-3 py-1 flex items-center gap-1"
+            onClick={() => {
+              const params = new URLSearchParams(searchParams.toString());
+              params.set('run_id', selectedRun.id);
+              router.push(`/dashboard/jobs/${jobId}/results?${params.toString()}`);
+            }}
+          >
+            <Eye className="w-4 h-4" />
+            View Results
+          </Button>
+        )}
+
+        {/* New Run button */}
+        {canCreateNewRun && onCreateNewRun && (
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={onCreateNewRun}
+            className="text-xs px-3 py-1"
+          >
+            + New Run
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
