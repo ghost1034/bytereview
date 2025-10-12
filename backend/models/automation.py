@@ -51,6 +51,7 @@ class AutomationUpdate(BaseModel):
     processing_mode: Optional[str] = Field(None, description="Processing mode (individual or combined)")
     dest_type: Optional[str] = Field(None, description="Export destination type (gdrive, gmail)")
     export_config: Optional[Dict[str, Any]] = Field(None, description="Export configuration")
+    job_id: Optional[UUID] = Field(None, description="ID of the extraction job to use as template")
     
     @validator('processing_mode')
     def validate_processing_mode(cls, v):

@@ -58,6 +58,7 @@ export interface UpdateAutomationData {
   trigger_config?: {
     query?: string
   }
+  job_id?: string
   processing_mode?: 'individual' | 'combined'
   dest_type?: string
   export_config?: {

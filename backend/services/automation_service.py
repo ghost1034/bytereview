@@ -104,6 +104,17 @@ class AutomationService:
             if automation_data.processing_mode is not None:
                 automation.processing_mode = automation_data.processing_mode
             
+            # Update job_id if provided and valid
+            if automation_data.job_id is not None:
+                # Verify the new job belongs to the user
+                job = db.query(ExtractionJob).filter(
+                    ExtractionJob.id == automation_data.job_id,
+                    ExtractionJob.user_id == user_id
+                ).first()
+                if not job:
+                    raise ValueError("Job not found or access denied")
+                automation.job_id = str(automation_data.job_id)
+            
             automation.dest_type = automation_data.dest_type
             automation.export_config = automation_data.export_config or {}
             
