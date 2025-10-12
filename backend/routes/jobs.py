@@ -71,36 +71,6 @@ async def initiate_job(
         logger.error(f"Failed to initiate job for user {user_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to initiate job: {str(e)}")
 
-# New resumable workflow endpoints (must come before /{job_id} routes)
-
-@router.get("/resumable")
-async def list_resumable_jobs(
-    user_id: str = Depends(get_current_user_id)
-):
-    """List jobs that can be resumed"""
-    try:
-        jobs = job_service.get_resumable_jobs(user_id)
-        return {
-            "jobs": [
-                ResumableJobResponse(
-                    id=str(job.id),
-                    name=job.name,
-                    config_step=job.config_step,
-                    status=job.status,
-                    progress_percentage=job.progress_percentage,
-                    tasks_completed=job.tasks_completed,
-                    tasks_total=job.tasks_total,
-                    tasks_failed=job.tasks_failed,
-                    is_resumable=job.is_resumable,
-                    created_at=job.created_at.isoformat(),
-                    last_active_at=job.last_active_at.isoformat()
-                ) for job in jobs
-            ]
-        }
-    except Exception as e:
-        logger.error(f"Error listing resumable jobs: {e}")
-        raise HTTPException(status_code=500, detail="Failed to list resumable jobs")
-
 @router.get("/{job_id}", response_model=JobDetailsResponse)
 async def get_job_details(
     job_id: str,

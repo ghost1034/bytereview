@@ -739,7 +739,7 @@ class JobService:
                     
                     # Enqueue export based on destination type
                     if automation.dest_type == 'gdrive':
-                        await self._enqueue_drive_export(automation_run, automation)
+                        await self._enqueue_drive_export(db, automation_run, automation)
                     else:
                         logger.warning(f"Unsupported export destination: {automation.dest_type}")
                         # Mark as completed if export type not supported
@@ -782,7 +782,7 @@ class JobService:
                     
                     # Enqueue export based on destination type
                     if automation.dest_type == 'gdrive':
-                        await self._enqueue_drive_export(automation_run, automation)
+                        await self._enqueue_drive_export(db, automation_run, automation)
                     else:
                         logger.warning(f"Unsupported export destination: {automation.dest_type}")
                         # Mark as completed if export type not supported
@@ -806,7 +806,7 @@ class JobService:
                 for job_run in job_runs:
                     await self._complete_automation_runs_for_job_run(db, str(job_run.id))
     
-    async def _enqueue_drive_export(self, automation_run, automation):
+    async def _enqueue_drive_export(self, db: Session, automation_run, automation):
         """
         Enqueue Google Drive export for an automation run
         """
@@ -834,43 +834,6 @@ class JobService:
             await automation_service.update_automation_run_status(
                 db, str(automation_run.id), 'failed', f'Export enqueue failed: {str(e)}'
             )
-    
-    
-    def get_resumable_jobs(self, user_id: str) -> list[ExtractionJob]:
-        """Get all jobs user can resume based on latest run status"""
-        db = self._get_session()
-        try:
-            # Create subquery for latest run per job
-            latest_runs_subquery = db.query(
-                JobRun.job_id,
-                func.max(JobRun.created_at).label('latest_created_at')
-            ).group_by(JobRun.job_id).subquery()
-            
-            # Get jobs where latest run is resumable
-            return db.query(ExtractionJob).join(
-                latest_runs_subquery, ExtractionJob.id == latest_runs_subquery.c.job_id
-            ).join(
-                JobRun, and_(
-                    JobRun.job_id == ExtractionJob.id,
-                    JobRun.created_at == latest_runs_subquery.c.latest_created_at
-                )
-            ).filter(
-                ExtractionJob.user_id == user_id,
-                or_(
-                    # Wizard not complete
-                    JobRun.config_step != 'submitted',
-                    # Processing incomplete/failed with remaining tasks
-                    and_(
-                        JobRun.status.in_(['in_progress', 'partially_completed', 'failed']),
-                        JobRun.tasks_completed < JobRun.tasks_total
-                    )
-                )
-            ).order_by(ExtractionJob.last_active_at.desc()).all()
-        except SQLAlchemyError as e:
-            logger.error(f"Error getting resumable jobs: {e}")
-            raise
-        finally:
-            db.close()
     
     def get_active_jobs(self, user_id: str) -> list[ExtractionJob]:
         """Get completed or fully processed jobs based on latest run status"""

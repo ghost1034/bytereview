@@ -1376,9 +1376,13 @@ async def automation_trigger_worker(
                         
                         # Check if job is currently running before proceeding
                         job = db.query(ExtractionJob).filter(ExtractionJob.id == automation.job_id).first()
-                        if job and job.status == 'in_progress':
-                            logger.warning(f"Job {automation.job_id} is currently running, skipping automation trigger")
-                            continue
+                        # With job runs, jobs no longer have a direct 'status'. Check the latest run status instead.
+                        if job:
+                            from models.db_models import JobRun
+                            latest_run = db.query(JobRun).filter(JobRun.job_id == job.id).order_by(JobRun.created_at.desc()).first()
+                            if latest_run and latest_run.status == 'in_progress':
+                                logger.warning(f"Latest run {latest_run.id} for job {automation.job_id} is currently in progress, skipping automation trigger")
+                                continue
                         
                         # No need to clear data - each automation trigger creates a new job run
                         

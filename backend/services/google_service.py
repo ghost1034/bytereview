@@ -1347,10 +1347,31 @@ class GoogleService:
         """Trigger job initialization for a specific automation run"""
         from services.cloud_run_task_service import cloud_run_task_service
         
+        # Determine parent job_id from the job_run relationship if available
+        parent_job_id = None
+        try:
+            if getattr(automation_run, 'job_run', None) and getattr(automation_run.job_run, 'job_id', None):
+                parent_job_id = str(automation_run.job_run.job_id)
+        except Exception:
+            parent_job_id = None
+        
+        # Fallback: open a short-lived session to fetch JobRun -> job_id
+        if not parent_job_id:
+            from core.database import db_config
+            from models.db_models import JobRun
+            db = db_config.get_session()
+            try:
+                job_run = db.query(JobRun).filter(JobRun.id == automation_run.job_run_id).first()
+                if not job_run:
+                    raise ValueError(f"Job run {automation_run.job_run_id} not found when triggering initialization")
+                parent_job_id = str(job_run.job_id)
+            finally:
+                db.close()
+        
         # Enqueue job initialization using Cloud Run Tasks
         task_name = await cloud_run_task_service.enqueue_automation_task(
             task_type="run_initializer_worker",
-            job_id=automation_run.job_id,
+            job_id=parent_job_id,
             automation_run_id=str(automation_run.id)
         )
         
