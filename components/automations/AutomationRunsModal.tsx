@@ -157,7 +157,7 @@ export function AutomationRunsModal({ automationId, open, onOpenChange }: Automa
                       </div>
                       
                       <div className="text-right text-sm text-gray-500">
-                        <div>Job: {run.job_id.slice(0, 8)}</div>
+                        <div>Run: {run.job_run_id?.slice?.(0, 8) ?? 'unknown'}</div>
                       </div>
                     </div>
                   </CardContent>

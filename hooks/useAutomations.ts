@@ -27,7 +27,7 @@ export interface Automation {
 export interface AutomationRun {
   id: string
   automation_id: string
-  job_id: string
+  job_run_id: string
   status: 'pending' | 'running' | 'completed' | 'failed'
   error_message?: string
   triggered_at: string
