@@ -212,17 +212,22 @@ class AutomationService:
             if not automation:
                 raise ValueError(f"Automation {automation_id} not found")
             
-            # Create a new job run for this automation trigger
-            from services.job_service import JobService
-            job_service = JobService()
+            # Determine which job run to use for this automation trigger
+            from models.db_models import JobRun
+            reuse_run = db.query(JobRun).filter(JobRun.job_id == job_id).order_by(JobRun.created_at.desc()).first()
+            if reuse_run and reuse_run.status == 'pending' and reuse_run.config_step != 'submitted':
+                job_run_id = str(reuse_run.id)
+                logger.info(f"Reusing latest pending job run {job_run_id} for job {job_id} instead of creating a new run")
+            else:
+                from services.job_service import JobService
+                job_service = JobService()
+                # Create new job run (will clone from latest run by default)
+                job_run_id = await job_service.create_job_run(
+                    job_id=job_id,
+                    user_id=automation.user_id
+                )
             
-            # Create new job run (will clone from latest run by default)
-            job_run_id = await job_service.create_job_run(
-                job_id=job_id,
-                user_id=automation.user_id
-            )
-            
-            # Create automation run linked to the new job run
+            # Create automation run linked to the selected job run
             automation_run = AutomationRun(
                 automation_id=automation_id,
                 job_run_id=job_run_id,
