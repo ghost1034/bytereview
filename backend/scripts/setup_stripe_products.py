@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Setup Stripe products, prices, and a billing meter for ByteReview.
+Setup Stripe products, prices, and a billing meter for CPAAutomation.
 
 Creates:
-  - billing.meter: "ByteReview Pages" (event_name: "bytereview_pages")
-  - product: "ByteReview Basic"
+  - billing.meter: "CPAAutomation Pages" (event_name: "cpaautomation_pages")
+  - product: "CPAAutomation Basic"
       - price: monthly recurring $9.99
       - price: metered (0 up to 500 pages, then $0.50/page) ATTACHED TO METER
-  - product: "ByteReview Pro"
+  - product: "CPAAutomation Pro"
       - price: monthly recurring $49.99
       - price: metered (0 up to 5000 pages, then $0.20/page) ATTACHED TO METER
 
@@ -31,28 +31,28 @@ import stripe
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 BASIC = {
-    "product_name": "ByteReview Basic",
+    "product_name": "CPAAutomation Basic",
     "plan_code": "basic",
     "monthly_cents": 999,       # $9.99
     "free_pages": 500,
     "overage_cents": 50,        # $0.50/page
-    "price_lookup_recurring": "bytereview_basic_recurring_v1",
-    "price_lookup_metered":   "bytereview_basic_metered_v1",
+    "price_lookup_recurring": "cpaautomation_basic_recurring_v1",
+    "price_lookup_metered":   "cpaautomation_basic_metered_v1",
 }
 
 PRO = {
-    "product_name": "ByteReview Pro",
+    "product_name": "CPAAutomation Pro",
     "plan_code": "pro",
     "monthly_cents": 4999,      # $49.99
     "free_pages": 5000,
     "overage_cents": 20,        # $0.20/page
-    "price_lookup_recurring": "bytereview_pro_recurring_v1",
-    "price_lookup_metered":   "bytereview_pro_metered_v1",
+    "price_lookup_recurring": "cpaautomation_pro_recurring_v1",
+    "price_lookup_metered":   "cpaautomation_pro_metered_v1",
 }
 
 METER = {
-    "display_name": "ByteReview Pages",
-    "event_name": "bytereview_pages",
+    "display_name": "CPAAutomation Pages",
+    "event_name": "cpaautomation_pages",
     "customer_mapping_type": "by_id",          # expects payload[stripe_customer_id]
     "value_payload_key": "value",              # expects payload[value]
     "aggregation_formula": "sum",              # sum values over the period

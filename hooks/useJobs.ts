@@ -29,23 +29,6 @@ export function useInitiateJob() {
   })
 }
 
-// /**
-//  * Hook to start job processing
-//  */
-// export function useStartJob() {
-//   const queryClient = useQueryClient()
-  
-//   return useMutation({
-//     mutationFn: ({ jobId, request }: { jobId: string; request: JobStartRequest }) =>
-//       apiClient.startJob(jobId, request),
-//     onSuccess: (_, { jobId }) => {
-//       // Invalidate job details and list
-//       queryClient.invalidateQueries({ queryKey: ['job', jobId] })
-//       queryClient.invalidateQueries({ queryKey: ['jobs'] })
-//     },
-//   })
-// }
-
 /**
  * Hook to upload files with progress tracking
  */
@@ -130,7 +113,7 @@ export function useJobsForAutomation(limit = 100, offset = 0) {
       return apiClient.listJobs({ limit, offset, include_field_status: true })
     },
     enabled: !!user,
-    staleTime: 30000, // Cache for 30 seconds since this is used in modals
+    staleTime: 0, // TODO: Implement proper staleTime and invalidation
     refetchOnWindowFocus: false, // Don't refetch on focus for modal usage
     refetchOnMount: true,
     onSuccess: (data) => {
@@ -177,7 +160,6 @@ export function useJobWorkflow() {
   
   const initiateJob = useInitiateJob()
   const uploadFiles = useUploadFiles()
-  // const startJob = useStartJob()
   
   const initiateAndUpload = useMutation({
     mutationFn: async ({
@@ -333,22 +315,3 @@ export type {
   JobFieldConfig,
   TaskDefinition
 } from '@/lib/api'
-// Special hook for processing page that needs fresh progress data
-export const useJobProgressFresh = (jobId: string) => {
-  return useQuery({
-    queryKey: [`/api/jobs/${jobId}/progress`, 'fresh'], // Simple fresh key
-    queryFn: () => apiClient.getJobProgress(jobId),
-    enabled: !!jobId,
-    staleTime: 0, // TODO: Implement proper staleTime and invalidation
-    cacheTime: 0,
-    refetchOnMount: true, // Always refetch when component mounts
-    refetchOnWindowFocus: true, // Refetch when user returns to tab
-    retry: false, // Don't retry to avoid hanging
-    onError: (error) => {
-      console.error("useJobProgressFresh error:", error);
-    },
-    onSuccess: (data) => {
-      console.log("useJobProgressFresh success:", data);
-    },
-  });
-};
