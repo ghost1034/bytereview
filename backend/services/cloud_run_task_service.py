@@ -51,8 +51,8 @@ class CloudRunTaskService:
         """Enqueue an extraction task"""
         task_data = {
             "task_type": "process_extraction_task",
-            "task_id": task_id,
-            "automation_run_id": automation_run_id
+            "task_id": str(task_id) if task_id is not None else None,
+            "automation_run_id": str(automation_run_id) if automation_run_id is not None else None
         }
         
         return await self._create_cloud_task(
@@ -70,8 +70,8 @@ class CloudRunTaskService:
         """Enqueue a ZIP unpacking task"""
         task_data = {
             "task_type": "unpack_zip_file_task",
-            "source_file_id": source_file_id,
-            "automation_run_id": automation_run_id
+            "source_file_id": str(source_file_id) if source_file_id is not None else None,
+            "automation_run_id": str(automation_run_id) if automation_run_id is not None else None
         }
         
         return await self._create_cloud_task(
@@ -91,10 +91,10 @@ class CloudRunTaskService:
         """Enqueue an import task"""
         task_data = {
             "task_type": task_type,
-            "job_id": job_id,
-            "user_id": user_id,
+            "job_id": str(job_id) if job_id is not None else None,
+            "user_id": str(user_id) if user_id is not None else None,
             "import_data": import_data,
-            "automation_run_id": automation_run_id
+            "automation_run_id": str(automation_run_id) if automation_run_id is not None else None
         }
         
         return await self._create_cloud_task(
@@ -114,11 +114,11 @@ class CloudRunTaskService:
         """Enqueue an export task"""
         task_data = {
             "task_type": "export_job_to_google_drive",
-            "job_id": job_id,
-            "user_id": user_id,
+            "job_id": str(job_id) if job_id is not None else None,
+            "user_id": str(user_id) if user_id is not None else None,
             "file_type": file_type,
             "folder_id": folder_id,
-            "automation_run_id": automation_run_id
+            "automation_run_id": str(automation_run_id) if automation_run_id is not None else None
         }
         
         return await self._create_cloud_task(
@@ -138,10 +138,10 @@ class CloudRunTaskService:
         """Enqueue an automation task"""
         task_data = {
             "task_type": task_type,
-            "user_id": user_id,
+            "user_id": str(user_id) if user_id is not None else None,
             "message_data": message_data,
-            "job_id": job_id,
-            "automation_run_id": automation_run_id
+            "job_id": str(job_id) if job_id is not None else None,
+            "automation_run_id": str(automation_run_id) if automation_run_id is not None else None
         }
         
         return await self._create_cloud_task(
@@ -179,7 +179,9 @@ class CloudRunTaskService:
             # Debug logging
             logger.info(f"Creating Cloud Task with URL: {service_url}")
             logger.info(f"Queue: {queue_name}")
-            logger.info(f"Task data: {task_data}")
+            # Ensure all values are JSON serializable (convert UUIDs)
+            safe_task_data = json.loads(json.dumps(task_data, default=str))
+            logger.info(f"Task data: {safe_task_data}")
             # Create the task
             task = {
                 "http_request": {
@@ -188,7 +190,7 @@ class CloudRunTaskService:
                     "headers": {
                         "Content-Type": "application/json",
                     },
-                    "body": json.dumps(task_data).encode(),
+                    "body": json.dumps(task_data, default=str).encode(),
                     "oidc_token": {
                         "service_account_email": f"cpaautomation-runner@{self.project_id}.iam.gserviceaccount.com"
                     }
