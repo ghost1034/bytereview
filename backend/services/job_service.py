@@ -91,6 +91,17 @@ class JobService:
             if not job:
                 raise ValueError("Job not found or access denied")
             
+            # Determine source run for cloning BEFORE creating the new run
+            source_run = None
+            if clone_from_run_id:
+                source_run = db.query(JobRun).filter(
+                    JobRun.id == clone_from_run_id,
+                    JobRun.job_id == job.id  # Ensure same job
+                ).first()
+            else:
+                # Use the most recent existing run for this job (if any)
+                source_run = db.query(JobRun).filter(JobRun.job_id == job.id).order_by(JobRun.created_at.desc()).first()
+            
             # Create new job run
             new_run = JobRun(
                 job_id=job.id,
@@ -106,58 +117,30 @@ class JobService:
             db.add(new_run)
             db.flush()  # Get the run ID
             
-            # Clone field configuration if requested
-            if clone_from_run_id:
-                source_run = db.query(JobRun).filter(
-                    JobRun.id == clone_from_run_id,
-                    JobRun.job_id == job.id  # Ensure same job
-                ).first()
+            # Clone from source_run if available
+            if source_run:
+                # Copy template_id if not already set
+                if not new_run.template_id:
+                    new_run.template_id = source_run.template_id
                 
-                if source_run:
-                    # Copy template_id if not already set
-                    if not new_run.template_id:
-                        new_run.template_id = source_run.template_id
-                    
-                    # Clone job fields
-                    source_fields = db.query(JobField).filter(
-                        JobField.job_run_id == source_run.id
-                    ).order_by(JobField.display_order).all()
-                    
-                    for source_field in source_fields:
-                        new_field = JobField(
-                            job_run_id=new_run.id,
-                            field_name=source_field.field_name,
-                            data_type_id=source_field.data_type_id,
-                            ai_prompt=source_field.ai_prompt,
-                            display_order=source_field.display_order
-                        )
-                        db.add(new_field)
-                    
-                    logger.info(f"Cloned {len(source_fields)} fields from run {clone_from_run_id} to new run {new_run.id}")
-            elif not clone_from_run_id:
-                # If no clone source specified, try to clone from latest run
-                latest_run = self._get_latest_run_internal(db, job.id)
-                if latest_run and latest_run.id != new_run.id:
-                    # Copy template_id if not already set
-                    if not new_run.template_id:
-                        new_run.template_id = latest_run.template_id
-                    
-                    # Clone job fields from latest run
-                    latest_fields = db.query(JobField).filter(
-                        JobField.job_run_id == latest_run.id
-                    ).order_by(JobField.display_order).all()
-                    
-                    for source_field in latest_fields:
-                        new_field = JobField(
-                            job_run_id=new_run.id,
-                            field_name=source_field.field_name,
-                            data_type_id=source_field.data_type_id,
-                            ai_prompt=source_field.ai_prompt,
-                            display_order=source_field.display_order
-                        )
-                        db.add(new_field)
-                    
-                    logger.info(f"Auto-cloned {len(latest_fields)} fields from latest run to new run {new_run.id}")
+                # Clone job fields
+                source_fields = db.query(JobField).filter(
+                    JobField.job_run_id == source_run.id
+                ).order_by(JobField.display_order).all()
+                
+                for source_field in source_fields:
+                    new_field = JobField(
+                        job_run_id=new_run.id,
+                        field_name=source_field.field_name,
+                        data_type_id=source_field.data_type_id,
+                        ai_prompt=source_field.ai_prompt,
+                        display_order=source_field.display_order
+                    )
+                    db.add(new_field)
+                
+                logger.info(f"Cloned {len(source_fields)} fields from run {source_run.id} to new run {new_run.id}")
+            else:
+                logger.info(f"No source run found to clone for new run {new_run.id}; proceeding with empty configuration")
             
             db.commit()
             logger.info(f"Created new job run {new_run.id} for job {job_id}")
