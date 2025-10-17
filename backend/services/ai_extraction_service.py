@@ -366,8 +366,8 @@ Respond ONLY with JSON that matches the provided schema. If a field is not found
             errors.append("At least one field must be specified")
             return errors
         
-        if len(fields) > 20:
-            errors.append("Maximum 20 fields allowed per extraction")
+        # if len(fields) > 20:
+        #     errors.append("Maximum 20 fields allowed per extraction")
         
         field_names = set()
         for i, field in enumerate(fields):
