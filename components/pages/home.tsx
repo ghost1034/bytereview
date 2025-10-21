@@ -50,32 +50,32 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-gray-50 to-white py-20">
+      <section className="bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white min-h-[calc(100vh-var(--header-height))] flex items-center py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <div>
-              <h1 className="text-5xl font-bold text-gray-900 mb-2">
+              <h1 className="text-5xl font-bold text-white mb-2">
                 True GenAI Customizable Extraction
               </h1>
-              <p className="text-lg text-gray-500 mb-8">
+              <p className="text-lg text-gray-300 mb-8">
                 Engineered by real CPAs for practical professional use
               </p>
-              <p className="text-xl text-gray-600 mb-8">
+              <p className="text-xl text-gray-200 mb-8">
                 Professional-grade AI extraction built with deep accounting and legal expertise.
               </p>
               
               <div className="space-y-4 mb-8 flex flex-col items-center">
                 <div className="flex items-center space-x-3">
                   <Check className="text-green-500 w-5 h-5" />
-                  <span className="text-gray-700">CPA-designed extraction rules for financial compliance</span>
+                  <span className="text-gray-200">CPA-designed extraction rules for financial compliance</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Check className="text-green-500 w-5 h-5" />
-                  <span className="text-gray-700">Lawyer-validated data processing for legal requirements</span>
+                  <span className="text-gray-200">Lawyer-validated data processing for legal requirements</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Check className="text-green-500 w-5 h-5" />
-                  <span className="text-gray-700">Custom workflows for enterprise-grade automation</span>
+                  <span className="text-gray-200">Custom workflows for enterprise-grade automation</span>
                 </div>
               </div>
 
@@ -121,12 +121,12 @@ export default function Home() {
                 <div className="flex items-center space-x-2 max-w-md">
                   <Button 
                     onClick={handleGetStarted}
-                    className="lido-green hover:lido-green-dark text-white px-6 w-full"
+                    className="bg-white text-gray-900 hover:bg-gray-100 px-6 w-full"
                   >
                     Get started for free →
                   </Button>
                 </div>
-                <div className="flex items-center space-x-4 text-sm text-gray-500">
+                <div className="flex items-center space-x-4 text-sm text-gray-300">
                   <div className="flex items-center space-x-1">
                     <Check className="text-green-500 w-4 h-4" />
                     <span>No credit card required</span>
