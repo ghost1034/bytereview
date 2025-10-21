@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from typing import Dict, Any, AsyncGenerator
 
 import redis.asyncio as redis
@@ -65,12 +66,8 @@ class SSEManager:
                                     pass
                         except Exception as e:
                             logger.debug(f"Error buffering event: {e}")
-                        await asyncio.sleep(0.1)
 
                 buffer_task = asyncio.create_task(buffer_events())
-
-                # Small delay to ensure subscription is active
-                await asyncio.sleep(0.1)
 
                 # Build and send full_state snapshot
                 from core.database import db_config
