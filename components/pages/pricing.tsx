@@ -154,9 +154,17 @@ export default function Pricing() {
                    'For growing finance teams'}
                 </p>
                 
-                <div className="mb-6">
+                <div className="mb-2">
                   <span className="text-4xl font-bold text-gray-900">{getPlanPrice(plan.code)}</span>
                   {plan.code !== 'free' && <span className="text-gray-600"> / month</span>}
+                </div>
+                <div className="mb-6 text-sm text-gray-600">
+                  {plan.overage_cents > 0 
+                    ? (
+                      <>Overage: {(plan.overage_cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} per page</>
+                    ) : (
+                      <>No overage allowed</>
+                    )}
                 </div>
                 
                 <ul className="space-y-3 mb-8">

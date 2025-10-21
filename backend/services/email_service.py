@@ -17,8 +17,8 @@ class EmailService:
     """Service to send emails via Gmail API with domain-wide delegation"""
 
     # Sender details
-    SENDER_ACCOUNT = os.getenv("GMAIL_SENDER_ACCOUNT", "raysang@cpaautomation.ai")
-    FROM_ALIAS = os.getenv("GMAIL_FROM_ALIAS", "support@cpaautomation.ai")
+    SENDER_ACCOUNT = os.getenv("GMAIL_SENDER_ACCOUNT", "ianstewart@cpaautomation.ai")
+    FROM_ALIAS = os.getenv("GMAIL_FROM_ALIAS", "noreply@cpaautomation.ai")
 
     def _get_gmail_service(self):
         """Build a Gmail service client using service account with DWD"""

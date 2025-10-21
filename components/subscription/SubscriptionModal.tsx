@@ -106,10 +106,18 @@ export default function SubscriptionModal({ isOpen, onClose }: SubscriptionModal
                 </div>
               )}
               
-              <div className="text-center mb-6">
+              <div className="text-center mb-2">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">{plan.display_name}</h3>
                 <div className="text-3xl font-bold text-gray-900">{getPlanPrice(plan.code)}</div>
                 <div className="text-gray-600 text-sm">per month</div>
+              </div>
+              <div className="text-center mb-6 text-sm text-gray-600">
+                {plan.overage_cents > 0 
+                  ? (
+                    <>Overage: {(plan.overage_cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} per page</>
+                  ) : (
+                    <>No overage allowed</>
+                  )}
               </div>
 
               <div className="space-y-3 mb-6">

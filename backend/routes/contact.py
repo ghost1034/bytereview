@@ -21,12 +21,13 @@ class ContactRequest(BaseModel):
 async def submit_contact(request: ContactRequest):
     try:
         # Determine recipient based on inquiry type
-        inquiry = (request.inquiry_type or '').strip().lower()
-        if inquiry == 'support' or inquiry == 'technical' or inquiry == 'technical support':
-            recipient = "support@cpaautomation.ai"
-        else:
-            recipient = "sales@cpaautomation.ai"
+        # inquiry = (request.inquiry_type or '').strip().lower()
+        # if inquiry == 'support' or inquiry == 'technical' or inquiry == 'technical support':
+        #     recipient = "support@cpaautomation.ai"
+        # else:
+        #     recipient = "sales@cpaautomation.ai"
 
+        recipient = "sales@cpaautomation.ai"
         subject = f"[Contact] {request.subject} ({request.inquiry_type})"
         # Compose email body with the form details
         body_lines = [

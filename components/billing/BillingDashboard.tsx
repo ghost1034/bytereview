@@ -206,6 +206,14 @@ export default function BillingDashboard() {
                   <div className="font-medium">
                     {plan.code === 'basic' ? '$9.99' : '$49.99'}/mo
                   </div>
+                  <div className="text-xs text-muted-foreground mb-2">
+                    {plan.overage_cents > 0 
+                      ? (
+                        <>Overage: {(plan.overage_cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} per page</>
+                      ) : (
+                        <>No overage allowed</>
+                      )}
+                  </div>
                   {billingAccount.plan_code !== plan.code && (
                     <Button 
                       size="sm" 
