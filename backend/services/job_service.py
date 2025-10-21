@@ -1861,9 +1861,12 @@ class JobService:
                 'last_active_at': datetime.utcnow()
             }
             
-            # If description provided explicitly, use it; otherwise if template provided and no description provided, copy from template
+            # If description provided explicitly, use it (treat empty string as null);
+            # otherwise if template provided and no description provided, copy from template
             if description is not None:
-                updates['description'] = description
+                # Normalize empty/whitespace-only descriptions to None (NULL in DB)
+                cleaned_desc = description.strip()
+                updates['description'] = cleaned_desc if cleaned_desc != '' else None
             elif template_id:
                 try:
                     tpl = db.query(Template).filter(Template.id == template_id).first()
