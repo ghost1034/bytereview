@@ -1,9 +1,13 @@
 "use client";
 
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Globe, Lock, FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { useCreateTemplate } from '@/hooks/useExtraction';
+import { Globe, Lock, FileText, Plus } from 'lucide-react';
 import type { FieldConfig } from '@/lib/api';
 
 interface TemplatePreviewModalProps {
@@ -24,7 +28,36 @@ export default function TemplatePreviewModal({
   onClose, 
   template
 }: TemplatePreviewModalProps) {
+  const { toast } = useToast();
+  const createTemplateMutation = useCreateTemplate();
+  const [isCopying, setIsCopying] = useState(false);
+
   if (!template) return null;
+
+  const handleCopyTemplate = async () => {
+    try {
+      setIsCopying(true);
+      await createTemplateMutation.mutateAsync({
+        name: template.name,
+        description: template.description,
+        fields: template.fields,
+        is_public: false,
+      });
+      toast({
+        title: 'Template saved',
+        description: 'Added a copy to your personal templates.',
+      });
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: 'Failed to save template',
+        description: error.message || 'Could not create a copy of this template.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCopying(false);
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -34,7 +67,7 @@ export default function TemplatePreviewModal({
             <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
               <FileText className="w-5 h-5 text-purple-600" />
             </div>
-            <div>
+            <div className="flex-1">
               <div className="flex items-center gap-2">
                 <span>{template.name}</span>
                 <Badge variant={template.is_public ? "default" : "outline"}>
@@ -55,6 +88,17 @@ export default function TemplatePreviewModal({
                 <p className="text-sm text-gray-600 mt-1">{template.description}</p>
               )}
             </div>
+            {template.is_public && (
+              <Button onClick={handleCopyTemplate} disabled={isCopying} size="sm" className="mr-8">
+                {isCopying ? (
+                  'Saving...'
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-1" /> Add to My Templates
+                  </>
+                )}
+              </Button>
+            )}
           </DialogTitle>
         </DialogHeader>
 
