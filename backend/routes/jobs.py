@@ -206,6 +206,7 @@ async def get_job_run_details(
                 completed_at=run.completed_at,
                 job_fields=field_info,
                 template_id=str(run.template_id) if run.template_id else None,
+                description=run.description if hasattr(run, 'description') else None,
                 extraction_tasks=[]  # TODO: Add extraction tasks if needed
             )
         finally:
@@ -464,6 +465,7 @@ class JobFieldsUpdateRequest(BaseModel):
     fields: List[dict]
     template_id: Optional[str] = None
     processing_modes: dict = None  # folder_path -> processing_mode mapping
+    description: Optional[str] = None
 
 class JobNameUpdateRequest(BaseModel):
     name: str
@@ -483,7 +485,8 @@ async def update_job_fields(
             fields=request.fields,
             template_id=request.template_id,
             processing_modes=request.processing_modes,
-            run_id=run_id
+            run_id=run_id,
+            description=request.description
         )
         return {"message": "Job configuration updated successfully"}
     except ValueError as e:

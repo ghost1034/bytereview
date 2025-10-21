@@ -17,6 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowLeft,
   ArrowRight,
@@ -45,10 +46,12 @@ interface FieldConfigurationStepProps {
   initialFields?: JobFieldConfig[];
   initialTaskDefinitions?: TaskDefinition[];
   initialTemplateId?: string;
+  initialDescription?: string;
   onFieldsSaved: (
     fields: JobFieldConfig[],
     taskDefinitions: TaskDefinition[],
-    templateId?: string
+    templateId?: string,
+    description?: string,
   ) => Promise<void>;
   onContinue: () => Promise<void>;
   onBack: () => void;
@@ -60,6 +63,7 @@ export default function FieldConfigurationStep({
   initialFields,
   initialTaskDefinitions,
   initialTemplateId,
+  initialDescription,
   onFieldsSaved,
   onContinue,
   onBack,
@@ -68,6 +72,13 @@ export default function FieldConfigurationStep({
   const { toast } = useToast();
   const { data: userTemplates } = useTemplates();
   const { data: publicTemplates } = usePublicTemplates();
+
+  // Run-level description state
+  const [description, setDescription] = useState<string>(initialDescription || "");
+  // Keep description in sync when switching runs
+  useEffect(() => {
+    setDescription(initialDescription || "");
+  }, [initialDescription]);
   const { data: dataTypes = [], isLoading: dataTypesLoading } = useDataTypes();
 
   const [fields, setFields] = useState<JobFieldConfig[]>(
@@ -208,6 +219,11 @@ export default function FieldConfigurationStep({
     const template = allTemplates.find((t) => t.id === templateId);
     if (template) {
       loadTemplateFields(template, false);
+
+      // If template has a description, apply it to run-level description (user can edit later)
+      if (template.description) {
+        setDescription(template.description);
+      }
       
       // Auto-save the configuration after loading template
       try {
@@ -217,7 +233,7 @@ export default function FieldConfigurationStep({
         const taskDefinitions = createTaskDefinitions();
         
         // Auto-save with template ID
-        await onFieldsSaved(templateFields, taskDefinitions, templateId);
+        await onFieldsSaved(templateFields, taskDefinitions, templateId, template.description ?? description);
         
         toast({
           title: "Template applied and saved",
@@ -348,7 +364,7 @@ export default function FieldConfigurationStep({
     }
 
     const { orderedFields, taskDefinitions, templateId } = prepareFieldData();
-    await onFieldsSaved(orderedFields, taskDefinitions, templateId);
+    await onFieldsSaved(orderedFields, taskDefinitions, templateId, description);
   };
 
   const handleContinue = async () => {
@@ -365,7 +381,7 @@ export default function FieldConfigurationStep({
 
     // Save first, then continue
     const { orderedFields, taskDefinitions, templateId } = prepareFieldData();
-    await onFieldsSaved(orderedFields, taskDefinitions, templateId);
+    await onFieldsSaved(orderedFields, taskDefinitions, templateId, description);
     await onContinue();
   };
 
@@ -597,6 +613,19 @@ export default function FieldConfigurationStep({
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Run-level description */}
+          <div className="mb-6">
+            <Label className="text-sm font-medium">Extraction Description</Label>
+            <Textarea
+              className="mt-2"
+              placeholder="Describe the purpose of this extraction (e.g., 'Extract invoice header fields for AP automation')"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={readOnly}
+              rows={3}
+            />
+            <p className="text-xs text-gray-500 mt-1">This description will be included in the AI prompt to guide extraction.</p>
+          </div>
           {dataTypesLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="flex items-center gap-3">

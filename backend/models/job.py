@@ -104,6 +104,7 @@ class JobDetailsResponse(BaseModel):
     completed_at: Optional[datetime] = Field(None, description="Completion timestamp")
     job_fields: List[JobFieldInfo] = Field(..., description="Field configuration")
     template_id: Optional[str] = Field(None, description="Template ID used for this job")
+    description: Optional[str] = Field(None, description="Run description explaining the extraction purpose")
     extraction_tasks: List[dict] = Field(default_factory=list, description="Task definitions for processing modes")
 
 class JobListItem(BaseModel):
@@ -180,6 +181,7 @@ class JobRunDetailsResponse(BaseModel):
     completed_at: Optional[datetime] = Field(None, description="Completion timestamp")
     job_fields: List[JobFieldInfo] = Field(..., description="Field configuration")
     template_id: Optional[str] = Field(None, description="Template ID used for this run")
+    description: Optional[str] = Field(None, description="Run description explaining the extraction purpose")
     extraction_tasks: List[dict] = Field(default_factory=list, description="Task definitions for processing modes")
 
 class JobRunCreateRequest(BaseModel):

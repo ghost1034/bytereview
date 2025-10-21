@@ -177,11 +177,16 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
 
         logger.info(f"Processing {len(files_data)} files with AI via Vertex using GCS URIs")
         logger.info(f"Using processing mode: {task.processing_mode}")
+        # Augment system prompt with run-level description if provided
+        system_prompt_text = system_prompt_record.template_text
+        if hasattr(job_run, 'description') and job_run.description:
+            system_prompt_text = f"{system_prompt_text}\n\nExtraction purpose: {job_run.description}"
+        
         extraction_result = await ai_service.extract_data_from_files(
             files_data,
             field_configs,
             data_types_map,
-            system_prompt_record.template_text,
+            system_prompt_text,
             processed_files=source_files,  # Pass source files for metadata
             processing_mode=task.processing_mode  # Pass processing mode for routing
         )

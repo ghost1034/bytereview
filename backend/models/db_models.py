@@ -155,6 +155,8 @@ class JobRun(Base):
     
     # Configuration
     persist_data = Column(Boolean, nullable=False, default=True)
+    # Run-level description of extraction purpose (copied from template or edited by user)
+    description = Column(Text)
     
     # Timestamps
     last_active_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())

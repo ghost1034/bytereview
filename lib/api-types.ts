@@ -108,26 +108,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/jobs/resumable": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Resumable Jobs
-         * @description List jobs that can be resumed
-         */
-        get: operations["list_resumable_jobs_api_jobs_resumable_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/jobs/{job_id}": {
         parameters: {
             query?: never;
@@ -759,26 +739,6 @@ export interface paths {
          * @description Upload files temporarily to server storage
          */
         post: operations["upload_files_api_extraction_upload_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/extraction/extract-from-uploaded": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Extract Data From Uploaded Files
-         * @description Extract data from previously uploaded files
-         */
-        post: operations["extract_data_from_uploaded_files_api_extraction_extract_from_uploaded_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1523,6 +1483,11 @@ export interface components {
             export_config?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Job Id
+             * @description ID of the extraction job to use as template
+             */
+            job_id?: string | null;
         };
         /**
          * BillingAccountResponse
@@ -1576,18 +1541,6 @@ export interface components {
             /**
              * Extract Multiple Rows
              * @description Extract multiple rows
-             * @default false
-             */
-            extract_multiple_rows: boolean;
-        };
-        /** Body_extract_data_from_uploaded_files_api_extraction_extract_from_uploaded_post */
-        Body_extract_data_from_uploaded_files_api_extraction_extract_from_uploaded_post: {
-            /** File Ids */
-            file_ids: string[];
-            /** Fields */
-            fields: string;
-            /**
-             * Extract Multiple Rows
              * @default false
              */
             extract_multiple_rows: boolean;
@@ -1824,6 +1777,11 @@ export interface components {
              */
             template_id?: string | null;
             /**
+             * Description
+             * @description Run description explaining the extraction purpose
+             */
+            description?: string | null;
+            /**
              * Extraction Tasks
              * @description Task definitions for processing modes
              */
@@ -1869,6 +1827,8 @@ export interface components {
             processing_modes?: {
                 [key: string]: unknown;
             };
+            /** Description */
+            description?: string | null;
         };
         /**
          * JobFileInfo
@@ -2140,6 +2100,11 @@ export interface components {
              * @description Template ID used for this run
              */
             template_id?: string | null;
+            /**
+             * Description
+             * @description Run description explaining the extraction purpose
+             */
+            description?: string | null;
             /**
              * Extraction Tasks
              * @description Task definitions for processing modes
@@ -2645,26 +2610,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_resumable_jobs_api_jobs_resumable_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
                 };
             };
         };
@@ -3731,39 +3676,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["models__upload__FileUploadResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    extract_data_from_uploaded_files_api_extraction_extract_from_uploaded_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_extract_data_from_uploaded_files_api_extraction_extract_from_uploaded_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

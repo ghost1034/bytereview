@@ -497,7 +497,7 @@ export class ApiClient {
     })
   }
 
-  async updateJobFields(jobId: string, fields: any[], templateId?: string, processingModes?: Record<string, string>, runId?: string): Promise<{ message: string }> {
+  async updateJobFields(jobId: string, fields: any[], templateId?: string, processingModes?: Record<string, string>, runId?: string, description?: string): Promise<{ message: string }> {
     const params = new URLSearchParams()
     if (runId) params.set('run_id', runId)
     const query = params.toString()
@@ -506,7 +506,8 @@ export class ApiClient {
       body: JSON.stringify({ 
         fields, 
         template_id: templateId, 
-        processing_modes: processingModes 
+        processing_modes: processingModes,
+        description
       })
     })
   }

@@ -122,6 +122,9 @@ class JobService:
                 # Copy template_id if not already set
                 if not new_run.template_id:
                     new_run.template_id = source_run.template_id
+                # Copy description from source run if available and not already set
+                if not getattr(new_run, 'description', None) and getattr(source_run, 'description', None):
+                    new_run.description = source_run.description
                 
                 # Clone job fields
                 source_fields = db.query(JobField).filter(
@@ -1227,6 +1230,7 @@ class JobService:
                 completed_at=target_run.completed_at,
                 job_fields=field_info,
                 template_id=str(target_run.template_id) if target_run.template_id else None,
+                description=getattr(target_run, 'description', None),
                 extraction_tasks=unique_task_definitions
             )
             
@@ -1745,7 +1749,7 @@ class JobService:
         finally:
             db.close()
 
-    async def update_job_fields(self, job_id: str, user_id: str, fields: List[dict], template_id: str = None, processing_modes: dict = None, run_id: str = None) -> None:
+    async def update_job_fields(self, job_id: str, user_id: str, fields: List[dict], template_id: str = None, processing_modes: dict = None, run_id: str = None, description: str = None) -> None:
         """Update job run field configuration and processing modes during wizard steps"""
         db = self._get_session()
         try:
@@ -1851,13 +1855,27 @@ class JobService:
                             db.add(file_to_task)
             
             # Update template reference and last activity on the job run using the active session
+            # Prepare updates for the JobRun (template, description, last_active_at)
+            updates = {
+                'template_id': template_id,
+                'last_active_at': datetime.utcnow()
+            }
+            
+            # If description provided explicitly, use it; otherwise if template provided and no description provided, copy from template
+            if description is not None:
+                updates['description'] = description
+            elif template_id:
+                try:
+                    tpl = db.query(Template).filter(Template.id == template_id).first()
+                    if tpl and getattr(tpl, 'description', None):
+                        updates['description'] = tpl.description
+                except Exception as te:
+                    logger.warning(f"Failed to copy description from template {template_id}: {te}")
+            
             db.execute(
                 update(JobRun)
                 .where(JobRun.id == target_run.id)
-                .values(
-                    template_id=template_id,
-                    last_active_at=datetime.utcnow()
-                )
+                .values(**updates)
             )
             
             # Also update parent job's last_active_at

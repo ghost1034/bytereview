@@ -64,13 +64,14 @@ export default function JobFieldsPage() {
 
   // Save field configuration mutation
   const saveFieldsMutation = useMutation({
-    mutationFn: async ({ fields, templateId, processingModes }: { 
+    mutationFn: async ({ fields, templateId, processingModes, description }: { 
       fields: JobFieldConfig[], 
       templateId?: string,
-      processingModes?: Record<string, string>
+      processingModes?: Record<string, string>,
+      description?: string,
     }) => {
       if (!selectedRunId) throw new Error('No run selected')
-      return apiClient.updateJobFields(jobId, fields, templateId, processingModes, selectedRunId)
+      return apiClient.updateJobFields(jobId, fields, templateId, processingModes, selectedRunId, description)
     },
     onSuccess: () => {
       // Invalidate job data to refresh
@@ -79,7 +80,7 @@ export default function JobFieldsPage() {
   })
 
   // Common function to save field configuration
-  const saveFieldConfiguration = async (fields: JobFieldConfig[], taskDefinitions: TaskDefinition[], templateId?: string) => {
+  const saveFieldConfiguration = async (fields: JobFieldConfig[], taskDefinitions: TaskDefinition[], templateId?: string, description?: string) => {
     // Extract processing modes from task definitions
     const processingModes: Record<string, string> = {}
     taskDefinitions.forEach(task => {
@@ -92,13 +93,14 @@ export default function JobFieldsPage() {
     await saveFieldsMutation.mutateAsync({ 
       fields, 
       templateId,
-      processingModes
+      processingModes,
+      description
     })
   }
 
-  const handleFieldsSaved = async (fields: JobFieldConfig[], taskDefinitions: TaskDefinition[], templateId?: string) => {
+  const handleFieldsSaved = async (fields: JobFieldConfig[], taskDefinitions: TaskDefinition[], templateId?: string, description?: string) => {
     try {
-      await saveFieldConfiguration(fields, taskDefinitions, templateId)
+      await saveFieldConfiguration(fields, taskDefinitions, templateId, description)
       
       toast({
         title: "Configuration saved",
@@ -225,6 +227,7 @@ export default function JobFieldsPage() {
             initialFields={job?.job_fields || []}
             initialTaskDefinitions={job?.extraction_tasks || []}
             initialTemplateId={job?.template_id}
+            initialDescription={(job as any)?.description}
             onFieldsSaved={handleFieldsSaved}
             onContinue={handleContinue}
             onBack={handleBack}
