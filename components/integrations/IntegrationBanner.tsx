@@ -3,7 +3,7 @@
  * and providing quick access to connect/disconnect
  */
 import React from 'react';
-import { AlertCircle, CheckCircle, RefreshCw, Settings, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, Settings, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -26,10 +26,8 @@ export function IntegrationBanner({
     isLoading,
     connect,
     disconnect,
-    refreshToken,
     isConnecting,
     isDisconnecting,
-    isRefreshing,
     needsRefresh
   } = useGoogleIntegration();
 
@@ -79,27 +77,9 @@ export function IntegrationBanner({
     variant = 'destructive';
     icon = <AlertCircle className="h-4 w-4" />;
     title = 'Google Connection Expired';
-    description = 'Your Google access has expired. Please refresh your connection to continue importing files.';
+    description = "Your Google access has expired. We're refreshing your connection automatically. If this doesn't resolve shortly, you can disconnect and reconnect.";
     actions = (
       <div className="flex gap-2 ml-auto">
-        <Button
-          onClick={refreshToken}
-          disabled={isRefreshing}
-          size={compact ? "sm" : "default"}
-          variant="outline"
-        >
-          {isRefreshing ? (
-            <>
-              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              Refreshing...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh
-            </>
-          )}
-        </Button>
         <Button
           onClick={disconnect}
           disabled={isDisconnecting}
@@ -132,15 +112,6 @@ export function IntegrationBanner({
     description = `Connected services: ${hasDriveAccess ? 'Drive' : ''}`.trim();
     actions = (
       <div className="flex gap-2 ml-auto">
-        <Button
-          onClick={refreshToken}
-          disabled={isRefreshing}
-          size="sm"
-          variant="outline"
-        >
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
         <Button
           onClick={disconnect}
           disabled={isDisconnecting}
