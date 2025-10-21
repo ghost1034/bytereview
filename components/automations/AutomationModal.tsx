@@ -16,7 +16,7 @@ import { Separator } from "@/components/ui/separator"
 import { useCreateAutomation, useUpdateAutomation, useAutomation } from "@/hooks/useAutomations"
 import { useJobsForAutomation } from "@/hooks/useJobs"
 import { useGoogleIntegration } from "@/hooks/useGoogleIntegration"
-import { Mail, HelpCircle } from "lucide-react"
+import { Mail, HelpCircle, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { GoogleDriveFolderPicker } from "@/components/integrations/GoogleDriveFolderPicker"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -285,6 +285,20 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Setup Requirement Tip */}
+          <div className="p-3 bg-blue-50 rounded-md border border-blue-200 text-blue-800">
+            <div className="flex items-start gap-2">
+              <Info className="w-4 h-4 mt-0.5 text-blue-600" />
+              <div className="text-sm">
+                <p className="mb-1 font-medium text-blue-900">How to set up an automation:</p>
+                <ol className="list-decimal pl-5 space-y-0.5 text-blue-800">
+                  <li>Create an extraction job.</li>
+                  <li>Configure fields for the job.</li>
+                  <li>Select the job here, choose a trigger, and set an optional export destination.</li>
+                </ol>
+              </div>
+            </div>
+          </div>
           {/* Basic Configuration */}
           <div className="space-y-4">
             <div className="space-y-2">
@@ -418,20 +432,36 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Label htmlFor="gmail_query">Gmail Search Query</Label>
-                  <TooltipProvider>
+                  <TooltipProvider delayDuration={0} skipDelayDuration={0}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <HelpCircle className="w-4 h-4 text-gray-400" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <div className="max-w-xs">
-                          <p className="font-medium mb-2">Gmail Query Examples:</p>
-                          <ul className="text-sm space-y-1">
-                            <li>• <code>has:attachment</code> - Any email with attachments</li>
-                            <li>• <code>from:supplier@company.com has:attachment</code> - From specific sender</li>
-                            <li>• <code>subject:invoice has:attachment</code> - Subject contains "invoice"</li>
-                            <li>• <code>has:attachment filename:pdf</code> - PDF attachments only</li>
-                          </ul>
+                        <div className="max-w-xs space-y-2">
+                          <div>
+                            <p className="font-medium mb-1">Gmail search syntax</p>
+                            <ul className="text-xs space-y-1 text-muted-foreground">
+                              <li><code>term1 term2</code> = AND (both terms)</li>
+                              <li><code>term1 OR term2</code> = OR (either term)</li>
+                              <li><code>"exact phrase"</code> = exact match</li>
+                              <li><code>-term</code> = NOT (exclude)</li>
+                              <li><code>( ... )</code> = group terms</li>
+                              <li><code>filename:pdf</code>, <code>subject:invoice</code>, <code>from:user@domain</code></li>
+                              <li><code>newer_than:7d</code>, <code>older_than:30d</code>, <code>in:inbox</code>, <code>-in:spam</code></li>
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="font-medium mb-1">Examples</p>
+                            <ul className="text-sm space-y-1">
+                              <li>• <code>has:attachment</code> - Any email with attachments</li>
+                              <li>• <code>invoice has:attachment</code> - Message contains "invoice"</li>
+                              <li>• <code>subject:invoice has:attachment</code> - Subject contains "invoice"</li>
+                              <li>• <code>filename:invoice</code> - Attachment name contains "invoice"</li>
+                              <li>• <code>has:attachment filename:pdf</code> - PDF attachments only</li>
+                              <li>• <code>newer_than:7d in:inbox -in:spam</code> - Last 7 days, in Inbox, not in Spam</li>
+                            </ul>
+                          </div>
                         </div>
                       </TooltipContent>
                     </Tooltip>
@@ -442,6 +472,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Quick Templates</Label>
                   <div className="flex flex-wrap gap-2">
+                    {/* Common attachment patterns */}
                     <Button
                       type="button"
                       variant="outline"
@@ -464,28 +495,28 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setGmailQuery("has:attachment subject:invoice")}
+                      onClick={() => setGmailQuery("invoice has:attachment")}
                       className="text-xs"
                     >
-                      Invoices
+                      Invoice in Message
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setGmailQuery("has:attachment subject:receipt")}
+                      onClick={() => setGmailQuery("subject:invoice has:attachment")}
                       className="text-xs"
                     >
-                      Receipts
+                      Invoice in Subject
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setGmailQuery("has:attachment")}
+                      onClick={() => setGmailQuery("has:attachment filename:invoice")}
                       className="text-xs"
                     >
-                      Any Attachment
+                      Invoice in Filename
                     </Button>
                   </div>
                 </div>
