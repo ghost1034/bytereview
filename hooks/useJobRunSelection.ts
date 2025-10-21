@@ -34,7 +34,7 @@ export function useJobRunSelection({
       return apiClient.getJobRuns(jobId);
     },
     enabled: enabled && !!user && !!jobId,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 0, // TODO: Implement proper staleTime and invalidation
     refetchOnWindowFocus: false,
   });
 

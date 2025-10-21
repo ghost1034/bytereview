@@ -126,7 +126,7 @@ export function AutomationRunsModal({ automationId, open, onOpenChange }: Automa
                           <span className="font-medium">
                             Run {run.id.slice(0, 8)}
                           </span>
-                          <Badge variant="default" className={getStatusColor(run.status)}>
+                          <Badge variant="outline" className={getStatusColor(run.status)}>
                             {run.status}
                           </Badge>
                         </div>

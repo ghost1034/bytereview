@@ -1563,16 +1563,8 @@ async def run_initializer_worker(
         except Exception as e:
             logger.error(f"Job run initialization failed for job {job_id}: {e}")
             
-            # Update automation run status if this is from automation
-            if automation_run_id:
-                try:
-                    from services.automation_service import automation_service
-                    await automation_service.update_automation_run_status(
-                        db, automation_run_id, 'failed', str(e)
-                    )
-                except Exception as sse_error:
-                    logger.warning(f"Failed to update automation run status: {sse_error}")
-            
+            # Do not update automation run status here; submit_automation_job_run handles failure status
+            # to avoid duplicate failure emails.
             raise
 
 
