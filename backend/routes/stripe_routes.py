@@ -52,7 +52,8 @@ async def get_usage_stats(
         period_start=billing_info['current_period_start'],
         period_end=billing_info['current_period_end'],
         plan_code=billing_info['plan_code'],
-        plan_display_name=billing_info['plan_display_name']
+        plan_display_name=billing_info['plan_display_name'],
+        overage_cents=billing_info['overage_cents']
     )
 
 @router.get("/plans", response_model=List[SubscriptionPlanResponse])

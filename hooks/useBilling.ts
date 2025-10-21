@@ -34,6 +34,7 @@ export interface UsageStats {
   period_end?: string
   plan_code: string
   plan_display_name: string
+  overage_cents: number
 }
 
 export interface SubscriptionPlan {

@@ -9,8 +9,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import BillingDashboard from '@/components/billing/BillingDashboard'
 import SubscriptionManager from '@/components/subscription/SubscriptionManager'
-import UsageStats from '@/components/subscription/UsageStats'
-
 export default function SettingsPage() {
   const { user, signOut } = useAuth()
   const { toast } = useToast()
@@ -65,7 +63,6 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-4">
               <SubscriptionManager />
-              <UsageStats />
             </div>
           </div>
         </TabsContent>

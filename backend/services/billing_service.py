@@ -10,6 +10,15 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List, Tuple
 
 import stripe
+
+# Ensure Stripe is initialized in any entrypoint that imports this module (API or workers)
+# Use environment variables only, consistent with other settings
+if not getattr(stripe, "api_key", None):
+    stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+    if not stripe.api_key:
+        # Do not raise here to avoid crashing workers; calls will log errors if used without key
+        logging.getLogger(__name__).warning("STRIPE_SECRET_KEY is not set; Stripe calls will fail.")
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text, and_
@@ -272,7 +281,7 @@ class BillingService:
 
         self.db.commit()
 
-        # Report to Stripe for paid plans (fire-and-forget here; consider queue later)
+        # Report to Stripe for paid plans
         if acct.plan_code in ("basic", "pro"):
             self._report_usage_to_stripe(user_id, pages, event_id)
 
@@ -286,21 +295,16 @@ class BillingService:
                 logger.info("No Stripe customer on account; skipping usage report.")
                 return
 
-            # Single shared meter id (Phase 1). If you move to per-plan meters, map here.
-            meter_id = os.getenv("STRIPE_METER_PAGES")  # currently unused by MeterEvent, kept for sanity check
-            if not meter_id:
-                logger.warning("STRIPE_METER_PAGES env var missing; skipping usage report.")
-                return
+            event_name = os.getenv("STRIPE_METER_EVENT_NAME", "cpaautomation_pages")
 
             # Create meter event. Basil-era API requires meter-backed price; this is the event feed.
             evt = stripe.billing.MeterEvent.create(
-                event_name="bytereview_pages",
+                event_name=event_name,
                 payload={
                     "stripe_customer_id": acct.stripe_customer_id,
                     "value": pages,
                 },
-                timestamp=int(datetime.now(timezone.utc).timestamp()),
-                idempotency_key=f"usage_event/{event_id}",
+                timestamp=int(datetime.now(timezone.utc).timestamp())
             )
 
             # Mark reported

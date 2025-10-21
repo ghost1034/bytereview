@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthModal from "@/components/auth/AuthModal";
 import { useSubscriptionPlans, useCreateCheckoutSession } from "@/hooks/useBilling";
+import UsageStats from "@/components/subscription/UsageStats";
 
 export default function Pricing() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -130,6 +131,12 @@ export default function Pricing() {
           <p className="text-xl text-gray-600">All plans are available month-to-month and you can cancel at any time.</p>
         </div>
         
+        {user && (
+          <div className="flex justify-center mb-10">
+            <UsageStats />
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
           {sortedPlans.map((plan) => (
             <Card 

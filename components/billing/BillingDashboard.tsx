@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AlertTriangle, FileText, Zap, CreditCard, TrendingUp, Calendar } from "lucide-react"
+import UsageStats from "@/components/subscription/UsageStats"
 import { useBillingAccount, useUsageStats, useSubscriptionPlans, useCreateCheckoutSession } from "@/hooks/useBilling"
 import { useState } from "react"
 
@@ -147,46 +148,8 @@ export default function BillingDashboard() {
 
       {/* Usage Details */}
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Usage Summary */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Usage Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span>Pages this period</span>
-                <span className="font-medium">{usage.pages_used.toLocaleString()} / {usage.pages_included.toLocaleString()}</span>
-              </div>
-              <Progress value={pagesPercentage} className="h-2" />
-              {isOverPageLimit && billingAccount.plan_code === 'free' && (
-                <p className="text-xs text-orange-600">
-                  You've reached your page limit. Upgrade to continue processing files.
-                </p>
-              )}
-              {isOverPageLimit && billingAccount.plan_code !== 'free' && (
-                <p className="text-xs text-blue-600">
-                  Overage: {(usage.pages_used - usage.pages_included).toLocaleString()} pages at ${(billingAccount.overage_cents / 100).toFixed(2)}/page
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span>Active automations</span>
-                <span className="font-medium">{usage.automations_count} / {usage.automations_limit}</span>
-              </div>
-              {usage.automations_limit > 0 && (
-                <Progress value={automationsPercentage} className="h-2" />
-              )}
-              {usage.automations_limit === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Upgrade to enable automations
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Usage */}
+        <UsageStats />
 
         {/* Available Plans */}
         <Card>

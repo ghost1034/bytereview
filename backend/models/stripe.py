@@ -52,6 +52,7 @@ class UsageStatsResponse(BaseModel):
     period_end: Optional[datetime]
     plan_code: str
     plan_display_name: str
+    overage_cents: int
 
 class CheckoutSessionResponse(BaseModel):
     """Response containing checkout session URL"""

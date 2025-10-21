@@ -641,9 +641,9 @@ async def run_stripe_usage_reconciliation(ctx: Dict[str, Any]) -> Dict[str, Any]
                 
                 # Retry Stripe reporting
                 billing_service = get_billing_service(db)
-                billing_service._report_usage_to_stripe_async(
-                    event.user_id, 
-                    event.pages, 
+                billing_service._report_usage_to_stripe(
+                    event.user_id,
+                    event.pages,
                     str(event.id)
                 )
                 

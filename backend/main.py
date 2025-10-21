@@ -56,6 +56,7 @@ app.add_middleware(
 )
 
 # ---------- Stripe ----------
+# Environment-based configuration (consistent with other settings)
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 if not stripe.api_key:
     logger.critical("STRIPE_SECRET_KEY is missing")

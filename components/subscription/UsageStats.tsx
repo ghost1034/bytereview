@@ -105,9 +105,14 @@ export default function UsageStats() {
               ? `${usage.pages_remaining.toLocaleString()} pages remaining`
               : usage.plan_code === 'free' 
                 ? 'Limit reached - upgrade to continue'
-                : `${(usage.pages_used - usage.pages_included).toLocaleString()} pages over limit (billed as overage)`
+                : `${(usage.pages_used - usage.pages_included).toLocaleString()} pages over limit`
             }
           </p>
+          {isOverLimit && usage.plan_code !== 'free' && usage.overage_cents > 0 && (
+            <p className="text-xs text-blue-600">
+              Overage: {(usage.pages_used - usage.pages_included).toLocaleString()} × {(usage.overage_cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} = {(((usage.pages_used - usage.pages_included) * (usage.overage_cents / 100))).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+            </p>
+          )}
         </div>
 
         {/* Automations */}
