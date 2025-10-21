@@ -624,6 +624,16 @@ export class ApiClient {
     return { blob, filename: filename.replace(/"/g, '') }
   }
 
+  // Contact endpoint
+  async submitContact(
+    data: ApiRequest<ApiPaths['/api/contact']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/contact']['post']>> {
+    return this.request('/api/contact', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
   // Google Drive Export endpoints
   async exportJobToGoogleDriveCSV(jobId: string, folderId?: string, runId?: string): Promise<{
     success: boolean;

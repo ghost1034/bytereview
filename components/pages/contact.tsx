@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Mail, Phone, MapPin, Clock, Send } from "lucide-react";
+import { apiClient } from '@/lib/api'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog'
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -18,10 +20,26 @@ export default function Contact() {
     inquiryType: ""
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [status, setStatus] = useState<'idle'|'submitting'|'success'|'error'>('idle')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission
-    console.log("Form submitted:", formData);
+    setStatus('submitting')
+    setErrorMessage(null)
+    try {
+      if (!formData.inquiryType) {
+        throw new Error('Please select an inquiry type')
+      }
+      await apiClient.submitContact(formData as any) // types generated from OpenAPI
+
+      setStatus('success')
+      // Clear the form
+      setFormData({ name: '', email: '', company: '', subject: '', message: '', inquiryType: '' })
+    } catch (err: any) {
+      setStatus('error')
+      setErrorMessage(err.message || 'Failed to submit')
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -85,7 +103,7 @@ export default function Contact() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Inquiry Type
                   </label>
-                  <Select onValueChange={(value) => handleInputChange("inquiryType", value)}>
+                  <Select value={formData.inquiryType} onValueChange={(value) => handleInputChange("inquiryType", value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select inquiry type" />
                     </SelectTrigger>
@@ -124,10 +142,16 @@ export default function Contact() {
                   />
                 </div>
 
-                <Button type="submit" className="w-full lido-green hover:lido-green-dark text-white">
+                <Button type="submit" disabled={status==='submitting'} className="w-full lido-green hover:lido-green-dark text-white">
                   <Send className="w-4 h-4 mr-2" />
-                  Send Message
+                  {status==='submitting' ? 'Sending...' : 'Send Message'}
                 </Button>
+                {status==='success' && (
+                  <p className="text-green-600 text-sm mt-2">Thanks! Your message has been sent.</p>
+                )}
+                {status==='error' && (
+                  <p className="text-red-600 text-sm mt-2">{errorMessage}</p>
+                )}
               </form>
             </CardContent>
           </Card>
@@ -193,9 +217,26 @@ export default function Contact() {
                   Need custom integrations, dedicated support, or volume processing? 
                   Our enterprise team specializes in large-scale document workflows.
                 </p>
-                <Button className="w-full bg-gray-900 hover:bg-gray-800 text-white">
-                  Schedule Enterprise Consultation
-                </Button>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button className="w-full bg-gray-900 hover:bg-gray-800 text-white">
+                      Schedule Enterprise Consultation
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Enterprise Consultation</DialogTitle>
+                      <DialogDescription>
+                        For enterprise inquiries, please contact our legal expert directly:
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="mt-2">
+                      <a href="mailto:raysang@cpaautomation.ai" className="text-blue-600 hover:text-blue-800 underline">
+                        raysang@cpaautomation.ai
+                      </a>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
 

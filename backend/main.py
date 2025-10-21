@@ -107,7 +107,7 @@ async def on_shutdown():
 # ---------- Routers (import after app/init so import errors are logged nicely) ----------
 from routes import (
     users, jobs, stripe_routes, extraction, templates,
-    data_types, integrations, automations, webhooks, admin, billing
+    data_types, integrations, automations, webhooks, admin, billing, contact
 )
 
 app.include_router(users.router,        prefix="/api/users",      tags=["users"])
@@ -121,6 +121,7 @@ app.include_router(integrations.router, prefix="/api",            tags=["integra
 app.include_router(automations.router)
 app.include_router(webhooks.router)
 app.include_router(admin.router)
+app.include_router(contact.router)
 
 # ---------- Dev entrypoint (Cloud Run ignores this; CMD in Dockerfile is used) ----------
 if __name__ == "__main__":

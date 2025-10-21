@@ -253,26 +253,52 @@ class AutomationService:
         status: str, 
         error_message: str = None
     ) -> Optional[AutomationRun]:
-        """Update automation run status"""
+        """Update automation run status and send user notification emails"""
         try:
             automation_run = db.query(AutomationRun).filter(AutomationRun.id == run_id).first()
             if not automation_run:
                 return None
-            
+
+            # Gather context for notifications before commit
+            automation = db.query(Automation).filter(Automation.id == automation_run.automation_id).first()
+            user_email = None
+            automation_name = None
+            if automation:
+                automation_name = automation.name
+                from models.db_models import User
+                user = db.query(User).filter(User.id == automation.user_id).first()
+                if user and user.email:
+                    user_email = user.email
+
+            # Update status fields
             automation_run.status = status
             if error_message:
                 automation_run.error_message = error_message
-            
+
             if status in ['completed', 'failed']:
                 from sqlalchemy.sql import func
                 automation_run.completed_at = func.now()
-            
+
             db.commit()
             db.refresh(automation_run)
-            
+
             logger.info(f"Updated automation run {run_id} status to {status}")
+
+            # Send notification email for significant state changes
+            if user_email and automation_name and status in ('running', 'completed', 'failed'):
+                try:
+                    from services.email_service import email_service
+                    email_service.send_automation_notification(
+                        to_email=user_email,
+                        automation_name=automation_name,
+                        status=status,
+                        run_id=str(automation_run.id)
+                    )
+                except Exception as notify_err:
+                    logger.warning(f"Failed to send automation notification email: {notify_err}")
+
             return automation_run
-            
+
         except Exception as e:
             db.rollback()
             logger.error(f"Failed to update automation run {run_id}: {e}")
