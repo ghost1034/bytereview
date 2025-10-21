@@ -13,18 +13,15 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Settings, 
   CheckCircle, 
-  AlertCircle, 
   RefreshCw, 
   X, 
   FolderOpen, 
   Mail, 
   Shield,
-  Clock,
   Info
 } from 'lucide-react';
 import { useGoogleIntegration } from '@/hooks/useGoogleIntegration';
 import { IntegrationBanner } from '@/components/integrations/IntegrationBanner';
-import { formatDistanceToNow } from 'date-fns';
 
 export default function IntegrationsPage() {
   const {
@@ -32,16 +29,12 @@ export default function IntegrationsPage() {
     isLoading,
     connect,
     disconnect,
-    refreshToken,
     isConnecting,
-    isDisconnecting,
-    isRefreshing,
-    needsRefresh
+    isDisconnecting
   } = useGoogleIntegration();
 
   const isConnected = status?.connected || false;
   const scopes = status?.scopes || [];
-  const expiresAt = status?.expires_at ? new Date(status.expires_at) : null;
 
   // Gmail scopes no longer used - handled via service account
   const hasDriveScope = scopes.some(scope => 
@@ -111,55 +104,12 @@ export default function IntegrationsPage() {
                   </div>
                 </div>
 
-                {expiresAt && (
-                  <div>
-                    <h4 className="font-medium mb-2">Token Status</h4>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      {needsRefresh ? (
-                        <span className="text-amber-600">
-                          Expired {formatDistanceToNow(expiresAt, { addSuffix: true })}
-                        </span>
-                      ) : (
-                        <span>
-                          Expires {formatDistanceToNow(expiresAt, { addSuffix: true })}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {needsRefresh && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      Your Google access has expired. Please refresh your connection to continue using Google services.
-                    </AlertDescription>
-                  </Alert>
-                )}
               </div>
 
               <Separator />
 
               {/* Actions */}
               <div className="flex gap-3">
-                <Button
-                  onClick={refreshToken}
-                  disabled={isRefreshing}
-                  variant="outline"
-                >
-                  {isRefreshing ? (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      Refreshing...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Refresh Connection
-                    </>
-                  )}
-                </Button>
                 
                 <Button
                   onClick={() => connect('drive')}
