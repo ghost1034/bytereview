@@ -72,7 +72,14 @@ export function JobsPage() {
               </CardTitle>
               <Button 
                 variant="outline" 
-                onClick={() => refetch()}
+                onClick={async () => {
+                  const result = await refetch();
+                  if (!result.error) {
+                    toast({ title: 'Jobs updated', description: `Refreshed at ${new Date().toLocaleTimeString()}` });
+                  } else {
+                    toast({ title: 'Refresh failed', description: 'Could not load jobs. Please try again.', variant: 'destructive' });
+                  }
+                }}
                 disabled={loading}
                 size="sm"
               >

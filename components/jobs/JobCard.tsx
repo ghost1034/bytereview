@@ -70,7 +70,7 @@ export default function JobCard({ job, onDelete }: JobCardProps) {
 
   const getStatusLabel = (status: string) => {
     const labels = {
-      pending: "Pending",
+      pending: "Pending Run",
       in_progress: "In Progress",
       partially_completed: "Partially Complete",
       completed: "Completed",
@@ -211,12 +211,12 @@ export default function JobCard({ job, onDelete }: JobCardProps) {
                   job.has_configured_fields ? (
                     <div className="flex items-center text-sm text-green-500">
                       <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2" />
-                      <span>Fields configured</span>
+                      <span>Configured</span>
                     </div>
                   ) : (
                     <div className="flex items-center text-sm text-red-500">
                       <span className="inline-block w-2 h-2 rounded-full bg-red-500 mr-2" />
-                      <span>Fields not configured</span>
+                      <span>Not Configured</span>
                     </div>
                   )
                 )}

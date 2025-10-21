@@ -5,13 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Check, CloudUpload, Database, Table, Bot, Shield, ShieldX, Lock, Ban, Star, FileText, Grid3X3, Settings, MapPinCheck, DollarSign, Scale, TrendingUp, Building2, ShieldCheck, House } from "lucide-react";
 import { FaGoogle, FaMicrosoft, FaFileExcel } from "react-icons/fa";
 
 export default function Home() {
-  const [email, setEmail] = useState("");
   const router = useRouter();
   const [isDragOver, setIsDragOver] = useState(false);
   const { user } = useAuth();
@@ -52,7 +50,7 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-green-50 to-white py-20">
+      <section className="bg-gradient-to-br from-gray-50 to-white py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <div>
@@ -60,7 +58,7 @@ export default function Home() {
                 True GenAI Customizable Extraction
               </h1>
               <p className="text-lg text-gray-500 mb-8">
-                Programmed by real CPAs for practical professional use
+                Engineered by real CPAs for practical professional use
               </p>
               <p className="text-xl text-gray-600 mb-8">
                 Professional-grade AI extraction built with deep accounting and legal expertise.
@@ -121,16 +119,9 @@ export default function Home() {
               
               <div className="space-y-4 flex flex-col items-center">
                 <div className="flex items-center space-x-2 max-w-md">
-                  <Input 
-                    type="email" 
-                    placeholder="Your work email" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="flex-1"
-                  />
                   <Button 
                     onClick={handleGetStarted}
-                    className="lido-green hover:lido-green-dark text-white px-6"
+                    className="lido-green hover:lido-green-dark text-white px-6 w-full"
                   >
                     Get started for free →
                   </Button>
