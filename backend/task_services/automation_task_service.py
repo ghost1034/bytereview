@@ -41,7 +41,7 @@ async def health_check():
 
 @app.post("/execute")
 async def execute_task(request: Request):
-    """Execute an automation task"""
+    """Execute an automation task. Always return 200 to prevent Cloud Tasks retries."""
     try:
         task_data = await request.json()
         task_type = task_data.get("task_type")
@@ -54,30 +54,48 @@ async def execute_task(request: Request):
             message_data = task_data.get("message_data", {})
             
             if not all([user_id, message_data]):
-                raise HTTPException(status_code=400, detail="user_id and message_data are required")
+                # Permanent error; don't retry
+                logger.warning("automation_trigger_worker missing required fields: user_id or message_data")
+                return {"success": False, "error": "user_id and message_data are required"}
             
             logger.info(f"Executing automation trigger for user: {user_id}")
-            result = await automation_trigger_worker(ctx, user_id, message_data)
+            try:
+                result = await automation_trigger_worker(ctx, user_id, message_data)
+                logger.info(f"Automation task {task_type} completed: {result}")
+                return {"success": True, "result": result}
+            except Exception as e:
+                # Treat as handled failure to avoid Cloud Tasks retry
+                logger.error(f"automation_trigger_worker failed: {e}")
+                return {"success": False, "error": str(e)}
             
         elif task_type == "run_initializer_worker":
             job_id = task_data.get("job_id")
             automation_run_id = task_data.get("automation_run_id")
             
             if not job_id:
-                raise HTTPException(status_code=400, detail="job_id is required")
+                # Permanent error; don't retry
+                logger.warning("run_initializer_worker missing required field: job_id")
+                return {"success": False, "error": "job_id is required"}
             
             logger.info(f"Executing job initializer: job={job_id}, automation_run={automation_run_id}")
-            result = await run_initializer_worker(ctx, job_id, automation_run_id)
+            try:
+                result = await run_initializer_worker(ctx, job_id, automation_run_id)
+                logger.info(f"Automation task {task_type} completed: {result}")
+                return {"success": True, "result": result}
+            except Exception as e:
+                # Treat as handled failure to avoid Cloud Tasks retry
+                logger.error(f"run_initializer_worker failed: {e}")
+                return {"success": False, "error": str(e)}
             
         else:
-            raise HTTPException(status_code=400, detail=f"Unknown task type: {task_type}")
-        
-        logger.info(f"Automation task {task_type} completed: {result}")
-        return {"success": True, "result": result}
+            # Unknown task type is a permanent error; don't retry
+            logger.warning(f"Unknown task type: {task_type}")
+            return {"success": False, "error": f"Unknown task type: {task_type}"}
         
     except Exception as e:
-        logger.error(f"Task execution failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Any unexpected error at the request level should not cause retries
+        logger.error(f"Task execution failed at request level: {e}")
+        return {"success": False, "error": str(e)}
 
 def main():
     """Main entry point"""
