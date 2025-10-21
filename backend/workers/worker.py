@@ -243,7 +243,10 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
             logger.error(f"Failed to record usage for billing: {e}")
             # Don't fail the task for billing errors
         
-        # Increment run-level task completion counter
+        # Persist results and task status before emitting any SSE or updating run counters
+        db.commit()
+        
+        # Increment run-level task completion counter (uses its own DB session)
         try:
             from services.job_service import JobService
             job_service = JobService()
@@ -253,15 +256,12 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
         except Exception as e:
             logger.error(f"Failed to increment task completion counter: {e}")
         
-        
-        # Send SSE event for task completed
+        # Send SSE event for task completed (after DB commit)
         try:
             from services.sse_service import sse_manager
             await sse_manager.send_task_completed(parent_job_id, task_id, final_result)
         except Exception as e:
             logger.warning(f"Failed to send task_completed SSE event: {e}")
-        
-        db.commit()
         
         logger.info(f"Successfully completed extraction task: {task_id}")
         return {"success": True, "task_id": task_id}

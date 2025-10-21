@@ -644,6 +644,9 @@ class JobService:
                     .values(last_active_at=datetime.utcnow())
                 )
                 
+                # Ensure DB state is fully committed before sending completion event
+                db.commit()
+                
                 # Send job completion SSE event
                 try:
                     from services.sse_service import sse_manager
@@ -1072,8 +1075,9 @@ class JobService:
 
     async def _create_extraction_tasks(self, db: Session, job_run_id: uuid.UUID, task_definitions: List) -> None:
         """Create extraction tasks based on task definitions for a job run"""
-        # Get all source files for this job run
-        source_files = db.query(SourceFile).filter(SourceFile.job_run_id == job_run_id).all()
+        # Get all processable source files for this job run (exclude archives)
+        source_files_query = db.query(SourceFile).filter(SourceFile.job_run_id == job_run_id)
+        source_files = self._filter_processable_files(source_files_query).all()
         
         # Group files by their folder paths using shared logic
         files_by_path = self._group_files_by_folder(source_files)
@@ -1792,9 +1796,10 @@ class JobService:
             if processing_modes:
                 logger.info(f"Processing modes received: {processing_modes}")
                 
-                # Get all source files for this job run
-                source_files = db.query(SourceFile).filter(SourceFile.job_run_id == target_run.id).all()
-                logger.info(f"Found {len(source_files)} source files for job run {target_run.id}")
+                # Get all processable source files for this job run (exclude archives)
+                source_files_query = db.query(SourceFile).filter(SourceFile.job_run_id == target_run.id)
+                source_files = self._filter_processable_files(source_files_query).all()
+                logger.info(f"Found {len(source_files)} processable source files for job run {target_run.id}")
                 
                 # Group files by their folder paths
                 files_by_folder = {}
