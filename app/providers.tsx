@@ -6,6 +6,10 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import { Toaster } from '@/components/ui/toaster'
 import { useState } from 'react'
 
+import { CookieConsentProvider } from '@/components/privacy/CookieConsentProvider'
+import CookieBanner from '@/components/privacy/CookieBanner'
+import CookiePreferencesModal from '@/components/privacy/CookiePreferencesModal'
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
@@ -19,8 +23,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          {children}
-          <Toaster />
+          <CookieConsentProvider>
+            {children}
+            <CookieBanner />
+            <CookiePreferencesModal />
+            <Toaster />
+          </CookieConsentProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

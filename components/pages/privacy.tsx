@@ -1,7 +1,12 @@
+"use client";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Shield, Lock, Trash2, MapPin, FileText, Mail } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { useCookieConsent } from '@/hooks/useCookieConsent';
 
 export default function Privacy() {
+  const { openPreferences } = useCookieConsent();
   return (
     <div className="min-h-screen py-20">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -14,6 +19,11 @@ export default function Privacy() {
           <p className="text-sm text-gray-500 mt-4">
             Last updated: August 2025
           </p>
+          <div className="mt-6">
+            <Button variant="outline" onClick={openPreferences}>
+              Manage Cookie Preferences
+            </Button>
+          </div>
         </div>
 
         {/* Overview */}
