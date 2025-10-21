@@ -1145,7 +1145,7 @@ async def export_job_to_google_drive(
     with next(get_db()) as db:
         try:
             # Import here to avoid circular imports
-            from models.db_models import JobExport, AutomationRun
+            from models.db_models import JobExport, AutomationRun, ExtractionJob
             from services.job_service import JobService
             from services.google_service import google_service
             
@@ -1194,15 +1194,22 @@ async def export_job_to_google_drive(
             
             # Generate export content based on file type
             if file_type == "csv":
-                from services.export_service import generate_csv_content
+                from services.export_service import generate_csv_content, generate_export_filename
                 content = generate_csv_content(results_response)
-                filename = f"job_{job_id}_run_{target_run_id}_results.csv"
+                from datetime import datetime
+                # Use job name for filename when exporting
+                job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
+                job_name = job.name if job and job.name else str(job_id)
+                filename = generate_export_filename(job_name, datetime.utcnow(), "csv")
                 mime_type = "text/csv"
                 content_bytes = content.encode('utf-8')
             elif file_type == "xlsx":
-                from services.export_service import generate_excel_content
+                from services.export_service import generate_excel_content, generate_export_filename
+                from datetime import datetime
                 content_bytes = generate_excel_content(results_response)
-                filename = f"job_{job_id}_run_{target_run_id}_results.xlsx"
+                job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
+                job_name = job.name if job and job.name else str(job_id)
+                filename = generate_export_filename(job_name, datetime.utcnow(), "xlsx")
                 mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             else:
                 raise ValueError(f"Unsupported file type: {file_type}")

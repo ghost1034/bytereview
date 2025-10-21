@@ -5,6 +5,8 @@ import csv
 import openpyxl
 from io import StringIO, BytesIO
 from typing import List
+from datetime import datetime
+import re
 
 
 def generate_csv_content(results_response) -> str:
@@ -158,3 +160,27 @@ def _get_source_file_paths(result) -> str:
     
     # Return comma-separated paths
     return ", ".join(source_paths)
+
+
+def _slugify_filename_component(name: str) -> str:
+    """Create a filesystem-safe component for filenames from a job name."""
+    if not name:
+        return "job"
+    # Replace whitespace with underscore
+    name = re.sub(r"\s+", "_", name.strip())
+    # Remove characters not allowed in filenames on common OS
+    name = re.sub(r"[^A-Za-z0-9._-]", "", name)
+    # Collapse multiple underscores
+    name = re.sub(r"_+", "_", name)
+    # Trim to reasonable length
+    return name[:80] if name else "job"
+
+
+def generate_export_filename(job_name: str, export_time: datetime, ext: str) -> str:
+    """
+    Generate export filename using job name and export timestamp.
+    Example: my_job_20250130_142355Z.csv
+    """
+    safe_job = _slugify_filename_component(job_name or "job")
+    ts = export_time.strftime("%Y%m%d_%H%M%SZ")
+    return f"{safe_job}_{ts}.{ext}"

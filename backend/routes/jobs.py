@@ -18,7 +18,7 @@ from models.db_models import ExtractionJob, SourceFile, JobExport
 from services.job_service import JobService
 from services.sse_service import sse_manager
 from services.google_service import google_service
-from services.export_service import generate_csv_content, generate_excel_content
+from services.export_service import generate_csv_content, generate_excel_content, generate_export_filename
 from models.job import (
     JobInitiateRequest, JobInitiateResponse,
     JobStartRequest, JobStartResponse,
@@ -517,7 +517,8 @@ async def update_job_details(
 async def export_job_results_csv(
     job_id: str,
     current_user_id: str = Depends(get_current_user_id),
-    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)")
+    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)"),
+    db: Session = Depends(get_db)
 ):
     """Export job run results to CSV format"""
     try:
@@ -527,12 +528,17 @@ async def export_job_results_csv(
         # Generate CSV content using helper function
         csv_content = generate_csv_content(results_response)
         
+        # Build filename using job name and export timestamp
+        job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id, ExtractionJob.user_id == current_user_id).first()
+        job_name = job.name if job and job.name else str(job_id)
+        from datetime import datetime
+        filename = generate_export_filename(job_name, datetime.utcnow(), "csv")
+        
         # Return as downloadable file
-        run_suffix = f"_run_{run_id}" if run_id else ""
         return Response(
             content=csv_content,
             media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename=job_{job_id}{run_suffix}_results.csv"}
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
         )
         
     except ValueError as e:
@@ -545,7 +551,8 @@ async def export_job_results_csv(
 async def export_job_results_excel(
     job_id: str,
     current_user_id: str = Depends(get_current_user_id),
-    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)")
+    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)"),
+    db: Session = Depends(get_db)
 ):
     """Export job run results to Excel format"""
     try:
@@ -555,12 +562,17 @@ async def export_job_results_excel(
         # Generate Excel content using helper function
         excel_content = generate_excel_content(results_response)
         
+        # Build filename using job name and export timestamp
+        job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id, ExtractionJob.user_id == current_user_id).first()
+        job_name = job.name if job and job.name else str(job_id)
+        from datetime import datetime
+        filename = generate_export_filename(job_name, datetime.utcnow(), "xlsx")
+        
         # Return as downloadable file
-        run_suffix = f"_run_{run_id}" if run_id else ""
         return Response(
             content=excel_content,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment; filename=job_{job_id}{run_suffix}_results.xlsx"}
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
         )
         
     except ValueError as e:
