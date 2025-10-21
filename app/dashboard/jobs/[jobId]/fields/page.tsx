@@ -232,6 +232,7 @@ export default function JobFieldsPage() {
             onContinue={handleContinue}
             onBack={handleBack}
             readOnly={isReadOnly}
+            showAutomationTip={!!(job?.job_fields && job.job_fields.length > 0 && !isCompleted)}
           />
         </CardContent>
       </Card>

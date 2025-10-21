@@ -5,6 +5,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -56,6 +57,7 @@ interface FieldConfigurationStepProps {
   onContinue: () => Promise<void>;
   onBack: () => void;
   readOnly?: boolean;
+  showAutomationTip?: boolean;
 }
 
 export default function FieldConfigurationStep({
@@ -68,6 +70,7 @@ export default function FieldConfigurationStep({
   onContinue,
   onBack,
   readOnly = false,
+  showAutomationTip = false,
 }: FieldConfigurationStepProps) {
   const { toast } = useToast();
   const { data: userTemplates } = useTemplates();
@@ -634,13 +637,26 @@ export default function FieldConfigurationStep({
               </div>
             </div>
           ) : (
-            <FieldConfigurationEditor
-              fields={convertToFieldConfig(fields)}
-              onFieldsChange={readOnly ? () => {} : handleFieldsChange}
-              dataTypes={dataTypes}
-              mode="job"
-              readOnly={readOnly}
-            />
+            <>
+              <FieldConfigurationEditor
+                fields={convertToFieldConfig(fields)}
+                onFieldsChange={readOnly ? () => {} : handleFieldsChange}
+                dataTypes={dataTypes}
+                mode="job"
+                readOnly={readOnly}
+              />
+              {showAutomationTip && (
+                <div className="mt-4 rounded-md border border-blue-200 bg-blue-50 p-3 text-blue-800">
+                  <p className="text-sm">
+                    Fields are configured for this run. You can now use this job in{' '}
+                    <Link href="/dashboard/automations" className="font-medium text-blue-700 underline">
+                      Automations
+                    </Link>{' '}
+                    to run extractions automatically.
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

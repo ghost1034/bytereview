@@ -47,6 +47,7 @@ interface JobCardProps {
     tasks_failed?: number;
     created_at: string;
     last_active_at?: string;
+    has_configured_fields?: boolean | null;
   };
   onDelete?: (jobId: string) => void;
 }
@@ -197,13 +198,29 @@ export default function JobCard({ job, onDelete }: JobCardProps) {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Badge
-                variant="outline"
-                className={`bg-${statusColor}-50 text-${statusColor}-700 border-${statusColor}-200`}
-              >
-                {getStatusLabel(job.status)}
-              </Badge>
+            <div className="flex items-start gap-2">
+              <div className="flex flex-col items-end gap-1">
+                <Badge
+                  variant="outline"
+                  className={`bg-${statusColor}-50 text-${statusColor}-700 border-${statusColor}-200`}
+                >
+                  {getStatusLabel(job.status)}
+                </Badge>
+
+                {job.has_configured_fields !== undefined && (
+                  job.has_configured_fields ? (
+                    <div className="flex items-center text-sm text-green-500">
+                      <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2" />
+                      <span>Fields configured</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center text-sm text-red-500">
+                      <span className="inline-block w-2 h-2 rounded-full bg-red-500 mr-2" />
+                      <span>Fields not configured</span>
+                    </div>
+                  )
+                )}
+              </div>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

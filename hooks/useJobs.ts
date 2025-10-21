@@ -84,7 +84,7 @@ export function useJobs(limit = 25, offset = 0, status?: string) {
     queryKey: ['jobs', user?.uid, limit, offset, status],
     queryFn: () => {
       console.log('[JOBS] API call triggered at', new Date().toLocaleTimeString())
-      return apiClient.listJobs({ limit, offset, status })
+      return apiClient.listJobs({ limit, offset, status, include_field_status: true })
     },
     enabled: !!user,
     staleTime: 0, // TODO: Implement proper staleTime and invalidation
