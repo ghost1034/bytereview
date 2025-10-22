@@ -121,19 +121,18 @@ docker buildx create --use --name cpa-builder --driver docker-container || true
 docker buildx inspect --bootstrap
 echo -e "${GREEN}✅ Docker Buildx setup complete${NC}"
 
-# Authenticate Docker with Artifact Registry
 echo -e "${YELLOW}🔐 Authenticating Docker with Artifact Registry...${NC}"
 gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
 echo -e "${GREEN}✅ Docker authentication complete${NC}"
 echo ""
 
-# Build task service images
-echo -e "${BLUE}=== Building Task Service Images ===${NC}"
+# # Build task service images
+# echo -e "${BLUE}=== Building Task Service Images ===${NC}"
 
-build_and_push_task_image "extract" "Dockerfile.extract"
-build_and_push_task_image "io" "Dockerfile.io" 
-build_and_push_task_image "automation" "Dockerfile.automation"
-build_and_push_task_image "maintenance" "Dockerfile.maintenance"
+# build_and_push_task_image "extract" "Dockerfile.extract"
+# build_and_push_task_image "io" "Dockerfile.io" 
+# build_and_push_task_image "automation" "Dockerfile.automation"
+# build_and_push_task_image "maintenance" "Dockerfile.maintenance"
 
 # Deploy task services
 echo -e "${BLUE}=== Deploying Task Services ===${NC}"
@@ -156,7 +155,7 @@ deploy_service \
      --vpc-egress=private-ranges-only \
      --service-account=$SERVICE_ACCOUNT \
      --no-cpu-throttling \
-     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
 
 # Deploy I/O Task Service
@@ -177,7 +176,7 @@ deploy_service \
      --vpc-egress=private-ranges-only \
      --service-account=$SERVICE_ACCOUNT \
      --no-cpu-throttling \
-     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
 
 # Deploy Automation Task Service
@@ -198,7 +197,7 @@ deploy_service \
      --vpc-egress=private-ranges-only \
      --service-account=$SERVICE_ACCOUNT \
      --no-cpu-throttling \
-     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
 
 # Deploy Maintenance Task Service

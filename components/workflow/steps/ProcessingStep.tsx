@@ -312,6 +312,17 @@ export default function ProcessingStep({
 
             case "task_failed":
               console.log(`Task failed: ${data.task_id}`);
+              // Increment failed count for progress so UI reflects failure immediately
+              setCurrentProgress((prev) => {
+                if (!prev) return prev; // Wait for initial state from full_state
+                const newFailed = prev.failed + 1;
+                const newRemaining = Math.max(prev.total - prev.completed - newFailed, 0);
+                console.log(`Progress (failed): failed=${newFailed}, remaining=${newRemaining}`);
+                return {
+                  ...prev,
+                  failed: newFailed,
+                };
+              });
               setProcessingSteps((prev) => {
                 const updated = prev.map((step) =>
                   step.id === data.task_id
