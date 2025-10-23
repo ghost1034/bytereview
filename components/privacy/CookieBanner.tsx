@@ -32,10 +32,10 @@ export default function CookieBanner() {
             <p className="text-xs text-gray-600">
               You can change your preferences at any time by visiting our Privacy Policy. For more information about our data practices, please see our <Link href="/privacy" className="underline">Privacy Policy</Link>.
             </p>
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={acceptNecessary}>Accept Necessary Only</Button>
-              <Button variant="outline" onClick={openPreferences}>Customize Preferences</Button>
-              <Button onClick={acceptAll}>Accept All Cookies</Button>
+            <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+              <Button className="w-full md:w-auto" variant="secondary" onClick={acceptNecessary}>Accept Necessary Only</Button>
+              <Button className="w-full md:w-auto" variant="outline" onClick={openPreferences}>Customize Preferences</Button>
+              <Button className="w-full md:w-auto" onClick={acceptAll}>Accept All Cookies</Button>
             </div>
           </div>
         </div>

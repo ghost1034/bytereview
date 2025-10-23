@@ -88,28 +88,28 @@ export default function Home() {
                         <div className="w-3 h-3 bg-red-400 rounded-full"></div>
                         <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
                         <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                        <span className="text-sm text-gray-600 ml-2">Investment Statement Extract</span>
+                        <span className="text-sm text-gray-600 ml-2">Investment Statement Extraction</span>
                       </div>
                       <div className="p-3">
                         <div className="grid grid-cols-6 gap-1 text-xs">
-                          <div className="bg-blue-100 p-2 rounded text-center font-medium">Portfolio Co.</div>
-                          <div className="bg-blue-100 p-2 rounded text-center font-medium">Quarter</div>
-                          <div className="bg-blue-100 p-2 rounded text-center font-medium">Revenue</div>
-                          <div className="bg-blue-100 p-2 rounded text-center font-medium">EBITDA</div>
-                          <div className="bg-blue-100 p-2 rounded text-center font-medium">Growth %</div>
-                          <div className="bg-blue-100 p-2 rounded text-center font-medium">Valuation</div>
-                          <div className="p-2 text-center">TechFlow Inc</div>
-                          <div className="p-2 text-center">Q4 2024</div>
-                          <div className="p-2 text-center">$12.5M</div>
-                          <div className="p-2 text-center">$3.2M</div>
-                          <div className="p-2 text-center">23%</div>
-                          <div className="p-2 text-center">$85M</div>
-                          <div className="p-2 text-center">DataMind Corp</div>
-                          <div className="p-2 text-center">Q4 2024</div>
-                          <div className="p-2 text-center">$8.7M</div>
-                          <div className="p-2 text-center">$1.9M</div>
-                          <div className="p-2 text-center">31%</div>
-                          <div className="p-2 text-center">$62M</div>
+                          <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">Portfolio Co.</div>
+                          <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">Quarter</div>
+                          <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">Revenue</div>
+                          <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">EBITDA</div>
+                          <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">Growth %</div>
+                          <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">Valuation</div>
+                          <div className="p-2 text-center truncate">TechFlow Inc</div>
+                          <div className="p-2 text-center truncate">Q4 2024</div>
+                          <div className="p-2 text-center truncate">$12.5M</div>
+                          <div className="p-2 text-center truncate">$3.2M</div>
+                          <div className="p-2 text-center truncate">23%</div>
+                          <div className="p-2 text-center truncate">$85M</div>
+                          <div className="p-2 text-center truncate">DataMind Corp</div>
+                          <div className="p-2 text-center truncate">Q4 2024</div>
+                          <div className="p-2 text-center truncate">$8.7M</div>
+                          <div className="p-2 text-center truncate">$1.9M</div>
+                          <div className="p-2 text-center truncate">31%</div>
+                          <div className="p-2 text-center truncate">$62M</div>
                         </div>
                       </div>
                     </div>
