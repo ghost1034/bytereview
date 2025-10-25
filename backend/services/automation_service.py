@@ -292,7 +292,8 @@ class AutomationService:
                         to_email=user_email,
                         automation_name=automation_name,
                         status=status,
-                        run_id=str(automation_run.id)
+                        run_id=str(automation_run.id),
+                        error_message=automation_run.error_message if status == 'failed' else None
                     )
                 except Exception as notify_err:
                     logger.warning(f"Failed to send automation notification email: {notify_err}")

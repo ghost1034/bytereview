@@ -114,6 +114,8 @@ class JobListItem(BaseModel):
     status: JobStatus = Field(..., description="Job status")
     config_step: str = Field(..., description="Current configuration step")
     created_at: datetime = Field(..., description="Creation timestamp")
+    latest_run_created_at: datetime = Field(..., description="Creation timestamp of the latest job run")
+    latest_run_completed_at: Optional[datetime] = Field(None, description="Completion timestamp of the latest job run (if completed)")
     has_configured_fields: Optional[bool] = Field(None, description="Whether the job has configured fields (for automation selection)")
 
 class JobListResponse(BaseModel):

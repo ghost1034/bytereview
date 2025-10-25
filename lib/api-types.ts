@@ -1965,6 +1965,17 @@ export interface components {
              */
             created_at: string;
             /**
+             * Latest Run Created At
+             * Format: date-time
+             * @description Creation timestamp of the latest job run
+             */
+            latest_run_created_at: string;
+            /**
+             * Latest Run Completed At
+             * @description Completion timestamp of the latest job run (if completed)
+             */
+            latest_run_completed_at?: string | null;
+            /**
              * Has Configured Fields
              * @description Whether the job has configured fields (for automation selection)
              */
@@ -2391,6 +2402,8 @@ export interface components {
             plan_code: string;
             /** Plan Display Name */
             plan_display_name: string;
+            /** Overage Cents */
+            overage_cents: number;
         };
         /** UserResponse */
         UserResponse: {

@@ -69,7 +69,7 @@ class EmailService:
             logger.error(f"Failed to send email to {to_email}: {e}")
             return False
 
-    def send_automation_notification(self, to_email: str, automation_name: str, status: str, run_id: Optional[str] = None):
+    def send_automation_notification(self, to_email: str, automation_name: str, status: str, run_id: Optional[str] = None, error_message: Optional[str] = None):
         """
         Send a notification when an automation run starts or ends.
         status: 'running' | 'completed' | 'failed'
@@ -92,9 +92,11 @@ class EmailService:
                 )
             elif status == "failed":
                 subject = f"Your automation failed: {automation_name}"
+                reason = f"Reason: {error_message}\n" if error_message else ""
                 body = (
                     f"Hello,\n\n"
                     f"Unfortunately, your automation '{automation_name}' encountered an error and did not complete.\n"
+                    f"{reason}"
                     f"You can review the run in your dashboard for details.\n\n"
                     f"— CPAAutomation"
                 )

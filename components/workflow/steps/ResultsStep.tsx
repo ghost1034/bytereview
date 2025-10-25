@@ -679,24 +679,14 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
     try {
       setExportLoading('excel');
       
-      // Use the new backend export endpoint
-      const response = await fetch(`/api/jobs/${jobId}/export/excel`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${await getAuthToken()}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
+      // Use the API client export method with runId to preserve backend filename
+      const { blob, filename } = await apiClient.exportJobExcel(jobId, runId);
 
       // Download the file
-      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `job_${jobId}_results.xlsx`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -723,9 +713,24 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
     try {
       setExportLoading('json');
       const jsonData = JSON.stringify(results.results, null, 2);
+
+      // Build filename using job name and current UTC timestamp to match CSV/XLSX convention
+      const slugify = (name: string) => {
+        const trimmed = (name || 'job').trim();
+        return trimmed
+          .replace(/\s+/g, '_')
+          .replace(/[^A-Za-z0-9._-]/g, '')
+          .replace(/_+/g, '_')
+          .slice(0, 80) || 'job';
+      };
+      const safeJob = slugify(jobDetails?.name || 'job');
+      const ts = new Date();
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const filename = `${safeJob}_${ts.getUTCFullYear()}${pad(ts.getUTCMonth() + 1)}${pad(ts.getUTCDate())}_${pad(ts.getUTCHours())}${pad(ts.getUTCMinutes())}${pad(ts.getUTCSeconds())}Z.json`;
+
       downloadFile(
         jsonData,
-        `extraction-results-${jobId}.json`,
+        filename,
         "application/json"
       );
 

@@ -1263,6 +1263,8 @@ class JobService:
                     ExtractionJob,
                     JobRun.status.label('latest_status'),
                     JobRun.config_step.label('latest_config_step'),
+                    JobRun.created_at.label('latest_run_created_at'),
+                    JobRun.completed_at.label('latest_run_completed_at'),
                     func.count(JobField.id).label('field_count')
                 ).join(
                     latest_runs_subquery, ExtractionJob.id == latest_runs_subquery.c.job_id
@@ -1274,7 +1276,7 @@ class JobService:
                 ).outerjoin(JobField, JobField.job_run_id == JobRun.id).filter(
                     ExtractionJob.user_id == user_id
                 ).group_by(
-                    ExtractionJob.id, JobRun.status, JobRun.config_step
+                    ExtractionJob.id, JobRun.status, JobRun.config_step, JobRun.created_at, JobRun.completed_at
                 ).order_by(
                     ExtractionJob.created_at.desc()
                 ).limit(limit).offset(offset)
@@ -1288,16 +1290,20 @@ class JobService:
                         status=JobStatus(latest_status),
                         config_step=latest_config_step,
                         created_at=job.created_at,
+                        latest_run_created_at=latest_run_created_at,
+                        latest_run_completed_at=latest_run_completed_at,
                         has_configured_fields=(field_count or 0) > 0
                     )
-                    for job, latest_status, latest_config_step, field_count in jobs_with_counts
+                    for job, latest_status, latest_config_step, latest_run_created_at, latest_run_completed_at, field_count in jobs_with_counts
                 ]
             else:
                 # Get jobs with latest run data only
                 jobs_query = db.query(
                     ExtractionJob,
                     JobRun.status.label('latest_status'),
-                    JobRun.config_step.label('latest_config_step')
+                    JobRun.config_step.label('latest_config_step'),
+                    JobRun.created_at.label('latest_run_created_at'),
+                    JobRun.completed_at.label('latest_run_completed_at')
                 ).join(
                     latest_runs_subquery, ExtractionJob.id == latest_runs_subquery.c.job_id
                 ).join(
@@ -1319,9 +1325,11 @@ class JobService:
                         name=job.name,
                         status=JobStatus(latest_status),
                         config_step=latest_config_step,
-                        created_at=job.created_at
+                        created_at=job.created_at,
+                        latest_run_created_at=latest_run_created_at,
+                        latest_run_completed_at=latest_run_completed_at
                     )
-                    for job, latest_status, latest_config_step in jobs_with_runs
+                    for job, latest_status, latest_config_step, latest_run_created_at, latest_run_completed_at in jobs_with_runs
                 ]
             
             return JobListResponse(

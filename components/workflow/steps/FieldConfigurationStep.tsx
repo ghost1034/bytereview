@@ -277,7 +277,8 @@ export default function FieldConfigurationStep({
     }
 
     setFolderProcessingModes((prev) => {
-      const newModes = { ...prev, ...initialModes };
+      // Preserve any user-chosen values already in state; only seed from initialModes when not set
+      const newModes: Record<string, ProcessingMode> = { ...initialModes, ...prev };
       folders.forEach((folder) => {
         if (!(folder in newModes)) {
           newModes[folder] = "individual"; // Default to individual

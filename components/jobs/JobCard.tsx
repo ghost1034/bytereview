@@ -46,7 +46,8 @@ interface JobCardProps {
     tasks_total?: number;
     tasks_failed?: number;
     created_at: string;
-    last_active_at?: string;
+    latest_run_created_at?: string;
+    latest_run_completed_at?: string | null;
     has_configured_fields?: boolean | null;
   };
   onDelete?: (jobId: string) => void;
@@ -169,6 +170,9 @@ export default function JobCard({ job, onDelete }: JobCardProps) {
   const statusColor = getStatusColor(job.status, job.config_step || "");
   const statusIcon = getStatusIcon(job.status, job.config_step || "");
 
+  const startedAt = job.latest_run_created_at || job.created_at;
+  const completedAt = job.latest_run_completed_at || undefined;
+
   return (
     <>
       <Card
@@ -192,7 +196,7 @@ export default function JobCard({ job, onDelete }: JobCardProps) {
                   <span>{getStepLabel(job.config_step || "upload")}</span>
                   <span>•</span>
                   <span>
-                    {formatRelativeTime(job.last_active_at || job.created_at)}
+                    Created {formatRelativeTime(startedAt)}{completedAt ? ` • Completed ${formatRelativeTime(completedAt)}` : ""}
                   </span>
                 </div>
               </div>

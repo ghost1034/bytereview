@@ -13,6 +13,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
+from sqlalchemy import func as sa_func
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
@@ -662,6 +663,25 @@ class GmailPubSubService:
             logger.error(f"Failed to download attachment {attachment_id}: {e}")
             return None
     
+    def _normalize_gmail_address(self, email_addr: str) -> str:
+        """Normalize Gmail addresses by removing dots and plus tags in the local part and mapping googlemail.com to gmail.com."""
+        try:
+            addr = (email_addr or '').strip().lower()
+            if '@' not in addr:
+                return addr
+            local, domain = addr.split('@', 1)
+            # Treat googlemail.com as gmail.com
+            if domain in ('gmail.com', 'googlemail.com'):
+                domain = 'gmail.com'
+                # Drop anything after +
+                if '+' in local:
+                    local = local.split('+', 1)[0]
+                # Remove dots
+                local = local.replace('.', '')
+            return f"{local}@{domain}"
+        except Exception:
+            return (email_addr or '').strip().lower()
+
     def get_user_id_from_sender_email(self, db: Session, sender_email: str) -> Optional[str]:
         """
         Get user ID from sender email address by matching to user account email
@@ -676,10 +696,35 @@ class GmailPubSubService:
         try:
             from models.db_models import User
             
-            # Look up user by their account email address
+            # First try exact match on stored email
             user = db.query(User).filter(
                 User.email == sender_email.lower()
             ).first()
+
+            if not user:
+                # For Gmail addresses, also try normalized comparison against stored emails.
+                # Build normalization in SQL to avoid fetching all users.
+                normalized_sender = self._normalize_gmail_address(sender_email)
+                from sqlalchemy import case, literal
+                email_col = User.email
+                # Lowercase email
+                lowered = sa_func.lower(email_col)
+                # Domain part
+                domain = sa_func.split_part(lowered, '@', 2)
+                # Local part before '+'
+                local_no_plus = sa_func.split_part(sa_func.split_part(lowered, '@', 1), '+', 1)
+                # Remove dots from local part: use replace nestedly
+                local_no_dots = sa_func.replace(local_no_plus, '.', '')
+                # Map googlemail.com to gmail.com via CASE
+                mapped_domain = case(
+                    (domain == literal('googlemail.com'), literal('gmail.com')),
+                    else_=domain
+                )
+                normalized_sql = local_no_dots + literal('@') + mapped_domain
+
+                user = db.query(User).filter(
+                    normalized_sql == normalized_sender
+                ).first()
             
             if user:
                 logger.info(f"Found user {user.id} for sender email {sender_email}")
