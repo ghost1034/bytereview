@@ -109,7 +109,8 @@ class CloudRunTaskService:
         user_id: str,
         file_type: str,
         folder_id: str = None,
-        automation_run_id: str = None
+        automation_run_id: str = None,
+        run_id: str = None
     ) -> str:
         """Enqueue an export task"""
         task_data = {
@@ -118,7 +119,8 @@ class CloudRunTaskService:
             "user_id": str(user_id) if user_id is not None else None,
             "file_type": file_type,
             "folder_id": folder_id,
-            "automation_run_id": str(automation_run_id) if automation_run_id is not None else None
+            "automation_run_id": str(automation_run_id) if automation_run_id is not None else None,
+            "run_id": str(run_id) if run_id is not None else None
         }
         
         return await self._create_cloud_task(

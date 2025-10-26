@@ -82,12 +82,13 @@ async def execute_task(request: Request):
             file_type = task_data.get("file_type")
             folder_id = task_data.get("folder_id")
             automation_run_id = task_data.get("automation_run_id")
+            run_id = task_data.get("run_id")
             
             if not all([job_id, user_id, file_type]):
                 raise HTTPException(status_code=400, detail="job_id, user_id, and file_type are required")
             
             logger.info(f"Executing Google Drive export: job={job_id}, type={file_type}")
-            result = await export_job_to_google_drive(ctx, job_id, user_id, file_type, folder_id, automation_run_id)
+            result = await export_job_to_google_drive(ctx, job_id, user_id, file_type, folder_id, automation_run_id, run_id)
             
         elif task_type == "unpack_zip_file_task":
             source_file_id = task_data.get("source_file_id")

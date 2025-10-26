@@ -586,7 +586,8 @@ async def export_job_results_to_drive_csv(
     job_id: str,
     current_user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
-    folder_id: Optional[str] = Query(None, description="Google Drive folder ID (optional)")
+    folder_id: Optional[str] = Query(None, description="Google Drive folder ID (optional)"),
+    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)")
 ):
     """Export job results to Google Drive as CSV format (async)"""
     try:
@@ -606,7 +607,8 @@ async def export_job_results_to_drive_csv(
             job_id=job_id,
             user_id=current_user_id,
             file_type='csv',
-            folder_id=folder_id
+            folder_id=folder_id,
+            run_id=run_id
         )
         
         logger.info(f"Enqueued Google Drive CSV export task {task_name} for job {job_id}")
@@ -629,7 +631,8 @@ async def export_job_results_to_drive_excel(
     job_id: str,
     current_user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
-    folder_id: Optional[str] = Query(None, description="Google Drive folder ID (optional)")
+    folder_id: Optional[str] = Query(None, description="Google Drive folder ID (optional)"),
+    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)")
 ):
     """Export job results to Google Drive as Excel format (async)"""
     try:
@@ -649,7 +652,8 @@ async def export_job_results_to_drive_excel(
             job_id=job_id,
             user_id=current_user_id,
             file_type='xlsx',
-            folder_id=folder_id
+            folder_id=folder_id,
+            run_id=run_id
         )
         
         logger.info(f"Enqueued Google Drive Excel export task {task_name} for job {job_id}")
