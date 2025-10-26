@@ -46,7 +46,7 @@ export default function Header() {
                 </Link>
               ) : (
                 <Link href="/demo" className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === '/demo' ? 'text-lido-blue' : ''}`}>
-                  Try Demo
+                  Demo
                 </Link>
               )}
               <Link href="/pricing" className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === '/pricing' ? 'text-lido-blue' : ''}`}>
@@ -107,7 +107,7 @@ export default function Header() {
           <div className="md:hidden pb-4 space-y-4">
             <div className="space-y-2">
               <Link href="/demo" className="block text-gray-700 hover:text-lido-blue py-2">
-                Try it
+                Demo
               </Link>
               <Link href="/pricing" className="block text-gray-700 hover:text-lido-blue py-2">
                 Pricing

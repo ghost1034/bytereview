@@ -3322,6 +3322,8 @@ export interface operations {
             query?: {
                 /** @description Google Drive folder ID (optional) */
                 folder_id?: string | null;
+                /** @description Specific run ID (defaults to latest) */
+                run_id?: string | null;
             };
             header?: never;
             path: {
@@ -3356,6 +3358,8 @@ export interface operations {
             query?: {
                 /** @description Google Drive folder ID (optional) */
                 folder_id?: string | null;
+                /** @description Specific run ID (defaults to latest) */
+                run_id?: string | null;
             };
             header?: never;
             path: {

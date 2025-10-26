@@ -99,7 +99,7 @@ export const pageMetadata = {
     ],
   },
   demo: {
-    title: 'Try Demo - Test AI Document Extraction',
+    title: 'Demo - Test AI Document Extraction',
     description: 'Experience CPAAutomation\'s AI-powered document extraction in action. Upload your documents and see how our platform extracts data with professional accuracy.',
     canonical: 'https://cpaautomation.ai/demo',
     keywords: [
