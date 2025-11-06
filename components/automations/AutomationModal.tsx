@@ -39,7 +39,7 @@ const automationSchema = z.object({
   }
   return true;
 }, {
-  message: "Gmail query is required for Gmail trigger",
+  message: "Email query is required for email trigger",
   path: ["gmail_query"]
 }).refine((data) => {
   // Email is required when dest_type is gmail
@@ -48,7 +48,7 @@ const automationSchema = z.object({
   }
   return true;
 }, {
-  message: "Email address is required for Gmail export",
+  message: "Email address is required for email export",
   path: ["to_email"]
 })
 
@@ -328,7 +328,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                       <SelectValue placeholder="Select what triggers this automation" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="gmail">Gmail (Email Attachments)</SelectItem>
+                      <SelectItem value="gmail">Email (document@cpaautomation.ai)</SelectItem>
                       <SelectItem value="google_drive" disabled>Google Drive (Coming Soon)</SelectItem>
                       <SelectItem value="outlook" disabled>Outlook (Coming Soon)</SelectItem>
                       <SelectItem value="onedrive" disabled>OneDrive (Coming Soon)</SelectItem>
@@ -431,7 +431,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
 
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="gmail_query">Gmail Search Query</Label>
+                  <Label htmlFor="gmail_query">Email Filters Setup</Label>
                   <TooltipProvider delayDuration={0} skipDelayDuration={0}>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -440,7 +440,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                       <TooltipContent>
                         <div className="max-w-xs space-y-2">
                           <div>
-                            <p className="font-medium mb-1">Gmail search syntax</p>
+                            <p className="font-medium mb-1">Email filter syntax</p>
                             <ul className="text-xs space-y-1 text-muted-foreground">
                               <li><code>term1 term2</code> = AND (both terms)</li>
                               <li><code>term1 OR term2</code> = OR (either term)</li>
@@ -531,9 +531,9 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                   <p className="text-sm text-red-600">{errors.gmail_query.message}</p>
                 )}
                 <p className="text-sm text-gray-600">
-                  Use Gmail search syntax to filter which emails trigger this automation.
+                  Use email filter syntax to filter which emails trigger this automation.
                   <br />
-                  Examples: "has:attachment", "subject:invoice", "filename:pdf"
+                  Example: has:attachment subject:invoice filename:pdf
                   <br />
                   <span className="text-xs text-gray-500">
                     Note: Sender filtering is automatic based on your account email
@@ -595,7 +595,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                       <SelectItem value="gdrive" disabled={!googleStatus?.connected}>
                         Google Drive {!googleStatus?.connected && "(Not connected)"}
                       </SelectItem>
-                      <SelectItem value="gmail" disabled>Gmail (Coming Soon)</SelectItem>
+                      <SelectItem value="gmail" disabled>Email (Coming Soon)</SelectItem>
                       <SelectItem value="outlook" disabled>Outlook (Coming Soon)</SelectItem>
                       <SelectItem value="onedrive" disabled>OneDrive (Coming Soon)</SelectItem>
                       <SelectItem value="sharepoint" disabled>SharePoint (Coming Soon)</SelectItem>
@@ -654,7 +654,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
             {/* Gmail Export Configuration */}
             {effectiveDestType === "gmail" && (
               <div className="space-y-4 p-4 bg-red-50 rounded-lg border">
-                <h4 className="font-medium text-red-900">Gmail Export Settings</h4>
+                <h4 className="font-medium text-red-900">Email Export Settings</h4>
                 
                 <div className="space-y-2">
                   <Label htmlFor="to_email">Email Address</Label>
