@@ -124,7 +124,7 @@ export default function Pricing() {
   const sortedPlans = [...(plans || [])].sort((a, b) => a.sort_order - b.sort_order);
 
   return (
-    <div className="min-h-screen py-20">
+    <div className="min-h-screen pt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold text-gray-900 mb-4">Pricing for teams of every size</h1>
@@ -218,29 +218,22 @@ export default function Pricing() {
             
             <Card>
               <CardContent className="p-6">
-                <h3 className="font-semibold text-lg text-gray-900 mb-2">What types of files does CPAAutomation support?</h3>
-                <p className="text-gray-600">CPAAutomation works with PDFs (both scanned and searchable), images (JPEG, PNG), and email attachments. Our AI is specifically trained on financial and legal documents.</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-semibold text-lg text-gray-900 mb-2">Is my data secure?</h3>
-                <p className="text-gray-600">Yes, we use enterprise-grade security with AES-256 encryption. All files are immediately deleted post-processing and our servers are hosted exclusively in the U.S.A.</p>
+                <h3 className="font-semibold text-lg text-gray-900 mb-2">How does overage pricing work?</h3>
+                <p className="text-gray-600">Paid plans include a monthly page allotment. If a plan includes overage, additional pages are billed at the overage rate shown on the plan card. Free plans do not allow overage. You’ll see your usage in the dashboard so you can track and manage spending.</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="p-6">
-                <h3 className="font-semibold text-lg text-gray-900 mb-2">Who created the extraction rules?</h3>
-                <p className="text-gray-600">Our extraction algorithms were developed by real CPAs and lawyers with deep expertise in financial compliance and legal document processing requirements. Additionally, users can create custom rules by entering their own prompts for each column, allowing maximum flexibility for specific business needs.</p>
+                <h3 className="font-semibold text-lg text-gray-900 mb-2">Do you offer annual billing or discounts?</h3>
+                <p className="text-gray-600">Yes. We can provide annual billing and volume discounts for teams with higher usage. Contact us if you’re interested in annual pricing or custom plans.</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="p-6">
-                <h3 className="font-semibold text-lg text-gray-900 mb-2">What export formats are available?</h3>
-                <p className="text-gray-600">All plans include export to Excel, Google Sheets, and CSV formats. Enterprise plans also include custom data integrations with your existing systems.</p>
+                <h3 className="font-semibold text-lg text-gray-900 mb-2">What happens if I upgrade or downgrade?</h3>
+                <p className="text-gray-600">Plan changes take effect immediately. If you upgrade, you get access to the higher plan’s limits right away. If you downgrade, new limits apply immediately and your next bill will reflect the new plan.</p>
               </CardContent>
             </Card>
           </div>

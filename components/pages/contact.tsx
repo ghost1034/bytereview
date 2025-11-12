@@ -168,8 +168,8 @@ export default function Contact() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-gray-900">Email</h4>
-                      <p className="text-gray-600">support@CPAAutomation.ai</p>
-                      <p className="text-gray-600">sales@CPAAutomation.ai</p>
+                      <p className="text-gray-600">Tech: support@CPAAutomation.ai</p>
+                      <p className="text-gray-600">Sales: sales@CPAAutomation.ai</p>
                     </div>
                   </div>
 
@@ -179,8 +179,8 @@ export default function Contact() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-gray-900">Phone</h4>
-                      <p className="text-gray-600">No phone contact available yet</p>
-                      <p className="text-gray-600">(Please check back later)</p>
+                      <p className="text-gray-600">Tech: (415) 680-5881</p>
+                      <p className="text-gray-600">Sales: (513) 593-1883</p>
                     </div>
                   </div>
 
@@ -227,13 +227,22 @@ export default function Contact() {
                     <DialogHeader>
                       <DialogTitle>Enterprise Consultation</DialogTitle>
                       <DialogDescription>
-                        For enterprise inquiries, please contact our legal expert directly:
+                        For enterprise inquiries, please contact our lead developer or legal expert directly:
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="mt-2">
-                      <a href="mailto:raysang@cpaautomation.ai" className="text-blue-600 hover:text-blue-800 underline">
-                        raysang@cpaautomation.ai
-                      </a>
+                    <div className="mt-2 space-y-2">
+                      <div>
+                        <span className="text-gray-700">Lead developer:</span>
+                        <a href="mailto:ianstewart@cpaautomation.ai" className="ml-1 inline text-blue-600 hover:text-blue-800 underline">
+                          ianstewart@cpaautomation.ai
+                        </a>
+                      </div>
+                      <div>
+                        <span className="text-gray-700">Legal expert:</span>
+                        <a href="mailto:raysang@cpaautomation.ai" className="ml-1 inline text-blue-600 hover:text-blue-800 underline">
+                          raysang@cpaautomation.ai
+                        </a>
+                      </div>
                     </div>
                   </DialogContent>
                 </Dialog>

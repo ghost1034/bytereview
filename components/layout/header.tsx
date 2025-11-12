@@ -56,7 +56,10 @@ export default function Header() {
                 Features
               </Link>
               <Link href="/about" className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === '/about' ? 'text-lido-blue' : ''}`}>
-                About Us
+                About
+              </Link>
+              <Link href="/contact" className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === '/contact' ? 'text-lido-blue' : ''}`}>
+                Contact
               </Link>
             </div>
           </div>
@@ -117,6 +120,9 @@ export default function Header() {
               </Link>
               <Link href="/about" className="block text-gray-700 hover:text-lido-blue py-2">
                 About Us
+              </Link>
+              <Link href="/contact" className="block text-gray-700 hover:text-lido-blue py-2">
+                Contact
               </Link>
             </div>
             <div className="space-y-2">
