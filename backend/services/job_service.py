@@ -18,7 +18,7 @@ from models.job import (
 )
 from models.db_models import (
     ExtractionJob, JobRun, SourceFile, JobField, ExtractionTask, SourceFileToTask,
-    ExtractionResult, Template, TemplateField
+    ExtractionResult, Template, TemplateField, JobExport
 )
 from core.database import db_config
 from services.gcs_service import get_storage_service
@@ -78,7 +78,7 @@ class JobService:
         finally:
             db.close()
     
-    async def create_job_run(self, job_id: str, user_id: str, clone_from_run_id: str = None, template_id: str = None) -> str:
+    async def create_job_run(self, job_id: str, user_id: str, clone_from_run_id: str = None, template_id: str = None, append_results: bool = False) -> str:
         """Create a new job run, optionally cloning configuration from an existing run"""
         db = self._get_session()
         try:
@@ -119,6 +119,9 @@ class JobService:
             
             # Clone from source_run if available
             if source_run:
+                # If append requested, mark where we copied from
+                if append_results:
+                    new_run.append_from_run_id = source_run.id
                 # Copy template_id if not already set
                 if not new_run.template_id:
                     new_run.template_id = source_run.template_id
@@ -142,6 +145,92 @@ class JobService:
                     db.add(new_field)
                 
                 logger.info(f"Cloned {len(source_fields)} fields from run {source_run.id} to new run {new_run.id}")
+
+                # If append_results is true, copy completed tasks/results and export references
+                if append_results:
+                    # Copy completed tasks from source_run into new_run
+                    completed_tasks = db.query(ExtractionTask).filter(
+                        ExtractionTask.job_run_id == source_run.id,
+                        ExtractionTask.status == 'completed'
+                    ).all()
+
+                    # Map from source file ID to cloned file ID in new run to avoid re-cloning the same SourceFile
+                    cloned_file_id_map = {}
+
+                    tasks_copied = 0
+                    for src_task in completed_tasks:
+                        # Create new task in new run with completed status and preserved processing mode and timestamps
+                        new_task = ExtractionTask(
+                            job_run_id=new_run.id,
+                            processing_mode=src_task.processing_mode,
+                            status='completed',
+                            error_message=None,
+                            created_at=src_task.created_at,
+                            processed_at=src_task.processed_at,
+                            result_set_index=(src_task.result_set_index or 0)
+                        )
+                        db.add(new_task)
+                        db.flush()  # get new_task.id
+
+                        # Copy SourceFileToTask links and clone SourceFile rows for the new run
+                        src_links = db.query(SourceFileToTask).filter(SourceFileToTask.task_id == src_task.id).all()
+                        for link in src_links:
+                            if link.source_file_id not in cloned_file_id_map:
+                                # Load source file row
+                                sf = db.query(SourceFile).filter(SourceFile.id == link.source_file_id).first()
+                                if sf:
+                                    new_sf = SourceFile(
+                                        job_run_id=new_run.id,
+                                        original_filename=sf.original_filename,
+                                        original_path=sf.original_path,
+                                        gcs_object_name=sf.gcs_object_name,  # reference same object
+                                        file_type=sf.file_type,
+                                        file_size_bytes=sf.file_size_bytes,
+                                        page_count=sf.page_count,
+                                        status=sf.status,
+                                        source_type=sf.source_type,
+                                        external_id=sf.external_id
+                                    )
+                                    db.add(new_sf)
+                                    db.flush()
+                                    cloned_file_id_map[link.source_file_id] = new_sf.id
+                            # Create new link pointing to cloned/new file and new task
+                            new_link = SourceFileToTask(
+                                source_file_id=cloned_file_id_map[link.source_file_id],
+                                task_id=new_task.id
+                            )
+                            db.add(new_link)
+
+                        # Copy ExtractionResult
+                        src_result = db.query(ExtractionResult).filter(ExtractionResult.task_id == src_task.id).first()
+                        if src_result:
+                            new_result = ExtractionResult(
+                                task_id=new_task.id,
+                                extracted_data=src_result.extracted_data,
+                                processed_at=src_result.processed_at
+                            )
+                            db.add(new_result)
+
+                        tasks_copied += 1
+
+                    logger.info(f"Copied {tasks_copied} completed tasks from run {source_run.id} into new run {new_run.id}")
+
+                    # Copy export references for Drive exports so new run updates same files
+                    src_exports = db.query(JobExport).filter(
+                        JobExport.job_run_id == source_run.id,
+                        JobExport.dest_type.in_(['gdrive']),
+                        JobExport.file_type.in_(['csv','xlsx'])
+                    ).all()
+                    for src_exp in src_exports:
+                        new_exp = JobExport(
+                            job_run_id=new_run.id,
+                            dest_type=src_exp.dest_type,
+                            file_type=src_exp.file_type,
+                            status='pending',
+                            external_id=src_exp.external_id
+                        )
+                        db.add(new_exp)
+                    logger.info(f"Copied {len(src_exports)} export references from run {source_run.id} into new run {new_run.id}")
             else:
                 logger.info(f"No source run found to clone for new run {new_run.id}; proceeding with empty configuration")
             
@@ -273,18 +362,23 @@ class JobService:
             if target_run.status == 'in_progress':
                 raise ValueError("Job run already in progress")
             
-            # Delete any completed extraction tasks to allow re-running
-            completed_tasks_deleted = db.query(ExtractionTask).filter(
-                ExtractionTask.job_run_id == target_run.id,
-                ExtractionTask.status == 'completed'
-            ).delete()
+            # In fresh runs, delete completed tasks to allow re-running; in append runs, preserve them
+            if getattr(target_run, 'append_from_run_id', None):
+                completed_tasks_deleted = 0
+            else:
+                completed_tasks_deleted = db.query(ExtractionTask).filter(
+                    ExtractionTask.job_run_id == target_run.id,
+                    ExtractionTask.status == 'completed'
+                ).delete()
             
             if completed_tasks_deleted > 0:
                 logger.info(f"Deleted {completed_tasks_deleted} completed extraction tasks for run {target_run.id}")
             
             # Validate remaining configured tasks
+            # Only count pending tasks for processing
             total_tasks = db.query(ExtractionTask).filter(
-                ExtractionTask.job_run_id == target_run.id
+                ExtractionTask.job_run_id == target_run.id,
+                ExtractionTask.status == 'pending'
             ).count()
             
             if total_tasks == 0:
@@ -1668,6 +1762,7 @@ class JobService:
             ).filter(
                 ExtractionTask.job_run_id == target_run.id
             ).order_by(
+                ExtractionTask.result_set_index.asc(),
                 first_file_subquery.c.first_file_path,
                 ExtractionResult.processed_at,
                 ExtractionResult.id
@@ -1793,7 +1888,14 @@ class JobService:
                 db.add(job_field)
             
             # Delete existing extraction tasks for this run
-            db.query(ExtractionTask).filter(ExtractionTask.job_run_id == target_run.id).delete()
+            # Preserve completed tasks when this run is in append mode
+            if getattr(target_run, 'append_from_run_id', None):
+                db.query(ExtractionTask).filter(
+                    ExtractionTask.job_run_id == target_run.id,
+                    ExtractionTask.status != 'completed'
+                ).delete(synchronize_session=False)
+            else:
+                db.query(ExtractionTask).filter(ExtractionTask.job_run_id == target_run.id).delete(synchronize_session=False)
             
             # Debug: Log what we received
             logger.info(f"update_job_fields called with processing_modes: {processing_modes}")
@@ -1803,6 +1905,11 @@ class JobService:
             # Create extraction tasks with processing modes
             if processing_modes:
                 logger.info(f"Processing modes received: {processing_modes}")
+                # Determine next result_set_index for any new tasks in this run
+                existing_max = db.query(func.max(ExtractionTask.result_set_index)).filter(
+                    ExtractionTask.job_run_id == target_run.id
+                ).scalar()
+                next_set_index = (existing_max if existing_max is not None else -1) + 1
                 
                 # Get all processable source files for this job run (exclude archives)
                 source_files_query = db.query(SourceFile).filter(SourceFile.job_run_id == target_run.id)
@@ -1837,7 +1944,8 @@ class JobService:
                             extraction_task = ExtractionTask(
                                 job_run_id=target_run.id,
                                 processing_mode=processing_mode,
-                                status='pending'
+                                status='pending',
+                                result_set_index=next_set_index
                             )
                             db.add(extraction_task)
                             db.flush()  # Get task ID
@@ -1854,7 +1962,8 @@ class JobService:
                         extraction_task = ExtractionTask(
                             job_run_id=target_run.id,
                             processing_mode=processing_mode,
-                            status='pending'
+                            status='pending',
+                            result_set_index=next_set_index
                         )
                         db.add(extraction_task)
                         db.flush()  # Get task ID

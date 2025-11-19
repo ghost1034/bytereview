@@ -145,7 +145,8 @@ async def create_job_run(
             job_id=job_id,
             user_id=user_id,
             clone_from_run_id=request.clone_from_run_id,
-            template_id=request.template_id
+            template_id=request.template_id,
+            append_results=request.append_results
         )
         
         return JobRunCreateResponse(
