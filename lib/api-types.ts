@@ -1351,6 +1351,12 @@ export interface components {
              */
             processing_mode: string;
             /**
+             * Append Results
+             * @description Whether to append results from previous run
+             * @default false
+             */
+            append_results: boolean;
+            /**
              * Dest Type
              * @description Export destination type (gdrive, gmail)
              */
@@ -1402,6 +1408,8 @@ export interface components {
             job_id: string;
             /** Processing Mode */
             processing_mode: string;
+            /** Append Results */
+            append_results: boolean;
             /** Dest Type */
             dest_type: string | null;
             /** Export Config */
@@ -1488,6 +1496,11 @@ export interface components {
              * @description Processing mode (individual or combined)
              */
             processing_mode?: string | null;
+            /**
+             * Append Results
+             * @description Whether to append results from previous run
+             */
+            append_results?: boolean | null;
             /**
              * Dest Type
              * @description Export destination type (gdrive, gmail)
@@ -2066,6 +2079,12 @@ export interface components {
              * @description Template ID to use for field configuration
              */
             template_id?: string | null;
+            /**
+             * Append Results
+             * @description Whether to append results from previous run (copy completed tasks/results)
+             * @default false
+             */
+            append_results: boolean;
         };
         /**
          * JobRunCreateResponse

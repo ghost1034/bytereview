@@ -141,6 +141,8 @@ class JobRun(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
     template_id = Column(UUID(as_uuid=True), ForeignKey("templates.id", ondelete="SET NULL"))
+    # When this run was created in append mode, reference the source run it copied from
+    append_from_run_id = Column(UUID(as_uuid=True), ForeignKey("job_runs.id", ondelete="SET NULL"), nullable=True)
     
     # Wizard/Configuration State
     config_step = Column(String(20), nullable=False, default='upload')  # 'upload', 'fields', 'review', 'submitted'
@@ -248,6 +250,8 @@ class ExtractionTask(Base):
     error_message = Column(Text)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     processed_at = Column(TIMESTAMP(timezone=True))
+    # Result set ordering within a run: 0 for original, 1+ for each appended set
+    result_set_index = Column(Integer, nullable=False, default=0)
     
     # Relationships
     job_run = relationship("JobRun", back_populates="extraction_tasks")
@@ -364,6 +368,8 @@ class Automation(Base):
     trigger_config = Column(JSONB, nullable=False)
     job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="CASCADE"), nullable=False)
     processing_mode = Column(String(50), nullable=False, default='individual')  # 'individual' or 'combined'
+    # Whether each automation run should append results from the previous run
+    append_results = Column(Boolean, nullable=False, default=False)
     dest_type = Column(String(30), nullable=True)  # 'gdrive', 'gmail' when present, NULL when no export
     export_config = Column(JSONB, nullable=True)  # MUST be NULL when dest_type is NULL
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())

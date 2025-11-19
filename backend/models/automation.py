@@ -14,6 +14,7 @@ class AutomationCreate(BaseModel):
     trigger_config: Dict[str, Any] = Field(..., description="Configuration for the trigger")
     job_id: UUID = Field(..., description="ID of the extraction job to use as template")
     processing_mode: str = Field(default='individual', description="Processing mode (individual or combined)")
+    append_results: bool = Field(default=False, description="Whether to append results from previous run")
     dest_type: Optional[str] = Field(None, description="Export destination type (gdrive, gmail)")
     export_config: Optional[Dict[str, Any]] = Field(None, description="Export configuration")
     
@@ -49,6 +50,7 @@ class AutomationUpdate(BaseModel):
     is_enabled: Optional[bool] = Field(None, description="Whether the automation is enabled")
     trigger_config: Optional[Dict[str, Any]] = Field(None, description="Configuration for the trigger")
     processing_mode: Optional[str] = Field(None, description="Processing mode (individual or combined)")
+    append_results: Optional[bool] = Field(None, description="Whether to append results from previous run")
     dest_type: Optional[str] = Field(None, description="Export destination type (gdrive, gmail)")
     export_config: Optional[Dict[str, Any]] = Field(None, description="Export configuration")
     job_id: Optional[UUID] = Field(None, description="ID of the extraction job to use as template")
@@ -83,6 +85,7 @@ class AutomationResponse(BaseModel):
     trigger_config: Dict[str, Any]
     job_id: UUID
     processing_mode: str
+    append_results: bool
     dest_type: Optional[str]
     export_config: Optional[Dict[str, Any]]
     created_at: datetime

@@ -190,6 +190,7 @@ class JobRunCreateRequest(BaseModel):
     """Request to create a new job run"""
     clone_from_run_id: Optional[str] = Field(None, description="Run ID to clone field configuration from (defaults to latest)")
     template_id: Optional[str] = Field(None, description="Template ID to use for field configuration")
+    append_results: bool = Field(default=False, description="Whether to append results from previous run (copy completed tasks/results)")
 
 class JobRunCreateResponse(BaseModel):
     """Response for job run creation"""
