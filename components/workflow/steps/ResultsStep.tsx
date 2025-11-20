@@ -308,7 +308,7 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
     error,
   } = useJobResults(jobId, 1000, runId); // Get up to 1000 results for the specific run
   const { status: googleStatus, connect: connectGoogle, isConnecting } = useGoogleIntegration();
-  const { csvUrl, xlsxUrl, loading: refsLoading } = useExportRefs(jobId, runId);
+  const { csvUrl, xlsxUrl, loading: refsLoading, refresh: refreshExportRefs } = useExportRefs(jobId, runId);
 
 
   const getAuthToken = async () => {
@@ -453,6 +453,8 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
                 ),
               });
               
+              // Refresh export refs so UI updates without reload
+              refreshExportRefs().catch(() => {});
               // Close SSE connection after export completes
               closeExportSSEConnection();
               break;

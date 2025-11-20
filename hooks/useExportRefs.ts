@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { apiClient } from '@/lib/api'
 
 export interface ExportRefs {
@@ -13,37 +13,38 @@ export function useExportRefs(jobId?: string, runId?: string) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  const refresh = useCallback(async () => {
+    if (!jobId) return
     let cancelled = false
-    async function fetchRefs() {
-      if (!jobId) return
-      try {
-        setLoading(true)
-        setError(null)
-        let effectiveRunId = runId
-        if (!effectiveRunId) {
-          // derive latest run id
-          const runs = await apiClient.getJobRuns(jobId)
-          effectiveRunId = runs.latest_run_id || runs.runs?.[0]?.id
-        }
-        if (!effectiveRunId) {
-          if (!cancelled) {
-            setData(null)
-            setLoading(false)
-          }
-          return
-        }
-        const refs = await apiClient.getJobRunExportRefs(jobId, effectiveRunId)
-        if (!cancelled) setData(refs)
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message || 'Failed to load export refs')
-      } finally {
-        if (!cancelled) setLoading(false)
+    try {
+      setLoading(true)
+      setError(null)
+      let effectiveRunId = runId
+      if (!effectiveRunId) {
+        const runs = await apiClient.getJobRuns(jobId)
+        effectiveRunId = runs.latest_run_id || runs.runs?.[0]?.id
       }
+      if (!effectiveRunId) {
+        if (!cancelled) {
+          setData(null)
+          setLoading(false)
+        }
+        return
+      }
+      const refs = await apiClient.getJobRunExportRefs(jobId, effectiveRunId)
+      if (!cancelled) setData(refs)
+    } catch (e: any) {
+      if (!cancelled) setError(e?.message || 'Failed to load export refs')
+    } finally {
+      if (!cancelled) setLoading(false)
     }
-    fetchRefs()
-    return () => { cancelled = true }
   }, [jobId, runId])
+
+  useEffect(() => {
+    let isMounted = true
+    ;(async () => { await refresh() })()
+    return () => { isMounted = false }
+  }, [refresh])
 
   const csvId = data?.gdrive?.csv?.external_id
   const xlsxId = data?.gdrive?.xlsx?.external_id
@@ -58,5 +59,6 @@ export function useExportRefs(jobId?: string, runId?: string) {
     xlsxId,
     csvUrl: driveUrl(csvId),
     xlsxUrl: driveUrl(xlsxId),
+    refresh,
   }
 }
