@@ -203,7 +203,7 @@ class JobService:
                             job_run_id=new_run.id,
                             dest_type=src_exp.dest_type,
                             file_type=src_exp.file_type,
-                            status='pending',
+                            status='completed',
                             external_id=src_exp.external_id
                         )
                         db.add(new_exp)
@@ -528,7 +528,6 @@ class JobService:
             return
         
         import uuid
-        from models.db_models import ExtractionTask, SourceFileToTask
         
         tasks_created = 0
         
