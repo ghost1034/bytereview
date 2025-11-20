@@ -8,7 +8,7 @@ from datetime import datetime
 from enum import Enum
 
 # Export the enums for OpenAPI generation
-__all__ = ["JobStatus", "ProcessingMode", "FileStatus", "JobInitiateRequest", "JobInitiateResponse", "JobStartRequest", "JobStartResponse", "JobDetailsResponse", "JobListResponse", "JobProgressResponse", "JobResultsResponse", "JobRunListItem", "JobRunDetailsResponse", "JobRunCreateRequest", "JobRunCreateResponse", "JobRunListResponse"]
+__all__ = ["JobStatus", "ProcessingMode", "FileStatus", "JobInitiateRequest", "JobInitiateResponse", "JobStartRequest", "JobStartResponse", "JobDetailsResponse", "JobListResponse", "JobProgressResponse", "JobResultsResponse", "JobRunListItem", "JobRunDetailsResponse", "JobRunCreateRequest", "JobRunCreateResponse", "JobRunListResponse", "ExportRef", "ExportRefsResponse"]
 
 class JobStatus(str, Enum):
     """Job status enumeration"""
@@ -203,3 +203,13 @@ class JobRunListResponse(BaseModel):
     runs: List[JobRunListItem] = Field(..., description="List of job runs")
     total: int = Field(..., description="Total number of runs")
     latest_run_id: str = Field(..., description="ID of the latest run")
+
+# ===================================================================
+# Export Reference Models
+# ===================================================================
+class ExportRef(BaseModel):
+    external_id: Optional[str] = Field(None, description="External file identifier (e.g., Google Drive file ID)")
+    status: Optional[str] = Field(None, description="Export status for this reference")
+
+class ExportRefsResponse(BaseModel):
+    gdrive: Optional[Dict[str, ExportRef]] = Field(None, description="Google Drive export references keyed by file type (csv/xlsx)")

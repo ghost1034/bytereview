@@ -634,6 +634,10 @@ export class ApiClient {
     })
   }
 
+  async getJobRunExportRefs(jobId: string, runId: string): Promise<{ gdrive?: { csv?: { external_id?: string; status?: string }; xlsx?: { external_id?: string; status?: string } } }> {
+    return this.request(`/api/jobs/${jobId}/runs/${runId}/export-refs`)
+  }
+
   // Google Drive Export endpoints
   async exportJobToGoogleDriveCSV(jobId: string, folderId?: string, runId?: string): Promise<{
     success: boolean;

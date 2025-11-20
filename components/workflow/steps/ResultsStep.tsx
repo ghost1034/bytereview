@@ -31,6 +31,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useGoogleIntegration } from "@/hooks/useGoogleIntegration";
 import { apiClient } from "@/lib/api";
 import { GoogleDriveFolderPicker } from "@/components/integrations/GoogleDriveFolderPicker";
+import { useExportRefs } from "@/hooks/useExportRefs";
 
 // Type definitions for file tree structure
 type JobResult = {
@@ -307,6 +308,8 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
     error,
   } = useJobResults(jobId, 1000, runId); // Get up to 1000 results for the specific run
   const { status: googleStatus, connect: connectGoogle, isConnecting } = useGoogleIntegration();
+  const { csvUrl, xlsxUrl, loading: refsLoading } = useExportRefs(jobId, runId);
+
 
   const getAuthToken = async () => {
     if (!user) throw new Error('User not authenticated');
@@ -881,7 +884,7 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
                   </div>
                   
                   {/* Export Buttons */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center flex-wrap">
                     <Button 
                       onClick={handleExportToGoogleDriveCSV} 
                       variant="outline"
@@ -894,6 +897,21 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
                       )}
                       Export CSV to Drive
                     </Button>
+                    {refsLoading ? (
+                      <span className="text-xs text-muted-foreground ml-1">Checking Drive links…</span>
+                    ) : (
+                      csvUrl && (
+                        <a
+                          href={csvUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          View CSV in Drive
+                        </a>
+                      )
+                    )}
                     <Button 
                       onClick={handleExportToGoogleDriveExcel} 
                       variant="outline"
@@ -906,6 +924,21 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
                       )}
                       Export Excel to Drive
                     </Button>
+                    {refsLoading ? (
+                      <span className="text-xs text-muted-foreground ml-1">Checking Drive links…</span>
+                    ) : (
+                      xlsxUrl && (
+                        <a
+                          href={xlsxUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          View Excel in Drive
+                        </a>
+                      )
+                    )}
                   </div>
                 </div>
               ) : (

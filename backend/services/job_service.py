@@ -14,7 +14,7 @@ from models.job import (
     JobInitiateRequest, JobInitiateResponse, JobStartRequest, JobStartResponse,
     JobDetailsResponse, JobListResponse, JobProgressResponse, JobResultsResponse,
     JobStatus, ProcessingMode, FileUploadResponse, JobListItem, JobFieldInfo,
-    ExtractionTaskResult, JobFileInfo, FileStatus, TaskInfo
+    ExtractionTaskResult, JobFileInfo, FileStatus, TaskInfo, ExportRefsResponse, ExportRef
 )
 from models.db_models import (
     ExtractionJob, JobRun, SourceFile, JobField, ExtractionTask, SourceFileToTask,
@@ -245,6 +245,47 @@ class JobService:
             JobRun.job_id == job_id
         ).order_by(JobRun.created_at.desc()).first()
     
+    def get_export_refs(self, job_id: str, run_id: str, user_id: str) -> ExportRefsResponse:
+        """Get canonical export references for a job run (Drive CSV/XLSX) with ownership enforcement"""
+        db = self._get_session()
+        try:
+            # Verify run exists and belongs to the user's job
+            run = db.query(JobRun).join(ExtractionJob).filter(
+                JobRun.id == run_id,
+                JobRun.job_id == job_id,
+                ExtractionJob.user_id == user_id
+            ).first()
+            if not run:
+                raise ValueError("Job run not found or access denied")
+
+            # Query JobExport for Drive CSV/XLSX for this run
+            exports = db.query(JobExport).filter(
+                JobExport.job_run_id == run_id,
+                JobExport.dest_type == 'gdrive',
+                JobExport.file_type.in_(['csv','xlsx'])
+            ).all()
+
+            # Group by file_type and select canonical record
+            canonical: Dict[str, ExportRef] = {}
+            for file_type in ['csv','xlsx']:
+                candidates = [e for e in exports if e.file_type == file_type]
+                if not candidates:
+                    continue
+                # Prefer with external_id, tie-breaker by updated_at desc then created_at desc
+                def sort_key(e: JobExport):
+                    has_ext = 1 if e.external_id else 0
+                    return (has_ext, e.updated_at or datetime.min, e.created_at or datetime.min)
+                best = sorted(candidates, key=sort_key, reverse=True)[0]
+                canonical[file_type] = ExportRef(
+                    external_id=best.external_id if best.external_id else None,
+                    status=best.status if best.status else None,
+                )
+
+            gdrive = canonical if canonical else None
+            return ExportRefsResponse(gdrive=gdrive)
+        finally:
+            db.close()
+
     def get_job_run(self, job_id: str, run_id: str, user_id: str) -> Optional[JobRun]:
         """Get a specific job run"""
         db = self._get_session()
@@ -1266,9 +1307,10 @@ class JobService:
                 for field in job_fields
             ]
             
-            # Get extraction tasks for processing mode display
+            # Get extraction tasks for processing mode display (only pending tasks for upcoming processing)
             extraction_tasks = db.query(ExtractionTask).filter(
-                ExtractionTask.job_run_id == target_run.id
+                ExtractionTask.job_run_id == target_run.id,
+                ExtractionTask.status == 'pending'
             ).all()
             
             # Build task definitions by grouping files by folder and processing mode

@@ -26,7 +26,8 @@ from models.job import (
     JobProgressResponse, JobResultsResponse,
     JobFilesResponse, FileStatus,
     JobRunListResponse, JobRunDetailsResponse,
-    JobRunCreateRequest, JobRunCreateResponse
+    JobRunCreateRequest, JobRunCreateResponse,
+    ExportRefsResponse
 )
 from pydantic import BaseModel
 import logging
@@ -671,6 +672,22 @@ async def export_job_results_to_drive_excel(
     except Exception as e:
         logger.error(f"Failed to start Google Drive Excel export for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+@router.get("/{job_id}/runs/{run_id}/export-refs", response_model=ExportRefsResponse)
+async def get_job_run_export_refs(
+    job_id: str,
+    run_id: str,
+    user_id: str = Depends(get_current_user_id)
+):
+    """Return canonical export references for the given job run (Drive CSV/XLSX)"""
+    try:
+        refs = job_service.get_export_refs(job_id, run_id, user_id)
+        return refs
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to get export refs for job {job_id} run {run_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get export references: {str(e)}")
 
 # ===================================================================
 # File Import Endpoints (Epic 3)
