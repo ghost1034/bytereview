@@ -4,6 +4,11 @@ const nextConfig = {
   async rewrites() {
     if (process.env.NODE_ENV === 'production') {
       return [
+        // Keep the maintenance unlock route handled by Next.js itself (do not proxy to external API)
+        {
+          source: '/api/maintenance-unlock',
+          destination: '/api/maintenance-unlock',
+        },
         {
           source: '/api/:path*',
           destination: 'https://api.cpaautomation.ai/api/:path*',
