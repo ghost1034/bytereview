@@ -1232,6 +1232,19 @@ async def export_job_to_google_drive(
                     mime_type=mime_type,
                     filename=filename
                 )
+                # If the target file was deleted or update failed, fall back to creating a new file
+                if not drive_file:
+                    logger.warning(
+                        f"Drive update failed for existing file {existing_export.external_id}; attempting to create a new file instead"
+                    )
+                    drive_file = google_service.upload_to_drive(
+                        db=db,
+                        user_id=user_id,
+                        file_content=content_bytes,
+                        filename=filename,
+                        mime_type=mime_type,
+                        folder_id=folder_id
+                    )
             else:
                 drive_file = google_service.upload_to_drive(
                     db=db,
