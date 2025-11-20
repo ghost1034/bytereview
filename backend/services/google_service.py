@@ -559,6 +559,37 @@ class GoogleService:
         except Exception as e:
             logger.error(f"Failed to upload file to Drive for user {user_id}: {e}")
             return None
+
+    def update_file_in_drive(
+        self,
+        db: Session,
+        user_id: str,
+        file_id: str,
+        file_content: bytes,
+        mime_type: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Update an existing Google Drive file's content.
+        Returns updated file metadata or None on failure.
+        """
+        drive_service = self.get_drive_service(db, user_id)
+        if not drive_service:
+            return None
+        try:
+            from googleapiclient.http import MediaIoBaseUpload
+            from io import BytesIO
+            media = MediaIoBaseUpload(BytesIO(file_content), mimetype=mime_type, resumable=True)
+            updated = drive_service.files().update(
+                fileId=file_id,
+                media_body=media,
+                fields='id,name,webViewLink,webContentLink',
+                supportsAllDrives=True
+            ).execute()
+            logger.info(f"Updated Drive file {file_id}")
+            return updated
+        except Exception as e:
+            logger.error(f"Failed to update Drive file {file_id} for user {user_id}: {e}")
+            return None
     
     def search_gmail_messages(self, db: Session, user_id: str, query: str) -> List[str]:
         """

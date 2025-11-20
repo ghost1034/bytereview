@@ -1214,15 +1214,32 @@ async def export_job_to_google_drive(
             else:
                 raise ValueError(f"Unsupported file type: {file_type}")
             
-            # Upload to Google Drive
-            drive_file = google_service.upload_to_drive(
-                db=db,
-                user_id=user_id,
-                file_content=content_bytes,
-                filename=filename,
-                mime_type=mime_type,
-                folder_id=folder_id
-            )
+            # Upload or update on Google Drive
+            # See if a JobExport already exists for this run and type with an external_id
+            existing_export = db.query(JobExport).filter(
+                JobExport.job_run_id == target_run_id,
+                JobExport.dest_type == 'gdrive',
+                JobExport.file_type == file_type,
+                JobExport.external_id.isnot(None)
+            ).order_by(JobExport.created_at.desc()).first()
+
+            if existing_export and existing_export.external_id:
+                drive_file = google_service.update_file_in_drive(
+                    db=db,
+                    user_id=user_id,
+                    file_id=existing_export.external_id,
+                    file_content=content_bytes,
+                    mime_type=mime_type
+                )
+            else:
+                drive_file = google_service.upload_to_drive(
+                    db=db,
+                    user_id=user_id,
+                    file_content=content_bytes,
+                    filename=filename,
+                    mime_type=mime_type,
+                    folder_id=folder_id
+                )
             
             if not drive_file:
                 raise ValueError("Failed to upload to Google Drive")
