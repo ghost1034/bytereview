@@ -183,7 +183,7 @@ class UserService:
             from models.db_models import (
                 User, ExtractionJob, ExtractionTask, ExtractionResult, 
                 SourceFile, JobField, Template, BillingAccount, 
-                UsageCounter, IntegrationAccount, Automation, AutomationRun
+                UsageCounter, IntegrationAccount, Automation, AutomationRun, JobRun
             )
             from services.gcs_service import GCSService
             
@@ -229,25 +229,50 @@ class UserService:
             logger.info(f"Deleted {len(integration_accounts)} integration accounts")
             
             # Delete extraction results
-            extraction_results = db.query(ExtractionResult).join(ExtractionTask).join(ExtractionJob).filter(ExtractionJob.user_id == uid).all()
+            extraction_results = (
+                db.query(ExtractionResult)
+                  .join(ExtractionTask, ExtractionResult.task)
+                  .join(JobRun, ExtractionTask.job_run)
+                  .join(ExtractionJob, JobRun.job)
+                  .filter(ExtractionJob.user_id == uid)
+                  .all()
+            )
             for result in extraction_results:
                 db.delete(result)
             logger.info(f"Deleted {len(extraction_results)} extraction results")
             
             # Delete job fields
-            job_fields = db.query(JobField).join(ExtractionJob).filter(ExtractionJob.user_id == uid).all()
+            job_fields = (
+                db.query(JobField)
+                  .join(JobRun, JobField.job_run)
+                  .join(ExtractionJob, JobRun.job)
+                  .filter(ExtractionJob.user_id == uid)
+                  .all()
+            )
             for job_field in job_fields:
                 db.delete(job_field)
             logger.info(f"Deleted {len(job_fields)} job fields")
             
             # Delete extraction tasks
-            extraction_tasks = db.query(ExtractionTask).join(ExtractionJob).filter(ExtractionJob.user_id == uid).all()
+            extraction_tasks = (
+                db.query(ExtractionTask)
+                  .join(JobRun, ExtractionTask.job_run)
+                  .join(ExtractionJob, JobRun.job)
+                  .filter(ExtractionJob.user_id == uid)
+                  .all()
+            )
             for task in extraction_tasks:
                 db.delete(task)
             logger.info(f"Deleted {len(extraction_tasks)} extraction tasks")
             
             # Delete source files
-            source_files = db.query(SourceFile).join(ExtractionJob).filter(ExtractionJob.user_id == uid).all()
+            source_files = (
+                db.query(SourceFile)
+                  .join(JobRun, SourceFile.job_run)
+                  .join(ExtractionJob, JobRun.job)
+                  .filter(ExtractionJob.user_id == uid)
+                  .all()
+            )
             for source_file in source_files:
                 db.delete(source_file)
             logger.info(f"Deleted {len(source_files)} source files")
