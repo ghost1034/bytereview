@@ -1807,7 +1807,8 @@ class JobService:
                         "task_id": str(result.task_id),
                         "source_files": source_files,
                         "processing_mode": task.processing_mode,
-                        "extracted_data": extracted_data  # Keep the full array format with columns
+                        "extracted_data": extracted_data,  # Keep the full array format with columns
+                        "result_set_index": getattr(task, 'result_set_index', 0)
                     })
             
             logger.info(f"Job {job_id} results debug: total_count={total_count}, files_processed_count={files_processed_count}, processed_results_count={len(processed_results)}")

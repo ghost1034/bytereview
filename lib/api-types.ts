@@ -1725,6 +1725,12 @@ export interface components {
             };
             /** @description Processing mode used */
             processing_mode: components["schemas"]["ProcessingMode"];
+            /**
+             * Result Set Index
+             * @description Result set ordering index within the run
+             * @default 0
+             */
+            result_set_index: number;
         };
         /** FieldConfig */
         FieldConfig: {

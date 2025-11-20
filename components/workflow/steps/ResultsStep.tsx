@@ -38,6 +38,7 @@ type JobResult = {
   source_files: string[];
   processing_mode: string;
   extracted_data: Record<string, any>;
+  result_set_index?: number;
 };
 
 type FileNode = {
@@ -60,20 +61,124 @@ type TreeNode = FileNode | FolderNode;
 const buildFileTree = (results: JobResult[]): TreeNode[] => {
   if (!results || results.length === 0) return [];
 
+  // Group results into result sets
+  const groupsBySet: Record<number, JobResult[]> = {};
+  for (const r of results) {
+    const idx = r.result_set_index ?? 0;
+    (groupsBySet[idx] ||= []).push(r);
+  }
+  const orderedSetIndexes = Object.keys(groupsBySet)
+    .map((k) => parseInt(k, 10))
+    .sort((a, b) => a - b);
+
   const tree: TreeNode[] = [];
-  const folderMap: Record<string, FolderNode> = {};
 
-  // Group results by task_id to handle multiple rows per task
-  const resultsByTask = new Map<string, JobResult[]>();
-  results.forEach((result) => {
-    const taskId = result.task_id;
-    if (!resultsByTask.has(taskId)) {
-      resultsByTask.set(taskId, []);
+  for (const setIndex of orderedSetIndexes) {
+    const setResults = groupsBySet[setIndex];
+
+    // Header/separator node for this result set
+    const headerNode: FolderNode = {
+      name: setIndex === 0 ? 'Results (original)' : `Results (append ${setIndex})`,
+      path: `__set_${setIndex}__`,
+      type: 'folder',
+      children: [],
+    };
+    tree.push(headerNode);
+
+    // Build a folder tree under the header node
+    const folderMap: Record<string, FolderNode> = {};
+    const resultsByTask = new Map<string, JobResult[]>();
+
+    // Coalesce results by task (multiple rows per task)
+    for (const result of setResults) {
+      const taskId = result.task_id;
+      if (!resultsByTask.has(taskId)) resultsByTask.set(taskId, []);
+      resultsByTask.get(taskId)!.push(result);
     }
-    resultsByTask.get(taskId)!.push(result);
-  });
 
-  // Process each task group - create ONE node per task, not per row
+    // For each task, create a single file node, placed in the appropriate folder structure under header
+    resultsByTask.forEach((taskResults) => {
+      const firstResult = taskResults[0];
+
+      if (firstResult.processing_mode === 'combined') {
+        const sourceFiles = firstResult.source_files || [];
+        if (sourceFiles.length === 0) return;
+
+        // Determine common folder path of involved files
+        let commonPath = '';
+        if (sourceFiles.length > 1) {
+          const paths = sourceFiles.map((f) => f.split('/').slice(0, -1));
+          const minLen = Math.min(...paths.map((p) => p.length));
+          const common: string[] = [];
+          for (let i = 0; i < minLen; i++) {
+            const seg = paths[0][i];
+            if (paths.every((p) => p[i] === seg)) common.push(seg); else break;
+          }
+          commonPath = common.join('/');
+        } else {
+          const only = sourceFiles[0];
+          commonPath = only.split('/').slice(0, -1).join('/');
+        }
+
+        const combinedName = sourceFiles.length > 1
+          ? `Combined (${sourceFiles.length} files)`
+          : `${sourceFiles[0].split('/').pop()}`;
+        const combinedPath = commonPath ? `${commonPath}/${combinedName}` : combinedName;
+
+        const fileNode: FileNode = {
+          name: combinedName,
+          path: combinedPath,
+          type: 'file',
+          result: firstResult,
+        };
+
+        if (!commonPath) {
+          headerNode.children.push(fileNode);
+        } else {
+          // Build intermediate folders within this set
+          const segments = commonPath.split('/').filter(Boolean);
+          let currentPath = '';
+          let parent: FolderNode = headerNode;
+          for (const seg of segments) {
+            currentPath = currentPath ? `${currentPath}/${seg}` : seg;
+            if (!folderMap[currentPath]) {
+              folderMap[currentPath] = { name: seg, path: currentPath, type: 'folder', children: [] };
+              parent.children.push(folderMap[currentPath]);
+            }
+            parent = folderMap[currentPath];
+          }
+          parent.children.push(fileNode);
+        }
+      } else {
+        // individual mode
+        const filePath = firstResult.extracted_data?.original_path || firstResult.source_files?.[0];
+        if (!filePath) return;
+        const segments = filePath.split('/').filter(Boolean);
+        const fileName = segments.pop() || filePath;
+
+        const fileNode: FileNode = { name: fileName, path: filePath, type: 'file', result: firstResult };
+
+        if (segments.length === 0) {
+          headerNode.children.push(fileNode);
+        } else {
+          let currentPath = '';
+          let parent: FolderNode = headerNode;
+          for (const seg of segments) {
+            currentPath = currentPath ? `${currentPath}/${seg}` : seg;
+            if (!folderMap[currentPath]) {
+              folderMap[currentPath] = { name: seg, path: currentPath, type: 'folder', children: [] };
+              parent.children.push(folderMap[currentPath]);
+            }
+            parent = folderMap[currentPath];
+          }
+          parent.children.push(fileNode);
+        }
+      }
+    });
+  }
+
+  return tree;
+};
   resultsByTask.forEach((taskResults, taskId) => {
     // Results are already in processing order
 

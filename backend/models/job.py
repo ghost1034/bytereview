@@ -142,6 +142,7 @@ class ExtractionTaskResult(BaseModel):
     source_files: List[str] = Field(..., description="Source file names")
     extracted_data: Dict[str, Any] = Field(..., description="Extracted data")
     processing_mode: ProcessingMode = Field(..., description="Processing mode used")
+    result_set_index: int = Field(0, description="Result set ordering index within the run")
 
 class JobResultsResponse(BaseModel):
     """Job results with pagination"""
