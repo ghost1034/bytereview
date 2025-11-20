@@ -1063,14 +1063,16 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
                                       Row
                                     </th>
                                   )}
-                                  {jobDetails?.job_fields?.map((field) => (
-                                    <th
-                                      key={field.field_name}
-                                      className="text-left px-4 py-2 font-medium text-gray-900 border-b"
-                                    >
-                                      {field.field_name}
-                                    </th>
-                                  ))}
+                                  {Array.isArray((taskResult as any)?.extracted_data?.columns)
+                                    ? (taskResult as any).extracted_data.columns.map((col: string) => (
+                                        <th
+                                          key={col}
+                                          className="text-left px-4 py-2 font-medium text-gray-900 border-b"
+                                        >
+                                          {col}
+                                        </th>
+                                      ))
+                                    : null}
                                 </tr>
                               </thead>
                               <tbody>
@@ -1084,16 +1086,13 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
                                         {rowIndex + 1}
                                       </td>
                                     )}
-                                    {jobDetails?.job_fields?.map((field) => (
-                                      <td
-                                        key={field.field_name}
-                                        className="px-4 py-2"
-                                      >
-                                        {formatValue(
-                                          getFieldValue(taskResult, field.field_name, rowIndex)
-                                        )}
-                                      </td>
-                                    ))}
+                                    {Array.isArray((taskResult as any)?.extracted_data?.columns)
+                                      ? (taskResult as any).extracted_data.columns.map((col: string) => (
+                                          <td key={col} className="px-4 py-2">
+                                            {formatValue(getFieldValue(taskResult, col, rowIndex))}
+                                          </td>
+                                        ))
+                                      : null}
                                   </tr>
                                 ))}
                               </tbody>

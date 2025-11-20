@@ -17,19 +17,19 @@ def generate_csv_content(results_response) -> str:
     # Create CSV content
     output = StringIO()
     
-    # Determine field names from the first result
-    first_result = results_response.results[0]
-    if not first_result.extracted_data:
-        raise ValueError("No extracted data found")
-    
-    # Get field names from the columns snapshot in extracted_data
-    if "columns" not in first_result.extracted_data:
-        raise ValueError("Invalid extracted data format - missing columns")
-    
-    field_names = first_result.extracted_data["columns"]
-    
+    # Build a unified ordered list of all columns across results (preserving order of appearance)
+    unified_columns = []
+    for r in results_response.results:
+        cols = (r.extracted_data or {}).get("columns") if hasattr(r, "extracted_data") else None
+        if isinstance(cols, list):
+            for c in cols:
+                if c not in unified_columns:
+                    unified_columns.append(c)
+    if not unified_columns:
+        raise ValueError("Invalid extracted data format - no columns found in results")
+
     # Add source file paths column as first column
-    field_names_with_source = ["Source File Path(s)"] + field_names
+    field_names_with_source = ["Source File Path(s)"] + unified_columns
     
     # Process array-based results
     writer = csv.DictWriter(output, fieldnames=field_names_with_source)
@@ -37,6 +37,9 @@ def generate_csv_content(results_response) -> str:
     
     for result in results_response.results:
         if result.extracted_data and "results" in result.extracted_data:
+            # Map this result's columns to indices
+            local_columns = result.extracted_data.get("columns", [])
+            local_index = {name: idx for idx, name in enumerate(local_columns)}
             # Get source file paths for this result
             source_paths = _get_source_file_paths(result)
             
@@ -45,9 +48,11 @@ def generate_csv_content(results_response) -> str:
                 # Add source file paths as first column
                 row["Source File Path(s)"] = source_paths
                 
-                for i, field_name in enumerate(field_names):
-                    if i < len(result_array):
-                        value = result_array[i]
+                # Fill unified columns from local array by name mapping
+                for field_name in unified_columns:
+                    idx = local_index.get(field_name)
+                    if idx is not None and idx < len(result_array):
+                        value = result_array[idx]
                         row[field_name] = str(value) if value is not None else ""
                     else:
                         row[field_name] = ""
@@ -70,19 +75,19 @@ def generate_excel_content(results_response) -> bytes:
     worksheet = workbook.active
     worksheet.title = "Extraction Results"
     
-    # Determine field names from the first result
-    first_result = results_response.results[0]
-    if not first_result.extracted_data:
-        raise ValueError("No extracted data found")
-    
-    # Get field names from the columns snapshot in extracted_data
-    if "columns" not in first_result.extracted_data:
-        raise ValueError("Invalid extracted data format - missing columns")
-    
-    field_names = first_result.extracted_data["columns"]
-    
+    # Build a unified ordered list of all columns across results (preserving order of appearance)
+    unified_columns = []
+    for r in results_response.results:
+        cols = (r.extracted_data or {}).get("columns") if hasattr(r, "extracted_data") else None
+        if isinstance(cols, list):
+            for c in cols:
+                if c not in unified_columns:
+                    unified_columns.append(c)
+    if not unified_columns:
+        raise ValueError("Invalid extracted data format - no columns found in results")
+
     # Add source file paths column as first column
-    field_names_with_source = ["Source File Path(s)"] + field_names
+    field_names_with_source = ["Source File Path(s)"] + unified_columns
     
     # Write headers
     for col_num, field_name in enumerate(field_names_with_source, 1):
@@ -92,6 +97,9 @@ def generate_excel_content(results_response) -> bytes:
     row_num = 2
     for result in results_response.results:
         if result.extracted_data and "results" in result.extracted_data:
+            # Map this result's columns to indices
+            local_columns = result.extracted_data.get("columns", [])
+            local_index = {name: idx for idx, name in enumerate(local_columns)}
             # Get source file paths for this result
             source_paths = _get_source_file_paths(result)
             
@@ -99,13 +107,14 @@ def generate_excel_content(results_response) -> bytes:
                 # Add source file paths in the first column
                 worksheet.cell(row=row_num, column=1, value=source_paths)
                 
-                # Add the rest of the data starting from column 2
-                for col_num, field_name in enumerate(field_names, 2):
-                    if col_num - 2 < len(result_array):
-                        value = result_array[col_num - 2]
-                        worksheet.cell(row=row_num, column=col_num, value=str(value) if value is not None else "")
+                # Add the rest of the data using unified columns
+                for i, field_name in enumerate(unified_columns, start=2):
+                    idx = local_index.get(field_name)
+                    if idx is not None and idx < len(result_array):
+                        value = result_array[idx]
+                        worksheet.cell(row=row_num, column=i, value=str(value) if value is not None else "")
                     else:
-                        worksheet.cell(row=row_num, column=col_num, value="")
+                        worksheet.cell(row=row_num, column=i, value="")
                 
                 row_num += 1
     
