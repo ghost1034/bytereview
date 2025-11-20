@@ -81,24 +81,24 @@ deploy_service() {
 }
 
 # Deploy Backend API
-# echo -e "${BLUE}=== Deploying Backend API ===${NC}"
-# deploy_service \
-#     "cpa-api" \
-#     "backend" \
-#     "8000" \
-#     "2Gi" \
-#     "2" \
-#     "1" \
-#     "10" \
-#     "80" \
-#     "300" \
-#     "true" \
-#     "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-#      --vpc-connector=$VPC_CONNECTOR \
-#      --vpc-egress=private-ranges-only \
-#      --service-account=$SERVICE_ACCOUNT \
-#      --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,APP_SECRET=APP_SECRET:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,ADMIN_TOKEN=ADMIN_TOKEN:latest,TASK_EXTRACT_URL=TASK_EXTRACT_URL:latest,TASK_IO_URL=TASK_IO_URL:latest,TASK_AUTOMATION_URL=TASK_AUTOMATION_URL:latest,TASK_MAINTENANCE_URL=TASK_MAINTENANCE_URL:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-#      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json"
+echo -e "${BLUE}=== Deploying Backend API ===${NC}"
+deploy_service \
+    "cpa-api" \
+    "backend" \
+    "8000" \
+    "2Gi" \
+    "2" \
+    "1" \
+    "10" \
+    "80" \
+    "300" \
+    "true" \
+    "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+     --vpc-connector=$VPC_CONNECTOR \
+     --vpc-egress=private-ranges-only \
+     --service-account=$SERVICE_ACCOUNT \
+     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,APP_SECRET=APP_SECRET:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,ADMIN_TOKEN=ADMIN_TOKEN:latest,TASK_EXTRACT_URL=TASK_EXTRACT_URL:latest,TASK_IO_URL=TASK_IO_URL:latest,TASK_AUTOMATION_URL=TASK_AUTOMATION_URL:latest,TASK_MAINTENANCE_URL=TASK_MAINTENANCE_URL:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json"
 
 # Deploy Frontend
 echo -e "${BLUE}=== Deploying Frontend ===${NC}"
