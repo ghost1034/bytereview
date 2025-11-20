@@ -87,12 +87,14 @@ export function useJobRunSelection({
     cloneFromRunId?: string; 
     templateId?: string;
     redirectTo?: 'upload' | 'fields';
+    appendResults?: boolean;
   }) => {
     if (!user) throw new Error('User not authenticated');
     
     const response = await apiClient.createJobRun(jobId, {
       clone_from_run_id: options?.cloneFromRunId || selectedRunId,
-      template_id: options?.templateId
+      template_id: options?.templateId,
+      append_results: options?.appendResults ?? false,
     });
     
     // Refetch runs to get the new run

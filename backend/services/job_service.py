@@ -154,9 +154,6 @@ class JobService:
                         ExtractionTask.status == 'completed'
                     ).all()
 
-                    # Map from source file ID to cloned file ID in new run to avoid re-cloning the same SourceFile
-                    cloned_file_id_map = {}
-
                     tasks_copied = 0
                     for src_task in completed_tasks:
                         # Create new task in new run with completed status and preserved processing mode and timestamps
@@ -172,31 +169,11 @@ class JobService:
                         db.add(new_task)
                         db.flush()  # get new_task.id
 
-                        # Copy SourceFileToTask links and clone SourceFile rows for the new run
+                        # Copy SourceFileToTask links, reusing the original SourceFile rows (avoid cloning to respect unique gcs_object_name)
                         src_links = db.query(SourceFileToTask).filter(SourceFileToTask.task_id == src_task.id).all()
                         for link in src_links:
-                            if link.source_file_id not in cloned_file_id_map:
-                                # Load source file row
-                                sf = db.query(SourceFile).filter(SourceFile.id == link.source_file_id).first()
-                                if sf:
-                                    new_sf = SourceFile(
-                                        job_run_id=new_run.id,
-                                        original_filename=sf.original_filename,
-                                        original_path=sf.original_path,
-                                        gcs_object_name=sf.gcs_object_name,  # reference same object
-                                        file_type=sf.file_type,
-                                        file_size_bytes=sf.file_size_bytes,
-                                        page_count=sf.page_count,
-                                        status=sf.status,
-                                        source_type=sf.source_type,
-                                        external_id=sf.external_id
-                                    )
-                                    db.add(new_sf)
-                                    db.flush()
-                                    cloned_file_id_map[link.source_file_id] = new_sf.id
-                            # Create new link pointing to cloned/new file and new task
                             new_link = SourceFileToTask(
-                                source_file_id=cloned_file_id_map[link.source_file_id],
+                                source_file_id=link.source_file_id,  # reference original SourceFile
                                 task_id=new_task.id
                             )
                             db.add(new_link)

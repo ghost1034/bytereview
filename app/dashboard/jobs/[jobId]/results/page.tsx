@@ -48,11 +48,12 @@ export default function JobResultsPage() {
     router.push('/dashboard/jobs/create')
   }
 
-  const handleCreateNewRun = async () => {
+  const handleCreateNewRun = async (opts?: { appendResults?: boolean }) => {
     try {
       await createNewRun({ 
         cloneFromRunId: selectedRunId,
-        redirectTo: 'upload' 
+        redirectTo: 'upload',
+        appendResults: opts?.appendResults ?? false,
       })
       toast({
         title: "New Run Created",

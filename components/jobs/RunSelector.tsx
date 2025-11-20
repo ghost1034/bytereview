@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Calendar, Clock, CheckCircle, AlertCircle, PlayCircle, Eye } from 'lucide-react';
 import { JobRunListItem } from '@/lib/api';
 
@@ -14,7 +15,7 @@ interface RunSelectorProps {
   latestRunId: string;
   selectedRunId?: string;
   onChange: (runId: string) => void;
-  onCreateNewRun?: () => void;
+  onCreateNewRun?: (opts?: { appendResults?: boolean }) => void;
   disabled?: boolean;
   className?: string;
 }
@@ -139,16 +140,23 @@ export default function RunSelector({
            </Button>
          )}
 
-         {/* New Run button */}
+         {/* New Run button with dropdown */}
          {canCreateNewRun && onCreateNewRun && (
-           <Button 
-             variant="outline" 
-             size="sm"
-             onClick={onCreateNewRun}
-             className="text-xs px-3 py-1"
-           >
-             + New Run
-           </Button>
+           <DropdownMenu>
+             <DropdownMenuTrigger asChild>
+               <Button variant="outline" size="sm" className="text-xs px-3 py-1">
+                 + New Run
+               </Button>
+             </DropdownMenuTrigger>
+             <DropdownMenuContent align="end" className="w-40">
+               <DropdownMenuItem onClick={() => onCreateNewRun({ appendResults: false })}>
+                 Start fresh
+               </DropdownMenuItem>
+               <DropdownMenuItem onClick={() => onCreateNewRun({ appendResults: true })}>
+                 Append results
+               </DropdownMenuItem>
+             </DropdownMenuContent>
+           </DropdownMenu>
          )}
        </div>
      </div>
@@ -203,16 +211,23 @@ export default function RunSelector({
           </Button>
         )}
 
-        {/* New Run button */}
+        {/* New Run button with dropdown */}
         {canCreateNewRun && onCreateNewRun && (
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={onCreateNewRun}
-            className="text-xs px-3 py-1"
-          >
-            + New Run
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="text-xs px-3 py-1">
+                + New Run
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={() => onCreateNewRun({ appendResults: false })}>
+                Start fresh
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onCreateNewRun({ appendResults: true })}>
+                Append results
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
     </div>
