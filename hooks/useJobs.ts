@@ -148,7 +148,7 @@ export function useJobResults(jobId: string | undefined, limit = 50, runId?: str
     queryKey: ['job-results', jobId, limit, runId],
     queryFn: () => apiClient.getJobResults(jobId!, { limit, runId }),
     enabled: !!jobId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 0, // TODO: Implement proper staleTime and invalidation
   })
 }
 

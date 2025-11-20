@@ -874,14 +874,16 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
               {googleStatus?.connected ? (
                 <div className="space-y-4">
                   {/* Folder Selection */}
-                  <div>
-                    <GoogleDriveFolderPicker
-                      onFolderSelected={(folder) => setSelectedExportFolder(folder)}
-                      selectedFolder={selectedExportFolder}
-                      showCard={false}
-                      buttonText="Select Export Folder"
-                    />
-                  </div>
+                  {!(csvUrl && xlsxUrl) && (
+                    <div>
+                      <GoogleDriveFolderPicker
+                        onFolderSelected={(folder) => setSelectedExportFolder(folder)}
+                        selectedFolder={selectedExportFolder}
+                        showCard={false}
+                        buttonText="Select Export Folder"
+                      />
+                    </div>
+                  )}
                   
                   {/* Export Buttons */}
                   <div className="flex gap-2 items-center flex-wrap">
@@ -895,7 +897,7 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
                       ) : (
                         <Cloud className="w-4 h-4 mr-2" />
                       )}
-                      Export CSV to Drive
+                      {csvUrl ? 'Update CSV in Drive' : 'Export CSV to Drive'}
                     </Button>
                     {refsLoading ? (
                       <span className="text-xs text-muted-foreground ml-1">Checking Drive links…</span>
@@ -922,7 +924,7 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
                       ) : (
                         <Cloud className="w-4 h-4 mr-2" />
                       )}
-                      Export Excel to Drive
+                      {xlsxUrl ? 'Update Excel in Drive' : 'Export Excel to Drive'}
                     </Button>
                     {refsLoading ? (
                       <span className="text-xs text-muted-foreground ml-1">Checking Drive links…</span>

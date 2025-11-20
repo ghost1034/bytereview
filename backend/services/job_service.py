@@ -468,8 +468,10 @@ class JobService:
             await self._create_extraction_tasks_for_automation_run(db, job_run_id)
             
             # Count tasks after creation
+            # Only count pending tasks for processing (exclude completed tasks copied from previous runs)
             total_tasks = db.query(ExtractionTask).filter(
-                ExtractionTask.job_run_id == job_run_id
+                ExtractionTask.job_run_id == job_run_id,
+                ExtractionTask.status == 'pending'
             ).count()
             
             if total_tasks == 0:
