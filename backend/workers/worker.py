@@ -1229,7 +1229,8 @@ async def export_job_to_google_drive(
                     user_id=user_id,
                     file_id=existing_export.external_id,
                     file_content=content_bytes,
-                    mime_type=mime_type
+                    mime_type=mime_type,
+                    filename=filename
                 )
             else:
                 drive_file = google_service.upload_to_drive(

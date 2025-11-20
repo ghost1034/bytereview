@@ -566,7 +566,8 @@ class GoogleService:
         user_id: str,
         file_id: str,
         file_content: bytes,
-        mime_type: str
+        mime_type: str,
+        filename: str | None = None
     ) -> Optional[Dict[str, Any]]:
         """
         Update an existing Google Drive file's content.
@@ -579,8 +580,12 @@ class GoogleService:
             from googleapiclient.http import MediaIoBaseUpload
             from io import BytesIO
             media = MediaIoBaseUpload(BytesIO(file_content), mimetype=mime_type, resumable=True)
+            metadata = {}
+            if filename:
+                metadata['name'] = filename
             updated = drive_service.files().update(
                 fileId=file_id,
+                body=metadata if metadata else None,
                 media_body=media,
                 fields='id,name,webViewLink,webContentLink',
                 supportsAllDrives=True
