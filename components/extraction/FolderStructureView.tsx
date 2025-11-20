@@ -19,11 +19,11 @@ interface FolderStructureViewProps {
     source_zip?: string
   }>
   className?: string
-  onFileSelect?: (filename: string) => void
-  selectedFile?: string
+  onFileSelect?: (path: string) => void
+  selectedPath?: string
 }
 
-export default function FolderStructureView({ files, className = '', onFileSelect, selectedFile }: FolderStructureViewProps) {
+export default function FolderStructureView({ files, className = '', onFileSelect, selectedPath }: FolderStructureViewProps) {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
 
   // Build folder tree structure
@@ -81,7 +81,7 @@ export default function FolderStructureView({ files, className = '', onFileSelec
 
   const renderNode = (node: FileNode, depth: number = 0): React.ReactNode => {
     const isExpanded = expandedFolders.has(node.path)
-    const isSelected = !node.isDirectory && selectedFile === node.name
+    const isSelected = !node.isDirectory && selectedPath === node.path
     const paddingLeft = depth * 20
 
     return (
@@ -97,7 +97,7 @@ export default function FolderStructureView({ files, className = '', onFileSelec
             if (node.isDirectory) {
               toggleFolder(node.path)
             } else if (onFileSelect) {
-              onFileSelect(node.name)
+              onFileSelect(node.path)
             }
           }}
         >

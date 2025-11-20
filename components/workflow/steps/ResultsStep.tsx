@@ -43,6 +43,7 @@ type JobResult = {
 };
 
 type FileNode = {
+  id: string; // unique identifier for selection (task_id)
   name: string;
   path: string;
   type: "file";
@@ -129,6 +130,7 @@ const buildFileTree = (results: JobResult[]): TreeNode[] => {
         const combinedPath = commonPath ? `${commonPath}/${combinedName}` : combinedName;
 
         const fileNode: FileNode = {
+          id: firstResult.task_id,
           name: combinedName,
           path: combinedPath,
           type: 'file',
@@ -159,7 +161,7 @@ const buildFileTree = (results: JobResult[]): TreeNode[] => {
         const segments = filePath.split('/').filter(Boolean);
         const fileName = segments.pop() || filePath;
 
-        const fileNode: FileNode = { name: fileName, path: filePath, type: 'file', result: firstResult };
+        const fileNode: FileNode = { id: firstResult.task_id, name: fileName, path: filePath, type: 'file', result: firstResult };
 
         if (segments.length === 0) {
           headerNode.children.push(fileNode);
@@ -200,14 +202,15 @@ const findFirstFile = (nodes: TreeNode[]): FileNode | null => {
 interface FileTreeNodeProps {
   node: TreeNode;
   selectedPath: string | null;
-  onSelect: (path: string) => void;
+  selectedFileId: string | null;
+  onSelect: (fileId: string, path: string) => void;
   level: number;
 }
 
 const FileTreeNode = memo(
-  ({ node, selectedPath, onSelect, level }: FileTreeNodeProps) => {
+  ({ node, selectedPath, selectedFileId, onSelect, level }: FileTreeNodeProps) => {
     const [expanded, setExpanded] = useState(true);
-    const isSelected = selectedPath === node.path;
+    const isSelected = node.type === 'file' ? (selectedFileId === node.id) : (selectedPath === node.path);
     const paddingLeft = `${level * 12}px`;
 
     const renderChildren = (children: TreeNode[]) => (
@@ -217,6 +220,7 @@ const FileTreeNode = memo(
             key={`${child.path}-${index}`}
             node={child}
             selectedPath={selectedPath}
+            selectedFileId={selectedFileId}
             onSelect={onSelect}
             level={level + 1}
           />
@@ -235,7 +239,7 @@ const FileTreeNode = memo(
             isSelected ? "bg-blue-100 text-blue-900" : "hover:bg-gray-100"
           }`}
           style={{ paddingLeft }}
-          onClick={() => onSelect(node.path)}
+          onClick={() => onSelect(node.type === 'file' ? node.id : '', node.path)}
         >
           <IconComponent
             className={`w-4 h-4 ${iconColor} mr-2 flex-shrink-0`}
@@ -341,6 +345,7 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
     return result.extracted_data.results;
   };
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [fileTree, setFileTree] = useState<TreeNode[]>([]);
   const [selectedExportFolder, setSelectedExportFolder] = useState<{id: string, name: string} | null>(null);
 
@@ -364,17 +369,18 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
       const firstFile = findFirstFile(fileTreeMemo);
       if (firstFile) {
         setSelectedPath(firstFile.path);
+        setSelectedFileId(firstFile.id);
       }
     }
   }, [fileTreeMemo]);
 
   // Find the selected result based on path
   const selectedFileNode = useMemo(() => {
-    if (!selectedPath || !fileTree.length) return null;
+    if (!selectedFileId || !fileTree.length) return null;
 
     const findNode = (nodes: TreeNode[]): FileNode | null => {
       for (const node of nodes) {
-        if (node.type === "file" && node.path === selectedPath) {
+        if (node.type === "file" && node.id === selectedFileId) {
           return node;
         } else if (node.type === "folder") {
           const found = findNode(node.children);
@@ -385,7 +391,7 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
     };
 
     return findNode(fileTree);
-  }, [selectedPath, fileTree]);
+  }, [selectedFileId, fileTree]);
 
   const [exportLoading, setExportLoading] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -999,7 +1005,8 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
                           key={`${node.path}-${index}`}
                           node={node}
                           selectedPath={selectedPath}
-                          onSelect={setSelectedPath}
+                          selectedFileId={selectedFileId}
+                          onSelect={(fileId, path) => { if (fileId) setSelectedFileId(fileId); setSelectedPath(path); }}
                           level={0}
                         />
                       ))

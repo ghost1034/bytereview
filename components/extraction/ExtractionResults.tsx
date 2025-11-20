@@ -325,7 +325,6 @@ export default function ExtractionResults({ extractionResults, columnConfigs }: 
                 // Show folder structure directly in Documents section
                 <FolderStructureView 
                   files={documentResults.map(doc => {
-                    console.log('DEBUG - Document:', doc.filename, 'Size:', doc.size_bytes)
                     return {
                       filename: doc.filename,
                       original_path: doc.original_path,
@@ -333,11 +332,11 @@ export default function ExtractionResults({ extractionResults, columnConfigs }: 
                       source_zip: doc.source_zip
                     }
                   })}
-                  onFileSelect={(filename) => {
-                    const index = documentResults.findIndex(doc => doc.filename === filename)
+                  onFileSelect={(path) => {
+                    const index = documentResults.findIndex(doc => (doc.original_path || doc.filename) === path)
                     if (index !== -1) setSelectedDocumentIndex(index)
                   }}
-                  selectedFile={documentResults[selectedDocumentIndex]?.filename}
+                  selectedPath={(documentResults[selectedDocumentIndex]?.original_path || documentResults[selectedDocumentIndex]?.filename) as string}
                   className="max-h-96 overflow-y-auto"
                 />
               ) : (
