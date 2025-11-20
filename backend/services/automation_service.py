@@ -51,6 +51,7 @@ class AutomationService:
                 trigger_config=automation_data.trigger_config,
                 job_id=automation_data.job_id,
                 processing_mode=automation_data.processing_mode,
+                append_results=automation_data.append_results,
                 dest_type=automation_data.dest_type,
                 export_config=automation_data.export_config or {}
             )
@@ -103,6 +104,8 @@ class AutomationService:
                 automation.trigger_config = automation_data.trigger_config
             if automation_data.processing_mode is not None:
                 automation.processing_mode = automation_data.processing_mode
+            if automation_data.append_results is not None:
+                automation.append_results = automation_data.append_results
             
             # Update job_id if provided and valid
             if automation_data.job_id is not None:
@@ -224,7 +227,8 @@ class AutomationService:
                 # Create new job run (will clone from latest run by default)
                 job_run_id = await job_service.create_job_run(
                     job_id=job_id,
-                    user_id=automation.user_id
+                    user_id=automation.user_id,
+                    append_results=bool(getattr(automation, 'append_results', False))
                 )
             
             # Create automation run linked to the selected job run

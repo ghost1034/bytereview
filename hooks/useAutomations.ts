@@ -3,6 +3,7 @@ import { apiClient } from '@/lib/api'
 import { useToast } from '@/hooks/use-toast'
 
 export interface Automation {
+  append_results?: boolean
   id: string
   user_id: string
   name: string
@@ -35,6 +36,7 @@ export interface AutomationRun {
 }
 
 export interface CreateAutomationData {
+  append_results?: boolean
   name: string
   is_enabled: boolean
   trigger_type: string
@@ -53,6 +55,7 @@ export interface CreateAutomationData {
 }
 
 export interface UpdateAutomationData {
+  append_results?: boolean
   name?: string
   is_enabled?: boolean
   trigger_config?: {

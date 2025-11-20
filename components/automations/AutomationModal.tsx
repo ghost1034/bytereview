@@ -28,6 +28,7 @@ const automationSchema = z.object({
   job_id: z.string().min(1, "Please select an extraction job"),
   is_enabled: z.boolean().default(true),
   processing_mode: z.enum(["individual", "combined"]).default("individual"),
+  append_results: z.boolean().default(false),
   dest_type: z.enum(["none", "gdrive", "gmail", "outlook", "onedrive", "sharepoint"]),
   folder_id: z.string().optional(),
   to_email: z.string().email("Invalid email address").optional().or(z.literal("")),
@@ -85,6 +86,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
     defaultValues: {
       is_enabled: true,
       processing_mode: "individual",
+      append_results: false,
       dest_type: "none",
       file_type: "csv",
     },
@@ -119,6 +121,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
       job_id: automation.job_id,
       is_enabled: automation.is_enabled,
       processing_mode: (automation.processing_mode as any) || "individual",
+      append_results: (automation as any)?.append_results ?? false,
       dest_type: automation.dest_type || "none",
       folder_id: automation.export_config?.folder_id || "",
       to_email: automation.export_config?.to_email || "",
@@ -165,6 +168,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
         } : {},
         job_id: data.job_id,
         processing_mode: data.processing_mode,
+        append_results: data.append_results, 
         dest_type: data.dest_type === "none" ? undefined : data.dest_type,
         export_config: data.dest_type && data.dest_type !== "none" ? {
           ...(data.dest_type === "gdrive" && data.folder_id ? { 
@@ -547,6 +551,14 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
 
           {/* Processing Options */}
           <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="append_results"
+                checked={watch("append_results")}
+                onCheckedChange={(checked) => setValue("append_results", checked, { shouldDirty: true })}
+              />
+              <Label htmlFor="append_results">Append results to previous run</Label>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="processing_mode">Processing Mode</Label>
               <Select

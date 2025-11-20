@@ -53,6 +53,7 @@ type FolderNode = {
   path: string;
   type: "folder";
   children: (FileNode | FolderNode)[];
+  isSetHeader?: boolean;
 };
 
 type TreeNode = FileNode | FolderNode;
@@ -82,6 +83,7 @@ const buildFileTree = (results: JobResult[]): TreeNode[] => {
       path: `__set_${setIndex}__`,
       type: 'folder',
       children: [],
+      isSetHeader: true,
     };
     tree.push(headerNode);
 
@@ -179,163 +181,6 @@ const buildFileTree = (results: JobResult[]): TreeNode[] => {
 
   return tree;
 };
-  resultsByTask.forEach((taskResults, taskId) => {
-    // Results are already in processing order
-
-    const firstResult = taskResults[0];
-
-    if (firstResult.processing_mode === "combined") {
-      // For combined processing, create one node representing all files
-      const sourceFiles = firstResult.source_files || [];
-
-      if (sourceFiles.length === 0) return;
-
-      // Find the common folder path for all source files
-      let commonPath = "";
-      if (sourceFiles.length > 1) {
-        // Find common directory path
-        const paths = sourceFiles.map((file) => file.split("/").slice(0, -1));
-        if (paths.length > 0) {
-          const minLength = Math.min(...paths.map((p) => p.length));
-          const commonSegments = [];
-
-          for (let i = 0; i < minLength; i++) {
-            const segment = paths[0][i];
-            if (paths.every((path) => path[i] === segment)) {
-              commonSegments.push(segment);
-            } else {
-              break;
-            }
-          }
-          commonPath = commonSegments.join("/");
-        }
-      } else {
-        // Single file in combined mode - use its directory
-        const filePath = sourceFiles[0];
-        const pathSegments = filePath.split("/").slice(0, -1);
-        commonPath = pathSegments.join("/");
-      }
-
-      // Create ONE node for the combined result (not per row)
-      const combinedName =
-        sourceFiles.length > 1
-          ? `Combined (${sourceFiles.length} files)`
-          : `${sourceFiles[0].split("/").pop()}`;
-
-      const combinedPath = commonPath
-        ? `${commonPath}/${combinedName}`
-        : combinedName;
-
-      // Create file node for combined result - use first result as representative
-      const fileNode: FileNode = {
-        name: combinedName,
-        path: combinedPath,
-        type: "file",
-        result: firstResult, // Use first result as representative
-      };
-
-      // Build folder structure if needed
-      if (commonPath) {
-        const pathSegments = commonPath
-          .split("/")
-          .filter((segment) => segment.length > 0);
-
-        if (pathSegments.length === 0) {
-          tree.push(fileNode);
-          return;
-        }
-
-        // Build folder structure
-        let currentPath = "";
-        let parentFolder: FolderNode | null = null;
-
-        pathSegments.forEach((segment) => {
-          currentPath = currentPath ? `${currentPath}/${segment}` : segment;
-
-          if (!folderMap[currentPath]) {
-            const newFolder: FolderNode = {
-              name: segment,
-              path: currentPath,
-              type: "folder",
-              children: [],
-            };
-
-            folderMap[currentPath] = newFolder;
-
-            if (parentFolder) {
-              parentFolder.children.push(newFolder);
-            } else {
-              tree.push(newFolder);
-            }
-          }
-
-          parentFolder = folderMap[currentPath];
-        });
-
-        if (parentFolder) {
-          parentFolder.children.push(fileNode);
-        }
-      } else {
-        tree.push(fileNode);
-      }
-    } else {
-      // Individual processing mode - create ONE node per file (not per row)
-      const filePath =
-        firstResult.extracted_data?.original_path ||
-        firstResult.source_files[0];
-      if (!filePath) return;
-
-      const pathSegments = filePath
-        .split("/")
-        .filter((segment) => segment.length > 0);
-      const fileName = pathSegments.pop() || filePath;
-
-      const fileNode: FileNode = {
-        name: fileName,
-        path: filePath,
-        type: "file",
-        result: firstResult, // Use first result as representative
-      };
-
-      if (pathSegments.length === 0) {
-        tree.push(fileNode);
-        return;
-      }
-
-      let currentPath = "";
-      let parentFolder: FolderNode | null = null;
-
-      pathSegments.forEach((segment) => {
-        currentPath = currentPath ? `${currentPath}/${segment}` : segment;
-
-        if (!folderMap[currentPath]) {
-          const newFolder: FolderNode = {
-            name: segment,
-            path: currentPath,
-            type: "folder",
-            children: [],
-          };
-
-          folderMap[currentPath] = newFolder;
-
-          if (parentFolder) {
-            parentFolder.children.push(newFolder);
-          } else {
-            tree.push(newFolder);
-          }
-        }
-
-        parentFolder = folderMap[currentPath];
-      });
-
-      if (parentFolder) {
-        parentFolder.children.push(fileNode);
-      }
-    }
-  });
-
-  return tree;
-};
 
 // Helper function to find the first file in the tree
 const findFirstFile = (nodes: TreeNode[]): FileNode | null => {
@@ -364,6 +209,20 @@ const FileTreeNode = memo(
     const isSelected = selectedPath === node.path;
     const paddingLeft = `${level * 12}px`;
 
+    const renderChildren = (children: TreeNode[]) => (
+      <div>
+        {children.map((child, index) => (
+          <FileTreeNode
+            key={`${child.path}-${index}`}
+            node={child}
+            selectedPath={selectedPath}
+            onSelect={onSelect}
+            level={level + 1}
+          />
+        ))}
+      </div>
+    );
+
     if (node.type === "file") {
       const isCombined = node.result.processing_mode === "combined";
       const IconComponent = isCombined ? Files : FileText;
@@ -390,6 +249,22 @@ const FileTreeNode = memo(
       );
     }
 
+    // Render set header as a divider-style row
+    if (node.isSetHeader) {
+      return (
+        <div className="my-2" style={{ paddingLeft }}>
+          <div className="flex items-center gap-2">
+            <div className="h-px bg-muted-foreground/30 flex-1" />
+            <span className="text-xs text-muted-foreground uppercase tracking-wide">{node.name}</span>
+            <div className="h-px bg-muted-foreground/30 flex-1" />
+          </div>
+          <div className="mt-2">
+            {renderChildren(node.children)}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div>
         <div
@@ -408,15 +283,7 @@ const FileTreeNode = memo(
 
         {expanded && (
           <div>
-            {node.children.map((child, index) => (
-              <FileTreeNode
-                key={`${child.path}-${index}`}
-                node={child}
-                selectedPath={selectedPath}
-                onSelect={onSelect}
-                level={level + 1}
-              />
-            ))}
+            {renderChildren(node.children)}
           </div>
         )}
       </div>

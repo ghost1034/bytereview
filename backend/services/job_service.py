@@ -531,6 +531,13 @@ class JobService:
         
         processing_mode = automation.processing_mode
         logger.info(f"Creating extraction tasks for job run {job_run_id} with processing mode: {processing_mode}")
+
+        # Determine next result set index for new tasks (append mode increments)
+        run = db.query(JobRun).filter(JobRun.id == job_run_id).first()
+        existing_max = db.query(func.max(ExtractionTask.result_set_index)).filter(
+            ExtractionTask.job_run_id == job_run_id
+        ).scalar()
+        next_set_index = (existing_max if existing_max is not None else -1) + 1 if getattr(run, 'append_from_run_id', None) else 0
         
         # Get all source files for this job run
         source_files_query = db.query(SourceFile).filter(SourceFile.job_run_id == job_run_id)
@@ -555,7 +562,8 @@ class JobService:
                     id=str(uuid.uuid4()),
                     job_run_id=job_run_id,
                     processing_mode='individual',
-                    status='pending'
+                    status='pending',
+                    result_set_index=next_set_index
                 )
                 db.add(extraction_task)
                 db.flush()  # Get ID
@@ -582,7 +590,8 @@ class JobService:
                     id=str(uuid.uuid4()),
                     job_run_id=job_run_id,
                     processing_mode='combined',
-                    status='pending'
+                    status='pending',
+                    result_set_index=next_set_index
                 )
                 db.add(extraction_task)
                 db.flush()  # Get ID
