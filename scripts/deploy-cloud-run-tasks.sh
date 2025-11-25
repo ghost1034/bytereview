@@ -130,9 +130,9 @@ echo ""
 echo -e "${BLUE}=== Building Task Service Images ===${NC}"
 
 build_and_push_task_image "extract" "Dockerfile.extract"
-# build_and_push_task_image "io" "Dockerfile.io" 
-# build_and_push_task_image "automation" "Dockerfile.automation"
-# build_and_push_task_image "maintenance" "Dockerfile.maintenance"
+build_and_push_task_image "io" "Dockerfile.io" 
+build_and_push_task_image "automation" "Dockerfile.automation"
+build_and_push_task_image "maintenance" "Dockerfile.maintenance"
 
 # Deploy task services
 echo -e "${BLUE}=== Deploying Task Services ===${NC}"
@@ -159,67 +159,67 @@ deploy_service \
      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
 
 # # Deploy I/O Task Service
-# echo -e "${BLUE}=== Deploying I/O Task Service ===${NC}"
-# deploy_service \
-#     "task-io" \
-#     "task-io" \
-#     "8080" \
-#     "1Gi" \
-#     "1" \
-#     "0" \
-#     "5" \
-#     "1" \
-#     "1800" \
-#     "false" \
-#     "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-#      --vpc-connector=$VPC_CONNECTOR \
-#      --vpc-egress=private-ranges-only \
-#      --service-account=$SERVICE_ACCOUNT \
-#      --no-cpu-throttling \
-#      --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-#      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
+echo -e "${BLUE}=== Deploying I/O Task Service ===${NC}"
+deploy_service \
+    "task-io" \
+    "task-io" \
+    "8080" \
+    "1Gi" \
+    "1" \
+    "0" \
+    "5" \
+    "1" \
+    "1800" \
+    "false" \
+    "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+     --vpc-connector=$VPC_CONNECTOR \
+     --vpc-egress=private-ranges-only \
+     --service-account=$SERVICE_ACCOUNT \
+     --no-cpu-throttling \
+     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
 
 # # Deploy Automation Task Service
-# echo -e "${BLUE}=== Deploying Automation Task Service ===${NC}"
-# deploy_service \
-#     "task-automation" \
-#     "task-automation" \
-#     "8080" \
-#     "1Gi" \
-#     "1" \
-#     "0" \
-#     "10" \
-#     "1" \
-#     "1800" \
-#     "false" \
-#     "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-#      --vpc-connector=$VPC_CONNECTOR \
-#      --vpc-egress=private-ranges-only \
-#      --service-account=$SERVICE_ACCOUNT \
-#      --no-cpu-throttling \
-#      --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-#      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
+echo -e "${BLUE}=== Deploying Automation Task Service ===${NC}"
+deploy_service \
+    "task-automation" \
+    "task-automation" \
+    "8080" \
+    "1Gi" \
+    "1" \
+    "0" \
+    "10" \
+    "1" \
+    "1800" \
+    "false" \
+    "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+     --vpc-connector=$VPC_CONNECTOR \
+     --vpc-egress=private-ranges-only \
+     --service-account=$SERVICE_ACCOUNT \
+     --no-cpu-throttling \
+     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
 
 # # Deploy Maintenance Task Service
-# echo -e "${BLUE}=== Deploying Maintenance Task Service ===${NC}"
-# deploy_service \
-#     "task-maintenance" \
-#     "task-maintenance" \
-#     "8080" \
-#     "1Gi" \
-#     "1" \
-#     "0" \
-#     "5" \
-#     "1" \
-#     "3600" \
-#     "false" \
-#     "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-#      --vpc-connector=$VPC_CONNECTOR \
-#      --vpc-egress=private-ranges-only \
-#      --service-account=$SERVICE_ACCOUNT \
-#      --no-cpu-throttling \
-#      --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-#      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
+echo -e "${BLUE}=== Deploying Maintenance Task Service ===${NC}"
+deploy_service \
+    "task-maintenance" \
+    "task-maintenance" \
+    "8080" \
+    "1Gi" \
+    "1" \
+    "0" \
+    "5" \
+    "1" \
+    "3600" \
+    "false" \
+    "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+     --vpc-connector=$VPC_CONNECTOR \
+     --vpc-egress=private-ranges-only \
+     --service-account=$SERVICE_ACCOUNT \
+     --no-cpu-throttling \
+     --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
 
 # # Setup Cloud Tasks queues
 # echo -e "${BLUE}=== Setting up Cloud Tasks Queues ===${NC}"

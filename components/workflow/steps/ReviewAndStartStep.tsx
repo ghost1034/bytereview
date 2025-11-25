@@ -187,41 +187,43 @@ export default function ReviewAndStartStep({
       </Card>
 
       {/* Processing Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Processing Configuration</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* Processing Mode per Folder */}
-            <div>
-              <h4 className="font-medium mb-2">Processing Mode by Folder:</h4>
-              <div className="space-y-2">
-                {workflowState.taskDefinitions.map((task, index) => (
-                  <div key={index} className="flex justify-between items-center">
-                    <span className="text-sm">
-                      {task.path === '/' ? 'Root Folder' : task.path} ({task.file_count || 0} files)
-                    </span>
-                    <Badge variant="secondary">
-                      {task.mode === 'individual' ? 'Individual' : 'Combined'}
-                    </Badge>
-                  </div>
-                ))}
+      {isLatestSelected && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Processing Configuration</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Processing Mode per Folder */}
+              <div>
+                <h4 className="font-medium mb-2">Processing Mode by Folder:</h4>
+                <div className="space-y-2">
+                  {workflowState.taskDefinitions.map((task, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <span className="text-sm">
+                        {task.path === '/' ? 'Root Folder' : task.path} ({task.file_count || 0} files)
+                      </span>
+                      <Badge variant="secondary">
+                        {task.mode === 'individual' ? 'Individual' : 'Combined'}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
               </div>
+              
+              {/* Data Persistence indicator (hide when viewing previous run) */}
+              {isLatestSelected && (
+                <div className="flex justify-between">
+                  <span>Data Persistence:</span>
+                  <Badge variant={persistData ? "default" : "secondary"}>
+                    {persistData ? 'Enabled' : 'Disabled'}
+                  </Badge>
+                </div>
+              )}
             </div>
-            
-            {/* Data Persistence indicator (hide when viewing previous run) */}
-            {isLatestSelected && (
-              <div className="flex justify-between">
-                <span>Data Persistence:</span>
-                <Badge variant={persistData ? "default" : "secondary"}>
-                  {persistData ? 'Enabled' : 'Disabled'}
-                </Badge>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Estimated Processing Time */}
       <Card className="bg-blue-50 border-blue-200">
