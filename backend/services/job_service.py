@@ -655,6 +655,7 @@ class JobService:
                 ExtractionTask, SourceFileToTask.task_id == ExtractionTask.id
             ).filter(
                 ExtractionTask.job_run_id == run_id,
+                ExtractionTask.status == 'pending',  # Only count pages for tasks that will be processed
                 SourceFile.page_count.isnot(None)
             ).scalar() or 0
             
