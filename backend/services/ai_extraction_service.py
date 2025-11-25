@@ -105,11 +105,9 @@ class AIExtractionService:
             field_list = chr(10).join([f"- {field.name} ({field.data_type}): {field.prompt}" for field in fields])
             prompt = f"""{system_prompt}
 
-Extract the following data fields from the document. If the document contains multiple records (like multiple line items, invoices, etc.), return all of them as separate objects in the array:
+Provide the following fields. If the document contains multiple records (like multiple line items, invoices, etc.), return all of them as separate objects in the array:
 
 {field_list}
-
-Respond ONLY with JSON that matches the provided schema. If a field is not found, use null.
 """
 
             logger.info("=== VERTEX PROMPT DEBUG (Individual Mode) ===")
@@ -254,15 +252,14 @@ Respond ONLY with JSON that matches the provided schema. If a field is not found
             doc_list = chr(10).join([f"Document {i+1}: {name}" for i, name in enumerate(file_names)])
             prompt = f"""{system_prompt}
 
-You are processing {len(file_names)} documents together. Please extract the following fields given ALL documents.
+You are processing {len(file_names)} documents together. Please provide the following fields given ALL documents.
 
 {doc_list}
 
-Fields to extract:
+Fields to provide:
 {field_list}
 
-For each extracted data point, indicate which document(s) it came from using the document filenames in a field named source_documents.
-Respond ONLY with JSON that matches the provided schema. If a field is not found in any document, use null.
+Indicate which document(s) results came from by providing document filenames in source_documents.
 """
 
             logger.info("=== VERTEX PROMPT DEBUG (Combined Mode) ===")

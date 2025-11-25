@@ -101,19 +101,19 @@ deploy_service \
      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json"
 
 # Deploy Frontend
-echo -e "${BLUE}=== Deploying Frontend ===${NC}"
-deploy_service \
-    "cpa-web" \
-    "frontend" \
-    "3000" \
-    "1Gi" \
-    "1" \
-    "1" \
-    "5" \
-    "100" \
-    "60" \
-    "true" \
-    "--set-env-vars=NODE_ENV=production"
+# echo -e "${BLUE}=== Deploying Frontend ===${NC}"
+# deploy_service \
+#     "cpa-web" \
+#     "frontend" \
+#     "3000" \
+#     "1Gi" \
+#     "1" \
+#     "1" \
+#     "5" \
+#     "100" \
+#     "60" \
+#     "true" \
+#     "--set-env-vars=NODE_ENV=production"
 
 # # Deploy Extract Worker (AI tasks)
 # echo -e "${BLUE}=== Deploying Extract Worker ===${NC}"
