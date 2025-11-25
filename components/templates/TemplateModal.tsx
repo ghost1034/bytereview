@@ -136,7 +136,7 @@ export default function TemplateModal({ isOpen, onClose, template, dataTypes, da
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {template ? 'Edit Template' : 'Create New Template'}
