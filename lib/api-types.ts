@@ -465,6 +465,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jobs/{job_id}/runs/{run_id}/export-refs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Job Run Export Refs
+         * @description Return canonical export references for the given job run (Drive CSV/XLSX)
+         */
+        get: operations["get_job_run_export_refs_api_jobs__job_id__runs__run_id__export_refs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/jobs/{job_id}/files:gdrive": {
         parameters: {
             query?: never;
@@ -1665,6 +1685,29 @@ export interface components {
             json_format?: string | null;
             /** Display Order */
             display_order: number;
+        };
+        /** ExportRef */
+        ExportRef: {
+            /**
+             * External Id
+             * @description External file identifier (e.g., Google Drive file ID)
+             */
+            external_id?: string | null;
+            /**
+             * Status
+             * @description Export status for this reference
+             */
+            status?: string | null;
+        };
+        /** ExportRefsResponse */
+        ExportRefsResponse: {
+            /**
+             * Gdrive
+             * @description Google Drive export references keyed by file type (csv/xlsx)
+             */
+            gdrive?: {
+                [key: string]: components["schemas"]["ExportRef"];
+            } | null;
         };
         /** ExtractionResponse */
         ExtractionResponse: {
@@ -3401,6 +3444,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_job_run_export_refs_api_jobs__job_id__runs__run_id__export_refs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportRefsResponse"];
                 };
             };
             /** @description Validation Error */

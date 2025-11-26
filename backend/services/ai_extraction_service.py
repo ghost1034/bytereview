@@ -378,7 +378,7 @@ Indicate which document(s) results came from by providing document filenames in 
             if not field.data_type or not field.data_type.strip():
                 errors.append(f"Field {i+1}: Data type is required")
             
-            if field.prompt and len(field.prompt) > 500:
-                errors.append(f"Field {i+1}: Prompt too long (max 500 characters)")
+            if field.prompt and len(field.prompt) > 1500:
+                errors.append(f"Field {i+1}: Prompt too long (max 1500 characters)")
         
         return errors

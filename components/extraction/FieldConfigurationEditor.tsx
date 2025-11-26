@@ -122,7 +122,7 @@ export default function FieldConfigurationEditor({
                       onChange={(e) => updateField(index, { prompt: e.target.value })}
                       placeholder="Extract the invoice number (optional)"
                       rows={2}
-                      maxLength={500}
+                      maxLength={1500}
                     />
                     <div className="flex justify-between items-center">
                       {mode === 'job' ? (
@@ -135,7 +135,7 @@ export default function FieldConfigurationEditor({
                         </p>
                       )}
                       <p className="text-xs text-gray-400">
-                        {field.prompt.length}/500
+                        {field.prompt.length}/1500
                       </p>
                     </div>
                   </div>

@@ -146,7 +146,7 @@ export default function TemplatePreviewModal({
                         
                         <div className="md:col-span-1">
                           <label className="text-sm font-medium text-gray-700">AI Prompt</label>
-                          <p className="mt-1 text-sm bg-gray-50 p-2 rounded border min-h-[2.5rem]">
+                          <p className="mt-1 text-sm bg-gray-50 p-2 rounded border min-h-[2.5rem] whitespace-pre-wrap break-words">
                             {field.prompt || <span className="text-gray-400">Not specified</span>}
                           </p>
                         </div>
