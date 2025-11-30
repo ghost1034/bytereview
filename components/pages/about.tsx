@@ -10,13 +10,13 @@ export default function About() {
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold text-gray-900 mb-6">About Us</h1>
           <p className="text-xl text-gray-600 mb-8">
-            True GenAI customizable extraction programmed by real CPAs for professional use
+            Truly customizable document AI engineered from real CPA workflows.
           </p>
         </div>
 
         {/* Founder's Story Section */}
         <section className="mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">Founder's Story</h2>
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">My Story: Founder and Engineer</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="order-2 lg:order-1">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">Ian Stewart</h3>

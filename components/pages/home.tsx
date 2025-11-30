@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import AuthModal from "@/components/auth/AuthModal";
 import { Card, CardContent } from "@/components/ui/card";
 import { Check, CloudUpload, Database, Table, Bot, Shield, ShieldX, Lock, Ban, Star, FileText, Grid3X3, Settings, MapPinCheck, DollarSign, Scale, TrendingUp, Building2, ShieldCheck, House } from "lucide-react";
 import { FaGoogle, FaMicrosoft, FaFileExcel } from "react-icons/fa";
@@ -13,13 +14,14 @@ export default function Home() {
   const router = useRouter();
   const [isDragOver, setIsDragOver] = useState(false);
   const { user } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const handleGetStarted = () => {
     // Redirect based on authentication status
     if (user) {
       router.push("/dashboard");
     } else {
-      router.push("/demo");
+      setIsAuthModalOpen(true);
     }
   };
 
@@ -51,14 +53,15 @@ export default function Home() {
     <div className="min-h-screen">
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white min-h-[calc(100vh-var(--header-height))] flex items-center py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
+            {/* Left: Existing hero content */}
+            <div className="text-center lg:col-span-2 mx-auto">
               <h1 className="text-5xl font-bold text-white mb-2">
-                True GenAI Customizable Extraction
+                Truly customizable document AI.
               </h1>
               <p className="text-lg text-gray-300 mb-8">
-                Engineered by real CPAs for practical professional use
+                Engineered from real CPA workflows for practical, professional use.
               </p>
               <p className="text-xl text-gray-200 mb-8">
                 Professional-grade AI extraction built with deep accounting and legal expertise.
@@ -83,40 +86,40 @@ export default function Home() {
               <div className="mb-8 flex justify-center">
                 <div className="max-w-2xl w-full">
                   <div className="bg-white text-gray-900 border border-gray-200 rounded-lg overflow-hidden shadow-lg">
-                      <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center space-x-2">
-                        <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-                        <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-                        <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                        <span className="text-sm text-gray-600 ml-2">Investment Statement Extract</span>
-                      </div>
-                      <div className="p-3">
-                        <div className="grid grid-cols-6 gap-1 text-xs">
-                          <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">Portfolio Co.</div>
-                          <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">Quarter</div>
-                          <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">Revenue</div>
-                          <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">EBITDA</div>
-                          <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">Growth %</div>
-                          <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">Valuation</div>
-                          <div className="p-2 text-center truncate">TechFlow Inc</div>
-                          <div className="p-2 text-center truncate">Q4 2024</div>
-                          <div className="p-2 text-center truncate">$12.5M</div>
-                          <div className="p-2 text-center truncate">$3.2M</div>
-                          <div className="p-2 text-center truncate">23%</div>
-                          <div className="p-2 text-center truncate">$85M</div>
-                          <div className="p-2 text-center truncate">DataMind Corp</div>
-                          <div className="p-2 text-center truncate">Q4 2024</div>
-                          <div className="p-2 text-center truncate">$8.7M</div>
-                          <div className="p-2 text-center truncate">$1.9M</div>
-                          <div className="p-2 text-center truncate">31%</div>
-                          <div className="p-2 text-center truncate">$62M</div>
-                        </div>
+                    <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center space-x-2">
+                      <div className="w-3 h-3 bg-red-400 rounded-full"></div>
+                      <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                      <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                      <span className="text-sm text-gray-600 ml-2">Investment Statement Extract</span>
+                    </div>
+                    <div className="p-3">
+                      <div className="grid grid-cols-6 gap-1 text-xs">
+                        <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">Portfolio Co.</div>
+                        <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">Quarter</div>
+                        <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">Revenue</div>
+                        <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">EBITDA</div>
+                        <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">Growth %</div>
+                        <div className="bg-blue-100 p-2 rounded text-center font-medium truncate">Valuation</div>
+                        <div className="p-2 text-center truncate">TechFlow Inc</div>
+                        <div className="p-2 text-center truncate">Q4 2024</div>
+                        <div className="p-2 text-center truncate">$12.5M</div>
+                        <div className="p-2 text-center truncate">$3.2M</div>
+                        <div className="p-2 text-center truncate">23%</div>
+                        <div className="p-2 text-center truncate">$85M</div>
+                        <div className="p-2 text-center truncate">DataMind Corp</div>
+                        <div className="p-2 text-center truncate">Q4 2024</div>
+                        <div className="p-2 text-center truncate">$8.7M</div>
+                        <div className="p-2 text-center truncate">$1.9M</div>
+                        <div className="p-2 text-center truncate">31%</div>
+                        <div className="p-2 text-center truncate">$62M</div>
                       </div>
                     </div>
+                  </div>
                 </div>
               </div>
               
               <div className="space-y-4 flex flex-col items-center">
-                <div className="flex items-center space-x-2 max-w-md">
+                <div className="flex items-center space-x-2 max-w-md w-full">
                   <Button 
                     onClick={handleGetStarted}
                     className="bg-white text-gray-900 hover:bg-gray-100 px-6 w-full"
@@ -132,6 +135,43 @@ export default function Home() {
                   <div className="flex items-center space-x-1">
                     <Check className="text-green-500 w-4 h-4" />
                     <span>100 free pages/month</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Videos */}
+            <div className="space-y-8 lg:col-span-1">
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-3">See how it works</h3>
+                <div className="rounded-lg overflow-hidden border border-white/10 bg-white/5">
+                  <div className="relative bg-black aspect-video">
+                    <iframe
+                      className="absolute inset-0 w-full h-full border-0"
+                      loading="lazy"
+                      src="https://www.youtube-nocookie.com/embed/mxDEliIRWtc?si=brPvZMmN0F5Tbeeh"
+                      title="See how it works: Bank Statement Analysis"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      allowFullScreen
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-3">Watch our pitch</h3>
+                <div className="rounded-lg overflow-hidden border border-white/10 bg-white/5">
+                  <div className="relative bg-black aspect-video">
+                    <iframe
+                      className="absolute inset-0 w-full h-full border-0"
+                      loading="lazy"
+                      src="https://www.youtube-nocookie.com/embed/vhFcyZh07b8?si=miMLgbIVkr9Q6Pdo"
+                      title="Watch our pitch"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      allowFullScreen
+                    />
                   </div>
                 </div>
               </div>
@@ -467,7 +507,7 @@ export default function Home() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20">
+      <section className="py-20 bg-gradient-to-br from-blue-50 via-white to-indigo-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">What our customers are saying</h2>
@@ -516,26 +556,21 @@ export default function Home() {
               </CardContent>
             </Card>
           </div>
-        </div>
-      </section>
 
-
-
-      {/* Case Study Section */}
-      <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-            <CardContent className="p-12 text-center">
-              <img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?ixlib=rb-4.0.3&w=600&h=200&fit=crop" alt="Leonardo Family Office" className="mx-auto mb-6 rounded-lg" />
-              <h2 className="text-3xl font-bold mb-4">A leading family office saves hundreds of hours per year processing investment statements</h2>
-              <p className="text-xl mb-6">"Our team used to spend weeks manually extracting financial data from portfolio reports. Now we process quarterly statements from 100+ companies in just minutes with perfect accuracy."</p>
-              <Link href="/case-study/LFO">
-                <Button className="bg-white text-blue-600 hover:bg-gray-100">
-                  Read the full case study →
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+          <div className="mt-16">
+            <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+              <CardContent className="p-12 text-center">
+                <img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?ixlib=rb-4.0.3&w=600&h=200&fit=crop" alt="Leonardo Family Office" className="mx-auto mb-6 rounded-lg" />
+                <h2 className="text-3xl font-bold mb-4">A leading family office saves hundreds of hours per year processing investment statements</h2>
+                <p className="text-xl mb-6">"Our team used to spend weeks manually extracting financial data from portfolio reports. Now we process quarterly statements from 100+ companies in just minutes with perfect accuracy."</p>
+                <Link href="/case-study/LFO">
+                  <Button className="bg-white text-blue-600 hover:bg-gray-100">
+                    Read the full case study →
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </section>
 
@@ -741,6 +776,12 @@ export default function Home() {
         </div>
       </section>
 
+     <AuthModal 
+       isOpen={isAuthModalOpen}
+       onClose={() => setIsAuthModalOpen(false)}
+       defaultTab="signup"
+     />
+
       {/* FAQ Section */}
       <section className="py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -806,7 +847,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
 
     </div>
   );

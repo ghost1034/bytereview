@@ -12,7 +12,7 @@ export default function Footer() {
               <span className="text-xl font-bold">CPAAutomation</span>
             </div>
             <p className="text-gray-400 mb-4">
-              True GenAI customizable extraction programmed by real CPAs for professional use
+              Truly customizable document AI engineered from real CPA workflows for practical, professional use.
             </p>
             <div className="flex space-x-4">
               <a
@@ -76,7 +76,7 @@ export default function Footer() {
         </div>
         
         <div className="border-t border-gray-800 mt-12 pt-8 text-center">
-          <p className="text-gray-400">© 2025 CPAAutomation. All rights reserved.</p>
+          <p className="text-gray-400">© 2025 CPA Automation, Inc. All rights reserved.</p>
         </div>
       </div>
     </footer>

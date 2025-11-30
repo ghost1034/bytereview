@@ -89,7 +89,7 @@ export default function Header() {
                 onClick={handleAuthAction}
                 disabled={loading}
               >
-                {loading ? "Loading..." : "Sign In/Up"}
+                {loading ? "Loading..." : "Sign In"}
               </Button>
             )}
           </div>
@@ -119,7 +119,7 @@ export default function Header() {
                 Features
               </Link>
               <Link href="/about" className="block text-gray-700 hover:text-lido-blue py-2">
-                About Us
+                About
               </Link>
               <Link href="/contact" className="block text-gray-700 hover:text-lido-blue py-2">
                 Contact
@@ -149,7 +149,7 @@ export default function Header() {
                   onClick={handleAuthAction}
                   disabled={loading}
                 >
-                  {loading ? "Loading..." : "Sign In/Up"}
+                  {loading ? "Loading..." : "Sign In"}
                 </Button>
               )}
             </div>
