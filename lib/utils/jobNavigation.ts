@@ -12,8 +12,8 @@ export interface JobNavigationData {
  * Determines the correct navigation path for a job based on its state
  */
 export function getJobNavigationPath(job: JobNavigationData): string {
-  // If job is completed, go to results page
-  if (job.status === 'completed') {
+  // If job is completed or has final state, go to results page
+  if (['completed', 'partially_completed', 'failed'].includes(job.status)) {
     return `/dashboard/jobs/${job.id}/results`;
   }
   
