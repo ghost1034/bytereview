@@ -50,13 +50,13 @@ class ExtractionTemplate(BaseModel):
     is_public: bool = False
 
 class TemplateCreateRequest(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100)
-    description: Optional[str] = Field(None, max_length=500)
+    name: str = Field(..., min_length=1)
+    description: Optional[str] = Field(None)
     fields: List[FieldConfig]
     is_public: bool = False
 
 class TemplateUpdateRequest(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    description: Optional[str] = Field(None, max_length=500)
+    name: Optional[str] = Field(None, min_length=1)
+    description: Optional[str] = Field(None)
     fields: Optional[List[FieldConfig]] = None
     is_public: Optional[bool] = None

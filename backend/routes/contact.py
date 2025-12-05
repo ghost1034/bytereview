@@ -10,11 +10,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["contact"])
 
 class ContactRequest(BaseModel):
-    name: str = Field(..., min_length=1, max_length=200)
+    name: str = Field(..., min_length=1)
     email: EmailStr
-    company: Optional[str] = Field(None, max_length=200)
-    subject: str = Field(..., min_length=1, max_length=200)
-    message: str = Field(..., min_length=1, max_length=5000)
+    company: Optional[str] = Field(None)
+    subject: str = Field(..., min_length=1)
+    message: str = Field(..., min_length=1)
     inquiry_type: str = Field(..., alias="inquiryType")
 
 @router.post("/contact")
