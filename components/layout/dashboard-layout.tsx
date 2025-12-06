@@ -8,7 +8,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-gray-50">
+    <div className="flex h-[calc(100vh-var(--header-height))] bg-gray-50">
       <Sidebar />
       <main className="flex-1 overflow-auto">
         <div className="p-8">

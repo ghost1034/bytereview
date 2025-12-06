@@ -5,6 +5,7 @@
 /* Prevent all layout shifts by keeping scrollbar always visible */
 html {
   overflow-y: scroll;
+  font-size: 93.75%; /* 15px base for better overall scale */
 }
 
 /* Prevent main content from shifting when dropdowns open */
@@ -15,7 +16,7 @@ body {
 
 @layer base {
   :root {
-    --header-height: 64px;
+    --header-height: 4rem;
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;

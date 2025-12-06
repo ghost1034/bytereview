@@ -11,7 +11,7 @@ export default function Layout({ children }: DashboardLayoutProps) {
     <AuthGuard requireAuth={true} redirectTo="/">
       <div className="min-h-screen">
         <Header />
-        <div className="pt-16">
+        <div className="pt-[var(--header-height)]">
           <DashboardLayout>
             {children}
           </DashboardLayout>
