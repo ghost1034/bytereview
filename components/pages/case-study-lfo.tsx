@@ -196,7 +196,7 @@ export default function CaseStudyLFO() {
                 "Our team used to spend weeks manually extracting financial data from portfolio reports. Now we process quarterly statements from 100+ companies in just minutes with perfect accuracy. This transformation has allowed our investment professionals to focus on what they do best: identifying opportunities and supporting our portfolio companies."
               </blockquote>
               <div className="text-center">
-                <p className="font-semibold text-gray-900">C**** Smith</p>
+                <p className="font-semibold text-gray-900">C**** Leonardo</p>
                 <p className="text-gray-600">CFO, Leonardo Family Office</p>
               </div>
             </CardContent>
