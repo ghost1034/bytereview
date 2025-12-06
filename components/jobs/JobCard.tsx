@@ -195,9 +195,13 @@ export default function JobCard({ job, onDelete }: JobCardProps) {
                   {statusIcon}
                   <span>{getStepLabel(job.config_step || "upload")}</span>
                   <span>•</span>
-                  <span>
-                    Created {formatRelativeTime(startedAt)}{completedAt ? ` • Completed ${formatRelativeTime(completedAt)}` : ""}
-                  </span>
+                  <span>Created {formatRelativeTime(startedAt)}</span>
+                  {completedAt && (
+                    <>
+                      <span>•</span>
+                      <span>Completed {formatRelativeTime(completedAt)}</span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
