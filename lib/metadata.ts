@@ -54,16 +54,16 @@ export const pageMetadata = {
     canonical: 'https://cpaautomation.ai',
     keywords: [
       'CPA automation',
+      'accounting automation',
       'document extraction',
       'AI accounting',
       'invoice processing',
       'financial document analysis',
-      'automated data entry',
-      'professional document processing'
+      'automated data entry'
     ],
   },
   about: {
-    title: 'About Us - Founded by CPAs for Professional Use',
+    title: 'About Us - Founded for Professional Use by CPAs',
     description: 'Learn about CPAAutomation\'s mission to empower accounting professionals with AI-powered document extraction. Founded by Ian Stewart and validated by industry experts.',
     canonical: 'https://cpaautomation.ai/about',
     keywords: [
