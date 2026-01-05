@@ -3,17 +3,21 @@
 A web platform for extracting structured fields from documents using Google Gemini, with CSV/XLSX exports, Google Drive/Gmail integrations, and automation via Gmail attachment triggers. Built with Next.js (frontend) and FastAPI (backend), using Firebase for authentication, PostgreSQL for persistence, and Google Cloud (Run, Tasks, Scheduler, GCS, Pub/Sub) for infrastructure.
 
 Table of contents
-- Overview
-- System Architecture
-  - Components
-  - Architecture Diagram
-- Core Workflows
-  - Uploads and Imports
-  - Extraction Pipeline
-  - Exports
-  - Automations (Gmail attachments)
-  - Folders and Processing Modes
-- Notes and Next Steps
+- [Overview](#overview)
+- [System Architecture](#system-architecture)
+  - [Components](#components)
+  - [Architecture Diagram](#architecture-diagram)
+- [Core Workflows](#core-workflows)
+  - [Uploads and Imports](#uploads-and-imports)
+  - [Extraction Pipeline](#extraction-pipeline)
+  - [Exports](#exports)
+  - [Automations (Gmail attachments)](#automations-gmail-attachments-trigger)
+  - [Folders and Processing Modes](#folders-and-processing-modes)
+- [Local Development](#local-development)
+- [Deployment and Operations](#deployment-and-operations)
+- [Security and Data Management](#security-and-data-management)
+- [Reference Appendix](#reference-appendix)
+- [Contributing](#contributing)
 
 ## Overview
 
@@ -433,12 +437,414 @@ flowchart TB
   COMB --> T2["ExtractionTask(processing_mode='combined', links all files in folder)"]
 ```
 
-## Notes and Next Steps
-- The README currently covers: Overview, System Architecture, Core Workflows (including folder handling and processing modes).
-- Upcoming sections (to be added next):
-  - Local Development (prereqs, env vars, migrations, scripts)
-  - Deployment and Operations (Cloud Run, Tasks, Scheduler, Pub/Sub, GCS, OAuth, Stripe)
-  - Security and Data Management (Firebase Auth, IAM scopes, lifecycle)
-  - Reference (models, APIs, configuration, glossary, FAQ)
+## Local Development
 
-If you have edits to phrasing or want more detail in any diagram, let me know and I’ll update before we continue.
+This guide covers prerequisites, environment configuration, database setup, running services, generating types, and troubleshooting.
+
+Prerequisites
+- Node.js 20+
+- Python 3.11+
+- Docker Desktop (for Postgres/Redis)
+- gcloud CLI (for GCP auth and optional local secrets)
+- Firebase project (for client auth) and a Firebase service account JSON for local backend
+
+Environment configuration (.env)
+- Create a .env file at the repo root (backend/main.py uses dotenv for local/dev):
+  - Required
+    - DATABASE_URL=postgresql://bytereview:bytereview@localhost:5432/bytereview_dev
+    - STRIPE_SECRET_KEY=sk_test_...
+  - Recommended
+    - ENVIRONMENT=local
+    - LOG_LEVEL=INFO
+    - INIT_DB_AT_STARTUP=false
+  - Google Cloud / Gemini
+    - GOOGLE_CLOUD_PROJECT_ID=your-gcp-project
+    - GOOGLE_CLOUD_LOCATION=global
+    - GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/firebase-service-account.json
+    - GCS_BUCKET_NAME=your-dev-bucket
+  - Google OAuth and Integrations
+    - GOOGLE_CLIENT_ID=...
+    - GOOGLE_CLIENT_SECRET=...
+    - GOOGLE_REDIRECT_URI=http://localhost:3000/integrations/google/callback
+    - GMAIL_PUBSUB_DEV_TOKEN=dev-token-for-webhook-testing
+    - GMAIL_PUBSUB_TOPIC=gmail-notifications (optional)
+    - GMAIL_PUBSUB_SUBSCRIPTION=gmail-notifications-sub (optional)
+    - GMAIL_WEBHOOK_URL=http://localhost:8000/api/webhooks/gmail-push
+  - Stripe
+    - STRIPE_WEBHOOK_SECRET=whsec_... (for local webhook testing)
+  - Cloud Run Task service URLs (optional for local; required when using remote task services)
+    - TASK_EXTRACT_URL=https://task-extract-...run.app/execute
+    - TASK_IO_URL=https://task-io-...run.app/execute
+    - TASK_AUTOMATION_URL=https://task-automation-...run.app/execute
+    - TASK_MAINTENANCE_URL=https://task-maintenance-...run.app/execute
+
+Start dependencies (Postgres/Redis)
+- Option A: docker-compose
+  - docker-compose up -d postgres redis
+- Option B: helper script
+  - scripts/start-dev.sh
+
+Backend setup
+- pip install -r backend/requirements.txt
+- Database migrations
+  - cd backend && alembic upgrade head
+  - Optional seed: backend/scripts/seed_initial_data.py
+- Run API
+  - npm run backend (runs uvicorn main:app --reload on port 8000) or
+  - cd backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000
+- Health and docs
+  - http://localhost:8000/health
+  - http://localhost:8000/api/docs
+
+Frontend setup
+- npm install
+- Generate types from backend OpenAPI
+  - npm run generate-types (runs backend/generate-types and writes lib/api-types.ts)
+  - Or: npm run dev:with-types (generate then launch dev)
+- Run frontend
+  - npm run dev (Next.js on http://localhost:3000)
+
+Types and OpenAPI
+- The backend exposes OpenAPI at /api/openapi.json
+- openapi-typescript generates lib/api-types.ts; lib/api.ts provides a typed client
+- Regenerate types any time backend routes/models change
+
+Local Gmail/Drive testing
+- Gmail push development auth: pass Authorization: Bearer ${GMAIL_PUBSUB_DEV_TOKEN} or call from localhost
+- Manual imports
+  - Drive: POST /api/jobs/{jobId}/files:gdrive with file_ids
+  - Gmail: POST /api/jobs/{jobId}/files:gmail with attachments array
+
+Troubleshooting
+- Database connection error at startup
+  - Ensure DATABASE_URL is set and Postgres is running (docker ps; psql test)
+- STRIPE_SECRET_KEY missing (backend will crash early)
+  - Provide a test secret key in .env for local
+- Google credentials / AI errors
+  - Set GOOGLE_CLOUD_PROJECT_ID and GOOGLE_APPLICATION_CREDENTIALS (service account with required scopes)
+  - For Gemini via google-genai with Vertex, ensure project/location are correct
+- CORS
+  - Backend allows http://localhost:3000 in local; verify ENVIRONMENT and allowed_origins in backend/main.py
+- Types not generated
+  - Run npm run generate-types; verify backend is reachable at /api/openapi.json
+- Gmail webhook not authorized in dev
+  - Set GMAIL_PUBSUB_DEV_TOKEN and include Authorization: Bearer token; for production, implement Google-signed JWT verification
+
+## Deployment and Operations
+
+Overview
+- Deploys to Google Cloud Run (API + Task services) with Google Cloud Tasks, Cloud Scheduler, Pub/Sub, GCS, and Cloud SQL (Postgres)
+- Scripts:
+  - scripts/deploy-services.sh (API/frontend; sample worker deploys commented out)
+  - scripts/deploy-cloud-run-tasks.sh (task services: extract/io/automation/maintenance)
+  - scripts/setup-secrets.sh (example Secret Manager provisioning for TASK_* URLs)
+
+Environments and services
+- Cloud Run services:
+  - API service (FastAPI)
+  - Task services: task-extract, task-io, task-automation, task-maintenance
+- Cloud Tasks queues:
+  - extract-tasks, io-tasks, automation-tasks, maintenance-tasks
+- Cloud Scheduler jobs:
+  - gmail-watch-renewal, stripe-usage-reconciliation, usage/artifact cleanup, abandoned/opt-out cleanup
+- Pub/Sub topics/subscriptions:
+  - Gmail push topic/subscription for webhook `/api/webhooks/gmail-push`
+- GCS buckets:
+  - Primary data bucket (e.g., cpaautomation-files-<env>) and temp folder (temp_uploads/)
+  - Lifecycle rule example in `backend/gcs-lifecycle.json` deletes temp_uploads after 1 day
+
+IAM and identities
+- Service accounts
+  - Cloud Run runtime SA (e.g., cpaautomation-runner@PROJECT.iam.gserviceaccount.com)
+  - Grant least privileges: Storage Object Admin (bucket), Cloud Tasks Enqueuer, Pub/Sub Publisher/Subscriber (as needed), Cloud SQL Client, Secret Manager Accessor
+- Access and scopes
+  - Frontend uses Firebase client SDK; backend verifies tokens via Firebase Admin (service account key)
+  - Google OAuth client for Drive/Gmail user actions; service account for central mailbox
+
+Core environment and secrets
+- PROJECT and region
+  - GOOGLE_CLOUD_PROJECT_ID, CLOUD_RUN_REGION
+- Database
+  - DATABASE_URL (Cloud SQL connection string via connector)
+- Storage and AI
+  - GCS_BUCKET_NAME
+  - GOOGLE_APPLICATION_CREDENTIALS path (mounted secret or workload identity), GOOGLE_CLOUD_LOCATION
+- Tasks and Scheduler
+  - TASK_EXTRACT_URL, TASK_IO_URL, TASK_AUTOMATION_URL, TASK_MAINTENANCE_URL
+- Billing
+  - STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+- Gmail Pub/Sub
+  - GMAIL_PUBSUB_TOPIC, GMAIL_PUBSUB_SUBSCRIPTION, GMAIL_WEBHOOK_URL, GMAIL_PUBSUB_DEV_TOKEN (dev only)
+
+Step-by-step GCP setup (high level)
+1) Project and APIs
+  - Create/choose a GCP project
+  - Enable: Cloud Run, Cloud Tasks, Cloud Scheduler, Cloud Pub/Sub, Secret Manager, Cloud SQL Admin, Vertex AI, Cloud Storage, IAM
+2) Storage
+  - Create a GCS bucket (e.g., cpaautomation-files-<env>)
+  - Apply lifecycle rules (see `backend/gcs-lifecycle.json`)
+3) Database
+  - Create a Cloud SQL Postgres instance; create database and user
+  - Configure private connectivity (VPC connector) if needed
+4) Secrets and credentials
+  - Store STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET in Secret Manager
+  - Store Firebase service account JSON; mount as `/var/secrets/google/service-account.json`
+  - Store TASK_* URLs (or set post-deploy when URLs are known)
+5) Build & deploy services
+  - Build images to Artifact Registry; deploy Cloud Run services via scripts
+  - Set env vars and secret mounts per service
+6) Tasks and queues
+  - Ensure Cloud Tasks queues exist; run `cloud_run_task_service.setup_task_queues()` once or create via gcloud
+7) Pub/Sub and Gmail push
+  - Create Pub/Sub topic/subscription; set push endpoint to `/api/webhooks/gmail-push`
+  - Configure Gmail watch (central mailbox) with the topic
+  - For users’ Gmail watches (if applicable), use gmail_subscription_service helpers
+8) Cloud Scheduler
+  - Create jobs that POST to the task-maintenance service `/execute` with task_type payloads (see service code)
+9) OAuth and integrations
+  - Create Google OAuth client: set redirect URI to https://<frontend>/integrations/google/callback and local http://localhost:3000/integrations/google/callback
+  - Stripe: configure products/prices and webhook endpoint `/api/stripe/webhook` with STRIPE_WEBHOOK_SECRET
+
+Migrations in CI/CD
+- Use Alembic: `alembic upgrade head` during deploy or via a short-lived Cloud Run job
+
+Operational practices
+- Logging/Monitoring
+  - Cloud Logging for all services; set LOG_LEVEL appropriately
+  - Health checks: `/health` on API and task services
+- Scaling and costs
+  - Task services scale to zero when idle; tune min/max instances per service
+- Backups and retention
+  - Ensure Cloud SQL backups enabled; verify GCS lifecycle rules for temp data
+- Incident response
+  - Track task failure logs; adjust Cloud Tasks retry/backoff as necessary
+
+Command examples (gcloud)
+- Pub/Sub push (Gmail)
+  - Create topic and push subscription to API webhook
+```
+PROJECT_ID=your-project
+REGION=us-central1
+TOPIC=gmail-notifications
+SUB=gmail-notifications-sub
+WEBHOOK_URL="https://api.yourdomain.com/api/webhooks/gmail-push"
+SA_EMAIL="cpaautomation-runner@$PROJECT_ID.iam.gserviceaccount.com"
+
+gcloud pubsub topics create $TOPIC --project=$PROJECT_ID || true
+
+gcloud pubsub subscriptions create $SUB \
+  --topic=$TOPIC \
+  --push-endpoint=$WEBHOOK_URL \
+  --push-auth-service-account=$SA_EMAIL \
+  --project=$PROJECT_ID || true
+```
+- Cloud Tasks queues (if not created by code)
+```
+for Q in extract-tasks io-tasks automation-tasks maintenance-tasks; do 
+  gcloud tasks queues create $Q --location=$REGION --project=$PROJECT_ID || true
+done
+```
+- Cloud Scheduler jobs (call maintenance task service)
+```
+REGION=us-central1
+PROJECT_ID=your-project
+MAINTENANCE_URL="https://task-maintenance-$PROJECT_ID.$REGION.run.app/execute"
+SA_EMAIL="cpaautomation-runner@$PROJECT_ID.iam.gserviceaccount.com"
+
+# Gmail watch renewal (daily)
+gcloud scheduler jobs create http cpaautomation-gmail-watch-renewal \
+  --location=$REGION --schedule="45 6 * * *" --time-zone="UTC" \
+  --uri="$MAINTENANCE_URL" --http-method=POST \
+  --headers="Content-Type=application/json" \
+  --oidc-service-account-email="$SA_EMAIL" \
+  --message-body='{"task_type":"run_gmail_watch_renewal"}' || true
+
+# Stripe usage reconciliation (every 2 hours)
+gcloud scheduler jobs create http cpaautomation-stripe-usage-reconciliation \
+  --location=$REGION --schedule="15 */2 * * *" --time-zone="UTC" \
+  --uri="$MAINTENANCE_URL" --http-method=POST \
+  --headers="Content-Type=application/json" \
+  --oidc-service-account-email="$SA_EMAIL" \
+  --message-body='{"task_type":"run_stripe_usage_reconciliation"}' || true
+```
+- Secret Manager (store required secrets)
+```
+PROJECT_ID=your-project
+
+for NAME in STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET TASK_EXTRACT_URL TASK_IO_URL TASK_AUTOMATION_URL TASK_MAINTENANCE_URL; do
+  gcloud secrets create $NAME --project=$PROJECT_ID || true
+  # Add a version (interactive)
+  echo -n "<value>" | gcloud secrets versions add $NAME --data-file=- --project=$PROJECT_ID
+done
+
+# Access a secret
+gcloud secrets versions access latest --secret=STRIPE_SECRET_KEY --project=$PROJECT_ID
+```
+- Service account roles (least privilege starting point)
+```
+PROJECT_ID=your-project
+SA_EMAIL="cpaautomation-runner@$PROJECT_ID.iam.gserviceaccount.com"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:$SA_EMAIL" \
+  --role="roles/run.invoker"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:$SA_EMAIL" \
+  --role="roles/cloudtasks.enqueuer"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:$SA_EMAIL" \
+  --role="roles/pubsub.subscriber"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:$SA_EMAIL" \
+  --role="roles/pubsub.publisher"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:$SA_EMAIL" \
+  --role="roles/storage.objectAdmin"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:$SA_EMAIL" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+
+
+## Security and Data Management
+
+Authentication and authorization
+- Client-side: Firebase Auth issues ID tokens; frontend attaches Bearer tokens to API requests.
+- Backend verification: `dependencies/auth.py` initializes Firebase Admin using GOOGLE_APPLICATION_CREDENTIALS and verifies ID tokens via `firebase_admin.auth.verify_id_token`.
+- Route dependencies: `get_current_user_id`/`get_current_user_email` enforce authenticated requests; 401s on invalid/expired tokens.
+
+Webhook security
+- Stripe: `/api/webhooks/stripe` validates signatures using `STRIPE_WEBHOOK_SECRET` and `stripe.Webhook.construct_event`; rejects invalid signatures.
+- Gmail push (dev): `/api/webhooks/gmail-push` allows localhost or `Authorization: Bearer ${GMAIL_PUBSUB_DEV_TOKEN}`. For production, implement Google-signed JWT verification for Pub/Sub push.
+
+Secrets management
+- Local/dev: .env used by backend/main.py (dotenv). Do not commit secrets.
+- Production: store secrets in Secret Manager; mount as env vars or files (e.g., Firebase service account JSON at `/var/secrets/google/service-account.json`).
+- Encryption of stored OAuth tokens and sensitive data:
+  - Development: Fernet via `ENCRYPTION_KEY` (generated if missing in non-prod)
+  - Production: Google Cloud KMS (`KMS_KEY_RESOURCE_NAME`) with fallback to Fernet if lib not available
+
+Data handling and privacy
+- File storage: GCS bucket stores uploads/artifacts; temp uploads under `temp_uploads/` prefixed with user and timestamp.
+- Lifecycle and retention: `backend/gcs-lifecycle.json` example deletes `temp_uploads/` after 1 day; configure additional rules for artifacts as needed.
+- PII considerations: extracted data may include PII. Ensure IAM on buckets restricts access; prefer per-environment buckets and least-privileged service accounts.
+- In-transit encryption: HTTPS for all external endpoints; signed URLs used for direct uploads to GCS.
+- At-rest encryption: GCS and Cloud SQL default encryption; sensitive tokens encrypted at application layer via EncryptionService.
+
+IAM scopes and permissions
+- Service accounts should have minimal roles required:
+  - Cloud Run runtime SA: Cloud SQL Client, Secret Manager Accessor, Storage Object Admin (specific bucket), Cloud Tasks Enqueuer, Pub/Sub roles as needed
+  - Task services may need Drive API scope via user OAuth (drive.file) and Gmail readonly for central mailbox via service account
+- OAuth scopes:
+  - Google Drive: drive.file (create and manage files created by the app)
+  - Gmail (central mailbox): gmail.readonly for push processing
+
+Usage metering and billing
+- Usage events recorded per task (pages processed) in `usage_events`; cached totals in `usage_counters` for period UI.
+- Stripe usage reporting: maintenance tasks reconcile and mark events as `stripe_reported`.
+
+Compliance notes
+- Access logs: retain Cloud Logging for API/task services; review access to webhooks and sensitive operations.
+- Data residency: ensure project and bucket regions meet organizational requirements; configure CLOUD_RUN_REGION and GCS bucket region appropriately.
+- Data deletion: support deletion of jobs and source files; scheduled cleanup tasks handle temp data and abandoned artifacts.
+
+## Reference Appendix
+
+Data model overview (key tables)
+- Users and integrations
+  - users: Firebase-linked profile (id/email/display_name)
+  - integration_accounts: Google account linkage and tokens (encrypted)
+- Templates and data types
+  - data_types: canonical field types (name/display/json format)
+  - system_prompts: system-level AI prompts
+  - templates, template_fields: reusable extraction templates
+- Jobs and runs
+  - extraction_jobs: top-level job (name, user_id, config_step)
+  - job_runs: one execution; supports append via append_from_run_id and result_set_index
+  - job_fields: field configuration captured per run
+  - source_files: uploaded/imported files (original_path, file_type, page_count, source_type)
+- Tasks and results
+  - extraction_tasks: unit of work (processing_mode, status, result_set_index)
+  - source_files_to_tasks: many-to-many linking files to tasks
+  - extraction_results: structured JSON results per task
+- Exports and automations
+  - job_exports: CSV/XLSX to download/Drive with canonical refs
+  - automations, automation_runs, automation_processed_messages: Gmail-triggered processing
+- Billing and usage
+  - subscription_plans, billing_accounts
+  - usage_events (authoritative page counts, stripe_reported), usage_counters (cached totals)
+
+API surfaces
+- Interactive API docs: /api/docs (OpenAPI JSON at /api/openapi.json)
+- Major groups
+  - /api/jobs: create/list, files (upload/gdrive/gmail), runs, results, export, export-refs
+  - /api/extraction: legacy endpoints retained; new flow uses /api/jobs
+  - /api/integrations: Google OAuth/Drive/Gmail helpers
+  - /api/automations: CRUD and execution
+  - /api/stripe, /api/billing: subscription and usage
+  - /api/webhooks: stripe, gmail-push
+- Frontend types
+  - Generated types: lib/api-types.ts (via openapi-typescript)
+  - Typed client helpers: lib/api.ts
+
+Environment variables (summary)
+- Core
+  - ENVIRONMENT, LOG_LEVEL, INIT_DB_AT_STARTUP
+  - DATABASE_URL
+- Google Cloud and AI
+  - GOOGLE_CLOUD_PROJECT_ID, GOOGLE_CLOUD_LOCATION
+  - GOOGLE_APPLICATION_CREDENTIALS, GCS_BUCKET_NAME, GCS_TEMP_FOLDER
+- OAuth/Integrations
+  - GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
+  - GMAIL_PUBSUB_TOPIC, GMAIL_PUBSUB_SUBSCRIPTION, GMAIL_WEBHOOK_URL, GMAIL_PUBSUB_DEV_TOKEN
+- Stripe
+  - STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+- Tasks/Scheduler
+  - CLOUD_RUN_REGION, TASK_EXTRACT_URL, TASK_IO_URL, TASK_AUTOMATION_URL, TASK_MAINTENANCE_URL
+- Security/crypto
+  - ENCRYPTION_KEY (dev), KMS_KEY_RESOURCE_NAME (prod)
+
+Glossary
+- FieldConfig: { name, data_type, prompt } defining what to extract
+- Processing Mode: strategy for extraction tasks; individual (per file) or combined (per folder)
+- Job vs Run: job holds configuration; run is a specific execution (append can copy from previous run)
+- Result Set Index: ordering and grouping index within a run (0 = original, 1+ = appended)
+- Export Ref: canonical record of exported files (e.g., Drive file IDs) per run/type
+
+FAQ and troubleshooting
+- Why do I get Invalid token? Ensure frontend attaches Firebase ID token; backend validates via Admin SDK and requires GOOGLE_APPLICATION_CREDENTIALS.
+- AI extraction fails with client not configured. Set GOOGLE_CLOUD_PROJECT_ID and GOOGLE_APPLICATION_CREDENTIALS; ensure Vertex access and region.
+- CSV/XLSX missing columns. Exporter unifies columns across results; verify extracted_data.columns populated by extraction.
+- Gmail push webhook unauthorized. In dev, set GMAIL_PUBSUB_DEV_TOKEN or call from localhost. In prod, implement Pub/Sub JWT verification.
+- Combined mode returns empty. Service falls back to individual mode; check schema/prompt and input file validity.
+
+## Contributing
+
+We welcome contributions that improve documentation, reliability, and developer experience.
+
+- Branching and PRs
+  - Create a feature branch from main, e.g., `docs/readme-improvements` or `feat/<area>`
+  - Open a pull request with a clear summary; link any related issues
+- Coding standards
+  - Frontend: TypeScript, React hooks, typed API calls (lib/api.ts + lib/api-types.ts)
+  - Backend: Pydantic models, FastAPI routers, SQLAlchemy sessions via core/database, Alembic migrations for schema changes
+- Types and API contracts
+  - After changing backend endpoints/models, regenerate OpenAPI types: `npm run generate-types`
+  - Ensure `lib/api-types.ts` compiles and update any affected frontend code
+- Local environment
+  - Follow Local Development section to run Postgres, apply migrations, and start services
+  - Update `.env.example` (if present) when adding new env vars
+- Tests and verification
+  - Validate OpenAPI docs at `/api/docs`
+  - Smoke test file uploads/imports, extraction, and exports locally before merging
+- Documentation
+  - Update README sections relevant to your change (e.g., new workflow or env vars)
+  - For complex changes, consider adding a page under `/docs` and linking it here
+
+Thank you for contributing to CPAAutomation!
