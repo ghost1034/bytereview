@@ -1,6 +1,6 @@
-# CPAAutomation
+# CPAAutomation (codename ByteReview)
 
-A web platform for extracting structured fields from documents using Google Gemini, with CSV/XLSX exports, Google Drive/Gmail integrations, and automation via Gmail attachment triggers. Built with Next.js (frontend) and FastAPI (backend), using Firebase for authentication, PostgreSQL for persistence, and Google Cloud (Run, Tasks, Scheduler, GCS, Pub/Sub) for infrastructure.
+A web platform for extracting structured fields from documents using LLMs (default Google Gemini), with CSV/XLSX exports, Google Drive/Gmail integrations, and automation via Gmail attachment triggers. Built with Next.js (frontend) and FastAPI (backend), using Firebase for authentication, PostgreSQL for persistence, and Google Cloud (Run, Tasks, Scheduler, GCS, Pub/Sub) for infrastructure.
 
 Table of contents
 - [Overview](#overview)
@@ -26,7 +26,7 @@ CPAAutomation lets users define extraction templates composed of fields (name, d
 Key technologies
 - Frontend: Next.js, React, Tailwind, shadcn/ui, Firebase Auth client
 - Backend: FastAPI, SQLAlchemy/Alembic, Firebase Admin token verification
-- AI: Google Gemini via google-genai (Vertex)
+- AI: Model-agnostic LLMs. Default: Google Gemini via google-genai (Vertex AI)
 - Storage/Infra: Google Cloud Storage, Cloud Run, Cloud Tasks, Cloud Scheduler, Pub/Sub (Gmail push)
 - Database: PostgreSQL
 - Billing: Stripe (subscriptions and metered usage)
@@ -47,7 +47,7 @@ Key technologies
 
 - Storage and AI
   - Google Cloud Storage (GCS) stores uploads and artifacts.
-  - AI extraction uses Google Gemini (google-genai) with GCS URIs for document inputs.
+  - AI extraction uses a pluggable LLM interface. Default provider is Google Gemini (google-genai) with GCS URIs for document inputs.
 
 - Background processing
   - Cloud Run Task services: extract, io, automation, maintenance.
@@ -65,36 +65,36 @@ Key technologies
 ### Architecture Diagram
 ```mermaid
 flowchart LR
-    subgraph Client
-      U[User (Web)] --> N[Next.js Frontend]
-    end
+  subgraph Client
+    U["User (Web)"] --> N["Next.js Frontend"]
+  end
 
-    subgraph Backend
-      N -->|/api/*| A[FastAPI API]
-      A -->|JWT verify| F[Firebase Admin]
-      A -->|SQLAlchemy| P[(PostgreSQL)]
-      A -->|files/artifacts| GCS[(Google Cloud Storage)]
-      A -->|enqueue tasks| CT[Cloud Tasks]
-      A -->|webhooks| WH[Webhook Handlers]
-    end
+  subgraph Backend
+    N -->|/api/*| A["FastAPI API"]
+    A -->|JWT verify| F["Firebase Admin"]
+    A -->|SQLAlchemy| P[(PostgreSQL)]
+    A -->|files/artifacts| GCS[(Google Cloud Storage)]
+    A -->|enqueue tasks| CT["Cloud Tasks"]
+    A -->|webhooks| WH["Webhook Handlers"]
+  end
 
-    subgraph Task Services (Cloud Run)
-      CT --> T1[Extract Task Service]
-      CT --> T2[IO Task Service]
-      CT --> T3[Automation Task Service]
-      CT --> T4[Maintenance Task Service]
-      T1 --> GCS
-      T1 --> GEM[Gemini (google-genai)]
-      T2 --> GD[Google Drive API]
-      T3 --> GM[Gmail API]
-      T4 --> STR[Stripe API]
-      T4 --> SCHED[Cloud Scheduler]
-    end
+  subgraph "Task Services (Cloud Run)"
+    CT --> T1["Extract Task Service"]
+    CT --> T2["IO Task Service"]
+    CT --> T3["Automation Task Service"]
+    CT --> T4["Maintenance Task Service"]
+    T1 --> GCS
+    T1 --> LLM["LLM Provider"]
+    T2 --> GD["Google Drive API"]
+    T3 --> GM["Gmail API"]
+    T4 --> STR["Stripe API"]
+    T4 --> SCHED["Cloud Scheduler"]
+  end
 
-    subgraph Integrations
-      WH <-->|push| PUBSUB[Pub/Sub (Gmail push)]
-      A --> STRIPE[Stripe (billing)]
-    end
+  subgraph Integrations
+    WH <-->|push| PUBSUB["Pub/Sub (Gmail push)"]
+    A --> STRIPE["Stripe (billing)"]
+  end
 ```
 
 ## Core Workflows
@@ -211,8 +211,9 @@ This section details how we transform files into structured results, including c
   - Combined mode: `AIExtractionService.create_combined_json_schema(...)` extends the schema with source attribution fields to map results back to files.
   - The schema encodes field names, types, and structure, ensuring outputs parse as JSON reliably.
 
-- AI calls to Gemini
-  - Client: `google-genai` (Vertex integration) initialized with `GOOGLE_CLOUD_PROJECT_ID` and `GOOGLE_CLOUD_LOCATION`.
+- AI calls (pluggable)
+  - The extraction service invokes the configured LLM provider through a pluggable interface.
+  - Client (default): `google-genai` (Vertex integration) initialized with `GOOGLE_CLOUD_PROJECT_ID` and `GOOGLE_CLOUD_LOCATION`.
   - Model: `gemini-2.5-pro` (default).
   - Inputs: list of file parts built from GCS URIs (`types.Part.from_uri(uri, mime_type)`), plus a system prompt derived from field configuration.
   - Individual processing: one file per request; results may be a single object or array of objects.
@@ -240,16 +241,16 @@ Mermaid: file extraction
 sequenceDiagram
   participant EX as Extract Task Service
   participant GCS as GCS
-  participant GEM as Gemini (google-genai)
+  participant LLM as LLM Provider
   participant DB as Postgres
 
   EX->>DB: read JobRun + SourceFiles
   EX->>EX: build JSON schema from FieldConfig/DataTypes
   EX->>GCS: construct gs:// URIs for files
-  EX->>GEM: request(model=gemini-2.5-pro, schema, gs:// URIs)
-  GEM-->>EX: structured JSON results
+  EX->>LLM: request(model=gemini-2.5-pro, schema, gs:// URIs)
+  LLM-->>EX: structured JSON results
   EX->>DB: write ExtractionTask/ExtractionResult, update statuses
-  EX->>DB: record UsageEvent; update UsageCounter
+  EX->>DB: record UsageEvent, update UsageCounter
 ```
 
 ### Exports
@@ -355,7 +356,7 @@ Mermaid: automation trigger flow
 sequenceDiagram
   participant GM as Gmail
   participant PUB as Pub/Sub
-  participant WH as FastAPI /api/webhooks/gmail-push
+  participant WH as "FastAPI /api/webhooks/gmail-push"
   participant DB as Postgres
   participant CT as Cloud Tasks
   participant AUTO as Automation Task Service
@@ -364,13 +365,13 @@ sequenceDiagram
 
   GM-->>PUB: push notification
   PUB-->>WH: HTTP push body
-  WH->>DB: process_history_with_cursor(); find new messages
+  WH->>DB: process_history_with_cursor(), find new messages
   WH->>DB: find automations with trigger_type=gmail_attachment
   WH->>CT: enqueue automation processing (per matched email)
   CT-->>AUTO: deliver automation task
   AUTO->>CT: enqueue import_gmail_attachments (job/run)
   CT-->>IO: deliver import task
-  IO->>DB: create SourceFiles; store blobs in GCS
+  IO->>DB: create SourceFiles, store blobs in GCS
   IO->>CT: enqueue extraction for run
   CT-->>EX: deliver extract task
   EX->>DB: write results, usage
@@ -522,7 +523,7 @@ Troubleshooting
   - Provide a test secret key in .env for local
 - Google credentials / AI errors
   - Set GOOGLE_CLOUD_PROJECT_ID and GOOGLE_APPLICATION_CREDENTIALS (service account with required scopes)
-  - For Gemini via google-genai with Vertex, ensure project/location are correct
+  - For the default Gemini provider via google-genai with Vertex, ensure project/location are correct
 - CORS
   - Backend allows http://localhost:3000 in local; verify ENVIRONMENT and allowed_origins in backend/main.py
 - Types not generated
