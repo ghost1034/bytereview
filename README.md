@@ -551,8 +551,9 @@ Environments and services
 - Pub/Sub topics/subscriptions:
   - Gmail push topic/subscription for webhook `/api/webhooks/gmail-push`
 - GCS buckets:
-  - Primary data bucket (e.g., cpaautomation-files-<env>) and temp folder (temp_uploads/)
-  - Lifecycle rule example in `backend/gcs-lifecycle.json` deletes temp_uploads after 1 day
+  - Primary data bucket (e.g., cpaautomation-files-<env>)
+  - Object naming: `jobs/{jobId}/...` and `jobs/{jobId}/runs/{runId}/...`
+  - Lifecycle: see `backend/gcs-lifecycle.json` as a template and adjust prefixes to your retention policy (e.g., prune transient artifacts after N days)
 
 IAM and identities
 - Service accounts
@@ -732,8 +733,8 @@ Secrets management
   - Production: Google Cloud KMS (`KMS_KEY_RESOURCE_NAME`) with fallback to Fernet if lib not available
 
 Data handling and privacy
-- File storage: GCS bucket stores uploads/artifacts; temp uploads under `temp_uploads/` prefixed with user and timestamp.
-- Lifecycle and retention: `backend/gcs-lifecycle.json` example deletes `temp_uploads/` after 1 day; configure additional rules for artifacts as needed.
+- File storage: GCS bucket stores uploads and artifacts using object names like `jobs/{jobId}/...` and `jobs/{jobId}/runs/{runId}/...`.
+- Lifecycle and retention: use `backend/gcs-lifecycle.json` as a template and adjust its `matchesPrefix` to target transient artifacts (e.g., intermediate conversions) per your retention policy.
 - PII considerations: extracted data may include PII. Ensure IAM on buckets restricts access; prefer per-environment buckets and least-privileged service accounts.
 - In-transit encryption: HTTPS for all external endpoints; signed URLs used for direct uploads to GCS.
 - At-rest encryption: GCS and Cloud SQL default encryption; sensitive tokens encrypted at application layer via EncryptionService.
