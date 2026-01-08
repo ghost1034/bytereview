@@ -43,9 +43,10 @@ interface EnhancedFileUploadProps {
   onBack?: () => void
   readOnly?: boolean
   isLatestSelected?: boolean
+  hideFooter?: boolean
 }
 
-export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack, readOnly = false, isLatestSelected = true }: EnhancedFileUploadProps) {
+export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack, readOnly = false, isLatestSelected = true, hideFooter = false }: EnhancedFileUploadProps) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [files, setFiles] = useState<JobFileInfo[]>([])
@@ -1056,50 +1057,52 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
         </Card>
       )}
 
-      {/* Navigation - Always visible */}
-      <div className="flex justify-between">
-        {onBack && (
-          <Button variant="outline" onClick={onBack}>
-            Back
-          </Button>
-        )}
-        
-        <div className="flex-1" />
-        
-        <Button
-          onClick={async () => {
-            // Get only processable files from the backend for data extraction
-            try {
-              const data = await apiClient.getJobFiles(jobId, { processable: true, runId })
-              onFilesReady(data.files || [])
-            } catch (error) {
-              console.error('Error getting processable files:', error)
-              // Fallback to client-side filtering if API call fails
-              const processableFiles = files.filter(file => {
-                const filename = file.original_filename?.toLowerCase() || ''
-                return !filename.endsWith('.zip') && 
-                       !filename.endsWith('.7z') && 
-                       !filename.endsWith('.rar')
-              })
-              onFilesReady(processableFiles)
-            }
-          }}
-          disabled={!allFilesReady}
-          className="min-w-[200px]"
-        >
-          {allFilesReady ? (
-            <>
-              <CheckCircle className="w-4 h-4 mr-2" />
-              {files.length === 0 ? 'Continue (No Files)' : 'Continue to Configuration'}
-            </>
-          ) : (
-            <>
-              <Clock className="w-4 h-4 mr-2" />
-              Waiting for files to be ready...
-            </>
+      {/* Navigation - Hidden when hideFooter is true */}
+      {!hideFooter && (
+        <div className="flex justify-between">
+          {onBack && (
+            <Button variant="outline" onClick={onBack}>
+              Back
+            </Button>
           )}
-        </Button>
-      </div>
+
+          <div className="flex-1" />
+
+          <Button
+            onClick={async () => {
+              // Get only processable files from the backend for data extraction
+              try {
+                const data = await apiClient.getJobFiles(jobId, { processable: true, runId })
+                onFilesReady(data.files || [])
+              } catch (error) {
+                console.error('Error getting processable files:', error)
+                // Fallback to client-side filtering if API call fails
+                const processableFiles = files.filter(file => {
+                  const filename = file.original_filename?.toLowerCase() || ''
+                  return !filename.endsWith('.zip') &&
+                         !filename.endsWith('.7z') &&
+                         !filename.endsWith('.rar')
+                })
+                onFilesReady(processableFiles)
+              }
+            }}
+            disabled={!allFilesReady}
+            className="min-w-[200px]"
+          >
+            {allFilesReady ? (
+              <>
+                <CheckCircle className="w-4 h-4 mr-2" />
+                {files.length === 0 ? 'Continue (No Files)' : 'Continue to Configuration'}
+              </>
+            ) : (
+              <>
+                <Clock className="w-4 h-4 mr-2" />
+                Waiting for files to be ready...
+              </>
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

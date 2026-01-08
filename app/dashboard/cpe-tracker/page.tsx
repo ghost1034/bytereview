@@ -349,6 +349,7 @@ export default function CpeTrackerPage() {
                       onFilesReady={handleFilesReady}
                       readOnly={isProcessing}
                       isLatestSelected={true}
+                      hideFooter={true}
                     />
                   </div>
                   <div className="border-t p-4">
