@@ -262,20 +262,21 @@ async def get_job_progress(
 async def add_files_to_job(
     job_id: str,
     files: List[UploadFile] = File(...),
-    user_id: str = Depends(get_current_user_id)
+    user_id: str = Depends(get_current_user_id),
+    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)")
 ):
     """
-    Add more files to an existing job
+    Add more files to an existing job run
     Immediately extracts ZIP files via ARQ workers
     """
     try:
-        logger.info(f"Received request to add {len(files)} files to job {job_id} for user {user_id}")
-        
+        logger.info(f"Received request to add {len(files)} files to job {job_id} run {run_id or 'latest'} for user {user_id}")
+
         # Log file details
         for i, file in enumerate(files):
             logger.info(f"File {i+1}: {file.filename}, size: {file.size if hasattr(file, 'size') else 'unknown'}, type: {file.content_type}")
-        
-        uploaded_files = await job_service.add_files_to_job(user_id, job_id, files)
+
+        uploaded_files = await job_service.add_files_to_job(user_id, job_id, files, run_id=run_id)
         
         logger.info(f"Successfully added {len(uploaded_files)} files to job {job_id}")
         return {"files": uploaded_files, "message": f"Added {len(uploaded_files)} files"}
@@ -310,12 +311,13 @@ async def get_job_files(
 async def remove_file_from_job(
     job_id: str,
     file_id: str,
-    user_id: str = Depends(get_current_user_id)
+    user_id: str = Depends(get_current_user_id),
+    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)")
 ):
-    """Remove a file from a job (synchronous deletion for now)"""
+    """Remove a file from a job run (synchronous deletion for now)"""
     try:
-        logger.info(f"Removing file {file_id} from job {job_id}")
-        await job_service.remove_file_from_job(user_id, job_id, file_id)
+        logger.info(f"Removing file {file_id} from job {job_id} run {run_id or 'latest'}")
+        await job_service.remove_file_from_job(user_id, job_id, file_id, run_id=run_id)
         return {"message": "File removed successfully"}
     except ValueError as e:
         logger.warning(f"File {file_id} not found in job {job_id}: {e}")

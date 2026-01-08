@@ -367,33 +367,40 @@ export class ApiClient {
   }
 
   async addFilesToJob(
-    jobId: string, 
-    files: File[], 
+    jobId: string,
+    files: File[],
     onProgress?: (filePath: string, progress: number) => void,
-    onFileComplete?: (fileData: any, filePath: string) => void
+    onFileComplete?: (fileData: any, filePath: string) => void,
+    runId?: string
   ): Promise<{ files: any[] }> {
     const token = await this.getAuthToken()
-    
+
     // Upload files one by one to get real progress for each
     const uploadedFiles: any[] = []
-    
+
+    // Build URL with optional run_id query param
+    const params = new URLSearchParams()
+    if (runId) params.set('run_id', runId)
+    const queryString = params.toString()
+    const uploadUrl = `${this.baseURL}/api/jobs/${jobId}/files${queryString ? `?${queryString}` : ''}`
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
       const filePath = (file as any).webkitRelativePath || file.name
       console.log(`Uploading file ${i + 1}/${files.length}: ${filePath}`)
-      
+
       // Initialize progress for this file
       if (onProgress) {
         onProgress(filePath, 0)
       }
-      
+
       const formData = new FormData()
       formData.append('files', file)
 
       // Create XMLHttpRequest for progress tracking
       const uploadPromise = new Promise<any>((resolve, reject) => {
         const xhr = new XMLHttpRequest()
-        
+
         // Track upload progress
         xhr.upload.addEventListener('progress', (event) => {
           if (event.lengthComputable && onProgress) {
@@ -401,7 +408,7 @@ export class ApiClient {
             onProgress(filePath, progress)
           }
         })
-        
+
         xhr.addEventListener('load', () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
@@ -414,12 +421,12 @@ export class ApiClient {
             reject(new Error(`Upload failed with status ${xhr.status}`))
           }
         })
-        
+
         xhr.addEventListener('error', () => {
           reject(new Error('Network error during upload'))
         })
-        
-        xhr.open('POST', `${this.baseURL}/api/jobs/${jobId}/files`)
+
+        xhr.open('POST', uploadUrl)
         xhr.setRequestHeader('Authorization', `Bearer ${token}`)
         xhr.send(formData)
       })
@@ -447,8 +454,11 @@ export class ApiClient {
     return { files: uploadedFiles }
   }
 
-  async removeFileFromJob(jobId: string, fileId: string): Promise<void> {
-    await this.request(`/api/jobs/${jobId}/files/${fileId}`, {
+  async removeFileFromJob(jobId: string, fileId: string, runId?: string): Promise<void> {
+    const params = new URLSearchParams()
+    if (runId) params.set('run_id', runId)
+    const queryString = params.toString()
+    await this.request(`/api/jobs/${jobId}/files/${fileId}${queryString ? `?${queryString}` : ''}`, {
       method: 'DELETE',
     })
   }
@@ -707,6 +717,37 @@ export class ApiClient {
     return await response.json();
   }
 
+  // ===================================================================
+  // CPE Tracker endpoints
+  // ===================================================================
+
+  async getCpeStates(): Promise<CpeStatesListResponse> {
+    return this.request('/api/cpe/states')
+  }
+
+  async listCpeSheets(): Promise<CpeSheetsListResponse> {
+    return this.request('/api/cpe/sheets')
+  }
+
+  async createCpeSheet(templateId: string, name?: string): Promise<CreateCpeSheetResponse> {
+    return this.request('/api/cpe/sheets', {
+      method: 'POST',
+      body: JSON.stringify({ template_id: templateId, name })
+    })
+  }
+
+  async deleteCpeSheet(jobId: string): Promise<{ message: string }> {
+    return this.request(`/api/cpe/sheets/${jobId}`, {
+      method: 'DELETE'
+    })
+  }
+
+  async startCpeSheet(jobId: string): Promise<StartCpeSheetResponse> {
+    return this.request(`/api/cpe/sheets/${jobId}/start`, {
+      method: 'POST'
+    })
+  }
+
 }
 
 export const apiClient = new ApiClient()
@@ -809,4 +850,40 @@ export type FieldConfig = {
   name: string
   data_type: string
   prompt: string
+}
+
+// CPE Tracker types
+export interface CpeStateResponse {
+  template_id: string
+  name: string
+}
+
+export interface CpeStatesListResponse {
+  states: CpeStateResponse[]
+}
+
+export interface CpeSheetListItem {
+  job_id: string
+  name: string
+  state_name?: string
+  status: string
+  config_step: string
+  created_at: string
+  latest_run_id?: string
+}
+
+export interface CpeSheetsListResponse {
+  sheets: CpeSheetListItem[]
+  total: number
+}
+
+export interface CreateCpeSheetResponse {
+  job_id: string
+  run_id: string
+  message: string
+}
+
+export interface StartCpeSheetResponse {
+  active_run_id: string
+  message: string
 }

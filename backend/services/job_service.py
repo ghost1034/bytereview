@@ -1368,12 +1368,15 @@ class JobService:
         finally:
             db.close()
 
-    async def list_user_jobs(self, user_id: str, limit: int = 25, offset: int = 0, include_field_status: bool = False) -> JobListResponse:
+    async def list_user_jobs(self, user_id: str, limit: int = 25, offset: int = 0, include_field_status: bool = False, job_type: str = 'extraction') -> JobListResponse:
         """List jobs for a user with pagination, showing latest run status"""
         db = self._get_session()
         try:
-            # Get total count
-            total = db.query(ExtractionJob).filter(ExtractionJob.user_id == user_id).count()
+            # Get total count (filtered by job_type)
+            total = db.query(ExtractionJob).filter(
+                ExtractionJob.user_id == user_id,
+                ExtractionJob.job_type == job_type
+            ).count()
             
             # Create subquery for latest run per job
             latest_runs_subquery = db.query(
@@ -1398,7 +1401,8 @@ class JobService:
                         JobRun.created_at == latest_runs_subquery.c.latest_created_at
                     )
                 ).outerjoin(JobField, JobField.job_run_id == JobRun.id).filter(
-                    ExtractionJob.user_id == user_id
+                    ExtractionJob.user_id == user_id,
+                    ExtractionJob.job_type == job_type
                 ).group_by(
                     ExtractionJob.id, JobRun.status, JobRun.config_step, JobRun.created_at, JobRun.completed_at
                 ).order_by(
@@ -1436,11 +1440,12 @@ class JobService:
                         JobRun.created_at == latest_runs_subquery.c.latest_created_at
                     )
                 ).filter(
-                    ExtractionJob.user_id == user_id
+                    ExtractionJob.user_id == user_id,
+                    ExtractionJob.job_type == job_type
                 ).order_by(
                     ExtractionJob.created_at.desc()
                 ).limit(limit).offset(offset)
-                
+
                 jobs_with_runs = jobs_query.all()
                 
                 job_items = [

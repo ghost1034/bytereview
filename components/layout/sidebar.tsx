@@ -2,16 +2,17 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Home, 
-  Briefcase, 
-  FileText, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Home,
+  Briefcase,
+  FileText,
   Settings,
   LogOut,
   Plug,
-  Bot
+  Bot,
+  GraduationCap
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -39,6 +40,12 @@ export function Sidebar({ className }: SidebarProps) {
       href: '/dashboard/jobs',
       icon: Briefcase,
       current: pathname.startsWith('/dashboard/jobs')
+    },
+    {
+      name: 'CPE Tracker',
+      href: '/dashboard/cpe-tracker',
+      icon: GraduationCap,
+      current: pathname.startsWith('/dashboard/cpe-tracker')
     },
     {
       name: 'Templates',

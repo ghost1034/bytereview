@@ -59,20 +59,21 @@ class SystemPrompt(Base):
 class Template(Base):
     """User-created template for a specific kind of extraction"""
     __tablename__ = "templates"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)  # Nullable for public templates
     name = Column(String(255), nullable=False)
     description = Column(Text)  # Add description field
     is_public = Column(Boolean, nullable=False, default=False)  # Add is_public field
+    template_type = Column(String(50), nullable=False, default='extraction')  # 'extraction' or 'cpe'
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
-    
+
     # Relationships
     user = relationship("User", back_populates="templates")
     template_fields = relationship("TemplateField", back_populates="template", cascade="all, delete-orphan")
     job_runs = relationship("JobRun", back_populates="template")
-    
+
     __table_args__ = (
         {"schema": None}  # Ensure unique constraint on (user_id, name)
     )
@@ -95,17 +96,18 @@ class TemplateField(Base):
 class ExtractionJob(Base):
     """A single extraction job, representing one user session"""
     __tablename__ = "extraction_jobs"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255))  # User-friendly, nullable name
     user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    
+    job_type = Column(String(50), nullable=False, default='extraction')  # 'extraction' or 'cpe'
+
     # Activity and Concurrency Control
     last_active_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     version = Column(Integer, nullable=False, default=1)  # For optimistic locking
-    
+
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
-    
+
     # Relationships
     user = relationship("User", back_populates="extraction_jobs")
     job_runs = relationship("JobRun", back_populates="job", cascade="all, delete-orphan")
