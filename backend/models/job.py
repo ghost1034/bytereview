@@ -8,7 +8,7 @@ from datetime import datetime
 from enum import Enum
 
 # Export the enums for OpenAPI generation
-__all__ = ["JobStatus", "ProcessingMode", "FileStatus", "JobInitiateRequest", "JobInitiateResponse", "JobStartRequest", "JobStartResponse", "JobDetailsResponse", "JobListResponse", "JobProgressResponse", "JobResultsResponse", "JobRunListItem", "JobRunDetailsResponse", "JobRunCreateRequest", "JobRunCreateResponse", "JobRunListResponse", "ExportRef", "ExportRefsResponse"]
+__all__ = ["JobStatus", "ProcessingMode", "FileStatus", "JobInitiateRequest", "JobInitiateResponse", "JobStartRequest", "JobStartResponse", "JobDetailsResponse", "JobListResponse", "JobProgressResponse", "JobResultsResponse", "JobRunListItem", "JobRunDetailsResponse", "JobRunCreateRequest", "JobRunCreateResponse", "JobRunListResponse", "ExportRef", "ExportRefsResponse", "JobFileAllRunsInfo", "JobFilesAllRunsResponse"]
 
 class JobStatus(str, Enum):
     """Job status enumeration"""
@@ -86,6 +86,21 @@ class JobFileInfo(BaseModel):
     original_filename: str = Field(..., description="Original filename")
     file_size_bytes: int = Field(..., description="File size")
     status: FileStatus = Field(..., description="File processing status")
+
+class JobFileAllRunsInfo(BaseModel):
+    """Information about a file in a job, including run metadata (for all-runs listing)"""
+    id: str = Field(..., description="File identifier")
+    original_path: str = Field(..., description="Original file path")
+    original_filename: str = Field(..., description="Original filename")
+    file_size_bytes: int = Field(..., description="File size")
+    status: FileStatus = Field(..., description="File processing status")
+    job_run_id: str = Field(..., description="ID of the job run this file belongs to")
+    run_created_at: Optional[datetime] = Field(None, description="When the run was created")
+    run_status: Optional[str] = Field(None, description="Status of the run")
+
+class JobFilesAllRunsResponse(BaseModel):
+    """Response for listing files across all runs of a job"""
+    files: List[JobFileAllRunsInfo] = Field(..., description="Files from all runs")
 
 class JobFieldInfo(BaseModel):
     """Information about a job field"""

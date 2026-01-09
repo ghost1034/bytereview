@@ -27,7 +27,7 @@ from models.job import (
     JobFilesResponse, FileStatus,
     JobRunListResponse, JobRunDetailsResponse,
     JobRunCreateRequest, JobRunCreateResponse,
-    ExportRefsResponse
+    ExportRefsResponse, JobFilesAllRunsResponse
 )
 from pydantic import BaseModel
 import logging
@@ -305,6 +305,23 @@ async def get_job_files(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to get files for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get files: {str(e)}")
+
+@router.get("/{job_id}/files:all", response_model=JobFilesAllRunsResponse)
+async def get_job_files_all_runs(
+    job_id: str,
+    user_id: str = Depends(get_current_user_id),
+    processable: bool = Query(default=False, description="Only return files that can be processed for data extraction (excludes ZIP files)")
+):
+    """Get flat list of files across all runs for a job (used by CPE tracker)"""
+    try:
+        files = await job_service.get_job_files_all_runs(job_id, user_id=user_id, processable_only=processable)
+        return JobFilesAllRunsResponse(files=files)
+    except ValueError as e:
+        logger.warning(f"Job {job_id} not found for user {user_id}: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to get all-runs files for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get files: {str(e)}")
 
 @router.delete("/{job_id}/files/{file_id}")

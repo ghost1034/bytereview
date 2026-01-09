@@ -14,7 +14,8 @@ from models.job import (
     JobInitiateRequest, JobInitiateResponse, JobStartRequest, JobStartResponse,
     JobDetailsResponse, JobListResponse, JobProgressResponse, JobResultsResponse,
     JobStatus, ProcessingMode, FileUploadResponse, JobListItem, JobFieldInfo,
-    ExtractionTaskResult, JobFileInfo, FileStatus, TaskInfo, ExportRefsResponse, ExportRef
+    ExtractionTaskResult, JobFileInfo, FileStatus, TaskInfo, ExportRefsResponse, ExportRef,
+    JobFileAllRunsInfo
 )
 from models.db_models import (
     ExtractionJob, JobRun, SourceFile, JobField, ExtractionTask, SourceFileToTask,
@@ -1669,6 +1670,53 @@ class JobService:
             
         except Exception as e:
             logger.error(f"Failed to get files for job {job_id}: {e}")
+            raise
+        finally:
+            db.close()
+
+    async def get_job_files_all_runs(self, job_id: str, user_id: str, processable_only: bool = False) -> List[JobFileAllRunsInfo]:
+        """Get flat list of files across all runs for a job"""
+        db = self._get_session()
+        try:
+            # Verify job ownership
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id
+            ).first()
+            if not job:
+                raise ValueError(f"Job not found")
+
+            # Query all runs for this job, then all files for those runs
+            # Order by run created_at desc, then file path asc
+            query = (
+                db.query(SourceFile, JobRun)
+                .join(JobRun, SourceFile.job_run_id == JobRun.id)
+                .filter(JobRun.job_id == job_id)
+            )
+
+            if processable_only:
+                query = self._filter_processable_files(query)
+
+            query = query.order_by(JobRun.created_at.desc(), SourceFile.original_path.asc(), SourceFile.id)
+            results = query.all()
+
+            files = []
+            for source_file, job_run in results:
+                files.append(JobFileAllRunsInfo(
+                    id=str(source_file.id),
+                    original_filename=source_file.original_filename,
+                    original_path=source_file.original_path,
+                    file_size_bytes=source_file.file_size_bytes,
+                    status=FileStatus(source_file.status),
+                    job_run_id=str(job_run.id),
+                    run_created_at=job_run.created_at,
+                    run_status=job_run.status
+                ))
+
+            return files
+
+        except Exception as e:
+            logger.error(f"Failed to get all-runs files for job {job_id}: {e}")
             raise
         finally:
             db.close()

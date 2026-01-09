@@ -377,6 +377,7 @@ export default function CpeTrackerPage() {
                       readOnly={isProcessing || isPreparingNextRun}
                       isLatestSelected={true}
                       hideFooter={true}
+                      fileListScope="allRuns"
                     />
                   </div>
                   <div className="border-t p-4">

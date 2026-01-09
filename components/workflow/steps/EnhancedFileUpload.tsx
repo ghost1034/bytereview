@@ -31,7 +31,7 @@ import {
   Trash2
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { apiClient, type JobFileInfo, type FileStatus } from '@/lib/api'
+import { apiClient, type JobFileInfo, type FileStatus, type JobFileAllRunsInfo } from '@/lib/api'
 import { GoogleDrivePicker } from '@/components/integrations/GoogleDrivePicker'
 import { GmailPicker } from '@/components/integrations/GmailPicker'
 import { IntegrationPrompt } from '@/components/integrations/IntegrationBanner'
@@ -44,12 +44,18 @@ interface EnhancedFileUploadProps {
   readOnly?: boolean
   isLatestSelected?: boolean
   hideFooter?: boolean
+  fileListScope?: 'run' | 'allRuns'  // 'run' = show only current run's files (default), 'allRuns' = show files from all runs (CPE)
 }
 
-export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack, readOnly = false, isLatestSelected = true, hideFooter = false }: EnhancedFileUploadProps) {
+// Extended file info that includes job_run_id for all-runs mode
+interface DisplayFile extends JobFileInfo {
+  job_run_id?: string
+}
+
+export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack, readOnly = false, isLatestSelected = true, hideFooter = false, fileListScope = 'run' }: EnhancedFileUploadProps) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
-  const [files, setFiles] = useState<JobFileInfo[]>([])
+  const [files, setFiles] = useState<DisplayFile[]>([])
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
   const [dragOver, setDragOver] = useState(false)
@@ -64,12 +70,16 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
 
   // Helper function to invalidate job files queries
   const invalidateJobFiles = () => {
-    queryClient.invalidateQueries({ queryKey: ['job-files', jobId, runId] })
+    if (fileListScope === 'allRuns') {
+      queryClient.invalidateQueries({ queryKey: ['job-files-all', jobId] })
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['job-files', jobId, runId] })
+    }
   }
 
   // Helper function to sort files alphabetically by full path
   // Uses original_path (includes folder structure) for proper hierarchical sorting
-  const sortFilesByPath = (files: JobFileInfo[]): JobFileInfo[] => {
+  const sortFilesByPath = (files: DisplayFile[]): DisplayFile[] => {
     return [...files].sort((a, b) => {
       const pathA = (a.original_path || a.original_filename || '').toLowerCase()
       const pathB = (b.original_path || b.original_filename || '').toLowerCase()
@@ -161,7 +171,8 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
                     original_filename: data.filename,
                     original_path: data.original_path || data.filename,
                     file_size_bytes: data.file_size || 0,
-                    status: 'importing' as FileStatus
+                    status: 'importing' as FileStatus,
+                    job_run_id: runId
                   },
                   f => f.original_filename === data.filename || f.original_path === data.filename
                 ))
@@ -170,12 +181,13 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
 
             case 'import_completed':
               console.log(`Import completed: ${data.filename}`)
-              const importedFile: JobFileInfo = {
+              const importedFile: DisplayFile = {
                 id: data.file_id,
                 original_filename: data.filename,
                 original_path: data.original_path || data.filename,
                 file_size_bytes: data.file_size || 0,
-                status: data.status as FileStatus
+                status: data.status as FileStatus,
+                job_run_id: runId
               }
               
               setFiles(prev => {
@@ -215,12 +227,13 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
             // ZIP extraction events
             case 'files_extracted':
               console.log('ZIP extraction completed, adding extracted files')
-              const extractedFiles: JobFileInfo[] = data.files.map((file: any) => ({
+              const extractedFiles: DisplayFile[] = data.files.map((file: any) => ({
                 id: file.id,
                 original_filename: file.filename,
                 original_path: file.original_path,
                 file_size_bytes: file.file_size,
-                status: file.status as FileStatus
+                status: file.status as FileStatus,
+                job_run_id: runId
               }))
               
               setFiles(prev => {
@@ -348,18 +361,34 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
   // Load existing files function
   const loadExistingFiles = async () => {
     try {
-      // Load all files for display purposes (including ZIP files for transparency)
-      const data = await apiClient.getJobFiles(jobId, { runId })
-      setFiles(sortFilesByPath(data.files || []))
-      
+      let loadedFiles: DisplayFile[]
+
+      if (fileListScope === 'allRuns') {
+        // Load files from all runs for this job (CPE mode)
+        const data = await apiClient.getJobFilesAllRuns(jobId, { processable: false })
+        loadedFiles = (data.files || []).map(f => ({
+          ...f,
+          job_run_id: f.job_run_id
+        }))
+      } else {
+        // Load files from current run only (normal mode)
+        const data = await apiClient.getJobFiles(jobId, { runId })
+        loadedFiles = (data.files || []).map(f => ({
+          ...f,
+          job_run_id: runId  // Tag with current runId for consistency
+        }))
+      }
+
+      setFiles(sortFilesByPath(loadedFiles))
+
       // Check if there are processing files and setup SSE if needed
-      const hasProcessingFiles = (data.files || []).some(file => 
+      const hasProcessingFiles = loadedFiles.some(file =>
         file.status === 'unpacking' || file.status === 'importing'
       )
-      
+
       if (hasProcessingFiles && !eventSourceRef.current && !connectionAttemptedRef.current) {
         console.log('Processing files detected on load, setting up SSE connection')
-        if ((data.files || []).some(file => file.status === 'importing')) {
+        if (loadedFiles.some(file => file.status === 'importing')) {
           setHasTriggeredImports(true)
         }
         setupSSEConnection()
@@ -369,12 +398,15 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
     }
   }
 
-  // Load existing files when jobId or runId changes
+  // Load existing files when jobId, runId, or fileListScope changes
   useEffect(() => {
-    const key = `${jobId}:${runId || 'latest'}`
+    // In allRuns mode, key doesn't depend on runId since we show all runs
+    const key = fileListScope === 'allRuns'
+      ? `${jobId}:allRuns`
+      : `${jobId}:${runId || 'latest'}`
     if (jobId && loadedKeyRef.current !== key) {
       // On run change, close SSE and reset state to avoid showing stale data
-      if (loadedKeyRef.current && loadedKeyRef.current.split(':')[1] !== (runId || 'latest')) {
+      if (loadedKeyRef.current && loadedKeyRef.current !== key) {
         closeSSEConnection()
         setFiles([])
         setUploadProgress({})
@@ -382,7 +414,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
       loadedKeyRef.current = key
       loadExistingFiles()
     }
-  }, [jobId, runId])
+  }, [jobId, runId, fileListScope])
 
   // Helper function to check if a file is a system file
   const isSystemFile = (fileName: string): boolean => {
@@ -401,7 +433,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
   }
 
   // Helper function to update or add files while maintaining alphabetical order
-  const updateOrAddFile = (files: JobFileInfo[], newFile: JobFileInfo, matchCondition: (f: JobFileInfo) => boolean) => {
+  const updateOrAddFile = (files: DisplayFile[], newFile: DisplayFile, matchCondition: (f: DisplayFile) => boolean) => {
     const existingIndex = files.findIndex(matchCondition)
     if (existingIndex !== -1) {
       // Update existing file in place
@@ -481,12 +513,13 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
       // Don't set up SSE connection yet - we'll do it only if there are ZIP files
 
       // Add files to the list immediately with uploading status
-      const tempFiles: JobFileInfo[] = validFiles.map((f: any, index: number) => ({
+      const tempFiles: DisplayFile[] = validFiles.map((f: any, index: number) => ({
         id: `temp-${Date.now()}-${index}`,
         original_filename: f.name,
         original_path: f.webkitRelativePath || f.name,
         file_size_bytes: f.size,
-        status: 'uploading' as FileStatus
+        status: 'uploading' as FileStatus,
+        job_run_id: runId  // Tag with current runId for all-runs mode
       }))
       
       setFiles(prev => sortFilesByPath([...prev, ...tempFiles]))
@@ -517,7 +550,8 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
                 original_filename: fileData.filename,
                 original_path: filePath, // Keep the original path from upload
                 file_size_bytes: fileData.file_size,
-                status: fileData.status as FileStatus
+                status: fileData.status as FileStatus,
+                job_run_id: runId  // Tag with current runId for all-runs mode
               }
             }
             return file
@@ -999,16 +1033,19 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {getStatusBadge(file.status)}
                     
-                    {/* Delete button - only show for uploaded/unpacked files and when not readOnly */}
-                    {(file.status === 'uploaded' || file.status === 'unpacked') && !readOnly && (
+                    {/* Delete button - only show for uploaded/unpacked files, when not readOnly,
+                        and in allRuns mode only for files from current run */}
+                    {(file.status === 'uploaded' || file.status === 'unpacked') &&
+                     !readOnly &&
+                     (fileListScope !== 'allRuns' || file.job_run_id === runId) && (
                       <>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemoveFile(file.id)}
                           className={`p-1 h-8 w-8 ${
-                            file.status === 'failed' 
-                              ? 'text-red-500 hover:text-red-700' 
+                            file.status === 'failed'
+                              ? 'text-red-500 hover:text-red-700'
                               : 'text-red-500 hover:text-red-700'
                           }`}
                         >

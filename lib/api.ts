@@ -345,9 +345,18 @@ export class ApiClient {
     if (options?.runId) {
       searchParams.set('run_id', options.runId)
     }
-    
+
     const query = searchParams.toString()
     return this.request(`/api/jobs/${jobId}/files${query ? `?${query}` : ''}`)
+  }
+
+  async getJobFilesAllRuns(jobId: string, options?: { processable?: boolean }): Promise<JobFilesAllRunsResponse> {
+    const searchParams = new URLSearchParams()
+    if (options?.processable) {
+      searchParams.set('processable', 'true')
+    }
+    const query = searchParams.toString()
+    return this.request(`/api/jobs/${jobId}/files:all${query ? `?${query}` : ''}`)
   }
 
   // Job Runs endpoints
@@ -793,6 +802,22 @@ export type JobFieldConfig = components['schemas']['JobFieldConfig']
 export type JobListItem = components['schemas']['JobListItem']
 export type JobFileInfo = components['schemas']['JobFileInfo']
 export type FileStatus = components['schemas']['FileStatus']
+
+// All-runs file info (for CPE tracker) - manual type until OpenAPI is regenerated
+export interface JobFileAllRunsInfo {
+  id: string
+  original_path: string
+  original_filename: string
+  file_size_bytes: number
+  status: FileStatus
+  job_run_id: string
+  run_created_at?: string
+  run_status?: string
+}
+
+export interface JobFilesAllRunsResponse {
+  files: JobFileAllRunsInfo[]
+}
 
 // Job Runs component types
 export type JobRunListItem = components['schemas']['JobRunListItem']
