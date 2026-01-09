@@ -52,6 +52,8 @@ export default function CpeTrackerPage() {
   const [jobToDelete, setJobToDelete] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [activeRunId, setActiveRunId] = useState<string | undefined>()
+  const [processingRunId, setProcessingRunId] = useState<string | undefined>()
+  const [isPreparingNextRun, setIsPreparingNextRun] = useState(false)
 
   // Queries
   const { data: statesData, isLoading: statesLoading } = useCpeStates()
@@ -78,28 +80,52 @@ export default function CpeTrackerPage() {
   }, [selectedJobId, sheetsData, router])
 
   // Update activeRunId when sheet changes
+  // Only sync when not processing to avoid race conditions
   useEffect(() => {
-    if (selectedSheet?.latest_run_id) {
+    if (!isProcessing && !isPreparingNextRun && selectedSheet?.latest_run_id) {
       setActiveRunId(selectedSheet.latest_run_id)
     }
-  }, [selectedSheet])
+  }, [selectedSheet, isProcessing, isPreparingNextRun])
 
   // Poll for job status when processing
   useEffect(() => {
     if (!isProcessing || !selectedJobId) return
 
     const pollInterval = setInterval(async () => {
-      await refetchJobDetails()
-      const status = jobDetails?.status
+      // Use the return value from refetch to get fresh data (avoid stale closure)
+      const { data: freshData } = await refetchJobDetails()
+      const status = freshData?.status
       if (status === 'completed' || status === 'failed' || status === 'partially_completed') {
+        // Keep uploads blocked while preparing next run
+        setIsPreparingNextRun(true)
+
+        try {
+          // Create next append run so new uploads go to the right place
+          const newRun = await apiClient.createJobRun(selectedJobId, {
+            clone_from_run_id: processingRunId ?? activeRunId,
+            append_results: true
+          })
+
+          // Switch to new run before re-enabling uploads
+          setActiveRunId(newRun.run_id)
+        } catch (error) {
+          console.error('Failed to create next run:', error)
+          // Even if this fails, we need to clear processing state
+        }
+
+        // Clear processing state
         setIsProcessing(false)
+        setProcessingRunId(undefined)
+        setIsPreparingNextRun(false)
+
+        // Refresh UI data
         await refetchSheets()
         queryClient.invalidateQueries({ queryKey: ['job-results', selectedJobId] })
       }
     }, 2000)
 
     return () => clearInterval(pollInterval)
-  }, [isProcessing, selectedJobId, jobDetails?.status, refetchJobDetails, refetchSheets, queryClient])
+  }, [isProcessing, selectedJobId, processingRunId, activeRunId, refetchJobDetails, refetchSheets, queryClient])
 
   const handleCreateSheet = async (templateId: string) => {
     try {
@@ -151,6 +177,7 @@ export default function CpeTrackerPage() {
       setIsProcessing(true)
       const result = await startSheet.mutateAsync(selectedJobId)
       setActiveRunId(result.active_run_id)
+      setProcessingRunId(result.active_run_id)
       toast({
         title: 'Processing Started',
         description: result.message
@@ -347,7 +374,7 @@ export default function CpeTrackerPage() {
                       jobId={selectedJobId}
                       runId={activeRunId}
                       onFilesReady={handleFilesReady}
-                      readOnly={isProcessing}
+                      readOnly={isProcessing || isPreparingNextRun}
                       isLatestSelected={true}
                       hideFooter={true}
                     />
@@ -356,12 +383,12 @@ export default function CpeTrackerPage() {
                     <Button
                       className="w-full"
                       onClick={handleStart}
-                      disabled={isProcessing || startSheet.isPending}
+                      disabled={isProcessing || isPreparingNextRun || startSheet.isPending}
                     >
-                      {isProcessing || startSheet.isPending ? (
+                      {isProcessing || isPreparingNextRun || startSheet.isPending ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Processing...
+                          {isPreparingNextRun ? 'Preparing...' : 'Processing...'}
                         </>
                       ) : (
                         'Start Extraction'

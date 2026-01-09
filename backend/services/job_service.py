@@ -1551,7 +1551,16 @@ class JobService:
             
             if not target_run:
                 raise ValueError(f"Job run not found")
-            
+
+            # Reject uploads to runs that have already been submitted/processed
+            # This prevents stale clients from uploading to completed runs
+            if target_run.config_step == 'submitted':
+                from fastapi import HTTPException
+                raise HTTPException(
+                    status_code=409,
+                    detail="This run is already submitted/completed. Create a new run to upload more files."
+                )
+
             uploaded_files = []
             storage_service = get_storage_service()
             
