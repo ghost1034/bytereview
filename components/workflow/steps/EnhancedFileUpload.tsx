@@ -24,7 +24,6 @@ import {
   AlertCircle,
   Clock,
   Cloud,
-  Mail,
   HardDrive,
   FolderOpen,
   Paperclip,
@@ -33,7 +32,6 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { apiClient, type JobFileInfo, type FileStatus, type JobFileAllRunsInfo } from '@/lib/api'
 import { GoogleDrivePicker } from '@/components/integrations/GoogleDrivePicker'
-import { GmailPicker } from '@/components/integrations/GmailPicker'
 import { IntegrationPrompt } from '@/components/integrations/IntegrationBanner'
 
 interface EnhancedFileUploadProps {
@@ -91,18 +89,6 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
   // Handle Google Drive file selection
   const handleDriveFiles = (driveFiles: any[]) => {
     if (driveFiles.length > 0) {
-      setHasTriggeredImports(true);
-      
-      // Setup SSE connection if not already active
-      if (!eventSourceRef.current) {
-        setupSSEConnection();
-      }
-    }
-  };
-
-  // Handle Gmail attachment selection
-  const handleGmailAttachments = (attachments: any[]) => {
-    if (attachments.length > 0) {
       setHasTriggeredImports(true);
       
       // Setup SSE connection if not already active
@@ -893,21 +879,18 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
 
       {/* Multi-source upload tabs */}
       <Tabs defaultValue="computer" className="w-full">
-        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 gap-2">
+        <TabsList className="grid w-full grid-cols-2 gap-2">
           <TabsTrigger value="computer" className="flex items-center gap-2">
             <HardDrive className="h-4 w-4" />
             Computer
           </TabsTrigger>
-          <TabsTrigger value="drive" className={`flex items-center gap-2 ${!isLatestSelected ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={!isLatestSelected}>
+          <TabsTrigger
+            value="drive"
+            className={`flex items-center gap-2 ${!isLatestSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={!isLatestSelected}
+          >
             <Cloud className="h-4 w-4" />
             Google Drive
-          </TabsTrigger>
-          <TabsTrigger value="gmail" className="flex items-center gap-2 opacity-50 cursor-not-allowed" disabled>
-            <Mail className="h-4 w-4" />
-            Personal Gmail
-            <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full ml-1">
-              Coming Soon
-            </span>
           </TabsTrigger>
         </TabsList>
 
@@ -1002,18 +985,6 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
           />
         </TabsContent>
 
-        <TabsContent value="gmail" className="mt-6">
-          <GmailPicker
-              onAttachmentsSelected={handleGmailAttachments}
-              jobId={jobId}
-              multiSelect
-              mimeTypes={[
-                'application/pdf',
-                'application/zip',
-                'application/x-zip-compressed'
-              ]}
-            />
-        </TabsContent>
       </Tabs>
 
       {/* Uploaded Files - Always visible regardless of tab */}
