@@ -78,7 +78,127 @@ class JobService:
             raise
         finally:
             db.close()
-    
+
+    def _clone_run_with_results(
+        self,
+        db: Session,
+        new_run: JobRun,
+        source_run: JobRun,
+        append_results: bool = False,
+        copy_exports: bool = False
+    ) -> int:
+        """
+        Clone configuration and optionally results from source_run into new_run.
+
+        Args:
+            db: Database session
+            new_run: The newly created JobRun to populate
+            source_run: The source JobRun to clone from
+            append_results: If True, copy completed tasks/results (for append mode)
+            copy_exports: If True, copy export references (for Drive exports)
+
+        Returns:
+            Number of tasks copied (0 if append_results=False)
+        """
+        # Set append reference if appending
+        if append_results:
+            new_run.append_from_run_id = source_run.id
+
+        # Copy template_id if not already set
+        if not new_run.template_id:
+            new_run.template_id = source_run.template_id
+
+        # Copy description if available and not already set
+        if not getattr(new_run, 'description', None) and getattr(source_run, 'description', None):
+            new_run.description = source_run.description
+
+        # Clone job fields
+        source_fields = db.query(JobField).filter(
+            JobField.job_run_id == source_run.id
+        ).order_by(JobField.display_order).all()
+
+        for source_field in source_fields:
+            new_field = JobField(
+                job_run_id=new_run.id,
+                field_name=source_field.field_name,
+                data_type_id=source_field.data_type_id,
+                ai_prompt=source_field.ai_prompt,
+                display_order=source_field.display_order
+            )
+            db.add(new_field)
+
+        logger.info(f"Cloned {len(source_fields)} fields from run {source_run.id} to new run {new_run.id}")
+
+        tasks_copied = 0
+
+        # Copy completed tasks/results if append mode
+        if append_results:
+            completed_tasks = db.query(ExtractionTask).filter(
+                ExtractionTask.job_run_id == source_run.id,
+                ExtractionTask.status == 'completed'
+            ).all()
+
+            for src_task in completed_tasks:
+                # Create new task with completed status and preserved timestamps
+                new_task = ExtractionTask(
+                    job_run_id=new_run.id,
+                    processing_mode=src_task.processing_mode,
+                    status='completed',
+                    error_message=None,
+                    created_at=src_task.created_at,
+                    processed_at=src_task.processed_at,
+                    result_set_index=(src_task.result_set_index or 0)
+                )
+                db.add(new_task)
+                db.flush()  # Get new_task.id
+
+                # Copy SourceFileToTask links (reuse original SourceFile rows)
+                src_links = db.query(SourceFileToTask).filter(
+                    SourceFileToTask.task_id == src_task.id
+                ).all()
+                for link in src_links:
+                    new_link = SourceFileToTask(
+                        source_file_id=link.source_file_id,
+                        task_id=new_task.id
+                    )
+                    db.add(new_link)
+
+                # Copy ExtractionResult
+                src_result = db.query(ExtractionResult).filter(
+                    ExtractionResult.task_id == src_task.id
+                ).first()
+                if src_result:
+                    new_result = ExtractionResult(
+                        task_id=new_task.id,
+                        extracted_data=src_result.extracted_data,
+                        processed_at=src_result.processed_at
+                    )
+                    db.add(new_result)
+
+                tasks_copied += 1
+
+            logger.info(f"Copied {tasks_copied} completed tasks from run {source_run.id} into new run {new_run.id}")
+
+            # Copy export references if requested (for Drive exports)
+            if copy_exports:
+                src_exports = db.query(JobExport).filter(
+                    JobExport.job_run_id == source_run.id,
+                    JobExport.dest_type.in_(['gdrive']),
+                    JobExport.file_type.in_(['csv', 'xlsx'])
+                ).all()
+                for src_exp in src_exports:
+                    new_exp = JobExport(
+                        job_run_id=new_run.id,
+                        dest_type=src_exp.dest_type,
+                        file_type=src_exp.file_type,
+                        status='completed',
+                        external_id=src_exp.external_id
+                    )
+                    db.add(new_exp)
+                logger.info(f"Copied {len(src_exports)} export references from run {source_run.id} into new run {new_run.id}")
+
+        return tasks_copied
+
     async def create_job_run(self, job_id: str, user_id: str, clone_from_run_id: str = None, template_id: str = None, append_results: bool = False) -> str:
         """Create a new job run, optionally cloning configuration from an existing run"""
         db = self._get_session()
@@ -120,95 +240,11 @@ class JobService:
             
             # Clone from source_run if available
             if source_run:
-                # If append requested, mark where we copied from
-                if append_results:
-                    new_run.append_from_run_id = source_run.id
-                # Copy template_id if not already set
-                if not new_run.template_id:
-                    new_run.template_id = source_run.template_id
-                # Copy description from source run if available and not already set
-                if not getattr(new_run, 'description', None) and getattr(source_run, 'description', None):
-                    new_run.description = source_run.description
-                
-                # Clone job fields
-                source_fields = db.query(JobField).filter(
-                    JobField.job_run_id == source_run.id
-                ).order_by(JobField.display_order).all()
-                
-                for source_field in source_fields:
-                    new_field = JobField(
-                        job_run_id=new_run.id,
-                        field_name=source_field.field_name,
-                        data_type_id=source_field.data_type_id,
-                        ai_prompt=source_field.ai_prompt,
-                        display_order=source_field.display_order
-                    )
-                    db.add(new_field)
-                
-                logger.info(f"Cloned {len(source_fields)} fields from run {source_run.id} to new run {new_run.id}")
-
-                # If append_results is true, copy completed tasks/results and export references
-                if append_results:
-                    # Copy completed tasks from source_run into new_run
-                    completed_tasks = db.query(ExtractionTask).filter(
-                        ExtractionTask.job_run_id == source_run.id,
-                        ExtractionTask.status == 'completed'
-                    ).all()
-
-                    tasks_copied = 0
-                    for src_task in completed_tasks:
-                        # Create new task in new run with completed status and preserved processing mode and timestamps
-                        new_task = ExtractionTask(
-                            job_run_id=new_run.id,
-                            processing_mode=src_task.processing_mode,
-                            status='completed',
-                            error_message=None,
-                            created_at=src_task.created_at,
-                            processed_at=src_task.processed_at,
-                            result_set_index=(src_task.result_set_index or 0)
-                        )
-                        db.add(new_task)
-                        db.flush()  # get new_task.id
-
-                        # Copy SourceFileToTask links, reusing the original SourceFile rows (avoid cloning to respect unique gcs_object_name)
-                        src_links = db.query(SourceFileToTask).filter(SourceFileToTask.task_id == src_task.id).all()
-                        for link in src_links:
-                            new_link = SourceFileToTask(
-                                source_file_id=link.source_file_id,  # reference original SourceFile
-                                task_id=new_task.id
-                            )
-                            db.add(new_link)
-
-                        # Copy ExtractionResult
-                        src_result = db.query(ExtractionResult).filter(ExtractionResult.task_id == src_task.id).first()
-                        if src_result:
-                            new_result = ExtractionResult(
-                                task_id=new_task.id,
-                                extracted_data=src_result.extracted_data,
-                                processed_at=src_result.processed_at
-                            )
-                            db.add(new_result)
-
-                        tasks_copied += 1
-
-                    logger.info(f"Copied {tasks_copied} completed tasks from run {source_run.id} into new run {new_run.id}")
-
-                    # Copy export references for Drive exports so new run updates same files
-                    src_exports = db.query(JobExport).filter(
-                        JobExport.job_run_id == source_run.id,
-                        JobExport.dest_type.in_(['gdrive']),
-                        JobExport.file_type.in_(['csv','xlsx'])
-                    ).all()
-                    for src_exp in src_exports:
-                        new_exp = JobExport(
-                            job_run_id=new_run.id,
-                            dest_type=src_exp.dest_type,
-                            file_type=src_exp.file_type,
-                            status='completed',
-                            external_id=src_exp.external_id
-                        )
-                        db.add(new_exp)
-                    logger.info(f"Copied {len(src_exports)} export references from run {source_run.id} into new run {new_run.id}")
+                self._clone_run_with_results(
+                    db, new_run, source_run,
+                    append_results=append_results,
+                    copy_exports=append_results  # Copy exports when appending
+                )
             else:
                 logger.info(f"No source run found to clone for new run {new_run.id}; proceeding with empty configuration")
             
@@ -767,10 +803,17 @@ class JobService:
                     .where(ExtractionJob.id == job_run.job_id)
                     .values(last_active_at=datetime.utcnow())
                 )
-                
-                # Ensure DB state is fully committed before sending completion event
+
+                # For CPE jobs, auto-create the next append run
+                if final_status in ('completed', 'partially_completed'):
+                    try:
+                        await self._create_next_cpe_run_if_needed(db, job_run)
+                    except Exception as e:
+                        logger.error(f"Failed to create next CPE run for job run {run_id}: {e}")
+
+                # Commit status change AND new CPE run atomically
                 db.commit()
-                
+
                 # Send job completion SSE event
                 try:
                     from services.sse_service import sse_manager
@@ -778,7 +821,7 @@ class JobService:
                     logger.info(f"Job run {run_id} completed - sent SSE event")
                 except Exception as e:
                     logger.warning(f"Failed to send job_run_completed SSE event: {e}")
-                
+
                 # Handle automation completion and exports when job run finishes
                 if final_status == 'completed':
                     try:
@@ -787,7 +830,7 @@ class JobService:
                         # Then complete automation runs (this will be handled by export completion)
                     except Exception as e:
                         logger.error(f"Failed to handle automation completion for job run {run_id}: {e}")
-            
+
             db.commit()
             
         except SQLAlchemyError as e:
@@ -796,7 +839,67 @@ class JobService:
             raise
         finally:
             db.close()
-    
+
+    async def _create_next_cpe_run_if_needed(self, db: Session, completed_run: JobRun):
+        """
+        Auto-create the next append run for CPE jobs when a run completes.
+        This ensures uploads work immediately without requiring page refresh.
+        Idempotent: safe to call multiple times (uses unique constraint).
+        """
+        # Check if this is a CPE job
+        job = db.query(ExtractionJob).filter(ExtractionJob.id == completed_run.job_id).first()
+        if not job or job.job_type != 'cpe':
+            return  # Only auto-create for CPE jobs
+
+        # Check if an append run already exists for this completed run
+        existing_append_run = db.query(JobRun).filter(
+            JobRun.job_id == completed_run.job_id,
+            JobRun.append_from_run_id == completed_run.id
+        ).first()
+
+        if existing_append_run:
+            logger.info(f"Append run already exists for CPE run {completed_run.id}")
+            return
+
+        # Check if a newer run already exists (created after the completed run)
+        newer_run = db.query(JobRun).filter(
+            JobRun.job_id == completed_run.job_id,
+            JobRun.created_at > completed_run.created_at
+        ).first()
+
+        if newer_run:
+            logger.info(f"Newer run already exists for CPE job {job.id}, skipping auto-create")
+            return
+
+        # Create the next append run
+        try:
+            new_run = JobRun(
+                job_id=job.id,
+                config_step='upload',
+                status='pending',
+                last_active_at=datetime.utcnow(),
+                template_id=completed_run.template_id
+            )
+            db.add(new_run)
+            db.flush()  # Get the run ID
+
+            # Clone configuration and results from completed run
+            self._clone_run_with_results(
+                db, new_run, completed_run,
+                append_results=True,
+                copy_exports=False  # CPE doesn't need export references
+            )
+
+            logger.info(f"Auto-created next CPE run {new_run.id} for completed run {completed_run.id}")
+
+        except Exception as e:
+            # Handle unique constraint violation (concurrent creation)
+            if 'ix_job_runs_unique_append_from' in str(e) or 'unique' in str(e).lower():
+                logger.info(f"Concurrent CPE run creation detected, another process created the run")
+                db.rollback()
+            else:
+                raise
+
     async def _complete_automation_runs_for_job_run(self, db: Session, job_run_id: str):
         """
         Mark all running automation runs as completed when a job run finishes

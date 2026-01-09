@@ -50,10 +50,7 @@ export default function CpeTrackerPage() {
   // State
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [jobToDelete, setJobToDelete] = useState<string | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
   const [activeRunId, setActiveRunId] = useState<string | undefined>()
-  const [processingRunId, setProcessingRunId] = useState<string | undefined>()
-  const [isPreparingNextRun, setIsPreparingNextRun] = useState(false)
 
   // Queries
   const { data: statesData, isLoading: statesLoading } = useCpeStates()
@@ -65,6 +62,10 @@ export default function CpeTrackerPage() {
     selectedJobId || undefined,
     activeRunId || selectedSheet?.latest_run_id
   )
+
+  // Derive processing state from server (not local state)
+  // This ensures the UI reflects the correct state even after page refresh
+  const isProcessing = selectedSheet?.status === 'in_progress'
 
   // Mutations
   const createSheet = useCreateCpeSheet()
@@ -80,52 +81,29 @@ export default function CpeTrackerPage() {
   }, [selectedJobId, sheetsData, router])
 
   // Update activeRunId when sheet changes
-  // Only sync when not processing to avoid race conditions
+  // Always sync to latest_run_id - the backend creates new runs on completion
   useEffect(() => {
-    if (!isProcessing && !isPreparingNextRun && selectedSheet?.latest_run_id) {
+    if (selectedSheet?.latest_run_id) {
       setActiveRunId(selectedSheet.latest_run_id)
     }
-  }, [selectedSheet, isProcessing, isPreparingNextRun])
+  }, [selectedSheet?.latest_run_id])
 
-  // Poll for job status when processing
+  // Poll for status updates when processing
+  // The backend auto-creates the next run on completion, we just need to refetch
   useEffect(() => {
     if (!isProcessing || !selectedJobId) return
 
     const pollInterval = setInterval(async () => {
-      // Use the return value from refetch to get fresh data (avoid stale closure)
-      const { data: freshData } = await refetchJobDetails()
-      const status = freshData?.status
-      if (status === 'completed' || status === 'failed' || status === 'partially_completed') {
-        // Keep uploads blocked while preparing next run
-        setIsPreparingNextRun(true)
-
-        try {
-          // Create next append run so new uploads go to the right place
-          const newRun = await apiClient.createJobRun(selectedJobId, {
-            clone_from_run_id: processingRunId ?? activeRunId,
-            append_results: true
-          })
-
-          // Switch to new run before re-enabling uploads
-          setActiveRunId(newRun.run_id)
-        } catch (error) {
-          console.error('Failed to create next run:', error)
-          // Even if this fails, we need to clear processing state
-        }
-
-        // Clear processing state
-        setIsProcessing(false)
-        setProcessingRunId(undefined)
-        setIsPreparingNextRun(false)
-
-        // Refresh UI data
-        await refetchSheets()
-        queryClient.invalidateQueries({ queryKey: ['job-results', selectedJobId] })
-      }
+      // Refetch sheets to get latest status and latest_run_id
+      // Backend creates new run on completion, so latest_run_id will change
+      await refetchSheets()
+      // Also refetch job details to update results display
+      await refetchJobDetails()
+      queryClient.invalidateQueries({ queryKey: ['job-results', selectedJobId] })
     }, 2000)
 
     return () => clearInterval(pollInterval)
-  }, [isProcessing, selectedJobId, processingRunId, activeRunId, refetchJobDetails, refetchSheets, queryClient])
+  }, [isProcessing, selectedJobId, refetchSheets, refetchJobDetails, queryClient])
 
   const handleCreateSheet = async (templateId: string) => {
     try {
@@ -174,16 +152,15 @@ export default function CpeTrackerPage() {
     if (!selectedJobId) return
 
     try {
-      setIsProcessing(true)
       const result = await startSheet.mutateAsync(selectedJobId)
       setActiveRunId(result.active_run_id)
-      setProcessingRunId(result.active_run_id)
+      // Refetch sheets to update status to 'in_progress'
+      await refetchSheets()
       toast({
         title: 'Processing Started',
         description: result.message
       })
     } catch (error: any) {
-      setIsProcessing(false)
       toast({
         title: 'Error',
         description: error.message || 'Failed to start processing',
@@ -374,22 +351,26 @@ export default function CpeTrackerPage() {
                       jobId={selectedJobId}
                       runId={activeRunId}
                       onFilesReady={handleFilesReady}
-                      readOnly={isProcessing || isPreparingNextRun}
+                      readOnly={isProcessing}
                       isLatestSelected={true}
                       hideFooter={true}
                       fileListScope="allRuns"
+                      onUploadConflict={() => {
+                        // Refetch sheets to get the latest run (backend auto-creates on completion)
+                        refetchSheets()
+                      }}
                     />
                   </div>
                   <div className="border-t p-4">
                     <Button
                       className="w-full"
                       onClick={handleStart}
-                      disabled={isProcessing || isPreparingNextRun || startSheet.isPending}
+                      disabled={isProcessing || startSheet.isPending}
                     >
-                      {isProcessing || isPreparingNextRun || startSheet.isPending ? (
+                      {isProcessing || startSheet.isPending ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          {isPreparingNextRun ? 'Preparing...' : 'Processing...'}
+                          Processing...
                         </>
                       ) : (
                         'Start Extraction'

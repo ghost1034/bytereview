@@ -45,6 +45,7 @@ interface EnhancedFileUploadProps {
   isLatestSelected?: boolean
   hideFooter?: boolean
   fileListScope?: 'run' | 'allRuns'  // 'run' = show only current run's files (default), 'allRuns' = show files from all runs (CPE)
+  onUploadConflict?: () => void  // Called when upload fails due to run being submitted/completed (409)
 }
 
 // Extended file info that includes job_run_id for all-runs mode
@@ -52,7 +53,7 @@ interface DisplayFile extends JobFileInfo {
   job_run_id?: string
 }
 
-export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack, readOnly = false, isLatestSelected = true, hideFooter = false, fileListScope = 'run' }: EnhancedFileUploadProps) {
+export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack, readOnly = false, isLatestSelected = true, hideFooter = false, fileListScope = 'run', onUploadConflict }: EnhancedFileUploadProps) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [files, setFiles] = useState<DisplayFile[]>([])
@@ -599,19 +600,36 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
         description: `Successfully uploaded ${result.files.length} files`
       })
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading files:', error)
       console.error('Error details:', {
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
         name: error instanceof Error ? error.name : undefined
       })
-      
-      toast({
-        title: "Upload failed",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive"
-      })
+
+      // Check for 409 Conflict (run already submitted/completed)
+      const is409 = error?.status === 409 ||
+                    error?.message?.includes('409') ||
+                    error?.message?.includes('submitted') ||
+                    error?.message?.includes('completed')
+
+      if (is409 && onUploadConflict) {
+        // Call the conflict handler to refresh state
+        onUploadConflict()
+        toast({
+          title: "Run completed",
+          description: "The current run has completed. Refreshing to the latest run...",
+        })
+        // Clear temp files
+        setFiles(prev => prev.filter(f => !f.id.startsWith('temp-')))
+      } else {
+        toast({
+          title: "Upload failed",
+          description: error instanceof Error ? error.message : "Unknown error",
+          variant: "destructive"
+        })
+      }
     } finally {
       setUploading(false)
     }
@@ -875,7 +893,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
 
       {/* Multi-source upload tabs */}
       <Tabs defaultValue="computer" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 gap-2">
           <TabsTrigger value="computer" className="flex items-center gap-2">
             <HardDrive className="h-4 w-4" />
             Computer
