@@ -40,9 +40,10 @@ async def get_cpe_states(
     """
     db = db_config.get_session()
     try:
+        # Include public CPE templates and user-owned private CPE templates
         templates = db.query(Template).filter(
             Template.template_type == 'cpe',
-            Template.is_public == True
+            (Template.is_public == True) | (Template.user_id == user_id)
         ).order_by(Template.name).all()
 
         states = [

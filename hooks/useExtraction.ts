@@ -83,10 +83,11 @@ export function useCreateTemplate() {
       description?: string
       fields: FieldConfig[]
       is_public?: boolean
+      template_type?: 'extraction' | 'cpe'
     }) => apiClient.createTemplate({
-      ...templateData,
-      is_public: templateData.is_public ?? false
-    }),
+      ...(templateData as any),
+      is_public: templateData.is_public ?? false,
+    } as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['templates', user?.uid] })
     },

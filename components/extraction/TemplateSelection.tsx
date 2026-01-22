@@ -21,7 +21,9 @@ export default function TemplateSelection({ selectedTemplate, onTemplateSelect }
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="custom">Custom Configuration</SelectItem>
-          {(typedTemplatesData as any)?.templates?.map((template: any) => (
+          {(typedTemplatesData as any)?.templates
+            ?.filter((template: any) => (template?.template_type ?? 'extraction') === 'extraction')
+            .map((template: any) => (
             <SelectItem key={template.id} value={template.id}>
               {template.name}
             </SelectItem>

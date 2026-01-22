@@ -22,6 +22,10 @@ export default function TemplateLibrary({
   const typedTemplatesData = templatesData as TemplatesResponse | undefined;
   const { toast } = useToast();
 
+  const extractionTemplates = ((typedTemplatesData as any)?.templates || []).filter(
+    (template: any) => (template?.template_type ?? 'extraction') === 'extraction'
+  );
+
   const handleDeleteTemplate = async (templateId: string) => {
     if (!confirm("Are you sure you want to delete this template?")) {
       return;
@@ -54,10 +58,9 @@ export default function TemplateLibrary({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {(typedTemplatesData as any)?.templates &&
-        (typedTemplatesData as any).templates.length > 0 ? (
-          (typedTemplatesData as any).templates.map((template: any) => (
-            <Card
+        {extractionTemplates.length > 0 ? (
+          extractionTemplates.map((template: any) => (
+              <Card
               key={template.id}
               className="hover:shadow-md transition-shadow"
             >
@@ -106,7 +109,7 @@ export default function TemplateLibrary({
                   </Button>
                 </div>
               </CardContent>
-            </Card>
+              </Card>
           ))
         ) : (
           <div className="col-span-full text-center py-8">

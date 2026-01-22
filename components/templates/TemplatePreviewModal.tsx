@@ -20,6 +20,7 @@ interface TemplatePreviewModalProps {
     fields: FieldConfig[];
     is_public: boolean;
     created_at: string;
+    template_type?: 'extraction' | 'cpe';
   } | null;
 }
 
@@ -37,11 +38,13 @@ export default function TemplatePreviewModal({
   const handleCopyTemplate = async () => {
     try {
       setIsCopying(true);
+      const templateType = template.template_type === 'cpe' ? 'cpe' : 'extraction';
       await createTemplateMutation.mutateAsync({
         name: template.name,
         description: template.description,
         fields: template.fields,
         is_public: false,
+        template_type: templateType,
       });
       toast({
         title: 'Template saved',
@@ -70,6 +73,9 @@ export default function TemplatePreviewModal({
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <span>{template.name}</span>
+                <Badge variant="secondary">
+                  {template.template_type === 'cpe' ? 'CPE' : 'Extraction'}
+                </Badge>
                 <Badge variant={template.is_public ? "default" : "outline"}>
                   {template.is_public ? (
                     <>

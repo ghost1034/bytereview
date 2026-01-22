@@ -2,8 +2,10 @@
 Data models for PDF extraction functionality
 """
 from pydantic import BaseModel, Field
-from typing import List, Optional, Any, Dict
+from typing import List, Optional, Any, Dict, Literal
 from datetime import datetime
+
+TemplateType = Literal['extraction', 'cpe']
 
 class FieldConfig(BaseModel):
     name: str = Field(..., description="Name of the field to extract")
@@ -48,12 +50,14 @@ class ExtractionTemplate(BaseModel):
     created_at: datetime
     updated_at: datetime
     is_public: bool = False
+    template_type: TemplateType = 'extraction'
 
 class TemplateCreateRequest(BaseModel):
     name: str = Field(..., min_length=1)
     description: Optional[str] = Field(None)
     fields: List[FieldConfig]
     is_public: bool = False
+    template_type: TemplateType = 'extraction'
 
 class TemplateUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, min_length=1)

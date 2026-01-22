@@ -143,7 +143,7 @@ export default function FieldConfigurationStep({
   const allTemplates = [
     ...(userTemplates?.templates || []),
     ...(publicTemplates?.templates || []),
-  ];
+  ].filter((t: any) => (t?.template_type ?? 'extraction') === 'extraction');
 
   const [selectedTemplate, setSelectedTemplate] = useState<string>(initialTemplateId || "");
   const [configurationMode, setConfigurationMode] = useState<

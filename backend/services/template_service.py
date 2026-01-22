@@ -41,7 +41,8 @@ class TemplateService:
         name: str, 
         fields: List[FieldConfig],
         description: Optional[str] = None,
-        is_public: bool = False
+        is_public: bool = False,
+        template_type: str = 'extraction'
     ) -> ExtractionTemplate:
         """Create a new extraction template"""
         db = self._get_session()
@@ -51,7 +52,8 @@ class TemplateService:
                 user_id=user_id if not is_public else None,  # Public templates have no user_id
                 name=name,
                 description=description,
-                is_public=is_public
+                is_public=is_public,
+                template_type=template_type
             )
             db.add(template)
             db.flush()  # Get the ID
@@ -81,7 +83,8 @@ class TemplateService:
                 created_by=template.user_id,  # Will be None for public templates
                 created_at=template.created_at,
                 updated_at=template.updated_at,
-                is_public=template.is_public
+                is_public=template.is_public,
+                template_type=template.template_type
             )
             
         except SQLAlchemyError as e:
@@ -121,7 +124,8 @@ class TemplateService:
                     created_by=template.user_id,  # Will be the actual user_id
                     created_at=template.created_at,
                     updated_at=template.updated_at,
-                    is_public=template.is_public
+                    is_public=template.is_public,
+                    template_type=template.template_type
                 ))
             
             return result
@@ -167,7 +171,8 @@ class TemplateService:
                 created_by=template.user_id,  # Will be None for public templates
                 created_at=template.created_at,
                 updated_at=template.updated_at,
-                is_public=template.is_public
+                is_public=template.is_public,
+                template_type=template.template_type
             )
             
         except SQLAlchemyError as e:
@@ -296,7 +301,8 @@ class TemplateService:
                     created_by=None,  # Public templates have no specific creator
                     created_at=template.created_at,
                     updated_at=template.updated_at,
-                    is_public=True
+                    is_public=True,
+                    template_type=template.template_type
                 ))
             
             return result

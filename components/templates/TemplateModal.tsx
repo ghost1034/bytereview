@@ -6,13 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useCreateTemplate, useUpdateTemplate } from '@/hooks/useExtraction';
 import FieldConfigurationEditor from '@/components/extraction/FieldConfigurationEditor';
-import { apiClient } from '@/lib/api';
 import type { FieldConfig } from '@/lib/api';
 
 interface TemplateModalProps {
@@ -24,7 +21,9 @@ interface TemplateModalProps {
     description?: string;
     fields: FieldConfig[];
     is_public: boolean;
+    template_type?: 'extraction' | 'cpe';
   } | null;
+  defaultTemplateType?: 'extraction' | 'cpe';
   dataTypes: Array<{
     id: string;
     display_name: string;
@@ -33,10 +32,10 @@ interface TemplateModalProps {
   dataTypesLoading: boolean;
 }
 
-export default function TemplateModal({ isOpen, onClose, template, dataTypes, dataTypesLoading }: TemplateModalProps) {
+export default function TemplateModal({ isOpen, onClose, template, defaultTemplateType = 'extraction', dataTypes, dataTypesLoading }: TemplateModalProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [isPublic, setIsPublic] = useState(false);
+  const [templateType, setTemplateType] = useState<'extraction' | 'cpe'>(defaultTemplateType);
   const [fields, setFields] = useState<FieldConfig[]>([
     { name: '', data_type: '', prompt: '' }
   ]);
@@ -52,16 +51,16 @@ export default function TemplateModal({ isOpen, onClose, template, dataTypes, da
       if (template) {
         setName(template.name);
         setDescription(template.description || '');
-        setIsPublic(template.is_public);
+        setTemplateType(template.template_type || 'extraction');
         setFields(template.fields.length > 0 ? template.fields : [{ name: '', data_type: '', prompt: '' }]);
       } else {
         setName('');
         setDescription('');
-        setIsPublic(false);
+        setTemplateType(defaultTemplateType);
         setFields([{ name: '', data_type: '', prompt: '' }]);
       }
     }
-  }, [isOpen, template]);
+  }, [isOpen, template, defaultTemplateType]);
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -102,20 +101,27 @@ export default function TemplateModal({ isOpen, onClose, template, dataTypes, da
         name: name.trim(),
         description: description.trim() || undefined,
         fields: fields,
-        is_public: false // Always false for user-created templates
+        is_public: false, // Always false for user-created templates
+        template_type: templateType,
       };
 
       if (template) {
         await updateTemplateMutation.mutateAsync({
           templateId: template.id,
-          templateData
+          // Keep template_type immutable in UI for now
+          templateData: {
+            name: templateData.name,
+            description: templateData.description,
+            fields: templateData.fields,
+            is_public: templateData.is_public,
+          }
         });
         toast({
           title: "Template Updated",
           description: "Template updated successfully!"
         });
       } else {
-        await createTemplateMutation.mutateAsync(templateData);
+        await createTemplateMutation.mutateAsync(templateData as any);
         toast({
           title: "Template Created",
           description: "Template created successfully!"
@@ -165,6 +171,24 @@ export default function TemplateModal({ isOpen, onClose, template, dataTypes, da
               placeholder="Describe what this template extracts..."
               rows={2}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Template Type</Label>
+            <Select value={templateType} onValueChange={(v) => setTemplateType(v as any)} disabled={!!template}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="extraction">Extraction</SelectItem>
+                <SelectItem value="cpe">CPE</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {templateType === 'cpe'
+                ? 'CPE templates are used by the CPE Tracker workflow.'
+                : 'Extraction templates are used in the standard extraction job workflow.'}
+            </p>
           </div>
 
           {/* Fields */}

@@ -37,6 +37,7 @@ import TemplatePreviewModal from "@/components/templates/TemplatePreviewModal";
 export default function TemplatesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
+  const [activeTemplateType, setActiveTemplateType] = useState<'extraction' | 'cpe'>('extraction');
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -45,13 +46,22 @@ export default function TemplatesPage() {
   const { data: templatesData, isLoading: templatesLoading } = useTemplates();
   const { data: publicTemplatesData, isLoading: publicLoading } =
     usePublicTemplates();
-  const { data: dataTypes = [], isLoading: dataTypesLoading } = useDataTypes();
+  const { data: dataTypesData, isLoading: dataTypesLoading } = useDataTypes();
+  const dataTypes = (dataTypesData as any) || [];
   const deleteTemplateMutation = useDeleteTemplate();
   const { toast } = useToast();
 
-  const userTemplates = (templatesData as any)?.templates || [];
-  const publicTemplates = (publicTemplatesData as any)?.templates || [];
+  const allUserTemplates = (templatesData as any)?.templates || [];
+  const allPublicTemplates = (publicTemplatesData as any)?.templates || [];
   const loading = templatesLoading || publicLoading;
+
+  const getTemplateType = (template: any): 'extraction' | 'cpe' => {
+    const raw = template?.template_type;
+    return raw === 'cpe' ? 'cpe' : 'extraction';
+  };
+
+  const userTemplates = allUserTemplates.filter((t: any) => getTemplateType(t) === activeTemplateType);
+  const publicTemplates = allPublicTemplates.filter((t: any) => getTemplateType(t) === activeTemplateType);
 
   const handleEditTemplate = (template: any) => {
     setEditingTemplate(template);
@@ -105,6 +115,9 @@ export default function TemplatesPage() {
             <FileText className="w-5 h-5 text-purple-600" />
           </div>
           <div className="flex items-center space-x-2">
+            <Badge variant="secondary">
+              {getTemplateType(template) === 'cpe' ? 'CPE' : 'Extraction'}
+            </Badge>
             <Badge variant={isPublic ? "default" : "outline"}>
               {isPublic ? (
                 <Globe className="w-3 h-3 mr-1" />
@@ -176,13 +189,34 @@ export default function TemplatesPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Templates</h1>
           <p className="text-gray-600 mt-1">
-            Browse and manage your extraction templates
+            Browse and manage your templates
           </p>
         </div>
-        <Button onClick={handleCreateTemplate}>
+        <div className="flex items-center gap-3">
+          <div className="inline-flex rounded-lg border bg-white p-1">
+            <Button
+              type="button"
+              variant={activeTemplateType === 'extraction' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setActiveTemplateType('extraction')}
+            >
+              Extraction
+            </Button>
+            <Button
+              type="button"
+              variant={activeTemplateType === 'cpe' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setActiveTemplateType('cpe')}
+            >
+              CPE
+            </Button>
+          </div>
+
+          <Button onClick={handleCreateTemplate}>
           <Plus className="w-4 h-4 mr-2" />
           Create Template
-        </Button>
+          </Button>
+        </div>
       </div>
 
       {/* Public Templates Section */}
@@ -196,7 +230,7 @@ export default function TemplatesPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {publicTemplates.map((template) =>
+              {publicTemplates.map((template: any) =>
                 renderTemplateCard(template, true)
               )}
             </div>
@@ -235,7 +269,7 @@ export default function TemplatesPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {userTemplates.map((template) =>
+              {userTemplates.map((template: any) =>
                 renderTemplateCard(template, false)
               )}
             </div>
@@ -248,6 +282,7 @@ export default function TemplatesPage() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         template={editingTemplate}
+        defaultTemplateType={activeTemplateType}
         dataTypes={dataTypes}
         dataTypesLoading={dataTypesLoading}
       />

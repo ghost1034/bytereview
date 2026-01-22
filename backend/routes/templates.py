@@ -31,7 +31,7 @@ async def create_template(
     template_request: TemplateCreateRequest,
     user_id: str = Depends(get_current_user_id)
 ):
-    """Create a new extraction template"""
+    """Create a new template"""
     try:
         # Validate fields
         field_errors = ai_service.validate_field_config(template_request.fields)
@@ -43,7 +43,8 @@ async def create_template(
             name=template_request.name,
             description=template_request.description,
             fields=template_request.fields,
-            is_public=template_request.is_public
+            is_public=template_request.is_public,
+            template_type=template_request.template_type
         )
         
         return {"success": True, "template": template}
