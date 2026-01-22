@@ -10,7 +10,7 @@ Relevant implementation entry points:
 
 - Backend: backend/routes/cpe.py, backend/services/job_service.py, backend/alembic/versions/008_cpe_tracker_types.py, backend/alembic/versions/009_unique_append_from_run.py, backend/scripts/
   seed_cpe_templates.py
-- Frontend: app/dashboard/cpe-tracker/page.tsx, components/cpe/CpeResultsTable.tsx, components/workflow/steps/EnhancedFileUpload.tsx, hooks/useCpe.ts, components/layout/sidebar.tsx, lib/api.ts
+- Frontend: app/dashboard/cpe-tracker/page.tsx, components/results/EditableResultsTable.tsx, components/workflow/steps/EnhancedFileUpload.tsx, hooks/useCpe.ts, components/layout/sidebar.tsx, lib/api.ts
 
 ---
 
@@ -56,6 +56,8 @@ Append is how CPE Tracker feels continuous:
 - New uploads go to the latest run, and new tasks get created with a new result_set_index batch.
 
 The CPE UI explicitly ignores result_set_index and shows everything as one continuous table.
+
+Because results are editable, users can also correct extracted values, delete bad rows, and add manual rows; these changes persist in the run and are carried forward automatically in append runs (since completed tasks/results are cloned).
 
 ---
 
@@ -400,7 +402,7 @@ Key behaviors in all-runs mode:
 
 ### Results panel: seamless table
 
-Component: components/cpe/CpeResultsTable.tsx
+Component: components/results/EditableResultsTable.tsx
 
 Behavior:
 
@@ -408,7 +410,15 @@ Behavior:
 - Flattens extracted_data (array-based { columns, results }) into a table:
     - adds a first column: “Source File Path(s)”
     - unifies all columns seen across tasks
-- Ignores result_set_index so appended batches appear as one continuous dataset.
+- Ignores result_set_index in the UI (no per-batch grouping) so appended batches appear as one continuous dataset.
+
+Editing behavior:
+
+- Users can edit cells in-place, delete rows, and add manual rows.
+- Manual rows can be:
+  - Unattached (shown/exported as “(manual)” in Source File Path(s))
+  - Attached to an existing extraction task (keeps file/folder provenance)
+- While a run is processing (status=in_progress), the UI disables editing.
 
 ---
 
@@ -466,7 +476,7 @@ Important implication:
 - Deleting a ZIP file does not delete extracted children:
     - remove_file_from_job logs that extracted files remain orphaned (no parent_zip_file_id relationship today).
 - Results pagination:
-    - CpeResultsTable requests up to 1000 results; very large datasets may need pagination/virtualization work.
+    - Results tables request up to 1000 results; very large datasets may need pagination/virtualization work.
 - Start without new uploads:
     - After completion, the UI switches to a new pending run that already contains cloned results.
     - Clicking “Start Extraction” without uploading new files will fail with “No files uploaded…” (because there are no new tasks/files to process).
