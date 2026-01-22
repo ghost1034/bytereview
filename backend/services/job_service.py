@@ -26,6 +26,7 @@ from services.gcs_service import get_storage_service
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func, update, and_, or_
+from sqlalchemy.sql.expression import nullslast
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 import logging
@@ -1949,16 +1950,18 @@ class JobService:
                 SourceFile, SourceFile.id == SourceFileToTask.source_file_id
             ).group_by(SourceFileToTask.task_id).subquery()
             
-            # Get extraction results ordered by first source file path
+            # Get extraction results ordered by first source file path.
+            # NOTE: We outer-join the first-file subquery so tasks without source files
+            # (e.g., manual rows) still show up.
             results_query = db.query(ExtractionResult, ExtractionTask).join(
                 ExtractionTask, ExtractionResult.task_id == ExtractionTask.id
-            ).join(
+            ).outerjoin(
                 first_file_subquery, first_file_subquery.c.task_id == ExtractionTask.id
             ).filter(
                 ExtractionTask.job_run_id == target_run.id
             ).order_by(
                 ExtractionTask.result_set_index.asc(),
-                first_file_subquery.c.first_file_path,
+                nullslast(first_file_subquery.c.first_file_path.asc()),
                 ExtractionResult.processed_at,
                 ExtractionResult.id
             )
@@ -1977,6 +1980,8 @@ class JobService:
             # Process results
             processed_results = []
             logger.info(f"Processing {len(results_with_tasks)} result records for job {job_id}")
+
+            did_backfill_any = False
             
             for result, task in results_with_tasks:
                 # Parse the extracted_data JSONB field
@@ -1995,7 +2000,26 @@ class JobService:
                         source_files.append(source_file.original_path)
                     
                     if not source_files:
-                        source_files = ["Unknown"]
+                        source_files = ["(manual)"]
+
+                    # Backfill row_ids / row_sources for older results that predate editing
+                    # (so the frontend has stable row keys for edits/deletes).
+                    did_backfill_this = False
+
+                    rows = extracted_data.get("results") or []
+                    row_ids = extracted_data.get("row_ids")
+                    if not isinstance(row_ids, list) or len(row_ids) != len(rows):
+                        extracted_data["row_ids"] = [str(uuid.uuid4()) for _ in range(len(rows))]
+                        did_backfill_this = True
+
+                    row_sources = extracted_data.get("row_sources")
+                    if not isinstance(row_sources, list) or len(row_sources) != len(rows):
+                        extracted_data["row_sources"] = ["ai" for _ in range(len(rows))]
+                        did_backfill_this = True
+
+                    if did_backfill_this:
+                        result.extracted_data = extracted_data
+                        did_backfill_any = True
                     
                     # Keep the array-based format for API response
                     processed_results.append({
@@ -2008,6 +2032,13 @@ class JobService:
             
             logger.info(f"Job {job_id} results debug: total_count={total_count}, files_processed_count={files_processed_count}, processed_results_count={len(processed_results)}")
             logger.info(f"First few processed results: {processed_results[:2] if processed_results else 'None'}")
+
+            if did_backfill_any:
+                try:
+                    db.commit()
+                except Exception as e:
+                    logger.warning(f"Failed to persist extracted_data backfill for job {job_id}: {e}")
+                    db.rollback()
             
             return JobResultsResponse(
                 total=total_count,
@@ -2017,6 +2048,263 @@ class JobService:
             
         except Exception as e:
             logger.error(f"Failed to get results for job {job_id}: {e}")
+            raise
+        finally:
+            db.close()
+
+    # ===================================================================
+    # Result editing (manual rows / cell edits)
+    # ===================================================================
+
+    def _get_task_with_access(self, db: Session, user_id: str, job_id: str, task_id: str) -> tuple[ExtractionTask, JobRun]:
+        """Load a task and its run, verifying ownership via the parent job."""
+        task = db.query(ExtractionTask).join(JobRun, JobRun.id == ExtractionTask.job_run_id).join(
+            ExtractionJob, ExtractionJob.id == JobRun.job_id
+        ).filter(
+            ExtractionTask.id == task_id,
+            JobRun.job_id == job_id,
+            ExtractionJob.user_id == user_id
+        ).first()
+
+        if not task:
+            raise ValueError("Task not found or access denied")
+
+        job_run = db.query(JobRun).filter(JobRun.id == task.job_run_id).first()
+        if not job_run:
+            raise ValueError("Job run not found")
+
+        if job_run.status == 'in_progress':
+            raise ValueError("Cannot modify results while run is in progress")
+
+        if task.status not in ('completed', 'failed'):
+            raise ValueError("Cannot modify results for a task that has not completed")
+
+        return task, job_run
+
+    def _get_run_with_access(self, db: Session, user_id: str, job_id: str, run_id: str | None) -> JobRun:
+        if run_id:
+            job_run = db.query(JobRun).join(ExtractionJob).filter(
+                JobRun.id == run_id,
+                JobRun.job_id == job_id,
+                ExtractionJob.user_id == user_id
+            ).first()
+        else:
+            job_run = self.get_latest_run(job_id, user_id)
+            if job_run:
+                # Re-load into this session
+                job_run = db.query(JobRun).filter(JobRun.id == job_run.id).first()
+
+        if not job_run:
+            raise ValueError("Job run not found or access denied")
+
+        if job_run.status == 'in_progress':
+            raise ValueError("Cannot modify results while run is in progress")
+
+        return job_run
+
+    def _get_or_create_extraction_result(self, db: Session, task: ExtractionTask, job_run: JobRun) -> ExtractionResult:
+        result = db.query(ExtractionResult).filter(ExtractionResult.task_id == task.id).first()
+        if result:
+            return result
+
+        job_fields = db.query(JobField).filter(JobField.job_run_id == job_run.id).order_by(JobField.display_order).all()
+        columns = [f.field_name for f in job_fields]
+
+        result = ExtractionResult(
+            task_id=task.id,
+            extracted_data={
+                'columns': columns,
+                'results': [],
+                'row_ids': [],
+                'row_sources': [],
+            },
+        )
+        db.add(result)
+        db.flush()
+        return result
+
+    def _ensure_result_shape(self, extracted_data: dict) -> dict:
+        cols = extracted_data.get('columns')
+        rows = extracted_data.get('results')
+        if not isinstance(cols, list):
+            cols = []
+        if not isinstance(rows, list):
+            rows = []
+        extracted_data['columns'] = cols
+        extracted_data['results'] = rows
+
+        row_ids = extracted_data.get('row_ids')
+        if not isinstance(row_ids, list) or len(row_ids) != len(rows):
+            extracted_data['row_ids'] = [str(uuid.uuid4()) for _ in range(len(rows))]
+
+        row_sources = extracted_data.get('row_sources')
+        if not isinstance(row_sources, list) or len(row_sources) != len(rows):
+            extracted_data['row_sources'] = ["ai" for _ in range(len(rows))]
+
+        return extracted_data
+
+    def _ensure_columns(self, extracted_data: dict, wanted_columns: list[str]) -> None:
+        extracted_data = self._ensure_result_shape(extracted_data)
+        cols: list[str] = extracted_data['columns']
+        rows: list[list[Any]] = extracted_data['results']
+
+        for col in wanted_columns:
+            if col in cols:
+                continue
+            cols.append(col)
+            for row in rows:
+                if isinstance(row, list):
+                    row.append(None)
+
+    async def create_result_row(
+        self,
+        user_id: str,
+        job_id: str,
+        values: Dict[str, Any],
+        run_id: str | None = None,
+        attach_to_task_id: str | None = None,
+    ) -> Dict[str, str]:
+        db = self._get_session()
+        try:
+            if attach_to_task_id:
+                task, job_run = self._get_task_with_access(db, user_id, job_id, attach_to_task_id)
+            else:
+                job_run = self._get_run_with_access(db, user_id, job_id, run_id)
+
+                # Find or create the run-scoped manual task
+                task = db.query(ExtractionTask).filter(
+                    ExtractionTask.job_run_id == job_run.id,
+                    ExtractionTask.processing_mode == 'manual'
+                ).order_by(ExtractionTask.created_at.asc()).first()
+
+                if not task:
+                    existing_max = db.query(func.max(ExtractionTask.result_set_index)).filter(
+                        ExtractionTask.job_run_id == job_run.id
+                    ).scalar()
+                    result_set_index = int(existing_max) if existing_max is not None else 0
+
+                    task = ExtractionTask(
+                        job_run_id=job_run.id,
+                        processing_mode='manual',
+                        status='completed',
+                        error_message=None,
+                        created_at=datetime.utcnow(),
+                        processed_at=datetime.utcnow(),
+                        result_set_index=result_set_index,
+                    )
+                    db.add(task)
+                    db.flush()
+
+            result = self._get_or_create_extraction_result(db, task, job_run)
+            extracted_data = self._ensure_result_shape(result.extracted_data or {})
+
+            wanted_cols = [k for k in (values or {}).keys() if k and k != 'Source File Path(s)']
+            self._ensure_columns(extracted_data, wanted_cols)
+
+            cols: list[str] = extracted_data['columns']
+            new_row: list[Any] = [None for _ in cols]
+            for k, v in (values or {}).items():
+                if not k or k == 'Source File Path(s)':
+                    continue
+                try:
+                    idx = cols.index(k)
+                except ValueError:
+                    continue
+                new_row[idx] = v
+
+            row_id = str(uuid.uuid4())
+            extracted_data['results'].append(new_row)
+            extracted_data['row_ids'].append(row_id)
+            extracted_data['row_sources'].append('manual')
+
+            result.extracted_data = extracted_data
+            db.commit()
+            return {"task_id": str(task.id), "row_id": row_id}
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    async def update_result_row(
+        self,
+        user_id: str,
+        job_id: str,
+        task_id: str,
+        row_id: str,
+        values: Dict[str, Any],
+    ) -> None:
+        db = self._get_session()
+        try:
+            task, job_run = self._get_task_with_access(db, user_id, job_id, task_id)
+            result = self._get_or_create_extraction_result(db, task, job_run)
+            extracted_data = self._ensure_result_shape(result.extracted_data or {})
+
+            wanted_cols = [k for k in (values or {}).keys() if k and k != 'Source File Path(s)']
+            self._ensure_columns(extracted_data, wanted_cols)
+
+            row_ids: list[str] = extracted_data['row_ids']
+            try:
+                row_idx = row_ids.index(row_id)
+            except ValueError:
+                raise ValueError("Row not found")
+
+            cols: list[str] = extracted_data['columns']
+            rows: list[list[Any]] = extracted_data['results']
+            if row_idx >= len(rows) or not isinstance(rows[row_idx], list):
+                raise ValueError("Invalid stored row format")
+
+            for k, v in (values or {}).items():
+                if not k or k == 'Source File Path(s)':
+                    continue
+                try:
+                    col_idx = cols.index(k)
+                except ValueError:
+                    continue
+                # Ensure row length
+                while len(rows[row_idx]) < len(cols):
+                    rows[row_idx].append(None)
+                rows[row_idx][col_idx] = v
+
+            result.extracted_data = extracted_data
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    async def delete_result_row(
+        self,
+        user_id: str,
+        job_id: str,
+        task_id: str,
+        row_id: str,
+    ) -> None:
+        db = self._get_session()
+        try:
+            task, job_run = self._get_task_with_access(db, user_id, job_id, task_id)
+            result = self._get_or_create_extraction_result(db, task, job_run)
+            extracted_data = self._ensure_result_shape(result.extracted_data or {})
+
+            row_ids: list[str] = extracted_data['row_ids']
+            try:
+                row_idx = row_ids.index(row_id)
+            except ValueError:
+                raise ValueError("Row not found")
+
+            rows: list[list[Any]] = extracted_data['results']
+            if row_idx < len(rows):
+                rows.pop(row_idx)
+            row_ids.pop(row_idx)
+            row_sources = extracted_data.get('row_sources')
+            if isinstance(row_sources, list) and row_idx < len(row_sources):
+                row_sources.pop(row_idx)
+
+            result.extracted_data = extracted_data
+            db.commit()
+        except Exception:
+            db.rollback()
             raise
         finally:
             db.close()

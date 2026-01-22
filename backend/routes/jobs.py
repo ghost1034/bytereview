@@ -4,7 +4,7 @@ New asynchronous job-based extraction workflow
 """
 from fastapi import APIRouter, HTTPException, Depends, Query, File, UploadFile, Request
 from fastapi.responses import StreamingResponse, Response
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import json
 import asyncio
 import csv
@@ -487,6 +487,108 @@ class JobFieldsUpdateRequest(BaseModel):
     template_id: Optional[str] = None
     processing_modes: dict = None  # folder_path -> processing_mode mapping
     description: Optional[str] = None
+
+
+# ===================================================================
+# Result editing endpoints (manual rows / cell edits)
+# ===================================================================
+
+class ResultRowCreateRequest(BaseModel):
+    run_id: Optional[str] = None
+    attach_to_task_id: Optional[str] = None
+    values: Dict[str, Any]
+
+
+class ResultRowCreateResponse(BaseModel):
+    task_id: str
+    row_id: str
+
+
+class ResultRowUpdateRequest(BaseModel):
+    values: Dict[str, Any]
+
+
+@router.post("/{job_id}/results/rows", response_model=ResultRowCreateResponse)
+async def create_job_result_row(
+    job_id: str,
+    request: ResultRowCreateRequest,
+    user_id: str = Depends(get_current_user_id),
+):
+    try:
+        row = await job_service.create_result_row(
+            user_id=user_id,
+            job_id=job_id,
+            values=request.values,
+            run_id=request.run_id,
+            attach_to_task_id=request.attach_to_task_id,
+        )
+        return ResultRowCreateResponse(**row)
+    except ValueError as e:
+        msg = str(e)
+        if 'in progress' in msg or 'not completed' in msg or 'Cannot modify results' in msg:
+            raise HTTPException(status_code=409, detail=msg)
+        if 'not found' in msg or 'access denied' in msg:
+            raise HTTPException(status_code=404, detail=msg)
+        raise HTTPException(status_code=400, detail=msg)
+    except Exception as e:
+        logger.error(f"Failed to create result row for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create row: {str(e)}")
+
+
+@router.patch("/{job_id}/results/tasks/{task_id}/rows/{row_id}")
+async def update_job_result_row(
+    job_id: str,
+    task_id: str,
+    row_id: str,
+    request: ResultRowUpdateRequest,
+    user_id: str = Depends(get_current_user_id),
+):
+    try:
+        await job_service.update_result_row(
+            user_id=user_id,
+            job_id=job_id,
+            task_id=task_id,
+            row_id=row_id,
+            values=request.values,
+        )
+        return {"message": "Row updated"}
+    except ValueError as e:
+        msg = str(e)
+        if 'in progress' in msg or 'not completed' in msg or 'Cannot modify results' in msg:
+            raise HTTPException(status_code=409, detail=msg)
+        if 'not found' in msg or 'access denied' in msg:
+            raise HTTPException(status_code=404, detail=msg)
+        raise HTTPException(status_code=400, detail=msg)
+    except Exception as e:
+        logger.error(f"Failed to update result row for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update row: {str(e)}")
+
+
+@router.delete("/{job_id}/results/tasks/{task_id}/rows/{row_id}")
+async def delete_job_result_row(
+    job_id: str,
+    task_id: str,
+    row_id: str,
+    user_id: str = Depends(get_current_user_id),
+):
+    try:
+        await job_service.delete_result_row(
+            user_id=user_id,
+            job_id=job_id,
+            task_id=task_id,
+            row_id=row_id,
+        )
+        return {"message": "Row deleted"}
+    except ValueError as e:
+        msg = str(e)
+        if 'in progress' in msg or 'not completed' in msg or 'Cannot modify results' in msg:
+            raise HTTPException(status_code=409, detail=msg)
+        if 'not found' in msg or 'access denied' in msg:
+            raise HTTPException(status_code=404, detail=msg)
+        raise HTTPException(status_code=400, detail=msg)
+    except Exception as e:
+        logger.error(f"Failed to delete result row for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete row: {str(e)}")
 
 class JobNameUpdateRequest(BaseModel):
     name: str

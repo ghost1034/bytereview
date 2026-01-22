@@ -216,13 +216,17 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
             # Create new array-based format with column snapshot
             final_result = {
                 "results": results_arrays,
-                "columns": field_order
+                "columns": field_order,
+                "row_ids": [str(uuid.uuid4()) for _ in results_arrays],
+                "row_sources": ["ai" for _ in results_arrays]
             }
         else:
             # Fallback for unexpected format
             final_result = {
                 "results": [],
-                "columns": [field.field_name for field in job_fields]
+                "columns": [field.field_name for field in job_fields],
+                "row_ids": [],
+                "row_sources": []
             }
         
         # Save results to database

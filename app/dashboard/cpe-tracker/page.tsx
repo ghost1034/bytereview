@@ -34,7 +34,7 @@ import { cn } from '@/lib/utils'
 
 import { useCpeStates, useCpeSheets, useCreateCpeSheet, useDeleteCpeSheet, useStartCpeSheet } from '@/hooks/useCpe'
 import { useJobDetails } from '@/hooks/useJobs'
-import { CpeResultsTable } from '@/components/cpe/CpeResultsTable'
+import { EditableResultsTable } from '@/components/results/EditableResultsTable'
 import EnhancedFileUpload from '@/components/workflow/steps/EnhancedFileUpload'
 import { apiClient, JobFileInfo } from '@/lib/api'
 
@@ -404,13 +404,11 @@ export default function CpeTrackerPage() {
                     </div>
                   </div>
                   <div className="flex-1 overflow-hidden">
-                    {isProcessing ? (
-                      <div className="flex h-full flex-col items-center justify-center gap-4">
-                        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                        <p className="text-gray-500">Extracting data from certificates...</p>
+                    <EditableResultsTable jobId={selectedJobId as string} runId={activeRunId} readOnly={isProcessing} />
+                    {isProcessing && (
+                      <div className="px-4 py-2 text-xs text-muted-foreground">
+                        Processing in progress. Editing is disabled.
                       </div>
-                    ) : (
-                      <CpeResultsTable jobId={selectedJobId} runId={activeRunId} />
                     )}
                   </div>
                 </div>

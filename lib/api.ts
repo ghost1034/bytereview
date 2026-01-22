@@ -497,6 +497,30 @@ export class ApiClient {
     return this.request(`/api/jobs/${jobId}/results${query ? `?${query}` : ''}`)
   }
 
+  async createJobResultRow(jobId: string, payload: { runId?: string; attachToTaskId?: string; values: Record<string, any> }): Promise<{ task_id: string; row_id: string }> {
+    return this.request(`/api/jobs/${jobId}/results/rows`, {
+      method: 'POST',
+      body: JSON.stringify({
+        run_id: payload.runId,
+        attach_to_task_id: payload.attachToTaskId,
+        values: payload.values,
+      }),
+    })
+  }
+
+  async updateJobResultRow(jobId: string, taskId: string, rowId: string, values: Record<string, any>): Promise<{ message: string }> {
+    return this.request(`/api/jobs/${jobId}/results/tasks/${taskId}/rows/${rowId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ values }),
+    })
+  }
+
+  async deleteJobResultRow(jobId: string, taskId: string, rowId: string): Promise<{ message: string }> {
+    return this.request(`/api/jobs/${jobId}/results/tasks/${taskId}/rows/${rowId}`, {
+      method: 'DELETE',
+    })
+  }
+
   async submitJob(jobId: string, runId?: string): Promise<{ message: string; job_run_id: string }> {
     const params = new URLSearchParams()
     if (runId) params.set('run_id', runId)
@@ -782,6 +806,7 @@ export type JobResultsResponse = {
     source_files: string[]
     processing_mode: string
     extracted_data: Record<string, any>
+    result_set_index?: number
   }>
 }
 

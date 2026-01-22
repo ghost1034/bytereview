@@ -32,6 +32,7 @@ import { useGoogleIntegration } from "@/hooks/useGoogleIntegration";
 import { apiClient } from "@/lib/api";
 import { GoogleDriveFolderPicker } from "@/components/integrations/GoogleDriveFolderPicker";
 import { useExportRefs } from "@/hooks/useExportRefs";
+import { EditableResultsTable } from "@/components/results/EditableResultsTable";
 
 // Type definitions for file tree structure
 type JobResult = {
@@ -985,159 +986,9 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {results?.results && results.results.length > 0 ? (
-            // Always show sidebar layout with file tree (regardless of result count)
-            <div>
-              {/* Show sidebar layout with file tree */}
-              <div className="flex gap-6">
-                {/* Sidebar with file tree */}
-                <div className="w-64 flex-shrink-0">
-                  <h3 className="font-medium text-gray-900 mb-3 flex items-center">
-                    <Folder className="w-4 h-4 mr-2" />
-                    Files ({uniqueFilesCount})
-                  </h3>
-
-                  <div className="max-h-96 overflow-y-auto border rounded-lg p-2">
-                    {/* Render file tree */}
-                    {fileTree.length > 0 ? (
-                      fileTree.map((node, index) => (
-                        <FileTreeNode
-                          key={`${node.path}-${index}`}
-                          node={node}
-                          selectedPath={selectedPath}
-                          selectedFileId={selectedFileId}
-                          onSelect={(fileId, path) => { if (fileId) setSelectedFileId(fileId); setSelectedPath(path); }}
-                          level={0}
-                        />
-                      ))
-                    ) : (
-                      <div className="text-center py-4 text-gray-500 text-sm">
-                        No files to display
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Main content area */}
-                <div className="flex-1 min-w-0">
-                  {selectedFileNode ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-medium text-gray-900">
-                            {selectedFileNode.name}
-                          </h3>
-                          <div className="text-sm text-gray-500 mt-1">
-                            {selectedFileNode.path}
-                          </div>
-                          {selectedFileNode.result.processing_mode ===
-                            "combined" && (
-                            <div className="text-sm text-gray-600 mt-2">
-                              <strong>Source files:</strong>
-                              <ul className="list-disc list-inside mt-1 space-y-1">
-                                {selectedFileNode.result.source_files.map(
-                                  (file, index) => (
-                                    <li key={index} className="text-xs">
-                                      {file.split("/").pop() || file}
-                                    </li>
-                                  )
-                                )}
-                              </ul>
-                            </div>
-                          )}
-                          <Badge variant="secondary" className="mt-2">
-                            {selectedFileNode.result.processing_mode}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      <div className="overflow-x-auto">
-                        {(() => {
-                          // Find the task result and expand its extracted data rows
-                          const taskId = selectedFileNode.result.task_id;
-                          const taskResult = results?.results?.find(
-                            (r) => r.task_id === taskId
-                          );
-                          
-                          if (!taskResult) return <div>No data found</div>;
-                          
-                          const extractedRows = getExtractedRows(taskResult);
-
-                          return (
-                            <table className="w-full border-collapse border border-gray-200 rounded-lg">
-                              <thead className="bg-gray-50">
-                                <tr>
-                                  {extractedRows.length > 1 && (
-                                    <th className="text-left px-4 py-2 font-medium text-gray-900 border-b">
-                                      Row
-                                    </th>
-                                  )}
-                                  {Array.isArray((taskResult as any)?.extracted_data?.columns)
-                                    ? (taskResult as any).extracted_data.columns.map((col: string) => (
-                                        <th
-                                          key={col}
-                                          className="text-left px-4 py-2 font-medium text-gray-900 border-b"
-                                        >
-                                          {col}
-                                        </th>
-                                      ))
-                                    : null}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {extractedRows.map((rowData, rowIndex) => (
-                                  <tr
-                                    key={`${taskResult.task_id}-${rowIndex}`}
-                                    className="border-b"
-                                  >
-                                    {extractedRows.length > 1 && (
-                                      <td className="px-4 py-2 font-medium text-gray-600">
-                                        {rowIndex + 1}
-                                      </td>
-                                    )}
-                                    {Array.isArray((taskResult as any)?.extracted_data?.columns)
-                                      ? (taskResult as any).extracted_data.columns.map((col: string) => (
-                                          <td key={col} className="px-4 py-2">
-                                            {formatValue(getFieldValue(taskResult, col, rowIndex))}
-                                          </td>
-                                        ))
-                                      : null}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">
-                        Select a File
-                      </h3>
-                      <p className="text-gray-500">
-                        Choose a file from the tree on the left to view its
-                        extraction results.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No Results Found
-              </h3>
-              <p className="text-gray-500">
-                The extraction job completed but no data was extracted. This
-                might be due to the documents not containing the requested
-                information.
-              </p>
-            </div>
-          )}
+          <div className="h-[600px]">
+            <EditableResultsTable jobId={jobId} runId={runId} />
+          </div>
         </CardContent>
       </Card>
 

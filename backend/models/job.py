@@ -23,6 +23,7 @@ class ProcessingMode(str, Enum):
     """File processing mode enumeration"""
     INDIVIDUAL = "individual"
     COMBINED = "combined"
+    MANUAL = "manual"
 
 class FileStatus(str, Enum):
     """File status enumeration"""
