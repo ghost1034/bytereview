@@ -622,17 +622,21 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
   }
 
   // Handle file removal
-  const handleRemoveFile = async (fileId: string) => {
+  const handleRemoveFile = async (fileId: string, fileRunId?: string) => {
     if (readOnly) return
     
     try {
-      await apiClient.removeFileFromJob(jobId, fileId, runId)
+      // In allRuns mode (CPE), delete must be scoped to the file's owning run.
+      await apiClient.removeFileFromJob(jobId, fileId, fileRunId || runId)
       
       // Directly remove the file from the list - no need to wait for SSE
       setFiles(prev => prev.filter(f => f.id !== fileId))
       
       // Invalidate job files queries so other pages refresh
       invalidateJobFiles()
+
+      // Deleting a file may remove results (when tasks become fileless)
+      queryClient.invalidateQueries({ queryKey: ['job-results', jobId] })
       
       toast({
         title: "File removed",
@@ -1023,20 +1027,16 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
                     {getStatusBadge(file.status)}
                     
                     {/* Delete button - only show for uploaded/unpacked files, when not readOnly,
-                        and in allRuns mode only for files from current run */}
+                        and not readOnly */}
                     {(file.status === 'uploaded' || file.status === 'unpacked') &&
                      !readOnly &&
-                     (fileListScope !== 'allRuns' || file.job_run_id === runId) && (
+                     (
                       <>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleRemoveFile(file.id)}
-                          className={`p-1 h-8 w-8 ${
-                            file.status === 'failed'
-                              ? 'text-red-500 hover:text-red-700'
-                              : 'text-red-500 hover:text-red-700'
-                          }`}
+                          onClick={() => handleRemoveFile(file.id, file.job_run_id)}
+                          className="p-1 h-8 w-8 text-red-500 hover:text-red-700"
                         >
                           <X className="w-4 h-4" />
                         </Button>

@@ -1825,18 +1825,102 @@ class JobService:
         finally:
             db.close()
 
+    async def _delete_source_file_and_cleanup_fileless_tasks(self, db: Session, job_id: str, source_file: SourceFile) -> None:
+        """
+        Delete a SourceFile (DB + GCS) and, for any tasks that referenced it,
+        delete the task/results only if the task becomes fileless.
+
+        Semantics enforced:
+        - Deleting a file never deletes rows unless the task has zero remaining files.
+        """
+        # Identify tasks that reference this file (constrain to this job for safety)
+        affected_task_ids = [
+            tid
+            for (tid,) in (
+                db.query(SourceFileToTask.task_id)
+                .join(ExtractionTask, ExtractionTask.id == SourceFileToTask.task_id)
+                .join(JobRun, JobRun.id == ExtractionTask.job_run_id)
+                .filter(
+                    SourceFileToTask.source_file_id == source_file.id,
+                    JobRun.job_id == job_id,
+                )
+                .all()
+            )
+        ]
+
+        if affected_task_ids:
+            # Prevent deleting files that would affect an in-progress run
+            in_progress_task = (
+                db.query(ExtractionTask.id)
+                .join(JobRun, JobRun.id == ExtractionTask.job_run_id)
+                .filter(
+                    ExtractionTask.id.in_(affected_task_ids),
+                    JobRun.status == 'in_progress',
+                )
+                .first()
+            )
+            if in_progress_task:
+                raise ValueError("Cannot remove files while extraction is in progress")
+
+        # Best-effort delete from GCS
+        storage_service = get_storage_service()
+        try:
+            await storage_service.delete_file(source_file.gcs_object_name)
+        except Exception as e:
+            logger.warning(f"Failed to delete file from GCS: {e}")
+
+        # Delete DB row (cascades SourceFileToTask rows)
+        db.delete(source_file)
+        db.flush()
+
+        # If any affected tasks are now fileless, delete them (cascades results)
+        for task_id in affected_task_ids:
+            remaining_links = db.query(SourceFileToTask).filter(SourceFileToTask.task_id == task_id).count()
+            if remaining_links == 0:
+                t = db.query(ExtractionTask).filter(ExtractionTask.id == task_id).first()
+                if t:
+                    db.delete(t)
+        db.flush()
+
     async def remove_file_from_job(self, user_id: str, job_id: str, file_id: str, run_id: str = None) -> None:
         """Remove a file from a job run (synchronous deletion for now)"""
         db = self._get_session()
         try:
-            # Get the target run (latest if not specified)
+            # Verify job ownership and load job_type
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id,
+            ).first()
+            if not job:
+                raise ValueError("Job not found or access denied")
+
+            latest_run = db.query(JobRun).filter(JobRun.job_id == job.id).order_by(JobRun.created_at.desc()).first()
+            if not latest_run:
+                raise ValueError("Job run not found")
+
+            # Resolve target run
             if run_id:
-                target_run = self.get_job_run(job_id, run_id, user_id)
+                target_run = db.query(JobRun).filter(
+                    JobRun.id == run_id,
+                    JobRun.job_id == job.id,
+                ).first()
             else:
-                target_run = self.get_latest_run(job_id, user_id)
-            
+                target_run = latest_run
+
             if not target_run:
-                raise ValueError(f"Job run not found")
+                raise ValueError("Job run not found")
+
+            # Permissions / editability
+            if getattr(job, 'job_type', None) != 'cpe':
+                if target_run.id != latest_run.id:
+                    raise ValueError("Cannot remove files from previous runs")
+                # Only allow file deletion while the run is editable
+                if target_run.status == 'in_progress' or target_run.config_step == 'submitted':
+                    raise ValueError("Cannot remove files while run is in progress or submitted")
+            else:
+                # For CPE, allow deleting files across runs, but block during active processing
+                if latest_run.status == 'in_progress' or target_run.status == 'in_progress':
+                    raise ValueError("Cannot remove files while extraction is in progress")
             
             # Get the source file
             source_file = db.query(SourceFile).filter(
@@ -1846,23 +1930,17 @@ class JobService:
             
             if not source_file:
                 raise ValueError(f"File {file_id} not found in job run {target_run.id}")
-            
-            # Delete from GCS
-            storage_service = get_storage_service()
-            try:
-                await storage_service.delete_file(source_file.gcs_object_name)
-            except Exception as e:
-                logger.warning(f"Failed to delete file from GCS: {e}")
-                # Continue with database deletion even if GCS deletion fails
-            
-            # TODO: If this was a ZIP file, also delete all extracted files
-            # This requires adding parent_zip_file_id to the SourceFile model
-            # For now, extracted files will remain as orphaned files
-            if source_file.file_type in ['application/zip', 'application/x-zip-compressed']:
+
+            file_type = source_file.file_type
+
+            # Delete the file, and cleanup any tasks that become fileless
+            await self._delete_source_file_and_cleanup_fileless_tasks(db, job_id, source_file)
+
+            # TODO: If this was a ZIP file, also delete all extracted files.
+            # For now, extracted files remain.
+            if file_type in ['application/zip', 'application/x-zip-compressed']:
                 logger.info(f"Deleted ZIP file {file_id}, but extracted files remain (orphaned)")
-            
-            # Delete the source file record
-            db.delete(source_file)
+
             db.commit()
             
             logger.info(f"Removed file {file_id} from job {job_id}")
@@ -2300,6 +2378,31 @@ class JobService:
             row_sources = extracted_data.get('row_sources')
             if isinstance(row_sources, list) and row_idx < len(row_sources):
                 row_sources.pop(row_idx)
+
+            # If the task becomes rowless, delete the task's files.
+            # (This may also impact other tasks that reference those same files in append mode.)
+            if len(extracted_data.get('row_ids') or []) == 0:
+                linked_files = (
+                    db.query(SourceFile)
+                    .join(SourceFileToTask, SourceFile.id == SourceFileToTask.source_file_id)
+                    .filter(SourceFileToTask.task_id == task.id)
+                    .all()
+                )
+
+                # Remove the task/results; file deletion below will also remove any now-fileless tasks.
+                db.delete(task)
+                db.flush()
+
+                seen_file_ids: set[str] = set()
+                for sf in linked_files:
+                    sf_id = str(sf.id)
+                    if sf_id in seen_file_ids:
+                        continue
+                    seen_file_ids.add(sf_id)
+                    await self._delete_source_file_and_cleanup_fileless_tasks(db, job_id, sf)
+
+                db.commit()
+                return
 
             result.extracted_data = extracted_data
             db.commit()

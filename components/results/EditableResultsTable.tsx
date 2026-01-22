@@ -156,6 +156,10 @@ export function EditableResultsTable({
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['job-results', jobId] })
+
+      // Deleting the last row of a task may delete that task's files.
+      queryClient.invalidateQueries({ queryKey: ['job-files-all', jobId] })
+      if (runId) queryClient.invalidateQueries({ queryKey: ['job-files', jobId, runId] })
     },
     onError: (e: any) => {
       toast({

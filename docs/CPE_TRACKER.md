@@ -251,8 +251,15 @@ Deletes a file from a specific run (or latest if omitted).
 
 Backend behavior (JobService.remove_file_from_job):
 
-- Deletes GCS object for that file (best-effort).
+- Enforces run/job-type rules:
+  - Normal jobs (job_type='extraction'): only the latest run is editable; deleting files from previous runs is rejected.
+  - CPE jobs (job_type='cpe'): files may be deleted from any run (this powers the CPE tracker “all runs” file list).
+  - Deletions are rejected while extraction is in progress.
+- Deletes the GCS object for that file (best-effort).
 - Deletes the DB SourceFile row.
+- Task-coupled semantics (no per-row provenance):
+  - Deleting a file never deletes extracted rows unless the affected task becomes fileless (i.e., that task now has zero remaining linked files).
+  - When a task becomes fileless, the task and its results are deleted.
 - If the file is a ZIP: extracted children are not deleted (explicit TODO); they may remain as orphaned files.
 
 ### All-runs file listing (CPE display scope)
@@ -395,7 +402,7 @@ Key behaviors in all-runs mode:
 - Delete button is shown only if:
     - file is uploaded or unpacked
     - not readOnly
-    - and (in all-runs mode) file.job_run_id === runId
+- In all-runs mode, deletes are run-scoped to the file’s owning run (file.job_run_id), which enables deleting files from prior runs.
 - Upload errors:
     - detects 409/submitted/completed errors
     - calls onUploadConflict() so the page can refetch sheets and move to the latest run
@@ -419,6 +426,13 @@ Editing behavior:
   - Unattached (shown/exported as “(manual)” in Source File Path(s))
   - Attached to an existing extraction task (keeps file/folder provenance)
 - While a run is processing (status=in_progress), the UI disables editing.
+
+Task-coupled deletion semantics:
+
+- Row deletion never deletes files unless the task becomes rowless.
+  - When the last row is removed for a task, the backend deletes that task’s linked files.
+- File deletion never deletes rows unless the task becomes fileless.
+  - Deleting one file in a combined/folder task will not remove rows until the last linked file for that task is deleted.
 
 ---
 

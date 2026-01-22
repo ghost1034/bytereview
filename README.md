@@ -761,7 +761,12 @@ Usage metering and billing
 Compliance notes
 - Access logs: retain Cloud Logging for API/task services; review access to webhooks and sensitive operations.
 - Data residency: ensure project and bucket regions meet organizational requirements; configure CLOUD_RUN_REGION and GCS bucket region appropriately.
-- Data deletion: support deletion of jobs and source files; scheduled cleanup tasks handle temp data and abandoned artifacts.
+- Data deletion:
+  - Jobs can be deleted (DB cascade); GCS cleanup is partially implemented (some paths still rely on background cleanup).
+  - Results and files are coupled at the task level (no per-row provenance):
+    - Deleting a row never deletes files unless the task becomes rowless.
+    - Deleting a file never deletes rows unless the task becomes fileless.
+  - Normal jobs do not allow direct file deletion in previous runs; the CPE tracker can delete files across prior runs.
 
 ## Reference Appendix
 
@@ -793,7 +798,7 @@ API surfaces
 - Interactive API docs: /api/docs (OpenAPI JSON at /api/openapi.json)
 - Major groups
   - /api/jobs: create/list, files (upload/gdrive/gmail), runs, results, export, export-refs
-    - Results editing: create manual rows, edit cells, delete rows.
+    - Results editing: create manual rows, edit cells, delete rows (last-row deletion may delete task files).
   - /api/extraction: legacy endpoints retained; new flow uses /api/jobs
   - /api/integrations: Google OAuth/Drive/Gmail helpers
   - /api/automations: CRUD and execution

@@ -337,8 +337,13 @@ async def remove_file_from_job(
         await job_service.remove_file_from_job(user_id, job_id, file_id, run_id=run_id)
         return {"message": "File removed successfully"}
     except ValueError as e:
-        logger.warning(f"File {file_id} not found in job {job_id}: {e}")
-        raise HTTPException(status_code=404, detail=str(e))
+        msg = str(e)
+        logger.warning(f"Failed to remove file {file_id} from job {job_id}: {msg}")
+        if 'in progress' in msg or 'submitted' in msg or 'previous runs' in msg or 'Cannot remove files' in msg:
+            raise HTTPException(status_code=409, detail=msg)
+        if 'not found' in msg or 'access denied' in msg:
+            raise HTTPException(status_code=404, detail=msg)
+        raise HTTPException(status_code=400, detail=msg)
     except Exception as e:
         logger.error(f"Failed to remove file {file_id} from job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to remove file: {str(e)}")
