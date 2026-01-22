@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { apiClient, type JobResultsResponse } from '@/lib/api'
@@ -37,18 +37,25 @@ function formatCellValue(value: any): string {
 export function EditableResultsTable({
   jobId,
   runId,
+  filterTaskId,
+  defaultAttachToTaskId = null,
   readOnly = false,
 }: {
   jobId: string
   runId?: string
+  filterTaskId?: string
+  defaultAttachToTaskId?: string | null
   readOnly?: boolean
 }) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
+  const limit = 1000
+
   const { data, isLoading, error } = useQuery<JobResultsResponse>({
-    queryKey: ['job-results', jobId, runId],
-    queryFn: () => apiClient.getJobResults(jobId, { runId, limit: 1000 }),
+    // Match hooks/useJobs.ts query key so invalidation is consistent
+    queryKey: ['job-results', jobId, limit, runId],
+    queryFn: () => apiClient.getJobResults(jobId, { runId, limit }),
     enabled: !!jobId,
   })
 
@@ -72,6 +79,7 @@ export function EditableResultsTable({
   const displayRows = useMemo(() => {
     const rows: DisplayRow[] = []
     for (const taskResult of data?.results ?? []) {
+      if (filterTaskId && taskResult.task_id !== filterTaskId) continue
       const extracted = taskResult.extracted_data || {}
       const cols = Array.isArray(extracted.columns) ? extracted.columns : []
       const results = Array.isArray(extracted.results) ? extracted.results : []
@@ -98,7 +106,7 @@ export function EditableResultsTable({
       }
     }
     return rows
-  }, [data])
+  }, [data, filterTaskId])
 
   const unifiedColumns = useMemo(() => {
     const seen = new Set<string>()
@@ -113,6 +121,7 @@ export function EditableResultsTable({
     }
 
     for (const r of data?.results ?? []) {
+      if (filterTaskId && r.task_id !== filterTaskId) continue
       const cols = Array.isArray(r.extracted_data?.columns) ? r.extracted_data.columns : []
       for (const col of cols) {
         if (typeof col === 'string' && col && !seen.has(col)) {
@@ -123,14 +132,14 @@ export function EditableResultsTable({
     }
 
     return ordered
-  }, [data, baseColumnsFromJob])
+  }, [data, baseColumnsFromJob, filterTaskId])
 
   const updateCell = useMutation({
     mutationFn: async ({ taskId, rowId, col, value }: { taskId: string; rowId: string; col: string; value: any }) => {
       await apiClient.updateJobResultRow(jobId, taskId, rowId, { [col]: value })
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['job-results', jobId, runId] })
+      await queryClient.invalidateQueries({ queryKey: ['job-results', jobId] })
     },
     onError: (e: any) => {
       toast({
@@ -146,7 +155,7 @@ export function EditableResultsTable({
       await apiClient.deleteJobResultRow(jobId, taskId, rowId)
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['job-results', jobId, runId] })
+      await queryClient.invalidateQueries({ queryKey: ['job-results', jobId] })
     },
     onError: (e: any) => {
       toast({
@@ -166,7 +175,7 @@ export function EditableResultsTable({
       })
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['job-results', jobId, runId] })
+      await queryClient.invalidateQueries({ queryKey: ['job-results', jobId] })
     },
     onError: (e: any) => {
       toast({
@@ -184,6 +193,11 @@ export function EditableResultsTable({
   const UNATTACHED = '__unattached__'
   const [attachToTaskId, setAttachToTaskId] = useState<string>(UNATTACHED)
   const [newRowValues, setNewRowValues] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    if (!addOpen) return
+    setAttachToTaskId(defaultAttachToTaskId ? defaultAttachToTaskId : UNATTACHED)
+  }, [addOpen, defaultAttachToTaskId])
 
   const attachOptions = useMemo(() => {
     const opts: Array<{ id: string; label: string }> = []

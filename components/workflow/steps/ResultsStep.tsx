@@ -105,6 +105,22 @@ const buildFileTree = (results: JobResult[]): TreeNode[] => {
     resultsByTask.forEach((taskResults) => {
       const firstResult = taskResults[0];
 
+      // Manual task (unattached manual rows)
+      if (
+        firstResult.processing_mode === 'manual' ||
+        (Array.isArray(firstResult.source_files) && firstResult.source_files.length === 1 && firstResult.source_files[0] === '(manual)')
+      ) {
+        const fileNode: FileNode = {
+          id: firstResult.task_id,
+          name: 'Manual rows',
+          path: `__manual__/${firstResult.task_id}`,
+          type: 'file',
+          result: firstResult,
+        };
+        headerNode.children.push(fileNode);
+        return;
+      }
+
       if (firstResult.processing_mode === 'combined') {
         const sourceFiles = firstResult.source_files || [];
         if (sourceFiles.length === 0) return;
@@ -347,6 +363,7 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
   };
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  const [resultsView, setResultsView] = useState<'selected' | 'all'>('selected');
   const [fileTree, setFileTree] = useState<TreeNode[]>([]);
   const [selectedExportFolder, setSelectedExportFolder] = useState<{id: string, name: string} | null>(null);
 
@@ -365,13 +382,33 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
   useEffect(() => {
     setFileTree(fileTreeMemo);
 
-    // Select first file by default
-    if (fileTreeMemo.length > 0) {
-      const firstFile = findFirstFile(fileTreeMemo);
-      if (firstFile) {
-        setSelectedPath(firstFile.path);
-        setSelectedFileId(firstFile.id);
+    if (fileTreeMemo.length === 0) return;
+
+    // Preserve selection if the selected task still exists after refresh
+    if (selectedFileId) {
+      const findById = (nodes: TreeNode[]): FileNode | null => {
+        for (const node of nodes) {
+          if (node.type === 'file' && node.id === selectedFileId) return node;
+          if (node.type === 'folder') {
+            const found = findById(node.children);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+
+      const stillSelected = findById(fileTreeMemo);
+      if (stillSelected) {
+        setSelectedPath(stillSelected.path);
+        return;
       }
+    }
+
+    // Select first file by default
+    const firstFile = findFirstFile(fileTreeMemo);
+    if (firstFile) {
+      setSelectedPath(firstFile.path);
+      setSelectedFileId(firstFile.id);
     }
   }, [fileTreeMemo]);
 
@@ -986,9 +1023,108 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[600px]">
-            <EditableResultsTable jobId={jobId} runId={runId} />
-          </div>
+          {results?.results && results.results.length > 0 ? (
+            <div className="flex gap-6 h-[600px]">
+              {/* Sidebar with file tree */}
+              <div className="w-64 flex-shrink-0">
+                <h3 className="font-medium text-gray-900 mb-3 flex items-center">
+                  <Folder className="w-4 h-4 mr-2" />
+                  Files ({uniqueFilesCount})
+                </h3>
+
+                <div className="h-[548px] overflow-y-auto border rounded-lg p-2">
+                  {fileTree.length > 0 ? (
+                    fileTree.map((node, index) => (
+                      <FileTreeNode
+                        key={`${node.path}-${index}`}
+                        node={node}
+                        selectedPath={selectedPath}
+                        selectedFileId={selectedFileId}
+                        onSelect={(fileId, path) => {
+                          setSelectedFileId(fileId);
+                          setSelectedPath(path);
+                          setResultsView('selected');
+                        }}
+                        level={0}
+                      />
+                    ))
+                  ) : (
+                    <div className="text-center py-4 text-gray-500 text-sm">No files to display</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Main content area */}
+              <div className="flex-1 min-w-0 flex flex-col">
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <div className="min-w-0">
+                    {resultsView === 'selected' && selectedFileNode ? (
+                      <>
+                        <h3 className="font-medium text-gray-900 truncate">{selectedFileNode.name}</h3>
+                        <div className="text-sm text-gray-500 mt-1 truncate">
+                          {selectedFileNode.result.source_files?.length
+                            ? selectedFileNode.result.source_files.join(', ')
+                            : '(manual)'}
+                        </div>
+                        <Badge variant="secondary" className="mt-2">
+                          {selectedFileNode.result.processing_mode}
+                        </Badge>
+                      </>
+                    ) : (
+                      <>
+                        <h3 className="font-medium text-gray-900">All rows</h3>
+                        <div className="text-sm text-gray-500 mt-1">Across all tasks in this run</div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button
+                      size="sm"
+                      variant={resultsView === 'selected' ? 'default' : 'outline'}
+                      onClick={() => setResultsView('selected')}
+                      disabled={!selectedFileId}
+                    >
+                      Selected file
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={resultsView === 'all' ? 'default' : 'outline'}
+                      onClick={() => setResultsView('all')}
+                    >
+                      All rows
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex-1 min-h-0">
+                  {resultsView === 'selected' ? (
+                    selectedFileId ? (
+                      <EditableResultsTable
+                        jobId={jobId}
+                        runId={runId}
+                        filterTaskId={selectedFileId}
+                        defaultAttachToTaskId={selectedFileId}
+                      />
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">Select a file to view results.</div>
+                    )
+                  ) : (
+                    <EditableResultsTable jobId={jobId} runId={runId} defaultAttachToTaskId={null} />
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Results Found</h3>
+              <p className="text-gray-500">
+                The extraction job completed but no data was extracted. This might be due to the documents not containing
+                the requested information.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
