@@ -406,6 +406,22 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
     }
   }, [jobId, runId, fileListScope])
 
+  // Reload files when other parts of the UI delete files indirectly
+  // (e.g. deleting the last extracted row for a task also deletes its files).
+  useEffect(() => {
+    if (!jobId) return
+
+    const onFilesChanged = (e: Event) => {
+      const ce = e as CustomEvent
+      const changedJobId = ce?.detail?.jobId
+      if (changedJobId && changedJobId !== jobId) return
+      loadExistingFiles()
+    }
+
+    window.addEventListener('cpaautomation:job-files-changed', onFilesChanged)
+    return () => window.removeEventListener('cpaautomation:job-files-changed', onFilesChanged)
+  }, [jobId, runId, fileListScope])
+
   // Helper function to check if a file is a system file
   const isSystemFile = (fileName: string): boolean => {
     const name = fileName.toLowerCase()

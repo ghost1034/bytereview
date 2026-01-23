@@ -163,6 +163,12 @@ export function EditableResultsTable({
       // Deleting the last row of a task may delete that task's files.
       queryClient.invalidateQueries({ queryKey: ['job-files-all', jobId] })
       if (runId) queryClient.invalidateQueries({ queryKey: ['job-files', jobId, runId] })
+
+      // Some file lists (e.g. EnhancedFileUpload) don't use react-query for the
+      // file list and won't refresh on invalidateQueries; notify them directly.
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cpaautomation:job-files-changed', { detail: { jobId } }))
+      }
     },
     onError: (e: any) => {
       toast({
