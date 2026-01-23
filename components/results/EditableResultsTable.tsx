@@ -15,7 +15,8 @@ import { useToast } from '@/hooks/use-toast'
 
 type DisplayRow = {
   taskId: string
-  rowId: string
+  rowId: string | null
+  rowKey: string
   sourceFiles: string[]
   processingMode: string
   resultSetIndex?: number
@@ -87,6 +88,7 @@ export function EditableResultsTable({
       const rowSources = Array.isArray(extracted.row_sources) ? extracted.row_sources : []
 
       for (let i = 0; i < results.length; i++) {
+        const stableRowId = typeof rowIds[i] === 'string' && rowIds[i] ? rowIds[i] : null
         const arr = Array.isArray(results[i]) ? results[i] : []
         const values: Record<string, any> = {}
         for (let c = 0; c < cols.length; c++) {
@@ -96,7 +98,8 @@ export function EditableResultsTable({
 
         rows.push({
           taskId: taskResult.task_id,
-          rowId: rowIds[i] ?? `${taskResult.task_id}:${i}`,
+          rowId: stableRowId,
+          rowKey: stableRowId ?? `${taskResult.task_id}:${i}`,
           sourceFiles: taskResult.source_files ?? [],
           processingMode: taskResult.processing_mode,
           resultSetIndex: (taskResult as any).result_set_index,
@@ -232,6 +235,14 @@ export function EditableResultsTable({
     const next = draft.trim()
     const payload = next === '' ? null : next
     setEditing(null)
+    if (!row.rowId) {
+      toast({
+        title: 'Update failed',
+        description: 'Row is missing a stable ID. Refresh and try again.',
+        variant: 'destructive',
+      })
+      return
+    }
     await updateCell.mutateAsync({ taskId: row.taskId, rowId: row.rowId, col, value: payload })
   }
 
@@ -244,6 +255,7 @@ export function EditableResultsTable({
   }
 
   const canEdit = !readOnly
+  const hasUnkeyedRows = displayRows.some((r) => !r.rowId)
 
   return (
     <div className="h-full flex flex-col">
@@ -327,6 +339,12 @@ export function EditableResultsTable({
         </Dialog>
       </div>
 
+      {hasUnkeyedRows && (
+        <div className="px-2 pb-2 text-xs text-muted-foreground">
+          Some rows are missing stable IDs, so editing is temporarily disabled for them. Refresh if this persists.
+        </div>
+      )}
+
       <ScrollArea className="flex-1 w-full">
         <div className="min-w-max">
           <Table>
@@ -349,7 +367,7 @@ export function EditableResultsTable({
                 </TableRow>
               ) : (
                 displayRows.map((row) => (
-                  <TableRow key={`${row.taskId}:${row.rowId}`}>
+                  <TableRow key={`${row.taskId}:${row.rowKey}`}>
                     <TableCell className="whitespace-nowrap">
                       {(row.sourceFiles?.length ? row.sourceFiles.join(', ') : '(manual)')}
                     </TableCell>
@@ -358,15 +376,15 @@ export function EditableResultsTable({
                       .map((col) => {
                         const isEditing = editing?.rowId === row.rowId && editing?.col === col
                         const value = row.values[col]
-                        return (
-                          <TableCell
-                            key={`${row.rowId}:${col}`}
-                            className={canEdit ? 'whitespace-nowrap cursor-text' : 'whitespace-nowrap'}
-                            onDoubleClick={() => {
-                              if (!canEdit) return
+                         return (
+                            <TableCell
+                              key={`${row.rowKey}:${col}`}
+                              className={canEdit ? 'whitespace-nowrap cursor-text' : 'whitespace-nowrap'}
+                              onDoubleClick={() => {
+                              if (!canEdit || !row.rowId) return
                               startEdit(row.rowId, col, value)
-                            }}
-                          >
+                              }}
+                            >
                             {isEditing ? (
                               <Input
                                 autoFocus
@@ -395,8 +413,8 @@ export function EditableResultsTable({
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={!canEdit || deleteRow.isPending}
-                        onClick={() => deleteRow.mutate({ taskId: row.taskId, rowId: row.rowId })}
+                        disabled={!canEdit || deleteRow.isPending || !row.rowId}
+                        onClick={() => row.rowId && deleteRow.mutate({ taskId: row.taskId, rowId: row.rowId })}
                       >
                         Delete
                       </Button>

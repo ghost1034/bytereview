@@ -24,6 +24,7 @@ from models.db_models import (
 from core.database import db_config
 from services.gcs_service import get_storage_service
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func, update, and_, or_
 from sqlalchemy.sql.expression import nullslast
@@ -2151,7 +2152,7 @@ class JobService:
                         did_backfill_this = True
 
                     if did_backfill_this:
-                        result.extracted_data = extracted_data
+                        self._set_extracted_data(result, extracted_data)
                         did_backfill_any = True
                     
                     # Keep the array-based format for API response
@@ -2256,6 +2257,15 @@ class JobService:
         db.flush()
         return result
 
+    def _set_extracted_data(self, result: ExtractionResult, extracted_data: dict) -> None:
+        """Assign extracted_data and mark it as modified.
+
+        Even with MutableDict, nested list mutations (rows/columns) are not tracked
+        reliably; flag_modified ensures changes persist.
+        """
+        result.extracted_data = extracted_data
+        flag_modified(result, "extracted_data")
+
     def _ensure_result_shape(self, extracted_data: dict) -> dict:
         cols = extracted_data.get('columns')
         rows = extracted_data.get('results')
@@ -2350,7 +2360,7 @@ class JobService:
             extracted_data['row_ids'].append(row_id)
             extracted_data['row_sources'].append('manual')
 
-            result.extracted_data = extracted_data
+            self._set_extracted_data(result, extracted_data)
             db.commit()
             return {"task_id": str(task.id), "row_id": row_id}
         except Exception:
@@ -2399,7 +2409,7 @@ class JobService:
                     rows[row_idx].append(None)
                 rows[row_idx][col_idx] = v
 
-            result.extracted_data = extracted_data
+            self._set_extracted_data(result, extracted_data)
             db.commit()
         except Exception:
             db.rollback()
@@ -2459,7 +2469,7 @@ class JobService:
                 db.commit()
                 return
 
-            result.extracted_data = extracted_data
+            self._set_extracted_data(result, extracted_data)
             db.commit()
         except Exception:
             db.rollback()

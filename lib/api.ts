@@ -6,6 +6,18 @@ type ApiPaths = paths
 type ApiResponse<T> = T extends { responses: { 200: { content: { 'application/json': infer U } } } } ? U : never
 type ApiRequest<T> = T extends { requestBody: { content: { 'application/json': infer U } } } ? U : never
 
+export class ApiError extends Error {
+  status: number
+  body: any
+
+  constructor(status: number, message: string, body?: any) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.body = body
+  }
+}
+
 export class ApiClient {
   private baseURL: string
 
@@ -35,8 +47,20 @@ export class ApiClient {
     })
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Request failed' }))
-      throw new Error(error.detail || error.message || `HTTP ${response.status}`)
+      let body: any = null
+      let message = `HTTP ${response.status}`
+      try {
+        body = await response.json()
+        message = body?.detail || body?.message || message
+      } catch {
+        try {
+          const text = await response.text()
+          if (text) message = text
+        } catch {
+          // ignore
+        }
+      }
+      throw new ApiError(response.status, message, body)
     }
 
     return response.json()
@@ -427,7 +451,15 @@ export class ApiClient {
               reject(new Error('Invalid response format'))
             }
           } else {
-            reject(new Error(`Upload failed with status ${xhr.status}`))
+            let body: any = null
+            let message = `Upload failed with status ${xhr.status}`
+            try {
+              body = JSON.parse(xhr.responseText)
+              message = body?.detail || body?.message || message
+            } catch {
+              // ignore
+            }
+            reject(new ApiError(xhr.status, message, body))
           }
         })
 

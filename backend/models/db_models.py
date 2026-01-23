@@ -4,6 +4,7 @@ Integration phase - supports multi-source ingestion, exports, and automations
 """
 from sqlalchemy import Column, String, Integer, BigInteger, Boolean, Text, TIMESTAMP, ForeignKey, UUID, LargeBinary, ARRAY, CheckConstraint
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
@@ -277,7 +278,9 @@ class ExtractionResult(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     task_id = Column(UUID(as_uuid=True), ForeignKey("extraction_tasks.id", ondelete="CASCADE"), unique=True, nullable=False)
-    extracted_data = Column(JSONB, nullable=False)
+    # Use MutableDict so SQLAlchemy reliably persists in-place JSON mutations
+    # (row edits/deletes, row_id backfills, manual rows, etc.).
+    extracted_data = Column(MutableDict.as_mutable(JSONB), nullable=False)
     processed_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     
     # Relationships
