@@ -9,7 +9,6 @@ import {
   ResizableHandle
 } from '@/components/ui/resizable'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,11 +27,28 @@ import {
 } from '@/components/ui/alert-dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, Trash2, ChevronDown, Loader2, Download, FileSpreadsheet } from 'lucide-react'
+import { Plus, Trash2, ChevronDown, Loader2, Download, FileSpreadsheet, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-import { useCpeStates, useCpeSheets, useCreateCpeSheet, useDeleteCpeSheet, useStartCpeSheet } from '@/hooks/useCpe'
+import {
+  useCpeStates,
+  useCpeSheets,
+  useCreateCpeSheet,
+  useDeleteCpeSheet,
+  useStartCpeSheet,
+  useRenameCpeSheet
+} from '@/hooks/useCpe'
 import { useJobDetails } from '@/hooks/useJobs'
 import { EditableResultsTable } from '@/components/results/EditableResultsTable'
 import EnhancedFileUpload from '@/components/workflow/steps/EnhancedFileUpload'
@@ -52,13 +68,21 @@ export default function CpeTrackerPage() {
   const [jobToDelete, setJobToDelete] = useState<string | null>(null)
   const [activeRunId, setActiveRunId] = useState<string | undefined>()
 
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [createTemplate, setCreateTemplate] = useState<{ templateId: string; templateName: string } | null>(null)
+  const [createSheetName, setCreateSheetName] = useState('')
+
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false)
+  const [renameTarget, setRenameTarget] = useState<{ jobId: string; currentName: string } | null>(null)
+  const [renameSheetName, setRenameSheetName] = useState('')
+
   // Queries
   const { data: statesData, isLoading: statesLoading } = useCpeStates()
   const { data: sheetsData, isLoading: sheetsLoading, refetch: refetchSheets } = useCpeSheets()
 
   // Get selected sheet details
   const selectedSheet = sheetsData?.sheets.find(s => s.job_id === selectedJobId)
-  const { data: jobDetails, refetch: refetchJobDetails } = useJobDetails(
+  const { refetch: refetchJobDetails } = useJobDetails(
     selectedJobId || undefined,
     activeRunId || selectedSheet?.latest_run_id
   )
@@ -71,6 +95,7 @@ export default function CpeTrackerPage() {
   const createSheet = useCreateCpeSheet()
   const deleteSheet = useDeleteCpeSheet()
   const startSheet = useStartCpeSheet()
+  const renameSheet = useRenameCpeSheet()
 
   // Auto-select first sheet if none selected
   useEffect(() => {
@@ -105,19 +130,64 @@ export default function CpeTrackerPage() {
     return () => clearInterval(pollInterval)
   }, [isProcessing, selectedJobId, refetchSheets, refetchJobDetails, queryClient])
 
-  const handleCreateSheet = async (templateId: string) => {
+  const handleCreateSheet = async (templateId: string, name?: string) => {
+    const result = await createSheet.mutateAsync({ templateId, name })
+    toast({
+      title: 'CPE Sheet Created',
+      description: result.message
+    })
+    router.replace(`/dashboard/cpe-tracker?job_id=${result.job_id}`)
+    setActiveRunId(result.run_id)
+  }
+
+  const handleOpenCreateDialog = (templateId: string, templateName: string) => {
+    setCreateTemplate({ templateId, templateName })
+    setCreateSheetName(templateName)
+    setCreateDialogOpen(true)
+  }
+
+  const handleConfirmCreate = async () => {
+    if (!createTemplate) return
+    const name = createSheetName.trim()
     try {
-      const result = await createSheet.mutateAsync({ templateId })
-      toast({
-        title: 'CPE Sheet Created',
-        description: result.message
-      })
-      router.replace(`/dashboard/cpe-tracker?job_id=${result.job_id}`)
-      setActiveRunId(result.run_id)
+      await handleCreateSheet(createTemplate.templateId, name || undefined)
+      setCreateDialogOpen(false)
+      setCreateTemplate(null)
+      setCreateSheetName('')
     } catch (error: any) {
       toast({
         title: 'Error',
         description: error.message || 'Failed to create CPE sheet',
+        variant: 'destructive'
+      })
+    }
+  }
+
+  const handleConfirmRename = async () => {
+    if (!renameTarget) return
+    const name = renameSheetName.trim()
+    if (!name) {
+      toast({
+        title: 'Name required',
+        description: 'Please enter a name for this CPE sheet.',
+        variant: 'destructive'
+      })
+      return
+    }
+
+    try {
+      await renameSheet.mutateAsync({ jobId: renameTarget.jobId, name })
+      toast({
+        title: 'Renamed',
+        description: 'CPE sheet name updated.'
+      })
+      setRenameDialogOpen(false)
+      setRenameTarget(null)
+      setRenameSheetName('')
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to rename CPE sheet',
         variant: 'destructive'
       })
     }
@@ -253,7 +323,7 @@ export default function CpeTrackerPage() {
                     {statesData?.states.map((state) => (
                       <DropdownMenuItem
                         key={state.template_id}
-                        onClick={() => handleCreateSheet(state.template_id)}
+                        onClick={() => handleOpenCreateDialog(state.template_id, state.name)}
                       >
                         {state.name}
                       </DropdownMenuItem>
@@ -307,18 +377,33 @@ export default function CpeTrackerPage() {
                           </span>
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setJobToDelete(sheet.job_id)
-                          setDeleteDialogOpen(true)
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setRenameTarget({ jobId: sheet.job_id, currentName: sheet.name })
+                            setRenameSheetName(sheet.name)
+                            setRenameDialogOpen(true)
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setJobToDelete(sheet.job_id)
+                            setDeleteDialogOpen(true)
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -442,6 +527,115 @@ export default function CpeTrackerPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create Sheet Dialog */}
+      <Dialog
+        open={createDialogOpen}
+        onOpenChange={(open) => {
+          setCreateDialogOpen(open)
+          if (!open) {
+            setCreateTemplate(null)
+            setCreateSheetName('')
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create CPE Sheet</DialogTitle>
+            <DialogDescription>
+              {createTemplate ? `Based on ${createTemplate.templateName}.` : 'Choose a name for your new sheet.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="cpe-sheet-name">Sheet name</Label>
+            <Input
+              id="cpe-sheet-name"
+              value={createSheetName}
+              onChange={(e) => setCreateSheetName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleConfirmCreate()
+              }}
+              placeholder={createTemplate?.templateName || 'CPE Sheet'}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCreateDialogOpen(false)
+                setCreateTemplate(null)
+                setCreateSheetName('')
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmCreate} disabled={createSheet.isPending}>
+              {createSheet.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Create'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Sheet Dialog */}
+      <Dialog
+        open={renameDialogOpen}
+        onOpenChange={(open) => {
+          setRenameDialogOpen(open)
+          if (!open) {
+            setRenameTarget(null)
+            setRenameSheetName('')
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename CPE Sheet</DialogTitle>
+            <DialogDescription>Update the name shown in your CPE sheets list and exports.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="cpe-sheet-rename">Sheet name</Label>
+            <Input
+              id="cpe-sheet-rename"
+              value={renameSheetName}
+              onChange={(e) => setRenameSheetName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleConfirmRename()
+              }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRenameDialogOpen(false)
+                setRenameTarget(null)
+                setRenameSheetName('')
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmRename} disabled={renameSheet.isPending}>
+              {renameSheet.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

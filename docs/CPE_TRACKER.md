@@ -159,7 +159,7 @@ Response shape:
   "sheets": [
     {
       "job_id": "…",
-      "name": "CPE Tracker - California",
+      "name": "California",
       "state_name": "California",
       "status": "pending|in_progress|completed|partially_completed|failed|…",
       "config_step": "upload|fields|review|submitted",
@@ -182,6 +182,7 @@ Behavior:
 
 - Validates template exists and has template_type='cpe'.
 - Creates ExtractionJob(job_type='cpe').
+- Job name defaults to the selected template name (unless `name` is provided).
 - Creates initial JobRun(config_step='upload', status='pending', template_id=<state template>).
 
 Response:

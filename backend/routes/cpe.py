@@ -156,7 +156,8 @@ async def create_cpe_sheet(
             raise HTTPException(status_code=403, detail="Template not accessible")
 
         # Create the job with job_type='cpe'
-        job_name = request.name or f"CPE Tracker - {template.name}"
+        # Default sheet name should match the selected CPE template name.
+        job_name = (request.name or "").strip() or template.name
         job = ExtractionJob(
             name=job_name,
             user_id=user_id,

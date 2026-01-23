@@ -487,6 +487,17 @@ export class ApiClient {
     })
   }
 
+  async updateJobDetails(jobId: string, data: { name: string }): Promise<{ message: string }> {
+    return this.request(`/api/jobs/${jobId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateJobName(jobId: string, name: string): Promise<{ message: string }> {
+    return this.updateJobDetails(jobId, { name })
+  }
+
   async getJobResults(jobId: string, params?: { limit?: number; offset?: number; runId?: string }): Promise<JobResultsResponse> {
     const searchParams = new URLSearchParams()
     if (params?.limit) searchParams.set('limit', params.limit.toString())

@@ -68,3 +68,18 @@ export function useStartCpeSheet() {
     },
   })
 }
+
+/**
+ * Hook to rename a CPE sheet (updates the underlying job name)
+ */
+export function useRenameCpeSheet() {
+  const queryClient = useQueryClient()
+
+  return useMutation<{ message: string }, Error, { jobId: string; name: string }>({
+    mutationFn: ({ jobId, name }) => apiClient.updateJobName(jobId, name),
+    onSuccess: (_, { jobId }) => {
+      queryClient.invalidateQueries({ queryKey: ['cpe-sheets'] })
+      queryClient.invalidateQueries({ queryKey: ['job', jobId] })
+    },
+  })
+}
