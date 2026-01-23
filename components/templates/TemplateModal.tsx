@@ -142,84 +142,87 @@ export default function TemplateModal({ isOpen, onClose, template, defaultTempla
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="shrink-0">
           <DialogTitle>
             {template ? 'Edit Template' : 'Create New Template'}
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Info */}
-          <div className="space-y-2">
-            <Label htmlFor="name">Template Name *</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Invoice Extraction"
-              required
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {/* Scrollable content */}
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
+            {/* Basic Info */}
+            <div className="space-y-2">
+              <Label htmlFor="name">Template Name *</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g., Invoice Extraction"
+                required
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe what this template extracts..."
-              rows={2}
-            />
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe what this template extracts..."
+                rows={2}
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label>Template Type</Label>
-            <Select value={templateType} onValueChange={(v) => setTemplateType(v as any)} disabled={!!template}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="extraction">Extraction</SelectItem>
-                <SelectItem value="cpe">CPE</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              {templateType === 'cpe'
-                ? 'CPE templates are used by the CPE Tracker workflow.'
-                : 'Extraction templates are used in the standard extraction job workflow.'}
-            </p>
-          </div>
+            <div className="space-y-2">
+              <Label>Template Type</Label>
+              <Select value={templateType} onValueChange={(v) => setTemplateType(v as any)} disabled={!!template}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="extraction">Extraction</SelectItem>
+                  <SelectItem value="cpe">CPE</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {templateType === 'cpe'
+                  ? 'CPE templates are used by the CPE Tracker workflow.'
+                  : 'Extraction templates are used in the standard extraction job workflow.'}
+              </p>
+            </div>
 
-          {/* Fields */}
-          <div className="h-[400px] overflow-y-auto">
-            {dataTypesLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Loading field configuration...</p>
+            {/* Fields */}
+            <div className="min-h-[320px]">
+              {dataTypesLoading ? (
+                <div className="flex min-h-[320px] items-center justify-center">
+                  <div className="text-center">
+                    <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-purple-600"></div>
+                    <p className="text-gray-600">Loading field configuration...</p>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="h-full">
+              ) : (
                 <FieldConfigurationEditor
                   fields={fields}
                   onFieldsChange={setFields}
                   dataTypes={dataTypes}
                   mode="template"
                 />
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-end space-x-3 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Saving...' : (template ? 'Update Template' : 'Create Template')}
-            </Button>
+          {/* Non-scrollable actions */}
+          <div className="shrink-0 border-t pt-4">
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Saving...' : (template ? 'Update Template' : 'Create Template')}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>
