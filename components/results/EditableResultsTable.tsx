@@ -201,14 +201,32 @@ export function EditableResultsTable({
   const [attachToTaskId, setAttachToTaskId] = useState<string>(UNATTACHED)
   const [newRowValues, setNewRowValues] = useState<Record<string, string>>({})
 
+  const manualTaskIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const r of data?.results ?? []) {
+      const isManual =
+        r.processing_mode === 'manual' ||
+        (Array.isArray(r.source_files) && r.source_files.length === 1 && r.source_files[0] === '(manual)')
+      if (isManual) ids.add(r.task_id)
+    }
+    return ids
+  }, [data])
+
   useEffect(() => {
     if (!addOpen) return
-    setAttachToTaskId(defaultAttachToTaskId ? defaultAttachToTaskId : UNATTACHED)
-  }, [addOpen, defaultAttachToTaskId])
+    // If a "manual" task is selected (unattached manual rows), default the dialog to
+    // the explicit "Unattached (manual)" option instead of the task.
+    const preferred =
+      defaultAttachToTaskId && !manualTaskIds.has(defaultAttachToTaskId)
+        ? defaultAttachToTaskId
+        : UNATTACHED
+    setAttachToTaskId(preferred)
+  }, [addOpen, defaultAttachToTaskId, manualTaskIds])
 
   const attachOptions = useMemo(() => {
     const opts: Array<{ id: string; label: string }> = []
     for (const r of data?.results ?? []) {
+      if (manualTaskIds.has(r.task_id)) continue
       const label = (r.source_files?.length ? r.source_files.join(', ') : '(manual)')
       opts.push({ id: r.task_id, label })
     }
@@ -219,7 +237,7 @@ export function EditableResultsTable({
       seen.add(o.id)
       return true
     })
-  }, [data])
+  }, [data, manualTaskIds])
 
   const inputColumns = useMemo(() => {
     const cols = unifiedColumns.filter((c) => c !== 'Source File Path(s)')
