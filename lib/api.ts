@@ -472,6 +472,48 @@ export class ApiClient {
     })
   }
 
+  async downloadJobFile(jobId: string, fileId: string): Promise<{ blob: Blob; filename: string }> {
+    const token = await this.getAuthToken()
+
+    const response = await fetch(`${this.baseURL}/api/jobs/${jobId}/files/${fileId}:download`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'File download failed' }))
+      throw new Error(error.detail || error.message || 'File download failed')
+    }
+
+    const blob = await response.blob()
+    const filename = response.headers.get('Content-Disposition')?.match(/filename=(.+)/)?.[1] || 'download'
+    return { blob, filename: filename.replace(/"/g, '') }
+  }
+
+  async downloadJobFilesZip(jobId: string, fileIds: string[]): Promise<{ blob: Blob; filename: string }> {
+    const token = await this.getAuthToken()
+
+    const response = await fetch(`${this.baseURL}/api/jobs/${jobId}/files:download-zip`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ file_ids: fileIds })
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'ZIP download failed' }))
+      throw new Error(error.detail || error.message || 'ZIP download failed')
+    }
+
+    const blob = await response.blob()
+    const filename = response.headers.get('Content-Disposition')?.match(/filename=(.+)/)?.[1] || 'files.zip'
+    return { blob, filename: filename.replace(/"/g, '') }
+  }
+
   /**
    * Get auth token for SSE connections (public method)
    */

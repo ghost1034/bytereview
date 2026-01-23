@@ -5,7 +5,7 @@ Handles job lifecycle, file management, and task orchestration
 import os
 import uuid
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timedelta
 from fastapi import UploadFile
 from services.cloud_run_task_service import cloud_run_task_service
@@ -1824,6 +1824,61 @@ class JobService:
             raise
         finally:
             db.close()
+
+    async def get_job_files_for_download(
+        self,
+        user_id: str,
+        job_id: str,
+        file_ids: List[str],
+    ) -> Tuple[ExtractionJob, List[SourceFile]]:
+        """Load source files for download with ownership checks."""
+        db = self._get_session()
+        try:
+            job = db.query(ExtractionJob).filter(
+                ExtractionJob.id == job_id,
+                ExtractionJob.user_id == user_id,
+            ).first()
+            if not job:
+                raise ValueError("Job not found or access denied")
+
+            if not file_ids:
+                return job, []
+
+            # Validate UUIDs up front (avoid silent query mismatches)
+            try:
+                file_uuids = [uuid.UUID(fid) for fid in file_ids]
+            except Exception:
+                raise ValueError("Invalid file id")
+
+            rows = (
+                db.query(SourceFile)
+                .join(JobRun, SourceFile.job_run_id == JobRun.id)
+                .filter(
+                    JobRun.job_id == job_id,
+                    SourceFile.id.in_(file_uuids),
+                )
+                .all()
+            )
+
+            found_by_id = {str(sf.id): sf for sf in rows}
+            missing = [fid for fid in file_ids if fid not in found_by_id]
+            if missing:
+                raise ValueError("One or more files not found")
+
+            # Preserve caller order
+            ordered = [found_by_id[fid] for fid in file_ids]
+            return job, ordered
+        finally:
+            db.close()
+
+    async def get_job_file_for_download(
+        self,
+        user_id: str,
+        job_id: str,
+        file_id: str,
+    ) -> Tuple[ExtractionJob, SourceFile]:
+        job, files = await self.get_job_files_for_download(user_id, job_id, [file_id])
+        return job, files[0]
 
     async def _delete_source_file_and_cleanup_fileless_tasks(self, db: Session, job_id: str, source_file: SourceFile) -> None:
         """

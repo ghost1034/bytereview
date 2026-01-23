@@ -17,6 +17,7 @@ import {
   FileText,
   Archive,
   Folder,
+  Download,
   X,
   Plus,
   Loader2,
@@ -57,6 +58,8 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
   const [files, setFiles] = useState<DisplayFile[]>([])
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null)
+  const [downloadingAll, setDownloadingAll] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [hasTriggeredImports, setHasTriggeredImports] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -875,6 +878,64 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
+  const triggerBrowserDownload = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+  }
+
+  const isRealFileId = (id: string) => !id.startsWith('temp-') && !id.startsWith('importing-')
+
+  const isDownloadable = (file: DisplayFile) =>
+    isRealFileId(file.id) && (file.status === 'uploaded' || file.status === 'unpacked')
+
+  const handleDownloadFile = async (file: DisplayFile) => {
+    if (!isDownloadable(file)) return
+    setDownloadingFileId(file.id)
+    try {
+      const { blob, filename } = await apiClient.downloadJobFile(jobId, file.id)
+      triggerBrowserDownload(blob, filename)
+    } catch (error: any) {
+      toast({
+        title: 'Download failed',
+        description: error?.message || 'Failed to download file',
+        variant: 'destructive'
+      })
+    } finally {
+      setDownloadingFileId(null)
+    }
+  }
+
+  const handleDownloadAll = async () => {
+    const fileIds = files.filter(isDownloadable).map(f => f.id)
+    if (fileIds.length === 0) {
+      toast({
+        title: 'No files to download',
+        description: 'Upload files first, or wait for processing to complete.',
+      })
+      return
+    }
+
+    setDownloadingAll(true)
+    try {
+      const { blob, filename } = await apiClient.downloadJobFilesZip(jobId, fileIds)
+      triggerBrowserDownload(blob, filename)
+    } catch (error: any) {
+      toast({
+        title: 'Download failed',
+        description: error?.message || 'Failed to download ZIP',
+        variant: 'destructive'
+      })
+    } finally {
+      setDownloadingAll(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Integration prompt */}
@@ -995,10 +1056,26 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
       {files.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Uploaded Files ({files.length})
-            </CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Uploaded Files ({files.length})
+              </CardTitle>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadAll}
+                disabled={downloadingAll}
+              >
+                {downloadingAll ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                Download All
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="max-h-96 overflow-y-auto space-y-2">
@@ -1025,7 +1102,24 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
                   
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {getStatusBadge(file.status)}
-                    
+
+                    {isDownloadable(file) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDownloadFile(file)}
+                        disabled={downloadingAll || downloadingFileId === file.id}
+                        className="p-1 h-8 w-8 text-blue-600 hover:text-blue-800"
+                        title="Download file"
+                      >
+                        {downloadingFileId === file.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Download className="w-4 h-4" />
+                        )}
+                      </Button>
+                    )}
+                     
                     {/* Delete button - only show for uploaded/unpacked files, when not readOnly,
                         and not readOnly */}
                     {(file.status === 'uploaded' || file.status === 'unpacked') &&

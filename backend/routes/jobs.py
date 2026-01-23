@@ -10,12 +10,18 @@ import asyncio
 import csv
 import openpyxl
 import logging
+import zipfile
+import tempfile
+import re
 from io import StringIO, BytesIO
+from datetime import datetime
+from pathlib import PurePosixPath
 from dependencies.auth import get_current_user_id, verify_token_string
 from core.database import get_db
 from sqlalchemy.orm import Session
 from models.db_models import ExtractionJob, SourceFile, JobExport
 from services.job_service import JobService
+from services.gcs_service import get_storage_service
 from services.sse_service import sse_manager
 from services.google_service import google_service
 from services.export_service import generate_csv_content, generate_excel_content, generate_export_filename
@@ -55,6 +61,55 @@ class ResumableJobResponse(BaseModel):
     is_resumable: bool
     created_at: str
     last_active_at: str
+
+
+class DownloadFilesZipRequest(BaseModel):
+    file_ids: List[str]
+
+
+def _safe_download_filename(name: str) -> str:
+    name = (name or "file").strip()
+    name = name.replace("/", "_").replace("\\", "_")
+    name = re.sub(r"\s+", "_", name)
+    name = re.sub(r"[^A-Za-z0-9._-]", "", name)
+    return (name[:160] or "file")
+
+
+def _safe_zip_entry_name(path: str, fallback_filename: str) -> str:
+    raw = (path or "").strip() or (fallback_filename or "file")
+    raw = raw.replace("\\", "/").lstrip("/")
+
+    parts: List[str] = []
+    for p in PurePosixPath(raw).parts:
+        if p in ("", "/", "."):
+            continue
+        if p == "..":
+            continue
+        safe = _safe_download_filename(p)
+        if safe:
+            parts.append(safe)
+
+    if not parts:
+        return _safe_download_filename(fallback_filename or "file")
+    return "/".join(parts)
+
+
+def _dedupe_zip_name(name: str, used: set[str]) -> str:
+    if name not in used:
+        used.add(name)
+        return name
+
+    base, dot, ext = name.rpartition(".")
+    if dot == "":
+        base, ext = name, ""
+
+    i = 2
+    while True:
+        candidate = f"{base}_{i}{dot}{ext}" if ext else f"{base}_{i}"
+        if candidate not in used:
+            used.add(candidate)
+            return candidate
+        i += 1
 
 @router.post("/initiate", response_model=JobInitiateResponse)
 async def initiate_job(
@@ -347,6 +402,135 @@ async def remove_file_from_job(
     except Exception as e:
         logger.error(f"Failed to remove file {file_id} from job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to remove file: {str(e)}")
+
+
+@router.get("/{job_id}/files/{file_id}:download")
+async def download_job_file(
+    job_id: str,
+    file_id: str,
+    user_id: str = Depends(get_current_user_id),
+):
+    """Download a single uploaded file."""
+    try:
+        _job, source_file = await job_service.get_job_file_for_download(user_id, job_id, file_id)
+
+        if source_file.status not in (FileStatus.UPLOADED.value, FileStatus.UNPACKED.value):
+            raise HTTPException(status_code=409, detail="File is not ready for download")
+
+        storage_service = get_storage_service()
+        if not getattr(storage_service, "is_available", lambda: False)():
+            raise HTTPException(status_code=500, detail="Storage is not available")
+
+        bucket = getattr(storage_service, "bucket", None)
+        if bucket is None:
+            raise HTTPException(status_code=500, detail="Storage backend does not support downloads")
+
+        blob = bucket.blob(source_file.gcs_object_name)
+        if not blob.exists():
+            raise HTTPException(status_code=404, detail="File not found in storage")
+
+        filename = _safe_download_filename(source_file.original_filename)
+        headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+        media_type = source_file.file_type or "application/octet-stream"
+
+        def file_iterator():
+            with blob.open("rb") as f:
+                while True:
+                    chunk = f.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    yield chunk
+
+        return StreamingResponse(file_iterator(), media_type=media_type, headers=headers)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        msg = str(e)
+        if "Invalid file id" in msg:
+            raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=404, detail=msg)
+    except Exception as e:
+        logger.error(f"Failed to download file {file_id} for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to download file: {str(e)}")
+
+
+@router.post("/{job_id}/files:download-zip")
+async def download_job_files_zip(
+    job_id: str,
+    request: DownloadFilesZipRequest,
+    user_id: str = Depends(get_current_user_id),
+):
+    """Download multiple uploaded files as a single ZIP archive."""
+    try:
+        file_ids = request.file_ids or []
+        if not file_ids:
+            raise HTTPException(status_code=400, detail="No file_ids provided")
+        if len(file_ids) > 200:
+            raise HTTPException(status_code=400, detail="Too many files requested")
+
+        job, source_files = await job_service.get_job_files_for_download(user_id, job_id, file_ids)
+
+        not_ready = [sf.original_filename for sf in source_files if sf.status not in (FileStatus.UPLOADED.value, FileStatus.UNPACKED.value)]
+        if not_ready:
+            raise HTTPException(status_code=409, detail="One or more files are not ready for download")
+
+        storage_service = get_storage_service()
+        if not getattr(storage_service, "is_available", lambda: False)():
+            raise HTTPException(status_code=500, detail="Storage is not available")
+
+        bucket = getattr(storage_service, "bucket", None)
+        if bucket is None:
+            raise HTTPException(status_code=500, detail="Storage backend does not support downloads")
+
+        tmp = tempfile.SpooledTemporaryFile(max_size=50 * 1024 * 1024)
+        used_names: set[str] = set()
+
+        with zipfile.ZipFile(tmp, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for sf in source_files:
+                blob = bucket.blob(sf.gcs_object_name)
+                if not blob.exists():
+                    raise HTTPException(status_code=404, detail="File not found in storage")
+
+                entry_name = _safe_zip_entry_name(sf.original_path, sf.original_filename)
+                entry_name = _dedupe_zip_name(entry_name, used_names)
+
+                with blob.open("rb") as src, zf.open(entry_name, "w") as dest:
+                    while True:
+                        chunk = src.read(1024 * 1024)
+                        if not chunk:
+                            break
+                        dest.write(chunk)
+
+        tmp.seek(0)
+
+        base_name = f"{(job.name or str(job.id))}_files"
+        zip_filename = generate_export_filename(base_name, datetime.utcnow(), "zip")
+        headers = {"Content-Disposition": f'attachment; filename="{zip_filename}"'}
+
+        def zip_iterator():
+            try:
+                while True:
+                    chunk = tmp.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    yield chunk
+            finally:
+                try:
+                    tmp.close()
+                except Exception:
+                    pass
+
+        return StreamingResponse(zip_iterator(), media_type="application/zip", headers=headers)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        msg = str(e)
+        if "Invalid file id" in msg:
+            raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=404, detail=msg)
+    except Exception as e:
+        logger.error(f"Failed to download zip for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to download zip: {str(e)}")
 
 @router.get("/{job_id}/events")
 async def stream_job_events(
