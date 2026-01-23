@@ -29,8 +29,8 @@ class AIExtractionService:
             except Exception as e:
                 logger.error(f"Failed to initialize Vertex AI client: {e}")
                 self.client = None
-        # Use Gemini 2.5 Pro for enhanced document processing and accuracy
-        self.base_model_name = 'gemini-2.5-pro'
+        # Use Gemini 3 Pro for enhanced document processing and accuracy
+        self.base_model_name = 'gemini-3-pro-preview'
     
     def _extract_metadata(self, processed_file) -> Dict[str, Any]:
         """Extract metadata from processed_file, handling different object types"""

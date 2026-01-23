@@ -215,7 +215,7 @@ This section details how we transform files into structured results, including c
 - AI calls (pluggable)
   - The extraction service invokes the configured LLM provider through a pluggable interface.
   - Client (default): `google-genai` (Vertex integration) initialized with `GOOGLE_CLOUD_PROJECT_ID` and `GOOGLE_CLOUD_LOCATION`.
-  - Model: `gemini-2.5-pro` (default).
+  - Model: `gemini-3-pro-preview` (default).
   - Inputs: list of file parts built from GCS URIs (`types.Part.from_uri(uri, mime_type)`), plus a system prompt derived from field configuration.
   - Individual processing: one file per request; results may be a single object or array of objects.
   - Combined processing: multiple files in one request; returns a unified list; per-document attribution is included for by-document detail.
@@ -250,7 +250,7 @@ sequenceDiagram
   EX->>DB: read JobRun + SourceFiles
   EX->>EX: build JSON schema from FieldConfig/DataTypes
   EX->>GCS: construct gs:// URIs for files
-  EX->>LLM: request(model=gemini-2.5-pro, schema, gs:// URIs)
+  EX->>LLM: request(model=gemini-3-pro-preview, schema, gs:// URIs)
   LLM-->>EX: structured JSON results
   EX->>DB: write ExtractionTask/ExtractionResult, update statuses
   EX->>DB: record UsageEvent, update UsageCounter
