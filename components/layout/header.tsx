@@ -40,15 +40,14 @@ export default function Header() {
             </Link>
             
             <div className="hidden md:flex space-x-6">
-              {user ? (
+              {user && (
                 <Link href="/dashboard" className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === '/dashboard' ? 'text-lido-blue' : ''}`}>
                   Dashboard
                 </Link>
-              ) : (
-                <Link href="/demo" className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === '/demo' ? 'text-lido-blue' : ''}`}>
-                  Demo
-                </Link>
               )}
+              <Link href="/demo" className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === '/demo' ? 'text-lido-blue' : ''}`}>
+                Demo
+              </Link>
               <Link href="/pricing" className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === '/pricing' ? 'text-lido-blue' : ''}`}>
                 Pricing
               </Link>
