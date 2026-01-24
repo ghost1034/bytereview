@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -38,7 +39,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, Trash2, ChevronDown, Loader2, Download, FileSpreadsheet, Pencil } from 'lucide-react'
+import { Plus, Trash2, ChevronDown, Loader2, Download, FileSpreadsheet, Pencil, Info } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 import {
@@ -304,7 +306,27 @@ export default function CpeTrackerPage() {
             {/* Header with Create Button */}
             <div className="border-b p-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">CPE Sheets</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold">CPE Sheets</h2>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex items-center text-muted-foreground hover:text-foreground"
+                        aria-label="CPE templates info"
+                      >
+                        <Info className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      You can create your own CPE templates on the{' '}
+                      <Link href="/dashboard/templates" className="underline">
+                        Templates
+                      </Link>{' '}
+                      page.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button size="sm" disabled={statesLoading || createSheet.isPending}>
