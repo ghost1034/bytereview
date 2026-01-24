@@ -8,6 +8,16 @@ import { useState, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -62,6 +72,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
   const [downloadingAll, setDownloadingAll] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [hasTriggeredImports, setHasTriggeredImports] = useState(false)
+  const [deleteFileTarget, setDeleteFileTarget] = useState<{ id: string; runId?: string; label: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
   const eventSourceRef = useRef<EventSource | null>(null)
@@ -1145,7 +1156,13 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleRemoveFile(file.id, file.job_run_id)}
+                          onClick={() =>
+                            setDeleteFileTarget({
+                              id: file.id,
+                              runId: file.job_run_id,
+                              label: file.original_path || file.original_filename || 'this file',
+                            })
+                          }
                           className="p-1 h-8 w-8 text-red-500 hover:text-red-700"
                         >
                           <X className="w-4 h-4" />
@@ -1239,6 +1256,31 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
           </Button>
         </div>
       )}
+
+      <AlertDialog open={!!deleteFileTarget} onOpenChange={(open) => !open && setDeleteFileTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete file?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete “{deleteFileTarget?.label}”. If this was the last file linked to a task, the corresponding extracted data may also be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                const t = deleteFileTarget
+                setDeleteFileTarget(null)
+                if (!t) return
+                handleRemoveFile(t.id, t.runId)
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

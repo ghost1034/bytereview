@@ -13,7 +13,7 @@ export function useCpeStates() {
   return useQuery<CpeStatesListResponse>({
     queryKey: ['cpe-states'],
     queryFn: () => apiClient.getCpeStates(),
-    staleTime: 5 * 60 * 1000, // States don't change often
+    staleTime: 0, // TODO: Implement proper staleTime and invalidation
   })
 }
 

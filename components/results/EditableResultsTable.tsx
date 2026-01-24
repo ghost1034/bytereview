@@ -5,6 +5,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { apiClient, type JobResultsResponse } from '@/lib/api'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -201,6 +211,8 @@ export function EditableResultsTable({
 
   const [editing, setEditing] = useState<{ rowId: string; col: string } | null>(null)
   const [draft, setDraft] = useState<string>('')
+
+  const [deleteTarget, setDeleteTarget] = useState<DisplayRow | null>(null)
 
   const [addOpen, setAddOpen] = useState(false)
   const UNATTACHED = '__unattached__'
@@ -434,11 +446,11 @@ export function EditableResultsTable({
                         )
                       })}
                     <TableCell className="whitespace-nowrap">
-                      <Button
+                  <Button
                         variant="outline"
                         size="sm"
                         disabled={!canEdit || deleteRow.isPending || !row.rowId}
-                        onClick={() => row.rowId && deleteRow.mutate({ taskId: row.taskId, rowId: row.rowId })}
+                        onClick={() => setDeleteTarget(row)}
                       >
                         Delete
                       </Button>
@@ -451,6 +463,31 @@ export function EditableResultsTable({
         </div>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete row?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this extracted row. If this is the last row for its task, the source file(s) for that task may also be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                const t = deleteTarget
+                setDeleteTarget(null)
+                if (!t?.rowId) return
+                deleteRow.mutate({ taskId: t.taskId, rowId: t.rowId })
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
