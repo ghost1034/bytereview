@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import AuthModal from "@/components/auth/AuthModal";
 
@@ -22,7 +23,7 @@ export default function Demo() {
             <p className="text-xl text-gray-600">Watch how our AI extracts data from financial documents with professional accuracy</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
             <div>
               <h3 className="text-lg font-bold mb-3 text-gray-900">Featured: Bank Statement Analysis</h3>
               <Card className="overflow-hidden">
@@ -62,7 +63,9 @@ export default function Demo() {
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold mb-3 text-gray-900">Email and Google Drive Automation Setup</h3>
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-lg font-semibold text-gray-900">Email and Google Drive Automation Setup</h3>
+              </div>
               <Card className="overflow-hidden">
                 <CardContent className="p-0">
                   <div className="relative bg-black aspect-video">
@@ -71,6 +74,28 @@ export default function Demo() {
                       loading="lazy"
                       src="https://www.youtube-nocookie.com/embed/R0ubnn4ggGA?si=XZ6cP69kg5JqebIT"
                       title="Gmail and Google Drive Automation Setup"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      allowFullScreen
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-lg font-semibold text-gray-900">Free CPE Tracker</h3>
+                <Badge variant="secondary">New</Badge>
+              </div>
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="relative bg-black aspect-video">
+                    <iframe
+                      className="absolute inset-0 w-full h-full border-0"
+                      loading="lazy"
+                      src="https://www.youtube-nocookie.com/embed/gchB4SbxsJM?si=KlJMFOjH0nKP08yX"
+                      title="Free CPE Tracker"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       referrerPolicy="strict-origin-when-cross-origin"
                       allowFullScreen

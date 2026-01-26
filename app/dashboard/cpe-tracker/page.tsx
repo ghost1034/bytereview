@@ -284,19 +284,6 @@ export default function CpeTrackerPage() {
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800'
-      case 'in_progress':
-        return 'bg-blue-100 text-blue-800'
-      case 'failed':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
-
   return (
     <div className="h-[calc(100vh-4rem)] p-4">
       <ResizablePanelGroup direction="horizontal" className="h-full rounded-lg border">
@@ -394,9 +381,6 @@ export default function CpeTrackerPage() {
                           {sheet.state_name && (
                             <span className="text-xs text-gray-500">{sheet.state_name}</span>
                           )}
-                          <span className={cn('text-xs px-2 py-0.5 rounded-full', getStatusColor(sheet.status))}>
-                            {sheet.status}
-                          </span>
                         </div>
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
