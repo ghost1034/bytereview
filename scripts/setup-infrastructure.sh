@@ -1,6 +1,6 @@
 #!/bin/bash
 # CPAAutomation Infrastructure Setup Script
-# Sets up Google Cloud infrastructure: APIs, databases, Redis, networking, etc.
+# Sets up Google Cloud infrastructure: APIs, databases, networking, etc.
 
 set -e
 
@@ -17,7 +17,6 @@ REGION="us-central1"
 DB_INSTANCE_NAME="cpaautomation-db"
 DB_NAME="cpaautomation"
 DB_USER="cpaautomation-user"
-REDIS_INSTANCE_NAME="cpaautomation-redis"
 VPC_CONNECTOR_NAME="cpa-svpc"
 ARTIFACT_REGISTRY_REPO="cpa-docker"
 
@@ -45,7 +44,6 @@ gcloud services enable \
     secretmanager.googleapis.com \
     sqladmin.googleapis.com \
     servicenetworking.googleapis.com \
-    redis.googleapis.com \
     logging.googleapis.com \
     monitoring.googleapis.com \
     certificatemanager.googleapis.com \
@@ -127,25 +125,6 @@ else
     echo -e "${GREEN}✓ Database user already exists${NC}"
 fi
 
-# Create Redis instance
-echo -e "${YELLOW}🔴 Setting up Redis (Memorystore)...${NC}"
-if ! resource_exists "redis instances" $REDIS_INSTANCE_NAME "--region=$REGION"; then
-    echo -e "${BLUE}Creating Redis instance (this may take several minutes)...${NC}"
-    gcloud redis instances create $REDIS_INSTANCE_NAME \
-        --size=1 \
-        --region=$REGION \
-        --redis-version=redis_7_0 \
-        --network=default
-    echo -e "${GREEN}✓ Redis instance created${NC}"
-else
-    echo -e "${GREEN}✓ Redis instance already exists${NC}"
-fi
-
-# Get Redis IP for configuration
-REDIS_IP=$(gcloud redis instances describe $REDIS_INSTANCE_NAME --region=$REGION --format="value(host)")
-echo -e "${BLUE}Redis IP: $REDIS_IP${NC}"
-echo -e "${YELLOW}⚠️  Please update your Redis URL in secrets: redis://$REDIS_IP:6379${NC}"
-
 # Create service account for Cloud Run services
 echo -e "${YELLOW}🔐 Setting up service account...${NC}"
 SERVICE_ACCOUNT_NAME="cpaautomation-runner"
@@ -201,7 +180,6 @@ echo -e "3. Build and deploy the application"
 echo ""
 echo -e "${BLUE}📊 Infrastructure Summary:${NC}"
 echo -e "• Cloud SQL: $DB_INSTANCE_NAME"
-echo -e "• Redis: $REDIS_INSTANCE_NAME (IP: $REDIS_IP)"
 echo -e "• VPC Connector: $VPC_CONNECTOR_NAME"
 echo -e "• Service Account: $SERVICE_ACCOUNT_EMAIL"
 echo -e "• Storage Bucket: gs://$BUCKET_NAME"

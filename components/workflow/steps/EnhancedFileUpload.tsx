@@ -227,43 +227,59 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
 
             // ZIP extraction events
             case 'files_extracted':
-              console.log('ZIP extraction completed, adding extracted files')
-              const extractedFiles: DisplayFile[] = data.files.map((file: any) => ({
-                id: file.id,
-                original_filename: file.filename,
-                original_path: file.original_path,
-                file_size_bytes: file.file_size,
-                status: file.status as FileStatus,
-                job_run_id: runId
-              }))
-              
-              setFiles(prev => {
-                const newFiles = extractedFiles.filter(newFile => 
-                  !prev.some(existingFile => existingFile.id === newFile.id)
-                )
-                console.log(`Adding ${newFiles.length} extracted files`)
-                
-                const updatedFiles = sortFilesByPath([...prev, ...newFiles])
-                
-                // Update ZIP files to "unpacked" status
-                const finalFiles = updatedFiles.map(file => {
-                  if (file.original_filename?.toLowerCase().endsWith('.zip') && 
-                      (file.status === 'unpacking' || file.status === 'uploaded')) {
-                    console.log(`Updating ZIP file ${file.original_filename} status to unpacked`)
-                    return { ...file, status: 'unpacked' as FileStatus }
-                  }
-                  return file
+              console.log('ZIP extraction completed')
+
+              // New backend behavior: signal-only event (no files array). Fall back to refetch.
+              const hasInlineFiles = Array.isArray(data.files)
+              if (hasInlineFiles) {
+                const extractedFiles: DisplayFile[] = data.files.map((file: any) => ({
+                  id: file.id,
+                  original_filename: file.filename,
+                  original_path: file.original_path,
+                  file_size_bytes: file.file_size,
+                  status: file.status as FileStatus,
+                  job_run_id: runId
+                }))
+
+                setFiles(prev => {
+                  const newFiles = extractedFiles.filter(newFile =>
+                    !prev.some(existingFile => existingFile.id === newFile.id)
+                  )
+                  console.log(`Adding ${newFiles.length} extracted files`)
+
+                  const updatedFiles = sortFilesByPath([...prev, ...newFiles])
+
+                  // Update ZIP files to "unpacked" status
+                  const finalFiles = updatedFiles.map(file => {
+                    if (file.original_filename?.toLowerCase().endsWith('.zip') &&
+                        (file.status === 'unpacking' || file.status === 'uploaded')) {
+                      console.log(`Updating ZIP file ${file.original_filename} status to unpacked`)
+                      return { ...file, status: 'unpacked' as FileStatus }
+                    }
+                    return file
+                  })
+
+                  return finalFiles
                 })
-                
-                // Let UI update before evaluating closure
-                setTimeout(() => checkAndCloseSSEIfDone(), 500)
-                
-                if (newFiles.length > 0) {
-                  invalidateJobFiles()
-                }
-                
-                return finalFiles
-              })
+              }
+
+              // Always refetch from API to ensure we have the full canonical list.
+              invalidateJobFiles()
+              try {
+                window.dispatchEvent(new CustomEvent('cpaautomation:job-files-changed', { detail: { jobId } }))
+              } catch (e) {
+                // Ignore
+              }
+
+              // If we have the zip file id, update it to unpacked immediately.
+              if (data.zip_file_id) {
+                setFiles(prev => prev.map(f =>
+                  f.id === data.zip_file_id ? { ...f, status: 'unpacked' as FileStatus } : f
+                ))
+              }
+
+              // Let UI update before evaluating closure
+              setTimeout(() => checkAndCloseSSEIfDone(), 500)
               break
 
             case 'file_status_changed':

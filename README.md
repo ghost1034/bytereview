@@ -452,7 +452,7 @@ This guide covers prerequisites, environment configuration, database setup, runn
 Prerequisites
 - Node.js 20+
 - Python 3.11+
-- Docker Desktop (for Postgres/Redis)
+- Docker Desktop (for Postgres)
 - gcloud CLI (for GCP auth and optional local secrets)
 - Firebase project (for client auth) and a Firebase service account JSON for local backend
 
@@ -486,9 +486,9 @@ Environment configuration (.env)
     - TASK_AUTOMATION_URL=https://task-automation-...run.app/execute
     - TASK_MAINTENANCE_URL=https://task-maintenance-...run.app/execute
 
-Start dependencies (Postgres/Redis)
+Start dependencies (Postgres)
 - Option A: docker-compose
-  - docker-compose up -d postgres redis
+  - docker-compose up -d postgres
 - Option B: helper script
   - scripts/start-dev.sh
 

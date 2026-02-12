@@ -28,18 +28,6 @@ else
         postgres:15-alpine
 fi
 
-# Start Redis container
-echo "🔴 Starting Redis container..."
-if docker ps -a --format "table {{.Names}}" | grep -q "bytereview-redis-dev"; then
-    echo "📦 Redis container exists, starting..."
-    docker start bytereview-redis-dev
-else
-    echo "📦 Creating Redis container..."
-    docker run -d --name bytereview-redis-dev \
-        -p 6379:6379 \
-        redis:7-alpine
-fi
-
 # Wait for containers to be ready
 echo "⏳ Waiting for containers to be ready..."
 sleep 5
@@ -50,13 +38,6 @@ if docker ps --format "table {{.Names}}\t{{.Status}}" | grep -q "bytereview-post
     echo "✅ PostgreSQL is running"
 else
     echo "❌ PostgreSQL failed to start"
-    exit 1
-fi
-
-if docker ps --format "table {{.Names}}\t{{.Status}}" | grep -q "bytereview-redis-dev.*Up"; then
-    echo "✅ Redis is running"
-else
-    echo "❌ Redis failed to start"
     exit 1
 fi
 
@@ -73,4 +54,4 @@ echo ""
 echo "API Documentation: http://localhost:8000/api/docs"
 echo "Frontend: http://localhost:3000"
 echo ""
-echo "To stop containers: docker stop bytereview-postgres-dev bytereview-redis-dev"
+echo "To stop containers: docker stop bytereview-postgres-dev"

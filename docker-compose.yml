@@ -17,17 +17,6 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: bytereview-redis-dev
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   # AI Worker Pool (for extraction tasks)
   worker-ai:
     build:
@@ -37,11 +26,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     environment:
       - DATABASE_URL=postgresql://bytereview:bytereview@postgres:5432/bytereview_dev
-      - REDIS_URL=redis://redis:6379
       - GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-key.json
     volumes:
       - ./backend:/app
@@ -58,11 +44,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     environment:
       - DATABASE_URL=postgresql://bytereview:bytereview@postgres:5432/bytereview_dev
-      - REDIS_URL=redis://redis:6379
       - GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-key.json
     volumes:
       - ./backend:/app

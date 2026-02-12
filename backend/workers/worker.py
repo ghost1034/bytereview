@@ -263,7 +263,13 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
         # Send SSE event for task completed (after DB commit)
         try:
             from services.sse_service import sse_manager
-            await sse_manager.send_task_completed(parent_job_id, task_id, final_result)
+            row_count = 0
+            try:
+                if isinstance(final_result, dict):
+                    row_count = len(final_result.get("results", []) or [])
+            except Exception:
+                row_count = 0
+            await sse_manager.send_task_completed(parent_job_id, task_id, row_count=row_count)
         except Exception as e:
             logger.warning(f"Failed to send task_completed SSE event: {e}")
         
@@ -447,7 +453,7 @@ async def unpack_zip_file_task(ctx: Dict[str, Any], source_file_id: str, automat
                 })
             
             logger.info(f"Sending files_extracted event for {len(files_data)} files")
-            await sse_manager.send_files_extracted(parent_job_id, files_data)
+            await sse_manager.send_files_extracted(parent_job_id, str(zip_file.id), len(files_data))
             logger.info(f"Sending file_status_changed event for ZIP file")
             await sse_manager.send_file_status_changed(parent_job_id, str(zip_file.id), "unpacked")
             logger.info(f"SSE events sent successfully for job {parent_job_id}")

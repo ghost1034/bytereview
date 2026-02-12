@@ -41,13 +41,7 @@ def check_docker():
         shell=True, capture_output=True, text=True
     )
     
-    redis_check = subprocess.run(
-        "docker ps --filter name=bytereview-redis-dev --format '{{.Names}}'",
-        shell=True, capture_output=True, text=True
-    )
-    
     postgres_running = "bytereview-postgres-dev" in postgres_check.stdout
-    redis_running = "bytereview-redis-dev" in redis_check.stdout
     
     if postgres_running:
         print("✅ PostgreSQL container is running")
@@ -55,13 +49,7 @@ def check_docker():
         print("❌ PostgreSQL container is not running")
         print("   Please start it with: docker run -d --name bytereview-postgres-dev -p 5432:5432 -e POSTGRES_USER=bytereview -e POSTGRES_PASSWORD=bytereview -e POSTGRES_DB=bytereview_dev postgres:15-alpine")
     
-    if redis_running:
-        print("✅ Redis container is running")
-    else:
-        print("❌ Redis container is not running")
-        print("   Please start it with: docker run -d --name bytereview-redis-dev -p 6379:6379 redis:7-alpine")
-    
-    return postgres_running and redis_running
+    return postgres_running
 
 def setup_database():
     """Set up the database schema and initial data"""

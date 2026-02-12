@@ -1,76 +1,177 @@
+"""backend/services/sse_service.py
+
+Postgres-backed Server-Sent Events (SSE) service.
+
+We use Postgres LISTEN/NOTIFY as a cross-service message bus (Cloud Run workers -> API SSE).
+
+Notes
+- Postgres NOTIFY payloads are limited (~8KB). Keep events small and treat them as signals.
+- Large state (results, file lists) should be fetched via existing API endpoints.
 """
-Simplified Server-Sent Events (SSE) service for ByteReview (Redis-backed)
-Handles real-time updates for job events with minimal complexity
-"""
+
 import asyncio
 import json
 import logging
-import os
+import select
+import threading
 import time
-from typing import Dict, Any, AsyncGenerator
+import uuid
+from dataclasses import dataclass
+from typing import Any, AsyncGenerator, Dict, Optional
 
-import redis.asyncio as redis
-from sqlalchemy import func
+import psycopg2
+from sqlalchemy import func, text
 
-from models.db_models import SourceFile, SourceFileToTask, ExtractionJob, ExtractionTask
+from core.database import db_config
+from models.db_models import ExtractionJob, ExtractionTask, SourceFile, SourceFileToTask
 
 logger = logging.getLogger(__name__)
 
+
+def _epoch_ms() -> int:
+    return int(time.time() * 1000)
+
+
+@dataclass
+class _Subscriber:
+    subscriber_id: str
+    loop: asyncio.AbstractEventLoop
+    queue: "asyncio.Queue[Dict[str, Any]]"
+
+
 class SSEManager:
-    """SSE Manager for real-time job updates using Redis pub/sub"""
+    """SSE Manager for real-time job updates using Postgres LISTEN/NOTIFY."""
+
+    PG_CHANNEL = "job_events"
+    # Keep bounded to avoid unbounded memory growth on slow clients.
+    QUEUE_MAXSIZE = 500
+    # NOTIFY payload limit is ~8000 bytes; stay safely below.
+    NOTIFY_SAFE_BYTES = 7000
 
     def __init__(self):
-        self._redis: redis.Redis | None = None
+        self._subs_by_job: Dict[str, Dict[str, _Subscriber]] = {}
+        self._subs_lock = threading.Lock()
 
-    async def _get_redis(self) -> redis.Redis:
-        """Get Redis connection for cross-process communication"""
-        if self._redis is None:
-            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
-            self._redis = redis.from_url(redis_url)
-        return self._redis
+        self._listener_stop = threading.Event()
+        self._listener_thread: Optional[threading.Thread] = None
 
-    async def listen_for_job_events(self, job_id: str, include_full_state: bool = False) -> AsyncGenerator[Dict[str, Any], None]:
+    # -----------------------------
+    # Postgres LISTEN/NOTIFY bridge
+    # -----------------------------
+    def _ensure_listener_started(self) -> None:
+        if self._listener_thread and self._listener_thread.is_alive():
+            return
+        self._listener_thread = threading.Thread(
+            target=self._listener_loop,
+            name="pg-sse-listener",
+            daemon=True,
+        )
+        self._listener_thread.start()
+
+    def _listener_loop(self) -> None:
+        """Background thread: LISTEN for PG notifications and dispatch to local subscribers."""
+        backoff_seconds = 1.0
+        while not self._listener_stop.is_set():
+            conn = None
+            try:
+                # Dedicated raw psycopg2 connection (not SQLAlchemy pooled).
+                conn = psycopg2.connect(db_config.database_url)
+                conn.set_session(autocommit=True)
+                cur = conn.cursor()
+                cur.execute(f"LISTEN {self.PG_CHANNEL};")
+                cur.close()
+
+                logger.info("SSE Postgres listener started (LISTEN %s)", self.PG_CHANNEL)
+                backoff_seconds = 1.0
+
+                while not self._listener_stop.is_set():
+                    r, _, _ = select.select([conn], [], [], 1.0)
+                    if not r:
+                        continue
+
+                    conn.poll()
+                    while conn.notifies:
+                        notify = conn.notifies.pop(0)
+                        payload = notify.payload
+                        try:
+                            event = json.loads(payload)
+                        except Exception:
+                            logger.warning("Dropping malformed PG notify payload")
+                            continue
+
+                        job_id = event.get("job_id")
+                        if not job_id:
+                            continue
+
+                        self._dispatch_event(str(job_id), event)
+
+            except Exception as e:
+                logger.error("SSE Postgres listener error: %s", e)
+                time.sleep(backoff_seconds)
+                backoff_seconds = min(backoff_seconds * 2, 30.0)
+            finally:
+                try:
+                    if conn is not None:
+                        conn.close()
+                except Exception:
+                    pass
+
+    def _dispatch_event(self, job_id: str, event: Dict[str, Any]) -> None:
+        with self._subs_lock:
+            subs = list(self._subs_by_job.get(job_id, {}).values())
+
+        if not subs:
+            return
+
+        def _put(q: "asyncio.Queue[Dict[str, Any]]", item: Dict[str, Any]) -> None:
+            try:
+                q.put_nowait(item)
+            except asyncio.QueueFull:
+                # Prefer newest events (e.g. job_completed). Drop oldest to make room.
+                try:
+                    q.get_nowait()
+                except Exception:
+                    return
+                try:
+                    q.put_nowait(item)
+                except Exception:
+                    return
+            except Exception:
+                pass
+
+        for sub in subs:
+            try:
+                sub.loop.call_soon_threadsafe(_put, sub.queue, event)
+            except Exception:
+                continue
+
+    # -----------------------------
+    # SSE stream
+    # -----------------------------
+    async def listen_for_job_events(
+        self, job_id: str, include_full_state: bool = False
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Listen for events for a job.
+
+        When include_full_state is True (Processing page), send a full_state snapshot first,
+        then flush any queued events newer than the snapshot version.
         """
-        Listen for events related to a specific job. When include_full_state is True (Processing page),
-        send a full_state snapshot first, buffering events during the snapshot and then flushing newer ones.
-        When False (imports/ZIP/exports/results pages), stream incremental updates only.
-        """
-        redis_client = await self._get_redis()
-        pubsub = redis_client.pubsub()
-        channel = f"job_events_{job_id}"
-        await pubsub.subscribe(channel)
 
-        event_buffer = []
-        buffering = False
-        buffer_task: asyncio.Task | None = None
+        self._ensure_listener_started()
+
+        loop = asyncio.get_running_loop()
+        subscriber_id = str(uuid.uuid4())
+        queue: "asyncio.Queue[Dict[str, Any]]" = asyncio.Queue(maxsize=self.QUEUE_MAXSIZE)
+        sub = _Subscriber(subscriber_id=subscriber_id, loop=loop, queue=queue)
+
+        with self._subs_lock:
+            self._subs_by_job.setdefault(str(job_id), {})[subscriber_id] = sub
 
         try:
-            # Only buffer and snapshot if requested
+            yield {"type": "connected", "job_id": job_id, "timestamp": _epoch_ms()}
+
             if include_full_state:
-                buffering = True
-
-                async def buffer_events():
-                    nonlocal buffering
-                    while buffering:
-                        try:
-                            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
-                            if message and message.get("data"):
-                                try:
-                                    event_data = json.loads(message["data"])  # type: ignore[index]
-                                    event_buffer.append(event_data)
-                                    logger.debug(
-                                        f"Buffered event for job {job_id}: {event_data.get('type')}"
-                                    )
-                                except Exception:
-                                    # Ignore malformed messages while buffering
-                                    pass
-                        except Exception as e:
-                            logger.debug(f"Error buffering event: {e}")
-
-                buffer_task = asyncio.create_task(buffer_events())
-
-                # Build and send full_state snapshot
-                from core.database import db_config
+                snapshot_version = _epoch_ms()
 
                 db = db_config.get_session()
                 try:
@@ -81,10 +182,13 @@ class SSEManager:
 
                     # Get latest job run for this job
                     from models.db_models import JobRun
-                    latest_run = db.query(JobRun).filter(
-                        JobRun.job_id == job.id
-                    ).order_by(JobRun.created_at.desc()).first()
-                    
+
+                    latest_run = (
+                        db.query(JobRun)
+                        .filter(JobRun.job_id == job.id)
+                        .order_by(JobRun.created_at.desc())
+                        .first()
+                    )
                     if not latest_run:
                         yield {"type": "error", "message": "No job run found"}
                         return
@@ -102,7 +206,10 @@ class SSEManager:
 
                     tasks = (
                         db.query(ExtractionTask)
-                        .join(first_file_subquery, first_file_subquery.c.task_id == ExtractionTask.id)
+                        .join(
+                            first_file_subquery,
+                            first_file_subquery.c.task_id == ExtractionTask.id,
+                        )
                         .filter(ExtractionTask.job_run_id == latest_run.id)
                         .order_by(first_file_subquery.c.first_file_path)
                         .all()
@@ -126,13 +233,13 @@ class SSEManager:
                         )
 
                         if len(source_files) == 1:
-                            display_name = source_files[0].original_filename
+                            display_name = str(source_files[0].original_filename)
                         elif len(source_files) <= 3:
-                            display_name = ", ".join(
-                                [f.original_filename for f in source_files]
-                            )
+                            display_name = ", ".join([str(f.original_filename) for f in source_files])
                         else:
-                            display_name = f"{source_files[0].original_filename} and {len(source_files)-1} others"
+                            display_name = (
+                                f"{str(source_files[0].original_filename)} and {len(source_files) - 1} others"
+                            )
 
                         task_list.append(
                             {
@@ -142,183 +249,163 @@ class SSEManager:
                                 "file_count": len(source_files),
                             }
                         )
-
-                    # Use epoch ms for snapshot version to match event timestamps
-                    import time
-
-                    current_version = int(time.time() * 1000)
-
                 finally:
                     db.close()
 
                 full_state = {
                     "type": "full_state",
-                    "version": current_version,
+                    "version": snapshot_version,
                     "job_id": job_id,
-                    "status": latest_run.status,
+                    "status": str(latest_run.status),
                     "progress": {
                         "total_tasks": total_tasks,
                         "completed": completed,
                         "failed": failed,
                         "tasks": task_list,
                     },
-                    "timestamp": current_version,
+                    "timestamp": snapshot_version,
                 }
-
                 yield full_state
-                logger.info(
-                    f"Sent full_state for job {job_id}: {completed}/{total_tasks} tasks"
-                )
 
-                # Stop buffering and flush buffered events newer than snapshot
-                buffering = False
-                if buffer_task:
-                    await buffer_task
+                # Flush any queued events that arrived during snapshot generation.
+                try:
+                    while True:
+                        buffered_event = queue.get_nowait()
+                        yield buffered_event
+                except asyncio.QueueEmpty:
+                    pass
 
-                for buffered_event in event_buffer:
-                    try:
-                        if buffered_event.get("timestamp", 0) > current_version:
-                            yield buffered_event
-                            logger.debug(
-                                f"Flushed buffered event: {buffered_event.get('type')}"
-                            )
-                    except Exception:
-                        pass
-
-                # If job already completed, short-circuit like before
-                if latest_run.status == "completed":
+                if str(latest_run.status) == "completed":
                     yield {"type": "job_already_completed"}
                     return
 
             # Live event streaming loop
             while True:
                 try:
-                    message = await pubsub.get_message(
-                        ignore_subscribe_messages=True, timeout=30.0
-                    )
+                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
 
-                    if message is not None and message.get("data"):
-                        try:
-                            event = json.loads(message["data"])  # type: ignore[index]
+                    if include_full_state and event.get("type") == "job_completed":
+                        yield event
+                        logger.info("Job %s completed, closing SSE connection", job_id)
+                        break
 
-                            # If processing page requested snapshot and we see completion, close
-                            if include_full_state and event.get("type") == "job_completed":
-                                yield event
-                                logger.info(
-                                    f"Job {job_id} completed, closing SSE connection"
-                                )
-                                break
-
-                            yield event
-                        except json.JSONDecodeError:
-                            continue
-                    else:
-                        # Keepalive on idle
-                        yield {
-                            "type": "keepalive",
-                            "timestamp": int(asyncio.get_event_loop().time() * 1000),
-                        }
+                    yield event
 
                 except asyncio.TimeoutError:
-                    # Keepalive on timeout
-                    yield {
-                        "type": "keepalive",
-                        "timestamp": int(asyncio.get_event_loop().time() * 1000),
-                    }
-                    continue
+                    yield {"type": "keepalive", "timestamp": _epoch_ms()}
                 except asyncio.CancelledError:
                     break
         except Exception as e:
-            logger.error(f"SSE listener error for job {job_id}: {e}")
+            logger.error("SSE listener error for job %s: %s", job_id, e)
             yield {"type": "error", "message": str(e)}
         finally:
-            # Clean up Redis subscription
-            try:
-                await pubsub.unsubscribe(channel)
-                await pubsub.close()
-            except Exception:
-                pass
+            with self._subs_lock:
+                job_subs = self._subs_by_job.get(str(job_id))
+                if job_subs:
+                    job_subs.pop(subscriber_id, None)
+                    if not job_subs:
+                        self._subs_by_job.pop(str(job_id), None)
 
+    # -----------------------------
+    # Publishing
+    # -----------------------------
     async def send_job_event(self, job_id: str, event: Dict[str, Any]) -> None:
-        """
-        Publish a job event to Redis channel for the job. Use epoch ms timestamps.
-        """
+        """Publish a job event to Postgres NOTIFY."""
+
         logger.info(
-            f"Sending SSE event for job {job_id}: {event.get('type', 'unknown')} - task_id: {event.get('task_id', 'N/A')}"
+            "Sending SSE event for job %s: %s - task_id: %s",
+            job_id,
+            event.get("type", "unknown"),
+            event.get("task_id", "N/A"),
         )
 
-        # Add metadata; do not overwrite existing timestamp if provided
-        event["job_id"] = job_id
+        event["job_id"] = str(job_id)
         if "timestamp" not in event:
-            import time
+            event["timestamp"] = _epoch_ms()
 
-            event["timestamp"] = int(time.time() * 1000)
+        serializable = self._make_json_serializable(event)
+        payload = json.dumps(serializable, separators=(",", ":"), ensure_ascii=True)
 
-        # Send via Redis for cross-process communication
-        try:
-            redis_client = await self._get_redis()
-            channel = f"job_events_{job_id}"
-            await redis_client.publish(channel, json.dumps(self._make_json_serializable(event)))
-            logger.info(
-                f"Published SSE event to Redis channel {channel} - event: {event.get('type')} task: {event.get('task_id', 'N/A')}"
+        # Degrade known-large events to signal-only if needed.
+        if len(payload.encode("utf-8")) > self.NOTIFY_SAFE_BYTES:
+            event_type = serializable.get("type")
+            logger.warning(
+                "SSE event too large for NOTIFY (type=%s bytes=%s); degrading payload",
+                event_type,
+                len(payload.encode("utf-8")),
             )
-        except Exception as e:
-            logger.warning(f"Failed to publish event to Redis: {e}")
+            degraded = dict(serializable)
+            if event_type == "task_completed":
+                degraded.pop("result", None)
+            if event_type == "files_extracted":
+                degraded.pop("files", None)
+            payload = json.dumps(degraded, separators=(",", ":"), ensure_ascii=True)
 
-    # Convenience methods for common events
+        try:
+            await asyncio.to_thread(self._publish_notify_sync, self.PG_CHANNEL, payload)
+        except Exception as e:
+            logger.warning("Failed to publish SSE event to Postgres: %s", e)
+
+    @staticmethod
+    def _publish_notify_sync(channel: str, payload: str) -> None:
+        # Use the SQLAlchemy engine pool; pg_notify is transactional.
+        with db_config.engine.begin() as conn:
+            conn.execute(text("SELECT pg_notify(:chan, :payload);"), {"chan": channel, "payload": payload})
+
+    # -----------------------------
+    # Convenience methods
+    # -----------------------------
     async def send_file_uploaded(self, job_id: str, file_data: Dict[str, Any]) -> None:
         await self.send_job_event(job_id, {"type": "file_uploaded", "file": file_data})
 
-    async def send_files_extracted(self, job_id: str, files_data: list) -> None:
-        await self.send_job_event(job_id, {"type": "files_extracted", "files": files_data})
+    async def send_files_extracted(self, job_id: str, zip_file_id: str, extracted_count: int) -> None:
+        # Signal-only: clients should refetch files list.
+        await self.send_job_event(
+            job_id,
+            {
+                "type": "files_extracted",
+                "zip_file_id": zip_file_id,
+                "extracted_count": extracted_count,
+            },
+        )
 
     async def send_file_status_changed(self, job_id: str, file_id: str, status: str) -> None:
-        await self.send_job_event(job_id, {"type": "file_status_changed", "file_id": file_id, "status": status})
+        await self.send_job_event(
+            job_id, {"type": "file_status_changed", "file_id": file_id, "status": status}
+        )
 
     async def send_file_deleted(self, job_id: str, file_id: str) -> None:
         await self.send_job_event(job_id, {"type": "file_deleted", "file_id": file_id})
 
     async def send_extraction_failed(self, job_id: str, file_id: str, error: str) -> None:
-        await self.send_job_event(job_id, {"type": "extraction_failed", "file_id": file_id, "error": error})
+        await self.send_job_event(
+            job_id, {"type": "extraction_failed", "file_id": file_id, "error": error}
+        )
 
     async def send_task_started(self, job_id: str, task_id: str) -> None:
-        import time
-
         await self.send_job_event(
-            job_id,
-            {"type": "task_started", "task_id": task_id, "timestamp": int(time.time() * 1000)},
+            job_id, {"type": "task_started", "task_id": task_id, "timestamp": _epoch_ms()}
         )
 
-    async def send_task_completed(self, job_id: str, task_id: str, result: dict) -> None:
-        import time
-
-        await self.send_job_event(
-            job_id,
-            {
-                "type": "task_completed",
-                "task_id": task_id,
-                "result": result,
-                "timestamp": int(time.time() * 1000),
-            },
-        )
+    async def send_task_completed(self, job_id: str, task_id: str, row_count: int | None = None) -> None:
+        event: Dict[str, Any] = {"type": "task_completed", "task_id": task_id, "timestamp": _epoch_ms()}
+        if row_count is not None:
+            event["row_count"] = row_count
+        await self.send_job_event(job_id, event)
 
     async def send_task_failed(self, job_id: str, task_id: str, error: str) -> None:
-        import time
-
         await self.send_job_event(
             job_id,
             {
                 "type": "task_failed",
                 "task_id": task_id,
                 "error": error,
-                "timestamp": int(time.time() * 1000),
+                "timestamp": _epoch_ms(),
             },
         )
 
     async def send_job_completed(self, job_id: str) -> None:
-        import time
-
-        await self.send_job_event(job_id, {"type": "job_completed", "timestamp": int(time.time() * 1000)})
+        await self.send_job_event(job_id, {"type": "job_completed", "timestamp": _epoch_ms()})
 
     async def send_workflow_progress(self, job_id: str, progress_data: dict) -> None:
         await self.send_job_event(job_id, {"type": "workflow_progress", "progress": progress_data})
@@ -344,7 +431,12 @@ class SSEManager:
         )
 
     async def send_import_progress(
-        self, job_id: str, filename: str, status: str, file_size: int = 0, original_path: str | None = None
+        self,
+        job_id: str,
+        filename: str,
+        status: str,
+        file_size: int = 0,
+        original_path: str | None = None,
     ) -> None:
         await self.send_job_event(
             job_id,
@@ -358,7 +450,13 @@ class SSEManager:
         )
 
     async def send_import_completed(
-        self, job_id: str, file_id: str, filename: str, file_size: int, status: str, original_path: str | None = None
+        self,
+        job_id: str,
+        file_id: str,
+        filename: str,
+        file_size: int,
+        status: str,
+        original_path: str | None = None,
     ) -> None:
         await self.send_job_event(
             job_id,
@@ -405,27 +503,29 @@ class SSEManager:
             {"type": "export_failed", "destination": destination, "file_type": file_type, "error": error},
         )
 
+    # -----------------------------
+    # Utilities
+    # -----------------------------
     @staticmethod
-    def _make_json_serializable(obj):
-        import uuid
-
+    def _make_json_serializable(obj: Any) -> Any:
         if isinstance(obj, dict):
             return {k: SSEManager._make_json_serializable(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
+        if isinstance(obj, list):
             return [SSEManager._make_json_serializable(item) for item in obj]
-        elif isinstance(obj, uuid.UUID):
+        if isinstance(obj, uuid.UUID):
             return str(obj)
-        else:
-            return obj
+        return obj
 
-# Global SSE manager instance
-_sse_manager_instance = None
 
-def get_sse_manager():
+_sse_manager_instance: Optional[SSEManager] = None
+
+
+def get_sse_manager() -> SSEManager:
     global _sse_manager_instance
     if _sse_manager_instance is None:
         _sse_manager_instance = SSEManager()
     return _sse_manager_instance
+
 
 # For backward compatibility
 sse_manager = get_sse_manager()

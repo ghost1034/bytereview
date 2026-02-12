@@ -93,13 +93,6 @@ generate_secret() {
 #     prompt_for_secret "DATABASE_URL" "Cloud SQL connection string" false
 # fi
 
-# # Redis URL
-# if ! gcloud secrets describe REDIS_URL >/dev/null 2>&1; then
-#     echo -e "${YELLOW}Please get Redis IP from infrastructure setup:${NC}"
-#     echo -e "${YELLOW}Format: redis://REDIS_IP:6379${NC}"
-#     prompt_for_secret "REDIS_URL" "Redis connection string" false
-# fi
-
 # # Google OAuth
 # echo -e "${BLUE}=== Google OAuth Configuration ===${NC}"
 # if ! gcloud secrets describe GOOGLE_CLIENT_ID >/dev/null 2>&1; then
@@ -245,7 +238,7 @@ gcloud secrets versions add TASK_MAINTENANCE_URL --data-file=- <<< "https://task
 # echo -e "${GREEN}🎉 Secrets setup complete!${NC}"
 # echo ""
 # echo -e "${BLUE}📋 Created secrets:${NC}"
-# gcloud secrets list --filter="name:DATABASE_URL OR name:REDIS_URL OR name:GOOGLE_CLIENT_ID OR name:GOOGLE_CLIENT_SECRET OR name:GOOGLE_REDIRECT_URI OR name:ENCRYPTION_KEY OR name:APP_SECRET OR name:GEMINI_API_KEY OR name:STRIPE_SECRET_KEY OR name:STRIPE_WEBHOOK_SECRET OR name:STRIPE_METER_PAGES OR name:STRIPE_PRODUCT_BASIC OR name:STRIPE_PRICE_BASIC_RECURRING OR name:STRIPE_PRICE_BASIC_METERED OR name:STRIPE_PRODUCT_PRO OR name:STRIPE_PRICE_PRO_RECURRING OR name:STRIPE_PRICE_PRO_METERED OR name:FIREBASE_SERVICE_ACCOUNT OR name:ADMIN_TOKEN" --format="table(name,createTime)"
+# gcloud secrets list --filter="name:DATABASE_URL OR name:GOOGLE_CLIENT_ID OR name:GOOGLE_CLIENT_SECRET OR name:GOOGLE_REDIRECT_URI OR name:ENCRYPTION_KEY OR name:APP_SECRET OR name:GEMINI_API_KEY OR name:STRIPE_SECRET_KEY OR name:STRIPE_WEBHOOK_SECRET OR name:STRIPE_METER_PAGES OR name:STRIPE_PRODUCT_BASIC OR name:STRIPE_PRICE_BASIC_RECURRING OR name:STRIPE_PRICE_BASIC_METERED OR name:STRIPE_PRODUCT_PRO OR name:STRIPE_PRICE_PRO_RECURRING OR name:STRIPE_PRICE_PRO_METERED OR name:FIREBASE_SERVICE_ACCOUNT OR name:ADMIN_TOKEN" --format="table(name,createTime)"
 
 # echo ""
 # echo -e "${YELLOW}📝 Next steps:${NC}"

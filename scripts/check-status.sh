@@ -138,7 +138,7 @@ check_domains() {
 check_secrets() {
     echo -e "${BLUE}=== Secrets Status ===${NC}"
     
-    local required_secrets=("DATABASE_URL" "REDIS_URL" "GOOGLE_CLIENT_SECRET" "GEMINI_API_KEY" "STRIPE_SECRET_KEY" "ENCRYPTION_KEY" "APP_SECRET")
+    local required_secrets=("DATABASE_URL" "GOOGLE_CLIENT_SECRET" "GEMINI_API_KEY" "STRIPE_SECRET_KEY" "ENCRYPTION_KEY" "APP_SECRET")
     
     for secret in "${secrets[@]}"; do
         if gcloud secrets describe $secret >/dev/null 2>&1; then
