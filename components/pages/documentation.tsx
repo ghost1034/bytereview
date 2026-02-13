@@ -8,27 +8,27 @@ export default function Documentation() {
   const apiEndpoints = [
     {
       method: "POST",
-      endpoint: "/api/extract",
-      description: "Extract data from uploaded document",
-      params: ["file", "template_id", "custom_rules"]
+      endpoint: "/api/jobs/initiate",
+      description: "Create a new job and request signed upload URLs",
+      params: ["files[]", "name"]
     },
     {
       method: "GET",
       endpoint: "/api/templates",
-      description: "List available extraction templates",
-      params: ["user_id"]
+      description: "List available templates",
+      params: []
     },
     {
       method: "POST",
-      endpoint: "/api/templates",
-      description: "Create custom extraction template",
-      params: ["name", "columns", "rules"]
+      endpoint: "/api/jobs/{job_id}/files:initiate",
+      description: "Initiate uploads for an existing job run",
+      params: ["run_id", "files[]"]
     },
     {
-      method: "GET",
-      endpoint: "/api/extractions/{id}",
-      description: "Get extraction results",
-      params: ["format"]
+      method: "POST",
+      endpoint: "/api/jobs/{job_id}/start",
+      description: "Submit a configured job run for processing",
+      params: ["run_id", "fields", "task_definitions"]
     }
   ];
 

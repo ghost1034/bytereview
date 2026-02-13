@@ -8,7 +8,32 @@ from datetime import datetime
 from enum import Enum
 
 # Export the enums for OpenAPI generation
-__all__ = ["JobStatus", "ProcessingMode", "FileStatus", "JobInitiateRequest", "JobInitiateResponse", "JobStartRequest", "JobStartResponse", "JobDetailsResponse", "JobListResponse", "JobProgressResponse", "JobResultsResponse", "JobRunListItem", "JobRunDetailsResponse", "JobRunCreateRequest", "JobRunCreateResponse", "JobRunListResponse", "ExportRef", "ExportRefsResponse", "JobFileAllRunsInfo", "JobFilesAllRunsResponse"]
+__all__ = [
+    "JobStatus",
+    "ProcessingMode",
+    "FileStatus",
+    "JobInitiateRequest",
+    "JobInitiateResponse",
+    "JobStartRequest",
+    "JobStartResponse",
+    "JobDetailsResponse",
+    "JobListResponse",
+    "JobProgressResponse",
+    "JobResultsResponse",
+    "JobRunListItem",
+    "JobRunDetailsResponse",
+    "JobRunCreateRequest",
+    "JobRunCreateResponse",
+    "JobRunListResponse",
+    "ExportRef",
+    "ExportRefsResponse",
+    "JobFileAllRunsInfo",
+    "JobFilesAllRunsResponse",
+    "JobFilesInitiateUploadRequest",
+    "JobFilesInitiateUploadItem",
+    "JobFilesInitiateUploadResponse",
+    "JobFilesCompleteUploadRequest",
+]
 
 class JobStatus(str, Enum):
     """Job status enumeration"""
@@ -45,6 +70,28 @@ class FileUploadResponse(BaseModel):
     """Response for file upload preparation"""
     original_path: str = Field(..., description="Original file path")
     upload_url: str = Field(..., description="Pre-signed URL for upload")
+
+
+class JobFilesInitiateUploadRequest(BaseModel):
+    """Request to initiate uploads for an existing job run."""
+    files: List[FileUploadInfo] = Field(..., description="List of files to upload")
+
+
+class JobFilesInitiateUploadItem(BaseModel):
+    """Initiate-upload response item for a single file."""
+    id: str = Field(..., description="Source file identifier")
+    original_path: str = Field(..., description="Original file path")
+    upload_url: str = Field(..., description="Pre-signed URL for upload")
+
+
+class JobFilesInitiateUploadResponse(BaseModel):
+    """Response for initiating uploads to an existing job run."""
+    files: List[JobFilesInitiateUploadItem] = Field(..., description="Upload URLs for each file")
+
+
+class JobFilesCompleteUploadRequest(BaseModel):
+    """Request to complete uploads for one or more initiated files."""
+    file_ids: List[str] = Field(..., description="Source file IDs that were uploaded to storage")
 
 class JobInitiateRequest(BaseModel):
     """Request to initiate a new job"""

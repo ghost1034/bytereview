@@ -92,5 +92,42 @@ class PageCountingService:
         
         return None
 
+    @staticmethod
+    def count_pages_from_file_path(file_path: str, filename: str) -> Optional[int]:
+        """Count pages from a local file path.
+
+        This avoids loading large PDFs into memory when possible.
+        """
+        try:
+            file_ext = os.path.splitext(filename)[1].lower()
+            if file_ext != '.pdf':
+                logger.info(f"Non-PDF file {filename}, assuming 1 page")
+                return 1
+
+            # Method 1: Try PyPDF2 from file (fast)
+            try:
+                with open(file_path, 'rb') as f:
+                    pdf_reader = PyPDF2.PdfReader(f)
+                    page_count = len(pdf_reader.pages)
+                    logger.debug(f"PyPDF2 counted {page_count} pages (file path)")
+                    return page_count
+            except Exception as e:
+                logger.warning(f"PyPDF2 failed to count pages from file path: {e}")
+
+            # Method 2: Try PyMuPDF from file path (more robust)
+            try:
+                pdf_doc = fitz.open(file_path)
+                page_count = pdf_doc.page_count
+                pdf_doc.close()
+                logger.debug(f"PyMuPDF counted {page_count} pages (file path)")
+                return page_count
+            except Exception as e:
+                logger.warning(f"PyMuPDF failed to count pages from file path: {e}")
+
+            return None
+        except Exception as e:
+            logger.error(f"Error counting pages from file path for {filename}: {e}")
+            return None
+
 # Global instance
 page_counting_service = PageCountingService()

@@ -10,7 +10,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { apiClient } from '@/lib/api'
 import {
   JobInitiateResponse,
-  JobStartResponse,
   JobDetailsResponse,
   JobListResponse,
   JobProgressResponse,
@@ -153,76 +152,6 @@ export function useJobResults(jobId: string | undefined, limit = 50, runId?: str
 }
 
 /**
- * Hook for job workflow state management
- */
-export function useJobWorkflow() {
-  const queryClient = useQueryClient()
-  
-  const initiateJob = useInitiateJob()
-  const uploadFiles = useUploadFiles()
-  
-  const initiateAndUpload = useMutation({
-    mutationFn: async ({
-      files,
-      onProgress
-    }: {
-      files: File[]
-      onProgress?: (fileIndex: number, progress: number) => void
-    }) => {
-      throw new Error('initiateAndUploadFiles method removed - use initiateJob + addFilesToJob instead')
-    },
-    onSuccess: () => {
-      // Invalidate jobs list after successful initiation
-      queryClient.invalidateQueries({ queryKey: ['jobs'] })
-    },
-  })
-  
-  const completeJob = useMutation({
-    mutationFn: async ({
-      jobId,
-      jobName,
-      templateId,
-      persistData,
-      fields,
-      taskDefinitions
-    }: {
-      jobId: string
-      jobName?: string
-      templateId?: string
-      persistData: boolean
-      fields: any[]
-      taskDefinitions: any[]
-    }) => {
-      return apiClient.startJob(jobId, {
-        name: jobName,
-        template_id: templateId,
-        persist_data: persistData,
-        fields,
-        task_definitions: taskDefinitions
-      })
-    },
-    onSuccess: (_, { jobId }) => {
-      queryClient.invalidateQueries({ queryKey: ['job', jobId] })
-      queryClient.invalidateQueries({ queryKey: ['jobs'] })
-    },
-  })
-  
-  return {
-    initiateJob,
-    uploadFiles,
-    startJob,
-    initiateAndUpload,
-    completeJob,
-    
-    // Combined state
-    isLoading: initiateJob.isPending || uploadFiles.isPending || startJob.isPending || 
-               initiateAndUpload.isPending || completeJob.isPending,
-    error: initiateJob.error || uploadFiles.error || startJob.error || 
-           initiateAndUpload.error || completeJob.error,
-  }
-}
-
-/**
  * Hook for updating job configuration step
  */
 export function useUpdateConfigStep() {
@@ -307,7 +236,6 @@ async function getAuthToken(user: any): Promise<string> {
 // Re-export types for convenience
 export type {
   JobInitiateResponse,
-  JobStartResponse,
   JobDetailsResponse,
   JobListResponse,
   JobProgressResponse,

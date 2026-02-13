@@ -235,10 +235,70 @@ export interface paths {
         put?: never;
         /**
          * Add Files To Job
-         * @description Add more files to an existing job
+         * @description Add more files to an existing job run
          *     Immediately extracts ZIP files via ARQ workers
          */
         post: operations["add_files_to_job_api_jobs__job_id__files_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/files:initiate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Initiate Job Run File Uploads
+         * @description Initiate signed-URL uploads for an existing job run.
+         */
+        post: operations["initiate_job_run_file_uploads_api_jobs__job_id__files_initiate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/files:complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete Job Run File Uploads
+         * @description Finalize initiated uploads (verify in storage, count pages, mark ready, enqueue ZIP unpack).
+         */
+        post: operations["complete_job_run_file_uploads_api_jobs__job_id__files_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/files:all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Job Files All Runs
+         * @description Get flat list of files across all runs for a job (used by CPE tracker)
+         */
+        get: operations["get_job_files_all_runs_api_jobs__job_id__files_all_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -257,9 +317,49 @@ export interface paths {
         post?: never;
         /**
          * Remove File From Job
-         * @description Remove a file from a job (synchronous deletion for now)
+         * @description Remove a file from a job run (synchronous deletion for now)
          */
         delete: operations["remove_file_from_job_api_jobs__job_id__files__file_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/files/{file_id}:download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Job File
+         * @description Download a single uploaded file.
+         */
+        get: operations["download_job_file_api_jobs__job_id__files__file_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/files:download-zip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Download Job Files Zip
+         * @description Download multiple uploaded files as a single ZIP archive.
+         */
+        post: operations["download_job_files_zip_api_jobs__job_id__files_download_zip_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -363,6 +463,41 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/results/rows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Job Result Row */
+        post: operations["create_job_result_row_api_jobs__job_id__results_rows_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/results/tasks/{task_id}/rows/{row_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Job Result Row */
+        delete: operations["delete_job_result_row_api_jobs__job_id__results_tasks__task_id__rows__row_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Job Result Row */
+        patch: operations["update_job_result_row_api_jobs__job_id__results_tasks__task_id__rows__row_id__patch"];
         trace?: never;
     };
     "/api/jobs/{job_id}/fields": {
@@ -539,6 +674,95 @@ export interface paths {
         get: operations["get_import_status_api_jobs__job_id__import_status_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cpe/states": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Cpe States
+         * @description Get list of available CPE state templates
+         *     Returns public templates with template_type='cpe'
+         */
+        get: operations["get_cpe_states_api_cpe_states_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cpe/sheets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Cpe Sheets
+         * @description List user's CPE sheets (jobs with job_type='cpe')
+         */
+        get: operations["list_cpe_sheets_api_cpe_sheets_get"];
+        put?: never;
+        /**
+         * Create Cpe Sheet
+         * @description Create a new CPE sheet (extraction job with job_type='cpe')
+         */
+        post: operations["create_cpe_sheet_api_cpe_sheets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cpe/sheets/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Cpe Sheet
+         * @description Delete a CPE sheet
+         */
+        delete: operations["delete_cpe_sheet_api_cpe_sheets__job_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cpe/sheets/{job_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Cpe Sheet
+         * @description Start processing a CPE sheet.
+         *     - If the latest run is not editable, creates a new run with append_results=true
+         *     - Sets up fields from the state template
+         *     - Creates extraction tasks for all files
+         *     - Submits the run for processing
+         */
+        post: operations["start_cpe_sheet_api_cpe_sheets__job_id__start_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -745,106 +969,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/extraction/upload": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Upload Files
-         * @description Upload files temporarily to server storage
-         */
-        post: operations["upload_files_api_extraction_upload_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/extraction/extract": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Extract Data From Pdfs
-         * @description Extract structured data from PDF files using AI
-         */
-        post: operations["extract_data_from_pdfs_api_extraction_extract_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/extraction/cleanup-temp-files": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Cleanup Temp Files
-         * @description Manually trigger cleanup of old temporary files (admin endpoint - GCS lifecycle policies handle automatic cleanup)
-         */
-        post: operations["cleanup_temp_files_api_extraction_cleanup_temp_files_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/extraction/cleanup/{file_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Cleanup Uploaded File
-         * @description Delete a specific uploaded file from storage and cache
-         */
-        delete: operations["cleanup_uploaded_file_api_extraction_cleanup__file_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/extraction/cleanup-multiple": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Cleanup Multiple Files
-         * @description Delete multiple uploaded files from storage and cache
-         */
-        delete: operations["cleanup_multiple_files_api_extraction_cleanup_multiple_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/templates": {
         parameters: {
             query?: never;
@@ -860,7 +984,7 @@ export interface paths {
         put?: never;
         /**
          * Create Template
-         * @description Create a new extraction template
+         * @description Create a new template
          */
         post: operations["create_template_api_templates_post"];
         delete?: never;
@@ -1576,30 +1700,6 @@ export interface components {
             /** Files */
             files: string[];
         };
-        /** Body_extract_data_from_pdfs_api_extraction_extract_post */
-        Body_extract_data_from_pdfs_api_extraction_extract_post: {
-            /**
-             * Files
-             * @description PDF files to process
-             */
-            files: string[];
-            /**
-             * Fields
-             * @description JSON string of field configurations
-             */
-            fields: string;
-            /**
-             * Extract Multiple Rows
-             * @description Extract multiple rows
-             * @default false
-             */
-            extract_multiple_rows: boolean;
-        };
-        /** Body_upload_files_api_extraction_upload_post */
-        Body_upload_files_api_extraction_upload_post: {
-            /** Files */
-            files: string[];
-        };
         /**
          * CheckoutSessionResponse
          * @description Response containing checkout session URL
@@ -1634,6 +1734,57 @@ export interface components {
             inquiryType: string;
         };
         /**
+         * CpeSheetListItem
+         * @description Summary of a CPE sheet for list display
+         */
+        CpeSheetListItem: {
+            /** Job Id */
+            job_id: string;
+            /** Name */
+            name: string;
+            /** State Name */
+            state_name?: string | null;
+            /** Status */
+            status: string;
+            /** Config Step */
+            config_step: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Latest Run Id */
+            latest_run_id?: string | null;
+        };
+        /**
+         * CpeSheetsListResponse
+         * @description List of user's CPE sheets
+         */
+        CpeSheetsListResponse: {
+            /** Sheets */
+            sheets: components["schemas"]["CpeSheetListItem"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * CpeStateResponse
+         * @description A CPE state template (e.g., California)
+         */
+        CpeStateResponse: {
+            /** Template Id */
+            template_id: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * CpeStatesListResponse
+         * @description List of available CPE state templates
+         */
+        CpeStatesListResponse: {
+            /** States */
+            states: components["schemas"]["CpeStateResponse"][];
+        };
+        /**
          * CreateCheckoutSessionRequest
          * @description Request to create a Stripe checkout session
          */
@@ -1655,6 +1806,28 @@ export interface components {
              * @description URL to redirect to on cancelled payment
              */
             cancel_url: string;
+        };
+        /**
+         * CreateCpeSheetRequest
+         * @description Request to create a new CPE sheet
+         */
+        CreateCpeSheetRequest: {
+            /** Template Id */
+            template_id: string;
+            /** Name */
+            name?: string | null;
+        };
+        /**
+         * CreateCpeSheetResponse
+         * @description Response after creating a CPE sheet
+         */
+        CreateCpeSheetResponse: {
+            /** Job Id */
+            job_id: string;
+            /** Run Id */
+            run_id: string;
+            /** Message */
+            message: string;
         };
         /**
          * CreatePortalSessionRequest
@@ -1686,6 +1859,11 @@ export interface components {
             /** Display Order */
             display_order: number;
         };
+        /** DownloadFilesZipRequest */
+        DownloadFilesZipRequest: {
+            /** File Ids */
+            file_ids: string[];
+        };
         /** ExportRef */
         ExportRef: {
             /**
@@ -1708,41 +1886,6 @@ export interface components {
             gdrive?: {
                 [key: string]: components["schemas"]["ExportRef"];
             } | null;
-        };
-        /** ExtractionResponse */
-        ExtractionResponse: {
-            /** Success */
-            success: boolean;
-            /** Files Processed */
-            files_processed: components["schemas"]["ProcessedFile"][];
-            extraction_result: components["schemas"]["ExtractionResult"];
-            /** Pages Used */
-            pages_used: number;
-            /** Total Processing Time */
-            total_processing_time: number;
-            /** Error */
-            error?: string | null;
-        };
-        /** ExtractionResult */
-        ExtractionResult: {
-            /** Success */
-            success: boolean;
-            /** Data */
-            data?: unknown | null;
-            /** Error */
-            error?: string | null;
-            /** Rows Extracted */
-            rows_extracted?: number | null;
-            /** Ai Model */
-            ai_model?: string | null;
-            /** Raw Response */
-            raw_response?: string | null;
-            /** Processing Time */
-            processing_time?: number | null;
-            /** By Document */
-            by_document?: {
-                [key: string]: unknown;
-            }[] | null;
         };
         /**
          * ExtractionTaskResult
@@ -1824,6 +1967,22 @@ export interface components {
              * @description MIME type
              */
             type: string;
+        };
+        /**
+         * FileUploadResponse
+         * @description Response for file upload preparation
+         */
+        FileUploadResponse: {
+            /**
+             * Original Path
+             * @description Original file path
+             */
+            original_path: string;
+            /**
+             * Upload Url
+             * @description Pre-signed URL for upload
+             */
+            upload_url: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1928,6 +2087,49 @@ export interface components {
             description?: string | null;
         };
         /**
+         * JobFileAllRunsInfo
+         * @description Information about a file in a job, including run metadata (for all-runs listing)
+         */
+        JobFileAllRunsInfo: {
+            /**
+             * Id
+             * @description File identifier
+             */
+            id: string;
+            /**
+             * Original Path
+             * @description Original file path
+             */
+            original_path: string;
+            /**
+             * Original Filename
+             * @description Original filename
+             */
+            original_filename: string;
+            /**
+             * File Size Bytes
+             * @description File size
+             */
+            file_size_bytes: number;
+            /** @description File processing status */
+            status: components["schemas"]["FileStatus"];
+            /**
+             * Job Run Id
+             * @description ID of the job run this file belongs to
+             */
+            job_run_id: string;
+            /**
+             * Run Created At
+             * @description When the run was created
+             */
+            run_created_at?: string | null;
+            /**
+             * Run Status
+             * @description Status of the run
+             */
+            run_status?: string | null;
+        };
+        /**
          * JobFileInfo
          * @description Information about a file in a job
          */
@@ -1954,6 +2156,71 @@ export interface components {
             file_size_bytes: number;
             /** @description File processing status */
             status: components["schemas"]["FileStatus"];
+        };
+        /**
+         * JobFilesAllRunsResponse
+         * @description Response for listing files across all runs of a job
+         */
+        JobFilesAllRunsResponse: {
+            /**
+             * Files
+             * @description Files from all runs
+             */
+            files: components["schemas"]["JobFileAllRunsInfo"][];
+        };
+        /**
+         * JobFilesCompleteUploadRequest
+         * @description Request to complete uploads for one or more initiated files.
+         */
+        JobFilesCompleteUploadRequest: {
+            /**
+             * File Ids
+             * @description Source file IDs that were uploaded to storage
+             */
+            file_ids: string[];
+        };
+        /**
+         * JobFilesInitiateUploadItem
+         * @description Initiate-upload response item for a single file.
+         */
+        JobFilesInitiateUploadItem: {
+            /**
+             * Id
+             * @description Source file identifier
+             */
+            id: string;
+            /**
+             * Original Path
+             * @description Original file path
+             */
+            original_path: string;
+            /**
+             * Upload Url
+             * @description Pre-signed URL for upload
+             */
+            upload_url: string;
+        };
+        /**
+         * JobFilesInitiateUploadRequest
+         * @description Request to initiate uploads for an existing job run.
+         */
+        JobFilesInitiateUploadRequest: {
+            /**
+             * Files
+             * @description List of files to upload
+             */
+            files: components["schemas"]["FileUploadInfo"][];
+        };
+        /**
+         * JobFilesInitiateUploadResponse
+         * @description Response for initiating uploads to an existing job run.
+         */
+        JobFilesInitiateUploadResponse: {
+            /**
+             * Files
+             * @description Upload URLs for each file
+             */
+            files: components["schemas"]["JobFilesInitiateUploadItem"][];
         };
         /**
          * JobFilesResponse
@@ -1996,7 +2263,7 @@ export interface components {
              * Files
              * @description Upload URLs for each file
              */
-            files: components["schemas"]["models__job__FileUploadResponse"][];
+            files: components["schemas"]["FileUploadResponse"][];
         };
         /**
          * JobListItem
@@ -2311,25 +2578,47 @@ export interface components {
             /** Portal Url */
             portal_url: string;
         };
-        /** ProcessedFile */
-        ProcessedFile: {
-            /** Filename */
-            filename: string;
-            /** Size Bytes */
-            size_bytes: number;
-            /** Num Pages */
-            num_pages: number;
-            /** Metadata */
-            metadata?: {
-                [key: string]: unknown;
-            } | null;
-        };
         /**
          * ProcessingMode
          * @description File processing mode enumeration
          * @enum {string}
          */
-        ProcessingMode: "individual" | "combined";
+        ProcessingMode: "individual" | "combined" | "manual";
+        /** ResultRowCreateRequest */
+        ResultRowCreateRequest: {
+            /** Run Id */
+            run_id?: string | null;
+            /** Attach To Task Id */
+            attach_to_task_id?: string | null;
+            /** Values */
+            values: {
+                [key: string]: unknown;
+            };
+        };
+        /** ResultRowCreateResponse */
+        ResultRowCreateResponse: {
+            /** Task Id */
+            task_id: string;
+            /** Row Id */
+            row_id: string;
+        };
+        /** ResultRowUpdateRequest */
+        ResultRowUpdateRequest: {
+            /** Values */
+            values: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * StartCpeSheetResponse
+         * @description Response after starting CPE sheet processing
+         */
+        StartCpeSheetResponse: {
+            /** Active Run Id */
+            active_run_id: string;
+            /** Message */
+            message: string;
+        };
         /**
          * SubscriptionPlanResponse
          * @description Subscription plan information
@@ -2402,6 +2691,12 @@ export interface components {
              * @default false
              */
             is_public: boolean;
+            /**
+             * Template Type
+             * @default extraction
+             * @enum {string}
+             */
+            template_type: "extraction" | "cpe";
         };
         /** TemplateUpdateRequest */
         TemplateUpdateRequest: {
@@ -2418,34 +2713,6 @@ export interface components {
         UpdateProfileRequest: {
             /** Display Name */
             display_name?: string | null;
-        };
-        /**
-         * UploadedFileInfo
-         * @description Information about an uploaded file
-         */
-        UploadedFileInfo: {
-            /** File Id */
-            file_id: string;
-            /** Filename */
-            filename: string;
-            /** Size Bytes */
-            size_bytes: number;
-            /**
-             * Is Zip
-             * @default false
-             */
-            is_zip: boolean;
-            /**
-             * Extracted Count
-             * @default 1
-             */
-            extracted_count: number;
-            /** Upload Time */
-            upload_time: number;
-            /** Extracted Files */
-            extracted_files?: {
-                [key: string]: unknown;
-            }[];
         };
         /**
          * UsageStatsResponse
@@ -2509,38 +2776,6 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
-        };
-        /**
-         * FileUploadResponse
-         * @description Response for file upload preparation
-         */
-        models__job__FileUploadResponse: {
-            /**
-             * Original Path
-             * @description Original file path
-             */
-            original_path: string;
-            /**
-             * Upload Url
-             * @description Pre-signed URL for upload
-             */
-            upload_url: string;
-        };
-        /**
-         * FileUploadResponse
-         * @description Response from file upload endpoint
-         */
-        models__upload__FileUploadResponse: {
-            /** Success */
-            success: boolean;
-            /** Uploaded Files */
-            uploaded_files: components["schemas"]["UploadedFileInfo"][];
-            /** Total Files */
-            total_files: number;
-            /** Message */
-            message: string;
-            /** Error */
-            error?: string | null;
         };
     };
     responses: never;
@@ -3038,7 +3273,10 @@ export interface operations {
     };
     add_files_to_job_api_jobs__job_id__files_post: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Specific run ID (defaults to latest) */
+                run_id?: string | null;
+            };
             header?: never;
             path: {
                 job_id: string;
@@ -3071,7 +3309,152 @@ export interface operations {
             };
         };
     };
+    initiate_job_run_file_uploads_api_jobs__job_id__files_initiate_post: {
+        parameters: {
+            query?: {
+                /** @description Specific run ID (defaults to latest) */
+                run_id?: string | null;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobFilesInitiateUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFilesInitiateUploadResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_job_run_file_uploads_api_jobs__job_id__files_complete_post: {
+        parameters: {
+            query?: {
+                /** @description Specific run ID (defaults to latest) */
+                run_id?: string | null;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobFilesCompleteUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_job_files_all_runs_api_jobs__job_id__files_all_get: {
+        parameters: {
+            query?: {
+                /** @description Only return files that can be processed for data extraction (excludes ZIP files) */
+                processable?: boolean;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFilesAllRunsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     remove_file_from_job_api_jobs__job_id__files__file_id__delete: {
+        parameters: {
+            query?: {
+                /** @description Specific run ID (defaults to latest) */
+                run_id?: string | null;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_job_file_api_jobs__job_id__files__file_id__download_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -3082,6 +3465,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_job_files_zip_api_jobs__job_id__files_download_zip_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DownloadFilesZipRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -3258,6 +3676,111 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_job_result_row_api_jobs__job_id__results_rows_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResultRowCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResultRowCreateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_job_result_row_api_jobs__job_id__results_tasks__task_id__rows__row_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+                task_id: string;
+                row_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_job_result_row_api_jobs__job_id__results_tasks__task_id__rows__row_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+                task_id: string;
+                row_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResultRowUpdateRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -3582,6 +4105,141 @@ export interface operations {
             };
         };
     };
+    get_cpe_states_api_cpe_states_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CpeStatesListResponse"];
+                };
+            };
+        };
+    };
+    list_cpe_sheets_api_cpe_sheets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CpeSheetsListResponse"];
+                };
+            };
+        };
+    };
+    create_cpe_sheet_api_cpe_sheets_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCpeSheetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateCpeSheetResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_cpe_sheet_api_cpe_sheets__job_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_cpe_sheet_api_cpe_sheets__job_id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartCpeSheetResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_billing_account_api_stripe_account_get: {
         parameters: {
             query?: never;
@@ -3804,167 +4462,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-        };
-    };
-    upload_files_api_extraction_upload_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_upload_files_api_extraction_upload_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["models__upload__FileUploadResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    extract_data_from_pdfs_api_extraction_extract_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_extract_data_from_pdfs_api_extraction_extract_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExtractionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    cleanup_temp_files_api_extraction_cleanup_temp_files_post: {
-        parameters: {
-            query?: {
-                max_age_hours?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    cleanup_uploaded_file_api_extraction_cleanup__file_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                file_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    cleanup_multiple_files_api_extraction_cleanup_multiple_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": string[];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

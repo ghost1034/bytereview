@@ -107,7 +107,7 @@ async def on_shutdown():
 
 # ---------- Routers (import after app/init so import errors are logged nicely) ----------
 from routes import (
-    users, jobs, stripe_routes, extraction, templates,
+    users, jobs, stripe_routes, templates,
     data_types, integrations, automations, webhooks, admin, billing, contact, cpe
 )
 
@@ -116,7 +116,6 @@ app.include_router(jobs.router,         prefix="/api/jobs",       tags=["jobs"])
 app.include_router(cpe.router,          prefix="/api/cpe",        tags=["cpe"])
 app.include_router(stripe_routes.router, prefix="/api/stripe",    tags=["stripe"])
 app.include_router(billing.router)
-app.include_router(extraction.router,   prefix="/api/extraction", tags=["extraction"])
 app.include_router(templates.router,    prefix="/api/templates",  tags=["templates"])
 app.include_router(data_types.router,   prefix="/api/data-types", tags=["data-types"])
 app.include_router(integrations.router, prefix="/api",            tags=["integrations"])

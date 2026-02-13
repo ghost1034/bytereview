@@ -5,6 +5,8 @@ Handles job lifecycle, file management, and task orchestration
 import os
 import uuid
 import logging
+import tempfile
+from pathlib import PurePosixPath
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timedelta
 from fastapi import UploadFile
@@ -15,7 +17,8 @@ from models.job import (
     JobDetailsResponse, JobListResponse, JobProgressResponse, JobResultsResponse,
     JobStatus, ProcessingMode, FileUploadResponse, JobListItem, JobFieldInfo,
     ExtractionTaskResult, JobFileInfo, FileStatus, TaskInfo, ExportRefsResponse, ExportRef,
-    JobFileAllRunsInfo
+    JobFileAllRunsInfo,
+    JobFilesInitiateUploadRequest, JobFilesInitiateUploadItem, JobFilesCompleteUploadRequest
 )
 from models.db_models import (
     ExtractionJob, JobRun, SourceFile, JobField, ExtractionTask, SourceFileToTask,
@@ -23,6 +26,9 @@ from models.db_models import (
 )
 from core.database import db_config
 from services.gcs_service import get_storage_service
+from services.gcs_service import normalize_path
+from services.page_counting_service import page_counting_service
+from core.constants import MAX_DIRECT_UPLOAD_BYTES
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.exc import SQLAlchemyError
@@ -418,6 +424,22 @@ class JobService:
             # Check if run is already running
             if target_run.status == 'in_progress':
                 raise ValueError("Job run already in progress")
+
+            # Ensure uploads/ZIP unpacking are complete and page_count is available for all processable files.
+            # This prevents users from starting runs before files are finalized (and prevents plan checks from
+            # undercounting pages due to NULL page_count values).
+            any_not_ready = db.query(SourceFile).filter(
+                SourceFile.job_run_id == target_run.id,
+                SourceFile.status.in_([FileStatus.UPLOADING.value, FileStatus.UNPACKING.value])
+            ).count()
+            if any_not_ready:
+                raise ValueError("Files are still being finalized. Please wait for uploads/unpacking to complete.")
+
+            processable_missing_pages = self._filter_processable_files(
+                db.query(SourceFile).filter(SourceFile.job_run_id == target_run.id)
+            ).filter(SourceFile.page_count.is_(None)).count()
+            if processable_missing_pages:
+                raise ValueError("Some files are still finalizing (page counting). Please try again in a moment.")
             
             # In fresh runs, delete completed tasks to allow re-running; in append runs, preserve them
             if getattr(target_run, 'append_from_run_id', None):
@@ -502,6 +524,28 @@ class JobService:
                     db, automation_run_id, 'failed', 'Job run already in progress'
                 )
                 raise ValueError("Job run already in progress")
+
+            # Safety: don't start if files are still finalizing (uploading/unpacking/page_count missing).
+            any_not_ready = db.query(SourceFile).filter(
+                SourceFile.job_run_id == job_run_id,
+                SourceFile.status.in_([FileStatus.UPLOADING.value, FileStatus.UNPACKING.value])
+            ).count()
+            if any_not_ready:
+                from services.automation_service import automation_service
+                await automation_service.update_automation_run_status(
+                    db, automation_run_id, 'failed', 'Files are still being finalized'
+                )
+                raise ValueError("Files are still being finalized")
+
+            processable_missing_pages = self._filter_processable_files(
+                db.query(SourceFile).filter(SourceFile.job_run_id == job_run_id)
+            ).filter(SourceFile.page_count.is_(None)).count()
+            if processable_missing_pages:
+                from services.automation_service import automation_service
+                await automation_service.update_automation_run_status(
+                    db, automation_run_id, 'failed', 'Missing page counts for one or more files'
+                )
+                raise ValueError("Missing page counts for one or more files")
             
             # Create extraction tasks for all imported files in this job run
             await self._create_extraction_tasks_for_automation_run(db, job_run_id)
@@ -1277,7 +1321,10 @@ class JobService:
                 db.add(source_file)
                 
                 # Generate pre-signed upload URL
-                upload_url = await self.storage_service.generate_presigned_put_url(gcs_object_name)
+                upload_url = await self.storage_service.generate_presigned_put_url(
+                    gcs_object_name,
+                    content_type=file_info.type or "application/octet-stream",
+                )
                 
                 upload_responses.append(FileUploadResponse(
                     original_path=normalized_path,
@@ -1723,6 +1770,252 @@ class JobService:
             
         except Exception as e:
             logger.error(f"Failed to add files to job {job_id}: {e}")
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    async def initiate_job_run_file_uploads(
+        self,
+        user_id: str,
+        job_id: str,
+        request: JobFilesInitiateUploadRequest,
+        run_id: str = None,
+    ) -> List[JobFilesInitiateUploadItem]:
+        """Initiate signed-URL uploads for an existing job run.
+
+        Creates SourceFile rows in status=uploading and returns signed PUT URLs.
+        """
+        from fastapi import HTTPException
+
+        db = self._get_session()
+        try:
+            if run_id:
+                target_run = self.get_job_run(job_id, run_id, user_id)
+            else:
+                target_run = self.get_latest_run(job_id, user_id)
+
+            if not target_run:
+                raise ValueError("Job run not found")
+
+            if target_run.config_step == 'submitted':
+                raise HTTPException(
+                    status_code=409,
+                    detail="This run is already submitted/completed. Create a new run to upload more files.",
+                )
+
+            storage_service = self.storage_service
+            if not getattr(storage_service, "is_available", lambda: False)():
+                raise HTTPException(status_code=500, detail="Storage is not available")
+
+            initiated: List[JobFilesInitiateUploadItem] = []
+
+            for file_info in request.files:
+                if file_info.size > MAX_DIRECT_UPLOAD_BYTES:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File {file_info.filename} too large. Maximum size is {MAX_DIRECT_UPLOAD_BYTES // (1024 * 1024)}MB",
+                    )
+
+                raw_path = file_info.path or file_info.filename
+                normalized_path = normalize_path(raw_path)
+                if not normalized_path:
+                    raise HTTPException(status_code=400, detail="File path is required")
+
+                # Prevent path traversal / odd segments
+                parts = PurePosixPath(normalized_path).parts
+                if any(p == ".." for p in parts):
+                    raise HTTPException(status_code=400, detail=f"Invalid file path: {file_info.path}")
+
+                filename = os.path.basename(file_info.filename or normalized_path) or "unknown"
+                file_extension = os.path.splitext(filename)[1]
+                gcs_object_name = f"jobs/{job_id}/runs/{target_run.id}/{uuid.uuid4()}{file_extension}"
+
+                content_type = file_info.type or "application/octet-stream"
+
+                source_file = SourceFile(
+                    job_run_id=target_run.id,
+                    original_filename=filename,
+                    original_path=normalized_path,
+                    gcs_object_name=gcs_object_name,
+                    file_type=content_type,
+                    file_size_bytes=file_info.size,
+                    status=FileStatus.UPLOADING.value,
+                )
+                db.add(source_file)
+                db.flush()
+
+                upload_url = await storage_service.generate_presigned_put_url(
+                    gcs_object_name,
+                    content_type=content_type,
+                )
+
+                initiated.append(
+                    JobFilesInitiateUploadItem(
+                        id=str(source_file.id),
+                        original_path=normalized_path,
+                        upload_url=upload_url,
+                    )
+                )
+
+            db.commit()
+            return initiated
+        except HTTPException:
+            db.rollback()
+            raise
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    async def complete_job_run_file_uploads(
+        self,
+        user_id: str,
+        job_id: str,
+        request: JobFilesCompleteUploadRequest,
+        run_id: str = None,
+    ) -> List[Dict[str, Any]]:
+        """Finalize one or more initiated uploads.
+
+        Verifies objects exist in GCS, enforces max size, synchronously counts pages,
+        updates SourceFile status, and enqueues ZIP unpack if applicable.
+        """
+        from fastapi import HTTPException
+
+        db = self._get_session()
+        try:
+            if run_id:
+                target_run = self.get_job_run(job_id, run_id, user_id)
+            else:
+                target_run = self.get_latest_run(job_id, user_id)
+
+            if not target_run:
+                raise ValueError("Job run not found")
+
+            if target_run.config_step == 'submitted':
+                raise HTTPException(
+                    status_code=409,
+                    detail="This run is already submitted/completed. Create a new run to upload more files.",
+                )
+
+            storage_service = self.storage_service
+            if not getattr(storage_service, "is_available", lambda: False)():
+                raise HTTPException(status_code=500, detail="Storage is not available")
+
+            bucket = getattr(storage_service, "bucket", None)
+            if bucket is None:
+                raise HTTPException(status_code=500, detail="Storage backend does not support direct uploads")
+
+            completed_files: List[Dict[str, Any]] = []
+
+            for file_id in request.file_ids:
+                source_file = db.query(SourceFile).filter(
+                    SourceFile.id == file_id,
+                    SourceFile.job_run_id == target_run.id,
+                ).first()
+
+                if not source_file:
+                    raise HTTPException(status_code=404, detail=f"File {file_id} not found")
+
+                # Idempotency: if already uploaded/unpacking/unpacked, return current state.
+                if source_file.status in (
+                    FileStatus.UPLOADED.value,
+                    FileStatus.UNPACKING.value,
+                    FileStatus.UNPACKED.value,
+                ) and (source_file.page_count is not None or self._is_zip_file(source_file.file_type or "", source_file.original_filename or "")):
+                    completed_files.append({
+                        "id": str(source_file.id),
+                        "filename": source_file.original_filename,
+                        "file_type": source_file.file_type,
+                        "file_size": source_file.file_size_bytes,
+                        "status": source_file.status,
+                    })
+                    continue
+
+                blob = bucket.blob(source_file.gcs_object_name)
+                if not blob.exists():
+                    raise HTTPException(status_code=409, detail=f"Upload not found for file {source_file.original_filename}")
+
+                try:
+                    blob.reload()
+                except Exception:
+                    # If reload fails, still attempt to use current metadata
+                    pass
+
+                size_bytes = int(getattr(blob, "size", 0) or 0)
+                source_file.file_size_bytes = size_bytes
+
+                if size_bytes > MAX_DIRECT_UPLOAD_BYTES:
+                    source_file.status = FileStatus.FAILED.value
+                    db.commit()
+                    # Best-effort cleanup to avoid storing oversized uploads
+                    try:
+                        blob.delete()
+                    except Exception:
+                        pass
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File {source_file.original_filename} too large. Maximum size is {MAX_DIRECT_UPLOAD_BYTES // (1024 * 1024)}MB",
+                    )
+
+                # Download to temp file for page counting
+                tmp_path = None
+                try:
+                    suffix = os.path.splitext(source_file.original_filename or "")[1] or ".bin"
+                    tmp = tempfile.NamedTemporaryFile(prefix="pagecount_", suffix=suffix, delete=False)
+                    tmp_path = tmp.name
+                    tmp.close()
+
+                    await storage_service.download_file(source_file.gcs_object_name, tmp_path)
+
+                    is_zip = self._is_zip_file(source_file.file_type or "", source_file.original_filename or "")
+                    if not is_zip:
+                        page_count = page_counting_service.count_pages_from_file_path(
+                            tmp_path,
+                            source_file.original_filename or "unknown",
+                        )
+                        if page_count is None:
+                            source_file.status = FileStatus.FAILED.value
+                            db.commit()
+                            raise HTTPException(
+                                status_code=400,
+                                detail=f"Unable to read {source_file.original_filename} to count pages",
+                            )
+                        source_file.page_count = page_count
+
+                    # Mark uploaded; ZIP handling may move this to unpacking
+                    source_file.status = FileStatus.UPLOADED.value
+                    db.flush()
+
+                    await self._handle_zip_detection(
+                        db,
+                        source_file,
+                        source_file.file_type or "application/octet-stream",
+                        source_file.original_filename or "unknown",
+                    )
+
+                finally:
+                    if tmp_path:
+                        try:
+                            os.unlink(tmp_path)
+                        except Exception:
+                            pass
+
+                completed_files.append({
+                    "id": str(source_file.id),
+                    "filename": source_file.original_filename,
+                    "file_type": source_file.file_type,
+                    "file_size": source_file.file_size_bytes,
+                    "status": source_file.status,
+                })
+
+            db.commit()
+            return completed_files
+        except HTTPException:
+            db.rollback()
+            raise
+        except Exception:
             db.rollback()
             raise
         finally:

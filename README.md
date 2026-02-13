@@ -799,7 +799,7 @@ API surfaces
 - Major groups
   - /api/jobs: create/list, files (upload/gdrive/gmail), runs, results, export, export-refs
     - Results editing: create manual rows, edit cells, delete rows (last-row deletion may delete task files).
-  - /api/extraction: legacy endpoints retained; new flow uses /api/jobs
+  - /api/jobs: primary extraction workflow (uploads, runs, results, export)
   - /api/integrations: Google OAuth/Drive/Gmail helpers
   - /api/automations: CRUD and execution
   - /api/stripe, /api/billing: subscription and usage

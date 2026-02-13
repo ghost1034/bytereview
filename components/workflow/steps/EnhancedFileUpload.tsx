@@ -65,6 +65,7 @@ interface DisplayFile extends JobFileInfo {
 export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack, readOnly = false, isLatestSelected = true, hideFooter = false, fileListScope = 'run', onUploadConflict }: EnhancedFileUploadProps) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const MAX_DIRECT_UPLOAD_BYTES = 50 * 1024 * 1024
   const [files, setFiles] = useState<DisplayFile[]>([])
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
@@ -519,22 +520,33 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
       }
     }
     
-    if (validFiles.length === 0) {
+    // Enforce per-file size limit (50MB)
+    const tooLarge = validFiles.filter(f => f.size > MAX_DIRECT_UPLOAD_BYTES)
+    const sizeOk = validFiles.filter(f => f.size <= MAX_DIRECT_UPLOAD_BYTES)
+    if (tooLarge.length > 0) {
       toast({
-        title: "No valid files selected",
-        description: "Please select files (not empty folders).",
+        title: "File too large",
+        description: `Skipped ${tooLarge.length} file(s) over 50MB.`,
+        variant: "destructive"
+      })
+    }
+
+    if (sizeOk.length === 0) {
+      toast({
+        title: "No files to upload",
+        description: tooLarge.length > 0 ? "All selected files exceed the 50MB limit." : "Please select files (not empty folders).",
         variant: "destructive"
       })
       return
     }
     
-    console.log(`Processing ${validFiles.length} valid files out of ${selectedFiles.length} selected`)
+    console.log(`Processing ${sizeOk.length} valid files out of ${selectedFiles.length} selected`)
     
     // Check if this is a folder upload by looking for webkitRelativePath
-    const isFolder = validFiles.some(f => f.webkitRelativePath && f.webkitRelativePath !== '')
+    const isFolder = sizeOk.some(f => f.webkitRelativePath && f.webkitRelativePath !== '')
     console.log('Is folder upload:', isFolder)
 
-    console.log('File details:', Array.from(validFiles).map(f => ({ 
+    console.log('File details:', Array.from(sizeOk).map(f => ({ 
       name: f.name, 
       size: f.size, 
       type: f.type,
@@ -546,7 +558,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
       // Don't set up SSE connection yet - we'll do it only if there are ZIP files
 
       // Add files to the list immediately with uploading status
-      const tempFiles: DisplayFile[] = validFiles.map((f: any, index: number) => ({
+       const tempFiles: DisplayFile[] = sizeOk.map((f: any, index: number) => ({
         id: `temp-${Date.now()}-${index}`,
         original_filename: f.name,
         original_path: f.webkitRelativePath || f.name,
@@ -600,7 +612,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
       }
       
       // Upload files with real progress tracking and individual completion
-      const result = await apiClient.addFilesToJob(jobId, validFiles, handleProgress, handleFileComplete, runId)
+       const result = await apiClient.addFilesToJob(jobId, sizeOk, handleProgress, handleFileComplete, runId)
       
       // Check if any uploaded files are ZIP files that need extraction
       const hasZipFiles = result.files.some(file => 

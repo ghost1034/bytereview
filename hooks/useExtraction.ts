@@ -1,57 +1,8 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiClient, type TemplatesResponse, type ExtractionResponse, type FieldConfig } from '@/lib/api'
+import { apiClient, type TemplatesResponse, type FieldConfig } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
-
-export function useExtractData() {
-  const queryClient = useQueryClient()
-  
-  return useMutation({
-    mutationFn: async ({
-      files,
-      fields,
-      extractMultipleRows = false
-    }: {
-      files: File[]
-      fields: FieldConfig[]
-      extractMultipleRows?: boolean
-    }): Promise<ExtractionResponse> => {
-      return apiClient.extractFromFiles(files, fields, extractMultipleRows)
-    },
-    onSuccess: () => {
-      // Invalidate user usage data after successful extraction
-      queryClient.invalidateQueries({ queryKey: ['user-usage'] })
-    },
-  })
-}
-
-export function useExtractFromUploaded() {
-  const queryClient = useQueryClient()
-  
-  return useMutation({
-    mutationFn: async ({
-      fileIds,
-      fields,
-      extractMultipleRows = false
-    }: {
-      fileIds: string[]
-      fields: FieldConfig[]
-      extractMultipleRows?: boolean
-    }): Promise<ExtractionResponse> => {
-      return apiClient.extractFromUploadedFiles(fileIds, fields, extractMultipleRows) as any
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-usage'] })
-    },
-  })
-}
-
-export function useUploadFiles() {
-  return useMutation({
-    mutationFn: (files: File[]) => apiClient.uploadFiles(files),
-  })
-}
 
 export function useTemplates() {
   const { user } = useAuth()
@@ -126,17 +77,5 @@ export function useDeleteTemplate() {
   })
 }
 
-export function useExportToCSV() {
-  return useMutation({
-    mutationFn: (extractionData: any) => apiClient.exportToCSV(extractionData),
-  })
-}
-
-export function useExportToExcel() {
-  return useMutation({
-    mutationFn: (extractionData: any) => apiClient.exportToExcel(extractionData),
-  })
-}
-
 // Re-export types for convenience
-export type { FieldConfig, ExtractionResponse, TemplatesResponse } from '@/lib/api'
+export type { FieldConfig, TemplatesResponse } from '@/lib/api'

@@ -328,7 +328,12 @@ class GCSService:
             logger.error(f"Failed to cleanup old files from GCS: {e}")
             return 0
     
-    async def generate_presigned_put_url(self, gcs_object_name: str, expiration_minutes: int = 60) -> str:
+    async def generate_presigned_put_url(
+        self,
+        gcs_object_name: str,
+        expiration_minutes: int = 60,
+        content_type: str | None = "application/octet-stream",
+    ) -> str:
         """
         Generate a pre-signed URL for PUT operations (file uploads)
         """
@@ -345,7 +350,7 @@ class GCSService:
                 version="v4",
                 expiration=timedelta(minutes=expiration_minutes),
                 method="PUT",
-                content_type="application/octet-stream"  # Generic content type
+                content_type=content_type or "application/octet-stream",
             )
             
             logger.info(f"Generated pre-signed PUT URL for: {gcs_object_name}")
@@ -527,7 +532,12 @@ class LocalStorageService:
     def is_available(self) -> bool:
         return True
     
-    async def generate_presigned_put_url(self, gcs_object_name: str, expiration_minutes: int = 60) -> str:
+    async def generate_presigned_put_url(
+        self,
+        gcs_object_name: str,
+        expiration_minutes: int = 60,
+        content_type: str | None = "application/octet-stream",
+    ) -> str:
         """
         Local storage doesn't support pre-signed URLs, raise an error
         """

@@ -94,14 +94,14 @@ export class ApiClient {
   }
 
   // Template endpoints
-  async getTemplates(): Promise<ApiResponse<ApiPaths['/api/templates/']['get']>> {
-    return this.request('/api/templates/')
+  async getTemplates(): Promise<ApiResponse<ApiPaths['/api/templates']['get']>> {
+    return this.request('/api/templates')
   }
 
   async createTemplate(
-    data: ApiRequest<ApiPaths['/api/templates/']['post']>
-  ): Promise<ApiResponse<ApiPaths['/api/templates/']['post']>> {
-    return this.request('/api/templates/', {
+    data: ApiRequest<ApiPaths['/api/templates']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/templates']['post']>> {
+    return this.request('/api/templates', {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -155,182 +155,9 @@ export class ApiClient {
     return this.request('/api/stripe/subscription-status')
   }
 
-  // File upload endpoints (multipart/form-data)
-  async uploadFiles(files: File[]): Promise<ApiResponse<ApiPaths['/api/extraction/upload']['post']>> {
-    const token = await this.getAuthToken()
-    const formData = new FormData()
-    
-    files.forEach(file => {
-      formData.append('files', file)
-    })
-
-    const response = await fetch(`${this.baseURL}/api/extraction/upload`, {
-      method: 'POST',
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      body: formData,
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Upload failed' }))
-      throw new Error(error.detail || error.message || 'Upload failed')
-    }
-
-    return response.json()
-  }
-
-  // Extraction endpoints
-  async extractFromUploadedFiles(
-    fileIds: string[],
-    fields: any[],
-    extractMultipleRows: boolean = false
-  ): Promise<ApiResponse<ApiPaths['/api/extraction/extract-from-uploaded']['post']>> {
-    const token = await this.getAuthToken()
-    const formData = new FormData()
-    
-    fileIds.forEach(id => formData.append('file_ids', id))
-    formData.append('fields', JSON.stringify(fields))
-    formData.append('extract_multiple_rows', extractMultipleRows.toString())
-
-    const response = await fetch(`${this.baseURL}/api/extraction/extract-from-uploaded`, {
-      method: 'POST',
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      body: formData,
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Extraction failed' }))
-      throw new Error(error.detail || error.message || 'Extraction failed')
-    }
-
-    return response.json()
-  }
-
-  async extractFromFiles(
-    files: File[],
-    fields: any[],
-    extractMultipleRows: boolean = false
-  ): Promise<ApiResponse<ApiPaths['/api/extraction/extract']['post']>> {
-    const token = await this.getAuthToken()
-    const formData = new FormData()
-    
-    files.forEach(file => formData.append('files', file))
-    formData.append('fields', JSON.stringify(fields))
-    formData.append('extract_multiple_rows', extractMultipleRows.toString())
-
-    const response = await fetch(`${this.baseURL}/api/extraction/extract`, {
-      method: 'POST',
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      body: formData,
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Extraction failed' }))
-      throw new Error(error.detail || error.message || 'Extraction failed')
-    }
-
-    return response.json()
-  }
-
-  // Export endpoints
-  async exportToCSV(extractionData: any): Promise<{ blob: Blob; filename: string }> {
-    const token = await this.getAuthToken()
-    
-    const response = await fetch(`${this.baseURL}/api/extraction/export/csv`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      body: JSON.stringify(extractionData),
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Export failed' }))
-      throw new Error(error.detail || error.message || 'Export failed')
-    }
-
-    const blob = await response.blob()
-    const filename = response.headers.get('Content-Disposition')?.match(/filename=(.+)/)?.[1] || 'export.csv'
-    return { blob, filename: filename.replace(/"/g, '') }
-  }
-
-  async exportToExcel(extractionData: any): Promise<{ blob: Blob; filename: string }> {
-    const token = await this.getAuthToken()
-    
-    const response = await fetch(`${this.baseURL}/api/extraction/export/excel`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      body: JSON.stringify(extractionData),
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Export failed' }))
-      throw new Error(error.detail || error.message || 'Export failed')
-    }
-
-    const blob = await response.blob()
-    const filename = response.headers.get('Content-Disposition')?.match(/filename=(.+)/)?.[1] || 'export.xlsx'
-    return { blob, filename: filename.replace(/"/g, '') }
-  }
-
-  // File cleanup methods
-  async deleteUploadedFile(fileId: string): Promise<ApiResponse<ApiPaths['/api/extraction/cleanup/{file_id}']['delete']>> {
-    const token = await this.getAuthToken()
-    
-    const response = await fetch(`${this.baseURL}/api/extraction/cleanup/${fileId}`, {
-      method: 'DELETE',
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Delete failed' }))
-      throw new Error(error.detail || error.message || 'Delete failed')
-    }
-
-    return response.json()
-  }
-
-  async deleteMultipleFiles(fileIds: string[]): Promise<ApiResponse<ApiPaths['/api/extraction/cleanup-multiple']['delete']>> {
-    const token = await this.getAuthToken()
-    
-    const response = await fetch(`${this.baseURL}/api/extraction/cleanup-multiple`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      body: JSON.stringify(fileIds),
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Delete failed' }))
-      throw new Error(error.detail || error.message || 'Delete failed')
-    }
-
-    return response.json()
-  }
-
   // Job-based workflow endpoints
   async initiateJob(request: ApiRequest<ApiPaths['/api/jobs/initiate']['post']>): Promise<ApiResponse<ApiPaths['/api/jobs/initiate']['post']>> {
     return this.request('/api/jobs/initiate', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    })
-  }
-
-  async startJob(jobId: string, request: ApiRequest<ApiPaths['/api/jobs/{job_id}/start']['post']>): Promise<ApiResponse<ApiPaths['/api/jobs/{job_id}/start']['post']>> {
-    return this.request(`/api/jobs/${jobId}/start`, {
       method: 'POST',
       body: JSON.stringify(request),
     })
@@ -408,90 +235,98 @@ export class ApiClient {
   ): Promise<{ files: any[] }> {
     const token = await this.getAuthToken()
 
-    // Upload files one by one to get real progress for each
     const uploadedFiles: any[] = []
 
-    // Build URL with optional run_id query param
+    const normalizeRelPath = (p: string) => p.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+
     const params = new URLSearchParams()
     if (runId) params.set('run_id', runId)
     const queryString = params.toString()
-    const uploadUrl = `${this.baseURL}/api/jobs/${jobId}/files${queryString ? `?${queryString}` : ''}`
 
+    // Step 1: Initiate uploads to get signed PUT URLs
+    const initiateResult: any = await this.request(`/api/jobs/${jobId}/files:initiate${queryString ? `?${queryString}` : ''}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        files: files.map((file) => {
+          const filePath = (file as any).webkitRelativePath || file.name
+          return {
+            filename: file.name,
+            path: filePath,
+            size: file.size,
+            type: file.type || 'application/octet-stream',
+          }
+        })
+      })
+    })
+
+    const initiatedByPath = new Map<string, { id: string; original_path: string; upload_url: string }>()
+    for (const f of initiateResult?.files || []) {
+      initiatedByPath.set(f.original_path, f)
+      initiatedByPath.set(normalizeRelPath(f.original_path), f)
+    }
+
+    // Step 2: Upload bytes directly to GCS (signed URL), then complete to finalize + page count
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
       const filePath = (file as any).webkitRelativePath || file.name
+      const normalizedPath = normalizeRelPath(filePath)
       console.log(`Uploading file ${i + 1}/${files.length}: ${filePath}`)
 
-      // Initialize progress for this file
-      if (onProgress) {
-        onProgress(filePath, 0)
+      if (onProgress) onProgress(filePath, 0)
+
+      const initiated = initiatedByPath.get(filePath) || initiatedByPath.get(normalizedPath)
+      if (!initiated?.upload_url || !initiated?.id) {
+        throw new Error(`Missing upload URL for ${filePath}`)
       }
 
-      const formData = new FormData()
-      formData.append('files', file)
-
-      // Create XMLHttpRequest for progress tracking
-      const uploadPromise = new Promise<any>((resolve, reject) => {
+      // PUT to signed URL with progress
+      await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest()
-
-        // Track upload progress
         xhr.upload.addEventListener('progress', (event) => {
           if (event.lengthComputable && onProgress) {
             const progress = (event.loaded / event.total) * 100
             onProgress(filePath, progress)
           }
         })
-
         xhr.addEventListener('load', () => {
           if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              const result = JSON.parse(xhr.responseText)
-              resolve(result)
-            } catch (e) {
-              reject(new Error('Invalid response format'))
-            }
+            resolve()
           } else {
-            let body: any = null
-            let message = `Upload failed with status ${xhr.status}`
-            try {
-              body = JSON.parse(xhr.responseText)
-              message = body?.detail || body?.message || message
-            } catch {
-              // ignore
-            }
-            reject(new ApiError(xhr.status, message, body))
+            reject(new Error(`Upload failed with status ${xhr.status}`))
           }
         })
-
-        xhr.addEventListener('error', () => {
-          reject(new Error('Network error during upload'))
-        })
-
-        xhr.open('POST', uploadUrl)
-        xhr.setRequestHeader('Authorization', `Bearer ${token}`)
-        xhr.send(formData)
+        xhr.addEventListener('error', () => reject(new Error('Network error during upload')))
+        xhr.open('PUT', initiated.upload_url)
+        // Must match content_type used when signing the URL
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream')
+        xhr.send(file)
       })
-      
-      try {
-        const result = await uploadPromise
-        uploadedFiles.push(...result.files)
-        
-        // Mark as 100% complete and notify completion
-        if (onProgress) {
-          onProgress(filePath, 100)
-        }
-        
-        // Notify that this file is complete
-        if (onFileComplete && result.files.length > 0) {
-          onFileComplete(result.files[0], filePath)
-        }
-        
-      } catch (error) {
-        console.error(`Failed to upload ${filePath}:`, error)
-        throw error
+
+      // Complete upload (server validates size, counts pages, enqueues ZIP unpack)
+      const completeResponse = await fetch(`${this.baseURL}/api/jobs/${jobId}/files:complete${queryString ? `?${queryString}` : ''}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ file_ids: [initiated.id] })
+      })
+
+      if (!completeResponse.ok) {
+        const error = await completeResponse.json().catch(() => ({ message: 'Upload completion failed' }))
+        throw new Error(error.detail || error.message || 'Upload completion failed')
       }
+
+      const completeResult: any = await completeResponse.json()
+      const completedFile = completeResult?.files?.[0]
+      if (completedFile) {
+        uploadedFiles.push(completedFile)
+        if (onFileComplete) onFileComplete(completedFile, filePath)
+      }
+
+      if (onProgress) onProgress(filePath, 100)
     }
-    
+
     return { files: uploadedFiles }
   }
 
@@ -641,7 +476,7 @@ export class ApiClient {
   }
 
   async getDataTypes(): Promise<DataType[]> {
-    return this.request('/api/data-types/')
+    return this.request('/api/data-types')
   }
 
   async verifyJobAccess(jobId: string): Promise<void> {
@@ -872,13 +707,11 @@ export const apiClient = new ApiClient()
 
 // Export commonly used types
 export type UserResponse = ApiResponse<ApiPaths['/api/users/me']['get']>
-export type TemplatesResponse = ApiResponse<ApiPaths['/api/templates/']['get']>
-export type ExtractionResponse = ApiResponse<ApiPaths['/api/extraction/extract']['post']>
+export type TemplatesResponse = ApiResponse<ApiPaths['/api/templates']['get']>
 export type SubscriptionStatus = ApiResponse<ApiPaths['/api/stripe/subscription-status']['get']>
 
 // Job-related types
 export type JobInitiateResponse = ApiResponse<ApiPaths['/api/jobs/initiate']['post']>
-export type JobStartResponse = ApiResponse<ApiPaths['/api/jobs/{job_id}/start']['post']>
 export type JobDetailsResponse = ApiResponse<ApiPaths['/api/jobs/{job_id}']['get']>
 export type JobListResponse = ApiResponse<ApiPaths['/api/jobs']['get']>
 export type JobProgressResponse = ApiResponse<ApiPaths['/api/jobs/{job_id}/progress']['get']>
@@ -907,8 +740,19 @@ import { components } from './api-types'
 export type JobStatus = components['schemas']['JobStatus']
 export type ProcessingMode = components['schemas']['ProcessingMode']
 export type FileUploadInfo = components['schemas']['FileUploadInfo']
-export type TaskDefinition = components['schemas']['TaskDefinition']
-export type JobFieldConfig = components['schemas']['JobFieldConfig']
+// These models exist in the backend but are not currently referenced by any OpenAPI endpoint.
+// Keep local definitions so the frontend can type its internal workflow state.
+export type TaskDefinition = {
+  path: string
+  mode: ProcessingMode
+}
+
+export type JobFieldConfig = {
+  field_name: string
+  data_type_id: string
+  ai_prompt: string
+  display_order?: number
+}
 export type JobListItem = components['schemas']['JobListItem']
 export type JobFileInfo = components['schemas']['JobFileInfo']
 export type FileStatus = components['schemas']['FileStatus']

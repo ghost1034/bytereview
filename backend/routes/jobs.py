@@ -33,7 +33,8 @@ from models.job import (
     JobFilesResponse, FileStatus,
     JobRunListResponse, JobRunDetailsResponse,
     JobRunCreateRequest, JobRunCreateResponse,
-    ExportRefsResponse, JobFilesAllRunsResponse
+    ExportRefsResponse, JobFilesAllRunsResponse,
+    JobFilesInitiateUploadRequest, JobFilesInitiateUploadResponse, JobFilesCompleteUploadRequest
 )
 from pydantic import BaseModel
 import logging
@@ -343,6 +344,46 @@ async def add_files_to_job(
         logger.error(f"Exception type: {type(e).__name__}")
         logger.error(f"Exception args: {e.args}")
         raise HTTPException(status_code=500, detail=f"Failed to add files: {str(e)}")
+
+
+@router.post("/{job_id}/files:initiate", response_model=JobFilesInitiateUploadResponse)
+async def initiate_job_run_file_uploads(
+    job_id: str,
+    request: JobFilesInitiateUploadRequest,
+    user_id: str = Depends(get_current_user_id),
+    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)"),
+):
+    """Initiate signed-URL uploads for an existing job run."""
+    try:
+        files = await job_service.initiate_job_run_file_uploads(user_id, job_id, request, run_id=run_id)
+        return JobFilesInitiateUploadResponse(files=files)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to initiate file uploads for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to initiate uploads: {str(e)}")
+
+
+@router.post("/{job_id}/files:complete")
+async def complete_job_run_file_uploads(
+    job_id: str,
+    request: JobFilesCompleteUploadRequest,
+    user_id: str = Depends(get_current_user_id),
+    run_id: Optional[str] = Query(None, description="Specific run ID (defaults to latest)"),
+):
+    """Finalize initiated uploads (verify in storage, count pages, mark ready, enqueue ZIP unpack)."""
+    try:
+        completed_files = await job_service.complete_job_run_file_uploads(user_id, job_id, request, run_id=run_id)
+        return {"files": completed_files, "message": f"Completed {len(completed_files)} uploads"}
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to complete file uploads for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to complete uploads: {str(e)}")
 
 @router.get("/{job_id}/files", response_model=JobFilesResponse)
 async def get_job_files(
