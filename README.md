@@ -208,23 +208,23 @@ This section details how we transform files into structured results, including c
   - `manual` tasks are not AI-processed; they exist to store user-created “manual rows” that are still exportable.
 
 - AI schema construction
-  - Individual mode: `AIExtractionService.create_json_schema(fields, data_types_map)` produces a types.Schema for a list of objects.
-  - Combined mode: `AIExtractionService.create_combined_json_schema(...)` extends the schema with source attribution fields to map results back to files.
-  - The schema encodes field names, types, and structure, ensuring outputs parse as JSON reliably.
+  - `AIExtractionService.create_tabular_json_schema(fields)` produces a compact `types.Schema` for a single JSON object: `{ "results": any[][] }`.
+  - Each row in `results` is an array aligned to the run’s field order (the `job_fields` snapshot order).
 
 - AI calls (pluggable)
   - The extraction service invokes the configured LLM provider through a pluggable interface.
   - Client (default): `google-genai` (Vertex integration) initialized with `GOOGLE_CLOUD_PROJECT_ID` and `GOOGLE_CLOUD_LOCATION`.
   - Model: `gemini-3-pro-preview` (default).
   - Inputs: list of file parts built from GCS URIs (`types.Part.from_uri(uri, mime_type)`), plus a system prompt derived from field configuration.
-  - Individual processing: one file per request; results may be a single object or array of objects.
-  - Combined processing: multiple files in one request; returns a unified list; per-document attribution is included for by-document detail.
+  - Individual processing: one file per request; model returns `{ "results": [[...], ...] }`.
+  - Combined processing: multiple files in one request; model returns a unified `{ "results": ... }` table across all input documents.
   - Fallback: if combined processing returns an error or empty data, we log and fall back to individual processing for the same files.
 
 - Persistence
   - An `ExtractionTask` is linked to one or more `SourceFile` records via `SourceFileToTask`.
   - After AI returns data, an `ExtractionResult` row is saved per task with the structured JSON in `extracted_data`.
-    - `extracted_data` uses an array-based format: `{ columns: string[], results: any[][] }`.
+    - The model output is tabular (`{ "results": any[][] }`) and is persisted as an array-based table with a column snapshot.
+    - `extracted_data` uses: `{ columns: string[], results: any[][] }`.
     - For editability, results also include stable row identifiers: `{ row_ids: string[], row_sources: ('ai'|'manual')[] }`.
   - The job run’s status reflects aggregate task states; completed tasks may be preserved in append runs.
 
@@ -470,6 +470,8 @@ Environment configuration (.env)
     - GOOGLE_CLOUD_LOCATION=global
     - GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/firebase-service-account.json
     - GCS_BUCKET_NAME=your-dev-bucket
+    - GEMINI_MAX_OUTPUT_TOKENS=65536 (optional; default 65536)
+    - GEMINI_TEMPERATURE=1.0 (optional; default 1.0)
   - Google OAuth and Integrations
     - GOOGLE_CLIENT_ID=...
     - GOOGLE_CLIENT_SECRET=...
@@ -815,6 +817,7 @@ Environment variables (summary)
 - Google Cloud and AI
   - GOOGLE_CLOUD_PROJECT_ID, GOOGLE_CLOUD_LOCATION
   - GOOGLE_APPLICATION_CREDENTIALS, GCS_BUCKET_NAME, GCS_TEMP_FOLDER
+  - GEMINI_MAX_OUTPUT_TOKENS, GEMINI_TEMPERATURE
 - OAuth/Integrations
   - GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
   - GMAIL_PUBSUB_TOPIC, GMAIL_PUBSUB_SUBSCRIPTION, GMAIL_WEBHOOK_URL, GMAIL_PUBSUB_DEV_TOKEN

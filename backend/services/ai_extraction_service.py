@@ -31,6 +31,16 @@ class AIExtractionService:
                 self.client = None
         # Use Gemini 3 Pro for enhanced document processing and accuracy
         self.base_model_name = 'gemini-3-pro-preview'
+
+        # Generation defaults (override via env if desired)
+        try:
+            self.max_output_tokens = int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "65536"))
+        except Exception:
+            self.max_output_tokens = 65536
+        try:
+            self.temperature = float(os.getenv("GEMINI_TEMPERATURE", "1.0"))
+        except Exception:
+            self.temperature = 1.0
     
     def _extract_metadata(self, processed_file) -> Dict[str, Any]:
         """Extract metadata from processed_file, handling different object types"""
@@ -44,70 +54,130 @@ class AIExtractionService:
         return metadata
     
     
-    def create_json_schema(self, fields: List[FieldConfig], data_types_map: Dict[str, Dict]) -> types.Schema:
-        """Create Vertex AI response schema using database data types (array of objects).
-        Uses string-based type names supported by newer google-genai versions.
+    def create_tabular_json_schema(self, fields: List[FieldConfig]) -> types.Schema:
+        """Create a compact response schema: { results: any[][] }.
+
+        Output contract:
+        - Return a JSON object with a single key: "results".
+        - results is an array of rows.
+        - each row is an array with exactly len(fields) cells, aligned to the provided column order.
+        - cells may be string|number|integer|boolean|null.
         """
-        obj_properties: Dict[str, types.Schema] = {}
-        for field in fields:
-            data_type_info = data_types_map.get(field.data_type, {})
-            base_type = (data_type_info.get("base_json_type") or "string").lower()
-            schema_kwargs: Dict[str, Any] = {"type": base_type, "description": field.prompt}
-            json_format = data_type_info.get("json_format")
-            if json_format:
-                schema_kwargs["format"] = json_format
-            obj_properties[field.name] = types.Schema(**schema_kwargs)
-        item_schema = types.Schema(
-            type="object",
-            properties=obj_properties,
-            required=list(obj_properties.keys()),
-        )
-        return types.Schema(type="array", items=item_schema)
+        n_cols = len(fields)
 
-    def create_combined_json_schema(self, fields: List[FieldConfig], data_types_map: Dict[str, Dict]) -> types.Schema:
-        """Create Vertex AI schema for combined processing with source attribution."""
-        obj_properties: Dict[str, types.Schema] = {}
-        for field in fields:
-            data_type_info = data_types_map.get(field.data_type, {})
-            base_type = (data_type_info.get("base_json_type") or "string").lower()
-            schema_kwargs: Dict[str, Any] = {"type": base_type, "description": field.prompt}
-            json_format = data_type_info.get("json_format")
-            if json_format:
-                schema_kwargs["format"] = json_format
-            obj_properties[field.name] = types.Schema(**schema_kwargs)
-        # Add source_documents string array
-        obj_properties["source_documents"] = types.Schema(
-            type="array",
-            items=types.Schema(type="string"),
-            description="List of document filenames that contributed to this data",
+        cell_schema = types.Schema(
+            any_of=[
+                types.Schema(type="STRING"),
+                types.Schema(type="NUMBER"),
+                types.Schema(type="INTEGER"),
+                types.Schema(type="BOOLEAN"),
+            ],
+            nullable=True,
         )
-        item_schema = types.Schema(
-            type="object",
-            properties=obj_properties,
-            required=list(obj_properties.keys()),
-        )
-        return types.Schema(type="array", items=item_schema)
 
-    async def extract_data_individual(self, files_data: List[Dict], fields: List[FieldConfig], data_types_map: Dict[str, Dict], system_prompt: str, processed_files: List = None) -> ExtractionResult:
+        row_schema = types.Schema(
+            type="ARRAY",
+            items=cell_schema,
+            min_items=n_cols,  # type: ignore[arg-type]
+            max_items=n_cols,  # type: ignore[arg-type]
+            description=f"A single extracted record with {n_cols} columns",
+        )
+
+        results_schema = types.Schema(
+            type="ARRAY",
+            items=row_schema,
+            description="List of extracted records (rows)",
+        )
+
+        return types.Schema(
+            type="OBJECT",
+            properties={"results": results_schema},
+            required=["results"],
+        )
+
+    def _coerce_parsed_obj(self, obj: Any) -> Any:
+        if obj is None:
+            return None
+        if isinstance(obj, (dict, list, str, int, float, bool)):
+            return obj
+        if hasattr(obj, "model_dump"):
+            try:
+                return obj.model_dump()
+            except Exception:
+                pass
+        if hasattr(obj, "dict"):
+            try:
+                return obj.dict()
+            except Exception:
+                pass
+        return obj
+
+    def _parse_tabular_response(self, resp: Any) -> List[List[Any]]:
+        parsed = None
+        if resp is not None and hasattr(resp, "parsed"):
+            parsed = self._coerce_parsed_obj(getattr(resp, "parsed"))
+
+        if parsed is None:
+            text = getattr(resp, 'text', None) if resp is not None else None
+            if not text:
+                raise ValueError("AI model returned empty response")
+            parsed = json.loads(text)
+        else:
+            parsed = self._coerce_parsed_obj(parsed)
+
+        if not isinstance(parsed, dict) or "results" not in parsed:
+            raise ValueError("AI response did not match expected shape: missing 'results'")
+
+        results = parsed.get("results")
+        if results is None:
+            return []
+        if not isinstance(results, list):
+            raise ValueError("AI response 'results' is not a list")
+        for row in results:
+            if not isinstance(row, list):
+                raise ValueError("AI response contains a non-array row")
+        return results
+
+    async def extract_data_individual(
+        self,
+        files_data: List[Dict],
+        fields: List[FieldConfig],
+        data_types_map: Dict[str, Dict],
+        system_prompt: str,
+        processed_files: Optional[List] = None,
+    ) -> ExtractionResult:
         """Extract structured data from files using Vertex AI with JSON schema - process each file separately."""
         if not self.client:
             return ExtractionResult(success=False, error="AI service not available - Vertex client not configured")
 
         try:
-            # Build Vertex response schema
-            response_schema = self.create_json_schema(fields, data_types_map)
+            # Build Vertex response schema (compact tabular output)
+            response_schema = self.create_tabular_json_schema(fields)
             config = types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=response_schema,
-                max_output_tokens=65536,
+                max_output_tokens=self.max_output_tokens,
+                temperature=self.temperature,
             )
 
             # Build user instructions
+            columns = [field.name for field in fields]
+            columns_json = json.dumps(columns)
             field_list = chr(10).join([f"- {field.name} ({field.data_type}): {field.prompt}" for field in fields])
             prompt = f"""{system_prompt}
 
-Provide the following fields. If the document contains multiple records (like multiple line items, invoices, etc.), return all of them as separate objects in the array:
+You are processing one document.
 
+Column order: columns={columns_json}
+
+Rules:
+- Each row must have exactly {len(columns)} values, in the same order as columns.
+- Unless otherwise specified, use null when a value is missing/unclear.
+- Use native JSON numbers/booleans for number/boolean fields (do not quote numbers).
+- Do not include any extra keys besides "results".
+- Do not wrap the JSON in markdown/code fences; do not pretty-print.
+
+Fields:
 {field_list}
 """
 
@@ -138,17 +208,8 @@ Provide the following fields. If the document contains multiple records (like mu
                         config=config,
                     )
 
-                    if not resp or not getattr(resp, 'text', None):
-                        document_results.append({
-                            'filename': file_data['filename'],
-                            'success': False,
-                            'error': 'AI model returned empty response',
-                            'data': None
-                        })
-                        continue
-
                     try:
-                        extracted_data = json.loads(resp.text)
+                        extracted_rows = self._parse_tabular_response(resp)
                         metadata = {}
                         size_bytes = None
                         if processed_files and i < len(processed_files):
@@ -157,7 +218,7 @@ Provide the following fields. If the document contains multiple records (like mu
                             if hasattr(processed_file, 'size_bytes'):
                                 size_bytes = processed_file.size_bytes
 
-                        individual_data = extracted_data[0] if isinstance(extracted_data, list) and len(extracted_data) > 0 else {}
+                        individual_data = extracted_rows[0] if extracted_rows else []
                         document_results.append({
                             'filename': file_data['filename'],
                             'success': True,
@@ -168,12 +229,8 @@ Provide the following fields. If the document contains multiple records (like mu
                             'size_bytes': size_bytes or metadata.get('size_bytes')
                         })
 
-                        if isinstance(extracted_data, list):
-                            all_data.extend(extracted_data)
-                            total_rows += len(extracted_data)
-                        else:
-                            all_data.append(extracted_data)
-                            total_rows += 1
+                        all_data.extend(extracted_rows)
+                        total_rows += len(extracted_rows)
 
                     except Exception as e:
                         logger.error(f"Failed to parse JSON for {file_data['filename']}: {e}")
@@ -222,17 +279,25 @@ Provide the following fields. If the document contains multiple records (like mu
             logger.error(f"AI extraction failed: {e}")
             return ExtractionResult(success=False, error=f"AI extraction failed: {str(e)}")
 
-    async def extract_data_combined(self, files_data: List[Dict], fields: List[FieldConfig], data_types_map: Dict[str, Dict], system_prompt: str, processed_files: List = None) -> ExtractionResult:
+    async def extract_data_combined(
+        self,
+        files_data: List[Dict],
+        fields: List[FieldConfig],
+        data_types_map: Dict[str, Dict],
+        system_prompt: str,
+        processed_files: Optional[List] = None,
+    ) -> ExtractionResult:
         """Extract structured data from multiple files using Vertex AI in a single request."""
         if not self.client:
             return ExtractionResult(success=False, error="AI service not available - Vertex client not configured")
 
         try:
-            response_schema = self.create_combined_json_schema(fields, data_types_map)
+            response_schema = self.create_tabular_json_schema(fields)
             config = types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=response_schema,
-                max_output_tokens=65536,
+                max_output_tokens=self.max_output_tokens,
+                temperature=self.temperature,
             )
 
             # Build file parts and names
@@ -250,18 +315,29 @@ Provide the following fields. If the document contains multiple records (like mu
             if not file_parts:
                 return ExtractionResult(success=False, error="No valid files to process in combined mode")
 
+            columns = [field.name for field in fields]
+            columns_json = json.dumps(columns)
             field_list = chr(10).join([f"- {field.name} ({field.data_type}): {field.prompt}" for field in fields])
             doc_list = chr(10).join([f"Document {i+1}: {name}" for i, name in enumerate(file_names)])
             prompt = f"""{system_prompt}
 
-You are processing {len(file_names)} documents together. Please provide the following fields given ALL documents.
+You are processing {len(file_names)} documents together.
 
 {doc_list}
 
-Fields to provide:
-{field_list}
+Extract records from ALL documents.
 
-Indicate which document(s) results came from by providing document filenames in source_documents.
+Column order: columns={columns_json}
+
+Rules:
+- Each row must have exactly {len(columns)} values, in the same order as columns.
+- Unless otherwise specified, use null when a value is missing/unclear.
+- Use native JSON numbers/booleans for number/boolean fields (do not quote numbers).
+- Do not include any extra keys besides "results".
+- Do not wrap the JSON in markdown/code fences; do not pretty-print.
+
+Fields:
+{field_list}
 """
 
             logger.info("=== VERTEX PROMPT DEBUG (Combined Mode) ===")
@@ -277,55 +353,9 @@ Indicate which document(s) results came from by providing document filenames in 
                 config=config,
             )
 
-            if not resp or not getattr(resp, 'text', None):
-                return ExtractionResult(success=False, error="AI model returned empty response for combined processing")
-
             try:
-                extracted_data = json.loads(resp.text)
-                document_results = []
-                all_data = extracted_data if isinstance(extracted_data, list) else [extracted_data]
-
-                for i, file_data in enumerate(files_data):
-                    filename = file_data.get('filename')
-                    metadata = {}
-                    size_bytes = None
-                    if processed_files and i < len(processed_files):
-                        processed_file = processed_files[i]
-                        metadata = self._extract_metadata(processed_file)
-                        if hasattr(processed_file, 'size_bytes'):
-                            size_bytes = processed_file.size_bytes
-
-                    file_data_points = []
-                    for data_point in all_data:
-                        if isinstance(data_point, dict) and 'source_documents' in data_point:
-                            if filename in data_point['source_documents']:
-                                individual_point = {k: v for k, v in data_point.items() if k != 'source_documents'}
-                                file_data_points.append(individual_point)
-
-                    if file_data_points:
-                        document_results.append({
-                            'filename': filename,
-                            'success': True,
-                            'data': file_data_points[0] if len(file_data_points) == 1 else file_data_points,
-                            'error': None,
-                            'original_path': metadata.get('original_path', filename),
-                            'source_zip': metadata.get('source_zip'),
-                            'size_bytes': size_bytes or metadata.get('size_bytes'),
-                            'contributed_to': [i for i, dp in enumerate(all_data) if filename in dp.get('source_documents', [])]
-                        })
-                    else:
-                        document_results.append({
-                            'filename': filename,
-                            'success': False,
-                            'error': 'No data extracted from this document in combined processing',
-                            'data': None,
-                            'original_path': metadata.get('original_path', filename),
-                            'source_zip': metadata.get('source_zip'),
-                            'size_bytes': size_bytes or metadata.get('size_bytes'),
-                            'contributed_to': []
-                        })
-
-                return ExtractionResult(success=True, data=all_data, by_document=document_results, rows_extracted=len(all_data), ai_model=self.base_model_name)
+                extracted_rows = self._parse_tabular_response(resp)
+                return ExtractionResult(success=True, data=extracted_rows, by_document=None, rows_extracted=len(extracted_rows), ai_model=self.base_model_name)
 
             except Exception as e:
                 logger.error(f"Failed to parse JSON for combined processing: {e}")
@@ -335,7 +365,15 @@ Indicate which document(s) results came from by providing document filenames in 
             logger.error(f"Combined AI extraction failed: {e}")
             return ExtractionResult(success=False, error=f"Combined AI extraction failed: {str(e)}")
 
-    async def extract_data_from_files(self, files_data: List[Dict], fields: List[FieldConfig], data_types_map: Dict[str, Dict], system_prompt: str, processed_files: List = None, processing_mode: str = "individual") -> ExtractionResult:
+    async def extract_data_from_files(
+        self,
+        files_data: List[Dict],
+        fields: List[FieldConfig],
+        data_types_map: Dict[str, Dict],
+        system_prompt: str,
+        processed_files: Optional[List] = None,
+        processing_mode: str = "individual",
+    ) -> ExtractionResult:
         """Route to appropriate extraction method based on processing mode with fallback"""
         if processing_mode == "combined":
             logger.info(f"Using combined processing for {len(files_data)} files")

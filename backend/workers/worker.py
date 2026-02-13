@@ -195,39 +195,32 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
         if not extraction_result.success:
             raise ValueError(f"AI extraction failed: {extraction_result.error}")
         
-        # Convert AI service result to new array-based format with column snapshot
-        if extraction_result.data and isinstance(extraction_result.data, list):
-            # Get field order from job configuration (snapshot at extraction time)
-            field_order = [field.field_name for field in job_fields]
-            
-            # Convert object-based results to array-based results
-            results_arrays = []
-            for result_obj in extraction_result.data:
-                if isinstance(result_obj, dict):
-                    # Convert dict to array using field order
-                    result_array = []
-                    for field_name in field_order:
-                        result_array.append(result_obj.get(field_name))
-                    results_arrays.append(result_array)
-                else:
-                    # Fallback for unexpected format
-                    results_arrays.append(result_obj)
-            
-            # Create new array-based format with column snapshot
-            final_result = {
-                "results": results_arrays,
-                "columns": field_order,
-                "row_ids": [str(uuid.uuid4()) for _ in results_arrays],
-                "row_sources": ["ai" for _ in results_arrays]
-            }
-        else:
-            # Fallback for unexpected format
-            final_result = {
-                "results": [],
-                "columns": [field.field_name for field in job_fields],
-                "row_ids": [],
-                "row_sources": []
-            }
+        # Persist results in the app-native table format (array-based)
+        field_order = [field.field_name for field in job_fields]
+        expected_cols = len(field_order)
+        results_arrays = []
+
+        if extraction_result.data is not None:
+            if not isinstance(extraction_result.data, list):
+                raise ValueError("AI extraction returned unexpected data type (expected list of rows)")
+            for row in extraction_result.data:
+                if not isinstance(row, list):
+                    raise ValueError("AI extraction returned a non-array row")
+
+                # Repair row length to match the column snapshot.
+                if len(row) < expected_cols:
+                    row = row + [None] * (expected_cols - len(row))
+                elif len(row) > expected_cols:
+                    row = row[:expected_cols]
+
+                results_arrays.append(row)
+
+        final_result = {
+            "results": results_arrays,
+            "columns": field_order,
+            "row_ids": [str(uuid.uuid4()) for _ in results_arrays],
+            "row_sources": ["ai" for _ in results_arrays]
+        }
         
         # Save results to database
         extraction_result = ExtractionResult(
