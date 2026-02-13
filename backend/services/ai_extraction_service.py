@@ -99,6 +99,7 @@ class AIExtractionService:
             config = types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=response_schema,
+                max_output_tokens=65536,
             )
 
             # Build user instructions
@@ -231,6 +232,7 @@ Provide the following fields. If the document contains multiple records (like mu
             config = types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=response_schema,
+                max_output_tokens=65536,
             )
 
             # Build file parts and names
