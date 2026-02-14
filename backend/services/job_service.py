@@ -2356,7 +2356,7 @@ class JobService:
         finally:
             db.close()
 
-    async def get_job_results(self, user_id: str, job_id: str, limit: int = 50, offset: int = 0, run_id: str = None) -> JobResultsResponse:
+    async def get_job_results(self, user_id: str, job_id: str, limit: int = 1000, offset: int = 0, run_id: str = None) -> JobResultsResponse:
         """Get extraction results for a completed job run"""
         db = self._get_session()
         try:

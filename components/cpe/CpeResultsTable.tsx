@@ -12,9 +12,11 @@ interface CpeResultsTableProps {
 }
 
 export function CpeResultsTable({ jobId, runId }: CpeResultsTableProps) {
+  const limit = 1000
+
   const { data, isLoading, error } = useQuery<JobResultsResponse>({
-    queryKey: ['job-results', jobId, runId],
-    queryFn: () => apiClient.getJobResults(jobId, { runId, limit: 1000 }),
+    queryKey: ['job-results', jobId, limit, runId],
+    queryFn: () => apiClient.getJobResults(jobId, { runId, limit }),
     enabled: !!jobId,
   })
 

@@ -142,7 +142,7 @@ export function useJobProgress(jobId: string | undefined) {
 /**
  * Hook to get job results
  */
-export function useJobResults(jobId: string | undefined, limit = 50, runId?: string) {
+export function useJobResults(jobId: string | undefined, limit = 1000, runId?: string) {
   return useQuery<JobResultsResponse>({
     queryKey: ['job-results', jobId, limit, runId],
     queryFn: () => apiClient.getJobResults(jobId!, { limit, runId }),
