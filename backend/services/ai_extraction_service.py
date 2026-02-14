@@ -581,7 +581,7 @@ Rules:
 - Unless otherwise specified, use null when a value is missing/unclear.
 - Use native JSON numbers/booleans for number/boolean fields (do not quote numbers).
 - Do not include any extra keys besides "results".
-- Do not wrap the JSON in markdown/code fences; do not pretty-print.
+- You must extract ALL items from the document, even if there are many.
 
 Fields:
 {field_list}
@@ -741,7 +741,7 @@ Rules:
 - Unless otherwise specified, use null when a value is missing/unclear.
 - Use native JSON numbers/booleans for number/boolean fields (do not quote numbers).
 - Do not include any extra keys besides "results".
-- Do not wrap the JSON in markdown/code fences; do not pretty-print.
+- You must extract ALL items from the document, even if there are many.
 
 Fields:
 {field_list}

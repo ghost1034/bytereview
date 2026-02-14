@@ -42,6 +42,13 @@ class CloudRunTaskService:
             "maintenance": f"projects/{self.project_id}/locations/{self.region}/queues/maintenance-tasks"
         }
 
+        # Per-attempt dispatch deadlines (Cloud Tasks).
+        # Recommended target runtime for extraction is 30 minutes (Cloud Tasks max dispatch deadline).
+        try:
+            self.extract_dispatch_deadline_seconds = int(os.getenv("TASK_EXTRACT_DISPATCH_DEADLINE_SECONDS", "1800"))
+        except Exception:
+            self.extract_dispatch_deadline_seconds = 1800
+
     async def enqueue_extraction_task(
         self, 
         task_id: str, 
@@ -59,7 +66,8 @@ class CloudRunTaskService:
             queue_name=self.queue_names["extract"],
             service_url=f"{self.task_services['extract']}/execute",
             task_data=task_data,
-            delay_seconds=delay_seconds
+            delay_seconds=delay_seconds,
+            dispatch_deadline_seconds=self.extract_dispatch_deadline_seconds,
         )
 
     async def enqueue_zip_unpack_task(
@@ -174,7 +182,8 @@ class CloudRunTaskService:
         queue_name: str,
         service_url: str,
         task_data: Dict[str, Any],
-        delay_seconds: int = 0
+        delay_seconds: int = 0,
+        dispatch_deadline_seconds: Optional[int] = None,
     ) -> str:
         """Create a Cloud Task"""
         try:
@@ -198,6 +207,16 @@ class CloudRunTaskService:
                     }
                 }
             }
+
+            # Per-attempt deadline for the HTTP request.
+            # Note: This is enforced by Cloud Tasks independently of Cloud Run's request timeout.
+            if dispatch_deadline_seconds is not None:
+                try:
+                    secs = int(dispatch_deadline_seconds)
+                    if secs > 0:
+                        task["dispatch_deadline"] = f"{secs}s"
+                except Exception:
+                    pass
             
             # Add delay if specified
             if delay_seconds > 0:

@@ -28,8 +28,10 @@ sys.path.insert(0, str(backend_dir))
 
 # ARQ imports removed - now using Cloud Run Tasks
 from sqlalchemy.orm import Session
+from sqlalchemy import text, func
+from sqlalchemy.dialects.postgresql import insert as pg_insert, JSONB
 from core.database import db_config, get_db
-from models.db_models import ExtractionTask, ExtractionResult, SourceFile, JobField, SystemPrompt, SourceFileToTask, ExtractionJob, JobRun, DataType
+from models.db_models import ExtractionTask, ExtractionResult, SourceFile, JobField, SystemPrompt, SourceFileToTask, ExtractionJob, JobRun, DataType, UsageEvent
 from models.job import FileStatus
 from services.ai_extraction_service import AIExtractionService
 from services.gcs_service import get_storage_service
@@ -39,6 +41,54 @@ import io
 from typing import List
 
 logger = logging.getLogger(__name__)
+
+
+class TaskLockedError(Exception):
+    """Raised when another worker holds the task advisory lock."""
+
+
+def _advisory_lock_keys(task_id: str) -> tuple[int, int]:
+    """Map a UUID string to two signed 32-bit integers for pg_advisory_lock."""
+    u = uuid.UUID(str(task_id))
+    n = u.int
+    k1 = (n >> 32) & 0xFFFFFFFF
+    k2 = n & 0xFFFFFFFF
+    # Convert to signed int32 range expected by Postgres for the (int,int) variant.
+    if k1 >= 2**31:
+        k1 -= 2**32
+    if k2 >= 2**31:
+        k2 -= 2**32
+    return int(k1), int(k2)
+
+
+def _try_advisory_lock(db: Session, task_id: str) -> bool:
+    """Acquire a Postgres advisory lock for this task (best-effort).
+
+    Returns True if lock acquired, False if lock held elsewhere.
+    If the DB is not Postgres or locking fails, returns True (do not block processing).
+    """
+    try:
+        bind = getattr(db, "bind", None)
+        if not bind or getattr(getattr(bind, "dialect", None), "name", "") != "postgresql":
+            return True
+        k1, k2 = _advisory_lock_keys(task_id)
+        locked = db.execute(text("SELECT pg_try_advisory_lock(:k1, :k2)"), {"k1": k1, "k2": k2}).scalar()
+        return bool(locked)
+    except Exception as e:
+        logger.warning(f"Advisory lock attempt failed; proceeding without lock: {e}")
+        return True
+
+
+def _advisory_unlock(db: Session, task_id: str) -> None:
+    try:
+        bind = getattr(db, "bind", None)
+        if not bind or getattr(getattr(bind, "dialect", None), "name", "") != "postgresql":
+            return
+        k1, k2 = _advisory_lock_keys(task_id)
+        db.execute(text("SELECT pg_advisory_unlock(:k1, :k2)"), {"k1": k1, "k2": k2})
+    except Exception:
+        # Ignore unlock errors; lock is released when the session/connection closes.
+        return
 
 # Redis configuration removed - using Cloud Run Tasks instead
 
@@ -50,17 +100,32 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
     logger.info(f"Processing extraction task: {task_id}")
     
     db = db_config.get_session()
+    lock_acquired = False
     try:
+        # Prevent concurrent duplicate processing for the same task_id (Cloud Tasks retries, instance restarts, etc.)
+        lock_acquired = _try_advisory_lock(db, task_id)
+        if not lock_acquired:
+            raise TaskLockedError(f"Task {task_id} is already locked (another worker is processing it)")
+
+        task_uuid = uuid.UUID(str(task_id))
+
         # Get the task from database
-        task = db.query(ExtractionTask).filter(ExtractionTask.id == task_id).first()
+        task = db.query(ExtractionTask).filter(ExtractionTask.id == task_uuid).first()
         if not task:
             raise ValueError(f"Task {task_id} not found")
+
+        # If we already have results and the task is completed, this is a retry; exit idempotently.
+        if task.status == "completed":
+            existing = db.query(ExtractionResult).filter(ExtractionResult.task_id == task_uuid).first()
+            if existing is not None:
+                logger.info(f"Task {task_id} already completed with existing results; skipping retry")
+                return {"success": True, "task_id": task_id, "skipped": True}
         
         # Get associated source files (natural order by original_path then id)
         source_files_query = db.query(SourceFile).join(
             SourceFileToTask, SourceFile.id == SourceFileToTask.source_file_id
         ).filter(
-            SourceFileToTask.task_id == task_id
+            SourceFileToTask.task_id == task_uuid
         ).order_by(SourceFile.original_path, SourceFile.id)
         
         source_files = source_files_query.all()
@@ -223,25 +288,62 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
         }
         
         # Save results to database
-        extraction_result = ExtractionResult(
-            task_id=task_id,
-            extracted_data=final_result
-        )
-        db.add(extraction_result)
+        try:
+            bind = getattr(db, "bind", None)
+            if bind and getattr(getattr(bind, "dialect", None), "name", "") == "postgresql":
+                tbl = ExtractionResult.__table__
+                stmt = pg_insert(tbl).values(
+                    id=uuid.uuid4(),
+                    task_id=task_uuid,
+                    extracted_data=final_result,
+                )
+                excluded = stmt.excluded
+                existing_len = func.coalesce(
+                    func.jsonb_array_length(tbl.c.extracted_data["results"].cast(JSONB)),
+                    0,
+                )
+                excluded_len = func.coalesce(
+                    func.jsonb_array_length(excluded.extracted_data["results"].cast(JSONB)),
+                    0,
+                )
+                # Only overwrite if the new result has MORE rows (prevents smaller retries clobbering larger outputs).
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=[tbl.c.task_id],
+                    set_={"extracted_data": excluded.extracted_data},
+                    where=excluded_len > existing_len,
+                )
+                db.execute(stmt)
+            else:
+                existing = db.query(ExtractionResult).filter(ExtractionResult.task_id == task_uuid).first()
+                existing_rows = 0
+                try:
+                    if existing and isinstance(existing.extracted_data, dict):
+                        existing_rows = len(existing.extracted_data.get("results") or [])
+                except Exception:
+                    existing_rows = 0
+                new_rows = len(results_arrays)
+                if existing is None:
+                    db.add(ExtractionResult(task_id=task_uuid, extracted_data=final_result))
+                elif new_rows > existing_rows:
+                    existing.extracted_data = final_result
+        except Exception as e:
+            logger.error(f"Failed to upsert extraction results for task {task_id}: {e}")
+            raise
         
         # Update task status
         task.status = "completed"
         task.processed_at = datetime.now(timezone.utc)
         
-        # Record usage for billing (count pages processed)
+        # Persist results and task status before emitting any SSE or recording usage
+        db.commit()
+
+        # Record usage for billing (count pages processed) idempotently.
+        # Use the same session (already committed) but avoid duplicate billing on retries.
         try:
             await _record_usage_for_task(db, task, source_files)
         except Exception as e:
             logger.error(f"Failed to record usage for billing: {e}")
             # Don't fail the task for billing errors
-        
-        # Persist results and task status before emitting any SSE or updating run counters
-        db.commit()
         
         # Increment run-level task completion counter (uses its own DB session)
         try:
@@ -271,6 +373,14 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
         
     except Exception as e:
         logger.error(f"Error processing extraction task {task_id}: {e}")
+
+        # If we couldn't get the advisory lock, do not mark the task as failed.
+        if isinstance(e, TaskLockedError):
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            raise
         
         # Update task status to failed only if task exists
         if 'task' in locals() and task is not None:
@@ -309,6 +419,8 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
         
         raise
     finally:
+        if lock_acquired:
+            _advisory_unlock(db, task_id)
         db.close()
 
 async def unpack_zip_file_task(ctx: Dict[str, Any], source_file_id: str, automation_run_id: str = None) -> Dict[str, Any]:
@@ -1619,6 +1731,19 @@ async def _record_usage_for_task(db: Session, task: ExtractionTask, source_files
     """
     try:
         from services.billing_service import get_billing_service, PlanLimitExceeded
+
+        # Idempotency: if this task already has a recorded usage event, do not double-bill.
+        try:
+            existing_evt = db.query(UsageEvent).filter(
+                UsageEvent.task_id == task.id,
+                UsageEvent.source == "extraction_task",
+            ).first()
+            if existing_evt is not None:
+                logger.info(f"Usage already recorded for task {task.id}; skipping duplicate metering")
+                return
+        except Exception as e:
+            # If we can't check idempotency, proceed (better to bill than to block extraction).
+            logger.warning(f"Failed to check existing usage events for task {task.id}: {e}")
         
         # Calculate total pages processed
         total_pages = 0
