@@ -8,7 +8,7 @@ from google.genai import types
 import json
 import os
 import io
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import logging
 from models.extraction import FieldConfig, ExtractionResult
 
@@ -41,6 +41,412 @@ class AIExtractionService:
             self.temperature = float(os.getenv("GEMINI_TEMPERATURE", "1.0"))
         except Exception:
             self.temperature = 1.0
+
+        # Continuation protocol settings (for very large outputs)
+        self.continuation_enabled = os.getenv("GEMINI_CONTINUATION_ENABLED", "true").strip().lower() in ("1", "true", "yes", "y")
+        try:
+            self.continuation_max_rounds = int(os.getenv("GEMINI_CONTINUATION_MAX_ROUNDS", "20"))
+        except Exception:
+            self.continuation_max_rounds = 20
+        try:
+            self.continuation_tail_rows = int(os.getenv("GEMINI_CONTINUATION_TAIL_ROWS", "10"))
+        except Exception:
+            self.continuation_tail_rows = 10
+        try:
+            self.continuation_near_token_ratio = float(os.getenv("GEMINI_CONTINUATION_NEAR_TOKEN_RATIO", "0.98"))
+        except Exception:
+            self.continuation_near_token_ratio = 0.98
+        try:
+            # Prompt-only limit. Applies to continuation rounds to reduce repeated truncation.
+            self.continuation_max_rows_per_call = int(os.getenv("GEMINI_CONTINUATION_MAX_ROWS_PER_CALL", "250"))
+        except Exception:
+            self.continuation_max_rows_per_call = 250
+        try:
+            self.continuation_temperature = float(os.getenv("GEMINI_CONTINUATION_TEMPERATURE", "0.0"))
+        except Exception:
+            self.continuation_temperature = 0.0
+
+    def _get_resp_text(self, resp: Any) -> Optional[str]:
+        if resp is None:
+            return None
+        # google-genai responses usually expose .text
+        text = getattr(resp, "text", None)
+        if isinstance(text, str) and text.strip():
+            return text
+        # Some versions may only expose candidates[].content.parts[].text
+        try:
+            candidates = getattr(resp, "candidates", None)
+            if isinstance(candidates, list) and candidates:
+                cand0 = candidates[0]
+                content = getattr(cand0, "content", None)
+                parts = getattr(content, "parts", None)
+                if isinstance(parts, list):
+                    chunks = []
+                    for p in parts:
+                        t = getattr(p, "text", None)
+                        if isinstance(t, str):
+                            chunks.append(t)
+                    joined = "".join(chunks)
+                    if joined.strip():
+                        return joined
+        except Exception:
+            pass
+        return None
+
+    def _get_finish_reason(self, resp: Any) -> Optional[str]:
+        if resp is None:
+            return None
+        try:
+            candidates = getattr(resp, "candidates", None)
+            if isinstance(candidates, list) and candidates:
+                fr = getattr(candidates[0], "finish_reason", None)
+                if fr is None:
+                    return None
+                return str(fr)
+        except Exception:
+            return None
+        return None
+
+    def _get_usage_counts(self, resp: Any) -> Dict[str, Optional[int]]:
+        """Best-effort token usage extraction across google-genai versions."""
+        out: Dict[str, Optional[int]] = {
+            "prompt_tokens": None,
+            "output_tokens": None,
+            "total_tokens": None,
+        }
+        if resp is None:
+            return out
+
+        usage = getattr(resp, "usage_metadata", None) or getattr(resp, "usage", None)
+        if usage is None:
+            return out
+
+        # usage may be a dict-like or an object.
+        if isinstance(usage, dict):
+            get = usage.get
+            for k in ("prompt_token_count", "prompt_tokens", "input_tokens"):
+                if isinstance(get(k), int):
+                    out["prompt_tokens"] = get(k)
+                    break
+            for k in ("candidates_token_count", "output_tokens", "completion_tokens"):
+                if isinstance(get(k), int):
+                    out["output_tokens"] = get(k)
+                    break
+            for k in ("total_token_count", "total_tokens"):
+                if isinstance(get(k), int):
+                    out["total_tokens"] = get(k)
+                    break
+            return out
+
+        # Object form
+        for attr, key in (
+            ("prompt_token_count", "prompt_tokens"),
+            ("prompt_tokens", "prompt_tokens"),
+            ("input_tokens", "prompt_tokens"),
+        ):
+            v = getattr(usage, attr, None)
+            if isinstance(v, int):
+                out[key] = v
+                break
+        for attr, key in (
+            ("candidates_token_count", "output_tokens"),
+            ("output_tokens", "output_tokens"),
+            ("completion_tokens", "output_tokens"),
+        ):
+            v = getattr(usage, attr, None)
+            if isinstance(v, int):
+                out[key] = v
+                break
+        for attr, key in (
+            ("total_token_count", "total_tokens"),
+            ("total_tokens", "total_tokens"),
+        ):
+            v = getattr(usage, attr, None)
+            if isinstance(v, int):
+                out[key] = v
+                break
+
+        return out
+
+    def _looks_truncated(self, resp: Any, parsed_ok: bool, text: Optional[str], parse_exc: Optional[Exception] = None) -> bool:
+        """Heuristic truncation detection for continuation protocol."""
+        finish_reason = (self._get_finish_reason(resp) or "").upper()
+        if "MAX_TOKENS" in finish_reason or "LENGTH" in finish_reason:
+            return True
+
+        usage = self._get_usage_counts(resp)
+        out_tokens = usage.get("output_tokens")
+        if isinstance(out_tokens, int) and self.max_output_tokens:
+            try:
+                if out_tokens >= int(self.max_output_tokens * self.continuation_near_token_ratio):
+                    return True
+            except Exception:
+                pass
+
+        if not parsed_ok and parse_exc is not None:
+            # JSON cut-off tends to surface as JSONDecodeError or a generic ValueError from our parser.
+            msg = str(parse_exc).lower()
+            if "unterminated" in msg or "expecting" in msg or "eof" in msg or "end of" in msg:
+                return True
+
+        if isinstance(text, str) and text:
+            # Incomplete JSON often ends without a closing brace/bracket.
+            stripped = text.rstrip()
+            if stripped and stripped[-1] not in ("}", "]"):
+                # Only treat as truncation if we were unable to parse strictly.
+                if not parsed_ok:
+                    return True
+
+        return False
+
+    def _normalize_rows(self, rows: List[Any], n_cols: int) -> List[List[Any]]:
+        normalized: List[List[Any]] = []
+        for row in rows or []:
+            if not isinstance(row, list):
+                continue
+            if len(row) < n_cols:
+                row = row + [None] * (n_cols - len(row))
+            elif len(row) > n_cols:
+                row = row[:n_cols]
+            normalized.append(row)
+        return normalized
+
+    def _salvage_tabular_rows_from_text(self, text: str, n_cols: int) -> List[List[Any]]:
+        """Best-effort recovery of complete rows from a cut-off JSON response.
+
+        Expected shape is: {"results": [[...],[...], ...]}
+        If the response is truncated mid-JSON, we salvage only fully-formed row arrays.
+        """
+        if not isinstance(text, str) or not text:
+            return []
+
+        # Find the start of the results array.
+        key_idx = text.find('"results"')
+        if key_idx == -1:
+            key_idx = text.find("'results'")
+        if key_idx == -1:
+            return []
+
+        bracket_idx = text.find("[", key_idx)
+        if bracket_idx == -1:
+            return []
+
+        i = bracket_idx + 1
+        dec = json.JSONDecoder()
+        rows: List[Any] = []
+
+        while i < len(text):
+            # Skip whitespace and commas
+            while i < len(text) and text[i] in " \t\r\n,":
+                i += 1
+            if i >= len(text):
+                break
+            # End of results array
+            if text[i] == "]":
+                break
+            try:
+                val, end = dec.raw_decode(text, i)
+            except Exception:
+                break
+            rows.append(val)
+            i = end
+
+        return self._normalize_rows([r for r in rows if isinstance(r, list)], n_cols)
+
+    def _row_key(self, row: List[Any]) -> str:
+        # Stable, compact representation for dedupe.
+        try:
+            return json.dumps(row, separators=(",", ":"), ensure_ascii=True, sort_keys=False)
+        except Exception:
+            return str(row)
+
+    def _compute_suffix_prefix_overlap(self, a: List[List[Any]], b: List[List[Any]], max_k: int) -> int:
+        """Return k where suffix(a,k) == prefix(b,k), preferring largest k.
+
+        This is used to merge continuation batches without globally de-duping rows.
+        Global de-dupe is unsafe because identical rows can legitimately appear multiple
+        times in a document.
+        """
+        if not a or not b:
+            return 0
+        if max_k <= 0:
+            return 0
+
+        max_k = min(max_k, len(a), len(b))
+        # Compare via stable row keys to avoid issues with JSON scalar types.
+        a_keys_suffix = [self._row_key(r) for r in a[-max_k:]]
+        b_keys_prefix = [self._row_key(r) for r in b[:max_k]]
+        for k in range(max_k, 0, -1):
+            if a_keys_suffix[-k:] == b_keys_prefix[:k]:
+                return k
+        return 0
+
+    def _looks_like_restart_from_beginning(self, accumulated: List[List[Any]], new_rows: List[List[Any]]) -> bool:
+        """Heuristic: model restarted and is re-emitting from the start.
+
+        We avoid global de-dupe, so this helps prevent runaway duplication if the model
+        ignores continuation instructions.
+        """
+        if not accumulated or not new_rows:
+            return False
+        # Only apply once we have meaningful history.
+        if len(accumulated) < 50 or len(new_rows) < 10:
+            return False
+        k = 10
+        try:
+            a0 = [self._row_key(r) for r in accumulated[:k]]
+            b0 = [self._row_key(r) for r in new_rows[:k]]
+            return a0 == b0
+        except Exception:
+            return False
+
+    def _build_continuation_prompt(
+        self,
+        base_prompt: str,
+        columns_json: str,
+        n_cols: int,
+        tail_rows: List[List[Any]],
+        max_rows: int,
+    ) -> str:
+        tail_json = json.dumps(tail_rows, separators=(",", ":"), ensure_ascii=True)
+        max_rows_line = ""
+        if isinstance(max_rows, int) and max_rows > 0:
+            max_rows_line = f"- Return at most {max_rows} rows in this response.\\n"
+        return (
+            f"{base_prompt}\n\n"
+            "Continuation:\n"
+            "- You previously returned some rows for this SAME document.\n"
+            "- Continue extracting the next rows that come AFTER the tail rows provided below.\n"
+            "- Do not repeat any rows from the tail rows.\n"
+            "- Keep the same column order and row shape as before.\n"
+            f"- Each row must have exactly {n_cols} values.\n"
+            f"{max_rows_line}"
+            "- If there are no more rows to extract, return {\"results\":[]}.\n\n"
+            f"Column order: columns={columns_json}\n\n"
+            f"Tail rows (already returned, in order): {tail_json}\n"
+        )
+
+    def _build_base_prompt_with_ordering(self, prompt: str) -> str:
+        # Add ordering guidance without changing the output schema.
+        return (
+            f"{prompt}\n\n"
+            "Additional rules for long outputs:\n"
+            "- Output rows in the same order they appear in the document.\n"
+            "- Do not intentionally drop rows; if output length is limited, stop cleanly and continuation will be requested.\n"
+        )
+
+    def _config_for_continuation(self, response_schema: types.Schema) -> types.GenerateContentConfig:
+        # Use a deterministic temperature for continuation rounds.
+        return types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=response_schema,
+            max_output_tokens=self.max_output_tokens,
+            temperature=self.continuation_temperature,
+        )
+
+    def _parse_or_salvage_rows(self, resp: Any, n_cols: int) -> Tuple[List[List[Any]], bool, Optional[str], Optional[Exception]]:
+        """Return (rows, parsed_ok, text, parse_exc)."""
+        text = self._get_resp_text(resp)
+        try:
+            rows = self._parse_tabular_response(resp)
+            rows = self._normalize_rows(rows, n_cols)
+            return rows, True, text, None
+        except Exception as e:
+            if isinstance(text, str) and text:
+                salvaged = self._salvage_tabular_rows_from_text(text, n_cols)
+                if salvaged:
+                    return salvaged, False, text, e
+            return [], False, text, e
+
+    def _generate_with_continuation(
+        self,
+        file_parts: List[Any],
+        prompt: str,
+        columns_json: str,
+        response_schema: types.Schema,
+        base_config: types.GenerateContentConfig,
+        n_cols: int,
+        label: str,
+    ) -> List[List[Any]]:
+        """Synchronous continuation loop (google-genai is sync)."""
+        if not self.client:
+            raise ValueError("AI service not available - Vertex client not configured")
+        # Initial request
+        initial_prompt = self._build_base_prompt_with_ordering(prompt)
+        resp = self.client.models.generate_content(
+            model=self.base_model_name,
+            contents=file_parts + [initial_prompt],
+            config=base_config,
+        )
+
+        rows, parsed_ok, text, parse_exc = self._parse_or_salvage_rows(resp, n_cols)
+        truncated = self._looks_truncated(resp, parsed_ok=parsed_ok, text=text, parse_exc=parse_exc)
+        finish_reason = self._get_finish_reason(resp)
+        usage = self._get_usage_counts(resp)
+
+        logger.info(
+            f"Gemini response ({label}): rows={len(rows)}, parsed_ok={parsed_ok}, truncated={truncated}, finish_reason={finish_reason}, usage={usage}"
+        )
+
+        all_rows: List[List[Any]] = list(rows)
+
+        if not self.continuation_enabled or not truncated:
+            return all_rows
+
+        cont_config = self._config_for_continuation(response_schema)
+        rounds = 0
+        no_growth_rounds = 0
+
+        while rounds < self.continuation_max_rounds:
+            rounds += 1
+            tail_n = max(0, self.continuation_tail_rows)
+            tail_rows = all_rows[-tail_n:] if tail_n and all_rows else []
+            cont_prompt = self._build_continuation_prompt(
+                base_prompt=prompt,
+                columns_json=columns_json,
+                n_cols=n_cols,
+                tail_rows=tail_rows,
+                max_rows=self.continuation_max_rows_per_call,
+            )
+            resp2 = self.client.models.generate_content(
+                model=self.base_model_name,
+                contents=file_parts + [cont_prompt],
+                config=cont_config,
+            )
+            new_rows, parsed_ok2, text2, parse_exc2 = self._parse_or_salvage_rows(resp2, n_cols)
+            truncated2 = self._looks_truncated(resp2, parsed_ok=parsed_ok2, text=text2, parse_exc=parse_exc2)
+            finish_reason2 = self._get_finish_reason(resp2)
+            usage2 = self._get_usage_counts(resp2)
+
+            # Merge with overlap to avoid dropping legitimate duplicate rows.
+            max_overlap = max(1, self.continuation_tail_rows)
+            overlap = self._compute_suffix_prefix_overlap(all_rows, new_rows, max_k=max_overlap)
+            if overlap == 0 and self._looks_like_restart_from_beginning(all_rows, new_rows):
+                logger.warning(f"Gemini continuation ({label}) appears to restart from beginning; stopping to avoid duplication")
+                break
+            append_rows = new_rows[overlap:] if overlap else new_rows
+            all_rows.extend(append_rows)
+            added = len(append_rows)
+
+            logger.info(
+                f"Gemini continuation ({label}) round={rounds}: returned={len(new_rows)}, added={added}, total={len(all_rows)}, parsed_ok={parsed_ok2}, truncated={truncated2}, finish_reason={finish_reason2}, usage={usage2}"
+            )
+
+            if len(new_rows) == 0:
+                break
+            if added == 0:
+                no_growth_rounds += 1
+            else:
+                no_growth_rounds = 0
+
+            if no_growth_rounds >= 2:
+                # Model is likely repeating; stop to avoid infinite loop.
+                break
+
+            if not truncated2:
+                break
+
+        return all_rows
     
     def _extract_metadata(self, processed_file) -> Dict[str, Any]:
         """Extract metadata from processed_file, handling different object types"""
@@ -201,15 +607,16 @@ Fields:
                     mime_type = file_data.get('mime_type') or 'application/pdf'
                     file_part = types.Part.from_uri(file_uri=uri, mime_type=mime_type)
 
-                    # Call Vertex AI
-                    resp = self.client.models.generate_content(
-                        model=self.base_model_name,
-                        contents=[file_part, prompt],
-                        config=config,
-                    )
-
                     try:
-                        extracted_rows = self._parse_tabular_response(resp)
+                        extracted_rows = self._generate_with_continuation(
+                            file_parts=[file_part],
+                            prompt=prompt,
+                            columns_json=columns_json,
+                            response_schema=response_schema,
+                            base_config=config,
+                            n_cols=len(columns),
+                            label=f"individual:{file_data.get('filename')}",
+                        )
                         metadata = {}
                         size_bytes = None
                         if processed_files and i < len(processed_files):
@@ -233,7 +640,7 @@ Fields:
                         total_rows += len(extracted_rows)
 
                     except Exception as e:
-                        logger.error(f"Failed to parse JSON for {file_data['filename']}: {e}")
+                        logger.error(f"Failed to extract/continue for {file_data['filename']}: {e}")
                         metadata = {}
                         size_bytes = None
                         if processed_files and i < len(processed_files):
@@ -244,7 +651,7 @@ Fields:
                         document_results.append({
                             'filename': file_data['filename'],
                             'success': False,
-                            'error': f'Failed to parse AI response: {str(e)}',
+                            'error': f'Failed to extract AI response: {str(e)}',
                             'data': None,
                             'original_path': metadata.get('original_path', file_data['filename']),
                             'source_zip': metadata.get('source_zip'),
@@ -347,19 +754,21 @@ Fields:
             logger.info(f"Complete prompt: {prompt}")
             logger.info("=== END VERTEX PROMPT DEBUG ===")
 
-            resp = self.client.models.generate_content(
-                model=self.base_model_name,
-                contents=file_parts + [prompt],
-                config=config,
-            )
-
             try:
-                extracted_rows = self._parse_tabular_response(resp)
+                extracted_rows = self._generate_with_continuation(
+                    file_parts=file_parts,
+                    prompt=prompt,
+                    columns_json=columns_json,
+                    response_schema=response_schema,
+                    base_config=config,
+                    n_cols=len(columns),
+                    label=f"combined:{len(file_names)}_docs",
+                )
                 return ExtractionResult(success=True, data=extracted_rows, by_document=None, rows_extracted=len(extracted_rows), ai_model=self.base_model_name)
 
             except Exception as e:
-                logger.error(f"Failed to parse JSON for combined processing: {e}")
-                return ExtractionResult(success=False, error=f"Failed to parse AI response for combined processing: {str(e)}")
+                logger.error(f"Failed to extract/continue for combined processing: {e}")
+                return ExtractionResult(success=False, error=f"Failed to extract AI response for combined processing: {str(e)}")
 
         except Exception as e:
             logger.error(f"Combined AI extraction failed: {e}")
