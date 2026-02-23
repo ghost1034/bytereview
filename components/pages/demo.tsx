@@ -23,13 +23,34 @@ export default function Demo() {
             <p className="text-xl text-gray-600">Watch how our AI extracts data from financial documents with professional accuracy</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
             <div>
               <div className="mb-3 min-h-[3.5rem] flex items-center justify-center text-center">
                 <div className="inline-flex items-center gap-2">
-                  <h3 className="text-lg font-semibold leading-tight text-gray-900">Free CPE Tracker</h3>
+                  <h3 className="text-lg font-semibold leading-tight text-gray-900">Build P&L in 2 Minutes</h3>
                   <Badge variant="secondary">New</Badge>
                 </div>
+              </div>
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="relative bg-black aspect-video">
+                    <iframe
+                      className="absolute inset-0 w-full h-full border-0"
+                      loading="lazy"
+                      src="https://www.youtube-nocookie.com/embed/tNwpajJZ8zA?si=y6cb2ZD7I42YRXND"
+                      title="Build P&L in 2 Minutes"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      allowFullScreen
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div>
+              <div className="mb-3 min-h-[3.5rem] flex items-center justify-center text-center">
+                <h3 className="text-lg font-semibold leading-tight text-gray-900">Free CPE Tracker</h3>
               </div>
               <Card className="overflow-hidden">
                 <CardContent className="p-0">
