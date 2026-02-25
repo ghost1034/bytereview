@@ -1506,7 +1506,6 @@ class JobService:
                 id=str(target_run.job_id),  # Return job ID for API compatibility
                 name=parent_job.name if parent_job else None,
                 status=JobStatus(target_run.status),
-                persist_data=target_run.persist_data,
                 created_at=target_run.created_at,
                 completed_at=target_run.completed_at,
                 job_fields=field_info,

@@ -164,7 +164,6 @@ export default function JobReviewPage() {
     taskDefinitions: job?.extraction_tasks || [],
     jobName: job?.name,
     templateId: job?.template_id,
-    persistData: true
   }
 
   return (

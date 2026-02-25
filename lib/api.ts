@@ -811,7 +811,6 @@ export interface JobWorkflowState {
   taskDefinitions: TaskDefinition[]
   jobName?: string
   templateId?: string
-  persistData: boolean
 }
 
 // Data types interface matching backend DataTypeResponse

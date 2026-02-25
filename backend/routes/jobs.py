@@ -256,7 +256,6 @@ async def get_job_run_details(
                 job_id=str(run.job_id),
                 status=run.status,
                 config_step=run.config_step,
-                persist_data=run.persist_data,
                 tasks_total=run.tasks_total,
                 tasks_completed=run.tasks_completed,
                 tasks_failed=run.tasks_failed,

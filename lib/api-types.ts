@@ -2007,11 +2007,6 @@ export interface components {
             /** @description Current job status */
             status: components["schemas"]["JobStatus"];
             /**
-             * Persist Data
-             * @description Data persistence setting
-             */
-            persist_data: boolean;
-            /**
              * Created At
              * Format: date-time
              * @description Creation timestamp
@@ -2440,11 +2435,6 @@ export interface components {
              * @description Current configuration step
              */
             config_step: string;
-            /**
-             * Persist Data
-             * @description Data persistence setting
-             */
-            persist_data: boolean;
             /**
              * Tasks Total
              * @description Total number of tasks

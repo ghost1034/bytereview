@@ -118,7 +118,6 @@ class JobFieldConfig(BaseModel):
 class JobStartRequest(BaseModel):
     """Request to start job processing"""
     template_id: Optional[str] = Field(None, description="Template ID to use")
-    persist_data: bool = Field(default=True, description="Whether to persist data")
     fields: List[JobFieldConfig] = Field(..., description="Field configuration")
     task_definitions: List[TaskDefinition] = Field(..., description="Processing definitions")
 
@@ -162,7 +161,6 @@ class JobDetailsResponse(BaseModel):
     id: str = Field(..., description="Job identifier")
     name: Optional[str] = Field(None, description="Job name")
     status: JobStatus = Field(..., description="Current job status")
-    persist_data: bool = Field(..., description="Data persistence setting")
     created_at: datetime = Field(..., description="Creation timestamp")
     completed_at: Optional[datetime] = Field(None, description="Completion timestamp")
     job_fields: List[JobFieldInfo] = Field(..., description="Field configuration")
@@ -239,7 +237,6 @@ class JobRunDetailsResponse(BaseModel):
     job_id: str = Field(..., description="Parent job identifier")
     status: JobStatus = Field(..., description="Current run status")
     config_step: str = Field(..., description="Current configuration step")
-    persist_data: bool = Field(..., description="Data persistence setting")
     tasks_total: int = Field(..., description="Total number of tasks")
     tasks_completed: int = Field(..., description="Completed tasks")
     tasks_failed: int = Field(..., description="Failed tasks")
