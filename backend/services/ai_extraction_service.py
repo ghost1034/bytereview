@@ -30,7 +30,7 @@ class AIExtractionService:
                 logger.error(f"Failed to initialize Vertex AI client: {e}")
                 self.client = None
         # Use Gemini 3 Pro for enhanced document processing and accuracy
-        self.base_model_name = 'gemini-3-pro-preview'
+        self.base_model_name = 'gemini-3.1-pro-preview'
 
         # Generation defaults (override via env if desired)
         try:
