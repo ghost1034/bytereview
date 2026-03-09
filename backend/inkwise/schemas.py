@@ -130,6 +130,28 @@ class InkwisePaginatedDocuments(BaseModel):
     total: int
 
 
+class InkwiseBoundSourceOut(BaseModel):
+    binding_id: uuid.UUID
+    source: InkwiseSourceOut
+    is_active: bool
+    grounded_chat_ready: bool
+    grounded_chat_reason: str | None = None
+
+
+class InkwiseDocumentBoundSourcesOut(BaseModel):
+    document_id: uuid.UUID
+    sources: list[InkwiseBoundSourceOut]
+
+
+class InkwiseBindSourcesRequest(BaseModel):
+    source_ids: list[uuid.UUID]
+
+
+class InkwiseBindSourcesResponse(BaseModel):
+    document_id: uuid.UUID
+    bound_source_ids: list[uuid.UUID]
+
+
 class InkwiseDocumentCreateRequest(BaseModel):
     title: str | None = None
     content_json: dict | None = None
@@ -235,3 +257,41 @@ class InkwiseSourceIngestionOut(BaseModel):
 class InkwiseSourceIngestionListResponse(BaseModel):
     source_id: uuid.UUID | None = None
     ingestions: list[InkwiseSourceIngestionOut]
+
+
+class InkwiseRetrievalEvidenceOut(BaseModel):
+    evidence_id: str
+    source_id: uuid.UUID
+    source_title: str
+    page_number: int
+    node_id: str | None = None
+    node_title: str | None = None
+    excerpt: str
+    score: float | None = None
+
+
+class InkwiseRunRetrievalRequest(BaseModel):
+    query: str
+    source_ids: list[uuid.UUID] | None = None
+    history_messages: list[dict[str, str]] | None = None
+    draft_selection_text: str | None = None
+
+
+class InkwiseRetrievalRunSummaryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: str
+    document_id: uuid.UUID
+    thread_id: uuid.UUID | None = None
+    query: str
+    bound_source_ids: list[uuid.UUID]
+    strategy_version: str
+    meta: dict
+    created_at: datetime
+
+
+class InkwiseRetrievalRunDetailOut(BaseModel):
+    run: InkwiseRetrievalRunSummaryOut
+    evidence: list[InkwiseRetrievalEvidenceOut]
+    evidence_pack: str
