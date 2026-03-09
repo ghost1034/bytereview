@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from core.database import get_db
@@ -12,15 +12,20 @@ from inkwise.schemas import (
     InkwiseSignedUrlResponse,
     InkwiseSourceCreateRequest,
     InkwiseSourceOut,
+    InkwiseSourceIngestionOut,
     InkwiseSourceUploadCompleteRequest,
     InkwiseSourceUploadInitRequest,
     InkwiseSourceUploadInitResponse,
     build_placeholder_response,
 )
+from inkwise.services.ingestion_service import InkwiseIngestionService
 from inkwise.services.source_service import InkwiseSourceService
+from inkwise.services.task_service import enqueue_ingestion_task
+from inkwise.settings import get_inkwise_settings
 
 router = APIRouter(prefix="/sources", tags=["inkwise-sources"])
 source_service = InkwiseSourceService()
+ingestion_service = InkwiseIngestionService()
 
 
 @router.get("", response_model=InkwisePaginatedSources)
@@ -184,14 +189,32 @@ async def download_source(
         raise HTTPException(status_code=500, detail=f"Failed to create download URL: {exc}") from exc
 
 
-@router.post("/{source_id}/ingest", response_model=InkwisePlaceholderResponse)
+@router.post("/{source_id}/ingest", response_model=InkwiseSourceIngestionOut, status_code=202)
 async def enqueue_source_ingestion(
     source_id: uuid.UUID,
+    request: Request,
     token_data: dict = Depends(verify_firebase_token),
-) -> InkwisePlaceholderResponse:
-    return build_placeholder_response(
-        area="ingestion",
-        action="enqueue",
-        message=f"Inkwise source ingestion scaffold is registered for source {source_id}.",
-        user_id=token_data["uid"],
-    )
+    db: Session = Depends(get_db),
+) -> InkwiseSourceIngestionOut:
+    user_id = token_data["uid"]
+    try:
+        ingestion = ingestion_service.enqueue_ingestion(db, user_id=user_id, source_id=source_id)
+        settings = get_inkwise_settings()
+        enqueued = enqueue_ingestion_task(
+            settings=settings,
+            ingestion_id=str(ingestion.id),
+            delay_seconds=0,
+            service_url=str(request.base_url).rstrip("/"),
+        )
+        if not enqueued.created:
+            ingestion = ingestion_service.process_source_ingestion_once(db, ingestion_id=ingestion.id)
+        return InkwiseSourceIngestionOut.model_validate(ingestion)
+    except FileNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to enqueue ingestion: {exc}") from exc

@@ -106,3 +106,33 @@ class InkwiseSignedUrlResponse(BaseModel):
 
 class InkwiseMessageResponse(BaseModel):
     message: str
+
+
+class InkwiseSourceIngestionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    source_id: uuid.UUID
+    pipeline: str
+    status: str
+    treegen_engine: str | None = None
+    treegen_version: str | None = None
+    extraction_engine: str | None = None
+    canonical_pdf_gcs_bucket: str | None = None
+    canonical_pdf_gcs_object: str | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    pageindex_doc_id: str | None = None
+    page_count: int | None = None
+    provider_document_name: str | None = None
+    doc_description: str | None = None
+    tree_gcs_bucket: str | None = None
+    tree_gcs_object: str | None = None
+    tree_cached_at: datetime | None = None
+    error_json: dict | None = None
+    created_at: datetime
+
+
+class InkwiseSourceIngestionListResponse(BaseModel):
+    source_id: uuid.UUID | None = None
+    ingestions: list[InkwiseSourceIngestionOut]

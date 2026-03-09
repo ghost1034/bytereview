@@ -184,3 +184,41 @@ async def generate_tree(
         return out
 
     return await asyncio.to_thread(_run_sync)
+
+
+def generate_tree_sync(
+    *,
+    pdf_path: str,
+    model: str | None = None,
+    toc_check_pages: int = 20,
+    max_pages_per_node: int = 10,
+    max_tokens_per_node: int = 20000,
+    add_node_summary: bool = True,
+) -> dict[str, Any]:
+    settings = get_inkwise_settings()
+    resolved_model = model or settings.treegen_model
+
+    if not settings.vertex_enabled:
+        raise PageIndexOssTreeGenError("Vertex AI is not configured for Inkwise tree generation")
+
+    _patch_vendor_for_vertex(model=resolved_model)
+    _ensure_vendor_on_syspath()
+
+    from pageindex.page_index import page_index as page_index_fn  # type: ignore
+
+    out = page_index_fn(
+        pdf_path,
+        model="gpt-4o",
+        toc_check_page_num=toc_check_pages,
+        max_page_num_each_node=max_pages_per_node,
+        max_token_num_each_node=max_tokens_per_node,
+        if_add_node_id="yes",
+        if_add_node_summary="yes" if add_node_summary else "no",
+        if_add_doc_description="no",
+        if_add_node_text="no",
+    )
+    if not isinstance(out, dict):
+        raise PageIndexOssTreeGenError("vendor treegen returned unexpected type")
+    if "structure" not in out:
+        raise PageIndexOssTreeGenError("vendor treegen missing structure")
+    return out
