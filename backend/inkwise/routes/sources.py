@@ -1,71 +1,197 @@
-from fastapi import APIRouter, Depends
+import uuid
 
-from dependencies.auth import get_current_user_id
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from core.database import get_db
+from dependencies.auth import verify_firebase_token
 from inkwise.schemas import (
-    InkwisePlaceholderListResponse,
+    InkwiseMessageResponse,
+    InkwisePaginatedSources,
     InkwisePlaceholderResponse,
-    build_placeholder_list_response,
+    InkwiseSignedUrlResponse,
+    InkwiseSourceCreateRequest,
+    InkwiseSourceOut,
+    InkwiseSourceUploadCompleteRequest,
+    InkwiseSourceUploadInitRequest,
+    InkwiseSourceUploadInitResponse,
     build_placeholder_response,
 )
+from inkwise.services.source_service import InkwiseSourceService
 
 router = APIRouter(prefix="/sources", tags=["inkwise-sources"])
+source_service = InkwiseSourceService()
 
 
-@router.get("", response_model=InkwisePlaceholderListResponse)
-async def list_sources(user_id: str = Depends(get_current_user_id)) -> InkwisePlaceholderListResponse:
-    return build_placeholder_list_response(
-        area="sources",
-        action="list",
-        message="Inkwise source library scaffold is registered and awaiting implementation.",
-        user_id=user_id,
-    )
+@router.get("", response_model=InkwisePaginatedSources)
+async def list_sources(
+    page: int = 1,
+    limit: int = 20,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwisePaginatedSources:
+    user_id = token_data["uid"]
+    try:
+        items, total = source_service.list_sources(db, user_id=user_id, page=page, limit=limit)
+        return InkwisePaginatedSources(
+            items=[InkwiseSourceOut.model_validate(item) for item in items],
+            page=page,
+            limit=limit,
+            total=total,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.post("", response_model=InkwisePlaceholderResponse)
-async def create_source(user_id: str = Depends(get_current_user_id)) -> InkwisePlaceholderResponse:
-    return build_placeholder_response(
-        area="sources",
-        action="create",
-        message="Inkwise source creation scaffold is registered and awaiting implementation.",
-        user_id=user_id,
-    )
+@router.post("", response_model=InkwiseSourceOut)
+async def create_source(
+    body: InkwiseSourceCreateRequest,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseSourceOut:
+    user_id = token_data["uid"]
+    try:
+        source_service.ensure_user_record(db, user_id=user_id, email=token_data.get("email"))
+        source = source_service.create_source(db, user_id=user_id, body=body)
+        return InkwiseSourceOut.model_validate(source)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create source: {exc}") from exc
 
 
-@router.post("/upload:init", response_model=InkwisePlaceholderResponse)
-async def init_source_upload(user_id: str = Depends(get_current_user_id)) -> InkwisePlaceholderResponse:
-    return build_placeholder_response(
-        area="sources",
-        action="upload_init",
-        message="Inkwise source upload-init scaffold is registered and awaiting implementation.",
-        user_id=user_id,
-    )
+@router.get("/{source_id}", response_model=InkwiseSourceOut)
+async def get_source(
+    source_id: uuid.UUID,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseSourceOut:
+    user_id = token_data["uid"]
+    try:
+        source = source_service.get_source_or_404(db, user_id=user_id, source_id=source_id)
+        return InkwiseSourceOut.model_validate(source)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.post("/{source_id}/upload:complete", response_model=InkwisePlaceholderResponse)
-async def complete_source_upload(source_id: str, user_id: str = Depends(get_current_user_id)) -> InkwisePlaceholderResponse:
-    return build_placeholder_response(
-        area="sources",
-        action="upload_complete",
-        message=f"Inkwise upload-complete scaffold is registered for source {source_id}.",
-        user_id=user_id,
-    )
+@router.delete("/{source_id}", response_model=InkwiseMessageResponse)
+async def delete_source(
+    source_id: uuid.UUID,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseMessageResponse:
+    user_id = token_data["uid"]
+    try:
+        source_service.delete_source(db, user_id=user_id, source_id=source_id)
+        return InkwiseMessageResponse(message="Source deleted successfully")
+    except FileNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete source: {exc}") from exc
 
 
-@router.get("/{source_id}/preview", response_model=InkwisePlaceholderResponse)
-async def preview_source(source_id: str, user_id: str = Depends(get_current_user_id)) -> InkwisePlaceholderResponse:
-    return build_placeholder_response(
-        area="sources",
-        action="preview",
-        message=f"Inkwise source preview scaffold is registered for source {source_id}.",
-        user_id=user_id,
-    )
+@router.post("/upload:init", response_model=InkwiseSourceUploadInitResponse)
+async def init_source_upload(
+    body: InkwiseSourceUploadInitRequest,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseSourceUploadInitResponse:
+    user_id = token_data["uid"]
+    try:
+        source_service.ensure_user_record(db, user_id=user_id, email=token_data.get("email"))
+        source, upload = source_service.init_upload(db, user_id=user_id, body=body)
+        return InkwiseSourceUploadInitResponse(
+            source=InkwiseSourceOut.model_validate(source),
+            upload={
+                "method": "PUT",
+                "url": upload.url,
+                "headers": upload.headers,
+                "expires_at": upload.expires_at,
+            },
+        )
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to initialize upload: {exc}") from exc
+
+
+@router.post("/{source_id}/upload:complete", response_model=InkwiseSourceOut)
+async def complete_source_upload(
+    source_id: uuid.UUID,
+    body: InkwiseSourceUploadCompleteRequest | None = None,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseSourceOut:
+    user_id = token_data["uid"]
+    try:
+        source = source_service.complete_upload(
+            db,
+            user_id=user_id,
+            source_id=source_id,
+            checksum_sha256=body.checksum_sha256 if body else None,
+        )
+        return InkwiseSourceOut.model_validate(source)
+    except FileNotFoundError as exc:
+        db.rollback()
+        status_code = 404 if str(exc) == "Source not found" else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to finalize upload: {exc}") from exc
+
+
+@router.get("/{source_id}/preview", response_model=InkwiseSignedUrlResponse)
+async def preview_source(
+    source_id: uuid.UUID,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseSignedUrlResponse:
+    user_id = token_data["uid"]
+    try:
+        signed = source_service.signed_preview(db, user_id=user_id, source_id=source_id)
+        return InkwiseSignedUrlResponse(url=signed.url, expires_at=signed.expires_at)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to create preview URL: {exc}") from exc
+
+
+@router.get("/{source_id}/download", response_model=InkwiseSignedUrlResponse)
+async def download_source(
+    source_id: uuid.UUID,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseSignedUrlResponse:
+    user_id = token_data["uid"]
+    try:
+        signed = source_service.signed_download(db, user_id=user_id, source_id=source_id)
+        return InkwiseSignedUrlResponse(url=signed.url, expires_at=signed.expires_at)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to create download URL: {exc}") from exc
 
 
 @router.post("/{source_id}/ingest", response_model=InkwisePlaceholderResponse)
-async def enqueue_source_ingestion(source_id: str, user_id: str = Depends(get_current_user_id)) -> InkwisePlaceholderResponse:
+async def enqueue_source_ingestion(
+    source_id: uuid.UUID,
+    token_data: dict = Depends(verify_firebase_token),
+) -> InkwisePlaceholderResponse:
     return build_placeholder_response(
         area="ingestion",
         action="enqueue",
         message=f"Inkwise source ingestion scaffold is registered for source {source_id}.",
-        user_id=user_id,
+        user_id=token_data["uid"],
     )
