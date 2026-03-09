@@ -24,3 +24,5 @@ google-auth-httplib2>=0.1.1
 google-api-python-client>=2.100.0
 PyPDF2>=3.0.0
 PyMuPDF>=1.23.0
+python-docx>=1.1.2
+reportlab>=4.2.5

@@ -108,6 +108,105 @@ class InkwiseMessageResponse(BaseModel):
     message: str
 
 
+class InkwiseDocumentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: str
+    title: str
+    content_json: dict | None = None
+    content_html: str | None = None
+    init_prompt: str | None = None
+    language: str | None = None
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class InkwisePaginatedDocuments(BaseModel):
+    items: list[InkwiseDocumentOut]
+    page: int
+    limit: int
+    total: int
+
+
+class InkwiseDocumentCreateRequest(BaseModel):
+    title: str | None = None
+    content_json: dict | None = None
+    content_html: str | None = None
+    init_prompt: str | None = None
+    language: str | None = None
+
+
+class InkwiseDocumentUpdateRequest(BaseModel):
+    version: int
+    title: str | None = None
+    content_json: dict | None = None
+    content_html: str | None = None
+    init_prompt: str | None = None
+    language: str | None = None
+
+
+class InkwiseTemplateOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: str
+    title: str
+    icon: str | None = None
+    description: str | None = None
+    content_json: dict
+    created_at: datetime
+    updated_at: datetime
+
+
+class InkwisePaginatedTemplates(BaseModel):
+    items: list[InkwiseTemplateOut]
+    page: int
+    limit: int
+    total: int
+
+
+class InkwiseTemplateCreateRequest(BaseModel):
+    title: str
+    icon: str | None = None
+    description: str | None = None
+    content_json: dict
+
+
+class InkwiseTemplateUpdateRequest(BaseModel):
+    title: str | None = None
+    icon: str | None = None
+    description: str | None = None
+    content_json: dict | None = None
+
+
+class InkwiseSystemTemplateCategoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+
+
+class InkwiseSystemTemplateOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    category_id: int
+    title: str
+    icon: str | None = None
+    description: str | None = None
+    content_json: dict
+
+
+class InkwiseSystemTemplateCategoryListResponse(BaseModel):
+    items: list[InkwiseSystemTemplateCategoryOut]
+
+
+class InkwiseSystemTemplateListResponse(BaseModel):
+    items: list[InkwiseSystemTemplateOut]
+
+
 class InkwiseSourceIngestionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
