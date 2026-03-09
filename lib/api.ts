@@ -701,6 +701,289 @@ export class ApiClient {
     })
   }
 
+  // ===================================================================
+  // Inkwise endpoints
+  // ===================================================================
+
+  async listInkwiseDocuments(params?: { page?: number; limit?: number }): Promise<InkwisePaginatedDocuments> {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    const query = searchParams.toString()
+    return this.request(`/api/inkwise/documents${query ? `?${query}` : ''}`)
+  }
+
+  async createInkwiseDocument(data: InkwiseDocumentCreateRequest): Promise<InkwiseDocument> {
+    return this.request('/api/inkwise/documents', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getInkwiseDocument(documentId: string): Promise<InkwiseDocument> {
+    return this.request(`/api/inkwise/documents/${documentId}`)
+  }
+
+  async updateInkwiseDocument(documentId: string, data: InkwiseDocumentUpdateRequest): Promise<InkwiseDocument> {
+    return this.request(`/api/inkwise/documents/${documentId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteInkwiseDocument(documentId: string): Promise<{ message: string }> {
+    return this.request(`/api/inkwise/documents/${documentId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getInkwiseDocumentSources(documentId: string): Promise<InkwiseDocumentBoundSources> {
+    return this.request(`/api/inkwise/documents/${documentId}/sources`)
+  }
+
+  async bindInkwiseSources(documentId: string, sourceIds: string[]): Promise<InkwiseBindSourcesResponse> {
+    return this.request(`/api/inkwise/documents/${documentId}/sources:bind`, {
+      method: 'POST',
+      body: JSON.stringify({ source_ids: sourceIds }),
+    })
+  }
+
+  async unbindInkwiseSources(documentId: string, sourceIds: string[]): Promise<InkwiseBindSourcesResponse> {
+    return this.request(`/api/inkwise/documents/${documentId}/sources:unbind`, {
+      method: 'POST',
+      body: JSON.stringify({ source_ids: sourceIds }),
+    })
+  }
+
+  async exportInkwiseDocument(documentId: string, type: 'pdf' | 'docx'): Promise<{ blob: Blob; filename: string }> {
+    const token = await this.getAuthToken()
+    const response = await fetch(`${this.baseURL}/api/inkwise/documents/${documentId}/export?type=${type}`, {
+      method: 'GET',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    })
+
+    if (!response.ok) {
+      let body: any = null
+      let message = `HTTP ${response.status}`
+      try {
+        body = await response.json()
+        message = body?.detail || body?.message || message
+      } catch {
+        // ignore
+      }
+      throw new ApiError(response.status, message, body)
+    }
+
+    const blob = await response.blob()
+    const filename = response.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/)?.[1] || `inkwise.${type}`
+    return { blob, filename }
+  }
+
+  async listInkwiseSources(params?: { page?: number; limit?: number }): Promise<InkwisePaginatedSources> {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    const query = searchParams.toString()
+    return this.request(`/api/inkwise/sources${query ? `?${query}` : ''}`)
+  }
+
+  async getInkwiseSource(sourceId: string): Promise<InkwiseSource> {
+    return this.request(`/api/inkwise/sources/${sourceId}`)
+  }
+
+  async initInkwiseSourceUpload(data: InkwiseSourceUploadInitRequest): Promise<InkwiseSourceUploadInitResponse> {
+    return this.request('/api/inkwise/sources/upload:init', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async completeInkwiseSourceUpload(sourceId: string, checksumSha256?: string): Promise<InkwiseSource> {
+    return this.request(`/api/inkwise/sources/${sourceId}/upload:complete`, {
+      method: 'POST',
+      body: JSON.stringify({ checksum_sha256: checksumSha256 ?? null }),
+    })
+  }
+
+  async previewInkwiseSource(sourceId: string): Promise<InkwiseSignedUrlResponse> {
+    return this.request(`/api/inkwise/sources/${sourceId}/preview`)
+  }
+
+  async downloadInkwiseSource(sourceId: string): Promise<InkwiseSignedUrlResponse> {
+    return this.request(`/api/inkwise/sources/${sourceId}/download`)
+  }
+
+  async deleteInkwiseSource(sourceId: string): Promise<{ message: string }> {
+    return this.request(`/api/inkwise/sources/${sourceId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async ingestInkwiseSource(sourceId: string): Promise<InkwiseSourceIngestion> {
+    return this.request(`/api/inkwise/sources/${sourceId}/ingest`, {
+      method: 'POST',
+    })
+  }
+
+  async listInkwiseSourceIngestions(sourceId?: string): Promise<InkwiseSourceIngestionListResponse> {
+    const query = sourceId ? `?source_id=${sourceId}` : ''
+    return this.request(`/api/inkwise/source-ingestions${query}`)
+  }
+
+  async listInkwiseTemplates(params?: { page?: number; limit?: number }): Promise<InkwisePaginatedTemplates> {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    const query = searchParams.toString()
+    return this.request(`/api/inkwise/templates${query ? `?${query}` : ''}`)
+  }
+
+  async createInkwiseTemplate(data: InkwiseTemplateCreateRequest): Promise<InkwiseTemplate> {
+    return this.request('/api/inkwise/templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getInkwiseTemplate(templateId: string): Promise<InkwiseTemplate> {
+    return this.request(`/api/inkwise/templates/${templateId}`)
+  }
+
+  async updateInkwiseTemplate(templateId: string, data: InkwiseTemplateUpdateRequest): Promise<InkwiseTemplate> {
+    return this.request(`/api/inkwise/templates/${templateId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteInkwiseTemplate(templateId: string): Promise<{ message: string }> {
+    return this.request(`/api/inkwise/templates/${templateId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async listInkwiseSystemTemplateCategories(): Promise<{ items: InkwiseSystemTemplateCategory[] }> {
+    return this.request('/api/inkwise/system-template-categories')
+  }
+
+  async listInkwiseSystemTemplates(categoryId?: number): Promise<{ items: InkwiseSystemTemplate[] }> {
+    const query = categoryId ? `?category_id=${categoryId}` : ''
+    return this.request(`/api/inkwise/system-templates${query}`)
+  }
+
+  async getInkwiseSystemTemplate(systemTemplateId: string): Promise<InkwiseSystemTemplate> {
+    return this.request(`/api/inkwise/system-templates/${systemTemplateId}`)
+  }
+
+  async listInkwiseChatThreads(documentId?: string): Promise<InkwiseChatThreadsResponse> {
+    const query = documentId ? `?document_id=${documentId}` : ''
+    return this.request(`/api/inkwise/chat/threads${query}`)
+  }
+
+  async createInkwiseChatThread(data: InkwiseChatThreadCreateRequest): Promise<InkwiseChatThread> {
+    return this.request('/api/inkwise/chat/threads', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async listInkwiseChatMessages(threadId: string, params?: { page?: number; limit?: number }): Promise<InkwisePaginatedChatMessages> {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    const query = searchParams.toString()
+    return this.request(`/api/inkwise/chat/threads/${threadId}/messages${query ? `?${query}` : ''}`)
+  }
+
+  async streamInkwiseChatMessage(
+    threadId: string,
+    data: InkwiseChatSendRequest,
+    onEvent: (evt: InkwiseSseEvent) => void,
+    opts?: { signal?: AbortSignal }
+  ): Promise<void> {
+    return this.streamSse(`/api/inkwise/chat/threads/${threadId}/messages:stream`, data, onEvent, opts)
+  }
+
+  async createInkwisePrediction(documentId: string, data: InkwisePredictionRequest): Promise<InkwisePredictionResponse> {
+    return this.request(`/api/inkwise/documents/${documentId}/predictions`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async streamInkwiseWritingTool(
+    data: InkwiseWritingToolRequest,
+    onEvent: (evt: InkwiseSseEvent) => void,
+    opts?: { signal?: AbortSignal }
+  ): Promise<void> {
+    return this.streamSse('/api/inkwise/writing-tools:stream', data, onEvent, opts)
+  }
+
+  private async streamSse(
+    path: string,
+    body: unknown,
+    onEvent: (evt: InkwiseSseEvent) => void,
+    opts?: { signal?: AbortSignal }
+  ): Promise<void> {
+    const token = await this.getAuthToken()
+    const response = await fetch(`${this.baseURL}${path}`, {
+      method: 'POST',
+      signal: opts?.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify(body),
+    })
+
+    if (!response.ok) {
+      let bodyJson: any = null
+      let message = `HTTP ${response.status}`
+      try {
+        bodyJson = await response.json()
+        message = bodyJson?.detail || bodyJson?.message || message
+      } catch {
+        // ignore
+      }
+      throw new ApiError(response.status, message, bodyJson)
+    }
+
+    if (!response.body) return
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+
+      while (true) {
+        const idx = buffer.indexOf('\n\n')
+        if (idx === -1) break
+        const raw = buffer.slice(0, idx)
+        buffer = buffer.slice(idx + 2)
+
+        let event = 'message'
+        let dataStr = ''
+        for (const line of raw.split('\n')) {
+          if (line.startsWith('event:')) event = line.slice(6).trim()
+          if (line.startsWith('data:')) dataStr += line.slice(5).trim()
+        }
+
+        let parsed: any = dataStr
+        try {
+          parsed = JSON.parse(dataStr)
+        } catch {
+          // keep string
+        }
+        onEvent({ event, data: parsed })
+      }
+    }
+  }
+
 }
 
 export const apiClient = new ApiClient()
@@ -864,4 +1147,253 @@ export interface CreateCpeSheetResponse {
 export interface StartCpeSheetResponse {
   active_run_id: string
   message: string
+}
+
+export type InkwiseSseEvent = {
+  event: string
+  data: any
+}
+
+export interface InkwiseDocument {
+  id: string
+  user_id: string
+  title: string
+  content_json: Record<string, any> | null
+  content_html: string | null
+  init_prompt: string | null
+  language?: string | null
+  version: number
+  created_at: string
+  updated_at: string
+}
+
+export interface InkwisePaginatedDocuments {
+  items: InkwiseDocument[]
+  page: number
+  limit: number
+  total: number
+}
+
+export interface InkwiseDocumentCreateRequest {
+  title?: string | null
+  content_json?: Record<string, any> | null
+  content_html?: string | null
+  init_prompt?: string | null
+  language?: string | null
+}
+
+export interface InkwiseDocumentUpdateRequest extends InkwiseDocumentCreateRequest {
+  version: number
+}
+
+export interface InkwiseSource {
+  id: string
+  type: string
+  title: string
+  original_filename: string | null
+  content_type: string
+  size_bytes: number
+  checksum_sha256: string | null
+  status: string
+  failure_code?: string | null
+  failure_detail?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface InkwisePaginatedSources {
+  items: InkwiseSource[]
+  page: number
+  limit: number
+  total: number
+}
+
+export interface InkwiseSourceUploadInitRequest {
+  original_filename: string
+  content_type: string
+  size_bytes: number
+  title?: string | null
+}
+
+export interface InkwiseSourceUploadInitResponse {
+  source: InkwiseSource
+  upload: {
+    method: string
+    url: string
+    headers: Record<string, string>
+    expires_at: string
+  }
+}
+
+export interface InkwiseSignedUrlResponse {
+  url: string
+  expires_at: string
+}
+
+export interface InkwiseSourceIngestion {
+  id: string
+  source_id: string
+  pipeline: string
+  status: string
+  treegen_engine?: string | null
+  treegen_version?: string | null
+  extraction_engine?: string | null
+  canonical_pdf_gcs_bucket?: string | null
+  canonical_pdf_gcs_object?: string | null
+  started_at?: string | null
+  finished_at?: string | null
+  pageindex_doc_id?: string | null
+  page_count?: number | null
+  provider_document_name?: string | null
+  doc_description?: string | null
+  tree_gcs_bucket?: string | null
+  tree_gcs_object?: string | null
+  tree_cached_at?: string | null
+  error_json?: Record<string, any> | null
+  created_at: string
+}
+
+export interface InkwiseSourceIngestionListResponse {
+  source_id?: string | null
+  ingestions: InkwiseSourceIngestion[]
+}
+
+export interface InkwiseBoundSource {
+  binding_id: string
+  source: InkwiseSource
+  is_active: boolean
+  grounded_chat_ready: boolean
+  grounded_chat_reason?: string | null
+}
+
+export interface InkwiseDocumentBoundSources {
+  document_id: string
+  sources: InkwiseBoundSource[]
+}
+
+export interface InkwiseBindSourcesResponse {
+  document_id: string
+  bound_source_ids: string[]
+}
+
+export interface InkwiseTemplate {
+  id: string
+  user_id: string
+  title: string
+  icon?: string | null
+  description?: string | null
+  content_json: Record<string, any>
+  created_at: string
+  updated_at: string
+}
+
+export interface InkwisePaginatedTemplates {
+  items: InkwiseTemplate[]
+  page: number
+  limit: number
+  total: number
+}
+
+export interface InkwiseTemplateCreateRequest {
+  title: string
+  icon?: string | null
+  description?: string | null
+  content_json: Record<string, any>
+}
+
+export interface InkwiseTemplateUpdateRequest {
+  title?: string | null
+  icon?: string | null
+  description?: string | null
+  content_json?: Record<string, any> | null
+}
+
+export interface InkwiseSystemTemplateCategory {
+  id: number
+  name: string
+}
+
+export interface InkwiseSystemTemplate {
+  id: string
+  category_id: number
+  title: string
+  icon?: string | null
+  description?: string | null
+  content_json: Record<string, any>
+}
+
+export interface InkwiseChatThread {
+  id: string
+  user_id: string
+  document_id: string
+  mode?: string | null
+  title?: string | null
+  created_at: string
+}
+
+export interface InkwiseChatThreadsResponse {
+  document_id?: string | null
+  threads: InkwiseChatThread[]
+}
+
+export interface InkwiseChatThreadCreateRequest {
+  document_id: string
+  title?: string | null
+}
+
+export interface InkwiseChatMessage {
+  id: string
+  thread_id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  content_with_citations?: string | null
+  citations_json?: Record<string, any> | null
+  provider: string
+  provider_meta?: Record<string, any> | null
+  created_at: string
+}
+
+export interface InkwisePaginatedChatMessages {
+  items: InkwiseChatMessage[]
+  page: number
+  limit: number
+  total: number
+}
+
+export interface InkwiseChatSendRequest {
+  content: string
+  source_ids?: string[] | null
+  draft_selection_text?: string | null
+  draft_selection_label?: string | null
+}
+
+export interface InkwisePredictionRequest {
+  before_text: string
+  after_text?: string | null
+  current_block_text?: string | null
+}
+
+export interface InkwisePredictionResponse {
+  suggestion_text: string
+  grounded: boolean
+  provider: string
+  model: string
+}
+
+export type InkwiseWritingAction =
+  | 'improve'
+  | 'longer'
+  | 'opposing_argument'
+  | 'translate'
+  | 'concise'
+  | 'humanize'
+  | 'other'
+
+export interface InkwiseWritingToolRequest {
+  action: InkwiseWritingAction
+  document_id?: string | null
+  source_ids?: string[] | null
+  selection_text: string
+  surrounding_text?: string | null
+  instruction: string
 }

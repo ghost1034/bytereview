@@ -8,6 +8,7 @@ import {
   Home,
   Briefcase,
   FileText,
+  PenTool,
   Settings,
   LogOut,
   Plug,
@@ -46,6 +47,12 @@ export function Sidebar({ className }: SidebarProps) {
       href: '/dashboard/cpe-tracker',
       icon: GraduationCap,
       current: pathname.startsWith('/dashboard/cpe-tracker')
+    },
+    {
+      name: 'Inkwise',
+      href: '/dashboard/inkwise',
+      icon: PenTool,
+      current: pathname.startsWith('/dashboard/inkwise')
     },
     {
       name: 'Templates',

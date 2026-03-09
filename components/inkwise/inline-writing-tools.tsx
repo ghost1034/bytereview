@@ -1,0 +1,263 @@
+'use client'
+
+import type { Editor } from '@tiptap/core'
+import { BubbleMenu } from '@tiptap/react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { apiClient, InkwiseBoundSource, InkwiseSseEvent, InkwiseWritingAction } from '@/lib/api'
+import { markdownToSafeHtml } from '@/lib/inkwise-markdown'
+import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
+
+type ToolAction = Exclude<InkwiseWritingAction, 'other'> | 'custom'
+
+export function InlineWritingTools({
+  editor,
+  documentId,
+  boundSources,
+}: {
+  editor: Editor | null
+  documentId: string
+  boundSources: InkwiseBoundSource[]
+}) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [outputMd, setOutputMd] = useState('')
+  const [lastAction, setLastAction] = useState<ToolAction | null>(null)
+  const [customOpen, setCustomOpen] = useState(false)
+  const [instruction, setInstruction] = useState('Improve clarity, keep meaning.')
+  const [inserting, setInserting] = useState<null | 'replace' | 'after'>(null)
+  const [sourceChecked, setSourceChecked] = useState<Record<string, boolean>>({})
+
+  const rangeRef = useRef<{ from: number; to: number } | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  const readySources = useMemo(() => boundSources.filter((item) => item.grounded_chat_ready), [boundSources])
+  const selectedSourceIds = useMemo(
+    () => readySources.filter((item) => sourceChecked[item.source.id] ?? true).map((item) => item.source.id),
+    [readySources, sourceChecked],
+  )
+
+  useEffect(() => {
+    if (!readySources.length) return
+    setSourceChecked((prev) => {
+      const next: Record<string, boolean> = {}
+      for (const item of readySources) next[item.source.id] = prev[item.source.id] ?? true
+      return next
+    })
+  }, [readySources])
+
+  useEffect(() => {
+    if (!editor) return
+    const onSelection = () => {
+      if (!busy) {
+        setError(null)
+        setOutputMd('')
+        setLastAction(null)
+        rangeRef.current = null
+      }
+    }
+    editor.on('selectionUpdate', onSelection)
+    return () => {
+      editor.off('selectionUpdate', onSelection)
+    }
+  }, [editor, busy])
+
+  function selectionText(currentEditor: Editor): { from: number; to: number; text: string } | null {
+    const { from, to, empty } = currentEditor.state.selection
+    if (empty) return null
+    const text = currentEditor.state.doc.textBetween(from, to, '\n')
+    if (!text.trim()) return null
+    return { from, to, text }
+  }
+
+  async function run(action: ToolAction, customInstruction?: string) {
+    if (!editor) return
+    const selection = selectionText(editor)
+    if (!selection) return
+
+    setError(null)
+    setBusy(true)
+    setOutputMd('')
+    setLastAction(action)
+    rangeRef.current = { from: selection.from, to: selection.to }
+
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    try {
+      await apiClient.streamInkwiseWritingTool(
+        {
+          action: action === 'custom' ? 'other' : action,
+          document_id: documentId,
+          source_ids: selectedSourceIds,
+          selection_text: selection.text,
+          surrounding_text: null,
+          instruction: (customInstruction ?? instruction).trim(),
+        },
+        (event: InkwiseSseEvent) => {
+          if (event.event === 'token') {
+            setOutputMd((current) => current + (event.data?.text ?? ''))
+          }
+          if (event.event === 'meta' && event.data?.error) {
+            setError(event.data?.message || 'Writing tool failed')
+          }
+        },
+        { signal: controller.signal },
+      )
+    } catch (err) {
+      if (err && typeof err === 'object' && (err as { name?: string }).name === 'AbortError') return
+      setError(err instanceof Error ? err.message : 'Failed to run tool')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function insert(mode: 'replace' | 'after') {
+    if (!editor || !rangeRef.current) return
+    const markdown = (outputMd || '').trim()
+    if (!markdown) return
+
+    setInserting(mode)
+    try {
+      const html = await markdownToSafeHtml(markdown)
+      if (!html) return
+
+      if (mode === 'replace') {
+        editor.chain().focus().insertContentAt({ from: rangeRef.current.from, to: rangeRef.current.to }, html).run()
+      } else {
+        editor.chain().focus().insertContentAt(rangeRef.current.to, `<p></p>${html}`).run()
+      }
+    } finally {
+      setInserting(null)
+    }
+  }
+
+  function stop() {
+    abortRef.current?.abort()
+    abortRef.current = null
+  }
+
+  function closePanel() {
+    setError(null)
+    setOutputMd('')
+    setLastAction(null)
+    setCustomOpen(false)
+    rangeRef.current = null
+  }
+
+  if (!editor) return null
+
+  return (
+    <BubbleMenu
+      editor={editor}
+      shouldShow={({ editor }) => Boolean(editor && !editor.state.selection.empty)}
+      tippyOptions={{ duration: 120, maxWidth: 560, placement: 'top', appendTo: () => document.body }}
+    >
+      <div className="w-[32rem] rounded-2xl border bg-white/95 p-3 shadow-2xl backdrop-blur">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => run('improve')} disabled={busy}>Improve</Button>
+            <Button size="sm" variant="outline" onClick={() => run('concise')} disabled={busy}>Concise</Button>
+            <Button size="sm" variant="outline" onClick={() => run('longer')} disabled={busy}>Longer</Button>
+            <Button size="sm" variant="outline" onClick={() => setCustomOpen((value) => !value)} disabled={busy}>Custom</Button>
+          </div>
+          <div>
+            {busy ? <Button size="sm" variant="outline" onClick={stop}>Stop</Button> : outputMd || error ? <Button size="sm" variant="outline" onClick={closePanel}>Close</Button> : null}
+          </div>
+        </div>
+
+        <div className="mt-3 rounded-xl border bg-slate-50 p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-medium text-slate-900">Sources</div>
+              <div className="text-xs text-slate-500">
+                {readySources.length
+                  ? `${selectedSourceIds.length} of ${readySources.length} ready sources attached`
+                  : boundSources.length
+                    ? 'No ready sources attached yet'
+                    : 'No sources bound to this document'}
+              </div>
+            </div>
+            {readySources.length ? (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSourceChecked(Object.fromEntries(readySources.map((item) => [item.source.id, true])))}
+                  disabled={busy}
+                >
+                  All ready
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSourceChecked(Object.fromEntries(readySources.map((item) => [item.source.id, false])))}
+                  disabled={busy}
+                >
+                  None
+                </Button>
+              </div>
+            ) : null}
+          </div>
+
+          {boundSources.length ? (
+            <div className="mt-3 grid max-h-36 gap-2 overflow-auto">
+              {boundSources.map((item) => (
+                <label key={item.binding_id} className={`flex items-center gap-3 text-sm ${item.grounded_chat_ready ? 'text-slate-700' : 'text-slate-400'}`}>
+                  <Checkbox
+                    checked={sourceChecked[item.source.id] ?? item.grounded_chat_ready}
+                    disabled={!item.grounded_chat_ready || busy}
+                    onCheckedChange={(checked) => {
+                      setSourceChecked((prev) => ({ ...prev, [item.source.id]: Boolean(checked) }))
+                    }}
+                  />
+                  <span>{item.source.title}</span>
+                  {!item.grounded_chat_ready ? <span className="text-xs">({item.grounded_chat_reason || 'Not ready'})</span> : null}
+                </label>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        {customOpen ? (
+          <div className="mt-3 space-y-2">
+            <Label htmlFor="inkwise-custom-tool">Instruction</Label>
+            <Input id="inkwise-custom-tool" value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder="e.g. rewrite in a persuasive tone" />
+            <div className="flex justify-end">
+              <Button size="sm" onClick={() => run('custom', instruction)} disabled={busy || !instruction.trim()}>
+                Run
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
+
+        {busy || outputMd ? (
+          <div className="mt-3 rounded-xl border bg-white p-3">
+            <div className="text-sm font-medium text-slate-900">{busy ? 'Writing...' : lastAction ? `Result (${lastAction})` : 'Result'}</div>
+            <div className="mt-3 max-h-56 overflow-auto text-sm text-slate-700">
+              {outputMd ? <InkwiseMarkdownView markdown={outputMd} className="prose prose-sm max-w-none" /> : <div className="text-slate-400">...</div>}
+            </div>
+            <div className="mt-3 flex flex-wrap justify-end gap-2">
+              <Button size="sm" variant="outline" onClick={() => insert('after')} disabled={!outputMd || inserting === 'after'}>
+                {inserting === 'after' ? 'Inserting...' : 'Insert after'}
+              </Button>
+              <Button size="sm" onClick={() => insert('replace')} disabled={!outputMd || inserting === 'replace'}>
+                {inserting === 'replace' ? 'Replacing...' : 'Replace selection'}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => navigator.clipboard?.writeText(outputMd || '')} disabled={!outputMd}>
+                Copy
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </BubbleMenu>
+  )
+}
