@@ -179,7 +179,7 @@ From CPAAutomation:
 
 From Inkwise:
 
-- `inkwise/vendor/pageindex/`
+- `vendor/pageindex/`
 - `inkwise/apps/api/app/services/pdf_extract.py`
 - `inkwise/apps/api/app/services/ingestion.py`
 - `inkwise/apps/api/app/services/pageindex_oss_treegen.py`
@@ -191,10 +191,7 @@ From Inkwise:
 - `inkwise/apps/api/app/api/routes/sources.py`
 - `inkwise/apps/api/app/api/routes/bindings.py`
 - `inkwise/apps/api/app/api/routes/templates.py`
-- `inkwise/apps/web/app/_components/*`
-- `inkwise/apps/web/app/(app)/write/*`
-- `inkwise/apps/web/app/(app)/references/page.tsx`
-- `inkwise/apps/web/app/(app)/templates/*`
+- archived Inkwise web components and routes (now copied into `components/inkwise/` and `app/dashboard/inkwise/`)
 
 ### Rewrite or replace
 
@@ -202,8 +199,7 @@ Do not port directly:
 
 - `inkwise/apps/api/app/api/routes/auth.py`
 - `inkwise/apps/api/app/api/deps.py`
-- `inkwise/apps/web/app/_components/RequireAuth.tsx`
-- `inkwise/apps/web/app/_components/Shell.tsx`
+- archived Inkwise standalone auth/shell components
 - `inkwise/apps/api/app/services/gemini.py`
 - `inkwise/apps/api/app/models/billing.py`
 - `inkwise/apps/api/alembic/versions/0001_init.py`

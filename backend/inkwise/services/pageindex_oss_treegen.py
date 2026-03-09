@@ -24,11 +24,8 @@ def _repo_root() -> Path:
     here = Path(__file__).resolve()
     for parent in here.parents:
         direct = parent / "vendor" / "pageindex" / "pageindex"
-        legacy = parent / "inkwise" / "vendor" / "pageindex" / "pageindex"
         if direct.is_dir():
             return parent
-        if legacy.is_dir():
-            return parent / "inkwise"
     raise PageIndexOssTreeGenError(
         "could not locate vendored PageIndex; ensure vendor/pageindex is present or set INKWISE_PAGEINDEX_VENDOR_ROOT"
     )
