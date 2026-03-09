@@ -396,6 +396,7 @@ class InkwiseRetrievalService:
         *,
         user_id: str,
         document_id: uuid.UUID,
+        thread_id: uuid.UUID | None = None,
         query: str,
         bound_sources: list[tuple[uuid.UUID, str]],
         history_messages: list[dict[str, str]] | None = None,
@@ -459,7 +460,7 @@ class InkwiseRetrievalService:
         run = InkwiseRetrievalRun(
             user_id=user_id,
             document_id=document_id,
-            thread_id=None,
+            thread_id=thread_id,
             query=query,
             bound_source_ids=[source_id for source_id, _title in bound_sources],
             strategy_version="+".join(strategy_bits) + "-v1",

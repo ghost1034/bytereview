@@ -295,3 +295,52 @@ class InkwiseRetrievalRunDetailOut(BaseModel):
     run: InkwiseRetrievalRunSummaryOut
     evidence: list[InkwiseRetrievalEvidenceOut]
     evidence_pack: str
+
+
+class InkwiseChatThreadOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: str
+    document_id: uuid.UUID
+    mode: str | None = None
+    title: str | None = None
+    created_at: datetime
+
+
+class InkwiseChatThreadsResponse(BaseModel):
+    document_id: uuid.UUID | None = None
+    threads: list[InkwiseChatThreadOut]
+
+
+class InkwiseChatThreadCreateRequest(BaseModel):
+    document_id: uuid.UUID
+    title: str | None = None
+
+
+class InkwiseChatMessageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    thread_id: uuid.UUID
+    role: str
+    content: str
+    content_with_citations: str | None = None
+    citations_json: dict | None = None
+    provider: str
+    provider_meta: dict | None = None
+    created_at: datetime
+
+
+class InkwisePaginatedChatMessages(BaseModel):
+    items: list[InkwiseChatMessageOut]
+    page: int
+    limit: int
+    total: int
+
+
+class InkwiseChatSendRequest(BaseModel):
+    content: str
+    source_ids: list[uuid.UUID] | None = None
+    draft_selection_text: str | None = None
+    draft_selection_label: str | None = None
