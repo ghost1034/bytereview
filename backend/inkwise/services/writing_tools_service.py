@@ -1,0 +1,144 @@
+"""Writing tool and prediction helpers for the Inkwise module."""
+
+from __future__ import annotations
+
+from inkwise.schemas import InkwisePredictionRequest, InkwiseWritingToolRequest
+from models.inkwise_models import InkwiseDocument
+
+
+def build_writing_tool_prompt(*, body: InkwiseWritingToolRequest, document: InkwiseDocument | None) -> str:
+    parts: list[str] = []
+    parts.append("You are Inkwise Writing Tools.")
+    parts.append("You must follow the user's instruction.")
+    parts.append("Return only the revised text, with no preamble.")
+    parts.append("")
+
+    if document and document.language:
+        parts.append(f"Language: {document.language}")
+    if document and document.init_prompt:
+        parts.append(f"Document guidance: {document.init_prompt}")
+
+    parts.append(f"Action: {body.action}")
+    parts.append(f"Instruction: {body.instruction}")
+    parts.append("")
+    parts.append("Selection:")
+    parts.append(body.selection_text)
+    if body.surrounding_text:
+        parts.append("")
+        parts.append("Surrounding context:")
+        parts.append(body.surrounding_text)
+
+    return "\n".join(parts).strip() + "\n"
+
+
+def build_writing_tool_retrieval_query(*, body: InkwiseWritingToolRequest) -> str:
+    parts: list[str] = []
+    if body.instruction.strip():
+        parts.append(body.instruction.strip())
+    if body.selection_text.strip():
+        parts.append(body.selection_text.strip())
+    if body.surrounding_text and body.surrounding_text.strip():
+        parts.append(body.surrounding_text.strip()[:2000])
+    return "\n\n".join(parts).strip()
+
+
+def build_grounded_writing_tool_prompt(
+    *,
+    body: InkwiseWritingToolRequest,
+    document: InkwiseDocument | None,
+    evidence_pack: str,
+) -> str:
+    parts: list[str] = []
+    parts.append("You are Inkwise Writing Tools.")
+    parts.append("Revise the selected text using the user's instruction and the grounded evidence provided.")
+    parts.append("Use the evidence for factual accuracy whenever it is relevant.")
+    parts.append("If the selected text conflicts with the evidence, prefer the evidence.")
+    parts.append("Return only the revised text, with no preamble, notes, or citation markers.")
+    parts.append("")
+
+    if document and document.language:
+        parts.append(f"Language: {document.language}")
+    if document and document.init_prompt:
+        parts.append(f"Document guidance: {document.init_prompt}")
+
+    parts.append(f"Action: {body.action}")
+    parts.append(f"Instruction: {body.instruction}")
+    parts.append("")
+    parts.append("Selection:")
+    parts.append(body.selection_text)
+    if body.surrounding_text:
+        parts.append("")
+        parts.append("Surrounding context:")
+        parts.append(body.surrounding_text)
+    parts.append("")
+    parts.append("Grounded evidence:")
+    parts.append(evidence_pack.rstrip())
+
+    return "\n".join(parts).strip() + "\n"
+
+
+def build_prediction_prompt(*, body: InkwisePredictionRequest, document: InkwiseDocument) -> str:
+    before_text = body.before_text.strip()
+    after_text = (body.after_text or "").strip()
+    current_block = (body.current_block_text or "").strip()
+
+    parts: list[str] = []
+    parts.append("You are Inkwise Autocomplete.")
+    parts.append("Return only the exact text that should be inserted at the cursor.")
+    parts.append("If there is not a strong continuation, return exactly NO_PREDICTION.")
+    parts.append("")
+    parts.append("Rules:")
+    parts.append("- Continue the user's draft naturally from the cursor position.")
+    parts.append("- Match the draft's language, tone, and formatting.")
+    parts.append("- Keep the completion short and tabbable: usually one clause or one sentence fragment.")
+    parts.append("- Include any needed leading space or punctuation.")
+    parts.append("- Do not repeat text that is already before the cursor.")
+    parts.append("- Do not add markdown, code fences, notes, bullets, headings, or quotation marks unless the draft already requires them.")
+    parts.append("- Do not explain your answer.")
+    parts.append("")
+
+    if document.language:
+        parts.append(f"Document language: {document.language}")
+    if document.init_prompt:
+        parts.append(f"Document guidance: {document.init_prompt}")
+
+    parts.append(f"Document title: {document.title}")
+    if current_block:
+        parts.append("")
+        parts.append("Current block:")
+        parts.append(current_block)
+
+    parts.append("")
+    parts.append("Text before cursor:")
+    parts.append(before_text)
+    if after_text:
+        parts.append("")
+        parts.append("Text after cursor:")
+        parts.append(after_text)
+
+    return "\n".join(parts).strip() + "\n"
+
+
+def normalize_prediction_text(*, raw_text: str, body: InkwisePredictionRequest) -> str:
+    text = (raw_text or "").replace("\r\n", "\n").replace("\r", "\n")
+    text = text.replace("```", "").strip("\n\t")
+    if text == "NO_PREDICTION" or "NO_PREDICTION" in text:
+        return ""
+
+    lines = [line for line in text.split("\n") if line.strip()]
+    if not lines:
+        return ""
+
+    suggestion = lines[0][:240].rstrip()
+    if not suggestion:
+        return ""
+
+    before_tail = body.before_text[-200:].strip()
+    if before_tail and suggestion.strip() == before_tail:
+        return ""
+
+    after_head = (body.after_text or "")[:200].strip()
+    if after_head and suggestion.strip() == after_head:
+        return ""
+
+    return suggestion

@@ -2,6 +2,7 @@
 
 from datetime import datetime
 import uuid
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -344,3 +345,33 @@ class InkwiseChatSendRequest(BaseModel):
     source_ids: list[uuid.UUID] | None = None
     draft_selection_text: str | None = None
     draft_selection_label: str | None = None
+
+
+class InkwiseWritingToolRequest(BaseModel):
+    action: Literal[
+        "improve",
+        "longer",
+        "opposing_argument",
+        "translate",
+        "concise",
+        "humanize",
+        "other",
+    ]
+    document_id: uuid.UUID | None = None
+    source_ids: list[uuid.UUID] | None = None
+    selection_text: str
+    surrounding_text: str | None = None
+    instruction: str
+
+
+class InkwisePredictionRequest(BaseModel):
+    before_text: str = Field(min_length=1, max_length=12000)
+    after_text: str | None = Field(default=None, max_length=4000)
+    current_block_text: str | None = Field(default=None, max_length=4000)
+
+
+class InkwisePredictionResponse(BaseModel):
+    suggestion_text: str
+    grounded: bool = False
+    provider: str = "vertex_ai"
+    model: str
