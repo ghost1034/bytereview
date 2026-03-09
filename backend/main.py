@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import Optional
+from typing import Callable, Optional
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,9 +22,12 @@ logger = logging.getLogger("main")
 
 # ---------- Optional DB bootstrap (disable in prod; run Alembic instead) ----------
 INIT_DB_AT_STARTUP = os.getenv("INIT_DB_AT_STARTUP", "false").lower() == "true"
+db_init_fn: Optional[Callable[[], None]] = None
 if INIT_DB_AT_STARTUP:
     try:
-        from core.database import init_database
+        from core.database import init_database as init_database_func
+
+        db_init_fn = init_database_func
     except Exception as e:
         logger.exception("Failed importing init_database at module import time")
         raise
@@ -93,7 +96,9 @@ async def on_startup():
     if INIT_DB_AT_STARTUP:
         try:
             logger.info("Initializing database (INIT_DB_AT_STARTUP=true)...")
-            init_database()
+            if db_init_fn is None:
+                raise RuntimeError("init_database is not available")
+            db_init_fn()
             logger.info("Database initialized successfully")
         except Exception:
             logger.exception("Database initialization failed")
@@ -110,6 +115,7 @@ from routes import (
     users, jobs, stripe_routes, templates,
     data_types, integrations, automations, webhooks, admin, billing, contact, cpe
 )
+from inkwise.router import router as inkwise_router
 
 app.include_router(users.router,        prefix="/api/users",      tags=["users"])
 app.include_router(jobs.router,         prefix="/api/jobs",       tags=["jobs"])
@@ -123,6 +129,7 @@ app.include_router(automations.router)
 app.include_router(webhooks.router)
 app.include_router(admin.router)
 app.include_router(contact.router)
+app.include_router(inkwise_router, prefix="/api/inkwise")
 
 # ---------- Dev entrypoint (Cloud Run ignores this; CMD in Dockerfile is used) ----------
 if __name__ == "__main__":
