@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 from models.db_models import Base
+from models import inkwise_models  # noqa: F401
 import logging
 
 logger = logging.getLogger(__name__)
