@@ -68,6 +68,7 @@ class InkwiseSettings:
     cloud_tasks_queue_ingest: str | None
     cloud_tasks_service_url: str | None
     tasks_token: str | None
+    inline_ingest_fallback_enabled: bool
 
     @property
     def vertex_enabled(self) -> bool:
@@ -119,4 +120,8 @@ def get_inkwise_settings() -> InkwiseSettings:
         cloud_tasks_queue_ingest=os.getenv("CLOUD_TASKS_QUEUE_INGEST") or os.getenv("INKWISE_TASKS_QUEUE") or None,
         cloud_tasks_service_url=os.getenv("CLOUD_TASKS_SERVICE_URL") or os.getenv("INKWISE_TASKS_SERVICE_URL") or None,
         tasks_token=os.getenv("TASKS_TOKEN") or os.getenv("INKWISE_TASKS_TOKEN") or None,
+        inline_ingest_fallback_enabled=_env_bool(
+            "INKWISE_INLINE_INGEST_FALLBACK_ENABLED",
+            os.getenv("ENVIRONMENT", "development").strip().lower() != "production",
+        ),
     )

@@ -208,8 +208,25 @@ async def enqueue_source_ingestion(
             service_url=str(request.base_url).rstrip("/"),
         )
         if not enqueued.created:
-            ingestion_id = uuid.UUID(str(ingestion.id))
-            ingestion = ingestion_service.process_source_ingestion_once(db, ingestion_id=ingestion_id)
+            if settings.inline_ingest_fallback_enabled:
+                ingestion_id = uuid.UUID(str(ingestion.id))
+                ingestion = ingestion_service.process_source_ingestion_once(db, ingestion_id=ingestion_id)
+            else:
+                ingestion = ingestion_service.mark_enqueue_failed(
+                    db,
+                    ingestion_id=uuid.UUID(str(ingestion.id)),
+                    message=(
+                        "Inkwise Cloud Tasks ingestion is not configured. "
+                        "Set CLOUD_TASKS_PROJECT, CLOUD_TASKS_LOCATION, CLOUD_TASKS_QUEUE_INGEST, and CLOUD_TASKS_SERVICE_URL."
+                    ),
+                )
+                raise HTTPException(
+                    status_code=503,
+                    detail=(
+                        "Inkwise ingestion queue is not configured in this environment. "
+                        "Deployment must set CLOUD_TASKS_PROJECT, CLOUD_TASKS_LOCATION, CLOUD_TASKS_QUEUE_INGEST, and CLOUD_TASKS_SERVICE_URL."
+                    ),
+                )
         return InkwiseSourceIngestionOut.model_validate(ingestion)
     except FileNotFoundError as exc:
         db.rollback()

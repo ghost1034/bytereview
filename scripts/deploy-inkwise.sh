@@ -170,6 +170,11 @@ deploy_api() {
   env_vars+="\,INKWISE_SOURCE_PREFILTER_ENABLED=${INKWISE_SOURCE_PREFILTER_ENABLED:-true}"
   env_vars+="\,INKWISE_QUERY_REWRITE_ENABLED=${INKWISE_QUERY_REWRITE_ENABLED:-false}"
   env_vars+="\,INKWISE_TREE_SEARCH_ENABLED=${INKWISE_TREE_SEARCH_ENABLED:-true}"
+  env_vars+="\,CLOUD_TASKS_PROJECT=${PROJECT_ID}"
+  env_vars+="\,CLOUD_TASKS_LOCATION=${REGION}"
+  env_vars+="\,CLOUD_TASKS_QUEUE_INGEST=${queue_name}"
+  env_vars+="\,CLOUD_TASKS_SERVICE_URL=${api_url}"
+  env_vars+="\,INKWISE_INLINE_INGEST_FALLBACK_ENABLED=false"
   env_vars+="\,INKWISE_TASKS_QUEUE=${queue_name}"
   env_vars+="\,INKWISE_TASKS_SERVICE_URL=${api_url}"
 

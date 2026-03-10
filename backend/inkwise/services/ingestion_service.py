@@ -239,6 +239,10 @@ class InkwiseIngestionService:
             raise FileNotFoundError("Ingestion not found")
         return ingestion
 
+    def mark_enqueue_failed(self, db: Session, *, ingestion_id: uuid.UUID, message: str) -> InkwiseSourceIngestion:
+        self._mark_failed(db, ingestion_id=ingestion_id, code="enqueue_failed", message=message)
+        return self._get_ingestion_or_404(db, ingestion_id)
+
     def _get_source_for_user(self, db: Session, *, user_id: str, source_id: uuid.UUID) -> InkwiseSource:
         source = db.query(InkwiseSource).filter(InkwiseSource.id == source_id, InkwiseSource.user_id == user_id).first()
         if source is None:
