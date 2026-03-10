@@ -132,7 +132,7 @@ def get_inkwise_settings() -> InkwiseSettings:
         source_prefilter_trigger_count=_env_int("INKWISE_SOURCE_PREFILTER_TRIGGER_COUNT", 20),
         source_prefilter_top_k=_env_int("INKWISE_SOURCE_PREFILTER_TOP_K", 10),
         source_prefilter_stage_b_enabled=_env_bool("INKWISE_SOURCE_PREFILTER_STAGE_B_ENABLED", True),
-        query_rewrite_enabled=_env_bool("INKWISE_QUERY_REWRITE_ENABLED", False),
+        query_rewrite_enabled=_env_bool("INKWISE_QUERY_REWRITE_ENABLED", True),
         query_rewrite_max_history_messages=_env_int("INKWISE_QUERY_REWRITE_MAX_HISTORY_MESSAGES", 12),
         query_rewrite_max_queries=_env_int("INKWISE_QUERY_REWRITE_MAX_QUERIES", 4),
         query_rewrite_max_query_chars=_env_int("INKWISE_QUERY_REWRITE_MAX_QUERY_CHARS", 180),
