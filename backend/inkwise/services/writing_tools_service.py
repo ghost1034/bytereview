@@ -85,7 +85,6 @@ def build_prediction_prompt(*, body: InkwisePredictionRequest, document: Inkwise
     parts: list[str] = []
     parts.append("You are Inkwise Autocomplete.")
     parts.append("Return only the exact text that should be inserted at the cursor.")
-    parts.append("If there is not a strong continuation, return exactly NO_PREDICTION.")
     parts.append("")
     parts.append("Rules:")
     parts.append("- Continue the user's draft naturally from the cursor position.")
@@ -122,8 +121,6 @@ def build_prediction_prompt(*, body: InkwisePredictionRequest, document: Inkwise
 def normalize_prediction_text(*, raw_text: str, body: InkwisePredictionRequest) -> str:
     text = (raw_text or "").replace("\r\n", "\n").replace("\r", "\n")
     text = text.replace("```", "").strip("\n\t")
-    if text == "NO_PREDICTION" or "NO_PREDICTION" in text:
-        return ""
 
     lines = [line for line in text.split("\n") if line.strip()]
     if not lines:
