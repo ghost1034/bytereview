@@ -13,12 +13,11 @@ export default function InkwiseHelpPage() {
     <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
       <Card>
         <CardHeader>
-          <CardTitle>How Inkwise Fits Into CPAAutomation</CardTitle>
+          <CardTitle>How does Inkwise fit into CPAAutomation?</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-slate-600">
           <p>
-            Inkwise is now a drafting module inside your existing dashboard. It uses the same account, PostgreSQL database, GCS bucket,
-            and Vertex-backed model access as the rest of the platform.
+            Inkwise is now a module within CPAAutomation.
           </p>
           <ol className="space-y-3">
             {steps.map((step, index) => (
@@ -35,16 +34,14 @@ export default function InkwiseHelpPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Current Phase</CardTitle>
+          <CardTitle>Having issues?</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-slate-600">
           <p>
-            This frontend integration is in progress. The core document, sources, templates, retrieval, chat, and writing tool APIs are now wired,
-            and the dashboard routes are being ported module by module.
+            Our upgraded AI drafting pipeline is actively under development.
           </p>
           <p>
-            The current workspace is intentionally practical first: it focuses on connecting the new backend cleanly before the richer Inkwise V2 editor
-            and polish are fully ported.
+            If AI outputs are not to your expectations, please contact us on our Contact page.
           </p>
         </CardContent>
       </Card>
