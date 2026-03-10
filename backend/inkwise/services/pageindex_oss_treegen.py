@@ -72,16 +72,24 @@ def _patch_vendor_for_vertex(*, model: str) -> None:
         parts.append(f"User:\n{prompt}")
         return "\n\n".join(parts)
 
-    def count_tokens(text: str, model_name: str | None = None) -> int:
+    def count_tokens(text: str, model_name: str | None = None, **kwargs: Any) -> int:
         if not text:
             return 0
         return max(1, (len(text) + 3) // 4)
 
-    async def ChatGPT_API_async(model_name: str | None, prompt: str, api_key: str | None = None):
+    async def ChatGPT_API_async(
+        model_name: str | None = None,
+        prompt: str | None = None,
+        api_key: str | None = None,
+        **kwargs: Any,
+    ):
+        resolved_prompt = prompt if prompt is not None else kwargs.get("prompt")
+        if not isinstance(resolved_prompt, str):
+            raise PageIndexOssTreeGenError("PageIndex ChatGPT_API_async missing prompt")
         try:
             res = await generate_text(
                 model=model,
-                prompt=prompt,
+                prompt=resolved_prompt,
                 temperature=0.0,
                 timeout_seconds=120,
             )
@@ -89,8 +97,18 @@ def _patch_vendor_for_vertex(*, model: str) -> None:
         except VertexAIError as exc:
             raise PageIndexOssTreeGenError(str(exc)) from exc
 
-    def ChatGPT_API(model_name: str | None, prompt: str, api_key: str | None = None, chat_history=None):
-        merged = _messages_to_prompt(chat_history, prompt)
+    def ChatGPT_API(
+        model_name: str | None = None,
+        prompt: str | None = None,
+        api_key: str | None = None,
+        chat_history=None,
+        **kwargs: Any,
+    ):
+        resolved_prompt = prompt if prompt is not None else kwargs.get("prompt")
+        resolved_history = chat_history if chat_history is not None else kwargs.get("chat_history")
+        if not isinstance(resolved_prompt, str):
+            raise PageIndexOssTreeGenError("PageIndex ChatGPT_API missing prompt")
+        merged = _messages_to_prompt(resolved_history, resolved_prompt)
         try:
             res = generate_text_sync(
                 model=model,
@@ -102,8 +120,18 @@ def _patch_vendor_for_vertex(*, model: str) -> None:
             raise PageIndexOssTreeGenError(str(exc)) from exc
         return res.text
 
-    def ChatGPT_API_with_finish_reason(model_name: str | None, prompt: str, api_key: str | None = None, chat_history=None):
-        merged = _messages_to_prompt(chat_history, prompt)
+    def ChatGPT_API_with_finish_reason(
+        model_name: str | None = None,
+        prompt: str | None = None,
+        api_key: str | None = None,
+        chat_history=None,
+        **kwargs: Any,
+    ):
+        resolved_prompt = prompt if prompt is not None else kwargs.get("prompt")
+        resolved_history = chat_history if chat_history is not None else kwargs.get("chat_history")
+        if not isinstance(resolved_prompt, str):
+            raise PageIndexOssTreeGenError("PageIndex ChatGPT_API_with_finish_reason missing prompt")
+        merged = _messages_to_prompt(resolved_history, resolved_prompt)
         try:
             res = generate_text_sync(
                 model=model,
