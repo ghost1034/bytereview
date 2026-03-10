@@ -59,7 +59,7 @@ async def create_prediction(
             model=settings.gemini_model,
             prompt=prompt,
             temperature=0.2,
-            max_output_tokens=96,
+            max_output_tokens=65536,
             timeout_seconds=20,
         )
     except GeminiError as exc:
