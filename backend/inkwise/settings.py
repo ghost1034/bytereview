@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 
 
@@ -31,6 +32,27 @@ def _env_float(name: str, default: float) -> float:
         return float(raw)
     except Exception:
         return default
+
+
+_BUCKET_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{1,220}[a-z0-9]$")
+
+
+def normalize_gcs_bucket_name(raw: str | None) -> str | None:
+    value = (raw or "").strip().strip('"').strip("'")
+    if not value:
+        return None
+    if value.startswith("gs://"):
+        value = value[5:]
+    value = value.strip().strip("/")
+    if not value:
+        return None
+    return value
+
+
+def is_valid_gcs_bucket_name(value: str | None) -> bool:
+    if not value:
+        return False
+    return bool(_BUCKET_RE.match(value))
 
 
 @dataclass(frozen=True)
@@ -90,8 +112,8 @@ def get_inkwise_settings() -> InkwiseSettings:
         enabled=_env_bool("INKWISE_ENABLED", True),
         project_id=os.getenv("GOOGLE_CLOUD_PROJECT_ID") or os.getenv("GCP_PROJECT") or None,
         location=os.getenv("GOOGLE_CLOUD_LOCATION", "global"),
-        uploads_bucket=os.getenv("GCS_BUCKET_NAME") or None,
-        derived_bucket=os.getenv("INKWISE_DERIVED_BUCKET") or os.getenv("GCS_BUCKET_NAME") or None,
+        uploads_bucket=normalize_gcs_bucket_name(os.getenv("GCS_BUCKET_NAME")),
+        derived_bucket=normalize_gcs_bucket_name(os.getenv("INKWISE_DERIVED_BUCKET") or os.getenv("GCS_BUCKET_NAME")),
         gemini_model=default_model,
         grounded_model=os.getenv("INKWISE_GROUNDED_MODEL", default_model),
         treegen_model=os.getenv("INKWISE_TREEGEN_MODEL", default_model),

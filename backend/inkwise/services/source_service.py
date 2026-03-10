@@ -16,7 +16,7 @@ from inkwise.schemas import (
     InkwiseSourceUploadInitRequest,
 )
 from inkwise.services.gcs import generate_signed_download_url, generate_signed_upload_url, storage_client
-from inkwise.settings import get_inkwise_settings
+from inkwise.settings import get_inkwise_settings, is_valid_gcs_bucket_name, normalize_gcs_bucket_name
 from models.db_models import User
 from models.inkwise_models import InkwiseSource
 from services.gcs_service import GCSService
@@ -215,7 +215,10 @@ class InkwiseSourceService:
         gcs_service = GCSService()
         if not gcs_service.is_available():
             raise RuntimeError("Storage is not available")
-        return gcs_service.get_bucket_name()
+        bucket = normalize_gcs_bucket_name(gcs_service.get_bucket_name())
+        if not is_valid_gcs_bucket_name(bucket):
+            raise RuntimeError("GCS bucket name is invalid or misconfigured")
+        return bucket
 
     def _validate_upload_request(self, body: InkwiseSourceUploadInitRequest) -> None:
         filename = (body.original_filename or "").strip()

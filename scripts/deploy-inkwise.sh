@@ -34,6 +34,19 @@ else
 fi
 IMAGE_TAG="${IMAGE_TAG:-$IMAGE_TAG_DEFAULT}"
 
+normalize_bucket_name() {
+  local value="${1:-}"
+  value="${value#gs://}"
+  value="${value%/}"
+  value="${value#\"}"
+  value="${value%\"}"
+  value="${value#\'}"
+  value="${value%\'}"
+  printf '%s' "$value"
+}
+
+INKWISE_DERIVED_BUCKET="$(normalize_bucket_name "$INKWISE_DERIVED_BUCKET")"
+
 usage() {
   cat <<EOF
 Usage: ./scripts/deploy-inkwise.sh [options]

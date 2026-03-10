@@ -14,7 +14,7 @@ from inkwise.schemas import InkwiseSourceIngestionOut
 from inkwise.services.gcs import storage_client
 from inkwise.services.pageindex_oss_treegen import PageIndexOssTreeGenError, generate_tree_sync
 from inkwise.services.pdf_extract import PdfExtractError, extract_pdf_pages_text
-from inkwise.settings import get_inkwise_settings
+from inkwise.settings import get_inkwise_settings, is_valid_gcs_bucket_name, normalize_gcs_bucket_name
 from models.inkwise_models import (
     InkwiseSource,
     InkwiseSourceIngestion,
@@ -65,8 +65,13 @@ class InkwiseIngestionService:
             self._mark_failed(db, ingestion_id=ingestion_id, code="unsupported_type", message="Only PDF sources are supported")
             return self._get_ingestion_or_404(db, ingestion_id)
 
-        if not source.storage_bucket or not source.storage_object:
+        source_bucket = normalize_gcs_bucket_name(str(source.storage_bucket or ""))
+        source_object = str(source.storage_object or "").strip()
+        if not source_bucket or not source_object:
             self._mark_failed(db, ingestion_id=ingestion_id, code="storage_missing", message="Source storage path missing")
+            return self._get_ingestion_or_404(db, ingestion_id)
+        if not is_valid_gcs_bucket_name(source_bucket):
+            self._mark_failed(db, ingestion_id=ingestion_id, code="storage_invalid", message="Source storage bucket is invalid")
             return self._get_ingestion_or_404(db, ingestion_id)
 
         settings = get_inkwise_settings()
@@ -81,8 +86,8 @@ class InkwiseIngestionService:
         ingestion.treegen_engine = "pageindex_oss"
         ingestion.treegen_version = "vendor/pageindex"
         ingestion.extraction_engine = "pymupdf"
-        ingestion.canonical_pdf_gcs_bucket = source.storage_bucket
-        ingestion.canonical_pdf_gcs_object = source.storage_object
+        ingestion.canonical_pdf_gcs_bucket = source_bucket
+        ingestion.canonical_pdf_gcs_object = source_object
         source.status = "processing"
         source.updated_at = now
         db.commit()
@@ -91,7 +96,7 @@ class InkwiseIngestionService:
             with tempfile.TemporaryDirectory() as temp_dir:
                 filename = source.original_filename or f"{source.id}.pdf"
                 local_path = os.path.join(temp_dir, filename)
-                blob = storage_client().bucket(source.storage_bucket).blob(source.storage_object)
+                blob = storage_client().bucket(source_bucket).blob(source_object)
                 blob.download_to_filename(local_path)
 
                 pages = extract_pdf_pages_text(pdf_path=local_path)
@@ -111,8 +116,10 @@ class InkwiseIngestionService:
                 if not isinstance(structure, list):
                     raise IngestionError("treegen returned invalid structure")
 
-                tree_bucket = settings.derived_bucket or source.storage_bucket
+                tree_bucket = normalize_gcs_bucket_name(settings.derived_bucket or source_bucket)
                 if tree_bucket:
+                    if not is_valid_gcs_bucket_name(tree_bucket):
+                        raise IngestionError("Derived storage bucket is invalid")
                     tree_object = f"inkwise/derived/{source.user_id}/{source.id}/tree/{ingestion.id}/tree.json"
                     storage_client().bucket(tree_bucket).blob(tree_object).upload_from_string(
                         __import__("json").dumps(tree_raw, ensure_ascii=True),
