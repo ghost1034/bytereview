@@ -34,11 +34,20 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
+def _normalize_env_text(raw: str | None, *, strip_trailing_slash: bool = False) -> str | None:
+    value = (raw or "").strip().strip('"').strip("'")
+    while value.endswith("\\"):
+        value = value[:-1].rstrip()
+    if strip_trailing_slash:
+        value = value.rstrip("/")
+    return value or None
+
+
 _BUCKET_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{1,220}[a-z0-9]$")
 
 
 def normalize_gcs_bucket_name(raw: str | None) -> str | None:
-    value = (raw or "").strip().strip('"').strip("'")
+    value = _normalize_env_text(raw)
     if not value:
         return None
     if value.startswith("gs://"):
@@ -110,8 +119,8 @@ def get_inkwise_settings() -> InkwiseSettings:
     default_model = os.getenv("INKWISE_GEMINI_MODEL", "gemini-2.5-pro")
     return InkwiseSettings(
         enabled=_env_bool("INKWISE_ENABLED", True),
-        project_id=os.getenv("GOOGLE_CLOUD_PROJECT_ID") or os.getenv("GCP_PROJECT") or None,
-        location=os.getenv("GOOGLE_CLOUD_LOCATION", "global"),
+        project_id=_normalize_env_text(os.getenv("GOOGLE_CLOUD_PROJECT_ID") or os.getenv("GCP_PROJECT")),
+        location=_normalize_env_text(os.getenv("GOOGLE_CLOUD_LOCATION", "global")) or "global",
         uploads_bucket=normalize_gcs_bucket_name(os.getenv("GCS_BUCKET_NAME")),
         derived_bucket=normalize_gcs_bucket_name(os.getenv("INKWISE_DERIVED_BUCKET") or os.getenv("GCS_BUCKET_NAME")),
         gemini_model=default_model,
@@ -137,11 +146,14 @@ def get_inkwise_settings() -> InkwiseSettings:
         tree_search_timeout_seconds=_env_float("INKWISE_TREE_SEARCH_TIMEOUT_SECONDS", 30.0),
         max_bound_sources=_env_int("INKWISE_MAX_BOUND_SOURCES", 100),
         max_upload_mb=_env_int("INKWISE_MAX_UPLOAD_MB", 100),
-        cloud_tasks_project=os.getenv("CLOUD_TASKS_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT_ID") or None,
-        cloud_tasks_location=os.getenv("CLOUD_TASKS_LOCATION") or os.getenv("CLOUD_RUN_REGION") or None,
-        cloud_tasks_queue_ingest=os.getenv("CLOUD_TASKS_QUEUE_INGEST") or os.getenv("INKWISE_TASKS_QUEUE") or None,
-        cloud_tasks_service_url=os.getenv("CLOUD_TASKS_SERVICE_URL") or os.getenv("INKWISE_TASKS_SERVICE_URL") or None,
-        tasks_token=os.getenv("TASKS_TOKEN") or os.getenv("INKWISE_TASKS_TOKEN") or None,
+        cloud_tasks_project=_normalize_env_text(os.getenv("CLOUD_TASKS_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT_ID")),
+        cloud_tasks_location=_normalize_env_text(os.getenv("CLOUD_TASKS_LOCATION") or os.getenv("CLOUD_RUN_REGION")),
+        cloud_tasks_queue_ingest=_normalize_env_text(os.getenv("CLOUD_TASKS_QUEUE_INGEST") or os.getenv("INKWISE_TASKS_QUEUE")),
+        cloud_tasks_service_url=_normalize_env_text(
+            os.getenv("CLOUD_TASKS_SERVICE_URL") or os.getenv("INKWISE_TASKS_SERVICE_URL"),
+            strip_trailing_slash=True,
+        ),
+        tasks_token=_normalize_env_text(os.getenv("TASKS_TOKEN") or os.getenv("INKWISE_TASKS_TOKEN")),
         inline_ingest_fallback_enabled=_env_bool(
             "INKWISE_INLINE_INGEST_FALLBACK_ENABLED",
             os.getenv("ENVIRONMENT", "development").strip().lower() != "production",

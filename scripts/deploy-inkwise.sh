@@ -169,34 +169,41 @@ deploy_api() {
   local api_url="$3"
   local queue_name="$4"
   local token_secret_name="$5"
+  local env_delim='^@^'
+  local env_items
   local env_vars
 
-  env_vars="INKWISE_ENABLED=true"
-  env_vars+="\,INKWISE_DERIVED_BUCKET=${INKWISE_DERIVED_BUCKET}"
-  env_vars+="\,INKWISE_MAX_UPLOAD_MB=${INKWISE_MAX_UPLOAD_MB}"
-  env_vars+="\,INKWISE_MAX_BOUND_SOURCES=${INKWISE_MAX_BOUND_SOURCES}"
-  env_vars+="\,INKWISE_GEMINI_MODEL=${INKWISE_GEMINI_MODEL:-gemini-2.5-pro}"
-  env_vars+="\,INKWISE_GROUNDED_MODEL=${INKWISE_GROUNDED_MODEL:-${INKWISE_GEMINI_MODEL:-gemini-2.5-pro}}"
-  env_vars+="\,INKWISE_TREEGEN_MODEL=${INKWISE_TREEGEN_MODEL:-${INKWISE_GEMINI_MODEL:-gemini-2.5-pro}}"
-  env_vars+="\,INKWISE_QUERY_REWRITE_MODEL=${INKWISE_QUERY_REWRITE_MODEL:-${INKWISE_GEMINI_MODEL:-gemini-2.5-pro}}"
-  env_vars+="\,INKWISE_TREE_SEARCH_MODEL=${INKWISE_TREE_SEARCH_MODEL:-${INKWISE_GEMINI_MODEL:-gemini-2.5-pro}}"
-  env_vars+="\,INKWISE_SOURCE_PREFILTER_ENABLED=${INKWISE_SOURCE_PREFILTER_ENABLED:-true}"
-  env_vars+="\,INKWISE_QUERY_REWRITE_ENABLED=${INKWISE_QUERY_REWRITE_ENABLED:-false}"
-  env_vars+="\,INKWISE_TREE_SEARCH_ENABLED=${INKWISE_TREE_SEARCH_ENABLED:-true}"
-  env_vars+="\,CLOUD_TASKS_PROJECT=${PROJECT_ID}"
-  env_vars+="\,CLOUD_TASKS_LOCATION=${REGION}"
-  env_vars+="\,CLOUD_TASKS_QUEUE_INGEST=${queue_name}"
-  env_vars+="\,CLOUD_TASKS_SERVICE_URL=${api_url}"
-  env_vars+="\,INKWISE_INLINE_INGEST_FALLBACK_ENABLED=false"
-  env_vars+="\,INKWISE_TASKS_QUEUE=${queue_name}"
-  env_vars+="\,INKWISE_TASKS_SERVICE_URL=${api_url}"
+  env_items=(
+    "INKWISE_ENABLED=true"
+    "INKWISE_DERIVED_BUCKET=${INKWISE_DERIVED_BUCKET}"
+    "INKWISE_MAX_UPLOAD_MB=${INKWISE_MAX_UPLOAD_MB}"
+    "INKWISE_MAX_BOUND_SOURCES=${INKWISE_MAX_BOUND_SOURCES}"
+    "INKWISE_GEMINI_MODEL=${INKWISE_GEMINI_MODEL:-gemini-2.5-pro}"
+    "INKWISE_GROUNDED_MODEL=${INKWISE_GROUNDED_MODEL:-${INKWISE_GEMINI_MODEL:-gemini-2.5-pro}}"
+    "INKWISE_TREEGEN_MODEL=${INKWISE_TREEGEN_MODEL:-${INKWISE_GEMINI_MODEL:-gemini-2.5-pro}}"
+    "INKWISE_QUERY_REWRITE_MODEL=${INKWISE_QUERY_REWRITE_MODEL:-${INKWISE_GEMINI_MODEL:-gemini-2.5-pro}}"
+    "INKWISE_TREE_SEARCH_MODEL=${INKWISE_TREE_SEARCH_MODEL:-${INKWISE_GEMINI_MODEL:-gemini-2.5-pro}}"
+    "INKWISE_SOURCE_PREFILTER_ENABLED=${INKWISE_SOURCE_PREFILTER_ENABLED:-true}"
+    "INKWISE_QUERY_REWRITE_ENABLED=${INKWISE_QUERY_REWRITE_ENABLED:-false}"
+    "INKWISE_TREE_SEARCH_ENABLED=${INKWISE_TREE_SEARCH_ENABLED:-true}"
+    "CLOUD_TASKS_PROJECT=${PROJECT_ID}"
+    "CLOUD_TASKS_LOCATION=${REGION}"
+    "CLOUD_TASKS_QUEUE_INGEST=${queue_name}"
+    "CLOUD_TASKS_SERVICE_URL=${api_url}"
+    "INKWISE_INLINE_INGEST_FALLBACK_ENABLED=false"
+    "INKWISE_TASKS_QUEUE=${queue_name}"
+    "INKWISE_TASKS_SERVICE_URL=${api_url}"
+  )
+
+  local IFS='@'
+  env_vars="${env_delim}${env_items[*]}"
 
   gcloud run services update "$service_name" \
     --region="$REGION" \
     --image="$image_url" \
     --timeout="${API_TIMEOUT}" \
     --update-env-vars="$env_vars" \
-    --update-secrets="INKWISE_TASKS_TOKEN=${token_secret_name}:latest" \
+    --update-secrets="INKWISE_TASKS_TOKEN=${token_secret_name}:latest,TASKS_TOKEN=${token_secret_name}:latest" \
     >/dev/null
 
   ok "Updated ${service_name} with Inkwise runtime configuration"
