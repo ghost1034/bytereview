@@ -13,6 +13,7 @@ from inkwise.schemas import (
     InkwiseSourceCreateRequest,
     InkwiseSourceOut,
     InkwiseSourceIngestionOut,
+    InkwiseUploadInfo,
     InkwiseSourceUploadCompleteRequest,
     InkwiseSourceUploadInitRequest,
     InkwiseSourceUploadInitResponse,
@@ -111,12 +112,12 @@ async def init_source_upload(
         source, upload = source_service.init_upload(db, user_id=user_id, body=body)
         return InkwiseSourceUploadInitResponse(
             source=InkwiseSourceOut.model_validate(source),
-            upload={
-                "method": "PUT",
-                "url": upload.url,
-                "headers": upload.headers,
-                "expires_at": upload.expires_at,
-            },
+            upload=InkwiseUploadInfo(
+                method="PUT",
+                url=upload.url,
+                headers=upload.headers,
+                expires_at=upload.expires_at,
+            ),
         )
     except ValueError as exc:
         db.rollback()
@@ -207,7 +208,8 @@ async def enqueue_source_ingestion(
             service_url=str(request.base_url).rstrip("/"),
         )
         if not enqueued.created:
-            ingestion = ingestion_service.process_source_ingestion_once(db, ingestion_id=ingestion.id)
+            ingestion_id = uuid.UUID(str(ingestion.id))
+            ingestion = ingestion_service.process_source_ingestion_once(db, ingestion_id=ingestion_id)
         return InkwiseSourceIngestionOut.model_validate(ingestion)
     except FileNotFoundError as exc:
         db.rollback()

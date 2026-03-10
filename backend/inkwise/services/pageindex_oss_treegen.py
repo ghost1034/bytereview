@@ -6,6 +6,7 @@ import asyncio
 import importlib
 import os
 import sys
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -142,6 +143,53 @@ def _patch_vendor_for_vertex(*, model: str) -> None:
     _PATCHED_MODEL = model
 
 
+def _run_page_index(
+    *,
+    pdf_path: str,
+    toc_check_pages: int,
+    max_pages_per_node: int,
+    max_tokens_per_node: int,
+    add_node_summary: bool,
+) -> dict[str, Any]:
+    from pageindex.page_index import page_index as page_index_fn  # type: ignore
+
+    out = page_index_fn(
+        pdf_path,
+        model="gpt-4o",
+        toc_check_page_num=toc_check_pages,
+        max_page_num_each_node=max_pages_per_node,
+        max_token_num_each_node=max_tokens_per_node,
+        if_add_node_id="yes",
+        if_add_node_summary="yes" if add_node_summary else "no",
+        if_add_doc_description="no",
+        if_add_node_text="no",
+    )
+    if not isinstance(out, dict):
+        raise PageIndexOssTreeGenError("vendor treegen returned unexpected type")
+    if "structure" not in out:
+        raise PageIndexOssTreeGenError("vendor treegen missing structure")
+    return out
+
+
+def _run_page_index_in_fresh_thread(**kwargs: Any) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    error: dict[str, BaseException] = {}
+
+    def _target() -> None:
+        try:
+            result["value"] = _run_page_index(**kwargs)
+        except BaseException as exc:  # pragma: no cover - passes through vendor/runtime errors
+            error["value"] = exc
+
+    thread = threading.Thread(target=_target, daemon=True)
+    thread.start()
+    thread.join()
+
+    if "value" in error:
+        raise error["value"]
+    return result["value"]
+
+
 async def generate_tree(
     *,
     pdf_path: str,
@@ -160,27 +208,14 @@ async def generate_tree(
     _patch_vendor_for_vertex(model=resolved_model)
     _ensure_vendor_on_syspath()
 
-    from pageindex.page_index import page_index as page_index_fn  # type: ignore
-
-    def _run_sync() -> dict[str, Any]:
-        out = page_index_fn(
-            pdf_path,
-            model="gpt-4o",
-            toc_check_page_num=toc_check_pages,
-            max_page_num_each_node=max_pages_per_node,
-            max_token_num_each_node=max_tokens_per_node,
-            if_add_node_id="yes",
-            if_add_node_summary="yes" if add_node_summary else "no",
-            if_add_doc_description="no",
-            if_add_node_text="no",
-        )
-        if not isinstance(out, dict):
-            raise PageIndexOssTreeGenError("vendor treegen returned unexpected type")
-        if "structure" not in out:
-            raise PageIndexOssTreeGenError("vendor treegen missing structure")
-        return out
-
-    return await asyncio.to_thread(_run_sync)
+    return await asyncio.to_thread(
+        _run_page_index,
+        pdf_path=pdf_path,
+        toc_check_pages=toc_check_pages,
+        max_pages_per_node=max_pages_per_node,
+        max_tokens_per_node=max_tokens_per_node,
+        add_node_summary=add_node_summary,
+    )
 
 
 def generate_tree_sync(
@@ -201,21 +236,21 @@ def generate_tree_sync(
     _patch_vendor_for_vertex(model=resolved_model)
     _ensure_vendor_on_syspath()
 
-    from pageindex.page_index import page_index as page_index_fn  # type: ignore
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return _run_page_index(
+            pdf_path=pdf_path,
+            toc_check_pages=toc_check_pages,
+            max_pages_per_node=max_pages_per_node,
+            max_tokens_per_node=max_tokens_per_node,
+            add_node_summary=add_node_summary,
+        )
 
-    out = page_index_fn(
-        pdf_path,
-        model="gpt-4o",
-        toc_check_page_num=toc_check_pages,
-        max_page_num_each_node=max_pages_per_node,
-        max_token_num_each_node=max_tokens_per_node,
-        if_add_node_id="yes",
-        if_add_node_summary="yes" if add_node_summary else "no",
-        if_add_doc_description="no",
-        if_add_node_text="no",
+    return _run_page_index_in_fresh_thread(
+        pdf_path=pdf_path,
+        toc_check_pages=toc_check_pages,
+        max_pages_per_node=max_pages_per_node,
+        max_tokens_per_node=max_tokens_per_node,
+        add_node_summary=add_node_summary,
     )
-    if not isinstance(out, dict):
-        raise PageIndexOssTreeGenError("vendor treegen returned unexpected type")
-    if "structure" not in out:
-        raise PageIndexOssTreeGenError("vendor treegen missing structure")
-    return out
