@@ -12,6 +12,14 @@ from models.inkwise_models import InkwiseChatMessage, InkwiseChatThread, Inkwise
 
 
 _EVIDENCE_ID_RE = re.compile(r"\[(E\d{2})\]")
+_WHITESPACE_RE = re.compile(r"[ \t]+")
+_BLANK_LINES_RE = re.compile(r"\n{3,}")
+_SPACE_BEFORE_PUNCT_RE = re.compile(r"\s+([,.;:!?])")
+_HISTORY_ROLE_LABELS = {
+    "assistant": "Assistant",
+    "system": "System",
+    "user": "User",
+}
 
 
 class InkwiseChatService:
@@ -104,7 +112,11 @@ class InkwiseChatService:
             query = query.filter(InkwiseChatMessage.id != exclude_message_id)
         rows = query.order_by(InkwiseChatMessage.created_at.desc()).limit(limit).all()
         rows.reverse()
-        return [{"role": str(role), "content": str(content)} for role, content in rows if role and content]
+        return [
+            {"role": str(role), "content": str(content)}
+            for role, content in rows
+            if str(role).strip() and str(content).strip()
+        ]
 
     def create_user_message(
         self,
@@ -189,6 +201,84 @@ def truncate_text(value: str, max_chars: int) -> tuple[str, bool]:
     return value[:max_chars], True
 
 
+def prepare_grounded_chat_history(
+    *,
+    history_messages: list[dict[str, str]] | None,
+    max_messages: int,
+    max_chars: int,
+) -> tuple[list[dict[str, str]], dict[str, int | bool]]:
+    if not history_messages or max_messages <= 0 or max_chars <= 0:
+        return [], {"message_count": 0, "char_count": 0, "truncated": False}
+
+    sanitized: list[dict[str, str]] = []
+    for message in history_messages:
+        role = str(message.get("role") or "").strip().lower()
+        if role not in _HISTORY_ROLE_LABELS:
+            continue
+        content = str(message.get("content") or "").replace("\r\n", "\n").strip()
+        if not content:
+            continue
+        if role == "assistant":
+            content = _EVIDENCE_ID_RE.sub("", content)
+        content = _WHITESPACE_RE.sub(" ", content)
+        content = _SPACE_BEFORE_PUNCT_RE.sub(r"\1", content)
+        content = _BLANK_LINES_RE.sub("\n\n", content).strip()
+        if not content:
+            continue
+        sanitized.append({"role": role, "content": content})
+
+    if not sanitized:
+        return [], {"message_count": 0, "char_count": 0, "truncated": False}
+
+    window = sanitized[-int(max_messages) :]
+    selected_reversed: list[dict[str, str]] = []
+    used_chars = 0
+    truncated = len(window) < len(sanitized)
+
+    for message in reversed(window):
+        content = message["content"]
+        message_chars = len(content)
+        if selected_reversed and used_chars + message_chars > max_chars:
+            truncated = True
+            break
+        if not selected_reversed and message_chars > max_chars:
+            truncated_content, was_truncated = truncate_text(content, max_chars)
+            if not truncated_content:
+                truncated = True
+                break
+            selected_reversed.append({"role": message["role"], "content": truncated_content.rstrip()})
+            used_chars += len(truncated_content)
+            truncated = truncated or was_truncated
+            break
+
+        selected_reversed.append(message)
+        used_chars += message_chars
+
+    selected = list(reversed(selected_reversed))
+    return selected, {
+        "message_count": len(selected),
+        "char_count": used_chars,
+        "truncated": truncated,
+    }
+
+
+def format_grounded_chat_history(history_messages: list[dict[str, str]] | None) -> str:
+    if not history_messages:
+        return ""
+
+    rendered: list[str] = []
+    for message in history_messages:
+        role = _HISTORY_ROLE_LABELS.get(str(message.get("role") or "").strip().lower())
+        content = str(message.get("content") or "").strip()
+        if not role or not content:
+            continue
+        rendered.append(f"{role}:\n{content}")
+
+    if not rendered:
+        return ""
+    return "Recent thread history (context only; not evidence):\n" + "\n\n".join(rendered)
+
+
 def build_grounded_chat_prompt(
     *,
     question: str,
@@ -196,16 +286,27 @@ def build_grounded_chat_prompt(
     evidence_pack: str,
     allowed_ids: list[str],
     draft_selection_text: str | None,
+    history_messages: list[dict[str, str]] | None = None,
 ) -> str:
+    history_block = format_grounded_chat_history(history_messages)
+    document_language = getattr(document, "language", None)
+    document_purpose = getattr(document, "init_prompt", None)
     parts = [
         "You are Inkwise, a writing assistant.",
-        f"Document language: {document.language}" if document.language else "",
-        f"Document purpose: {document.init_prompt}" if document.init_prompt else "",
+        f"Document language: {document_language}" if document_language else "",
+        f"Document purpose: {document_purpose}" if document_purpose else "",
         (
             "Draft excerpt (context only; do not cite this):\n```\n"
             + draft_selection_text
             + "\n```"
             if draft_selection_text
+            else ""
+        ),
+        history_block,
+        (
+            "Use the recent thread history only to maintain continuity and resolve references. "
+            "If it conflicts with the evidence below, follow the evidence."
+            if history_block
             else ""
         ),
         "Answer the user using ONLY the evidence blocks provided.",
@@ -220,6 +321,7 @@ def build_grounded_chat_prompt(
         f"- Only cite from: {', '.join(allowed_ids)}",
         "- Never cite an ID not in the evidence.",
         "- Do not cite the draft excerpt.",
+        "- Do not cite the recent thread history or reuse citation markers that appeared there.",
         f"User question: {question}",
         "Evidence:",
         evidence_pack,

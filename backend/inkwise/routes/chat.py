@@ -4,7 +4,7 @@ import asyncio
 import json
 import uuid
 from collections.abc import AsyncGenerator
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -24,6 +24,7 @@ from inkwise.services.chat_service import (
     InkwiseChatService,
     build_grounded_chat_prompt,
     extract_citations,
+    prepare_grounded_chat_history,
     truncate_text,
 )
 from inkwise.services.document_sources import InkwiseDocumentSourceService
@@ -127,13 +128,15 @@ async def stream_thread_message(
 
     try:
         thread = chat_service.get_thread_or_404(db, user_id=user_id, thread_id=thread_id)
-        document = chat_service.get_document_or_404(db, user_id=user_id, document_id=thread.document_id)
+        thread_db_id = cast(uuid.UUID, thread.id)
+        thread_document_id = cast(uuid.UUID, thread.document_id)
+        document = chat_service.get_document_or_404(db, user_id=user_id, document_id=thread_document_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     ready_bound_sources = document_source_service.list_ready_bound_sources(
         db,
-        document_id=thread.document_id,
+        document_id=thread_document_id,
         user_id=user_id,
     )
     if not ready_bound_sources:
@@ -164,7 +167,7 @@ async def stream_thread_message(
 
     user_message = chat_service.create_user_message(
         db,
-        thread_id=thread.id,
+        thread_id=thread_db_id,
         content=body.content,
         scoped_source_ids=scoped_source_ids,
         draft_selection_label=draft_label,
@@ -173,16 +176,25 @@ async def stream_thread_message(
     )
 
     bound_sources = [(source_id, title_by_id.get(source_id, "")) for source_id in scoped_source_ids]
-    history_limit = max(0, int(settings.query_rewrite_max_history_messages))
+    query_rewrite_history_limit = max(0, int(settings.query_rewrite_max_history_messages))
+    grounded_history_limit = (
+        max(0, int(settings.grounded_chat_max_history_messages)) if settings.grounded_chat_history_enabled else 0
+    )
+    history_limit = max(query_rewrite_history_limit, grounded_history_limit)
     history_messages = (
         chat_service.list_recent_history(
             db,
-            thread_id=thread.id,
-            exclude_message_id=user_message.id,
+            thread_id=thread_db_id,
+            exclude_message_id=cast(uuid.UUID, user_message.id),
             limit=history_limit,
         )
         if history_limit > 0
         else []
+    )
+    grounded_history_messages, grounded_history_meta = prepare_grounded_chat_history(
+        history_messages=history_messages,
+        max_messages=grounded_history_limit,
+        max_chars=max(0, int(settings.grounded_chat_max_history_chars)),
     )
 
     async def gen() -> AsyncGenerator[bytes, None]:
@@ -203,14 +215,14 @@ async def stream_thread_message(
             retrieval_run, evidence = retrieval_service.run_retrieval(
                 db,
                 user_id=user_id,
-                document_id=thread.document_id,
-                thread_id=thread.id,
+                document_id=thread_document_id,
+                thread_id=thread_db_id,
                 query=body.content,
                 bound_sources=bound_sources,
                 history_messages=history_messages,
                 draft_selection_text=draft_text,
             )
-            retrieval_run_id = retrieval_run.id
+            retrieval_run_id = cast(uuid.UUID, retrieval_run.id)
 
             if not evidence:
                 assistant_text = (
@@ -225,7 +237,7 @@ async def stream_thread_message(
 
                 assistant_message = chat_service.create_assistant_message(
                     db,
-                    thread_id=thread.id,
+                    thread_id=thread_db_id,
                     content=assistant_text,
                     citations=[],
                     retrieval_run_id=retrieval_run_id,
@@ -234,6 +246,9 @@ async def stream_thread_message(
                         "reason": "no_evidence",
                         "scoped_source_ids": [str(source_id) for source_id in scoped_source_ids],
                         "draft_selection_attached": bool(draft_text),
+                        "history_message_count": grounded_history_meta["message_count"],
+                        "history_char_count": grounded_history_meta["char_count"],
+                        "history_truncated": grounded_history_meta["truncated"],
                     },
                 )
                 yield _sse("meta", {"citations": [], "retrieval_run_id": str(retrieval_run_id)})
@@ -257,6 +272,7 @@ async def stream_thread_message(
                 evidence_pack=evidence_pack,
                 allowed_ids=allowed_ids,
                 draft_selection_text=draft_text or None,
+                history_messages=grounded_history_messages,
             )
             result = await generate_text(
                 model=settings.grounded_model,
@@ -289,7 +305,7 @@ async def stream_thread_message(
         citations = extract_citations(assistant_text=assistant_text, evidence=evidence)
         assistant_message = chat_service.create_assistant_message(
             db,
-            thread_id=thread.id,
+            thread_id=thread_db_id,
             content=assistant_text,
             citations=citations,
             retrieval_run_id=retrieval_run_id,
@@ -298,6 +314,9 @@ async def stream_thread_message(
                 "model": settings.grounded_model,
                 "scoped_source_ids": [str(source_id) for source_id in scoped_source_ids],
                 "draft_selection_attached": bool(draft_text),
+                "history_message_count": grounded_history_meta["message_count"],
+                "history_char_count": grounded_history_meta["char_count"],
+                "history_truncated": grounded_history_meta["truncated"],
             },
         )
         yield _sse("meta", {"citations": citations, "retrieval_run_id": str(retrieval_run_id)})

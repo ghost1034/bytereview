@@ -73,6 +73,9 @@ class InkwiseSettings:
     derived_bucket: str | None
     gemini_model: str
     grounded_model: str
+    grounded_chat_history_enabled: bool
+    grounded_chat_max_history_messages: int
+    grounded_chat_max_history_chars: int
     treegen_model: str
     query_rewrite_model: str
     tree_search_model: str
@@ -125,6 +128,9 @@ def get_inkwise_settings() -> InkwiseSettings:
         derived_bucket=normalize_gcs_bucket_name(os.getenv("INKWISE_DERIVED_BUCKET") or os.getenv("GCS_BUCKET_NAME")),
         gemini_model=default_model,
         grounded_model=os.getenv("INKWISE_GROUNDED_MODEL", default_model),
+        grounded_chat_history_enabled=_env_bool("INKWISE_GROUNDED_CHAT_HISTORY_ENABLED", True),
+        grounded_chat_max_history_messages=_env_int("INKWISE_GROUNDED_CHAT_MAX_HISTORY_MESSAGES", 6),
+        grounded_chat_max_history_chars=_env_int("INKWISE_GROUNDED_CHAT_MAX_HISTORY_CHARS", 3500),
         treegen_model=os.getenv("INKWISE_TREEGEN_MODEL", default_model),
         query_rewrite_model=os.getenv("INKWISE_QUERY_REWRITE_MODEL", default_model),
         tree_search_model=os.getenv("INKWISE_TREE_SEARCH_MODEL", default_model),
