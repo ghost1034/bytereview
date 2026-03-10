@@ -14,11 +14,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Dependencies first for layer caching
-COPY requirements.txt .
+COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # App code
-COPY . .
+COPY backend/ .
+COPY vendor/pageindex ./vendor/pageindex
 
 
 # Non-root user

@@ -36,7 +36,7 @@ IMAGE_TAG="${IMAGE_TAG:-$IMAGE_TAG_DEFAULT}"
 
 usage() {
   cat <<EOF
-Usage: ./scripts/deploy_inkwise.sh [options]
+Usage: ./scripts/deploy-inkwise.sh [options]
 
 Options:
   --project-id ID           GCP project id (default: ${PROJECT_ID})

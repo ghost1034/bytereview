@@ -89,8 +89,7 @@ jspm_packages/
 tmp/
 temp/
 
-# Backend files (not needed in frontend build)
-backend/
+# Backend files are included for backend image builds.
 scripts/
 docker-compose.yml
 Dockerfile.backend

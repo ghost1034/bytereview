@@ -78,7 +78,7 @@ echo ""
 
 # Build backend image (API + Workers)
 echo -e "${BLUE}=== Building Backend (API + Workers) ===${NC}"
-build_and_push "backend" "backend/Dockerfile" "backend" ""
+build_and_push "backend" "backend/Dockerfile" "." ""
 
 # Build frontend image with environment variables
 echo -e "${BLUE}=== Building Frontend ===${NC}"
