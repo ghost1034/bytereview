@@ -145,8 +145,8 @@ export default function Terms() {
                     Monthly subscriptions are billed in advance on the same day each month. Annual plans are billed annually in advance.
                   </p>
                   <ul className="space-y-1 text-gray-600 text-sm">
-                    <li>• Basic Plan: $9.99/month for 50 pages</li>
-                    <li>• Professional Plan: $49.99/month for 1,000 pages</li>
+                    <li>• Basic Plan: $9.99/month for 500 pages</li>
+                    <li>• Professional Plan: $49.99/month for 5,000 pages</li>
                     <li>• Enterprise Plan: Custom pricing with unlimited pages and users</li>
                   </ul>
                 </div>
