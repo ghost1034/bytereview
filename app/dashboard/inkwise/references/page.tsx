@@ -59,7 +59,7 @@ export default function InkwiseReferencesPage() {
     mutationFn: (sourceId: string) => apiClient.ingestInkwiseSource(sourceId),
     onSuccess: async () => {
       await refreshSources()
-      toast({ title: 'Re-ingestion queued', description: 'Inkwise will rebuild pages and tree nodes for this source.' })
+      toast({ title: 'Re-ingestion queued', description: 'Inkwise will rebuild retrieval segments and embeddings for this source.' })
     },
     onError: (error: Error) => {
       toast({ title: 'Could not re-ingest source', description: error.message, variant: 'destructive' })
@@ -84,7 +84,7 @@ export default function InkwiseReferencesPage() {
           <div>
             <CardTitle>Source Library</CardTitle>
             <CardDescription>
-              Upload PDFs, preview them, and trigger ingestion into pages and PageIndex tree nodes.
+              Upload PDFs, preview them, and trigger ingestion into retrieval segments and embeddings.
             </CardDescription>
           </div>
           <div className="flex gap-2">

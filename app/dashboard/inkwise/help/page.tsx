@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 const steps = [
   'Upload one or more PDFs in References.',
-  'Wait for ingestion to finish so pages and tree nodes are available.',
+  'Wait for ingestion to finish so retrieval segments and embeddings are available.',
   'Create a document in Write and bind the sources you want to ground against.',
   'Use chat or writing tools from the document workspace to draft against your evidence.',
   'Save reusable structures as templates for future work.',

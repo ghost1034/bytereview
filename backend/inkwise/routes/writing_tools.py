@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# pyright: reportAttributeAccessIssue=false, reportGeneralTypeIssues=false, reportArgumentType=false
+
 import asyncio
 import json
 import uuid
@@ -21,6 +23,7 @@ from inkwise.services.document_sources import InkwiseDocumentSourceService
 from inkwise.services.document_service import InkwiseDocumentService
 from inkwise.services.gemini import GeminiError, generate_text
 from inkwise.services.retrieval_service import InkwiseRetrievalService, build_evidence_pack
+from inkwise.services.retrieval_types import evidence_item_to_payload
 from inkwise.services.writing_tools_service import (
     build_grounded_writing_tool_prompt,
     build_prediction_prompt,
@@ -172,6 +175,7 @@ async def stream_writing_tool_output(
                             "grounded": True,
                             "retrieval_run_id": str(retrieval_run_id),
                             "evidence_count": len(evidence),
+                            "evidence": [evidence_item_to_payload(item) for item in evidence],
                             "sources": resolved_source_ids,
                         },
                     )
@@ -182,6 +186,7 @@ async def stream_writing_tool_output(
                             "grounded": False,
                             "grounding_fallback": "no_evidence",
                             "retrieval_run_id": str(retrieval_run_id) if retrieval_run_id is not None else None,
+                            "evidence": [],
                             "sources": resolved_source_ids,
                         },
                     )

@@ -14,6 +14,12 @@ import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
 
 type ToolAction = Exclude<InkwiseWritingAction, 'other'> | 'custom'
 
+type GroundingState = {
+  grounded: boolean
+  evidenceCount: number
+  fallback?: string | null
+}
+
 export function InlineWritingTools({
   editor,
   documentId,
@@ -31,6 +37,7 @@ export function InlineWritingTools({
   const [instruction, setInstruction] = useState('Improve clarity, keep meaning.')
   const [inserting, setInserting] = useState<null | 'replace' | 'after'>(null)
   const [sourceChecked, setSourceChecked] = useState<Record<string, boolean>>({})
+  const [groundingState, setGroundingState] = useState<GroundingState | null>(null)
 
   const rangeRef = useRef<{ from: number; to: number } | null>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -57,6 +64,7 @@ export function InlineWritingTools({
         setError(null)
         setOutputMd('')
         setLastAction(null)
+        setGroundingState(null)
         rangeRef.current = null
       }
     }
@@ -83,6 +91,7 @@ export function InlineWritingTools({
     setBusy(true)
     setOutputMd('')
     setLastAction(action)
+    setGroundingState(null)
     rangeRef.current = { from: selection.from, to: selection.to }
 
     abortRef.current?.abort()
@@ -105,6 +114,13 @@ export function InlineWritingTools({
           }
           if (event.event === 'meta' && event.data?.error) {
             setError(event.data?.message || 'Writing tool failed')
+          }
+          if (event.event === 'meta' && typeof event.data?.grounded === 'boolean') {
+            setGroundingState({
+              grounded: Boolean(event.data.grounded),
+              evidenceCount: Number(event.data?.evidence_count || 0),
+              fallback: event.data?.grounding_fallback || null,
+            })
           }
         },
         { signal: controller.signal },
@@ -146,6 +162,7 @@ export function InlineWritingTools({
     setError(null)
     setOutputMd('')
     setLastAction(null)
+    setGroundingState(null)
     setCustomOpen(false)
     rangeRef.current = null
   }
@@ -241,6 +258,17 @@ export function InlineWritingTools({
         {busy || outputMd ? (
           <div className="mt-3 rounded-xl border bg-white p-3">
             <div className="text-sm font-medium text-slate-900">{busy ? 'Writing...' : lastAction ? `Result (${lastAction})` : 'Result'}</div>
+            {groundingState ? (
+              <div className="mt-1 text-xs text-slate-500">
+                {groundingState.grounded
+                  ? `Grounded to ${groundingState.evidenceCount} evidence ${groundingState.evidenceCount === 1 ? 'segment' : 'segments'}`
+                  : groundingState.fallback === 'no_evidence'
+                    ? 'No matching evidence found in the selected sources'
+                    : groundingState.fallback === 'retrieval_error'
+                      ? 'Grounding fell back to an ungrounded rewrite'
+                      : 'Running without grounded evidence'}
+              </div>
+            ) : null}
             <div className="mt-3 max-h-56 overflow-auto text-sm text-slate-700">
               {outputMd ? <InkwiseMarkdownView markdown={outputMd} className="prose prose-sm max-w-none" /> : <div className="text-slate-400">...</div>}
             </div>

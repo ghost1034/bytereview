@@ -30,6 +30,7 @@ from inkwise.services.chat_service import (
 from inkwise.services.document_sources import InkwiseDocumentSourceService
 from inkwise.services.gemini import GeminiError, generate_text
 from inkwise.services.retrieval_service import InkwiseRetrievalService, build_evidence_pack
+from inkwise.services.retrieval_types import evidence_item_to_payload
 from inkwise.services.source_service import InkwiseSourceService
 from inkwise.settings import get_inkwise_settings
 
@@ -251,7 +252,7 @@ async def stream_thread_message(
                         "history_truncated": grounded_history_meta["truncated"],
                     },
                 )
-                yield _sse("meta", {"citations": [], "retrieval_run_id": str(retrieval_run_id)})
+                yield _sse("meta", {"citations": [], "evidence": [], "retrieval_run_id": str(retrieval_run_id)})
                 yield _sse("done", {"message_id": str(assistant_message.id), "retrieval_run_id": str(retrieval_run_id)})
                 return
 
@@ -263,6 +264,7 @@ async def stream_thread_message(
                     "retrieval_run_id": str(retrieval_run_id),
                     "evidence_count": len(evidence),
                     "evidence_ids": allowed_ids,
+                    "evidence": [evidence_item_to_payload(item) for item in evidence],
                 },
             )
 
@@ -319,7 +321,14 @@ async def stream_thread_message(
                 "history_truncated": grounded_history_meta["truncated"],
             },
         )
-        yield _sse("meta", {"citations": citations, "retrieval_run_id": str(retrieval_run_id)})
+        yield _sse(
+            "meta",
+            {
+                "citations": citations,
+                "evidence": [evidence_item_to_payload(item) for item in evidence],
+                "retrieval_run_id": str(retrieval_run_id),
+            },
+        )
         yield _sse("done", {"message_id": str(assistant_message.id), "retrieval_run_id": str(retrieval_run_id)})
 
     return StreamingResponse(

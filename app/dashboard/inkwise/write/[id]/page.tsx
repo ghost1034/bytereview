@@ -22,12 +22,30 @@ import {
   useInkwiseDocumentSources,
   useInkwiseSources,
 } from '@/hooks/useInkwise'
-import { apiClient, InkwiseChatMessage, InkwiseSseEvent } from '@/lib/api'
+import { apiClient, InkwiseChatMessage, InkwiseCitation, InkwiseSseEvent } from '@/lib/api'
 
 type StreamState = {
   text: string
   retrievalRunId?: string
-  citations?: Array<{ evidence_id?: string; source_title?: string; page_number?: number }>
+  citations?: InkwiseCitation[]
+}
+
+function citationLabel(citation: InkwiseCitation): string {
+  const sourceTitle = citation.source_title || 'Source'
+  const locator = citation.locator_json || {}
+  const pageStart = citation.page_number ?? locator.page_start ?? null
+  const pageEnd = locator.page_end ?? null
+  const locationLabel = typeof pageStart === 'number'
+    ? typeof pageEnd === 'number' && pageEnd !== pageStart
+      ? `pp.${pageStart}-${pageEnd}`
+      : `p.${pageStart}`
+    : citation.segment_title || 'evidence'
+  return `${citation.evidence_id || 'Evidence'} · ${sourceTitle} ${locationLabel}`.trim()
+}
+
+function messageCitations(message: InkwiseChatMessage): InkwiseCitation[] {
+  const raw = message.citations_json?.citations
+  return Array.isArray(raw) ? raw : []
 }
 
 export default function InkwiseDocumentPage() {
@@ -437,6 +455,15 @@ export default function InkwiseDocumentPage() {
                   <div key={message.id} className={`rounded-2xl p-3 text-sm ${message.role === 'assistant' ? 'bg-white border' : 'bg-slate-900 text-white'}`}>
                     <div className="mb-1 text-xs font-semibold uppercase tracking-wide opacity-70">{message.role}</div>
                     <div className="whitespace-pre-wrap">{message.content}</div>
+                    {messageCitations(message).length ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {messageCitations(message).map((citation, index) => (
+                          <span key={`${citation.evidence_id ?? index}-${index}`} className="rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-700">
+                            {citationLabel(citation)}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 ))}
 
@@ -448,7 +475,7 @@ export default function InkwiseDocumentPage() {
                       <div className="mt-3 flex flex-wrap gap-2">
                         {streamState.citations.map((citation, index) => (
                           <span key={`${citation.evidence_id ?? index}-${index}`} className="rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-700">
-                            {citation.evidence_id ?? 'Evidence'} · {citation.source_title ?? 'Source'} p.{citation.page_number ?? '?'}
+                            {citationLabel(citation)}
                           </span>
                         ))}
                       </div>
@@ -480,7 +507,7 @@ export default function InkwiseDocumentPage() {
         <Card>
           <CardHeader>
             <CardTitle>Bound Sources</CardTitle>
-            <CardDescription>Only completed sources with pages and tree nodes are used for grounding.</CardDescription>
+            <CardDescription>Only completed sources with retrieval segments and active embeddings are used for grounding.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {(bindingsQuery.data?.sources ?? []).length ? (

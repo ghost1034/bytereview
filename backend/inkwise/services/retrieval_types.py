@@ -38,3 +38,21 @@ def build_evidence_pack(evidence: list[EvidenceItem]) -> str:
             header += f' segment="{item.segment_title}"'
         blocks.append(header + "\n" + item.excerpt.strip())
     return ("\n\n".join(blocks).strip() + "\n") if blocks else ""
+
+
+def evidence_item_to_payload(item: EvidenceItem) -> dict[str, Any]:
+    return {
+        "evidence_id": item.evidence_id,
+        "source_id": str(item.source_id),
+        "source_title": item.source_title,
+        "page_number": item.page_number,
+        "segment_id": str(item.segment_id) if item.segment_id is not None else None,
+        "segment_title": item.segment_title,
+        "node_id": item.node_id,
+        "node_title": item.node_title,
+        "locator_json": item.locator_json,
+        "preview_bucket": item.preview_bucket,
+        "preview_object": item.preview_object,
+        "excerpt": item.excerpt,
+        "score": item.score,
+    }

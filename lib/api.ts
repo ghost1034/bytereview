@@ -1154,6 +1154,28 @@ export type InkwiseSseEvent = {
   data: any
 }
 
+export interface InkwiseEvidenceLocator {
+  kind?: string
+  page_start?: number | null
+  page_end?: number | null
+  [key: string]: any
+}
+
+export interface InkwiseCitation {
+  evidence_id?: string
+  source_id?: string
+  source_title?: string
+  page_number?: number
+  segment_id?: string | null
+  segment_title?: string | null
+  node_id?: string | null
+  node_title?: string | null
+  locator_json?: InkwiseEvidenceLocator | null
+  preview_bucket?: string | null
+  preview_object?: string | null
+  excerpt?: string
+}
+
 export interface InkwiseDocument {
   id: string
   user_id: string
@@ -1240,15 +1262,22 @@ export interface InkwiseSourceIngestion {
   extraction_engine?: string | null
   canonical_pdf_gcs_bucket?: string | null
   canonical_pdf_gcs_object?: string | null
+  normalizer_version?: string | null
+  embedding_model?: string | null
+  embedding_dimension?: number | null
+  embedding_location?: string | null
   started_at?: string | null
   finished_at?: string | null
   pageindex_doc_id?: string | null
   page_count?: number | null
+  segment_count?: number | null
   provider_document_name?: string | null
   doc_description?: string | null
   tree_gcs_bucket?: string | null
   tree_gcs_object?: string | null
   tree_cached_at?: string | null
+  preview_manifest_bucket?: string | null
+  preview_manifest_object?: string | null
   error_json?: Record<string, any> | null
   created_at: string
 }
@@ -1347,7 +1376,11 @@ export interface InkwiseChatMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
   content_with_citations?: string | null
-  citations_json?: Record<string, any> | null
+  citations_json?: {
+    retrieval_run_id?: string | null
+    citations?: InkwiseCitation[]
+    [key: string]: any
+  } | null
   provider: string
   provider_meta?: Record<string, any> | null
   created_at: string
