@@ -272,8 +272,13 @@ class InkwiseRetrievalEvidenceOut(BaseModel):
     source_id: uuid.UUID
     source_title: str
     page_number: int
+    segment_id: uuid.UUID | None = None
+    segment_title: str | None = None
     node_id: str | None = None
     node_title: str | None = None
+    locator_json: dict | None = None
+    preview_bucket: str | None = None
+    preview_object: str | None = None
     excerpt: str
     score: float | None = None
 

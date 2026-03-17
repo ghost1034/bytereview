@@ -1,5 +1,7 @@
 """Grounded retrieval pipeline for the Inkwise module."""
 
+# pyright: reportAttributeAccessIssue=false, reportGeneralTypeIssues=false, reportArgumentType=false
+
 from __future__ import annotations
 
 import json
@@ -15,6 +17,8 @@ from sqlalchemy.orm import Session
 
 from inkwise.services.json_utils import extract_first_json_object
 from inkwise.services.query_rewrite import QueryRewriteConfig, rewrite_retrieval_query
+from inkwise.services.retrieval_types import EvidenceItem, build_evidence_pack as _build_evidence_pack
+from inkwise.services.vector_retrieval_service import InkwiseVectorRetrievalService
 from inkwise.services.vertex_ai import VertexAIError, generate_text_sync
 from inkwise.settings import get_inkwise_settings
 from models.inkwise_models import (
@@ -23,22 +27,11 @@ from models.inkwise_models import (
     InkwiseRetrievalRun,
     InkwiseSource,
     InkwiseSourcePage,
+    InkwiseSourceSegment,
     InkwiseSourceTreeNode,
 )
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class EvidenceItem:
-    evidence_id: str
-    source_id: uuid.UUID
-    source_title: str
-    page_number: int
-    node_id: str | None
-    node_title: str | None
-    excerpt: str
-    score: float | None
 
 
 @dataclass(frozen=True)
@@ -184,6 +177,9 @@ def _merge_source_prefilter_results(
 
 
 class InkwiseRetrievalService:
+    def __init__(self) -> None:
+        self.vector_retrieval_service = InkwiseVectorRetrievalService()
+
     def _rank_sources_by_node_fts(
         self,
         db: Session,
@@ -416,6 +412,47 @@ class InkwiseRetrievalService:
 
         settings = get_inkwise_settings()
         clean_query = (query or "").strip()
+
+        if settings.use_vector_retrieval:
+            run = InkwiseRetrievalRun(
+                user_id=user_id,
+                document_id=document_id,
+                thread_id=thread_id,
+                query=query,
+                bound_source_ids=[source_id for source_id, _title in bound_sources],
+                strategy_version="vector-v1",
+                meta={
+                    "engine": "vector",
+                    "query_rewrite": {"enabled": bool(settings.query_rewrite_enabled and settings.vertex_enabled)},
+                    "rerank": {"enabled": bool(settings.use_vector_rerank)},
+                    "lexical_fusion": {"enabled": bool(settings.use_lexical_fusion)},
+                },
+                created_at=datetime.utcnow(),
+            )
+            db.add(run)
+            db.commit()
+            db.refresh(run)
+
+            if not clean_query or not bound_sources:
+                return run, []
+
+            evidence, vector_meta, strategy_version = self.vector_retrieval_service.retrieve_evidence(
+                db,
+                query=clean_query,
+                bound_sources=bound_sources,
+                history_messages=history_messages,
+                draft_selection_text=draft_selection_text,
+                document_language=document.language,
+                document_purpose=document.init_prompt,
+                max_evidence=max_evidence,
+                max_total_chars=max_total_chars,
+            )
+            run.strategy_version = strategy_version
+            run.meta = vector_meta
+            db.commit()
+            self._persist_evidence(db, run=run, evidence=evidence)
+            db.refresh(run)
+            return run, evidence
 
         source_prefilter_cfg = SourcePrefilterConfig(
             enabled=bool(settings.source_prefilter_enabled),
@@ -793,22 +830,36 @@ class InkwiseRetrievalService:
         }
         db.commit()
 
+        self._persist_evidence(db, run=run, evidence=evidence)
+        db.refresh(run)
+        return run, evidence
+
+    def _persist_evidence(
+        self,
+        db: Session,
+        *,
+        run: InkwiseRetrievalRun,
+        evidence: list[EvidenceItem],
+    ) -> None:
+        db.query(InkwiseRetrievalEvidence).filter(InkwiseRetrievalEvidence.retrieval_run_id == run.id).delete()
         for item in evidence:
             db.add(
                 InkwiseRetrievalEvidence(
                     retrieval_run_id=run.id,
                     evidence_id=item.evidence_id,
                     source_id=item.source_id,
+                    segment_id=item.segment_id,
                     page_number=item.page_number,
                     node_id=item.node_id,
                     node_title=item.node_title,
+                    locator_json=item.locator_json,
+                    preview_bucket=item.preview_bucket,
+                    preview_object=item.preview_object,
                     excerpt=item.excerpt,
                     score=item.score,
                 )
             )
         db.commit()
-        db.refresh(run)
-        return run, evidence
 
     def get_retrieval_run_for_user(
         self,
@@ -829,8 +880,9 @@ class InkwiseRetrievalService:
             raise FileNotFoundError("Retrieval run not found")
 
         rows = (
-            db.query(InkwiseRetrievalEvidence, InkwiseSource)
+            db.query(InkwiseRetrievalEvidence, InkwiseSource, InkwiseSourceSegment)
             .join(InkwiseSource, InkwiseSource.id == InkwiseRetrievalEvidence.source_id)
+            .outerjoin(InkwiseSourceSegment, InkwiseSourceSegment.id == InkwiseRetrievalEvidence.segment_id)
             .filter(InkwiseRetrievalEvidence.retrieval_run_id == retrieval_run_id)
             .order_by(InkwiseRetrievalEvidence.evidence_id.asc())
             .all()
@@ -845,17 +897,16 @@ class InkwiseRetrievalService:
                 node_title=item.node_title,
                 excerpt=item.excerpt,
                 score=float(item.score) if item.score is not None else None,
+                segment_id=item.segment_id,
+                segment_title=segment.title if segment is not None else None,
+                locator_json=item.locator_json,
+                preview_bucket=item.preview_bucket,
+                preview_object=item.preview_object,
             )
-            for item, source in rows
+            for item, source, segment in rows
         ]
         return run, evidence
 
 
 def build_evidence_pack(evidence: list[EvidenceItem]) -> str:
-    blocks: list[str] = []
-    for item in evidence:
-        header = f'[{item.evidence_id}] source="{item.source_title}" page={item.page_number}'
-        if item.node_title:
-            header += f' node="{item.node_title}"'
-        blocks.append(header + "\n" + item.excerpt.strip())
-    return ("\n\n".join(blocks).strip() + "\n") if blocks else ""
+    return _build_evidence_pack(evidence)

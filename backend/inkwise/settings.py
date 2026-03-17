@@ -82,6 +82,13 @@ class InkwiseSettings:
     embedding_enable_audio_track_extraction: bool
     use_gemini_ingestion: bool
     dual_write_ingestion: bool
+    use_vector_retrieval: bool
+    use_lexical_fusion: bool
+    use_vector_rerank: bool
+    vector_search_top_k: int
+    lexical_search_top_k: int
+    rerank_top_k: int
+    vector_rerank_model: str
     segment_pdf_window_pages: int
     segment_pdf_window_overlap_pages: int
     segment_text_chunk_chars: int
@@ -150,6 +157,13 @@ def get_inkwise_settings() -> InkwiseSettings:
         embedding_enable_audio_track_extraction=_env_bool("INKWISE_EMBEDDING_ENABLE_AUDIO_TRACK_EXTRACTION", True),
         use_gemini_ingestion=_env_bool("INKWISE_USE_GEMINI_INGESTION", True),
         dual_write_ingestion=_env_bool("INKWISE_DUAL_WRITE_INGESTION", True),
+        use_vector_retrieval=_env_bool("INKWISE_USE_VECTOR_RETRIEVAL", False),
+        use_lexical_fusion=_env_bool("INKWISE_USE_LEXICAL_FUSION", True),
+        use_vector_rerank=_env_bool("INKWISE_USE_VECTOR_RERANK", True),
+        vector_search_top_k=max(1, _env_int("INKWISE_VECTOR_SEARCH_TOP_K", 24)),
+        lexical_search_top_k=max(1, _env_int("INKWISE_LEXICAL_SEARCH_TOP_K", 16)),
+        rerank_top_k=max(1, _env_int("INKWISE_RERANK_TOP_K", 12)),
+        vector_rerank_model=os.getenv("INKWISE_VECTOR_RERANK_MODEL", default_model),
         segment_pdf_window_pages=max(1, _env_int("INKWISE_SEGMENT_PDF_WINDOW_PAGES", 4)),
         segment_pdf_window_overlap_pages=max(0, _env_int("INKWISE_SEGMENT_PDF_WINDOW_OVERLAP_PAGES", 1)),
         segment_text_chunk_chars=max(500, _env_int("INKWISE_SEGMENT_TEXT_CHUNK_CHARS", 3000)),
