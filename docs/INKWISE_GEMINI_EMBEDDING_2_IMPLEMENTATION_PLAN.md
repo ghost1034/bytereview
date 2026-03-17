@@ -1,6 +1,6 @@
 # Inkwise Gemini Embedding 2 Implementation Plan
 
-This plan turns `docs/INKWISE_GEMINI_EMBEDDING_2.md` into an execution sequence. It is organized to reduce migration risk, preserve a working Inkwise product during development, and make rollback possible until the new retrieval path is proven.
+This plan turns `docs/INKWISE_GEMINI_EMBEDDING_2.md` into an execution sequence. It is organized to reduce migration risk, preserve a working Inkwise product during development, and make rollback possible until the new retrieval path is proven. The repository cleanup portion of this plan has now been executed, including removal of the vendored PageIndex repository.
 
 ## Goals
 

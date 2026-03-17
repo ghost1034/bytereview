@@ -1,6 +1,6 @@
 # Inkwise Current Implementation (PageIndex-Based)
 
-This document describes the current Inkwise implementation in CPAAutomation before the Gemini Embedding 2 migration. It focuses on how Inkwise works today, where PageIndex is involved, and what parts of the stack will need to change when we replace the current retrieval pipeline.
+This document is a historical snapshot of Inkwise before the Gemini Embedding 2 migration. PageIndex runtime code and the vendored `vendor/pageindex` repository were removed during the Phase 8 cleanup, but this doc is retained to describe the pre-migration architecture.
 
 ## Executive Summary
 

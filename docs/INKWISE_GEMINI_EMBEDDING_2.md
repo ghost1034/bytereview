@@ -1,6 +1,6 @@
 # Inkwise Design: Gemini Embedding 2, No PageIndex
 
-This document defines the target Inkwise retrieval architecture after PageIndex is completely removed and replaced with Gemini Embedding 2 through Vertex AI.
+This document defines the target Inkwise retrieval architecture after PageIndex is completely removed and replaced with Gemini Embedding 2 through Vertex AI. The PageIndex runtime and vendored repository have now been removed from the codebase.
 
 It is the successor design to `docs/INKWISE_PAGEINDEX.md`, which describes the current PageIndex-shaped implementation.
 
