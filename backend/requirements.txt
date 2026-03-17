@@ -10,6 +10,7 @@ openpyxl>=3.1.2
 pandas>=2.0.0
 google-cloud-storage>=2.10.0
 sqlalchemy>=2.0.0
+pgvector>=0.3.6
 psycopg2-binary>=2.9.0
 alembic>=1.13.0
 google-cloud-pubsub>=2.23.0

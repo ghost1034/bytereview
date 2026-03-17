@@ -20,8 +20,19 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy.types import UserDefinedType
 
 from models.db_models import Base
+
+
+class PgVector(UserDefinedType):
+    cache_ok = True
+
+    def __init__(self, dimensions: int):
+        self.dimensions = dimensions
+
+    def get_col_spec(self, **_kw):
+        return f"vector({self.dimensions})"
 
 
 class InkwiseDocument(Base):
@@ -100,6 +111,16 @@ class InkwiseSource(Base):
         back_populates="source",
         cascade="all, delete-orphan",
     )
+    segments = relationship(
+        "InkwiseSourceSegment",
+        back_populates="source",
+        cascade="all, delete-orphan",
+    )
+    segment_embeddings = relationship(
+        "InkwiseSourceSegmentEmbedding",
+        back_populates="source",
+        cascade="all, delete-orphan",
+    )
     tree_nodes = relationship(
         "InkwiseSourceTreeNode",
         back_populates="source",
@@ -124,19 +145,31 @@ class InkwiseSourceIngestion(Base):
     extraction_engine = Column(String(32), nullable=True)
     canonical_pdf_gcs_bucket = Column(String(200), nullable=True)
     canonical_pdf_gcs_object = Column(String(1024), nullable=True)
+    normalizer_version = Column(String(100), nullable=True)
+    embedding_model = Column(String(200), nullable=True)
+    embedding_dimension = Column(Integer, nullable=True)
+    embedding_location = Column(String(100), nullable=True)
     started_at = Column(TIMESTAMP(timezone=True), nullable=True)
     finished_at = Column(TIMESTAMP(timezone=True), nullable=True)
     pageindex_doc_id = Column(String(200), nullable=True)
     page_count = Column(Integer, nullable=True)
+    segment_count = Column(Integer, nullable=True)
     provider_document_name = Column(String(512), nullable=True)
     doc_description = Column(Text, nullable=True)
     tree_gcs_bucket = Column(String(200), nullable=True)
     tree_gcs_object = Column(String(1024), nullable=True)
     tree_cached_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    preview_manifest_bucket = Column(String(200), nullable=True)
+    preview_manifest_object = Column(String(1024), nullable=True)
     error_json = Column(JSONB, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     source = relationship("InkwiseSource", back_populates="ingestions")
+    segments = relationship(
+        "InkwiseSourceSegment",
+        back_populates="ingestion",
+        cascade="all, delete-orphan",
+    )
 
 
 class InkwiseDocumentSourceBinding(Base):
@@ -208,6 +241,73 @@ class InkwiseSourcePage(Base):
     source = relationship("InkwiseSource", back_populates="pages")
 
 
+class InkwiseSourceSegment(Base):
+    __tablename__ = "inkwise_source_segments"
+    __table_args__ = (
+        UniqueConstraint(
+            "ingestion_id",
+            "segment_type",
+            "order_index",
+            name="uq_inkwise_source_segments_ingestion_type_order",
+        ),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_sources.id", ondelete="CASCADE"), nullable=False, index=True)
+    ingestion_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_source_ingestions.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    segment_type = Column(String(32), nullable=False, index=True)
+    modality = Column(String(32), nullable=False)
+    order_index = Column(Integer, nullable=False, default=0)
+    title = Column(String(400), nullable=True)
+    text_content = Column(Text, nullable=True)
+    text_tsv = Column(
+        postgresql.TSVECTOR,
+        Computed("to_tsvector('english', coalesce(text_content, ''))", persisted=True),
+        nullable=True,
+    )
+    char_count = Column(Integer, nullable=False, default=0)
+    token_count = Column(Integer, nullable=True)
+    page_start = Column(Integer, nullable=True)
+    page_end = Column(Integer, nullable=True)
+    time_start_ms = Column(BigInteger, nullable=True)
+    time_end_ms = Column(BigInteger, nullable=True)
+    locator_json = Column(JSONB, nullable=False, default=dict)
+    asset_bucket = Column(String(200), nullable=True)
+    asset_object = Column(String(1024), nullable=True)
+    preview_bucket = Column(String(200), nullable=True)
+    preview_object = Column(String(1024), nullable=True)
+    meta_json = Column(JSONB, nullable=False, default=dict)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    source = relationship("InkwiseSource", back_populates="segments")
+    ingestion = relationship("InkwiseSourceIngestion", back_populates="segments")
+    embeddings = relationship(
+        "InkwiseSourceSegmentEmbedding",
+        back_populates="segment",
+        cascade="all, delete-orphan",
+    )
+    retrieval_evidence = relationship("InkwiseRetrievalEvidence", back_populates="segment")
+
+
+class InkwiseSourceSegmentEmbedding(Base):
+    __tablename__ = "inkwise_source_segment_embeddings"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    segment_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_source_segments.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_sources.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    model = Column(String(200), nullable=False)
+    embedding_dimension = Column(Integer, nullable=False)
+    task_instruction = Column(String(200), nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    embedding = Column(PgVector(1536), nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    segment = relationship("InkwiseSourceSegment", back_populates="embeddings")
+    source = relationship("InkwiseSource", back_populates="segment_embeddings")
+
+
 class InkwiseSourceTreeNode(Base):
     __tablename__ = "inkwise_source_tree_nodes"
     __table_args__ = (UniqueConstraint("source_id", "node_id", name="uq_inkwise_source_tree_nodes_source_node"),)
@@ -265,15 +365,20 @@ class InkwiseRetrievalEvidence(Base):
     retrieval_run_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_retrieval_runs.id", ondelete="CASCADE"), nullable=False, index=True)
     evidence_id = Column(String(16), nullable=False)
     source_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_sources.id", ondelete="CASCADE"), nullable=False, index=True)
-    page_number = Column(Integer, nullable=False)
+    segment_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_source_segments.id", ondelete="SET NULL"), nullable=True, index=True)
+    page_number = Column(Integer, nullable=True)
     node_id = Column(String(32), nullable=True)
     node_title = Column(String(400), nullable=True)
+    locator_json = Column(JSONB, nullable=True)
+    preview_bucket = Column(String(200), nullable=True)
+    preview_object = Column(String(1024), nullable=True)
     excerpt = Column(Text, nullable=False)
     score = Column(Numeric(14, 6), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     retrieval_run = relationship("InkwiseRetrievalRun", back_populates="evidence")
     source = relationship("InkwiseSource", back_populates="retrieval_evidence")
+    segment = relationship("InkwiseSourceSegment", back_populates="retrieval_evidence")
 
 
 class InkwiseTemplate(Base):
