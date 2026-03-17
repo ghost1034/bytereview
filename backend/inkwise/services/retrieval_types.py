@@ -25,11 +25,14 @@ class EvidenceItem:
 def build_evidence_pack(evidence: list[EvidenceItem]) -> str:
     blocks: list[str] = []
     for item in evidence:
-        header = f'[{item.evidence_id}] source="{item.source_title}" page={item.page_number}'
         locator = item.locator_json or {}
         page_end = locator.get("page_end") if isinstance(locator, dict) else None
-        if isinstance(page_end, int) and page_end != item.page_number:
-            header = f'[{item.evidence_id}] source="{item.source_title}" pages={item.page_number}-{page_end}'
+        if item.page_number > 0:
+            header = f'[{item.evidence_id}] source="{item.source_title}" page={item.page_number}'
+            if isinstance(page_end, int) and page_end != item.page_number:
+                header = f'[{item.evidence_id}] source="{item.source_title}" pages={item.page_number}-{page_end}'
+        else:
+            header = f'[{item.evidence_id}] source="{item.source_title}"'
         if item.segment_title:
             header += f' segment="{item.segment_title}"'
         blocks.append(header + "\n" + item.excerpt.strip())

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import os
+from html import unescape
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -12,6 +14,8 @@ from services.document_conversion_service import DOCX_MIME, get_document_convers
 
 
 PDF_MIME = "application/pdf"
+HTML_MIME = "text/html"
+_HTML_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 
 
 class SourceNormalizationError(RuntimeError):
@@ -61,6 +65,7 @@ class InkwiseSourceNormalizer:
         filename: str | None = None,
         content_type: str | None = None,
         title: str | None = None,
+        source_url: str | None = None,
     ) -> NormalizedSource:
         path = os.path.abspath(local_path)
         if not os.path.exists(path):
@@ -73,6 +78,8 @@ class InkwiseSourceNormalizer:
             return self._normalize_pdf(local_path=path, title=resolved_title)
         if detected_mime == DOCX_MIME:
             return self._normalize_docx(local_path=path, title=resolved_title)
+        if detected_mime == HTML_MIME:
+            return self._normalize_webpage(local_path=path, title=resolved_title, source_url=source_url)
 
         raise SourceNormalizationError(f"Unsupported source type for normalization: {detected_mime}")
 
@@ -139,6 +146,43 @@ class InkwiseSourceNormalizer:
             },
         )
 
+    def _normalize_webpage(self, *, local_path: str, title: str, source_url: str | None) -> NormalizedSource:
+        try:
+            with open(local_path, "r", encoding="utf-8", errors="ignore") as handle:
+                html_text = handle.read()
+        except Exception as exc:
+            raise SourceNormalizationError(f"Could not read webpage snapshot: {exc}") from exc
+
+        extracted_title = self._extract_html_title(html_text)
+        resolved_title = extracted_title or title
+        paragraphs = self._extract_html_paragraphs(html_text)
+        blocks = [
+            NormalizedTextBlock(
+                order_index=idx,
+                text=paragraph,
+                meta={"char_count": len(paragraph), "source_url": source_url},
+            )
+            for idx, paragraph in enumerate(paragraphs)
+        ]
+        if not blocks:
+            blocks = [NormalizedTextBlock(order_index=0, text=resolved_title, meta={"source_url": source_url})]
+
+        return NormalizedSource(
+            source_kind="webpage",
+            title=resolved_title,
+            original_local_path=local_path,
+            original_mime_type=HTML_MIME,
+            canonical_local_path=local_path,
+            canonical_mime_type=HTML_MIME,
+            text_blocks=blocks,
+            assets=[NormalizedAsset(kind="webpage_snapshot", mime_type=HTML_MIME, local_path=local_path)],
+            metadata={
+                "normalization": "webpage_snapshot",
+                "source_url": source_url,
+                "block_count": len(blocks),
+            },
+        )
+
     def _pages_to_blocks(self, pages: list[ExtractedPage]) -> list[NormalizedTextBlock]:
         blocks: list[NormalizedTextBlock] = []
         for idx, page in enumerate(pages):
@@ -154,14 +198,33 @@ class InkwiseSourceNormalizer:
 
     def _detect_mime_type(self, *, filename: str, content_type: str | None) -> str:
         clean_content_type = (content_type or "").strip().lower()
-        if clean_content_type in {PDF_MIME, DOCX_MIME}:
+        if clean_content_type in {PDF_MIME, DOCX_MIME, HTML_MIME}:
             return clean_content_type
         lowered = (filename or "").strip().lower()
         if lowered.endswith(".pdf"):
             return PDF_MIME
         if lowered.endswith(".docx"):
             return DOCX_MIME
+        if lowered.endswith(".html") or lowered.endswith(".htm"):
+            return HTML_MIME
         return clean_content_type or "application/octet-stream"
+
+    def _extract_html_title(self, html_text: str) -> str | None:
+        match = _HTML_TITLE_RE.search(html_text or "")
+        if not match:
+            return None
+        title = unescape(re.sub(r"\s+", " ", match.group(1))).strip()
+        return title or None
+
+    def _extract_html_paragraphs(self, html_text: str) -> list[str]:
+        cleaned = re.sub(r"<!--.*?-->", " ", html_text or "", flags=re.DOTALL)
+        cleaned = re.sub(r"<script[^>]*>.*?</script>", " ", cleaned, flags=re.IGNORECASE | re.DOTALL)
+        cleaned = re.sub(r"<style[^>]*>.*?</style>", " ", cleaned, flags=re.IGNORECASE | re.DOTALL)
+        cleaned = re.sub(r"<(p|div|section|article|li|h1|h2|h3|h4|h5|h6|br)[^>]*>", "\n\n", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"<[^>]+>", " ", cleaned)
+        cleaned = unescape(cleaned)
+        parts = [re.sub(r"\s+", " ", part).strip() for part in re.split(r"\n\s*\n+", cleaned)]
+        return [part for part in parts if part]
 
     def _run_async(self, coro: Any) -> Any:
         try:

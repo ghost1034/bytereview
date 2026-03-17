@@ -54,6 +54,7 @@ class InkwiseSourceOut(BaseModel):
     content_type: str
     size_bytes: int
     checksum_sha256: str | None = None
+    source_url: str | None = None
     status: str
     failure_code: str | None = None
     failure_detail: str | None = None
@@ -81,6 +82,11 @@ class InkwiseSourceUploadInitRequest(BaseModel):
     original_filename: str
     content_type: str
     size_bytes: int
+    title: str | None = None
+
+
+class InkwiseWebpageCaptureRequest(BaseModel):
+    source_url: str
     title: str | None = None
 
 

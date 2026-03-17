@@ -40,19 +40,30 @@ class SegmentationResult:
 
 class InkwiseSegmentationService:
     def build_segments(self, normalized: NormalizedSource) -> SegmentationResult:
-        if normalized.canonical_mime_type != "application/pdf":
-            raise ValueError(f"Unsupported canonical mime type for segmentation: {normalized.canonical_mime_type}")
+        if normalized.canonical_mime_type == "application/pdf":
+            pdf_window_segments = self._build_pdf_window_segments(normalized)
+            text_chunk_segments = self._build_text_chunk_segments(normalized)
+            segments = pdf_window_segments + text_chunk_segments
+            stats = {
+                "pdf_window_count": len(pdf_window_segments),
+                "text_chunk_count": len(text_chunk_segments),
+                "segment_count": len(segments),
+                "page_count": normalized.page_count,
+            }
+            return SegmentationResult(segments=segments, stats=stats)
 
-        pdf_window_segments = self._build_pdf_window_segments(normalized)
-        text_chunk_segments = self._build_text_chunk_segments(normalized)
-        segments = pdf_window_segments + text_chunk_segments
-        stats = {
-            "pdf_window_count": len(pdf_window_segments),
-            "text_chunk_count": len(text_chunk_segments),
-            "segment_count": len(segments),
-            "page_count": normalized.page_count,
-        }
-        return SegmentationResult(segments=segments, stats=stats)
+        if normalized.canonical_mime_type == "text/html":
+            web_segments = self._build_web_segments(normalized)
+            return SegmentationResult(
+                segments=web_segments,
+                stats={
+                    "web_block_count": len(web_segments),
+                    "segment_count": len(web_segments),
+                    "page_count": 0,
+                },
+            )
+
+        raise ValueError(f"Unsupported canonical mime type for segmentation: {normalized.canonical_mime_type}")
 
     def _build_pdf_window_segments(self, normalized: NormalizedSource) -> list[SegmentDraft]:
         settings = get_inkwise_settings()
@@ -166,6 +177,73 @@ class InkwiseSegmentationService:
         flush()
         return out
 
+    def _build_web_segments(self, normalized: NormalizedSource) -> list[SegmentDraft]:
+        settings = get_inkwise_settings()
+        max_chars = max(500, settings.segment_text_chunk_chars)
+        source_url = normalized.metadata.get("source_url") if isinstance(normalized.metadata, dict) else None
+        out: list[SegmentDraft] = []
+        current_parts: list[str] = []
+        block_start: int | None = None
+        block_end: int | None = None
+
+        def flush() -> None:
+            nonlocal block_start, block_end
+            if not current_parts:
+                return
+            text_content = "\n\n".join(current_parts).strip()
+            if not text_content:
+                current_parts.clear()
+                block_start = None
+                block_end = None
+                return
+            order_index = len(out)
+            out.append(
+                SegmentDraft(
+                    segment_type="web_block",
+                    modality="web",
+                    order_index=order_index,
+                    title=_web_segment_title(normalized.title, order_index + 1),
+                    text_content=text_content,
+                    char_count=len(text_content),
+                    token_count=_estimate_token_count(text_content),
+                    locator_json={
+                        "kind": "web_snapshot",
+                        "source_url": source_url,
+                        "block_start": block_start,
+                        "block_end": block_end,
+                    },
+                    meta_json={
+                        "source_kind": normalized.source_kind,
+                        "segment_family": "web_block",
+                        "source_url": source_url,
+                    },
+                    asset_local_path=normalized.canonical_local_path,
+                    asset_mime_type=normalized.canonical_mime_type,
+                )
+            )
+            current_parts.clear()
+            block_start = None
+            block_end = None
+
+        for block in normalized.text_blocks:
+            paragraph = (block.text or "").strip()
+            if not paragraph:
+                continue
+            if block_start is None:
+                block_start = block.order_index
+            block_end = block.order_index
+            pending_text = "\n\n".join(current_parts + [paragraph]).strip()
+            if current_parts and len(pending_text) > max_chars:
+                flush()
+                block_start = block.order_index
+                block_end = block.order_index
+            current_parts.append(paragraph)
+            if len("\n\n".join(current_parts)) >= max_chars:
+                flush()
+
+        flush()
+        return out
+
 
 def _split_paragraphs(text: str | None) -> list[str]:
     cleaned = (text or "").strip()
@@ -191,3 +269,8 @@ def _page_range_title(title: str, page_start: int | None, page_end: int | None) 
     if page_start == page_end:
         return f"{clean_title} p.{page_start}"
     return f"{clean_title} pp.{page_start}-{page_end}"
+
+
+def _web_segment_title(title: str, index: int) -> str:
+    clean_title = (title or "Untitled source").strip() or "Untitled source"
+    return f"{clean_title} section {index}"

@@ -1,12 +1,18 @@
 """Source storage service for the Inkwise module."""
 
+# pyright: reportAttributeAccessIssue=false, reportGeneralTypeIssues=false, reportArgumentType=false, reportOptionalMemberAccess=false
+
 from __future__ import annotations
 
 import os
 import re
 import uuid
+from html import unescape
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
+
+import requests
 
 from sqlalchemy.orm import Session
 
@@ -14,6 +20,7 @@ from inkwise.schemas import (
     InkwiseSourceCreateRequest,
     InkwiseSourceOut,
     InkwiseSourceUploadInitRequest,
+    InkwiseWebpageCaptureRequest,
 )
 from inkwise.services.gcs import generate_signed_download_url, generate_signed_upload_url, storage_client
 from inkwise.settings import get_inkwise_settings, is_valid_gcs_bucket_name, normalize_gcs_bucket_name
@@ -23,6 +30,11 @@ from services.gcs_service import GCSService
 
 
 _SAFE_FILENAME_RE = re.compile(r"[^a-zA-Z0-9._ -]+")
+_HTML_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+_SUPPORTED_UPLOAD_MIME_TYPES = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
 
 
 @dataclass(frozen=True)
@@ -105,14 +117,26 @@ class InkwiseSourceService:
         self._validate_upload_request(body)
         bucket = self._require_bucket()
 
-        filename = self._sanitize_filename(body.original_filename)
+        upload_kind = self._detect_upload_kind(
+            filename=(body.original_filename or "").strip(),
+            content_type=(body.content_type or "").strip().lower(),
+        )
+        resolved_content_type = (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            if upload_kind == "docx"
+            else "application/pdf"
+        )
+        filename = self._sanitize_filename(
+            body.original_filename,
+            default_extension=".docx" if upload_kind == "docx" else ".pdf",
+        )
         now = datetime.utcnow()
         source = InkwiseSource(
             user_id=user_id,
             type="upload",
             title=(body.title or filename).strip() or filename,
             original_filename=filename,
-            content_type=(body.content_type or "application/pdf").strip() or "application/pdf",
+            content_type=resolved_content_type,
             size_bytes=int(body.size_bytes),
             storage_bucket=bucket,
             status="uploading",
@@ -139,6 +163,51 @@ class InkwiseSourceService:
 
         expires_at = (datetime.utcnow() + timedelta(minutes=15)).isoformat() + "Z"
         return source, SignedUpload(url=url, headers=headers, expires_at=expires_at)
+
+    def capture_webpage_snapshot(
+        self,
+        db: Session,
+        *,
+        user_id: str,
+        body: InkwiseWebpageCaptureRequest,
+    ) -> InkwiseSource:
+        clean_url = self._validate_webpage_url(body.source_url)
+        bucket = self._require_bucket()
+        html_bytes, content_type, resolved_title = self._fetch_webpage_snapshot(
+            clean_url,
+            preferred_title=(body.title or "").strip() or None,
+        )
+        filename = self._sanitize_filename(self._webpage_filename(clean_url, resolved_title), default_extension=".html")
+
+        now = datetime.utcnow()
+        source = InkwiseSource(
+            user_id=user_id,
+            type="webpage",
+            title=resolved_title,
+            original_filename=filename,
+            content_type=content_type,
+            size_bytes=len(html_bytes),
+            storage_bucket=bucket,
+            source_url=clean_url,
+            status="queued",
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(source)
+        db.flush()
+
+        source.storage_object = self._build_storage_object_name(
+            user_id=user_id,
+            source_id=source.id,
+            original_filename=filename,
+        )
+        storage_client().bucket(bucket).blob(source.storage_object).upload_from_string(
+            html_bytes,
+            content_type=content_type,
+        )
+        db.commit()
+        db.refresh(source)
+        return source
 
     def complete_upload(
         self,
@@ -218,7 +287,7 @@ class InkwiseSourceService:
         bucket = normalize_gcs_bucket_name(gcs_service.get_bucket_name())
         if not is_valid_gcs_bucket_name(bucket):
             raise RuntimeError("GCS bucket name is invalid or misconfigured")
-        return bucket
+        return str(bucket)
 
     def _validate_upload_request(self, body: InkwiseSourceUploadInitRequest) -> None:
         filename = (body.original_filename or "").strip()
@@ -233,19 +302,73 @@ class InkwiseSourceService:
         if int(body.size_bytes) > max_upload_bytes:
             raise ValueError(f"File too large. Maximum size is {settings.max_upload_mb}MB")
 
-        is_pdf = content_type == "application/pdf" or content_type.endswith("/pdf") or filename.lower().endswith(".pdf")
-        if not is_pdf:
-            raise ValueError("Only PDF uploads are currently supported")
+        upload_kind = self._detect_upload_kind(filename=filename, content_type=content_type)
+        if upload_kind is None:
+            raise ValueError("Only PDF and DOCX uploads are currently supported")
 
     def _build_storage_object_name(self, *, user_id: str, source_id: uuid.UUID, original_filename: str) -> str:
         return f"inkwise/uploads/{user_id}/{source_id}/original/{original_filename}"
 
-    def _sanitize_filename(self, original_filename: str | None) -> str:
-        filename = os.path.basename((original_filename or "").strip()) or "source.pdf"
+    def _sanitize_filename(self, original_filename: str | None, *, default_extension: str = ".pdf") -> str:
+        fallback_name = f"source{default_extension}"
+        filename = os.path.basename((original_filename or "").strip()) or fallback_name
         filename = _SAFE_FILENAME_RE.sub("", filename)
         filename = re.sub(r"\s+", " ", filename).strip()
         if not filename:
-            filename = "source.pdf"
+            filename = fallback_name
         if "." not in filename:
-            filename += ".pdf"
+            filename += default_extension
         return filename[:180]
+
+    def _detect_upload_kind(self, *, filename: str, content_type: str) -> str | None:
+        lowered_filename = filename.lower()
+        lowered_type = (content_type or "").lower()
+        if lowered_type == "application/pdf" or lowered_type.endswith("/pdf") or lowered_filename.endswith(".pdf"):
+            return "pdf"
+        if lowered_type in _SUPPORTED_UPLOAD_MIME_TYPES or lowered_filename.endswith(".docx"):
+            return "docx"
+        return None
+
+    def _validate_webpage_url(self, raw_url: str) -> str:
+        parsed = urlparse((raw_url or "").strip())
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("A valid http or https URL is required")
+        return parsed.geturl()
+
+    def _fetch_webpage_snapshot(self, url: str, *, preferred_title: str | None) -> tuple[bytes, str, str]:
+        settings = get_inkwise_settings()
+        max_bytes = max(1, settings.max_upload_mb) * 1024 * 1024
+        try:
+            response = requests.get(
+                url,
+                timeout=30,
+                headers={"User-Agent": "CPAAutomation Inkwise Reference Capture/1.0"},
+            )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            raise ValueError(f"Could not fetch webpage snapshot: {exc}") from exc
+        content = response.content
+        if len(content) > max_bytes:
+            raise ValueError(f"Webpage snapshot too large. Maximum size is {settings.max_upload_mb}MB")
+
+        content_type = (response.headers.get("content-type") or "text/html").split(";")[0].strip().lower() or "text/html"
+        if "html" not in content_type and not content_type.startswith("text/"):
+            raise ValueError("The URL did not return an HTML or text webpage")
+
+        html_text = content.decode(response.encoding or "utf-8", errors="ignore")
+        title = preferred_title or self._extract_html_title(html_text) or urlparse(url).netloc or "Webpage snapshot"
+        return html_text.encode("utf-8"), "text/html", title[:400]
+
+    def _extract_html_title(self, html_text: str) -> str | None:
+        match = _HTML_TITLE_RE.search(html_text or "")
+        if not match:
+            return None
+        title = unescape(re.sub(r"\s+", " ", match.group(1))).strip()
+        return title or None
+
+    def _webpage_filename(self, url: str, title: str) -> str:
+        parsed = urlparse(url)
+        stem = (title or parsed.netloc or "webpage").strip() or "webpage"
+        stem = re.sub(r"\s+", "-", stem)
+        stem = _SAFE_FILENAME_RE.sub("", stem).strip("- ") or "webpage"
+        return f"{stem[:120]}.html"

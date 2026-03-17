@@ -1,11 +1,12 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Eye, FileUp, Loader2, RefreshCw, Trash2 } from 'lucide-react'
+import { Eye, FileUp, Globe, Loader2, RefreshCw, Trash2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
 import { useInkwiseSources } from '@/hooks/useInkwise'
 import { apiClient } from '@/lib/api'
@@ -15,6 +16,7 @@ export default function InkwiseReferencesPage() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const sources = useInkwiseSources(1, 50)
+  const [webpageUrl, setWebpageUrl] = useState('')
 
   const refreshSources = async () => {
     await queryClient.invalidateQueries({ queryKey: ['inkwise', 'sources'] })
@@ -22,9 +24,10 @@ export default function InkwiseReferencesPage() {
 
   const uploadSource = useMutation({
     mutationFn: async (file: File) => {
+      const inferredContentType = inferSourceContentType(file)
       const init = await apiClient.initInkwiseSourceUpload({
         original_filename: file.name,
-        content_type: file.type || 'application/pdf',
+        content_type: inferredContentType,
         size_bytes: file.size,
       })
 
@@ -41,10 +44,26 @@ export default function InkwiseReferencesPage() {
     },
     onSuccess: async () => {
       await refreshSources()
-      toast({ title: 'Upload started', description: 'Your PDF was uploaded and queued for ingestion.' })
+      toast({ title: 'Upload started', description: 'Your reference was uploaded and queued for ingestion.' })
     },
     onError: (error: Error) => {
       toast({ title: 'Upload failed', description: error.message, variant: 'destructive' })
+    },
+  })
+
+  const captureWebpage = useMutation({
+    mutationFn: async (sourceUrl: string) => {
+      const source = await apiClient.captureInkwiseWebpage({ source_url: sourceUrl })
+      await apiClient.ingestInkwiseSource(source.id)
+      return source.id
+    },
+    onSuccess: async () => {
+      setWebpageUrl('')
+      await refreshSources()
+      toast({ title: 'Webpage captured', description: 'The webpage snapshot was stored and queued for ingestion.' })
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Could not capture webpage', description: error.message, variant: 'destructive' })
     },
   })
 
@@ -84,14 +103,14 @@ export default function InkwiseReferencesPage() {
           <div>
             <CardTitle>Source Library</CardTitle>
             <CardDescription>
-              Upload PDFs, preview them, and trigger ingestion into retrieval segments and embeddings.
+              Upload PDFs or DOCX files, capture webpage snapshots, and ingest them into retrieval segments and embeddings.
             </CardDescription>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 md:items-end">
             <input
               ref={fileInputRef}
               type="file"
-              accept="application/pdf"
+              accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,.docx"
               className="hidden"
               onChange={(event) => {
                 const file = event.target.files?.[0]
@@ -99,14 +118,31 @@ export default function InkwiseReferencesPage() {
                 if (file) uploadSource.mutate(file)
               }}
             />
-            <Button variant="outline" onClick={() => refreshSources()}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh
-            </Button>
-            <Button onClick={() => fileInputRef.current?.click()} disabled={uploadSource.isPending}>
-              {uploadSource.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
-              Upload PDF
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => refreshSources()}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Refresh
+              </Button>
+              <Button onClick={() => fileInputRef.current?.click()} disabled={uploadSource.isPending || captureWebpage.isPending}>
+                {uploadSource.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
+                Upload PDF or DOCX
+              </Button>
+            </div>
+            <div className="flex w-full gap-2 md:max-w-xl">
+              <Input
+                value={webpageUrl}
+                onChange={(event) => setWebpageUrl(event.target.value)}
+                placeholder="https://example.com/reference"
+              />
+              <Button
+                variant="outline"
+                onClick={() => captureWebpage.mutate(webpageUrl.trim())}
+                disabled={captureWebpage.isPending || !webpageUrl.trim()}
+              >
+                {captureWebpage.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Globe className="mr-2 h-4 w-4" />}
+                Capture webpage
+              </Button>
+            </div>
           </div>
         </CardHeader>
       </Card>
@@ -126,12 +162,15 @@ export default function InkwiseReferencesPage() {
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="font-semibold text-slate-900">{source.title}</h2>
+                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
+                      {sourceTypeLabel(source.type, source.content_type)}
+                    </span>
                     <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
                       {source.status}
                     </span>
                   </div>
                   <p className="text-sm text-slate-500">
-                    {source.original_filename || source.content_type} • {Math.max(1, Math.round(source.size_bytes / 1024))} KB
+                    {source.source_url || source.original_filename || source.content_type} • {Math.max(1, Math.round(source.size_bytes / 1024))} KB
                   </p>
                   <p className="text-xs text-slate-400">Updated {new Date(source.updated_at).toLocaleString()}</p>
                 </div>
@@ -156,11 +195,31 @@ export default function InkwiseReferencesPage() {
         ) : (
           <Card>
             <CardContent className="p-10 text-center text-sm text-slate-500">
-              No sources yet. Upload a PDF to start building your grounded source library.
+              No sources yet. Upload a PDF or DOCX, or capture a webpage to start building your grounded source library.
             </CardContent>
           </Card>
         )}
       </div>
     </div>
   )
+}
+
+function inferSourceContentType(file: File): string {
+  const explicit = (file.type || '').trim().toLowerCase()
+  if (explicit) return explicit
+  const filename = file.name.toLowerCase()
+  if (filename.endsWith('.docx')) {
+    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  }
+  if (filename.endsWith('.pdf')) {
+    return 'application/pdf'
+  }
+  return 'application/octet-stream'
+}
+
+function sourceTypeLabel(type: string, contentType: string): string {
+  if (type === 'webpage') return 'webpage'
+  if (contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx'
+  if (contentType === 'application/pdf') return 'pdf'
+  return type || 'reference'
 }

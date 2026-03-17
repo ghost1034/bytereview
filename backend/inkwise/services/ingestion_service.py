@@ -67,7 +67,12 @@ class InkwiseIngestionService:
             return self._get_ingestion_or_404(db, ingestion_id)
 
         if not self._is_supported_source(source):
-            self._mark_failed(db, ingestion_id=ingestion_id, code="unsupported_type", message="Only PDF sources are supported")
+            self._mark_failed(
+                db,
+                ingestion_id=ingestion_id,
+                code="unsupported_type",
+                message="Only PDF, DOCX, and webpage snapshot sources are supported",
+            )
             return self._get_ingestion_or_404(db, ingestion_id)
 
         source_bucket = normalize_gcs_bucket_name(str(source.storage_bucket or ""))
@@ -109,7 +114,7 @@ class InkwiseIngestionService:
 
         try:
             with tempfile.TemporaryDirectory() as temp_dir:
-                filename = source.original_filename or f"{source.id}.pdf"
+                filename = str(source.original_filename or f"{source.id}.pdf")
                 local_path = os.path.join(temp_dir, filename)
                 storage_client().bucket(source_bucket).blob(source_object).download_to_filename(local_path)
 
@@ -118,13 +123,21 @@ class InkwiseIngestionService:
                     filename=source.original_filename or filename,
                     content_type=source.content_type,
                     title=source.title,
+                    source_url=source.source_url,
                 )
-                ingestion.page_count = normalized.page_count or None
-                ingestion.provider_document_name = source.original_filename or source.title
-
                 derived_bucket = normalize_gcs_bucket_name(settings.derived_bucket or source_bucket)
                 if not derived_bucket or not is_valid_gcs_bucket_name(derived_bucket):
                     raise IngestionError("Derived storage bucket is invalid")
+                canonical_bucket, canonical_object = self._persist_canonical_asset(
+                    source=source,
+                    ingestion=ingestion,
+                    normalized=normalized,
+                    derived_bucket=derived_bucket,
+                )
+                ingestion.canonical_pdf_gcs_bucket = canonical_bucket
+                ingestion.canonical_pdf_gcs_object = canonical_object
+                ingestion.page_count = normalized.page_count or None
+                ingestion.provider_document_name = source.original_filename or source.title
 
                 self._persist_vector_artifacts(
                     db,
@@ -241,6 +254,11 @@ class InkwiseIngestionService:
                     document_ocr=settings.embedding_enable_document_ocr,
                 )
             else:
+                if normalized.canonical_mime_type == "text/html":
+                    segment.asset_bucket = source.storage_bucket
+                    segment.asset_object = source.storage_object
+                    segment.preview_bucket = source.storage_bucket
+                    segment.preview_object = source.storage_object
                 embedding_result = self.embedding_service.embed_document_text_sync(
                     draft.text_content or "",
                     output_dimensionality=settings.embedding_dimension,
@@ -380,5 +398,29 @@ class InkwiseIngestionService:
         content_type = (source.content_type or "").lower()
         if content_type == "application/pdf" or content_type.endswith("/pdf"):
             return True
+        if content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            return True
+        if content_type == "text/html":
+            return True
         filename = (source.original_filename or "").lower()
-        return filename.endswith(".pdf")
+        return filename.endswith(".pdf") or filename.endswith(".docx") or filename.endswith(".html") or filename.endswith(".htm")
+
+    def _persist_canonical_asset(
+        self,
+        *,
+        source: InkwiseSource,
+        ingestion: InkwiseSourceIngestion,
+        normalized: Any,
+        derived_bucket: str,
+    ) -> tuple[str | None, str | None]:
+        if normalized.canonical_mime_type != "application/pdf":
+            return None, None
+        if normalized.canonical_local_path == normalized.original_local_path and (source.content_type or "").lower() == "application/pdf":
+            return str(source.storage_bucket or "") or None, str(source.storage_object or "") or None
+
+        object_name = f"inkwise/derived/{source.user_id}/{source.id}/canonical/{ingestion.id}/canonical.pdf"
+        storage_client().bucket(derived_bucket).blob(object_name).upload_from_filename(
+            normalized.canonical_local_path,
+            content_type="application/pdf",
+        )
+        return derived_bucket, object_name

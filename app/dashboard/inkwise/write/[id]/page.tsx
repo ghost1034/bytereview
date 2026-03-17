@@ -33,7 +33,8 @@ type StreamState = {
 function citationLabel(citation: InkwiseCitation): string {
   const sourceTitle = citation.source_title || 'Source'
   const locator = citation.locator_json || {}
-  const pageStart = citation.page_number ?? locator.page_start ?? null
+  const rawPageStart = citation.page_number ?? locator.page_start ?? null
+  const pageStart = typeof rawPageStart === 'number' && rawPageStart > 0 ? rawPageStart : null
   const pageEnd = locator.page_end ?? null
   const locationLabel = typeof pageStart === 'number'
     ? typeof pageEnd === 'number' && pageEnd !== pageStart

@@ -800,6 +800,13 @@ export class ApiClient {
     })
   }
 
+  async captureInkwiseWebpage(data: InkwiseWebpageCaptureRequest): Promise<InkwiseSource> {
+    return this.request('/api/inkwise/sources/webpage:capture', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
   async completeInkwiseSourceUpload(sourceId: string, checksumSha256?: string): Promise<InkwiseSource> {
     return this.request(`/api/inkwise/sources/${sourceId}/upload:complete`, {
       method: 'POST',
@@ -1214,6 +1221,7 @@ export interface InkwiseSource {
   content_type: string
   size_bytes: number
   checksum_sha256: string | null
+  source_url?: string | null
   status: string
   failure_code?: string | null
   failure_detail?: string | null
@@ -1232,6 +1240,11 @@ export interface InkwiseSourceUploadInitRequest {
   original_filename: string
   content_type: string
   size_bytes: number
+  title?: string | null
+}
+
+export interface InkwiseWebpageCaptureRequest {
+  source_url: string
   title?: string | null
 }
 

@@ -11,6 +11,7 @@ from inkwise.schemas import (
     InkwisePlaceholderResponse,
     InkwiseSignedUrlResponse,
     InkwiseSourceCreateRequest,
+    InkwiseWebpageCaptureRequest,
     InkwiseSourceOut,
     InkwiseSourceIngestionOut,
     InkwiseUploadInfo,
@@ -128,6 +129,28 @@ async def init_source_upload(
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to initialize upload: {exc}") from exc
+
+
+@router.post("/webpage:capture", response_model=InkwiseSourceOut)
+async def capture_webpage_source(
+    body: InkwiseWebpageCaptureRequest,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseSourceOut:
+    user_id = token_data["uid"]
+    try:
+        source_service.ensure_user_record(db, user_id=user_id, email=token_data.get("email"))
+        source = source_service.capture_webpage_snapshot(db, user_id=user_id, body=body)
+        return InkwiseSourceOut.model_validate(source)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to capture webpage: {exc}") from exc
 
 
 @router.post("/{source_id}/upload:complete", response_model=InkwiseSourceOut)
