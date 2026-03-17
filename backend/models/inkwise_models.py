@@ -151,11 +151,6 @@ class InkwiseSource(Base):
         back_populates="source",
         cascade="all, delete-orphan",
     )
-    tree_nodes = relationship(
-        "InkwiseSourceTreeNode",
-        back_populates="source",
-        cascade="all, delete-orphan",
-    )
     retrieval_evidence = relationship(
         "InkwiseRetrievalEvidence",
         back_populates="source",
@@ -170,8 +165,6 @@ class InkwiseSourceIngestion(Base):
     source_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_sources.id", ondelete="CASCADE"), nullable=False, index=True)
     pipeline = Column(String(32), nullable=False)
     status = Column(String(32), nullable=False, default="queued")
-    treegen_engine = Column(String(32), nullable=True)
-    treegen_version = Column(String(100), nullable=True)
     extraction_engine = Column(String(32), nullable=True)
     canonical_pdf_gcs_bucket = Column(String(200), nullable=True)
     canonical_pdf_gcs_object = Column(String(1024), nullable=True)
@@ -181,14 +174,9 @@ class InkwiseSourceIngestion(Base):
     embedding_location = Column(String(100), nullable=True)
     started_at = Column(TIMESTAMP(timezone=True), nullable=True)
     finished_at = Column(TIMESTAMP(timezone=True), nullable=True)
-    pageindex_doc_id = Column(String(200), nullable=True)
     page_count = Column(Integer, nullable=True)
     segment_count = Column(Integer, nullable=True)
     provider_document_name = Column(String(512), nullable=True)
-    doc_description = Column(Text, nullable=True)
-    tree_gcs_bucket = Column(String(200), nullable=True)
-    tree_gcs_object = Column(String(1024), nullable=True)
-    tree_cached_at = Column(TIMESTAMP(timezone=True), nullable=True)
     preview_manifest_bucket = Column(String(200), nullable=True)
     preview_manifest_object = Column(String(1024), nullable=True)
     error_json = Column(JSONB, nullable=True)
@@ -338,33 +326,6 @@ class InkwiseSourceSegmentEmbedding(Base):
     source = relationship("InkwiseSource", back_populates="segment_embeddings")
 
 
-class InkwiseSourceTreeNode(Base):
-    __tablename__ = "inkwise_source_tree_nodes"
-    __table_args__ = (UniqueConstraint("source_id", "node_id", name="uq_inkwise_source_tree_nodes_source_node"),)
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    source_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_sources.id", ondelete="CASCADE"), nullable=False, index=True)
-    node_id = Column(String(32), nullable=False)
-    parent_node_id = Column(String(32), nullable=True)
-    depth = Column(Integer, nullable=False)
-    title = Column(String(400), nullable=False)
-    page_start = Column(Integer, nullable=False)
-    page_end = Column(Integer, nullable=False)
-    node_summary = Column(Text, nullable=True)
-    path_titles = Column(postgresql.ARRAY(Text), nullable=False, default=list)
-    node_text_tsv = Column(
-        postgresql.TSVECTOR,
-        Computed(
-            "to_tsvector('english', coalesce(title, '') || ' ' || coalesce(node_summary, ''))",
-            persisted=True,
-        ),
-        nullable=True,
-    )
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
-
-    source = relationship("InkwiseSource", back_populates="tree_nodes")
-
-
 class InkwiseRetrievalRun(Base):
     __tablename__ = "inkwise_retrieval_runs"
 
@@ -397,8 +358,6 @@ class InkwiseRetrievalEvidence(Base):
     source_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_sources.id", ondelete="CASCADE"), nullable=False, index=True)
     segment_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_source_segments.id", ondelete="SET NULL"), nullable=True, index=True)
     page_number = Column(Integer, nullable=True)
-    node_id = Column(String(32), nullable=True)
-    node_title = Column(String(400), nullable=True)
     locator_json = Column(JSONB, nullable=True)
     preview_bucket = Column(String(200), nullable=True)
     preview_object = Column(String(1024), nullable=True)

@@ -348,8 +348,6 @@ def extract_citations(*, assistant_text: str, evidence: list) -> list[dict]:
                 "page_number": item.page_number,
                 "segment_id": str(item.segment_id) if item.segment_id is not None else None,
                 "segment_title": item.segment_title,
-                "node_id": item.node_id,
-                "node_title": item.node_title,
                 "locator_json": item.locator_json,
                 "preview_bucket": item.preview_bucket,
                 "preview_object": item.preview_object,

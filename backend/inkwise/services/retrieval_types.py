@@ -13,8 +13,6 @@ class EvidenceItem:
     source_id: uuid.UUID
     source_title: str
     page_number: int
-    node_id: str | None
-    node_title: str | None
     excerpt: str
     score: float | None
     segment_id: uuid.UUID | None = None
@@ -32,9 +30,7 @@ def build_evidence_pack(evidence: list[EvidenceItem]) -> str:
         page_end = locator.get("page_end") if isinstance(locator, dict) else None
         if isinstance(page_end, int) and page_end != item.page_number:
             header = f'[{item.evidence_id}] source="{item.source_title}" pages={item.page_number}-{page_end}'
-        if item.node_title:
-            header += f' node="{item.node_title}"'
-        elif item.segment_title:
+        if item.segment_title:
             header += f' segment="{item.segment_title}"'
         blocks.append(header + "\n" + item.excerpt.strip())
     return ("\n\n".join(blocks).strip() + "\n") if blocks else ""
@@ -48,8 +44,6 @@ def evidence_item_to_payload(item: EvidenceItem) -> dict[str, Any]:
         "page_number": item.page_number,
         "segment_id": str(item.segment_id) if item.segment_id is not None else None,
         "segment_title": item.segment_title,
-        "node_id": item.node_id,
-        "node_title": item.node_title,
         "locator_json": item.locator_json,
         "preview_bucket": item.preview_bucket,
         "preview_object": item.preview_object,

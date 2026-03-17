@@ -80,9 +80,6 @@ class InkwiseSettings:
     embedding_auto_truncate: bool
     embedding_enable_document_ocr: bool
     embedding_enable_audio_track_extraction: bool
-    use_gemini_ingestion: bool
-    dual_write_ingestion: bool
-    use_vector_retrieval: bool
     use_lexical_fusion: bool
     use_vector_rerank: bool
     vector_search_top_k: int
@@ -96,25 +93,12 @@ class InkwiseSettings:
     grounded_chat_history_enabled: bool
     grounded_chat_max_history_messages: int
     grounded_chat_max_history_chars: int
-    treegen_model: str
     query_rewrite_model: str
-    tree_search_model: str
-    source_prefilter_enabled: bool
-    source_prefilter_trigger_count: int
-    source_prefilter_top_k: int
-    source_prefilter_stage_b_enabled: bool
     query_rewrite_enabled: bool
     query_rewrite_max_history_messages: int
     query_rewrite_max_queries: int
     query_rewrite_max_query_chars: int
     query_rewrite_timeout_seconds: float
-    tree_search_enabled: bool
-    tree_search_min_evidence: int
-    tree_search_max_sources: int
-    tree_search_max_rounds: int
-    tree_search_max_frontier: int
-    tree_search_max_pick: int
-    tree_search_timeout_seconds: float
     max_bound_sources: int
     max_upload_mb: int
     cloud_tasks_project: str | None
@@ -155,9 +139,6 @@ def get_inkwise_settings() -> InkwiseSettings:
         embedding_auto_truncate=_env_bool("INKWISE_EMBEDDING_AUTO_TRUNCATE", True),
         embedding_enable_document_ocr=_env_bool("INKWISE_EMBEDDING_ENABLE_DOCUMENT_OCR", True),
         embedding_enable_audio_track_extraction=_env_bool("INKWISE_EMBEDDING_ENABLE_AUDIO_TRACK_EXTRACTION", True),
-        use_gemini_ingestion=_env_bool("INKWISE_USE_GEMINI_INGESTION", True),
-        dual_write_ingestion=_env_bool("INKWISE_DUAL_WRITE_INGESTION", True),
-        use_vector_retrieval=_env_bool("INKWISE_USE_VECTOR_RETRIEVAL", True),
         use_lexical_fusion=_env_bool("INKWISE_USE_LEXICAL_FUSION", True),
         use_vector_rerank=_env_bool("INKWISE_USE_VECTOR_RERANK", True),
         vector_search_top_k=max(1, _env_int("INKWISE_VECTOR_SEARCH_TOP_K", 24)),
@@ -171,25 +152,12 @@ def get_inkwise_settings() -> InkwiseSettings:
         grounded_chat_history_enabled=_env_bool("INKWISE_GROUNDED_CHAT_HISTORY_ENABLED", True),
         grounded_chat_max_history_messages=_env_int("INKWISE_GROUNDED_CHAT_MAX_HISTORY_MESSAGES", 6),
         grounded_chat_max_history_chars=_env_int("INKWISE_GROUNDED_CHAT_MAX_HISTORY_CHARS", 3500),
-        treegen_model=os.getenv("INKWISE_TREEGEN_MODEL", default_model),
         query_rewrite_model=os.getenv("INKWISE_QUERY_REWRITE_MODEL", default_model),
-        tree_search_model=os.getenv("INKWISE_TREE_SEARCH_MODEL", default_model),
-        source_prefilter_enabled=_env_bool("INKWISE_SOURCE_PREFILTER_ENABLED", True),
-        source_prefilter_trigger_count=_env_int("INKWISE_SOURCE_PREFILTER_TRIGGER_COUNT", 20),
-        source_prefilter_top_k=_env_int("INKWISE_SOURCE_PREFILTER_TOP_K", 10),
-        source_prefilter_stage_b_enabled=_env_bool("INKWISE_SOURCE_PREFILTER_STAGE_B_ENABLED", True),
         query_rewrite_enabled=_env_bool("INKWISE_QUERY_REWRITE_ENABLED", True),
         query_rewrite_max_history_messages=_env_int("INKWISE_QUERY_REWRITE_MAX_HISTORY_MESSAGES", 12),
         query_rewrite_max_queries=_env_int("INKWISE_QUERY_REWRITE_MAX_QUERIES", 4),
         query_rewrite_max_query_chars=_env_int("INKWISE_QUERY_REWRITE_MAX_QUERY_CHARS", 180),
         query_rewrite_timeout_seconds=_env_float("INKWISE_QUERY_REWRITE_TIMEOUT_SECONDS", 15.0),
-        tree_search_enabled=_env_bool("INKWISE_TREE_SEARCH_ENABLED", True),
-        tree_search_min_evidence=_env_int("INKWISE_TREE_SEARCH_MIN_EVIDENCE", 4),
-        tree_search_max_sources=_env_int("INKWISE_TREE_SEARCH_MAX_SOURCES", 3),
-        tree_search_max_rounds=_env_int("INKWISE_TREE_SEARCH_MAX_ROUNDS", 3),
-        tree_search_max_frontier=_env_int("INKWISE_TREE_SEARCH_MAX_FRONTIER", 40),
-        tree_search_max_pick=_env_int("INKWISE_TREE_SEARCH_MAX_PICK", 8),
-        tree_search_timeout_seconds=_env_float("INKWISE_TREE_SEARCH_TIMEOUT_SECONDS", 30.0),
         max_bound_sources=_env_int("INKWISE_MAX_BOUND_SOURCES", 100),
         max_upload_mb=_env_int("INKWISE_MAX_UPLOAD_MB", 100),
         cloud_tasks_project=_normalize_env_text(os.getenv("CLOUD_TASKS_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT_ID")),

@@ -17,19 +17,10 @@ from sqlalchemy.orm import Session
 
 from inkwise.services.embeddings import InkwiseEmbeddingError, InkwiseEmbeddingService
 from inkwise.services.gcs import storage_client
-from inkwise.services.pageindex_oss_treegen import PageIndexOssTreeGenError, generate_tree_sync
-from inkwise.services.pdf_extract import PdfExtractError, extract_pdf_pages_text
 from inkwise.services.segmentation_service import InkwiseSegmentationService, SegmentDraft
 from inkwise.services.source_normalizer import InkwiseSourceNormalizer, SourceNormalizationError
 from inkwise.settings import get_inkwise_settings, is_valid_gcs_bucket_name, normalize_gcs_bucket_name
-from models.inkwise_models import (
-    InkwiseSource,
-    InkwiseSourceIngestion,
-    InkwiseSourcePage,
-    InkwiseSourceSegment,
-    InkwiseSourceSegmentEmbedding,
-    InkwiseSourceTreeNode,
-)
+from models.inkwise_models import InkwiseSource, InkwiseSourceIngestion, InkwiseSourceSegment, InkwiseSourceSegmentEmbedding
 
 
 class IngestionError(RuntimeError):
@@ -47,11 +38,10 @@ class InkwiseIngestionService:
         if source.status == "deleted":
             raise FileNotFoundError("Source not found")
 
-        settings = get_inkwise_settings()
         now = datetime.utcnow()
         ingestion = InkwiseSourceIngestion(
             source_id=source.id,
-            pipeline="normalize_embed" if settings.use_gemini_ingestion else "treegen",
+            pipeline="normalize_embed",
             status="queued",
             created_at=now,
         )
@@ -76,7 +66,7 @@ class InkwiseIngestionService:
             self._mark_failed(db, ingestion_id=ingestion_id, code="source_missing", message="Source missing or deleted")
             return self._get_ingestion_or_404(db, ingestion_id)
 
-        if not self._is_pdf(source):
+        if not self._is_supported_source(source):
             self._mark_failed(db, ingestion_id=ingestion_id, code="unsupported_type", message="Only PDF sources are supported")
             return self._get_ingestion_or_404(db, ingestion_id)
 
@@ -93,30 +83,26 @@ class InkwiseIngestionService:
         if not settings.vertex_enabled:
             self._mark_failed(db, ingestion_id=ingestion_id, code="config_missing", message="Vertex AI is not configured")
             return self._get_ingestion_or_404(db, ingestion_id)
-        if settings.use_gemini_ingestion and settings.embedding_dimension != 1536:
+        if settings.embedding_dimension != 1536:
             self._mark_failed(
                 db,
                 ingestion_id=ingestion_id,
                 code="config_invalid",
-                message="Phase 3 ingestion currently requires INKWISE_EMBEDDING_DIMENSION=1536 to match the vector schema",
+                message="Inkwise ingestion currently requires INKWISE_EMBEDDING_DIMENSION=1536 to match the vector schema",
             )
             return self._get_ingestion_or_404(db, ingestion_id)
 
         now = datetime.utcnow()
         ingestion.status = "processing"
-        ingestion.pipeline = "normalize_embed" if settings.use_gemini_ingestion else "treegen"
+        ingestion.pipeline = "normalize_embed"
         ingestion.started_at = ingestion.started_at or now
         ingestion.extraction_engine = "pymupdf"
         ingestion.canonical_pdf_gcs_bucket = source_bucket
         ingestion.canonical_pdf_gcs_object = source_object
-        if settings.use_gemini_ingestion:
-            ingestion.normalizer_version = "phase3_v1"
-            ingestion.embedding_model = settings.embedding_model
-            ingestion.embedding_dimension = settings.embedding_dimension
-            ingestion.embedding_location = settings.embedding_location
-        if settings.dual_write_ingestion or not settings.use_gemini_ingestion:
-            ingestion.treegen_engine = "pageindex_oss"
-            ingestion.treegen_version = "vendor/pageindex"
+        ingestion.normalizer_version = "phase8_v1"
+        ingestion.embedding_model = settings.embedding_model
+        ingestion.embedding_dimension = settings.embedding_dimension
+        ingestion.embedding_location = settings.embedding_location
         source.status = "processing"
         source.updated_at = now
         db.commit()
@@ -125,8 +111,7 @@ class InkwiseIngestionService:
             with tempfile.TemporaryDirectory() as temp_dir:
                 filename = source.original_filename or f"{source.id}.pdf"
                 local_path = os.path.join(temp_dir, filename)
-                blob = storage_client().bucket(source_bucket).blob(source_object)
-                blob.download_to_filename(local_path)
+                storage_client().bucket(source_bucket).blob(source_object).download_to_filename(local_path)
 
                 normalized = self.source_normalizer.normalize_local_source(
                     local_path=local_path,
@@ -134,40 +119,24 @@ class InkwiseIngestionService:
                     content_type=source.content_type,
                     title=source.title,
                 )
-                canonical_path = normalized.canonical_local_path
-                pages = extract_pdf_pages_text(pdf_path=canonical_path)
-                page_count = len(pages)
-                ingestion.page_count = page_count
+                ingestion.page_count = normalized.page_count or None
                 ingestion.provider_document_name = source.original_filename or source.title
 
                 derived_bucket = normalize_gcs_bucket_name(settings.derived_bucket or source_bucket)
-                if derived_bucket and not is_valid_gcs_bucket_name(derived_bucket):
+                if not derived_bucket or not is_valid_gcs_bucket_name(derived_bucket):
                     raise IngestionError("Derived storage bucket is invalid")
 
-                if settings.use_gemini_ingestion:
-                    self._persist_vector_artifacts(
-                        db,
-                        source=source,
-                        ingestion=ingestion,
-                        normalized=normalized,
-                        derived_bucket=derived_bucket or source_bucket,
-                    )
-
-                if settings.dual_write_ingestion or not settings.use_gemini_ingestion:
-                    self._persist_legacy_artifacts(
-                        db,
-                        source=source,
-                        ingestion=ingestion,
-                        pages=pages,
-                        canonical_pdf_path=canonical_path,
-                        source_bucket=source_bucket,
-                    )
+                self._persist_vector_artifacts(
+                    db,
+                    source=source,
+                    ingestion=ingestion,
+                    normalized=normalized,
+                    derived_bucket=derived_bucket,
+                )
 
                 ingestion.status = "completed"
                 ingestion.finished_at = datetime.utcnow()
                 ingestion.error_json = None
-                if settings.dual_write_ingestion or not settings.use_gemini_ingestion:
-                    ingestion.pageindex_doc_id = f"local:{source.id}:{ingestion.id}"
                 source.status = "completed"
                 source.failure_code = None
                 source.failure_detail = None
@@ -176,7 +145,7 @@ class InkwiseIngestionService:
                 db.refresh(ingestion)
                 return ingestion
 
-        except (PdfExtractError, PageIndexOssTreeGenError, IngestionError, SourceNormalizationError, InkwiseEmbeddingError) as exc:
+        except (IngestionError, SourceNormalizationError, InkwiseEmbeddingError) as exc:
             self._mark_failed(db, ingestion_id=ingestion_id, code="ingest_failed", message=str(exc))
             return self._get_ingestion_or_404(db, ingestion_id)
         except Exception as exc:
@@ -218,48 +187,6 @@ class InkwiseIngestionService:
         self._mark_failed(db, ingestion_id=ingestion_id, code="enqueue_failed", message=message)
         return self._get_ingestion_or_404(db, ingestion_id)
 
-    def _get_source_for_user(self, db: Session, *, user_id: str, source_id: uuid.UUID) -> InkwiseSource:
-        source = db.query(InkwiseSource).filter(InkwiseSource.id == source_id, InkwiseSource.user_id == user_id).first()
-        if source is None:
-            raise FileNotFoundError("Source not found")
-        return source
-
-    def _get_ingestion_or_404(self, db: Session, ingestion_id: uuid.UUID) -> InkwiseSourceIngestion:
-        ingestion = db.query(InkwiseSourceIngestion).filter(InkwiseSourceIngestion.id == ingestion_id).first()
-        if ingestion is None:
-            raise FileNotFoundError("Ingestion not found")
-        return ingestion
-
-    def _mark_failed(self, db: Session, *, ingestion_id: uuid.UUID, code: str, message: str) -> None:
-        try:
-            db.rollback()
-        except Exception:
-            pass
-
-        ingestion = db.query(InkwiseSourceIngestion).filter(InkwiseSourceIngestion.id == ingestion_id).first()
-        if ingestion is None:
-            return
-        source = db.query(InkwiseSource).filter(InkwiseSource.id == ingestion.source_id).first()
-
-        ingestion.status = "failed"
-        ingestion.finished_at = datetime.utcnow()
-        ingestion.error_json = {"code": code, "message": (message or "")[:2000]}
-
-        if source is not None:
-            source.status = "failed"
-            source.failure_code = code
-            source.failure_detail = (message or "")[:2000]
-            source.updated_at = datetime.utcnow()
-
-        db.commit()
-
-    def _is_pdf(self, source: InkwiseSource) -> bool:
-        content_type = (source.content_type or "").lower()
-        if content_type == "application/pdf" or content_type.endswith("/pdf"):
-            return True
-        filename = (source.original_filename or "").lower()
-        return filename.endswith(".pdf")
-
     def _persist_vector_artifacts(
         self,
         db: Session,
@@ -296,7 +223,6 @@ class InkwiseIngestionService:
                 created_at=datetime.utcnow(),
             )
 
-            embedding_result: Any
             if draft.segment_type == "pdf_window":
                 asset_object = self._upload_pdf_window_asset(
                     source=source,
@@ -365,110 +291,6 @@ class InkwiseIngestionService:
         ingestion.preview_manifest_bucket = derived_bucket
         ingestion.preview_manifest_object = manifest_object
 
-    def _persist_legacy_artifacts(
-        self,
-        db: Session,
-        *,
-        source: InkwiseSource,
-        ingestion: InkwiseSourceIngestion,
-        pages: list[Any],
-        canonical_pdf_path: str,
-        source_bucket: str,
-    ) -> None:
-        settings = get_inkwise_settings()
-        tree_raw = generate_tree_sync(
-            pdf_path=canonical_pdf_path,
-            model=settings.treegen_model,
-            toc_check_pages=20,
-            max_pages_per_node=10,
-            max_tokens_per_node=20000,
-            add_node_summary=True,
-        )
-        structure = tree_raw.get("structure")
-        if not isinstance(structure, list):
-            raise IngestionError("treegen returned invalid structure")
-
-        tree_bucket = normalize_gcs_bucket_name(settings.derived_bucket or source_bucket)
-        if tree_bucket:
-            if not is_valid_gcs_bucket_name(tree_bucket):
-                raise IngestionError("Derived storage bucket is invalid")
-            tree_object = f"inkwise/derived/{source.user_id}/{source.id}/tree/{ingestion.id}/tree.json"
-            storage_client().bucket(tree_bucket).blob(tree_object).upload_from_string(
-                json.dumps(tree_raw, ensure_ascii=True),
-                content_type="application/json",
-            )
-            ingestion.tree_gcs_bucket = tree_bucket
-            ingestion.tree_gcs_object = tree_object
-            ingestion.tree_cached_at = datetime.utcnow()
-
-        db.query(InkwiseSourcePage).filter(InkwiseSourcePage.source_id == source.id).delete()
-        db.query(InkwiseSourceTreeNode).filter(InkwiseSourceTreeNode.source_id == source.id).delete()
-
-        for page in pages:
-            db.add(
-                InkwiseSourcePage(
-                    source_id=source.id,
-                    page_number=page.page_number,
-                    text=page.text,
-                    is_ocr=False,
-                    char_count=len(page.text),
-                    created_at=datetime.utcnow(),
-                )
-            )
-
-        flat: list[dict[str, Any]] = []
-
-        def _walk(nodes: list[dict[str, Any]], parent_id: str | None, depth: int, path: list[str]) -> None:
-            for node in nodes:
-                if not isinstance(node, dict):
-                    continue
-                title = str(node.get("title") or "").strip()
-                node_id = str(node.get("node_id") or "").strip()
-                start = node.get("start_index")
-                if not node_id or not title or not isinstance(start, int):
-                    raise IngestionError("tree node missing node_id/title/start_index")
-                node_summary = node.get("summary")
-                flat.append(
-                    {
-                        "node_id": node_id,
-                        "parent_node_id": parent_id,
-                        "depth": depth,
-                        "title": title,
-                        "page_start": int(start),
-                        "node_summary": node_summary if isinstance(node_summary, str) else None,
-                        "path_titles": path + [title],
-                    }
-                )
-                children = node.get("nodes")
-                if isinstance(children, list) and children:
-                    _walk(children, node_id, depth + 1, path + [title])
-
-        _walk(structure, None, 0, [])
-
-        page_count = len(pages)
-        for idx, node in enumerate(flat):
-            start = int(node["page_start"])
-            next_start = page_count + 1
-            if idx + 1 < len(flat):
-                next_start = int(flat[idx + 1]["page_start"])
-            node["page_end"] = max(start, min(page_count, next_start - 1))
-
-        for node in flat:
-            db.add(
-                InkwiseSourceTreeNode(
-                    source_id=source.id,
-                    node_id=node["node_id"],
-                    parent_node_id=node["parent_node_id"],
-                    depth=node["depth"],
-                    title=node["title"],
-                    page_start=node["page_start"],
-                    page_end=node["page_end"],
-                    node_summary=node["node_summary"],
-                    path_titles=node["path_titles"],
-                    created_at=datetime.utcnow(),
-                )
-            )
-
     def _upload_pdf_window_asset(
         self,
         *,
@@ -492,10 +314,7 @@ class InkwiseIngestionService:
                 page_start=draft.page_start,
                 page_end=draft.page_end,
             )
-            object_name = (
-                f"inkwise/derived/{source.user_id}/{source.id}/segments/{ingestion.id}/"
-                f"pdf_window/{filename}"
-            )
+            object_name = f"inkwise/derived/{source.user_id}/{source.id}/segments/{ingestion.id}/pdf_window/{filename}"
             storage_client().bucket(bucket).blob(object_name).upload_from_filename(local_pdf, content_type="application/pdf")
             return object_name
 
@@ -521,3 +340,45 @@ class InkwiseIngestionService:
                 src.close()
             except Exception:
                 pass
+
+    def _get_source_for_user(self, db: Session, *, user_id: str, source_id: uuid.UUID) -> InkwiseSource:
+        source = db.query(InkwiseSource).filter(InkwiseSource.id == source_id, InkwiseSource.user_id == user_id).first()
+        if source is None:
+            raise FileNotFoundError("Source not found")
+        return source
+
+    def _get_ingestion_or_404(self, db: Session, ingestion_id: uuid.UUID) -> InkwiseSourceIngestion:
+        ingestion = db.query(InkwiseSourceIngestion).filter(InkwiseSourceIngestion.id == ingestion_id).first()
+        if ingestion is None:
+            raise FileNotFoundError("Ingestion not found")
+        return ingestion
+
+    def _mark_failed(self, db: Session, *, ingestion_id: uuid.UUID, code: str, message: str) -> None:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+
+        ingestion = db.query(InkwiseSourceIngestion).filter(InkwiseSourceIngestion.id == ingestion_id).first()
+        if ingestion is None:
+            return
+        source = db.query(InkwiseSource).filter(InkwiseSource.id == ingestion.source_id).first()
+
+        ingestion.status = "failed"
+        ingestion.finished_at = datetime.utcnow()
+        ingestion.error_json = {"code": code, "message": (message or "")[:2000]}
+
+        if source is not None:
+            source.status = "failed"
+            source.failure_code = code
+            source.failure_detail = (message or "")[:2000]
+            source.updated_at = datetime.utcnow()
+
+        db.commit()
+
+    def _is_supported_source(self, source: InkwiseSource) -> bool:
+        content_type = (source.content_type or "").lower()
+        if content_type == "application/pdf" or content_type.endswith("/pdf"):
+            return True
+        filename = (source.original_filename or "").lower()
+        return filename.endswith(".pdf")

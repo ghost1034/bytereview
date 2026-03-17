@@ -450,8 +450,6 @@ class InkwiseVectorRetrievalService:
                     source_id=candidate.source_id,
                     source_title=candidate.source_title,
                     page_number=int(candidate.page_start or 0),
-                    node_id=None,
-                    node_title=None,
                     excerpt=excerpt,
                     score=candidate.fused_score,
                     segment_id=candidate.segment_id,

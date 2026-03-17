@@ -1168,8 +1168,6 @@ export interface InkwiseCitation {
   page_number?: number
   segment_id?: string | null
   segment_title?: string | null
-  node_id?: string | null
-  node_title?: string | null
   locator_json?: InkwiseEvidenceLocator | null
   preview_bucket?: string | null
   preview_object?: string | null
@@ -1257,8 +1255,6 @@ export interface InkwiseSourceIngestion {
   source_id: string
   pipeline: string
   status: string
-  treegen_engine?: string | null
-  treegen_version?: string | null
   extraction_engine?: string | null
   canonical_pdf_gcs_bucket?: string | null
   canonical_pdf_gcs_object?: string | null
@@ -1268,14 +1264,9 @@ export interface InkwiseSourceIngestion {
   embedding_location?: string | null
   started_at?: string | null
   finished_at?: string | null
-  pageindex_doc_id?: string | null
   page_count?: number | null
   segment_count?: number | null
   provider_document_name?: string | null
-  doc_description?: string | null
-  tree_gcs_bucket?: string | null
-  tree_gcs_object?: string | null
-  tree_cached_at?: string | null
   preview_manifest_bucket?: string | null
   preview_manifest_object?: string | null
   error_json?: Record<string, any> | null

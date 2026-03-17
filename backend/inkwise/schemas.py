@@ -237,8 +237,6 @@ class InkwiseSourceIngestionOut(BaseModel):
     source_id: uuid.UUID
     pipeline: str
     status: str
-    treegen_engine: str | None = None
-    treegen_version: str | None = None
     extraction_engine: str | None = None
     canonical_pdf_gcs_bucket: str | None = None
     canonical_pdf_gcs_object: str | None = None
@@ -248,14 +246,9 @@ class InkwiseSourceIngestionOut(BaseModel):
     embedding_location: str | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
-    pageindex_doc_id: str | None = None
     page_count: int | None = None
     segment_count: int | None = None
     provider_document_name: str | None = None
-    doc_description: str | None = None
-    tree_gcs_bucket: str | None = None
-    tree_gcs_object: str | None = None
-    tree_cached_at: datetime | None = None
     preview_manifest_bucket: str | None = None
     preview_manifest_object: str | None = None
     error_json: dict | None = None
@@ -274,8 +267,6 @@ class InkwiseRetrievalEvidenceOut(BaseModel):
     page_number: int
     segment_id: uuid.UUID | None = None
     segment_title: str | None = None
-    node_id: str | None = None
-    node_title: str | None = None
     locator_json: dict | None = None
     preview_bucket: str | None = None
     preview_object: str | None = None

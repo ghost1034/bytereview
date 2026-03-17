@@ -14,10 +14,8 @@ from models.inkwise_models import (
     InkwiseDocumentSourceBinding,
     InkwiseSource,
     InkwiseSourceIngestion,
-    InkwiseSourcePage,
     InkwiseSourceSegment,
     InkwiseSourceSegmentEmbedding,
-    InkwiseSourceTreeNode,
 )
 
 
@@ -76,16 +74,7 @@ class InkwiseDocumentSourceService:
             return True, None
         if segment is not None and embedding is None:
             return False, "Missing active embeddings"
-
-        page = db.query(InkwiseSourcePage.id).filter(InkwiseSourcePage.source_id == source_id).first()
-        if page is None:
-            return False, "Missing extracted pages"
-
-        node = db.query(InkwiseSourceTreeNode.id).filter(InkwiseSourceTreeNode.source_id == source_id).first()
-        if node is None:
-            return False, "Missing tree nodes"
-
-        return True, None
+        return False, "Missing retrieval segments"
 
     def list_bound_source_statuses(
         self,
