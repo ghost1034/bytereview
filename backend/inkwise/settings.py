@@ -80,6 +80,8 @@ class InkwiseSettings:
     embedding_auto_truncate: bool
     embedding_enable_document_ocr: bool
     embedding_enable_audio_track_extraction: bool
+    use_gemini_ingestion: bool
+    dual_write_ingestion: bool
     segment_pdf_window_pages: int
     segment_pdf_window_overlap_pages: int
     segment_text_chunk_chars: int
@@ -146,6 +148,8 @@ def get_inkwise_settings() -> InkwiseSettings:
         embedding_auto_truncate=_env_bool("INKWISE_EMBEDDING_AUTO_TRUNCATE", True),
         embedding_enable_document_ocr=_env_bool("INKWISE_EMBEDDING_ENABLE_DOCUMENT_OCR", True),
         embedding_enable_audio_track_extraction=_env_bool("INKWISE_EMBEDDING_ENABLE_AUDIO_TRACK_EXTRACTION", True),
+        use_gemini_ingestion=_env_bool("INKWISE_USE_GEMINI_INGESTION", True),
+        dual_write_ingestion=_env_bool("INKWISE_DUAL_WRITE_INGESTION", True),
         segment_pdf_window_pages=max(1, _env_int("INKWISE_SEGMENT_PDF_WINDOW_PAGES", 4)),
         segment_pdf_window_overlap_pages=max(0, _env_int("INKWISE_SEGMENT_PDF_WINDOW_OVERLAP_PAGES", 1)),
         segment_text_chunk_chars=max(500, _env_int("INKWISE_SEGMENT_TEXT_CHUNK_CHARS", 3000)),

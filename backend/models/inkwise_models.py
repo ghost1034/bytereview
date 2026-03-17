@@ -34,6 +34,36 @@ class PgVector(UserDefinedType):
     def get_col_spec(self, **_kw):
         return f"vector({self.dimensions})"
 
+    def bind_processor(self, dialect):
+        _ = dialect
+
+        def process(value):
+            if value is None:
+                return None
+            if isinstance(value, str):
+                return value
+            values = list(value)
+            if len(values) != self.dimensions:
+                raise ValueError(f"Expected vector with {self.dimensions} dimensions, got {len(values)}")
+            return "[" + ",".join(str(float(item)) for item in values) + "]"
+
+        return process
+
+    def result_processor(self, dialect, coltype):
+        _ = (dialect, coltype)
+
+        def process(value):
+            if value is None or isinstance(value, list):
+                return value
+            raw = str(value).strip()
+            if raw.startswith("[") and raw.endswith("]"):
+                raw = raw[1:-1]
+            if not raw:
+                return []
+            return [float(item) for item in raw.split(",")]
+
+        return process
+
 
 class InkwiseDocument(Base):
     __tablename__ = "inkwise_documents"

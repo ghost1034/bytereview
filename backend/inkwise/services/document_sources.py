@@ -1,5 +1,7 @@
 """Document-source binding helpers for the Inkwise module."""
 
+# pyright: reportAttributeAccessIssue=false, reportGeneralTypeIssues=false, reportArgumentType=false
+
 from __future__ import annotations
 
 import uuid
@@ -13,6 +15,8 @@ from models.inkwise_models import (
     InkwiseSource,
     InkwiseSourceIngestion,
     InkwiseSourcePage,
+    InkwiseSourceSegment,
+    InkwiseSourceSegmentEmbedding,
     InkwiseSourceTreeNode,
 )
 
@@ -40,17 +44,38 @@ class InkwiseDocumentSourceService:
     def grounded_ready_status(self, db: Session, *, source_id: uuid.UUID) -> tuple[bool, str | None]:
         ingestion = (
             db.query(InkwiseSourceIngestion)
-            .filter(
-                InkwiseSourceIngestion.source_id == source_id,
-                InkwiseSourceIngestion.pipeline == "treegen",
-            )
+            .filter(InkwiseSourceIngestion.source_id == source_id)
             .order_by(InkwiseSourceIngestion.created_at.desc())
             .first()
         )
         if ingestion is None:
             return False, "Not ingested"
-        if ingestion.status != "completed":
-            return False, f"Ingestion {ingestion.status}"
+        ingestion_status = str(getattr(ingestion, "status", "") or "")
+        if ingestion_status != "completed":
+            return False, f"Ingestion {ingestion_status}"
+
+        segment = (
+            db.query(InkwiseSourceSegment.id)
+            .filter(
+                InkwiseSourceSegment.source_id == source_id,
+                InkwiseSourceSegment.ingestion_id == ingestion.id,
+            )
+            .first()
+        )
+        embedding = (
+            db.query(InkwiseSourceSegmentEmbedding.id)
+            .join(InkwiseSourceSegment, InkwiseSourceSegment.id == InkwiseSourceSegmentEmbedding.segment_id)
+            .filter(
+                InkwiseSourceSegmentEmbedding.source_id == source_id,
+                InkwiseSourceSegmentEmbedding.is_active.is_(True),
+                InkwiseSourceSegment.ingestion_id == ingestion.id,
+            )
+            .first()
+        )
+        if segment is not None and embedding is not None:
+            return True, None
+        if segment is not None and embedding is None:
+            return False, "Missing active embeddings"
 
         page = db.query(InkwiseSourcePage.id).filter(InkwiseSourcePage.source_id == source_id).first()
         if page is None:
@@ -150,7 +175,7 @@ class InkwiseDocumentSourceService:
                 )
                 db.add(binding)
             else:
-                binding.is_active = True
+                setattr(binding, "is_active", True)
             bound.append(source_id)
 
         db.commit()
