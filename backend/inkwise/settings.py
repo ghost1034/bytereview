@@ -72,6 +72,17 @@ class InkwiseSettings:
     uploads_bucket: str | None
     derived_bucket: str | None
     gemini_model: str
+    embedding_model: str
+    embedding_location: str
+    embedding_dimension: int
+    embedding_query_task_type: str
+    embedding_document_task_type: str
+    embedding_auto_truncate: bool
+    embedding_enable_document_ocr: bool
+    embedding_enable_audio_track_extraction: bool
+    segment_pdf_window_pages: int
+    segment_pdf_window_overlap_pages: int
+    segment_text_chunk_chars: int
     grounded_model: str
     grounded_chat_history_enabled: bool
     grounded_chat_max_history_messages: int
@@ -127,6 +138,17 @@ def get_inkwise_settings() -> InkwiseSettings:
         uploads_bucket=normalize_gcs_bucket_name(os.getenv("GCS_BUCKET_NAME")),
         derived_bucket=normalize_gcs_bucket_name(os.getenv("INKWISE_DERIVED_BUCKET") or os.getenv("GCS_BUCKET_NAME")),
         gemini_model=default_model,
+        embedding_model=os.getenv("INKWISE_EMBEDDING_MODEL", "gemini-embedding-2-preview"),
+        embedding_location=_normalize_env_text(os.getenv("INKWISE_EMBEDDING_LOCATION", "us-central1")) or "us-central1",
+        embedding_dimension=min(3072, max(128, _env_int("INKWISE_EMBEDDING_DIMENSION", 1536))),
+        embedding_query_task_type=os.getenv("INKWISE_EMBEDDING_QUERY_TASK_TYPE", "RETRIEVAL_QUERY"),
+        embedding_document_task_type=os.getenv("INKWISE_EMBEDDING_DOCUMENT_TASK_TYPE", "RETRIEVAL_DOCUMENT"),
+        embedding_auto_truncate=_env_bool("INKWISE_EMBEDDING_AUTO_TRUNCATE", True),
+        embedding_enable_document_ocr=_env_bool("INKWISE_EMBEDDING_ENABLE_DOCUMENT_OCR", True),
+        embedding_enable_audio_track_extraction=_env_bool("INKWISE_EMBEDDING_ENABLE_AUDIO_TRACK_EXTRACTION", True),
+        segment_pdf_window_pages=max(1, _env_int("INKWISE_SEGMENT_PDF_WINDOW_PAGES", 4)),
+        segment_pdf_window_overlap_pages=max(0, _env_int("INKWISE_SEGMENT_PDF_WINDOW_OVERLAP_PAGES", 1)),
+        segment_text_chunk_chars=max(500, _env_int("INKWISE_SEGMENT_TEXT_CHUNK_CHARS", 3000)),
         grounded_model=os.getenv("INKWISE_GROUNDED_MODEL", default_model),
         grounded_chat_history_enabled=_env_bool("INKWISE_GROUNDED_CHAT_HISTORY_ENABLED", True),
         grounded_chat_max_history_messages=_env_int("INKWISE_GROUNDED_CHAT_MAX_HISTORY_MESSAGES", 6),
