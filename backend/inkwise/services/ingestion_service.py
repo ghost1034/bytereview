@@ -259,6 +259,9 @@ class InkwiseIngestionService:
                     segment.asset_object = source.storage_object
                     segment.preview_bucket = source.storage_bucket
                     segment.preview_object = source.storage_object
+                elif ingestion.canonical_pdf_gcs_bucket and ingestion.canonical_pdf_gcs_object:
+                    segment.preview_bucket = ingestion.canonical_pdf_gcs_bucket
+                    segment.preview_object = ingestion.canonical_pdf_gcs_object
                 embedding_result = self.embedding_service.embed_document_text_sync(
                     draft.text_content or "",
                     output_dimensionality=settings.embedding_dimension,

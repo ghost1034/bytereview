@@ -111,6 +111,12 @@ class InkwiseSignedUrlResponse(BaseModel):
     expires_at: str
 
 
+class InkwiseAssetPreviewRequest(BaseModel):
+    bucket: str | None = None
+    object_name: str
+    disposition_filename: str | None = None
+
+
 class InkwiseMessageResponse(BaseModel):
     message: str
 

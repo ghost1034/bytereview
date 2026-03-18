@@ -818,6 +818,13 @@ export class ApiClient {
     return this.request(`/api/inkwise/sources/${sourceId}/preview`)
   }
 
+  async previewInkwiseSourceAsset(sourceId: string, data: InkwiseAssetPreviewRequest): Promise<InkwiseSignedUrlResponse> {
+    return this.request(`/api/inkwise/sources/${sourceId}/asset-preview`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
   async downloadInkwiseSource(sourceId: string): Promise<InkwiseSignedUrlResponse> {
     return this.request(`/api/inkwise/sources/${sourceId}/download`)
   }
@@ -1261,6 +1268,12 @@ export interface InkwiseSourceUploadInitResponse {
 export interface InkwiseSignedUrlResponse {
   url: string
   expires_at: string
+}
+
+export interface InkwiseAssetPreviewRequest {
+  bucket?: string | null
+  object_name: string
+  disposition_filename?: string | null
 }
 
 export interface InkwiseSourceIngestion {

@@ -17,6 +17,7 @@ import requests
 from sqlalchemy.orm import Session
 
 from inkwise.schemas import (
+    InkwiseAssetPreviewRequest,
     InkwiseSourceCreateRequest,
     InkwiseSourceOut,
     InkwiseSourceUploadInitRequest,
@@ -251,6 +252,31 @@ class InkwiseSourceService:
         expires_at = (datetime.utcnow() + timedelta(minutes=15)).isoformat() + "Z"
         return SignedDownload(url=url, expires_at=expires_at)
 
+    def signed_preview_asset(
+        self,
+        db: Session,
+        *,
+        user_id: str,
+        source_id: uuid.UUID,
+        body: InkwiseAssetPreviewRequest,
+    ) -> SignedDownload:
+        source = self.get_source_or_404(db, user_id=user_id, source_id=source_id)
+        bucket = normalize_gcs_bucket_name(body.bucket or source.storage_bucket)
+        object_name = (body.object_name or "").strip()
+        if not bucket or not object_name:
+            raise ValueError("Preview asset bucket and object are required")
+        if not self._is_allowed_preview_asset(source=source, bucket=bucket, object_name=object_name):
+            raise FileNotFoundError("Preview asset is not available")
+
+        url = generate_signed_download_url(
+            bucket=bucket,
+            object_name=object_name,
+            disposition_filename=(body.disposition_filename or source.original_filename),
+            inline=True,
+        )
+        expires_at = (datetime.utcnow() + timedelta(minutes=15)).isoformat() + "Z"
+        return SignedDownload(url=url, expires_at=expires_at)
+
     def signed_download(
         self,
         db: Session,
@@ -279,6 +305,16 @@ class InkwiseSourceService:
             disposition_filename=source.original_filename,
             inline=inline,
         )
+
+    def _is_allowed_preview_asset(self, *, source: InkwiseSource, bucket: str, object_name: str) -> bool:
+        source_bucket = normalize_gcs_bucket_name(str(source.storage_bucket or ""))
+        source_object = str(source.storage_object or "").strip()
+        if bucket == source_bucket and object_name == source_object:
+            return True
+
+        derived_bucket = normalize_gcs_bucket_name(get_inkwise_settings().derived_bucket or source_bucket)
+        allowed_prefix = f"inkwise/derived/{source.user_id}/{source.id}/"
+        return bucket == derived_bucket and object_name.startswith(allowed_prefix)
 
     def _require_bucket(self) -> str:
         gcs_service = GCSService()

@@ -8,6 +8,7 @@ import { Download, Loader2, MessageSquarePlus, Save, Sparkles, Unplug, Wand2 } f
 
 import { InkwiseEditor } from '@/components/inkwise/inkwise-editor'
 import { InlineWritingTools } from '@/components/inkwise/inline-writing-tools'
+import { InkwiseCitationBubbles } from '@/components/inkwise/citation-bubbles'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -28,20 +29,6 @@ type StreamState = {
   text: string
   retrievalRunId?: string
   citations?: InkwiseCitation[]
-}
-
-function citationLabel(citation: InkwiseCitation): string {
-  const sourceTitle = citation.source_title || 'Source'
-  const locator = citation.locator_json || {}
-  const rawPageStart = citation.page_number ?? locator.page_start ?? null
-  const pageStart = typeof rawPageStart === 'number' && rawPageStart > 0 ? rawPageStart : null
-  const pageEnd = locator.page_end ?? null
-  const locationLabel = typeof pageStart === 'number'
-    ? typeof pageEnd === 'number' && pageEnd !== pageStart
-      ? `pp.${pageStart}-${pageEnd}`
-      : `p.${pageStart}`
-    : citation.segment_title || 'evidence'
-  return `${citation.evidence_id || 'Evidence'} · ${sourceTitle} ${locationLabel}`.trim()
 }
 
 function messageCitations(message: InkwiseChatMessage): InkwiseCitation[] {
@@ -457,12 +444,8 @@ export default function InkwiseDocumentPage() {
                     <div className="mb-1 text-xs font-semibold uppercase tracking-wide opacity-70">{message.role}</div>
                     <div className="whitespace-pre-wrap">{message.content}</div>
                     {messageCitations(message).length ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {messageCitations(message).map((citation, index) => (
-                          <span key={`${citation.evidence_id ?? index}-${index}`} className="rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-700">
-                            {citationLabel(citation)}
-                          </span>
-                        ))}
+                      <div className="mt-3">
+                        <InkwiseCitationBubbles citations={messageCitations(message)} />
                       </div>
                     ) : null}
                   </div>
@@ -473,12 +456,8 @@ export default function InkwiseDocumentPage() {
                     <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">assistant</div>
                     <div className="whitespace-pre-wrap">{streamState.text || 'Thinking...'}</div>
                     {streamState.citations?.length ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {streamState.citations.map((citation, index) => (
-                          <span key={`${citation.evidence_id ?? index}-${index}`} className="rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-700">
-                            {citationLabel(citation)}
-                          </span>
-                        ))}
+                      <div className="mt-3">
+                        <InkwiseCitationBubbles citations={streamState.citations} />
                       </div>
                     ) : null}
                   </div>

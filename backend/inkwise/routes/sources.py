@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from dependencies.auth import verify_firebase_token
 from inkwise.schemas import (
+    InkwiseAssetPreviewRequest,
     InkwiseMessageResponse,
     InkwisePaginatedSources,
     InkwisePlaceholderResponse,
@@ -195,6 +196,25 @@ async def preview_source(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to create preview URL: {exc}") from exc
+
+
+@router.post("/{source_id}/asset-preview", response_model=InkwiseSignedUrlResponse)
+async def preview_source_asset(
+    source_id: uuid.UUID,
+    body: InkwiseAssetPreviewRequest,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseSignedUrlResponse:
+    user_id = token_data["uid"]
+    try:
+        signed = source_service.signed_preview_asset(db, user_id=user_id, source_id=source_id, body=body)
+        return InkwiseSignedUrlResponse(url=signed.url, expires_at=signed.expires_at)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to create asset preview URL: {exc}") from exc
 
 
 @router.get("/{source_id}/download", response_model=InkwiseSignedUrlResponse)

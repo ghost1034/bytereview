@@ -4,11 +4,12 @@ import type { Editor } from '@tiptap/core'
 import { BubbleMenu } from '@tiptap/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { InkwiseCitationBubbles } from '@/components/inkwise/citation-bubbles'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { apiClient, InkwiseBoundSource, InkwiseSseEvent, InkwiseWritingAction } from '@/lib/api'
+import { apiClient, InkwiseBoundSource, InkwiseCitation, InkwiseSseEvent, InkwiseWritingAction } from '@/lib/api'
 import { markdownToSafeHtml } from '@/lib/inkwise-markdown'
 import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
 
@@ -18,6 +19,7 @@ type GroundingState = {
   grounded: boolean
   evidenceCount: number
   fallback?: string | null
+  evidence?: InkwiseCitation[]
 }
 
 export function InlineWritingTools({
@@ -120,6 +122,7 @@ export function InlineWritingTools({
               grounded: Boolean(event.data.grounded),
               evidenceCount: Number(event.data?.evidence_count || 0),
               fallback: event.data?.grounding_fallback || null,
+              evidence: Array.isArray(event.data?.evidence) ? event.data.evidence : [],
             })
           }
         },
@@ -272,6 +275,11 @@ export function InlineWritingTools({
             <div className="mt-3 max-h-56 overflow-auto text-sm text-slate-700">
               {outputMd ? <InkwiseMarkdownView markdown={outputMd} className="prose prose-sm max-w-none" /> : <div className="text-slate-400">...</div>}
             </div>
+            {groundingState?.evidence?.length ? (
+              <div className="mt-3">
+                <InkwiseCitationBubbles citations={groundingState.evidence} />
+              </div>
+            ) : null}
             <div className="mt-3 flex flex-wrap justify-end gap-2">
               <Button size="sm" variant="outline" onClick={() => insert('after')} disabled={!outputMd || inserting === 'after'}>
                 {inserting === 'after' ? 'Inserting...' : 'Insert after'}
