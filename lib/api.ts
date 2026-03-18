@@ -737,6 +737,20 @@ export class ApiClient {
     })
   }
 
+  async listInkwiseDocumentRevisions(documentId: string): Promise<InkwiseDocumentRevisionListResponse> {
+    return this.request(`/api/inkwise/documents/${documentId}/revisions`)
+  }
+
+  async getInkwiseDocumentRevision(documentId: string, revisionId: string): Promise<InkwiseDocumentRevision> {
+    return this.request(`/api/inkwise/documents/${documentId}/revisions/${revisionId}`)
+  }
+
+  async restoreInkwiseDocumentRevision(documentId: string, revisionId: string): Promise<InkwiseDocument> {
+    return this.request(`/api/inkwise/documents/${documentId}/revisions/${revisionId}:restore`, {
+      method: 'POST',
+    })
+  }
+
   async getInkwiseDocumentSources(documentId: string): Promise<InkwiseDocumentBoundSources> {
     return this.request(`/api/inkwise/documents/${documentId}/sources`)
   }
@@ -1218,6 +1232,27 @@ export interface InkwiseDocument {
   version: number
   created_at: string
   updated_at: string
+}
+
+export interface InkwiseDocumentRevision {
+  id: string
+  document_id: string
+  user_id: string
+  revision_number: number
+  title: string
+  content_json: Record<string, any> | null
+  content_html: string | null
+  init_prompt: string | null
+  language?: string | null
+  document_version: number
+  source_kind: string
+  source_meta?: Record<string, any> | null
+  created_at: string
+}
+
+export interface InkwiseDocumentRevisionListResponse {
+  document_id: string
+  items: InkwiseDocumentRevision[]
 }
 
 export interface InkwisePaginatedDocuments {

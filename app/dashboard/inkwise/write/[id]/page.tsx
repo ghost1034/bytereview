@@ -4,7 +4,7 @@ import type { Editor as TiptapEditor, JSONContent } from '@tiptap/core'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Download, Loader2, MessageSquarePlus, Save, Sparkles, Unplug, Wand2 } from 'lucide-react'
+import { Download, History, Loader2, MessageSquarePlus, Save, Sparkles, Unplug, Wand2 } from 'lucide-react'
 
 import { InkwiseEditor } from '@/components/inkwise/inkwise-editor'
 import { InlineWritingTools } from '@/components/inkwise/inline-writing-tools'
@@ -14,16 +14,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import {
   useInkwiseChatMessages,
   useInkwiseChatThreads,
   useInkwiseDocument,
+  useInkwiseDocumentRevisions,
   useInkwiseDocumentSources,
   useInkwiseSources,
 } from '@/hooks/useInkwise'
-import { apiClient, InkwiseChatMessage, InkwiseCitation, InkwiseSseEvent } from '@/lib/api'
+import { apiClient, InkwiseChatMessage, InkwiseCitation, InkwiseDocumentRevision, InkwiseSseEvent } from '@/lib/api'
 
 type StreamState = {
   text: string
@@ -48,6 +50,7 @@ export default function InkwiseDocumentPage() {
   const sourcesQuery = useInkwiseSources(1, 100)
   const bindingsQuery = useInkwiseDocumentSources(documentId)
   const threadsQuery = useInkwiseChatThreads(documentId)
+  const revisionsQuery = useInkwiseDocumentRevisions(documentId)
 
   const [title, setTitle] = useState('')
   const [initPrompt, setInitPrompt] = useState('')
@@ -60,6 +63,8 @@ export default function InkwiseDocumentPage() {
   const [editor, setEditor] = useState<TiptapEditor | null>(null)
   const [predictionText, setPredictionText] = useState('')
   const [predictionTick, setPredictionTick] = useState(0)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
   const predictionTimeoutRef = useRef<number | null>(null)
   const predictionSeqRef = useRef(0)
 
@@ -78,6 +83,13 @@ export default function InkwiseDocumentPage() {
       setSelectedThreadId(firstThread)
     }
   }, [threadsQuery.data, selectedThreadId])
+
+  useEffect(() => {
+    const firstRevisionId = revisionsQuery.data?.items[0]?.id
+    if (firstRevisionId && !selectedRevisionId) {
+      setSelectedRevisionId(firstRevisionId)
+    }
+  }, [revisionsQuery.data, selectedRevisionId])
 
   const messagesQuery = useInkwiseChatMessages(selectedThreadId)
 
@@ -101,6 +113,7 @@ export default function InkwiseDocumentPage() {
     onSuccess: async (updated) => {
       setVersion(updated.version)
       await queryClient.invalidateQueries({ queryKey: ['inkwise', 'document', documentId] })
+      await queryClient.invalidateQueries({ queryKey: ['inkwise', 'document-revisions', documentId] })
       await queryClient.invalidateQueries({ queryKey: ['inkwise', 'documents'] })
       toast({ title: 'Document saved', description: 'Your Inkwise draft is up to date.' })
     },
@@ -118,6 +131,25 @@ export default function InkwiseDocumentPage() {
     },
     onError: (error: Error) => {
       toast({ title: 'Could not delete document', description: error.message, variant: 'destructive' })
+    },
+  })
+
+  const restoreRevision = useMutation({
+    mutationFn: (revisionId: string) => apiClient.restoreInkwiseDocumentRevision(documentId, revisionId),
+    onSuccess: async (updated) => {
+      setTitle(updated.title || 'Untitled document')
+      setInitPrompt(updated.init_prompt || '')
+      setContentHtml(updated.content_html || '')
+      setContentJson((updated.content_json as JSONContent | null) ?? null)
+      setVersion(updated.version)
+      await queryClient.invalidateQueries({ queryKey: ['inkwise', 'document', documentId] })
+      await queryClient.invalidateQueries({ queryKey: ['inkwise', 'document-revisions', documentId] })
+      await queryClient.invalidateQueries({ queryKey: ['inkwise', 'documents'] })
+      toast({ title: 'Revision restored', description: 'The selected revision is now the current document state.' })
+      setHistoryOpen(false)
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Could not restore revision', description: error.message, variant: 'destructive' })
     },
   })
 
@@ -293,6 +325,10 @@ export default function InkwiseDocumentPage() {
     }
     return undefined
   }, [renderedMessages])
+  const selectedRevision = useMemo<InkwiseDocumentRevision | undefined>(
+    () => revisionsQuery.data?.items.find((item) => item.id === selectedRevisionId),
+    [revisionsQuery.data, selectedRevisionId]
+  )
 
   useEffect(() => {
     if (!editor) return
@@ -389,6 +425,10 @@ export default function InkwiseDocumentPage() {
               <Button variant="outline" onClick={() => handleExport('pdf')}>
                 <Download className="mr-2 h-4 w-4" />
                 PDF
+              </Button>
+              <Button variant="outline" onClick={() => setHistoryOpen(true)}>
+                <History className="mr-2 h-4 w-4" />
+                Version history
               </Button>
               <Button variant="outline" onClick={() => handleExport('docx')}>
                 <Download className="mr-2 h-4 w-4" />
@@ -614,6 +654,105 @@ export default function InkwiseDocumentPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-3xl">
+          <div className="flex h-full flex-col gap-4">
+            <SheetHeader>
+              <SheetTitle>Version History</SheetTitle>
+              <SheetDescription>Review older document revisions and restore a prior draft state.</SheetDescription>
+            </SheetHeader>
+
+            <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-[0.9fr_1.1fr]">
+              <ScrollArea className="rounded-xl border">
+                <div className="space-y-2 p-3">
+                  {revisionsQuery.isLoading ? (
+                    <div className="flex items-center gap-2 p-3 text-sm text-slate-500">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading revisions...
+                    </div>
+                  ) : revisionsQuery.data?.items.length ? (
+                    revisionsQuery.data.items.map((revision) => (
+                      <button
+                        key={revision.id}
+                        type="button"
+                        onClick={() => setSelectedRevisionId(revision.id)}
+                        className={`w-full rounded-xl border p-3 text-left transition ${selectedRevisionId === revision.id ? 'border-slate-900 bg-slate-50' : 'border-slate-200 hover:bg-slate-50'}`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="font-medium text-slate-900">Revision {revision.revision_number}</div>
+                          <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-slate-600">
+                            {formatRevisionSourceKind(revision.source_kind)}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500">{new Date(revision.created_at).toLocaleString()}</div>
+                        <div className="mt-2 truncate text-sm text-slate-700">{revision.title || 'Untitled document'}</div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="p-3 text-sm text-slate-500">No revisions yet.</div>
+                  )}
+                </div>
+              </ScrollArea>
+
+              <div className="flex min-h-0 flex-col rounded-xl border">
+                <div className="border-b p-4">
+                  {selectedRevision ? (
+                    <>
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-medium text-slate-900">Revision {selectedRevision.revision_number}</div>
+                          <div className="mt-1 text-xs text-slate-500">Document version {selectedRevision.document_version} • {new Date(selectedRevision.created_at).toLocaleString()}</div>
+                        </div>
+                        <Button
+                          onClick={() => restoreRevision.mutate(selectedRevision.id)}
+                          disabled={restoreRevision.isPending}
+                        >
+                          {restoreRevision.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                          Restore
+                        </Button>
+                      </div>
+                      <div className="mt-3 grid gap-3 md:grid-cols-2">
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Title</div>
+                          <div className="mt-1 text-sm text-slate-700">{selectedRevision.title || 'Untitled document'}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Guidance</div>
+                          <div className="mt-1 text-sm text-slate-700">{selectedRevision.init_prompt || 'No guidance'}</div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-sm text-slate-500">Select a revision to preview it.</div>
+                  )}
+                </div>
+                <ScrollArea className="flex-1">
+                  <div className="p-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Snapshot Preview</div>
+                    <div className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-700">
+                      <div className="whitespace-pre-wrap">{stripHtml(selectedRevision?.content_html) || 'No document content stored for this revision.'}</div>
+                    </div>
+                  </div>
+                </ScrollArea>
+              </div>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
+}
+
+function formatRevisionSourceKind(sourceKind: string): string {
+  if (sourceKind === 'create') return 'created'
+  if (sourceKind === 'restore') return 'restored'
+  if (sourceKind === 'save') return 'saved'
+  return sourceKind || 'revision'
+}
+
+function stripHtml(value?: string | null): string {
+  const html = (value || '').trim()
+  if (!html) return ''
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
 }

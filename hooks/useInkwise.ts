@@ -6,6 +6,7 @@ import {
   apiClient,
   InkwisePaginatedChatMessages,
   InkwisePaginatedDocuments,
+  InkwiseDocumentRevisionListResponse,
   InkwisePaginatedSources,
   InkwisePaginatedTemplates,
   InkwiseSystemTemplate,
@@ -23,6 +24,14 @@ export function useInkwiseDocument(documentId: string) {
   return useQuery({
     queryKey: ['inkwise', 'document', documentId],
     queryFn: () => apiClient.getInkwiseDocument(documentId),
+    enabled: Boolean(documentId),
+  })
+}
+
+export function useInkwiseDocumentRevisions(documentId: string) {
+  return useQuery<InkwiseDocumentRevisionListResponse>({
+    queryKey: ['inkwise', 'document-revisions', documentId],
+    queryFn: () => apiClient.listInkwiseDocumentRevisions(documentId),
     enabled: Boolean(documentId),
   })
 }

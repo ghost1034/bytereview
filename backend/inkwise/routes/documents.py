@@ -11,6 +11,8 @@ from inkwise.schemas import (
     InkwiseBoundSourceOut,
     InkwiseDocumentBoundSourcesOut,
     InkwiseDocumentCreateRequest,
+    InkwiseDocumentRevisionListResponse,
+    InkwiseDocumentRevisionOut,
     InkwiseDocumentOut,
     InkwiseDocumentUpdateRequest,
     InkwiseMessageResponse,
@@ -200,3 +202,61 @@ def unbind_document_sources(
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to unbind sources: {exc}") from exc
+
+
+@router.get("/{document_id}/revisions", response_model=InkwiseDocumentRevisionListResponse)
+def list_document_revisions(
+    document_id: uuid.UUID,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseDocumentRevisionListResponse:
+    try:
+        items = document_service.list_revisions(db, user_id=token_data["uid"], document_id=document_id)
+        return InkwiseDocumentRevisionListResponse(
+            document_id=document_id,
+            items=[InkwiseDocumentRevisionOut.model_validate(item) for item in items],
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/{document_id}/revisions/{revision_id}", response_model=InkwiseDocumentRevisionOut)
+def get_document_revision(
+    document_id: uuid.UUID,
+    revision_id: uuid.UUID,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseDocumentRevisionOut:
+    try:
+        revision = document_service.get_revision_or_404(
+            db,
+            user_id=token_data["uid"],
+            document_id=document_id,
+            revision_id=revision_id,
+        )
+        return InkwiseDocumentRevisionOut.model_validate(revision)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/{document_id}/revisions/{revision_id}:restore", response_model=InkwiseDocumentOut)
+def restore_document_revision(
+    document_id: uuid.UUID,
+    revision_id: uuid.UUID,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseDocumentOut:
+    try:
+        document = document_service.restore_revision(
+            db,
+            user_id=token_data["uid"],
+            document_id=document_id,
+            revision_id=revision_id,
+        )
+        return InkwiseDocumentOut.model_validate(document)
+    except FileNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to restore revision: {exc}") from exc

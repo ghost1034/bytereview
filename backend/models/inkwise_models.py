@@ -99,11 +99,40 @@ class InkwiseDocument(Base):
         back_populates="document",
         cascade="all, delete-orphan",
     )
+    revisions = relationship(
+        "InkwiseDocumentRevision",
+        back_populates="document",
+        cascade="all, delete-orphan",
+        order_by="InkwiseDocumentRevision.revision_number.desc()",
+    )
     generation_attempts = relationship(
         "InkwiseGenerationAttempt",
         back_populates="document",
         cascade="all, delete-orphan",
     )
+
+
+class InkwiseDocumentRevision(Base):
+    __tablename__ = "inkwise_document_revisions"
+    __table_args__ = (
+        UniqueConstraint("document_id", "revision_number", name="uq_inkwise_document_revisions_doc_revision"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_documents.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    revision_number = Column(Integer, nullable=False)
+    title = Column(String(300), nullable=False)
+    content_json = Column(JSONB, nullable=True)
+    content_html = Column(Text, nullable=True)
+    init_prompt = Column(Text, nullable=True)
+    language = Column(String(50), nullable=True)
+    document_version = Column(Integer, nullable=False)
+    source_kind = Column(String(32), nullable=False)
+    source_meta = Column(JSONB, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    document = relationship("InkwiseDocument", back_populates="revisions")
 
 
 class InkwiseSource(Base):

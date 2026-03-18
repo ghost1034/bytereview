@@ -136,6 +136,29 @@ class InkwiseDocumentOut(BaseModel):
     updated_at: datetime
 
 
+class InkwiseDocumentRevisionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    document_id: uuid.UUID
+    user_id: str
+    revision_number: int
+    title: str
+    content_json: dict | None = None
+    content_html: str | None = None
+    init_prompt: str | None = None
+    language: str | None = None
+    document_version: int
+    source_kind: str
+    source_meta: dict | None = None
+    created_at: datetime
+
+
+class InkwiseDocumentRevisionListResponse(BaseModel):
+    document_id: uuid.UUID
+    items: list[InkwiseDocumentRevisionOut]
+
+
 class InkwisePaginatedDocuments(BaseModel):
     items: list[InkwiseDocumentOut]
     page: int
