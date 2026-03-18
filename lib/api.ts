@@ -1484,6 +1484,10 @@ export interface InkwisePredictionRequest {
 export interface InkwisePredictionResponse {
   suggestion_text: string
   grounded: boolean
+  retrieval_run_id?: string | null
+  attempt_id?: string | null
+  evidence_count?: number
+  evidence?: InkwiseCitation[]
   provider: string
   model: string
 }

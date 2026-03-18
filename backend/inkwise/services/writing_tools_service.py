@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+# pyright: reportAttributeAccessIssue=false, reportGeneralTypeIssues=false, reportArgumentType=false, reportOptionalMemberAccess=false
+
 from inkwise.schemas import InkwisePredictionRequest, InkwiseWritingToolRequest
 from models.inkwise_models import InkwiseDocument
 
@@ -114,6 +116,73 @@ def build_prediction_prompt(*, body: InkwisePredictionRequest, document: Inkwise
         parts.append("")
         parts.append("Text after cursor:")
         parts.append(after_text)
+
+    return "\n".join(parts).strip() + "\n"
+
+
+def build_grounded_prediction_retrieval_query(*, body: InkwisePredictionRequest, document: InkwiseDocument) -> str:
+    parts: list[str] = []
+    before_text = body.before_text.strip()
+    after_text = (body.after_text or "").strip()
+    current_block = (body.current_block_text or "").strip()
+
+    if document.init_prompt:
+        parts.append(document.init_prompt.strip())
+    if current_block:
+        parts.append(current_block)
+    if before_text:
+        parts.append(before_text[-3000:])
+    if after_text:
+        parts.append(after_text[:1000])
+
+    return "\n\n".join(part for part in parts if part).strip()
+
+
+def build_grounded_prediction_prompt(
+    *,
+    body: InkwisePredictionRequest,
+    document: InkwiseDocument,
+    evidence_pack: str,
+) -> str:
+    before_text = body.before_text.strip()
+    after_text = (body.after_text or "").strip()
+    current_block = (body.current_block_text or "").strip()
+
+    parts: list[str] = []
+    parts.append("You are Inkwise Autocomplete.")
+    parts.append("Return only the exact text that should be inserted at the cursor.")
+    parts.append("")
+    parts.append("Rules:")
+    parts.append("- Continue the user's draft naturally from the cursor position.")
+    parts.append("- Use the grounded evidence when it is relevant to the next text.")
+    parts.append("- Keep the completion short and tabbable: usually one clause or one sentence fragment.")
+    parts.append("- Include any needed leading space or punctuation.")
+    parts.append("- Do not repeat text that is already before the cursor.")
+    parts.append("- Do not include citation markers, notes, bullets, or explanations.")
+    parts.append("")
+
+    if document.language:
+        parts.append(f"Document language: {document.language}")
+    if document.init_prompt:
+        parts.append(f"Document guidance: {document.init_prompt}")
+
+    parts.append(f"Document title: {document.title}")
+    if current_block:
+        parts.append("")
+        parts.append("Current block:")
+        parts.append(current_block)
+
+    parts.append("")
+    parts.append("Text before cursor:")
+    parts.append(before_text)
+    if after_text:
+        parts.append("")
+        parts.append("Text after cursor:")
+        parts.append(after_text)
+
+    parts.append("")
+    parts.append("Grounded evidence:")
+    parts.append(evidence_pack.rstrip())
 
     return "\n".join(parts).strip() + "\n"
 

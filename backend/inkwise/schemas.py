@@ -415,5 +415,9 @@ class InkwisePredictionRequest(BaseModel):
 class InkwisePredictionResponse(BaseModel):
     suggestion_text: str
     grounded: bool = False
+    retrieval_run_id: uuid.UUID | None = None
+    attempt_id: uuid.UUID | None = None
+    evidence_count: int = 0
+    evidence: list[dict] = Field(default_factory=list)
     provider: str = "vertex_ai"
     model: str

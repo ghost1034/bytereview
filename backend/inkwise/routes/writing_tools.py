@@ -27,6 +27,8 @@ from inkwise.services.gemini import GeminiError, generate_text
 from inkwise.services.retrieval_service import InkwiseRetrievalService, build_evidence_pack
 from inkwise.services.retrieval_types import evidence_item_to_payload
 from inkwise.services.writing_tools_service import (
+    build_grounded_prediction_prompt,
+    build_grounded_prediction_retrieval_query,
     build_grounded_writing_tool_prompt,
     build_prediction_prompt,
     build_writing_tool_prompt,
@@ -188,7 +190,56 @@ async def create_prediction(
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    ready_bound_sources = document_source_service.list_ready_bound_sources(
+        db,
+        document_id=document_id,
+        user_id=token_data["uid"],
+    )
+    attempt = generation_attempt_service.create_attempt(
+        db,
+        user_id=token_data["uid"],
+        kind="prediction",
+        document_id=document_id,
+        request_json={
+            "before_text_len": len(body.before_text),
+            "after_text_len": len(body.after_text or ""),
+            "current_block_text": body.current_block_text,
+            "source_ids": [str(source_id) for source_id, _title in ready_bound_sources],
+        },
+        provider="vertex_ai",
+        model=settings.gemini_model,
+    )
+
     prompt = build_prediction_prompt(body=body, document=document)
+    grounded = False
+    retrieval_run_id: uuid.UUID | None = None
+    evidence: list[Any] = []
+    if ready_bound_sources:
+        try:
+            retrieval_run, evidence = retrieval_service.run_retrieval(
+                db,
+                user_id=token_data["uid"],
+                document_id=document_id,
+                thread_id=None,
+                query=build_grounded_prediction_retrieval_query(body=body, document=document),
+                bound_sources=ready_bound_sources,
+                draft_selection_text=(body.current_block_text or body.before_text[-3000:]).strip() or None,
+                max_evidence=8,
+                max_total_chars=12000,
+            )
+            retrieval_run_id = cast(uuid.UUID, retrieval_run.id)
+            if evidence:
+                grounded = True
+                prompt = build_grounded_prediction_prompt(
+                    body=body,
+                    document=document,
+                    evidence_pack=build_evidence_pack(evidence),
+                )
+        except Exception:
+            retrieval_run_id = None
+            evidence = []
+            grounded = False
+
     try:
         result = await generate_text(
             model=settings.gemini_model,
@@ -198,12 +249,25 @@ async def create_prediction(
             timeout_seconds=20,
         )
     except GeminiError as exc:
+        generation_attempt_service.fail_attempt(db, attempt_id=cast(uuid.UUID, attempt.id), message=str(exc), retrieval_run_id=retrieval_run_id)
         raise HTTPException(status_code=502, detail=f"Prediction provider error: {exc}") from exc
 
     suggestion_text = normalize_prediction_text(raw_text=result.text, body=body)
+    generation_attempt_service.complete_attempt(
+        db,
+        attempt_id=cast(uuid.UUID, attempt.id),
+        response_text=suggestion_text,
+        citations_json={"evidence": [evidence_item_to_payload(item) for item in evidence]},
+        retrieval_run_id=retrieval_run_id,
+        meta_json={"grounded": grounded, "evidence_count": len(evidence)},
+    )
     return InkwisePredictionResponse(
         suggestion_text=suggestion_text,
-        grounded=False,
+        grounded=grounded,
+        retrieval_run_id=retrieval_run_id,
+        attempt_id=cast(uuid.UUID, attempt.id),
+        evidence_count=len(evidence),
+        evidence=[evidence_item_to_payload(item) for item in evidence],
         provider="vertex_ai",
         model=settings.gemini_model,
     )

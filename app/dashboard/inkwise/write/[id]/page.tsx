@@ -25,7 +25,7 @@ import {
   useInkwiseDocumentSources,
   useInkwiseSources,
 } from '@/hooks/useInkwise'
-import { apiClient, InkwiseChatMessage, InkwiseCitation, InkwiseDocumentRevision, InkwiseSseEvent } from '@/lib/api'
+import { apiClient, InkwiseChatMessage, InkwiseCitation, InkwiseDocumentRevision, InkwisePredictionResponse, InkwiseSseEvent } from '@/lib/api'
 
 type StreamState = {
   text: string
@@ -34,9 +34,25 @@ type StreamState = {
   attemptId?: string
 }
 
+type PredictionState = {
+  text: string
+  grounded: boolean
+  evidence: InkwiseCitation[]
+}
+
 function messageCitations(message: InkwiseChatMessage): InkwiseCitation[] {
   const raw = message.citations_json?.citations
   return Array.isArray(raw) ? raw : []
+}
+
+function normalizePredictionState(prediction: InkwisePredictionResponse): PredictionState | null {
+  const text = (prediction?.suggestion_text || '').trim()
+  if (!text) return null
+  return {
+    text,
+    grounded: Boolean(prediction.grounded),
+    evidence: Array.isArray(prediction.evidence) ? prediction.evidence : [],
+  }
 }
 
 export default function InkwiseDocumentPage() {
@@ -61,7 +77,7 @@ export default function InkwiseDocumentPage() {
   const [chatInput, setChatInput] = useState('')
   const [streamState, setStreamState] = useState<StreamState | null>(null)
   const [editor, setEditor] = useState<TiptapEditor | null>(null)
-  const [predictionText, setPredictionText] = useState('')
+  const [predictionState, setPredictionState] = useState<PredictionState | null>(null)
   const [predictionTick, setPredictionTick] = useState(0)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
@@ -350,9 +366,9 @@ export default function InkwiseDocumentPage() {
       predictionTimeoutRef.current = null
     }
 
-    const { from, to, empty } = editor.state.selection
-    if (!empty) {
-      setPredictionText('')
+      const { from, to, empty } = editor.state.selection
+      if (!empty) {
+      setPredictionState(null)
       return
     }
 
@@ -361,7 +377,7 @@ export default function InkwiseDocumentPage() {
     const currentBlockText = editor.state.selection.$from.parent.textContent?.trim() || ''
 
     if (beforeText.length < 20) {
-      setPredictionText('')
+      setPredictionState(null)
       return
     }
 
@@ -374,11 +390,11 @@ export default function InkwiseDocumentPage() {
           current_block_text: currentBlockText || undefined,
         })
         if (seq === predictionSeqRef.current) {
-          setPredictionText(prediction.suggestion_text || '')
+          setPredictionState(normalizePredictionState(prediction))
         }
       } catch {
         if (seq === predictionSeqRef.current) {
-          setPredictionText('')
+          setPredictionState(null)
         }
       }
     }, 900)
@@ -468,14 +484,14 @@ export default function InkwiseDocumentPage() {
                 contentHtml={contentHtml}
                 placeholder="Start writing here..."
                 onEditor={setEditor}
-                predictionText={predictionText}
+                predictionText={predictionState?.text || ''}
                 onAcceptPrediction={() => {
-                  if (!editor || !predictionText) return
-                  editor.chain().focus().insertContent(predictionText).run()
-                  setPredictionText('')
+                  if (!editor || !predictionState?.text) return
+                  editor.chain().focus().insertContent(predictionState.text).run()
+                  setPredictionState(null)
                   setPredictionTick((value) => value + 1)
                 }}
-                onDismissPrediction={() => setPredictionText('')}
+                onDismissPrediction={() => setPredictionState(null)}
                 onBlur={() => saveDocument.mutate()}
                 onChange={(value) => {
                   setContentJson(value.json)
@@ -483,7 +499,16 @@ export default function InkwiseDocumentPage() {
                   setPredictionTick((tick) => tick + 1)
                 }}
               />
-              <div className="text-xs text-slate-500">Press Tab to accept inline predictions when they appear.</div>
+              <div className="text-xs text-slate-500">
+                {predictionState?.grounded
+                  ? `Press Tab to accept the grounded inline prediction. Using ${predictionState.evidence.length} evidence ${predictionState.evidence.length === 1 ? 'segment' : 'segments'}.`
+                  : 'Press Tab to accept inline predictions when they appear.'}
+              </div>
+              {predictionState?.grounded && predictionState.evidence.length ? (
+                <div className="pt-1">
+                  <InkwiseCitationBubbles citations={predictionState.evidence} />
+                </div>
+              ) : null}
             </div>
           </CardContent>
         </Card>
