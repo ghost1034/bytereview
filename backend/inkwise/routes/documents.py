@@ -55,7 +55,12 @@ def create_document(
     db: Session = Depends(get_db),
 ) -> InkwiseDocumentOut:
     try:
-        user_support.ensure_user_record(db, user_id=token_data["uid"], email=token_data.get("email"))
+        user_support.ensure_user_record(
+            db,
+            user_id=token_data["uid"],
+            email=token_data.get("email"),
+            phone_number=token_data.get("phone_number"),
+        )
         document = document_service.create_document(db, user_id=token_data["uid"], body=body)
         return InkwiseDocumentOut.model_validate(document)
     except ValueError as exc:

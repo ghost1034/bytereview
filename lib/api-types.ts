@@ -1450,6 +1450,627 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/inkwise": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inkwise Root */
+        get: operations["inkwise_root_api_inkwise_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Documents */
+        get: operations["list_documents_api_inkwise_documents_get"];
+        put?: never;
+        /** Create Document */
+        post: operations["create_document_api_inkwise_documents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Document */
+        get: operations["get_document_api_inkwise_documents__document_id__get"];
+        /** Update Document */
+        put: operations["update_document_api_inkwise_documents__document_id__put"];
+        post?: never;
+        /** Delete Document */
+        delete: operations["delete_document_api_inkwise_documents__document_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/documents/{document_id}/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Document Sources */
+        get: operations["list_document_sources_api_inkwise_documents__document_id__sources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/documents/{document_id}/sources:bind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bind Document Sources */
+        post: operations["bind_document_sources_api_inkwise_documents__document_id__sources_bind_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/documents/{document_id}/sources:unbind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Unbind Document Sources */
+        post: operations["unbind_document_sources_api_inkwise_documents__document_id__sources_unbind_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/documents/{document_id}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Document Revisions */
+        get: operations["list_document_revisions_api_inkwise_documents__document_id__revisions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/documents/{document_id}/revisions/{revision_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Document Revision */
+        get: operations["get_document_revision_api_inkwise_documents__document_id__revisions__revision_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/documents/{document_id}/revisions/{revision_id}:restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Document Revision */
+        post: operations["restore_document_revision_api_inkwise_documents__document_id__revisions__revision_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Sources */
+        get: operations["list_sources_api_inkwise_sources_get"];
+        put?: never;
+        /** Create Source */
+        post: operations["create_source_api_inkwise_sources_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/sources/{source_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Source */
+        get: operations["get_source_api_inkwise_sources__source_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Source */
+        delete: operations["delete_source_api_inkwise_sources__source_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/sources/upload:init": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Init Source Upload */
+        post: operations["init_source_upload_api_inkwise_sources_upload_init_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/sources/webpage:capture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Capture Webpage Source */
+        post: operations["capture_webpage_source_api_inkwise_sources_webpage_capture_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/sources/{source_id}/upload:complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete Source Upload */
+        post: operations["complete_source_upload_api_inkwise_sources__source_id__upload_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/sources/{source_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview Source */
+        get: operations["preview_source_api_inkwise_sources__source_id__preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/sources/{source_id}/asset-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Source Asset */
+        post: operations["preview_source_asset_api_inkwise_sources__source_id__asset_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/sources/{source_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download Source */
+        get: operations["download_source_api_inkwise_sources__source_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/sources/{source_id}/ingest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enqueue Source Ingestion */
+        post: operations["enqueue_source_ingestion_api_inkwise_sources__source_id__ingest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/source-ingestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Source Ingestions */
+        get: operations["list_source_ingestions_api_inkwise_source_ingestions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/source-ingestions/{ingestion_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Source Ingestion */
+        get: operations["get_source_ingestion_api_inkwise_source_ingestions__ingestion_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/internal/tasks/source-ingestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Process Source Ingestion Task */
+        post: operations["process_source_ingestion_task_api_inkwise_internal_tasks_source_ingestion_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/documents/{document_id}/retrieval:run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run Document Retrieval */
+        post: operations["run_document_retrieval_api_inkwise_documents__document_id__retrieval_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/retrieval-runs/{retrieval_run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Retrieval Run */
+        get: operations["get_retrieval_run_api_inkwise_retrieval_runs__retrieval_run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/documents/{document_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Document */
+        get: operations["export_document_api_inkwise_documents__document_id__export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/chat/threads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Threads */
+        get: operations["list_threads_api_inkwise_chat_threads_get"];
+        put?: never;
+        /** Create Thread */
+        post: operations["create_thread_api_inkwise_chat_threads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/chat/threads/{thread_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Messages */
+        get: operations["list_messages_api_inkwise_chat_threads__thread_id__messages_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/chat/threads/{thread_id}/messages:stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stream Thread Message */
+        post: operations["stream_thread_message_api_inkwise_chat_threads__thread_id__messages_stream_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/chat/threads/{thread_id}/messages/{message_id}:retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Thread Message */
+        post: operations["retry_thread_message_api_inkwise_chat_threads__thread_id__messages__message_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Templates */
+        get: operations["list_templates_api_inkwise_templates_get"];
+        put?: never;
+        /** Create Template */
+        post: operations["create_template_api_inkwise_templates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Template */
+        get: operations["get_template_api_inkwise_templates__template_id__get"];
+        /** Update Template */
+        put: operations["update_template_api_inkwise_templates__template_id__put"];
+        post?: never;
+        /** Delete Template */
+        delete: operations["delete_template_api_inkwise_templates__template_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/system-template-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List System Template Categories */
+        get: operations["list_system_template_categories_api_inkwise_system_template_categories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/system-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List System Templates */
+        get: operations["list_system_templates_api_inkwise_system_templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/system-templates/{system_template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get System Template */
+        get: operations["get_system_template_api_inkwise_system_templates__system_template_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/documents/{document_id}/predictions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Prediction */
+        post: operations["create_prediction_api_inkwise_documents__document_id__predictions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/writing-tools:stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stream Writing Tool Output */
+        post: operations["stream_writing_tool_output_api_inkwise_writing_tools_stream_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inkwise/writing-tools/{attempt_id}:retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Writing Tool Output */
+        post: operations["retry_writing_tool_output_api_inkwise_writing_tools__attempt_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1988,6 +2609,741 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** InkwiseAssetPreviewRequest */
+        InkwiseAssetPreviewRequest: {
+            /** Bucket */
+            bucket?: string | null;
+            /** Object Name */
+            object_name: string;
+            /** Disposition Filename */
+            disposition_filename?: string | null;
+        };
+        /** InkwiseBindSourcesRequest */
+        InkwiseBindSourcesRequest: {
+            /** Source Ids */
+            source_ids: string[];
+        };
+        /** InkwiseBindSourcesResponse */
+        InkwiseBindSourcesResponse: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Bound Source Ids */
+            bound_source_ids: string[];
+        };
+        /** InkwiseBoundSourceOut */
+        InkwiseBoundSourceOut: {
+            /**
+             * Binding Id
+             * Format: uuid
+             */
+            binding_id: string;
+            source: components["schemas"]["InkwiseSourceOut"];
+            /** Is Active */
+            is_active: boolean;
+            /** Grounded Chat Ready */
+            grounded_chat_ready: boolean;
+            /** Grounded Chat Reason */
+            grounded_chat_reason?: string | null;
+        };
+        /** InkwiseChatMessageOut */
+        InkwiseChatMessageOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Thread Id
+             * Format: uuid
+             */
+            thread_id: string;
+            /** Role */
+            role: string;
+            /** Content */
+            content: string;
+            /** Content With Citations */
+            content_with_citations?: string | null;
+            /** Citations Json */
+            citations_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** Provider */
+            provider: string;
+            /** Provider Meta */
+            provider_meta?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** InkwiseChatSendRequest */
+        InkwiseChatSendRequest: {
+            /** Content */
+            content: string;
+            /** Source Ids */
+            source_ids?: string[] | null;
+            /** Draft Selection Text */
+            draft_selection_text?: string | null;
+            /** Draft Selection Label */
+            draft_selection_label?: string | null;
+        };
+        /** InkwiseChatThreadCreateRequest */
+        InkwiseChatThreadCreateRequest: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Title */
+            title?: string | null;
+        };
+        /** InkwiseChatThreadOut */
+        InkwiseChatThreadOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** User Id */
+            user_id: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Mode */
+            mode?: string | null;
+            /** Title */
+            title?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** InkwiseChatThreadsResponse */
+        InkwiseChatThreadsResponse: {
+            /** Document Id */
+            document_id?: string | null;
+            /** Threads */
+            threads: components["schemas"]["InkwiseChatThreadOut"][];
+        };
+        /** InkwiseDocumentBoundSourcesOut */
+        InkwiseDocumentBoundSourcesOut: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Sources */
+            sources: components["schemas"]["InkwiseBoundSourceOut"][];
+        };
+        /** InkwiseDocumentCreateRequest */
+        InkwiseDocumentCreateRequest: {
+            /** Title */
+            title?: string | null;
+            /** Content Json */
+            content_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** Content Html */
+            content_html?: string | null;
+            /** Init Prompt */
+            init_prompt?: string | null;
+            /** Language */
+            language?: string | null;
+        };
+        /** InkwiseDocumentOut */
+        InkwiseDocumentOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** User Id */
+            user_id: string;
+            /** Title */
+            title: string;
+            /** Content Json */
+            content_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** Content Html */
+            content_html?: string | null;
+            /** Init Prompt */
+            init_prompt?: string | null;
+            /** Language */
+            language?: string | null;
+            /** Version */
+            version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** InkwiseDocumentRevisionListResponse */
+        InkwiseDocumentRevisionListResponse: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Items */
+            items: components["schemas"]["InkwiseDocumentRevisionOut"][];
+        };
+        /** InkwiseDocumentRevisionOut */
+        InkwiseDocumentRevisionOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** User Id */
+            user_id: string;
+            /** Revision Number */
+            revision_number: number;
+            /** Title */
+            title: string;
+            /** Content Json */
+            content_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** Content Html */
+            content_html?: string | null;
+            /** Init Prompt */
+            init_prompt?: string | null;
+            /** Language */
+            language?: string | null;
+            /** Document Version */
+            document_version: number;
+            /** Source Kind */
+            source_kind: string;
+            /** Source Meta */
+            source_meta?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** InkwiseDocumentUpdateRequest */
+        InkwiseDocumentUpdateRequest: {
+            /** Version */
+            version: number;
+            /** Title */
+            title?: string | null;
+            /** Content Json */
+            content_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** Content Html */
+            content_html?: string | null;
+            /** Init Prompt */
+            init_prompt?: string | null;
+            /** Language */
+            language?: string | null;
+        };
+        /** InkwiseMessageResponse */
+        InkwiseMessageResponse: {
+            /** Message */
+            message: string;
+        };
+        /** InkwisePaginatedChatMessages */
+        InkwisePaginatedChatMessages: {
+            /** Items */
+            items: components["schemas"]["InkwiseChatMessageOut"][];
+            /** Page */
+            page: number;
+            /** Limit */
+            limit: number;
+            /** Total */
+            total: number;
+        };
+        /** InkwisePaginatedDocuments */
+        InkwisePaginatedDocuments: {
+            /** Items */
+            items: components["schemas"]["InkwiseDocumentOut"][];
+            /** Page */
+            page: number;
+            /** Limit */
+            limit: number;
+            /** Total */
+            total: number;
+        };
+        /** InkwisePaginatedSources */
+        InkwisePaginatedSources: {
+            /** Items */
+            items: components["schemas"]["InkwiseSourceOut"][];
+            /** Page */
+            page: number;
+            /** Limit */
+            limit: number;
+            /** Total */
+            total: number;
+        };
+        /** InkwisePaginatedTemplates */
+        InkwisePaginatedTemplates: {
+            /** Items */
+            items: components["schemas"]["InkwiseTemplateOut"][];
+            /** Page */
+            page: number;
+            /** Limit */
+            limit: number;
+            /** Total */
+            total: number;
+        };
+        /** InkwisePlaceholderResponse */
+        InkwisePlaceholderResponse: {
+            /**
+             * Phase
+             * @default 2
+             */
+            phase: number;
+            /**
+             * Status
+             * @default placeholder
+             */
+            status: string;
+            /** Area */
+            area: string;
+            /** Action */
+            action: string;
+            /** Message */
+            message: string;
+            /** User Id */
+            user_id: string;
+        };
+        /** InkwisePredictionRequest */
+        InkwisePredictionRequest: {
+            /** Before Text */
+            before_text: string;
+            /** After Text */
+            after_text?: string | null;
+            /** Current Block Text */
+            current_block_text?: string | null;
+        };
+        /** InkwisePredictionResponse */
+        InkwisePredictionResponse: {
+            /** Suggestion Text */
+            suggestion_text: string;
+            /**
+             * Grounded
+             * @default false
+             */
+            grounded: boolean;
+            /** Retrieval Run Id */
+            retrieval_run_id?: string | null;
+            /** Attempt Id */
+            attempt_id?: string | null;
+            /**
+             * Evidence Count
+             * @default 0
+             */
+            evidence_count: number;
+            /** Evidence */
+            evidence?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Provider
+             * @default vertex_ai
+             */
+            provider: string;
+            /** Model */
+            model: string;
+        };
+        /** InkwiseRetrievalEvidenceOut */
+        InkwiseRetrievalEvidenceOut: {
+            /** Evidence Id */
+            evidence_id: string;
+            /**
+             * Source Id
+             * Format: uuid
+             */
+            source_id: string;
+            /** Source Title */
+            source_title: string;
+            /** Page Number */
+            page_number: number;
+            /** Segment Id */
+            segment_id?: string | null;
+            /** Segment Title */
+            segment_title?: string | null;
+            /** Locator Json */
+            locator_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** Preview Bucket */
+            preview_bucket?: string | null;
+            /** Preview Object */
+            preview_object?: string | null;
+            /** Excerpt */
+            excerpt: string;
+            /** Score */
+            score?: number | null;
+        };
+        /** InkwiseRetrievalRunDetailOut */
+        InkwiseRetrievalRunDetailOut: {
+            run: components["schemas"]["InkwiseRetrievalRunSummaryOut"];
+            /** Evidence */
+            evidence: components["schemas"]["InkwiseRetrievalEvidenceOut"][];
+            /** Evidence Pack */
+            evidence_pack: string;
+        };
+        /** InkwiseRetrievalRunSummaryOut */
+        InkwiseRetrievalRunSummaryOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** User Id */
+            user_id: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Thread Id */
+            thread_id?: string | null;
+            /** Query */
+            query: string;
+            /** Bound Source Ids */
+            bound_source_ids: string[];
+            /** Strategy Version */
+            strategy_version: string;
+            /** Meta */
+            meta: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** InkwiseRetryRequest */
+        InkwiseRetryRequest: {
+            /**
+             * Fresh Retrieval
+             * @default false
+             */
+            fresh_retrieval: boolean;
+        };
+        /** InkwiseRunRetrievalRequest */
+        InkwiseRunRetrievalRequest: {
+            /** Query */
+            query: string;
+            /** Source Ids */
+            source_ids?: string[] | null;
+            /** History Messages */
+            history_messages?: {
+                [key: string]: string;
+            }[] | null;
+            /** Draft Selection Text */
+            draft_selection_text?: string | null;
+        };
+        /** InkwiseSignedUrlResponse */
+        InkwiseSignedUrlResponse: {
+            /** Url */
+            url: string;
+            /** Expires At */
+            expires_at: string;
+        };
+        /** InkwiseSourceCreateRequest */
+        InkwiseSourceCreateRequest: {
+            /** Title */
+            title: string;
+            /** Original Filename */
+            original_filename?: string | null;
+            /**
+             * Content Type
+             * @default application/pdf
+             */
+            content_type: string;
+            /**
+             * Size Bytes
+             * @default 0
+             */
+            size_bytes: number;
+            /** Source Url */
+            source_url?: string | null;
+            /**
+             * Type
+             * @default upload
+             */
+            type: string;
+        };
+        /** InkwiseSourceIngestionListResponse */
+        InkwiseSourceIngestionListResponse: {
+            /** Source Id */
+            source_id?: string | null;
+            /** Ingestions */
+            ingestions: components["schemas"]["InkwiseSourceIngestionOut"][];
+        };
+        /** InkwiseSourceIngestionOut */
+        InkwiseSourceIngestionOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Source Id
+             * Format: uuid
+             */
+            source_id: string;
+            /** Pipeline */
+            pipeline: string;
+            /** Status */
+            status: string;
+            /** Extraction Engine */
+            extraction_engine?: string | null;
+            /** Canonical Pdf Gcs Bucket */
+            canonical_pdf_gcs_bucket?: string | null;
+            /** Canonical Pdf Gcs Object */
+            canonical_pdf_gcs_object?: string | null;
+            /** Normalizer Version */
+            normalizer_version?: string | null;
+            /** Embedding Model */
+            embedding_model?: string | null;
+            /** Embedding Dimension */
+            embedding_dimension?: number | null;
+            /** Embedding Location */
+            embedding_location?: string | null;
+            /** Started At */
+            started_at?: string | null;
+            /** Finished At */
+            finished_at?: string | null;
+            /** Page Count */
+            page_count?: number | null;
+            /** Segment Count */
+            segment_count?: number | null;
+            /** Provider Document Name */
+            provider_document_name?: string | null;
+            /** Preview Manifest Bucket */
+            preview_manifest_bucket?: string | null;
+            /** Preview Manifest Object */
+            preview_manifest_object?: string | null;
+            /** Error Json */
+            error_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** InkwiseSourceOut */
+        InkwiseSourceOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Type */
+            type: string;
+            /** Title */
+            title: string;
+            /** Original Filename */
+            original_filename?: string | null;
+            /** Content Type */
+            content_type: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Checksum Sha256 */
+            checksum_sha256?: string | null;
+            /** Source Url */
+            source_url?: string | null;
+            /** Status */
+            status: string;
+            /** Failure Code */
+            failure_code?: string | null;
+            /** Failure Detail */
+            failure_detail?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** InkwiseSourceUploadCompleteRequest */
+        InkwiseSourceUploadCompleteRequest: {
+            /** Checksum Sha256 */
+            checksum_sha256?: string | null;
+        };
+        /** InkwiseSourceUploadInitRequest */
+        InkwiseSourceUploadInitRequest: {
+            /** Original Filename */
+            original_filename: string;
+            /** Content Type */
+            content_type: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Title */
+            title?: string | null;
+        };
+        /** InkwiseSourceUploadInitResponse */
+        InkwiseSourceUploadInitResponse: {
+            source: components["schemas"]["InkwiseSourceOut"];
+            upload: components["schemas"]["InkwiseUploadInfo"];
+        };
+        /** InkwiseSystemTemplateCategoryListResponse */
+        InkwiseSystemTemplateCategoryListResponse: {
+            /** Items */
+            items: components["schemas"]["InkwiseSystemTemplateCategoryOut"][];
+        };
+        /** InkwiseSystemTemplateCategoryOut */
+        InkwiseSystemTemplateCategoryOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /** InkwiseSystemTemplateListResponse */
+        InkwiseSystemTemplateListResponse: {
+            /** Items */
+            items: components["schemas"]["InkwiseSystemTemplateOut"][];
+        };
+        /** InkwiseSystemTemplateOut */
+        InkwiseSystemTemplateOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Category Id */
+            category_id: number;
+            /** Title */
+            title: string;
+            /** Icon */
+            icon?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Content Json */
+            content_json: {
+                [key: string]: unknown;
+            };
+        };
+        /** InkwiseTemplateCreateRequest */
+        InkwiseTemplateCreateRequest: {
+            /** Title */
+            title: string;
+            /** Icon */
+            icon?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Content Json */
+            content_json: {
+                [key: string]: unknown;
+            };
+        };
+        /** InkwiseTemplateOut */
+        InkwiseTemplateOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** User Id */
+            user_id: string;
+            /** Title */
+            title: string;
+            /** Icon */
+            icon?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Content Json */
+            content_json: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** InkwiseTemplateUpdateRequest */
+        InkwiseTemplateUpdateRequest: {
+            /** Title */
+            title?: string | null;
+            /** Icon */
+            icon?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Content Json */
+            content_json?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** InkwiseUploadInfo */
+        InkwiseUploadInfo: {
+            /** Method */
+            method: string;
+            /** Url */
+            url: string;
+            /** Headers */
+            headers: {
+                [key: string]: string;
+            };
+            /** Expires At */
+            expires_at: string;
+        };
+        /** InkwiseWebpageCaptureRequest */
+        InkwiseWebpageCaptureRequest: {
+            /** Source Url */
+            source_url: string;
+            /** Title */
+            title?: string | null;
+        };
+        /** InkwiseWritingToolRequest */
+        InkwiseWritingToolRequest: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "improve" | "longer" | "opposing_argument" | "translate" | "concise" | "humanize" | "other";
+            /** Document Id */
+            document_id?: string | null;
+            /** Source Ids */
+            source_ids?: string[] | null;
+            /** Selection Text */
+            selection_text: string;
+            /** Surrounding Text */
+            surrounding_text?: string | null;
+            /** Instruction */
+            instruction: string;
         };
         /**
          * JobDetailsResponse
@@ -2736,6 +4092,10 @@ export interface components {
             uid: string;
             /** Email */
             email: string;
+            /** Phone Number */
+            phone_number?: string | null;
+            /** Phone Verified At */
+            phone_verified_at?: string | null;
             /** Display Name */
             display_name?: string | null;
             /** Photo Url */
@@ -5230,6 +6590,1458 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ContactRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    inkwise_root_api_inkwise_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwisePlaceholderResponse"];
+                };
+            };
+        };
+    };
+    list_documents_api_inkwise_documents_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwisePaginatedDocuments"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_document_api_inkwise_documents_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InkwiseDocumentCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseDocumentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_document_api_inkwise_documents__document_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseDocumentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_document_api_inkwise_documents__document_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InkwiseDocumentUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseDocumentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_document_api_inkwise_documents__document_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseMessageResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_document_sources_api_inkwise_documents__document_id__sources_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseDocumentBoundSourcesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bind_document_sources_api_inkwise_documents__document_id__sources_bind_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InkwiseBindSourcesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseBindSourcesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unbind_document_sources_api_inkwise_documents__document_id__sources_unbind_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InkwiseBindSourcesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseBindSourcesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_document_revisions_api_inkwise_documents__document_id__revisions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseDocumentRevisionListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_document_revision_api_inkwise_documents__document_id__revisions__revision_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                revision_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseDocumentRevisionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_document_revision_api_inkwise_documents__document_id__revisions__revision_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                revision_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseDocumentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sources_api_inkwise_sources_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwisePaginatedSources"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_source_api_inkwise_sources_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InkwiseSourceCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseSourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_source_api_inkwise_sources__source_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseSourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_source_api_inkwise_sources__source_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseMessageResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    init_source_upload_api_inkwise_sources_upload_init_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InkwiseSourceUploadInitRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseSourceUploadInitResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    capture_webpage_source_api_inkwise_sources_webpage_capture_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InkwiseWebpageCaptureRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseSourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_source_upload_api_inkwise_sources__source_id__upload_complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["InkwiseSourceUploadCompleteRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseSourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_source_api_inkwise_sources__source_id__preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseSignedUrlResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_source_asset_api_inkwise_sources__source_id__asset_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InkwiseAssetPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseSignedUrlResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_source_api_inkwise_sources__source_id__download_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseSignedUrlResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enqueue_source_ingestion_api_inkwise_sources__source_id__ingest_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseSourceIngestionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_source_ingestions_api_inkwise_source_ingestions_get: {
+        parameters: {
+            query?: {
+                source_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseSourceIngestionListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_source_ingestion_api_inkwise_source_ingestions__ingestion_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingestion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseSourceIngestionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    process_source_ingestion_task_api_inkwise_internal_tasks_source_ingestion_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-inkwise-task-token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_document_retrieval_api_inkwise_documents__document_id__retrieval_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InkwiseRunRetrievalRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseRetrievalRunDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_retrieval_run_api_inkwise_retrieval_runs__retrieval_run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                retrieval_run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseRetrievalRunDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_document_api_inkwise_documents__document_id__export_get: {
+        parameters: {
+            query: {
+                type: string;
+            };
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_threads_api_inkwise_chat_threads_get: {
+        parameters: {
+            query?: {
+                document_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseChatThreadsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_thread_api_inkwise_chat_threads_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InkwiseChatThreadCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseChatThreadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_messages_api_inkwise_chat_threads__thread_id__messages_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwisePaginatedChatMessages"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_thread_message_api_inkwise_chat_threads__thread_id__messages_stream_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InkwiseChatSendRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_thread_message_api_inkwise_chat_threads__thread_id__messages__message_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InkwiseRetryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_templates_api_inkwise_templates_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwisePaginatedTemplates"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_template_api_inkwise_templates_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InkwiseTemplateCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_template_api_inkwise_templates__template_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_template_api_inkwise_templates__template_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InkwiseTemplateUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_template_api_inkwise_templates__template_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_system_template_categories_api_inkwise_system_template_categories_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseSystemTemplateCategoryListResponse"];
+                };
+            };
+        };
+    };
+    list_system_templates_api_inkwise_system_templates_get: {
+        parameters: {
+            query?: {
+                category_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseSystemTemplateListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_system_template_api_inkwise_system_templates__system_template_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                system_template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwiseSystemTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_prediction_api_inkwise_documents__document_id__predictions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InkwisePredictionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InkwisePredictionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_writing_tool_output_api_inkwise_writing_tools_stream_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InkwiseWritingToolRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_writing_tool_output_api_inkwise_writing_tools__attempt_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attempt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InkwiseRetryRequest"];
             };
         };
         responses: {

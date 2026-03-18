@@ -280,7 +280,12 @@ def create_thread(
 ) -> InkwiseChatThreadOut:
     user_id = token_data["uid"]
     try:
-        user_support.ensure_user_record(db, user_id=user_id, email=token_data.get("email"))
+        user_support.ensure_user_record(
+            db,
+            user_id=user_id,
+            email=token_data.get("email"),
+            phone_number=token_data.get("phone_number"),
+        )
         thread = chat_service.create_thread(
             db,
             user_id=user_id,

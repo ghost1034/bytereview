@@ -48,7 +48,12 @@ def create_template(
     db: Session = Depends(get_db),
 ) -> InkwiseTemplateOut:
     try:
-        user_support.ensure_user_record(db, user_id=token_data["uid"], email=token_data.get("email"))
+        user_support.ensure_user_record(
+            db,
+            user_id=token_data["uid"],
+            email=token_data.get("email"),
+            phone_number=token_data.get("phone_number"),
+        )
         template = template_service.create_template(db, user_id=token_data["uid"], body=body)
         return InkwiseTemplateOut.model_validate(template)
     except ValueError as exc:

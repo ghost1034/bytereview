@@ -5,7 +5,7 @@ PostgreSQL-only implementation
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional
 import logging
-from services.user_service import UserService
+from services.user_service import DuplicatePhoneNumberError, UserService
 from models.user import UserResponse, UserUpdate, UpdateProfileRequest
 # Usage tracking imports will be added when billing is implemented
 from dependencies.auth import verify_firebase_token, get_current_user_id
@@ -19,15 +19,24 @@ user_service = UserService()
 async def get_current_user(token_data: dict = Depends(verify_firebase_token)):
     """Get current user information - returns existing user or creates minimal profile"""
     try:
+        email = token_data.get("email")
+        if not email:
+            raise HTTPException(status_code=400, detail="User email not found in token")
+
         # Just get or create user with minimal data from token
         # Frontend will call /me/sync with complete profile data
         user = await user_service.get_or_create_user(
             uid=token_data["uid"],
-            email=token_data.get("email"),
+            email=email,
+            phone_number=token_data.get("phone_number"),
             display_name=None,  # Will be updated via /me/sync
             photo_url=None
         )
         return user
+    except HTTPException:
+        raise
+    except DuplicatePhoneNumberError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting user: {str(e)}")
 
@@ -47,13 +56,22 @@ async def sync_user_profile(
     Frontend sends complete user profile data
     """
     try:
+        email = token_data.get("email")
+        if not email:
+            raise HTTPException(status_code=400, detail="User email not found in token")
+
         user = await user_service.sync_user_profile(
             uid=token_data["uid"],
-            email=token_data.get("email"),
+            email=email,
+            phone_number=token_data.get("phone_number"),
             display_name=sync_data.display_name,
             photo_url=sync_data.photo_url
         )
         return user
+    except HTTPException:
+        raise
+    except DuplicatePhoneNumberError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error syncing user: {str(e)}")
 
@@ -69,6 +87,8 @@ async def update_current_user(
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         return user
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating user: {str(e)}")
 
@@ -86,6 +106,8 @@ async def delete_current_user(
             raise HTTPException(status_code=404, detail="User not found")
         
         return {"message": "Account successfully deleted"}
+    except HTTPException:
+        raise
         
     except Exception as e:
         logger.error(f"Failed to delete user account {token_data['uid']}: {e}")

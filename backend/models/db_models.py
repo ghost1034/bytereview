@@ -2,6 +2,10 @@
 SQLAlchemy database models for ByteReview
 Integration phase - supports multi-source ingestion, exports, and automations
 """
+# pyright: reportArgumentType=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false, reportOptionalMemberAccess=false, reportReturnType=false
+
+from typing import Optional, cast
+
 from sqlalchemy import Column, String, Integer, BigInteger, Boolean, Text, TIMESTAMP, ForeignKey, UUID, LargeBinary, ARRAY, CheckConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.mutable import MutableDict
@@ -18,6 +22,8 @@ class User(Base):
     
     id = Column(String(128), primary_key=True)  # Firebase UID
     email = Column(String(255), unique=True, nullable=False)
+    phone_number = Column(String(32), unique=True, nullable=True)
+    phone_verified_at = Column(TIMESTAMP(timezone=True), nullable=True)
     display_name = Column(String(255))
     photo_url = Column(Text)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
@@ -189,21 +195,26 @@ class JobRun(Base):
     @property 
     def progress_percentage(self) -> float:
         """Calculate progress with safety checks"""
-        if self.config_step != 'submitted':
+        current_step = cast(str, self.config_step)
+        tasks_total = cast(int, self.tasks_total)
+        tasks_completed = cast(int, self.tasks_completed)
+        current_status = cast(str, self.status)
+
+        if current_step != 'submitted':
             # Wizard progress
             steps = ['upload', 'fields', 'review', 'submitted']
             try:
-                step_index = steps.index(self.config_step)
+                step_index = steps.index(current_step)
                 return min(100, max(0, (step_index / 3) * 100))
             except ValueError:
                 return 0
         else:
             # Processing progress
-            if self.tasks_total <= 0:
-                return 100 if self.status == 'completed' else 0
+            if tasks_total <= 0:
+                return 100 if current_status == 'completed' else 0
             
-            completed = max(0, self.tasks_completed)
-            total = max(1, self.tasks_total)  # Prevent division by zero
+            completed = max(0, tasks_completed)
+            total = max(1, tasks_total)  # Prevent division by zero
             return min(100, (completed / total) * 100)
 
 class JobField(Base):
@@ -319,24 +330,26 @@ class IntegrationAccount(Base):
         from services.encryption_service import encryption_service
         self.access_token = encryption_service.encrypt_token(token)
     
-    def get_access_token(self) -> str:
+    def get_access_token(self) -> Optional[str]:
         """Decrypt and return access token"""
-        if not self.access_token:
+        encrypted_access_token = cast(Optional[bytes], self.access_token)
+        if encrypted_access_token is None:
             return None
         from services.encryption_service import encryption_service
-        return encryption_service.decrypt_token(self.access_token)
+        return encryption_service.decrypt_token(encrypted_access_token)
     
     def set_refresh_token(self, token: str):
         """Encrypt and store refresh token"""
         from services.encryption_service import encryption_service
         self.refresh_token = encryption_service.encrypt_token(token)
     
-    def get_refresh_token(self) -> str:
+    def get_refresh_token(self) -> Optional[str]:
         """Decrypt and return refresh token"""
-        if not self.refresh_token:
+        encrypted_refresh_token = cast(Optional[bytes], self.refresh_token)
+        if encrypted_refresh_token is None:
             return None
         from services.encryption_service import encryption_service
-        return encryption_service.decrypt_token(self.refresh_token)
+        return encryption_service.decrypt_token(encrypted_refresh_token)
 
 class JobExport(Base):
     """Export operations for job run results to various destinations"""

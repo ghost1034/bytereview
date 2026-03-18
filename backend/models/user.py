@@ -5,16 +5,22 @@ from datetime import datetime
 class UserCreate(BaseModel):
     uid: str
     email: EmailStr
+    phone_number: Optional[str] = None
+    phone_verified_at: Optional[datetime] = None
     display_name: Optional[str] = None
     photo_url: Optional[str] = None
 
 class UserUpdate(BaseModel):
+    phone_number: Optional[str] = None
+    phone_verified_at: Optional[datetime] = None
     display_name: Optional[str] = None
     photo_url: Optional[str] = None
 
 class UserResponse(BaseModel):
     uid: str
     email: str
+    phone_number: Optional[str] = None
+    phone_verified_at: Optional[datetime] = None
     display_name: Optional[str] = None
     photo_url: Optional[str] = None
     created_at: datetime

@@ -1,16 +1,21 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import { User } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import { auth, signInWithGoogle, signOutUser, handleRedirectResult, onAuthStateChange, signInWithEmail, signUpWithEmail, updateUserProfile } from '@/lib/firebase';
+import { auth, hasVerifiedPhone, signInWithGoogle, signOutUser, handleRedirectResult, onAuthStateChange, signInWithEmail, signUpWithEmail, updateUserProfile } from '@/lib/firebase';
+import { buildPhoneVerificationRedirect, normalizeAuthRedirectPath } from '@/lib/auth-redirect';
+
+const POST_AUTH_REDIRECT_STORAGE_KEY = 'post-auth-redirect'
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signIn: () => Promise<void>;
-  signInWithEmailAndPassword: (email: string, password: string) => Promise<void>;
+  requiresPhoneVerification: boolean;
+  signIn: (redirectTo?: string) => Promise<void>;
+  signInWithEmailAndPassword: (email: string, password: string, redirectTo?: string) => Promise<void>;
   signUpWithEmailAndPassword: (email: string, password: string, displayName?: string) => Promise<void>;
+  completePhoneVerification: (redirectTo?: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -32,38 +37,53 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const [hasRedirected, setHasRedirected] = useState(false);
+
+  const persistRedirectTarget = useCallback((redirectTo?: string) => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    sessionStorage.setItem(
+      POST_AUTH_REDIRECT_STORAGE_KEY,
+      normalizeAuthRedirectPath(redirectTo),
+    )
+  }, [])
+
+  const consumeRedirectTarget = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return undefined
+    }
+
+    const storedRedirect = sessionStorage.getItem(POST_AUTH_REDIRECT_STORAGE_KEY)
+    sessionStorage.removeItem(POST_AUTH_REDIRECT_STORAGE_KEY)
+    return storedRedirect || undefined
+  }, [])
+
+  const navigateAfterAuthentication = useCallback((firebaseUser: User, redirectTo?: string) => {
+    const destination = hasVerifiedPhone(firebaseUser)
+      ? normalizeAuthRedirectPath(redirectTo)
+      : buildPhoneVerificationRedirect(redirectTo);
+
+    router.push(destination);
+  }, [router]);
 
   useEffect(() => {
-    // Set up auth state listener
-    const unsubscribe = onAuthStateChange(async (firebaseUser) => {
-      console.log('Auth state changed:', { 
-        previousUser: user?.email, 
-        newUser: firebaseUser?.email, 
-        hasRedirected 
+    const unsubscribe = onAuthStateChange((firebaseUser) => {
+      console.log('Auth state changed:', {
+        newUser: firebaseUser?.email,
+        hasVerifiedPhone: hasVerifiedPhone(firebaseUser),
       });
-      
-      const wasSignedIn = !user && firebaseUser;
-      
+
       setUser(firebaseUser);
       setLoading(false);
-      
-      // Removed sync logic - now handled by React Query in useUserProfile hook
-      
-      // Don't auto-redirect - let components handle their own redirect logic
-      if (wasSignedIn && !hasRedirected) {
-        console.log('User signed in, but not auto-redirecting');
-        setHasRedirected(true);
-      }
     });
 
-    // Also handle redirect result
     handleRedirectResult()
       .then((result) => {
-        console.log('Redirect result:', { result, hasRedirected });
-        if (result && result.user && !hasRedirected) {
-          console.log('Redirect result processed, but not auto-redirecting');
-          setHasRedirected(true);
+        if (result?.user) {
+          console.log('Redirect result processed, routing authenticated user');
+          setUser(result.user);
+          navigateAfterAuthentication(result.user, consumeRedirectTarget());
         }
       })
       .catch((error) => {
@@ -71,30 +91,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
 
     return () => unsubscribe();
-  }, [router, user, hasRedirected]);
+  }, [consumeRedirectTarget, navigateAfterAuthentication]);
 
-  const signIn = async () => {
+  const signIn = async (redirectTo?: string) => {
     try {
+      persistRedirectTarget(redirectTo)
       const result = await signInWithGoogle();
       if (result && result.user) {
-        console.log('Google sign-in successful, redirecting to dashboard');
+        console.log('Google sign-in successful, routing user');
         setUser(result.user);
-        setHasRedirected(true);
-        router.push('/dashboard');
+        consumeRedirectTarget()
+        navigateAfterAuthentication(result.user, redirectTo);
       }
     } catch (error) {
+      consumeRedirectTarget()
       console.error('Sign in error:', error);
+      throw error;
     }
   };
 
-  const signInWithEmailAndPassword = async (email: string, password: string) => {
+  const signInWithEmailAndPassword = async (email: string, password: string, redirectTo?: string) => {
     try {
       const result = await signInWithEmail(email, password);
       if (result && result.user) {
-        console.log('Email sign-in successful, redirecting to dashboard');
+        console.log('Email sign-in successful, routing user');
         setUser(result.user);
-        setHasRedirected(true);
-        router.push('/dashboard');
+        consumeRedirectTarget()
+        navigateAfterAuthentication(result.user, redirectTo);
       }
     } catch (error) {
       console.error('Email sign in error:', error);
@@ -111,10 +134,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           await updateUserProfile(result.user, { displayName });
         }
         
-        console.log('Email sign-up successful, redirecting to dashboard');
+        console.log('Email sign-up successful, awaiting phone verification');
+        await result.user.reload();
         setUser(result.user);
-        setHasRedirected(true);
-        router.push('/dashboard');
       }
     } catch (error) {
       console.error('Email sign up error:', error);
@@ -122,11 +144,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const completePhoneVerification = useCallback(async (redirectTo?: string) => {
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) {
+      throw new Error('Please sign in again to continue.');
+    }
+
+    await currentUser.reload();
+    await currentUser.getIdToken(true);
+
+    const refreshedUser = auth.currentUser;
+    if (!refreshedUser || !hasVerifiedPhone(refreshedUser)) {
+      throw new Error('Phone verification is not complete yet.');
+    }
+
+    setUser(refreshedUser);
+    router.push(normalizeAuthRedirectPath(redirectTo));
+  }, [router]);
+
   const signOut = async () => {
     try {
       await signOutUser();
       setUser(null);
-      setHasRedirected(false);
       // Redirect to home page after sign out
       router.push('/');
     } catch (error) {
@@ -134,14 +174,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const value = {
+  const value = useMemo(() => ({
     user,
     loading,
+    requiresPhoneVerification: !!user && !hasVerifiedPhone(user),
     signIn,
     signInWithEmailAndPassword,
     signUpWithEmailAndPassword,
+    completePhoneVerification,
     signOut,
-  };
+  }), [completePhoneVerification, loading, signIn, signInWithEmailAndPassword, signOut, signUpWithEmailAndPassword, user]);
 
   return (
     <AuthContext.Provider value={value}>

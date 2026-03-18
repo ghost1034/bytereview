@@ -5,8 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Menu, X, TrendingUp, Calculator, LogOut, User } from "lucide-react";
+import { Menu, X, LogOut, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthModal from "@/components/auth/AuthModal";
 
@@ -14,7 +13,10 @@ export default function Header() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, requiresPhoneVerification, signOut } = useAuth();
+
+  const primaryAuthenticatedHref = requiresPhoneVerification ? "/complete-signup" : "/dashboard";
+  const primaryAuthenticatedLabel = requiresPhoneVerification ? "Complete Signup" : "Dashboard";
 
   const handleAuthAction = () => {
     if (user) {
@@ -41,8 +43,8 @@ export default function Header() {
             
             <div className="hidden md:flex space-x-6">
               {user && (
-                <Link href="/dashboard" className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === '/dashboard' ? 'text-lido-blue' : ''}`}>
-                  Dashboard
+                <Link href={primaryAuthenticatedHref} className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === primaryAuthenticatedHref ? 'text-lido-blue' : ''}`}>
+                  {primaryAuthenticatedLabel}
                 </Link>
               )}
               <Link href="/demo" className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === '/demo' ? 'text-lido-blue' : ''}`}>

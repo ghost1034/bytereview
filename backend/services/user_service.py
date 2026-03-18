@@ -2,16 +2,22 @@
 PostgreSQL-only user service for ByteReview
 Clean implementation without Firestore dependencies
 """
+# pyright: reportArgumentType=false, reportAssignmentType=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false, reportOptionalMemberAccess=false, reportReturnType=false
+
 from models.user import UserCreate, UserUpdate, UserResponse
 from models.db_models import User as DBUser
 from core.database import db_config
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from datetime import datetime
-from typing import Optional
+from typing import Optional, cast
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class DuplicatePhoneNumberError(Exception):
+    """Raised when a verified phone number is already linked to another app user."""
 
 class UserService:
     """
@@ -34,6 +40,45 @@ class UserService:
         """Get PostgreSQL session"""
         return db_config.get_session()
 
+    @staticmethod
+    def _normalize_phone_number(phone_number: Optional[str]) -> Optional[str]:
+        clean_phone = (phone_number or "").strip()
+        return clean_phone or None
+
+    @staticmethod
+    def _to_response(pg_user: DBUser) -> UserResponse:
+        return UserResponse(
+            uid=pg_user.id,
+            email=pg_user.email,
+            phone_number=pg_user.phone_number,
+            phone_verified_at=pg_user.phone_verified_at,
+            display_name=pg_user.display_name,
+            photo_url=pg_user.photo_url,
+            created_at=pg_user.created_at,
+            updated_at=pg_user.updated_at,
+        )
+
+    def _apply_verified_phone(self, pg_user: DBUser, phone_number: Optional[str], phone_verified_at: Optional[datetime] = None) -> None:
+        normalized_phone = self._normalize_phone_number(phone_number)
+        if normalized_phone is None:
+            return
+
+        existing_phone_number = cast(Optional[str], pg_user.phone_number)
+
+        if existing_phone_number != normalized_phone:
+            pg_user.phone_number = normalized_phone
+            pg_user.phone_verified_at = phone_verified_at or datetime.utcnow()
+            return
+
+        if pg_user.phone_verified_at is None:
+            pg_user.phone_verified_at = phone_verified_at or datetime.utcnow()
+
+    @staticmethod
+    def _raise_if_phone_conflict(error: IntegrityError) -> None:
+        error_message = str(error.orig).lower()
+        if "phone_number" in error_message:
+            raise DuplicatePhoneNumberError("That phone number is already linked to another account") from error
+
     async def create_user(self, user_data: UserCreate) -> UserResponse:
         """Create a new user in PostgreSQL"""
         db = self._get_session()
@@ -43,6 +88,8 @@ class UserService:
             pg_user = DBUser(
                 id=user_data.uid,
                 email=user_data.email,
+                phone_number=self._normalize_phone_number(user_data.phone_number),
+                phone_verified_at=user_data.phone_verified_at,
                 display_name=user_data.display_name,
                 photo_url=user_data.photo_url
             )
@@ -53,15 +100,13 @@ class UserService:
             logger.info(f"UserService: After DB save, display_name='{pg_user.display_name}'")
             
             # Convert to response format
-            return UserResponse(
-                uid=pg_user.id,
-                email=pg_user.email,
-                display_name=pg_user.display_name,
-                photo_url=pg_user.photo_url,
-                created_at=pg_user.created_at,
-                updated_at=pg_user.updated_at
-            )
+            return self._to_response(pg_user)
             
+        except IntegrityError as e:
+            logger.error(f"Failed to create user {user_data.uid}: {e}")
+            db.rollback()
+            self._raise_if_phone_conflict(e)
+            raise
         except SQLAlchemyError as e:
             logger.error(f"Failed to create user {user_data.uid}: {e}")
             db.rollback()
@@ -77,14 +122,7 @@ class UserService:
             if not pg_user:
                 return None
             
-            return UserResponse(
-                uid=pg_user.id,
-                email=pg_user.email,
-                display_name=pg_user.display_name,
-                photo_url=pg_user.photo_url,
-                created_at=pg_user.created_at,
-                updated_at=pg_user.updated_at
-            )
+            return self._to_response(pg_user)
             
         except SQLAlchemyError as e:
             logger.error(f"Error getting user {uid}: {e}")
@@ -105,6 +143,12 @@ class UserService:
                 pg_user.display_name = user_update.display_name
             if user_update.photo_url is not None:
                 pg_user.photo_url = user_update.photo_url
+            if user_update.phone_number is not None or user_update.phone_verified_at is not None:
+                self._apply_verified_phone(
+                    pg_user,
+                    user_update.phone_number,
+                    user_update.phone_verified_at,
+                )
             
             pg_user.updated_at = datetime.utcnow()
             
@@ -113,15 +157,13 @@ class UserService:
             
             logger.info(f"Updated user {uid}")
             
-            return UserResponse(
-                uid=pg_user.id,
-                email=pg_user.email,
-                display_name=pg_user.display_name,
-                photo_url=pg_user.photo_url,
-                created_at=pg_user.created_at,
-                updated_at=pg_user.updated_at
-            )
+            return self._to_response(pg_user)
             
+        except IntegrityError as e:
+            logger.error(f"Failed to update user {uid}: {e}")
+            db.rollback()
+            self._raise_if_phone_conflict(e)
+            raise
         except SQLAlchemyError as e:
             logger.error(f"Failed to update user {uid}: {e}")
             db.rollback()
@@ -129,7 +171,7 @@ class UserService:
         finally:
             db.close()
 
-    async def get_or_create_user(self, uid: str, email: str, display_name: Optional[str] = None, photo_url: Optional[str] = None) -> UserResponse:
+    async def get_or_create_user(self, uid: str, email: str, phone_number: Optional[str] = None, display_name: Optional[str] = None, photo_url: Optional[str] = None) -> UserResponse:
         """Get existing user or create new one (does not update existing users)"""
         user = await self.get_user(uid)
         if user:
@@ -139,17 +181,21 @@ class UserService:
         user_create = UserCreate(
             uid=uid,
             email=email,
+            phone_number=phone_number,
+            phone_verified_at=datetime.utcnow() if phone_number else None,
             display_name=display_name,
             photo_url=photo_url
         )
         return await self.create_user(user_create)
 
-    async def sync_user_profile(self, uid: str, email: str, display_name: Optional[str] = None, photo_url: Optional[str] = None) -> UserResponse:
+    async def sync_user_profile(self, uid: str, email: str, phone_number: Optional[str] = None, display_name: Optional[str] = None, photo_url: Optional[str] = None) -> UserResponse:
         """Sync user profile - creates user if doesn't exist, updates profile if it does"""
         user = await self.get_user(uid)
         if user:
             # Always update the profile during sync
             user_update = UserUpdate(
+                phone_number=phone_number,
+                phone_verified_at=datetime.utcnow() if phone_number else None,
                 display_name=display_name,
                 photo_url=photo_url
             )
@@ -160,6 +206,8 @@ class UserService:
             user_create = UserCreate(
                 uid=uid,
                 email=email,
+                phone_number=phone_number,
+                phone_verified_at=datetime.utcnow() if phone_number else None,
                 display_name=display_name,
                 photo_url=photo_url
             )

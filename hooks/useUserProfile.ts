@@ -11,8 +11,10 @@ import { apiClient } from '@/lib/api'
 export interface UserProfile {
   uid: string
   email: string
-  display_name?: string
-  photo_url?: string
+  phone_number?: string | null
+  phone_verified_at?: string | null
+  display_name?: string | null
+  photo_url?: string | null
   created_at: string
   updated_at: string
   // Stripe fields will be added when billing is implemented

@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithRedirect, signInWithPopup, getRedirectResult, GoogleAuthProvider, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { getAuth, signInWithRedirect, signInWithPopup, getRedirectResult, GoogleAuthProvider, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, type User } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -69,6 +69,16 @@ export const updateUserProfile = (user: any, profile: { displayName?: string; ph
 export const signInWithEmail = (email: string, password: string) => {
   console.log('Signing in with email:', email);
   return signInWithEmailAndPassword(auth, email, password);
+};
+
+export const hasVerifiedPhone = (user: User | null | undefined) => {
+  if (!user) {
+    return false;
+  }
+
+  return Boolean(
+    user.phoneNumber || user.providerData.some((provider) => provider.providerId === "phone")
+  );
 };
 
 // Auth state observer

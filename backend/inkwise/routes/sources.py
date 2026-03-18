@@ -59,7 +59,12 @@ async def create_source(
 ) -> InkwiseSourceOut:
     user_id = token_data["uid"]
     try:
-        source_service.ensure_user_record(db, user_id=user_id, email=token_data.get("email"))
+        source_service.ensure_user_record(
+            db,
+            user_id=user_id,
+            email=token_data.get("email"),
+            phone_number=token_data.get("phone_number"),
+        )
         source = source_service.create_source(db, user_id=user_id, body=body)
         return InkwiseSourceOut.model_validate(source)
     except ValueError as exc:
@@ -110,7 +115,12 @@ async def init_source_upload(
 ) -> InkwiseSourceUploadInitResponse:
     user_id = token_data["uid"]
     try:
-        source_service.ensure_user_record(db, user_id=user_id, email=token_data.get("email"))
+        source_service.ensure_user_record(
+            db,
+            user_id=user_id,
+            email=token_data.get("email"),
+            phone_number=token_data.get("phone_number"),
+        )
         source, upload = source_service.init_upload(db, user_id=user_id, body=body)
         return InkwiseSourceUploadInitResponse(
             source=InkwiseSourceOut.model_validate(source),
@@ -140,7 +150,12 @@ async def capture_webpage_source(
 ) -> InkwiseSourceOut:
     user_id = token_data["uid"]
     try:
-        source_service.ensure_user_record(db, user_id=user_id, email=token_data.get("email"))
+        source_service.ensure_user_record(
+            db,
+            user_id=user_id,
+            email=token_data.get("email"),
+            phone_number=token_data.get("phone_number"),
+        )
         source = source_service.capture_webpage_snapshot(db, user_id=user_id, body=body)
         return InkwiseSourceOut.model_validate(source)
     except ValueError as exc:
