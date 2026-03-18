@@ -4,13 +4,14 @@ import type { Editor as TiptapEditor, JSONContent } from '@tiptap/core'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Download, History, LibraryBig, Loader2, MessageSquarePlus, MessageSquareText, PanelRightClose, PanelRightOpen, Save, Sparkles, Unplug, Wand2 } from 'lucide-react'
+import { Download, History, LibraryBig, Loader2, MessageSquarePlus, MessageSquareText, PanelRightClose, PanelRightOpen, Save, Settings2, Sparkles, Unplug, Wand2 } from 'lucide-react'
 
 import { InkwiseEditor } from '@/components/inkwise/inkwise-editor'
 import { InlineWritingTools } from '@/components/inkwise/inline-writing-tools'
 import { InkwiseCitationBubbles } from '@/components/inkwise/citation-bubbles'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -83,6 +84,7 @@ export default function InkwiseDocumentPage() {
   const [predictionTick, setPredictionTick] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [sidebarTab, setSidebarTab] = useState<'chat' | 'references'>('chat')
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
   const predictionTimeoutRef = useRef<number | null>(null)
@@ -450,12 +452,19 @@ export default function InkwiseDocumentPage() {
             <div className="text-xs text-slate-500">
               {version != null ? `Version ${version}` : 'Draft'} · Editor-first workspace with grounded assistance and references.
             </div>
+            <div className="text-xs text-slate-500">
+              {initPrompt.trim() ? 'Document guidance configured in settings.' : 'No document guidance yet. Use settings to add prompt instructions.'}
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => runWritingTool.mutate()} disabled={runWritingTool.isPending}>
               {runWritingTool.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
               Improve draft
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
+              <Settings2 className="mr-2 h-4 w-4" />
+              Settings
             </Button>
             <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
               <Download className="mr-2 h-4 w-4" />
@@ -479,21 +488,12 @@ export default function InkwiseDocumentPage() {
           </div>
         </div>
 
-        <div className="grid gap-3 px-5 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-          <div className="space-y-2">
-            <Label htmlFor="inkwise-guidance" className="text-xs font-medium text-slate-600">
-              Draft guidance
-            </Label>
-            <Input
-              id="inkwise-guidance"
-              value={initPrompt}
-              onChange={(event) => setInitPrompt(event.target.value)}
-              placeholder="Optional writing purpose or tone"
-              className="bg-slate-50"
-            />
-          </div>
-          <div className="text-xs text-slate-500 lg:max-w-xs lg:text-right">
+        <div className="flex items-center justify-between gap-4 px-5 py-3 text-xs text-slate-500">
+          <div>
             Select text in the editor to open inline rewrite tools. Grounded predictions and citations stay attached to the writing surface.
+          </div>
+          <div className="hidden lg:block">
+            {initPrompt.trim() ? 'Prompt guidance is active for this document.' : 'Prompt guidance is currently empty.'}
           </div>
         </div>
       </section>
@@ -761,6 +761,59 @@ export default function InkwiseDocumentPage() {
           )}
         </aside>
       </div>
+
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Document Settings</DialogTitle>
+            <DialogDescription>
+              Configure document-level prompt engineering for this draft. These instructions guide grounded writing tools and predictions.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="inkwise-settings-title">Document title</Label>
+              <Input
+                id="inkwise-settings-title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Untitled document"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="inkwise-settings-guidance">Document guidance</Label>
+              <Textarea
+                id="inkwise-settings-guidance"
+                value={initPrompt}
+                onChange={(event) => setInitPrompt(event.target.value)}
+                placeholder="Describe the purpose, audience, tone, or drafting constraints for this document."
+                className="min-h-[180px]"
+              />
+              <div className="text-xs text-slate-500">
+                Example: Draft a professional memorandum for a CPA audience, keep the tone concise, and support factual claims with bound references.
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSettingsOpen(false)}>
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                saveDocument.mutate()
+                setSettingsOpen(false)
+              }}
+              disabled={saveDocument.isPending || version == null}
+            >
+              {saveDocument.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              Save settings
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
         <SheetContent side="right" className="w-full sm:max-w-3xl">
