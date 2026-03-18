@@ -11,6 +11,7 @@ import { InlineWritingTools } from '@/components/inkwise/inline-writing-tools'
 import { InkwiseCitationBubbles } from '@/components/inkwise/citation-bubbles'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -84,6 +85,7 @@ export default function InkwiseDocumentPage() {
   const [predictionTick, setPredictionTick] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [sidebarTab, setSidebarTab] = useState<'chat' | 'references'>('chat')
+  const [chatSourceChecked, setChatSourceChecked] = useState<Record<string, boolean>>({})
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
@@ -121,6 +123,20 @@ export default function InkwiseDocumentPage() {
     return allSources.filter((source) => !boundIds.has(source.id))
   }, [sourcesQuery.data, bindingsQuery.data])
   const boundSources = bindingsQuery.data?.sources ?? []
+  const readyChatSources = useMemo(() => boundSources.filter((item) => item.grounded_chat_ready), [boundSources])
+  const selectedChatSourceIds = useMemo(
+    () => readyChatSources.filter((item) => chatSourceChecked[item.source.id] ?? true).map((item) => item.source.id),
+    [readyChatSources, chatSourceChecked]
+  )
+
+  useEffect(() => {
+    if (!readyChatSources.length) return
+    setChatSourceChecked((prev) => {
+      const next: Record<string, boolean> = {}
+      for (const item of readyChatSources) next[item.source.id] = prev[item.source.id] ?? true
+      return next
+    })
+  }, [readyChatSources])
 
   const saveDocument = useMutation({
     mutationFn: async () => {
@@ -221,7 +237,7 @@ export default function InkwiseDocumentPage() {
       setStreamState({ text: '' })
       await apiClient.streamInkwiseChatMessage(
         threadId,
-        { content: chatInput },
+        { content: chatInput, source_ids: selectedChatSourceIds },
         (event: InkwiseSseEvent) => {
           if (event.event === 'token') {
             setStreamState((current) => ({ ...(current ?? { text: '' }), text: `${current?.text ?? ''}${event.data?.text ?? ''}` }))
@@ -662,8 +678,72 @@ export default function InkwiseDocumentPage() {
                       placeholder="Ask a grounded question about this draft or your bound sources..."
                       className="min-h-[110px] bg-white"
                     />
+                    <div className="rounded-2xl border bg-white p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-medium text-slate-900">Chat references</div>
+                          <div className="text-xs text-slate-500">
+                            {readyChatSources.length
+                              ? `${selectedChatSourceIds.length} of ${readyChatSources.length} ready bound references selected`
+                              : boundSources.length
+                                ? 'No bound references are ready for grounded chat yet'
+                                : 'Bind references from the References tab to ground this chat'}
+                          </div>
+                        </div>
+                        {readyChatSources.length ? (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setChatSourceChecked(Object.fromEntries(readyChatSources.map((item) => [item.source.id, true])))}
+                              disabled={sendChat.isPending}
+                            >
+                              All ready
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setChatSourceChecked(Object.fromEntries(readyChatSources.map((item) => [item.source.id, false])))}
+                              disabled={sendChat.isPending}
+                            >
+                              None
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {boundSources.length ? (
+                        <div className="mt-3 grid max-h-40 gap-2 overflow-auto">
+                          {boundSources.map((item) => (
+                            <label
+                              key={item.binding_id}
+                              className={cn('flex items-center gap-3 text-sm', item.grounded_chat_ready ? 'text-slate-700' : 'text-slate-400')}
+                            >
+                              <Checkbox
+                                checked={chatSourceChecked[item.source.id] ?? item.grounded_chat_ready}
+                                disabled={!item.grounded_chat_ready || sendChat.isPending}
+                                onCheckedChange={(checked) => {
+                                  setChatSourceChecked((prev) => ({ ...prev, [item.source.id]: Boolean(checked) }))
+                                }}
+                              />
+                              <span>{item.source.title}</span>
+                              {!item.grounded_chat_ready ? <span className="text-xs">({item.grounded_chat_reason || 'Not ready'})</span> : null}
+                            </label>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                    {!readyChatSources.length ? (
+                      <div className="text-xs text-amber-700">
+                        Grounded chat needs at least one ready bound reference. Use the References tab to bind and prepare sources.
+                      </div>
+                    ) : !selectedChatSourceIds.length ? (
+                      <div className="text-xs text-amber-700">
+                        Select at least one ready reference before sending grounded chat.
+                      </div>
+                    ) : null}
                     <div className="flex justify-end">
-                      <Button onClick={() => sendChat.mutate()} disabled={sendChat.isPending || !chatInput.trim()}>
+                      <Button onClick={() => sendChat.mutate()} disabled={sendChat.isPending || !chatInput.trim() || !selectedChatSourceIds.length}>
                         {sendChat.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                         Send grounded chat
                       </Button>
