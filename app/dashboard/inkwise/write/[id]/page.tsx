@@ -4,7 +4,7 @@ import type { Editor as TiptapEditor, JSONContent } from '@tiptap/core'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Download, History, Loader2, MessageSquarePlus, Save, Sparkles, Unplug, Wand2 } from 'lucide-react'
+import { Download, History, LibraryBig, Loader2, MessageSquarePlus, MessageSquareText, PanelRightClose, PanelRightOpen, Save, Sparkles, Unplug, Wand2 } from 'lucide-react'
 
 import { InkwiseEditor } from '@/components/inkwise/inkwise-editor'
 import { InlineWritingTools } from '@/components/inkwise/inline-writing-tools'
@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import {
@@ -26,6 +27,7 @@ import {
   useInkwiseSources,
 } from '@/hooks/useInkwise'
 import { apiClient, InkwiseChatMessage, InkwiseCitation, InkwiseDocumentRevision, InkwisePredictionResponse, InkwiseSseEvent } from '@/lib/api'
+import { cn } from '@/lib/utils'
 
 type StreamState = {
   text: string
@@ -79,6 +81,8 @@ export default function InkwiseDocumentPage() {
   const [editor, setEditor] = useState<TiptapEditor | null>(null)
   const [predictionState, setPredictionState] = useState<PredictionState | null>(null)
   const [predictionTick, setPredictionTick] = useState(0)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarTab, setSidebarTab] = useState<'chat' | 'references'>('chat')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
   const predictionTimeoutRef = useRef<number | null>(null)
@@ -114,6 +118,7 @@ export default function InkwiseDocumentPage() {
     const boundIds = new Set((bindingsQuery.data?.sources ?? []).map((item) => item.source.id))
     return allSources.filter((source) => !boundIds.has(source.id))
   }, [sourcesQuery.data, bindingsQuery.data])
+  const boundSources = bindingsQuery.data?.sources ?? []
 
   const saveDocument = useMutation({
     mutationFn: async () => {
@@ -429,255 +434,332 @@ export default function InkwiseDocumentPage() {
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-      <div className="space-y-6">
-        <Card>
-          <CardHeader className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="space-y-1">
-              <CardTitle>Document</CardTitle>
-              <CardDescription>Use a practical plain-text workspace while the richer Inkwise editor is being ported.</CardDescription>
+    <div className="flex flex-col gap-4">
+      <section className="rounded-3xl border bg-white shadow-sm">
+        <div className="flex flex-col gap-4 border-b px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0 flex-1 space-y-2">
+            <Label htmlFor="inkwise-title" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              Document Title
+            </Label>
+            <Input
+              id="inkwise-title"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              className="h-auto border-0 px-0 text-2xl font-semibold tracking-tight shadow-none focus-visible:ring-0"
+            />
+            <div className="text-xs text-slate-500">
+              {version != null ? `Version ${version}` : 'Draft'} · Editor-first workspace with grounded assistance and references.
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => handleExport('pdf')}>
-                <Download className="mr-2 h-4 w-4" />
-                PDF
-              </Button>
-              <Button variant="outline" onClick={() => setHistoryOpen(true)}>
-                <History className="mr-2 h-4 w-4" />
-                Version history
-              </Button>
-              <Button variant="outline" onClick={() => handleExport('docx')}>
-                <Download className="mr-2 h-4 w-4" />
-                DOCX
-              </Button>
-              <Button variant="outline" onClick={() => deleteDocument.mutate()} disabled={deleteDocument.isPending}>
-                Delete
-              </Button>
-              <Button onClick={() => saveDocument.mutate()} disabled={saveDocument.isPending || version == null}>
-                {saveDocument.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Save
-              </Button>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => runWritingTool.mutate()} disabled={runWritingTool.isPending}>
+              {runWritingTool.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+              Improve draft
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
+              <Download className="mr-2 h-4 w-4" />
+              PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleExport('docx')}>
+              <Download className="mr-2 h-4 w-4" />
+              DOCX
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)}>
+              <History className="mr-2 h-4 w-4" />
+              Version history
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => deleteDocument.mutate()} disabled={deleteDocument.isPending}>
+              Delete
+            </Button>
+            <Button size="sm" onClick={() => saveDocument.mutate()} disabled={saveDocument.isPending || version == null}>
+              {saveDocument.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              Save
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid gap-3 px-5 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <div className="space-y-2">
+            <Label htmlFor="inkwise-guidance" className="text-xs font-medium text-slate-600">
+              Draft guidance
+            </Label>
+            <Input
+              id="inkwise-guidance"
+              value={initPrompt}
+              onChange={(event) => setInitPrompt(event.target.value)}
+              placeholder="Optional writing purpose or tone"
+              className="bg-slate-50"
+            />
+          </div>
+          <div className="text-xs text-slate-500 lg:max-w-xs lg:text-right">
+            Select text in the editor to open inline rewrite tools. Grounded predictions and citations stay attached to the writing surface.
+          </div>
+        </div>
+      </section>
+
+      <div className="flex min-h-[72vh] flex-col gap-4 xl:flex-row">
+        <section className="min-w-0 flex-1 rounded-3xl border bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b px-5 py-4">
+            <div>
+              <div className="text-sm font-semibold text-slate-900">Write</div>
+              <div className="text-xs text-slate-500">The editor stays central while chat and references move into the sidebar.</div>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="inkwise-title">Title</Label>
-                <Input id="inkwise-title" value={title} onChange={(event) => setTitle(event.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="inkwise-guidance">Draft guidance</Label>
-                <Input id="inkwise-guidance" value={initPrompt} onChange={(event) => setInitPrompt(event.target.value)} placeholder="Optional writing purpose or tone" />
-              </div>
+          </div>
+
+          <div className="space-y-4 px-4 py-4 sm:px-5">
+            <InlineWritingTools editor={editor} documentId={documentId} boundSources={boundSources} />
+
+            <InkwiseEditor
+              contentJson={contentJson}
+              contentHtml={contentHtml}
+              placeholder="Start writing here..."
+              onEditor={setEditor}
+              predictionText={predictionState?.text || ''}
+              onAcceptPrediction={() => {
+                if (!editor || !predictionState?.text) return
+                editor.chain().focus().insertContent(predictionState.text).run()
+                setPredictionState(null)
+                setPredictionTick((value) => value + 1)
+              }}
+              onDismissPrediction={() => setPredictionState(null)}
+              onBlur={() => saveDocument.mutate()}
+              onChange={(value) => {
+                setContentJson(value.json)
+                setContentHtml(value.html)
+                setPredictionTick((tick) => tick + 1)
+              }}
+              className="min-h-[56vh] border-0 shadow-none"
+            />
+
+            <div className="rounded-2xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
+              {predictionState?.grounded
+                ? `Press Tab to accept the grounded inline prediction. Using ${predictionState.evidence.length} evidence ${predictionState.evidence.length === 1 ? 'segment' : 'segments'}.`
+                : 'Press Tab to accept inline predictions when they appear.'}
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="inkwise-content">Draft content</Label>
-                <Button variant="outline" size="sm" onClick={() => runWritingTool.mutate()} disabled={runWritingTool.isPending}>
-                  {runWritingTool.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                  Improve draft
-                </Button>
+            {predictionState?.grounded && predictionState.evidence.length ? (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 px-4 py-3">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Prediction Evidence</div>
+                <InkwiseCitationBubbles citations={predictionState.evidence} />
               </div>
-              <InkwiseEditor
-                contentJson={contentJson}
-                contentHtml={contentHtml}
-                placeholder="Start writing here..."
-                onEditor={setEditor}
-                predictionText={predictionState?.text || ''}
-                onAcceptPrediction={() => {
-                  if (!editor || !predictionState?.text) return
-                  editor.chain().focus().insertContent(predictionState.text).run()
-                  setPredictionState(null)
-                  setPredictionTick((value) => value + 1)
-                }}
-                onDismissPrediction={() => setPredictionState(null)}
-                onBlur={() => saveDocument.mutate()}
-                onChange={(value) => {
-                  setContentJson(value.json)
-                  setContentHtml(value.html)
-                  setPredictionTick((tick) => tick + 1)
-                }}
-              />
-              <div className="text-xs text-slate-500">
-                {predictionState?.grounded
-                  ? `Press Tab to accept the grounded inline prediction. Using ${predictionState.evidence.length} evidence ${predictionState.evidence.length === 1 ? 'segment' : 'segments'}.`
-                  : 'Press Tab to accept inline predictions when they appear.'}
+            ) : null}
+          </div>
+        </section>
+
+        <aside
+          className={cn(
+            'rounded-3xl border bg-white shadow-sm transition-all duration-200 xl:sticky xl:top-28 xl:self-start',
+            sidebarOpen ? 'w-full xl:w-[25rem]' : 'w-full xl:w-[5.5rem]'
+          )}
+        >
+          <div className="flex items-center justify-between border-b px-3 py-3">
+            <div className={cn('min-w-0', !sidebarOpen && 'xl:hidden')}>
+              <div className="text-sm font-semibold text-slate-900">Sidebar</div>
+              <div className="text-xs text-slate-500">AI Chat and document references</div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-xl"
+              onClick={() => setSidebarOpen((value) => !value)}
+              aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            >
+              {sidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          {sidebarOpen ? (
+            <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as 'chat' | 'references')} className="flex h-full min-h-[32rem] flex-col">
+              <div className="border-b px-3 py-3">
+                <TabsList className="grid w-full grid-cols-2 rounded-2xl bg-slate-100">
+                  <TabsTrigger value="chat" className="rounded-xl">
+                    <MessageSquareText className="mr-2 h-4 w-4" />
+                    AI Chat
+                  </TabsTrigger>
+                  <TabsTrigger value="references" className="rounded-xl">
+                    <LibraryBig className="mr-2 h-4 w-4" />
+                    References
+                  </TabsTrigger>
+                </TabsList>
               </div>
-              {predictionState?.grounded && predictionState.evidence.length ? (
-                <div className="pt-1">
-                  <InkwiseCitationBubbles citations={predictionState.evidence} />
-                </div>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Inline Tools</CardTitle>
-            <CardDescription>Select text in the editor to open rewrite tools grounded to the bound source set.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <InlineWritingTools editor={editor} documentId={documentId} boundSources={bindingsQuery.data?.sources ?? []} />
-            <div className="rounded-2xl border border-dashed p-6 text-sm text-slate-500">
-              Highlight a passage in the editor to open Improve, Concise, Longer, and Custom rewrite actions.
-            </div>
-          </CardContent>
-        </Card>
+              <TabsContent value="chat" className="mt-0 flex min-h-0 flex-1 flex-col px-3 pb-3">
+                <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-2xl bg-slate-50 p-3">
+                  <div className="flex flex-wrap gap-2">
+                    {(threadsQuery.data?.threads ?? []).map((thread) => (
+                      <Button
+                        key={thread.id}
+                        variant={selectedThreadId === thread.id ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedThreadId(thread.id)}
+                      >
+                        {thread.title || 'Grounded thread'}
+                      </Button>
+                    ))}
+                    <Button variant="outline" size="sm" onClick={() => createThread.mutate()} disabled={createThread.isPending}>
+                      <MessageSquarePlus className="mr-2 h-4 w-4" />
+                      New thread
+                    </Button>
+                  </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Grounded Chat</CardTitle>
-            <CardDescription>Ask questions against the sources bound to this document.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {(threadsQuery.data?.threads ?? []).map((thread) => (
-                <Button
-                  key={thread.id}
-                  variant={selectedThreadId === thread.id ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedThreadId(thread.id)}
-                >
-                  {thread.title || 'Grounded thread'}
-                </Button>
-              ))}
-              <Button variant="outline" size="sm" onClick={() => createThread.mutate()} disabled={createThread.isPending}>
-                <MessageSquarePlus className="mr-2 h-4 w-4" />
-                New thread
-              </Button>
-            </div>
+                  <ScrollArea className="min-h-0 flex-1 rounded-2xl border bg-white">
+                    <div className="space-y-3 p-4">
+                      {renderedMessages.map((message) => (
+                        <div key={message.id} className={`rounded-2xl p-3 text-sm ${message.role === 'assistant' ? 'border bg-white' : 'bg-slate-900 text-white'}`}>
+                          <div className="mb-1 flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-wide opacity-70">
+                            <span>{message.role}</span>
+                            {message.role === 'assistant' && message.id === latestAssistantMessageId ? (
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 text-[10px]"
+                                  onClick={() => retryChat.mutate({ messageId: message.id, freshRetrieval: false })}
+                                  disabled={retryChat.isPending || sendChat.isPending}
+                                >
+                                  Retry
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 text-[10px]"
+                                  onClick={() => retryChat.mutate({ messageId: message.id, freshRetrieval: true })}
+                                  disabled={retryChat.isPending || sendChat.isPending}
+                                >
+                                  Fresh evidence
+                                </Button>
+                              </div>
+                            ) : null}
+                          </div>
+                          <div className="whitespace-pre-wrap">{message.content}</div>
+                          {messageCitations(message).length ? (
+                            <div className="mt-3">
+                              <InkwiseCitationBubbles citations={messageCitations(message)} />
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
 
-            <ScrollArea className="h-[360px] rounded-xl border bg-slate-50">
-              <div className="space-y-3 p-4">
-                {renderedMessages.map((message) => (
-                  <div key={message.id} className={`rounded-2xl p-3 text-sm ${message.role === 'assistant' ? 'bg-white border' : 'bg-slate-900 text-white'}`}>
-                    <div className="mb-1 flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-wide opacity-70">
-                      <span>{message.role}</span>
-                      {message.role === 'assistant' && message.id === latestAssistantMessageId ? (
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-[10px]"
-                            onClick={() => retryChat.mutate({ messageId: message.id, freshRetrieval: false })}
-                            disabled={retryChat.isPending || sendChat.isPending}
-                          >
-                            Retry
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-[10px]"
-                            onClick={() => retryChat.mutate({ messageId: message.id, freshRetrieval: true })}
-                            disabled={retryChat.isPending || sendChat.isPending}
-                          >
-                            Fresh evidence
-                          </Button>
+                      {streamState ? (
+                        <div className="rounded-2xl border bg-white p-3 text-sm">
+                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">assistant</div>
+                          <div className="whitespace-pre-wrap">{streamState.text || 'Thinking...'}</div>
+                          {streamState.citations?.length ? (
+                            <div className="mt-3">
+                              <InkwiseCitationBubbles citations={streamState.citations} />
+                            </div>
+                          ) : null}
                         </div>
                       ) : null}
                     </div>
-                    <div className="whitespace-pre-wrap">{message.content}</div>
-                    {messageCitations(message).length ? (
-                      <div className="mt-3">
-                        <InkwiseCitationBubbles citations={messageCitations(message)} />
-                      </div>
-                    ) : null}
-                  </div>
-                ))}
+                  </ScrollArea>
 
-                {streamState ? (
-                  <div className="rounded-2xl border bg-white p-3 text-sm">
-                    <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">assistant</div>
-                    <div className="whitespace-pre-wrap">{streamState.text || 'Thinking...'}</div>
-                    {streamState.citations?.length ? (
-                      <div className="mt-3">
-                        <InkwiseCitationBubbles citations={streamState.citations} />
-                      </div>
-                    ) : null}
+                  <div className="space-y-2">
+                    <Textarea
+                      value={chatInput}
+                      onChange={(event) => setChatInput(event.target.value)}
+                      placeholder="Ask a grounded question about this draft or your bound sources..."
+                      className="min-h-[110px] bg-white"
+                    />
+                    <div className="flex justify-end">
+                      <Button onClick={() => sendChat.mutate()} disabled={sendChat.isPending || !chatInput.trim()}>
+                        {sendChat.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                        Send grounded chat
+                      </Button>
+                    </div>
                   </div>
-                ) : null}
-              </div>
-            </ScrollArea>
+                </div>
+              </TabsContent>
 
-            <div className="space-y-2">
-              <Textarea
-                value={chatInput}
-                onChange={(event) => setChatInput(event.target.value)}
-                placeholder="Ask a grounded question about this draft or your bound sources..."
-                className="min-h-[110px]"
-              />
-              <div className="flex justify-end">
-                <Button onClick={() => sendChat.mutate()} disabled={sendChat.isPending || !chatInput.trim()}>
-                  {sendChat.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                  Send grounded chat
-                </Button>
-              </div>
+              <TabsContent value="references" className="mt-0 min-h-0 flex-1 px-3 pb-3">
+                <ScrollArea className="h-full rounded-2xl bg-slate-50 p-3">
+                  <div className="space-y-5 p-1">
+                    <div>
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Bound to this document</div>
+                      <div className="space-y-3">
+                        {boundSources.length ? (
+                          boundSources.map((binding) => (
+                            <div key={binding.binding_id} className="rounded-2xl border bg-white p-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="font-medium text-slate-900">{binding.source.title}</div>
+                                  <div className="mt-1 text-xs text-slate-500">
+                                    {binding.grounded_chat_ready ? 'Ready for grounding' : binding.grounded_chat_reason || 'Not ready yet'}
+                                  </div>
+                                </div>
+                                <Button variant="outline" size="sm" onClick={() => unbindSources.mutate([binding.source.id])}>
+                                  <Unplug className="mr-2 h-4 w-4" />
+                                  Unbind
+                                </Button>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="rounded-2xl border border-dashed bg-white p-4 text-sm text-slate-500">
+                            No sources are bound yet.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Available library sources</div>
+                      <div className="space-y-3">
+                        {availableSources.length ? (
+                          availableSources.map((source) => (
+                            <div key={source.id} className="rounded-2xl border bg-white p-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="font-medium text-slate-900">{source.title}</div>
+                                  <div className="mt-1 text-xs text-slate-500">{source.status} • {new Date(source.updated_at).toLocaleString()}</div>
+                                </div>
+                                <Button size="sm" onClick={() => bindSources.mutate([source.id])}>
+                                  Bind
+                                </Button>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="rounded-2xl border border-dashed bg-white p-4 text-sm text-slate-500">
+                            Everything in your source library is already bound to this document.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <div className="flex flex-col gap-2 p-3 xl:items-center xl:justify-start xl:py-4">
+              <Button
+                variant={sidebarTab === 'chat' ? 'default' : 'outline'}
+                size="icon"
+                className="h-11 w-11 rounded-2xl"
+                onClick={() => {
+                  setSidebarTab('chat')
+                  setSidebarOpen(true)
+                }}
+                aria-label="Open AI Chat sidebar"
+              >
+                <MessageSquareText className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={sidebarTab === 'references' ? 'default' : 'outline'}
+                size="icon"
+                className="h-11 w-11 rounded-2xl"
+                onClick={() => {
+                  setSidebarTab('references')
+                  setSidebarOpen(true)
+                }}
+                aria-label="Open References sidebar"
+              >
+                <LibraryBig className="h-4 w-4" />
+              </Button>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Bound Sources</CardTitle>
-            <CardDescription>Only completed sources with retrieval segments and active embeddings are used for grounding.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {(bindingsQuery.data?.sources ?? []).length ? (
-              bindingsQuery.data?.sources.map((binding) => (
-                <div key={binding.binding_id} className="rounded-2xl border p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="font-medium text-slate-900">{binding.source.title}</div>
-                      <div className="mt-1 text-xs text-slate-500">
-                        {binding.grounded_chat_ready ? 'Ready for grounding' : binding.grounded_chat_reason || 'Not ready yet'}
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => unbindSources.mutate([binding.source.id])}>
-                      <Unplug className="mr-2 h-4 w-4" />
-                      Unbind
-                    </Button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-2xl border border-dashed p-6 text-sm text-slate-500">
-                No sources are bound yet.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Available Library Sources</CardTitle>
-            <CardDescription>Bind references here so retrieval, chat, and writing tools can use them.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {availableSources.length ? (
-              availableSources.map((source) => (
-                <div key={source.id} className="rounded-2xl border p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="font-medium text-slate-900">{source.title}</div>
-                      <div className="mt-1 text-xs text-slate-500">{source.status} • {new Date(source.updated_at).toLocaleString()}</div>
-                    </div>
-                    <Button size="sm" onClick={() => bindSources.mutate([source.id])}>
-                      Bind
-                    </Button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-2xl border border-dashed p-6 text-sm text-slate-500">
-                Everything in your source library is already bound to this document.
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          )}
+        </aside>
       </div>
 
       <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
