@@ -40,6 +40,7 @@ export function InlineWritingTools({
   const [inserting, setInserting] = useState<null | 'replace' | 'after'>(null)
   const [sourceChecked, setSourceChecked] = useState<Record<string, boolean>>({})
   const [groundingState, setGroundingState] = useState<GroundingState | null>(null)
+  const [attemptId, setAttemptId] = useState<string | null>(null)
 
   const rangeRef = useRef<{ from: number; to: number } | null>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -67,6 +68,7 @@ export function InlineWritingTools({
         setOutputMd('')
         setLastAction(null)
         setGroundingState(null)
+        setAttemptId(null)
         rangeRef.current = null
       }
     }
@@ -94,6 +96,7 @@ export function InlineWritingTools({
     setOutputMd('')
     setLastAction(action)
     setGroundingState(null)
+    setAttemptId(null)
     rangeRef.current = { from: selection.from, to: selection.to }
 
     abortRef.current?.abort()
@@ -124,6 +127,9 @@ export function InlineWritingTools({
               fallback: event.data?.grounding_fallback || null,
               evidence: Array.isArray(event.data?.evidence) ? event.data.evidence : [],
             })
+          }
+          if ((event.event === 'meta' || event.event === 'done') && event.data?.attempt_id) {
+            setAttemptId(String(event.data.attempt_id))
           }
         },
         { signal: controller.signal },
@@ -166,8 +172,54 @@ export function InlineWritingTools({
     setOutputMd('')
     setLastAction(null)
     setGroundingState(null)
+    setAttemptId(null)
     setCustomOpen(false)
     rangeRef.current = null
+  }
+
+  async function retryAttempt(freshRetrieval: boolean) {
+    if (!attemptId) return
+
+    setError(null)
+    setBusy(true)
+    setOutputMd('')
+    setGroundingState(null)
+
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    try {
+      await apiClient.streamInkwiseRetryWritingTool(
+        attemptId,
+        { fresh_retrieval: freshRetrieval },
+        (event: InkwiseSseEvent) => {
+          if (event.event === 'token') {
+            setOutputMd((current) => current + (event.data?.text ?? ''))
+          }
+          if (event.event === 'meta' && event.data?.error) {
+            setError(event.data?.message || 'Writing tool failed')
+          }
+          if (event.event === 'meta' && typeof event.data?.grounded === 'boolean') {
+            setGroundingState({
+              grounded: Boolean(event.data.grounded),
+              evidenceCount: Number(event.data?.evidence_count || 0),
+              fallback: event.data?.grounding_fallback || null,
+              evidence: Array.isArray(event.data?.evidence) ? event.data.evidence : [],
+            })
+          }
+          if ((event.event === 'meta' || event.event === 'done') && event.data?.attempt_id) {
+            setAttemptId(String(event.data.attempt_id))
+          }
+        },
+        { signal: controller.signal },
+      )
+    } catch (err) {
+      if (err && typeof err === 'object' && (err as { name?: string }).name === 'AbortError') return
+      setError(err instanceof Error ? err.message : 'Failed to retry tool')
+    } finally {
+      setBusy(false)
+    }
   }
 
   if (!editor) return null
@@ -281,6 +333,12 @@ export function InlineWritingTools({
               </div>
             ) : null}
             <div className="mt-3 flex flex-wrap justify-end gap-2">
+              <Button size="sm" variant="outline" onClick={() => retryAttempt(false)} disabled={!attemptId || busy}>
+                Retry
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => retryAttempt(true)} disabled={!attemptId || busy}>
+                Fresh evidence
+              </Button>
               <Button size="sm" variant="outline" onClick={() => insert('after')} disabled={!outputMd || inserting === 'after'}>
                 {inserting === 'after' ? 'Inserting...' : 'Insert after'}
               </Button>

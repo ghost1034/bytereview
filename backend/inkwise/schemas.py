@@ -362,6 +362,10 @@ class InkwiseChatSendRequest(BaseModel):
     draft_selection_label: str | None = None
 
 
+class InkwiseRetryRequest(BaseModel):
+    fresh_retrieval: bool = False
+
+
 class InkwiseWritingToolRequest(BaseModel):
     action: Literal[
         "improve",

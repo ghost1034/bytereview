@@ -99,6 +99,27 @@ class InkwiseChatService:
         )
         return items, total
 
+    def get_message_or_404(
+        self,
+        db: Session,
+        *,
+        user_id: str,
+        thread_id: uuid.UUID,
+        message_id: uuid.UUID,
+    ) -> InkwiseChatMessage:
+        self.get_thread_or_404(db, user_id=user_id, thread_id=thread_id)
+        message = (
+            db.query(InkwiseChatMessage)
+            .filter(
+                InkwiseChatMessage.id == message_id,
+                InkwiseChatMessage.thread_id == thread_id,
+            )
+            .first()
+        )
+        if message is None:
+            raise FileNotFoundError("Message not found")
+        return message
+
     def list_recent_history(
         self,
         db: Session,
@@ -117,6 +138,59 @@ class InkwiseChatService:
             for role, content in rows
             if str(role).strip() and str(content).strip()
         ]
+
+    def list_recent_history_before_message(
+        self,
+        db: Session,
+        *,
+        thread_id: uuid.UUID,
+        before_message_id: uuid.UUID,
+        exclude_message_id: uuid.UUID | None = None,
+        limit: int = 12,
+    ) -> list[dict[str, str]]:
+        before_message = db.query(InkwiseChatMessage).filter(InkwiseChatMessage.id == before_message_id).first()
+        if before_message is None:
+            return []
+        query = db.query(InkwiseChatMessage.role, InkwiseChatMessage.content).filter(
+            InkwiseChatMessage.thread_id == thread_id,
+            InkwiseChatMessage.created_at < before_message.created_at,
+        )
+        if exclude_message_id is not None:
+            query = query.filter(InkwiseChatMessage.id != exclude_message_id)
+        rows = query.order_by(InkwiseChatMessage.created_at.desc()).limit(limit).all()
+        rows.reverse()
+        return [
+            {"role": str(role), "content": str(content)}
+            for role, content in rows
+            if str(role).strip() and str(content).strip()
+        ]
+
+    def find_reply_source_message(
+        self,
+        db: Session,
+        *,
+        thread_id: uuid.UUID,
+        assistant_message_id: uuid.UUID,
+    ) -> InkwiseChatMessage | None:
+        assistant_message = db.query(InkwiseChatMessage).filter(InkwiseChatMessage.id == assistant_message_id).first()
+        if assistant_message is None:
+            return None
+        provider_meta = assistant_message.provider_meta or {}
+        reply_to_message_id = provider_meta.get("reply_to_message_id") if isinstance(provider_meta, dict) else None
+        if reply_to_message_id:
+            linked = db.query(InkwiseChatMessage).filter(InkwiseChatMessage.id == reply_to_message_id).first()
+            if linked is not None:
+                return linked
+        return (
+            db.query(InkwiseChatMessage)
+            .filter(
+                InkwiseChatMessage.thread_id == thread_id,
+                InkwiseChatMessage.role == "user",
+                InkwiseChatMessage.created_at < assistant_message.created_at,
+            )
+            .order_by(InkwiseChatMessage.created_at.desc())
+            .first()
+        )
 
     def create_user_message(
         self,
@@ -159,6 +233,7 @@ class InkwiseChatService:
         provider: str,
         provider_meta: dict,
     ) -> InkwiseChatMessage:
+        provider_meta = dict(provider_meta or {})
         message = InkwiseChatMessage(
             thread_id=thread_id,
             role="assistant",

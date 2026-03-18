@@ -29,6 +29,7 @@ type StreamState = {
   text: string
   retrievalRunId?: string
   citations?: InkwiseCitation[]
+  attemptId?: string
 }
 
 function messageCitations(message: InkwiseChatMessage): InkwiseCitation[] {
@@ -175,10 +176,11 @@ export default function InkwiseDocumentPage() {
               ...(current ?? { text: '' }),
               retrievalRunId: event.data?.retrieval_run_id,
               citations: event.data?.citations,
+              attemptId: event.data?.attempt_id,
             }))
           }
           if (event.event === 'done') {
-            setStreamState((current) => ({ ...(current ?? { text: '' }), retrievalRunId: event.data?.retrieval_run_id }))
+            setStreamState((current) => ({ ...(current ?? { text: '' }), retrievalRunId: event.data?.retrieval_run_id, attemptId: event.data?.attempt_id }))
           }
         }
       )
@@ -194,6 +196,45 @@ export default function InkwiseDocumentPage() {
     },
     onError: (error: Error) => {
       toast({ title: 'Chat request failed', description: error.message, variant: 'destructive' })
+    },
+  })
+
+  const retryChat = useMutation({
+    mutationFn: async ({ messageId, freshRetrieval }: { messageId: string; freshRetrieval: boolean }) => {
+      if (!selectedThreadId) throw new Error('No chat thread selected')
+
+      setStreamState({ text: '' })
+      await apiClient.streamInkwiseRetryChatMessage(
+        selectedThreadId,
+        messageId,
+        { fresh_retrieval: freshRetrieval },
+        (event: InkwiseSseEvent) => {
+          if (event.event === 'token') {
+            setStreamState((current) => ({ ...(current ?? { text: '' }), text: `${current?.text ?? ''}${event.data?.text ?? ''}` }))
+          }
+          if (event.event === 'meta' && event.data?.citations) {
+            setStreamState((current) => ({
+              ...(current ?? { text: '' }),
+              retrievalRunId: event.data?.retrieval_run_id,
+              citations: event.data?.citations,
+              attemptId: event.data?.attempt_id,
+            }))
+          }
+          if (event.event === 'done') {
+            setStreamState((current) => ({ ...(current ?? { text: '' }), retrievalRunId: event.data?.retrieval_run_id, attemptId: event.data?.attempt_id }))
+          }
+        }
+      )
+      return selectedThreadId
+    },
+    onSuccess: async (threadId) => {
+      setStreamState(null)
+      if (threadId) {
+        await queryClient.invalidateQueries({ queryKey: ['inkwise', 'chat-messages', threadId] })
+      }
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Retry failed', description: error.message, variant: 'destructive' })
     },
   })
 
@@ -246,6 +287,12 @@ export default function InkwiseDocumentPage() {
   }
 
   const renderedMessages: InkwiseChatMessage[] = messagesQuery.data?.items ?? []
+  const latestAssistantMessageId = useMemo(() => {
+    for (let index = renderedMessages.length - 1; index >= 0; index -= 1) {
+      if (renderedMessages[index]?.role === 'assistant') return renderedMessages[index].id
+    }
+    return undefined
+  }, [renderedMessages])
 
   useEffect(() => {
     if (!editor) return
@@ -441,7 +488,31 @@ export default function InkwiseDocumentPage() {
               <div className="space-y-3 p-4">
                 {renderedMessages.map((message) => (
                   <div key={message.id} className={`rounded-2xl p-3 text-sm ${message.role === 'assistant' ? 'bg-white border' : 'bg-slate-900 text-white'}`}>
-                    <div className="mb-1 text-xs font-semibold uppercase tracking-wide opacity-70">{message.role}</div>
+                    <div className="mb-1 flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-wide opacity-70">
+                      <span>{message.role}</span>
+                      {message.role === 'assistant' && message.id === latestAssistantMessageId ? (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-[10px]"
+                            onClick={() => retryChat.mutate({ messageId: message.id, freshRetrieval: false })}
+                            disabled={retryChat.isPending || sendChat.isPending}
+                          >
+                            Retry
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-[10px]"
+                            onClick={() => retryChat.mutate({ messageId: message.id, freshRetrieval: true })}
+                            disabled={retryChat.isPending || sendChat.isPending}
+                          >
+                            Fresh evidence
+                          </Button>
+                        </div>
+                      ) : null}
+                    </div>
                     <div className="whitespace-pre-wrap">{message.content}</div>
                     {messageCitations(message).length ? (
                       <div className="mt-3">

@@ -920,6 +920,16 @@ export class ApiClient {
     return this.streamSse(`/api/inkwise/chat/threads/${threadId}/messages:stream`, data, onEvent, opts)
   }
 
+  async streamInkwiseRetryChatMessage(
+    threadId: string,
+    messageId: string,
+    data: InkwiseRetryRequest,
+    onEvent: (evt: InkwiseSseEvent) => void,
+    opts?: { signal?: AbortSignal }
+  ): Promise<void> {
+    return this.streamSse(`/api/inkwise/chat/threads/${threadId}/messages/${messageId}:retry`, data, onEvent, opts)
+  }
+
   async createInkwisePrediction(documentId: string, data: InkwisePredictionRequest): Promise<InkwisePredictionResponse> {
     return this.request(`/api/inkwise/documents/${documentId}/predictions`, {
       method: 'POST',
@@ -933,6 +943,15 @@ export class ApiClient {
     opts?: { signal?: AbortSignal }
   ): Promise<void> {
     return this.streamSse('/api/inkwise/writing-tools:stream', data, onEvent, opts)
+  }
+
+  async streamInkwiseRetryWritingTool(
+    attemptId: string,
+    data: InkwiseRetryRequest,
+    onEvent: (evt: InkwiseSseEvent) => void,
+    opts?: { signal?: AbortSignal }
+  ): Promise<void> {
+    return this.streamSse(`/api/inkwise/writing-tools/${attemptId}:retry`, data, onEvent, opts)
   }
 
   private async streamSse(
@@ -1415,6 +1434,10 @@ export interface InkwiseChatSendRequest {
   source_ids?: string[] | null
   draft_selection_text?: string | null
   draft_selection_label?: string | null
+}
+
+export interface InkwiseRetryRequest {
+  fresh_retrieval?: boolean
 }
 
 export interface InkwisePredictionRequest {

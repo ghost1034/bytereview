@@ -99,6 +99,11 @@ class InkwiseDocument(Base):
         back_populates="document",
         cascade="all, delete-orphan",
     )
+    generation_attempts = relationship(
+        "InkwiseGenerationAttempt",
+        back_populates="document",
+        cascade="all, delete-orphan",
+    )
 
 
 class InkwiseSource(Base):
@@ -221,6 +226,7 @@ class InkwiseChatThread(Base):
         cascade="all, delete-orphan",
     )
     retrieval_runs = relationship("InkwiseRetrievalRun", back_populates="thread")
+    generation_attempts = relationship("InkwiseGenerationAttempt", back_populates="thread")
 
 
 class InkwiseChatMessage(Base):
@@ -237,6 +243,7 @@ class InkwiseChatMessage(Base):
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     thread = relationship("InkwiseChatThread", back_populates="messages")
+    generation_attempts = relationship("InkwiseGenerationAttempt", back_populates="chat_message")
 
 
 class InkwiseSourcePage(Base):
@@ -346,6 +353,39 @@ class InkwiseRetrievalRun(Base):
         back_populates="retrieval_run",
         cascade="all, delete-orphan",
     )
+    generation_attempts = relationship("InkwiseGenerationAttempt", back_populates="retrieval_run")
+
+
+class InkwiseGenerationAttempt(Base):
+    __tablename__ = "inkwise_generation_attempts"
+    __table_args__ = (
+        UniqueConstraint("generation_group_id", "attempt_number", name="uq_inkwise_generation_attempts_group_attempt"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    document_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_documents.id", ondelete="CASCADE"), nullable=True, index=True)
+    thread_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_chat_threads.id", ondelete="CASCADE"), nullable=True, index=True)
+    chat_message_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_chat_messages.id", ondelete="SET NULL"), nullable=True, index=True)
+    retrieval_run_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_retrieval_runs.id", ondelete="SET NULL"), nullable=True, index=True)
+    parent_attempt_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_generation_attempts.id", ondelete="SET NULL"), nullable=True, index=True)
+    generation_group_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    kind = Column(String(32), nullable=False)
+    status = Column(String(32), nullable=False, default="processing")
+    attempt_number = Column(Integer, nullable=False, default=1)
+    provider = Column(String(32), nullable=True)
+    model = Column(String(200), nullable=True)
+    request_json = Column(JSONB, nullable=False, default=dict)
+    response_text = Column(Text, nullable=True)
+    citations_json = Column(JSONB, nullable=True)
+    meta_json = Column(JSONB, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    document = relationship("InkwiseDocument", back_populates="generation_attempts")
+    thread = relationship("InkwiseChatThread", back_populates="generation_attempts")
+    chat_message = relationship("InkwiseChatMessage", back_populates="generation_attempts")
+    retrieval_run = relationship("InkwiseRetrievalRun", back_populates="generation_attempts")
 
 
 class InkwiseRetrievalEvidence(Base):
