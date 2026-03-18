@@ -3,6 +3,7 @@
 import type { Editor } from '@tiptap/core'
 import { BubbleMenu } from '@tiptap/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Wand2 } from 'lucide-react'
 
 import { InkwiseCitationBubbles } from '@/components/inkwise/citation-bubbles'
 import { Button } from '@/components/ui/button'
@@ -41,6 +42,7 @@ export function InlineWritingTools({
   const [sourceChecked, setSourceChecked] = useState<Record<string, boolean>>({})
   const [groundingState, setGroundingState] = useState<GroundingState | null>(null)
   const [attemptId, setAttemptId] = useState<string | null>(null)
+  const [panelOpen, setPanelOpen] = useState(false)
 
   const rangeRef = useRef<{ from: number; to: number } | null>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -69,6 +71,7 @@ export function InlineWritingTools({
         setLastAction(null)
         setGroundingState(null)
         setAttemptId(null)
+        setPanelOpen(false)
         rangeRef.current = null
       }
     }
@@ -97,6 +100,7 @@ export function InlineWritingTools({
     setLastAction(action)
     setGroundingState(null)
     setAttemptId(null)
+    setPanelOpen(true)
     rangeRef.current = { from: selection.from, to: selection.to }
 
     abortRef.current?.abort()
@@ -174,6 +178,7 @@ export function InlineWritingTools({
     setGroundingState(null)
     setAttemptId(null)
     setCustomOpen(false)
+    setPanelOpen(false)
     rangeRef.current = null
   }
 
@@ -184,6 +189,7 @@ export function InlineWritingTools({
     setBusy(true)
     setOutputMd('')
     setGroundingState(null)
+    setPanelOpen(true)
 
     abortRef.current?.abort()
     const controller = new AbortController()
@@ -227,9 +233,20 @@ export function InlineWritingTools({
   return (
     <BubbleMenu
       editor={editor}
-      shouldShow={({ editor }) => Boolean(editor && !editor.state.selection.empty)}
-      tippyOptions={{ duration: 120, maxWidth: 560, placement: 'top', appendTo: () => document.body }}
+      shouldShow={({ editor }) => Boolean(editor && selectionText(editor))}
+      tippyOptions={{ duration: 120, maxWidth: 560, placement: 'top', appendTo: () => document.body, interactive: true }}
     >
+      {!panelOpen ? (
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => setPanelOpen(true)}
+          className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border bg-white/95 text-slate-700 shadow-2xl backdrop-blur transition hover:border-emerald-300 hover:text-emerald-700"
+          aria-label="Open inline writing tools"
+        >
+          <Wand2 className="h-4 w-4" />
+        </button>
+      ) : (
       <div className="w-[32rem] rounded-2xl border bg-white/95 p-3 shadow-2xl backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-2">
@@ -352,6 +369,7 @@ export function InlineWritingTools({
           </div>
         ) : null}
       </div>
+      )}
     </BubbleMenu>
   )
 }
