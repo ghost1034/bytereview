@@ -101,9 +101,9 @@ export default function InkwiseReferencesPage() {
       <Card>
         <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <CardTitle>Source Library</CardTitle>
+            <CardTitle>References</CardTitle>
             <CardDescription>
-              Upload PDFs or DOCX files, capture webpage snapshots, and ingest them into retrieval segments and embeddings.
+              Build the reference library that powers document grounding, citation bubbles, grounded chat, and predictive writing.
             </CardDescription>
           </div>
           <div className="flex flex-col gap-2 md:items-end">
@@ -147,6 +147,27 @@ export default function InkwiseReferencesPage() {
         </CardHeader>
       </Card>
 
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card>
+          <CardContent className="space-y-2 p-5">
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">1. Add References</div>
+            <div className="text-sm text-slate-700">Upload PDFs or DOCX files, or capture a webpage snapshot for the source library.</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="space-y-2 p-5">
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">2. Wait For Ingestion</div>
+            <div className="text-sm text-slate-700">Inkwise creates retrieval segments and embeddings so the reference can support grounded drafting.</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="space-y-2 p-5">
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">3. Bind In Write</div>
+            <div className="text-sm text-slate-700">Bind ready references from the Write sidebar so chat, inline tools, and grounded prediction can use them.</div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid gap-4">
         {sources.isLoading ? (
           <Card>
@@ -172,7 +193,11 @@ export default function InkwiseReferencesPage() {
                   <p className="text-sm text-slate-500">
                     {source.source_url || source.original_filename || source.content_type} • {Math.max(1, Math.round(source.size_bytes / 1024))} KB
                   </p>
-                  <p className="text-xs text-slate-400">Updated {new Date(source.updated_at).toLocaleString()}</p>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                    <span>Updated {new Date(source.updated_at).toLocaleString()}</span>
+                    <span>•</span>
+                    <span>{referenceStatusLabel(source.status)}</span>
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -222,4 +247,13 @@ function sourceTypeLabel(type: string, contentType: string): string {
   if (contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx'
   if (contentType === 'application/pdf') return 'pdf'
   return type || 'reference'
+}
+
+function referenceStatusLabel(status: string): string {
+  if (status === 'completed') return 'Ready for binding'
+  if (status === 'processing') return 'Preparing for grounding'
+  if (status === 'queued') return 'Queued for ingestion'
+  if (status === 'failed') return 'Needs attention'
+  if (status === 'uploading') return 'Uploading'
+  return status || 'Reference status'
 }

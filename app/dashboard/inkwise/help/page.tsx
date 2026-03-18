@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 const steps = [
   'Upload one or more PDFs or DOCX files, or capture webpage snapshots in References.',
   'Wait for ingestion to finish so retrieval segments and embeddings are available.',
-  'Create a document in Write and bind the sources you want to ground against.',
-  'Use chat or writing tools from the document workspace to draft against your evidence.',
-  'Save reusable structures as templates for future work.',
+  'Create or open a document in Write, then bind the references you want to ground against from the sidebar.',
+  'Use AI Chat, inline tools, retry controls, citation bubbles, and grounded prediction directly from the writing workspace.',
+  'Open Document Settings for prompt guidance, Version History for restore, and Templates for reusable starters.',
 ]
 
 export default function InkwiseHelpPage() {
@@ -17,7 +17,7 @@ export default function InkwiseHelpPage() {
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-slate-600">
           <p>
-            Inkwise is now a module within CPAAutomation.
+            Inkwise is the grounded writing workspace inside CPAAutomation. It combines references, drafting, AI chat, templates, and document history in one document-first experience.
           </p>
           <ol className="space-y-3">
             {steps.map((step, index) => (
@@ -34,14 +34,14 @@ export default function InkwiseHelpPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Having issues?</CardTitle>
+          <CardTitle>What can Inkwise do now?</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-slate-600">
           <p>
-            Our upgraded AI drafting pipeline is actively under development.
+            Inkwise now supports multimodal references, grounded chat, citation bubbles, retry flows, document version history, and grounded predictive writing.
           </p>
           <p>
-            If AI outputs are not to your expectations, please contact us on our Contact page.
+            If AI outputs are not to your expectations, first confirm that your references are fully ingested and bound to the current document. If problems continue, contact us from the Contact page.
           </p>
         </CardContent>
       </Card>
