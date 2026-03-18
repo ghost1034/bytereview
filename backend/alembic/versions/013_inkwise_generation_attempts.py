@@ -2,7 +2,7 @@
 Add Inkwise generation attempts
 
 Revision ID: 013_inkwise_generation_attempts
-Revises: 012_remove_pageindex_runtime_schema
+Revises: 012_rm_pageindex_schema
 Create Date: 2026-03-17
 """
 
@@ -12,7 +12,7 @@ from sqlalchemy.dialects import postgresql
 
 
 revision = "013_inkwise_generation_attempts"
-down_revision = "012_remove_pageindex_runtime_schema"
+down_revision = "012_rm_pageindex_schema"
 branch_labels = None
 depends_on = None
 

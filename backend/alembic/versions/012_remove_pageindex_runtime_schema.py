@@ -1,7 +1,7 @@
 """
 Remove Inkwise PageIndex runtime schema artifacts
 
-Revision ID: 012_remove_pageindex_runtime_schema
+Revision ID: 012_rm_pageindex_schema
 Revises: 011_inkwise_vector_rag_phase1
 Create Date: 2026-03-17
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 
-revision = "012_remove_pageindex_runtime_schema"
+revision = "012_rm_pageindex_schema"
 down_revision = "011_inkwise_vector_rag_phase1"
 branch_labels = None
 depends_on = None
