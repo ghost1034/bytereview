@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import PhoneVerificationForm from '@/components/auth/PhoneVerificationForm'
@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/contexts/AuthContext'
 import { normalizeAuthRedirectPath } from '@/lib/auth-redirect'
 
-export default function CompleteSignupPage() {
+function CompleteSignupContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading, requiresPhoneVerification } = useAuth()
@@ -52,5 +52,21 @@ export default function CompleteSignupPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function CompleteSignupFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
+      <p className="text-sm text-gray-600">Preparing your account...</p>
+    </div>
+  )
+}
+
+export default function CompleteSignupPage() {
+  return (
+    <Suspense fallback={<CompleteSignupFallback />}>
+      <CompleteSignupContent />
+    </Suspense>
   )
 }

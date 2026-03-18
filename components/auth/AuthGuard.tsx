@@ -3,7 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext'
 import { buildPhoneVerificationRedirect } from '@/lib/auth-redirect'
 import { hasVerifiedPhone } from '@/lib/firebase'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 
@@ -23,12 +23,13 @@ export default function AuthGuard({
   const { user, loading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
-  const searchParams = useSearchParams()
-
-  const currentPath = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
 
   useEffect(() => {
     if (loading) return // Wait for auth state to load
+
+    const currentPath = typeof window === 'undefined'
+      ? pathname
+      : `${window.location.pathname}${window.location.search}`
 
     if (requireAuth && !user) {
       // User must be authenticated but isn't
@@ -39,7 +40,7 @@ export default function AuthGuard({
       // User must NOT be authenticated but is
       router.push(redirectTo || '/dashboard')
     }
-  }, [currentPath, loading, redirectTo, requireAuth, requireVerifiedPhone, router, user])
+  }, [loading, pathname, redirectTo, requireAuth, requireVerifiedPhone, router, user])
 
   // Show loading while checking auth state
   if (loading) {
