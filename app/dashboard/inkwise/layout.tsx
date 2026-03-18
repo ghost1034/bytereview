@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 
+import { InkwiseDisclaimer } from '@/components/inkwise/inkwise-disclaimer'
 import { InkwiseModuleNav } from '@/components/inkwise/inkwise-module-nav'
 
 export default function InkwiseLayout({ children }: { children: ReactNode }) {
@@ -21,6 +22,8 @@ export default function InkwiseLayout({ children }: { children: ReactNode }) {
       </section>
 
       <div className="min-w-0 flex-1">{children}</div>
+
+      <InkwiseDisclaimer />
     </div>
   )
 }
