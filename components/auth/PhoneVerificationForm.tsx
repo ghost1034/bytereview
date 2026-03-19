@@ -2,13 +2,19 @@
 
 import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from 'react'
 import { linkWithPhoneNumber, RecaptchaVerifier, type ConfirmationResult } from 'firebase/auth'
-import { Loader2, Smartphone } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
+import PhoneNumberInput from '@/components/auth/PhoneNumberInput'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { auth, hasVerifiedPhone } from '@/lib/firebase'
+import {
+  createDefaultPhoneNumberInputValue,
+  getDisplayPhoneNumber,
+  getE164PhoneNumber,
+  parsePhoneNumberInputValue,
+} from '@/lib/phone-number'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 
@@ -19,24 +25,12 @@ interface PhoneVerificationFormProps {
   onVerified?: () => void
 }
 
-const PHONE_NUMBER_REGEX = /^\+[1-9]\d{7,14}$/
-
-function normalizePhoneNumber(value: string): string {
-  const trimmed = value.trim()
-  if (!trimmed) {
-    return ''
-  }
-
-  const digitsOnly = trimmed.replace(/\D/g, '')
-  return trimmed.startsWith('+') ? `+${digitsOnly}` : digitsOnly
-}
-
 function getPhoneVerificationErrorMessage(error: unknown): string {
   const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
 
   switch (code) {
     case 'auth/invalid-phone-number':
-      return 'Enter a valid phone number with country code, like +15551234567.'
+      return 'Enter a valid phone number for the selected country.'
     case 'auth/captcha-check-failed':
       return 'reCAPTCHA verification failed. Please try again.'
     case 'auth/credential-already-in-use':
@@ -64,7 +58,9 @@ export default function PhoneVerificationForm({
   const { completePhoneVerification } = useAuth()
   const { toast } = useToast()
 
-  const [phoneNumber, setPhoneNumber] = useState(initialPhoneNumber)
+  const [phoneValue, setPhoneValue] = useState(() =>
+    initialPhoneNumber ? parsePhoneNumberInputValue(initialPhoneNumber) : createDefaultPhoneNumberInputValue(),
+  )
   const [verificationCode, setVerificationCode] = useState('')
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null)
   const [error, setError] = useState('')
@@ -76,7 +72,9 @@ export default function PhoneVerificationForm({
   const recaptchaElementId = useId().replace(/:/g, '-')
 
   useEffect(() => {
-    setPhoneNumber(initialPhoneNumber)
+    setPhoneValue(
+      initialPhoneNumber ? parsePhoneNumberInputValue(initialPhoneNumber) : createDefaultPhoneNumberInputValue(),
+    )
   }, [initialPhoneNumber])
 
   useEffect(() => {
@@ -96,7 +94,7 @@ export default function PhoneVerificationForm({
     }
   }, [recaptchaElementId])
 
-  const sendVerificationCode = useCallback(async () => {
+  const sendVerificationCodeToPhone = useCallback(async (normalizedPhoneNumber: string) => {
     const currentUser = auth.currentUser
     if (!currentUser) {
       throw new Error('Please sign in again before verifying your phone number.')
@@ -107,12 +105,7 @@ export default function PhoneVerificationForm({
         onVerified()
       }
       await completePhoneVerification(redirectTo)
-      return
-    }
-
-    const normalizedPhoneNumber = normalizePhoneNumber(phoneNumber)
-    if (!PHONE_NUMBER_REGEX.test(normalizedPhoneNumber)) {
-      throw new Error('Enter a valid phone number with country code, like +15551234567.')
+      return normalizedPhoneNumber
     }
 
     const verifier = recaptchaVerifierRef.current
@@ -121,31 +114,42 @@ export default function PhoneVerificationForm({
     }
 
     const result = await linkWithPhoneNumber(currentUser, normalizedPhoneNumber, verifier)
-    setPhoneNumber(normalizedPhoneNumber)
+    setPhoneValue(parsePhoneNumberInputValue(normalizedPhoneNumber))
     setConfirmationResult(result)
     setVerificationCode('')
-  }, [completePhoneVerification, onVerified, phoneNumber, redirectTo])
+    return normalizedPhoneNumber
+  }, [completePhoneVerification, onVerified, redirectTo])
+
+  const sendVerificationCode = useCallback(async () => {
+    const normalizedPhoneNumber = getE164PhoneNumber(phoneValue)
+    if (!normalizedPhoneNumber) {
+      throw new Error('Enter a valid phone number for the selected country.')
+    }
+
+    return sendVerificationCodeToPhone(normalizedPhoneNumber)
+  }, [phoneValue, sendVerificationCodeToPhone])
 
   useEffect(() => {
     if (!autoSendOnMount || hasAutoSentRef.current || !initialPhoneNumber) {
       return
     }
 
-    const normalizedPhoneNumber = normalizePhoneNumber(initialPhoneNumber)
-    if (!PHONE_NUMBER_REGEX.test(normalizedPhoneNumber)) {
+    const initialPhoneValue = parsePhoneNumberInputValue(initialPhoneNumber)
+    const normalizedPhoneNumber = getE164PhoneNumber(initialPhoneValue)
+    if (!normalizedPhoneNumber) {
       return
     }
 
     hasAutoSentRef.current = true
-    setPhoneNumber(normalizedPhoneNumber)
+    setPhoneValue(initialPhoneValue)
     setIsSendingCode(true)
     setError('')
 
-    void sendVerificationCode()
-      .then(() => {
+    void sendVerificationCodeToPhone(normalizedPhoneNumber)
+      .then((verifiedPhoneNumber) => {
         toast({
           title: 'Verification code sent',
-          description: `We sent a 6-digit code to ${normalizedPhoneNumber}.`,
+          description: `We sent a 6-digit code to ${verifiedPhoneNumber}.`,
         })
       })
       .catch((sendError) => {
@@ -154,7 +158,7 @@ export default function PhoneVerificationForm({
       .finally(() => {
         setIsSendingCode(false)
       })
-  }, [autoSendOnMount, initialPhoneNumber, sendVerificationCode, toast])
+  }, [autoSendOnMount, initialPhoneNumber, sendVerificationCodeToPhone, toast])
 
   const handleSendCode = async (event: FormEvent) => {
     event.preventDefault()
@@ -162,10 +166,10 @@ export default function PhoneVerificationForm({
     setError('')
 
     try {
-      await sendVerificationCode()
+      const normalizedPhoneNumber = await sendVerificationCode()
       toast({
         title: confirmationResult ? 'New verification code sent' : 'Verification code sent',
-        description: `We sent a 6-digit code to ${normalizePhoneNumber(phoneNumber)}.`,
+        description: `We sent a 6-digit code to ${normalizedPhoneNumber}.`,
       })
     } catch (sendError) {
       setError(getPhoneVerificationErrorMessage(sendError))
@@ -209,26 +213,22 @@ export default function PhoneVerificationForm({
     }
   }
 
+  const displayedPhoneNumber = getDisplayPhoneNumber(phoneValue)
+
   return (
     <div className="space-y-5">
       <form onSubmit={handleSendCode} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="signup-phone">Phone Number</Label>
-          <div className="relative">
-            <Smartphone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-            <Input
-              id="signup-phone"
-              type="tel"
-              inputMode="tel"
-              placeholder="+1 555 123 4567"
-              value={phoneNumber}
-              onChange={(event) => setPhoneNumber(event.target.value)}
-              className="pl-10"
-              required
-            />
-          </div>
+          <PhoneNumberInput
+            id="signup-phone"
+            value={phoneValue}
+            onChange={setPhoneValue}
+            disabled={isSendingCode || isVerifyingCode}
+            required
+          />
           <p className="text-xs text-gray-500">
-            Include your country code. We will send a one-time SMS to verify this number.
+            Choose a country code, then we will send a one-time SMS to verify this number.
           </p>
         </div>
 
@@ -263,7 +263,7 @@ export default function PhoneVerificationForm({
               </InputOTPGroup>
             </InputOTP>
             <p className="text-xs text-gray-500">
-              Enter the 6-digit code sent to {phoneNumber}.
+              Enter the 6-digit code sent to {displayedPhoneNumber}.
             </p>
           </div>
 

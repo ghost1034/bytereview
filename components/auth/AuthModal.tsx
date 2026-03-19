@@ -10,7 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { useAuth } from "@/contexts/AuthContext";
+import PhoneNumberInput from "@/components/auth/PhoneNumberInput";
 import PhoneVerificationForm from "@/components/auth/PhoneVerificationForm";
+import { createDefaultPhoneNumberInputValue, getE164PhoneNumber, type PhoneNumberInputValue } from "@/lib/phone-number";
 
 
 interface AuthModalProps {
@@ -18,6 +20,24 @@ interface AuthModalProps {
   onClose: () => void;
   redirectTo?: string;
   defaultTab?: 'signin' | 'signup';
+}
+
+interface SignUpData {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  displayName: string;
+  phone: PhoneNumberInputValue;
+}
+
+function createEmptySignUpData(): SignUpData {
+  return {
+    email: "",
+    password: "",
+    confirmPassword: "",
+    displayName: "",
+    phone: createDefaultPhoneNumberInputValue(),
+  };
 }
 
 export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 'signin' }: AuthModalProps) {
@@ -29,7 +49,7 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
   
   // Form states
   const [signInData, setSignInData] = useState({ email: "", password: "" });
-  const [signUpData, setSignUpData] = useState({ email: "", password: "", confirmPassword: "", displayName: "", phoneNumber: "" });
+  const [signUpData, setSignUpData] = useState<SignUpData>(createEmptySignUpData);
 
   const resetState = () => {
     setShowPassword(false);
@@ -37,7 +57,7 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
     setError("");
     setAuthStep('credentials');
     setSignInData({ email: "", password: "" });
-    setSignUpData({ email: "", password: "", confirmPassword: "", displayName: "", phoneNumber: "" });
+    setSignUpData(createEmptySignUpData());
   };
 
   const closeModal = () => {
@@ -96,8 +116,9 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
       return;
     }
 
-    if (!signUpData.phoneNumber.trim()) {
-      setError("Phone number is required");
+    const normalizedPhoneNumber = getE164PhoneNumber(signUpData.phone);
+    if (!normalizedPhoneNumber) {
+      setError("Enter a valid phone number for the selected country");
       setIsLoading(false);
       return;
     }
@@ -124,7 +145,7 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
         <div className="space-y-6">
           {authStep === 'verify-phone' ? (
             <PhoneVerificationForm
-              initialPhoneNumber={signUpData.phoneNumber}
+              initialPhoneNumber={getE164PhoneNumber(signUpData.phone) ?? ''}
               redirectTo={redirectTo}
               autoSendOnMount
               onVerified={closeModal}
@@ -240,15 +261,14 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
 
                     <div className="space-y-2">
                       <Label htmlFor="signup-phone-preview">Phone Number</Label>
-                      <Input
+                      <PhoneNumberInput
                         id="signup-phone-preview"
-                        type="tel"
-                        inputMode="tel"
-                        placeholder="+1 555 123 4567"
-                        value={signUpData.phoneNumber}
-                        onChange={(e) => setSignUpData({ ...signUpData, phoneNumber: e.target.value })}
+                        value={signUpData.phone}
+                        onChange={(phone) => setSignUpData({ ...signUpData, phone })}
+                        disabled={isLoading}
                         required
                       />
+                      <p className="text-xs text-gray-500">Choose a country code, then enter the rest of your phone number.</p>
                     </div>
 
                     <div className="space-y-2">
