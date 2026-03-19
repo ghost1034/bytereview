@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Check, ChevronsUpDown } from 'lucide-react'
 
 import {
@@ -40,6 +40,7 @@ export default function PhoneNumberInput({
   placeholder = 'Phone number',
 }: PhoneNumberInputProps) {
   const [isCountrySelectorOpen, setIsCountrySelectorOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement | null>(null)
 
   const selectedCountry = useMemo(
     () =>
@@ -49,7 +50,7 @@ export default function PhoneNumberInput({
   )
 
   return (
-    <div className="flex items-start gap-2">
+    <div ref={containerRef} className="flex items-start gap-2">
       <Popover open={isCountrySelectorOpen} onOpenChange={setIsCountrySelectorOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -64,7 +65,7 @@ export default function PhoneNumberInput({
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[320px] p-0" align="start">
+        <PopoverContent className="w-[320px] p-0" align="start" container={containerRef.current}>
           <Command>
             <CommandInput placeholder="Search country or code..." />
             <CommandList>
