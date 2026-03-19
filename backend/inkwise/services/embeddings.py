@@ -64,7 +64,7 @@ def _get_location(location: str | None) -> str:
 
 
 def _embed_url(*, project_id: str, location: str, model: str) -> str:
-    return f"https://aiplatform.googleapis.com/v1/projects/{project_id}/locations/{location}/publishers/google/models/{model}:embedContent"
+    return f"https://{location}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{location}/publishers/google/models/{model}:embedContent"
 
 
 def _authorized_session() -> AuthorizedSession:
