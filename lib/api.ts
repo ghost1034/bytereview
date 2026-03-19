@@ -1505,7 +1505,7 @@ export interface InkwiseWritingToolRequest {
   action: InkwiseWritingAction
   document_id?: string | null
   source_ids?: string[] | null
-  selection_text: string
+  selection_text?: string | null
   surrounding_text?: string | null
   instruction: string
 }

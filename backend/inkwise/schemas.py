@@ -401,7 +401,7 @@ class InkwiseWritingToolRequest(BaseModel):
     ]
     document_id: uuid.UUID | None = None
     source_ids: list[uuid.UUID] | None = None
-    selection_text: str
+    selection_text: str | None = None
     surrounding_text: str | None = None
     instruction: str
 

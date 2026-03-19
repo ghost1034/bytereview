@@ -9,10 +9,11 @@ from models.inkwise_models import InkwiseDocument
 
 
 def build_writing_tool_prompt(*, body: InkwiseWritingToolRequest, document: InkwiseDocument | None) -> str:
+    selection_text = (body.selection_text or "").strip()
     parts: list[str] = []
     parts.append("You are Inkwise Writing Tools.")
     parts.append("You must follow the user's instruction.")
-    parts.append("Return only the revised text, with no preamble.")
+    parts.append("Return only the requested text, with no preamble.")
     parts.append("")
 
     if document and document.language:
@@ -22,9 +23,14 @@ def build_writing_tool_prompt(*, body: InkwiseWritingToolRequest, document: Inkw
 
     parts.append(f"Action: {body.action}")
     parts.append(f"Instruction: {body.instruction}")
-    parts.append("")
-    parts.append("Selection:")
-    parts.append(body.selection_text)
+    if selection_text:
+        parts.append("")
+        parts.append("Selection:")
+        parts.append(selection_text)
+    else:
+        parts.append("")
+        parts.append("Task:")
+        parts.append("Write new text at the cursor that follows the user's instruction.")
     if body.surrounding_text:
         parts.append("")
         parts.append("Surrounding context:")
@@ -37,8 +43,8 @@ def build_writing_tool_retrieval_query(*, body: InkwiseWritingToolRequest) -> st
     parts: list[str] = []
     if body.instruction.strip():
         parts.append(body.instruction.strip())
-    if body.selection_text.strip():
-        parts.append(body.selection_text.strip())
+    if (body.selection_text or "").strip():
+        parts.append((body.selection_text or "").strip())
     if body.surrounding_text and body.surrounding_text.strip():
         parts.append(body.surrounding_text.strip()[:2000])
     return "\n\n".join(parts).strip()
@@ -50,12 +56,17 @@ def build_grounded_writing_tool_prompt(
     document: InkwiseDocument | None,
     evidence_pack: str,
 ) -> str:
+    selection_text = (body.selection_text or "").strip()
     parts: list[str] = []
     parts.append("You are Inkwise Writing Tools.")
-    parts.append("Revise the selected text using the user's instruction and the grounded evidence provided.")
+    if selection_text:
+        parts.append("Revise the selected text using the user's instruction and the grounded evidence provided.")
+    else:
+        parts.append("Write new text at the cursor using the user's instruction and the grounded evidence provided.")
     parts.append("Use the evidence for factual accuracy whenever it is relevant.")
-    parts.append("If the selected text conflicts with the evidence, prefer the evidence.")
-    parts.append("Return only the revised text, with no preamble, notes, or citation markers.")
+    if selection_text:
+        parts.append("If the selected text conflicts with the evidence, prefer the evidence.")
+    parts.append("Return only the requested text, with no preamble, notes, or citation markers.")
     parts.append("")
 
     if document and document.language:
@@ -65,9 +76,14 @@ def build_grounded_writing_tool_prompt(
 
     parts.append(f"Action: {body.action}")
     parts.append(f"Instruction: {body.instruction}")
-    parts.append("")
-    parts.append("Selection:")
-    parts.append(body.selection_text)
+    if selection_text:
+        parts.append("")
+        parts.append("Selection:")
+        parts.append(selection_text)
+    else:
+        parts.append("")
+        parts.append("Task:")
+        parts.append("Write new text at the cursor.")
     if body.surrounding_text:
         parts.append("")
         parts.append("Surrounding context:")

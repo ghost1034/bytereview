@@ -48,6 +48,14 @@ def _sse(event: str, data: object) -> bytes:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=True)}\n\n".encode()
 
 
+def _validate_writing_tool_request(body: InkwiseWritingToolRequest) -> None:
+    selection_text = (body.selection_text or "").strip()
+    if not selection_text and body.action != "other":
+        raise HTTPException(status_code=400, detail="A text selection is required for preset inline tools")
+    if not (body.instruction or "").strip():
+        raise HTTPException(status_code=400, detail="Instruction is required")
+
+
 async def _stream_writing_tool_attempt(
     *,
     db: Session,
@@ -282,6 +290,7 @@ async def stream_writing_tool_output(
 ) -> StreamingResponse:
     user_id = token_data["uid"]
     settings = get_inkwise_settings()
+    _validate_writing_tool_request(body)
 
     document = None
     if body.document_id is not None:
@@ -394,10 +403,11 @@ async def retry_writing_tool_output(
         action=str(request_json.get("action") or "improve"),
         document_id=uuid.UUID(str(document_id_value)) if document_id_value else None,
         source_ids=[uuid.UUID(str(value)) for value in (request_json.get("source_ids") or [])],
-        selection_text=str(request_json.get("selection_text") or ""),
+        selection_text=request_json.get("selection_text"),
         surrounding_text=request_json.get("surrounding_text"),
         instruction=str(request_json.get("instruction") or ""),
     )
+    _validate_writing_tool_request(retry_body)
 
     ready_bound_sources: list[tuple[uuid.UUID, str]] = []
     if document is not None:
