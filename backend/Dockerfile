@@ -29,4 +29,4 @@ USER app
 EXPOSE 8000
 
 # Default command for API service
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "3"]
