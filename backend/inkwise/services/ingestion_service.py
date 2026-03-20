@@ -259,6 +259,18 @@ class InkwiseIngestionService:
                     segment.asset_object = source.storage_object
                     segment.preview_bucket = source.storage_bucket
                     segment.preview_object = source.storage_object
+                elif normalized.canonical_mime_type == "application/pdf" and draft.page_start is not None and draft.page_end is not None:
+                    asset_object = self._upload_pdf_window_asset(
+                        source=source,
+                        ingestion=ingestion,
+                        draft=draft,
+                        canonical_pdf_path=normalized.canonical_local_path,
+                        bucket=derived_bucket,
+                    )
+                    segment.asset_bucket = derived_bucket
+                    segment.asset_object = asset_object
+                    segment.preview_bucket = derived_bucket
+                    segment.preview_object = asset_object
                 elif ingestion.canonical_pdf_gcs_bucket and ingestion.canonical_pdf_gcs_object:
                     segment.preview_bucket = ingestion.canonical_pdf_gcs_bucket
                     segment.preview_object = ingestion.canonical_pdf_gcs_object
@@ -327,7 +339,8 @@ class InkwiseIngestionService:
             raise IngestionError("Derived storage bucket is invalid")
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            filename = f"segment_{draft.order_index:04d}_p{draft.page_start}-{draft.page_end}.pdf"
+            segment_family = str(draft.segment_type or "segment").strip().lower() or "segment"
+            filename = f"{segment_family}_{draft.order_index:04d}_p{draft.page_start}-{draft.page_end}.pdf"
             local_pdf = os.path.join(temp_dir, filename)
             self._write_pdf_window(
                 source_pdf_path=canonical_pdf_path,
@@ -335,7 +348,7 @@ class InkwiseIngestionService:
                 page_start=draft.page_start,
                 page_end=draft.page_end,
             )
-            object_name = f"inkwise/derived/{source.user_id}/{source.id}/segments/{ingestion.id}/pdf_window/{filename}"
+            object_name = f"inkwise/derived/{source.user_id}/{source.id}/segments/{ingestion.id}/{segment_family}/{filename}"
             storage_client().bucket(bucket).blob(object_name).upload_from_filename(local_pdf, content_type="application/pdf")
             return object_name
 

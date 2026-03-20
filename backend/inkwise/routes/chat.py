@@ -30,7 +30,8 @@ from inkwise.services.chat_service import (
 )
 from inkwise.services.document_sources import InkwiseDocumentSourceService
 from inkwise.services.generation_attempts import InkwiseGenerationAttemptService
-from inkwise.services.gemini import GeminiError, generate_text
+from inkwise.services.gemini import GeminiError, generate_content, generate_text
+from inkwise.services.multimodal_evidence import build_pdf_multimodal_contents
 from inkwise.services.retrieval_service import InkwiseRetrievalService, build_evidence_pack
 from inkwise.services.retrieval_types import evidence_item_to_payload
 from inkwise.services.source_service import InkwiseSourceService
@@ -95,6 +96,7 @@ async def _stream_chat_attempt(
     assistant_text = ""
     retrieval_run_id: uuid.UUID | None = None
     evidence: list[Any] = []
+    multimodal_attached_evidence_ids: list[str] = []
     try:
         yield _sse(
             "meta",
@@ -186,13 +188,30 @@ async def _stream_chat_attempt(
             draft_selection_text=draft_text or None,
             history_messages=grounded_history_messages,
         )
-        result = await generate_text(
-            model=settings.grounded_model,
+        multimodal_bundle = build_pdf_multimodal_contents(
             prompt=prompt,
-            temperature=0.2,
-            max_output_tokens=65536,
-            timeout_seconds=120,
+            evidence=evidence,
+            max_files=3,
         )
+        multimodal_attached_evidence_ids = list(multimodal_bundle.attached_evidence_ids)
+        if multimodal_bundle.has_attachments:
+            result = await generate_content(
+                model=settings.grounded_model,
+                contents=multimodal_bundle.contents,
+                generation_config={
+                    "temperature": 0.2,
+                    "max_output_tokens": 65536,
+                },
+                timeout_seconds=120,
+            )
+        else:
+            result = await generate_text(
+                model=settings.grounded_model,
+                prompt=prompt,
+                temperature=0.2,
+                max_output_tokens=65536,
+                timeout_seconds=120,
+            )
         assistant_text = result.text
 
         for idx in range(0, len(assistant_text), 80):
@@ -219,7 +238,11 @@ async def _stream_chat_attempt(
         return
 
     citations = extract_citations(assistant_text=assistant_text, evidence=evidence)
-    assistant_meta = {**assistant_provider_meta, "attempt_id": str(attempt_id)}
+    assistant_meta = {
+        **assistant_provider_meta,
+        "attempt_id": str(attempt_id),
+        "multimodal_pdf_evidence_ids": multimodal_attached_evidence_ids,
+    }
     assistant_message = chat_service.create_assistant_message(
         db,
         thread_id=thread_db_id,

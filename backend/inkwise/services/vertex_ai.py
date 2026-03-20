@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 from dataclasses import dataclass
 from functools import lru_cache
@@ -116,45 +117,77 @@ def _build_config(generation_config: dict[str, Any] | None) -> types.GenerateCon
     return types.GenerateContentConfig(**kwargs) if kwargs else None
 
 
-def _content_part_to_text(part: Any) -> str:
-    if isinstance(part, str):
+def _normalize_part(part: Any) -> types.Part:
+    if isinstance(part, types.Part):
         return part
-    if isinstance(part, dict):
-        text = part.get("text")
-        if isinstance(text, str):
-            return text
-    raise VertexAIError("Inkwise Vertex helper only supports text parts")
+    if isinstance(part, str):
+        return types.Part.from_text(text=part)
+    if not isinstance(part, dict):
+        raise VertexAIError("Unsupported content part for Inkwise Vertex helper")
+
+    text_value = part.get("text")
+    if isinstance(text_value, str):
+        return types.Part.from_text(text=text_value)
+
+    file_data = part.get("fileData")
+    if isinstance(file_data, dict):
+        file_uri = str(file_data.get("fileUri") or "").strip()
+        mime_type = str(file_data.get("mimeType") or "").strip()
+        if not file_uri or not mime_type:
+            raise VertexAIError("fileData parts require fileUri and mimeType")
+        return types.Part.from_uri(file_uri=file_uri, mime_type=mime_type)
+
+    inline_data = part.get("inlineData")
+    if isinstance(inline_data, dict):
+        mime_type = str(inline_data.get("mimeType") or "").strip()
+        data = inline_data.get("data") or inline_data.get("bytesBase64Encoded")
+        if not mime_type or not isinstance(data, str) or not data.strip():
+            raise VertexAIError("inlineData parts require mimeType and base64 data")
+        try:
+            raw = base64.b64decode(data)
+        except Exception as exc:
+            raise VertexAIError("inlineData base64 payload could not be decoded") from exc
+        return types.Part.from_bytes(data=raw, mime_type=mime_type)
+
+    raise VertexAIError("Unsupported content part for Inkwise Vertex helper")
 
 
-def _normalize_contents(contents: list[Any]) -> list[Any] | str:
+def _is_part_like(item: Any) -> bool:
+    if isinstance(item, (str, types.Part)):
+        return True
+    return isinstance(item, dict) and "role" not in item
+
+
+def _normalize_role(role: str | None) -> str:
+    clean = str(role or "user").strip().lower()
+    if clean in {"assistant", "model"}:
+        return "model"
+    return "user"
+
+
+def _normalize_contents(contents: list[Any]) -> list[Any]:
     if not contents:
         raise VertexAIError("contents must not be empty")
 
-    if len(contents) == 1 and isinstance(contents[0], str):
-        return contents[0]
+    if all(_is_part_like(item) for item in contents):
+        return [types.Content(role="user", parts=[_normalize_part(item) for item in contents])]
 
-    messages: list[str] = []
+    messages: list[types.Content] = []
     for item in contents:
         if isinstance(item, str):
-            messages.append(item)
+            messages.append(types.Content(role="user", parts=[types.Part.from_text(text=item)]))
             continue
 
         if not isinstance(item, dict):
             raise VertexAIError("Unsupported content type for Inkwise Vertex helper")
 
-        role = str(item.get("role") or "user").strip().lower()
+        role = _normalize_role(item.get("role"))
         parts = item.get("parts") or []
         if not isinstance(parts, list) or not parts:
-            raise VertexAIError("Each content item must include text parts")
+            raise VertexAIError("Each content item must include parts")
+        messages.append(types.Content(role=role, parts=[_normalize_part(part) for part in parts]))
 
-        text = "\n".join(_content_part_to_text(part) for part in parts)
-        if role == "model":
-            role = "assistant"
-        messages.append(f"{role.title()}:\n{text}")
-
-    if len(messages) == 1:
-        return messages[0]
-    return "\n\n".join(messages)
+    return messages
 
 
 def generate_content_sync(

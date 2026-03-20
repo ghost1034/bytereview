@@ -22,6 +22,31 @@ class EvidenceItem:
     preview_object: str | None = None
 
 
+def evidence_excerpt(item: EvidenceItem) -> str:
+    excerpt = (item.excerpt or "").strip()
+    if excerpt:
+        return excerpt
+
+    locator = item.locator_json or {}
+    page_end = locator.get("page_end") if isinstance(locator, dict) else None
+    if item.page_number > 0 and isinstance(page_end, int) and page_end != item.page_number:
+        return (
+            f"Relevant evidence is contained in the attached PDF pages {item.page_number}-{page_end} "
+            f"from {item.source_title}. No extracted text is available for this evidence block."
+        )
+    if item.page_number > 0:
+        return (
+            f"Relevant evidence is contained in the attached PDF page {item.page_number} "
+            f"from {item.source_title}. No extracted text is available for this evidence block."
+        )
+    return f"Relevant evidence is available in the attached reference asset from {item.source_title}."
+
+
+def evidence_has_pdf_preview(item: EvidenceItem) -> bool:
+    preview_object = (item.preview_object or "").strip().lower()
+    return bool(item.preview_bucket and preview_object.endswith(".pdf"))
+
+
 def build_evidence_pack(evidence: list[EvidenceItem]) -> str:
     blocks: list[str] = []
     for item in evidence:
@@ -35,7 +60,7 @@ def build_evidence_pack(evidence: list[EvidenceItem]) -> str:
             header = f'[{item.evidence_id}] source="{item.source_title}"'
         if item.segment_title:
             header += f' segment="{item.segment_title}"'
-        blocks.append(header + "\n" + item.excerpt.strip())
+        blocks.append(header + "\n" + evidence_excerpt(item))
     return ("\n\n".join(blocks).strip() + "\n") if blocks else ""
 
 
@@ -50,6 +75,6 @@ def evidence_item_to_payload(item: EvidenceItem) -> dict[str, Any]:
         "locator_json": item.locator_json,
         "preview_bucket": item.preview_bucket,
         "preview_object": item.preview_object,
-        "excerpt": item.excerpt,
+        "excerpt": evidence_excerpt(item),
         "score": item.score,
     }

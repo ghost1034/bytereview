@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from inkwise.services.embeddings import InkwiseEmbeddingService
 from inkwise.services.json_utils import extract_first_json_object
 from inkwise.services.query_rewrite import QueryRewriteConfig, rewrite_retrieval_query
-from inkwise.services.retrieval_types import EvidenceItem
+from inkwise.services.retrieval_types import EvidenceItem, evidence_excerpt as _evidence_excerpt
 from inkwise.services.vertex_ai import VertexAIError, generate_text_sync
 from inkwise.settings import get_inkwise_settings
 
@@ -380,7 +380,7 @@ class InkwiseVectorRetrievalService:
                     "segment_title": candidate.segment_title,
                     "page_start": candidate.page_start,
                     "page_end": candidate.page_end,
-                    "excerpt": (candidate.excerpt or candidate.text_content)[:800],
+                    "excerpt": _candidate_excerpt(candidate)[:800],
                 }
             )
 
@@ -435,10 +435,7 @@ class InkwiseVectorRetrievalService:
         evidence: list[EvidenceItem] = []
         used_chars = 0
         for index, candidate in enumerate(candidates, start=1):
-            excerpt = (candidate.excerpt or candidate.text_content or "").strip()
-            if not excerpt:
-                continue
-            excerpt = _make_excerpt(excerpt)
+            excerpt = _make_excerpt(_candidate_excerpt(candidate))
             if not excerpt:
                 continue
             if used_chars >= max_total_chars or len(evidence) >= max_evidence:
@@ -490,3 +487,23 @@ def _float_or_none(value: Any) -> float | None:
 def _make_excerpt(text: str) -> str:
     clean = " ".join((text or "").replace("\n", " ").split()).strip()
     return clean[:1200]
+
+
+def _candidate_excerpt(candidate: RetrievalCandidate) -> str:
+    excerpt = (candidate.excerpt or candidate.text_content or "").strip()
+    if excerpt:
+        return excerpt
+    item = EvidenceItem(
+        evidence_id="E00",
+        source_id=candidate.source_id,
+        source_title=candidate.source_title,
+        page_number=int(candidate.page_start or 0),
+        excerpt="",
+        score=candidate.fused_score,
+        segment_id=candidate.segment_id,
+        segment_title=candidate.segment_title,
+        locator_json=candidate.locator_json,
+        preview_bucket=candidate.preview_bucket,
+        preview_object=candidate.preview_object,
+    )
+    return _evidence_excerpt(item)

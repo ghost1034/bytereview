@@ -23,7 +23,8 @@ from inkwise.schemas import (
 from inkwise.services.document_sources import InkwiseDocumentSourceService
 from inkwise.services.document_service import InkwiseDocumentService
 from inkwise.services.generation_attempts import InkwiseGenerationAttemptService
-from inkwise.services.gemini import GeminiError, generate_text
+from inkwise.services.gemini import GeminiError, generate_content, generate_text
+from inkwise.services.multimodal_evidence import build_pdf_multimodal_contents
 from inkwise.services.retrieval_service import InkwiseRetrievalService, build_evidence_pack
 from inkwise.services.retrieval_types import evidence_item_to_payload
 from inkwise.services.writing_tools_service import (
@@ -74,6 +75,7 @@ async def _stream_writing_tool_attempt(
     evidence: list[Any] = []
     resolved_source_ids = [str(source_id) for source_id, _title in scoped_sources]
     grounded = False
+    multimodal_attached_evidence_ids: list[str] = []
 
     yield _sse(
         "meta",
@@ -150,12 +152,26 @@ async def _stream_writing_tool_attempt(
                 )
 
     try:
-        result = await generate_text(
-            model=settings.gemini_model,
+        multimodal_bundle = build_pdf_multimodal_contents(
             prompt=current_prompt,
-            temperature=0.3,
-            timeout_seconds=60,
+            evidence=evidence,
+            max_files=3,
         )
+        multimodal_attached_evidence_ids = list(multimodal_bundle.attached_evidence_ids)
+        if multimodal_bundle.has_attachments:
+            result = await generate_content(
+                model=settings.gemini_model,
+                contents=multimodal_bundle.contents,
+                generation_config={"temperature": 0.3},
+                timeout_seconds=60,
+            )
+        else:
+            result = await generate_text(
+                model=settings.gemini_model,
+                prompt=current_prompt,
+                temperature=0.3,
+                timeout_seconds=60,
+            )
     except GeminiError as exc:
         generation_attempt_service.fail_attempt(db, attempt_id=attempt_id, message=str(exc), retrieval_run_id=retrieval_run_id)
         yield _sse("meta", {"error": "provider_error", "attempt_id": str(attempt_id)})
@@ -176,7 +192,7 @@ async def _stream_writing_tool_attempt(
         response_text=text,
         citations_json={"evidence": [evidence_item_to_payload(item) for item in evidence]},
         retrieval_run_id=retrieval_run_id,
-        meta_json=attempt_meta,
+        meta_json={**attempt_meta, "multimodal_pdf_evidence_ids": multimodal_attached_evidence_ids},
     )
 
     done_payload: dict[str, Any] = {"ok": True, "grounded": grounded, "attempt_id": str(attempt_id)}
@@ -222,6 +238,7 @@ async def create_prediction(
     grounded = False
     retrieval_run_id: uuid.UUID | None = None
     evidence: list[Any] = []
+    multimodal_attached_evidence_ids: list[str] = []
     if ready_bound_sources:
         try:
             retrieval_run, evidence = retrieval_service.run_retrieval(
@@ -249,13 +266,30 @@ async def create_prediction(
             grounded = False
 
     try:
-        result = await generate_text(
-            model=settings.gemini_model,
+        multimodal_bundle = build_pdf_multimodal_contents(
             prompt=prompt,
-            temperature=0.2,
-            max_output_tokens=65536,
-            timeout_seconds=20,
+            evidence=evidence,
+            max_files=3,
         )
+        multimodal_attached_evidence_ids = list(multimodal_bundle.attached_evidence_ids)
+        if multimodal_bundle.has_attachments:
+            result = await generate_content(
+                model=settings.gemini_model,
+                contents=multimodal_bundle.contents,
+                generation_config={
+                    "temperature": 0.2,
+                    "max_output_tokens": 65536,
+                },
+                timeout_seconds=20,
+            )
+        else:
+            result = await generate_text(
+                model=settings.gemini_model,
+                prompt=prompt,
+                temperature=0.2,
+                max_output_tokens=65536,
+                timeout_seconds=20,
+            )
     except GeminiError as exc:
         generation_attempt_service.fail_attempt(db, attempt_id=cast(uuid.UUID, attempt.id), message=str(exc), retrieval_run_id=retrieval_run_id)
         raise HTTPException(status_code=502, detail=f"Prediction provider error: {exc}") from exc
@@ -267,7 +301,11 @@ async def create_prediction(
         response_text=suggestion_text,
         citations_json={"evidence": [evidence_item_to_payload(item) for item in evidence]},
         retrieval_run_id=retrieval_run_id,
-        meta_json={"grounded": grounded, "evidence_count": len(evidence)},
+        meta_json={
+            "grounded": grounded,
+            "evidence_count": len(evidence),
+            "multimodal_pdf_evidence_ids": multimodal_attached_evidence_ids,
+        },
     )
     return InkwisePredictionResponse(
         suggestion_text=suggestion_text,

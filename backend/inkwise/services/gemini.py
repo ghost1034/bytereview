@@ -22,7 +22,7 @@ async def generate_content(
     *,
     api_key: str | None = None,
     model: str,
-    contents: list[dict[str, Any]],
+    contents: list[Any],
     generation_config: dict[str, Any] | None = None,
     timeout_seconds: float = 120,
 ) -> GeminiResult:
