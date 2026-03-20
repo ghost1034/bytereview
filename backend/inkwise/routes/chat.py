@@ -191,7 +191,7 @@ async def _stream_chat_attempt(
         multimodal_bundle = build_pdf_multimodal_contents(
             prompt=prompt,
             evidence=evidence,
-            max_files=3,
+            max_files=100,
         )
         multimodal_attached_evidence_ids = list(multimodal_bundle.attached_evidence_ids)
         if multimodal_bundle.has_attachments:

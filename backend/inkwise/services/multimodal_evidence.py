@@ -22,7 +22,7 @@ def build_pdf_multimodal_contents(
     *,
     prompt: str,
     evidence: list[EvidenceItem],
-    max_files: int = 3,
+    max_files: int = 100,
 ) -> MultimodalEvidenceBundle:
     attached_evidence_ids: list[str] = []
     contents: list[Any] = []

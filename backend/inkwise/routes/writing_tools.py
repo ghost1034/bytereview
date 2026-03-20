@@ -155,7 +155,7 @@ async def _stream_writing_tool_attempt(
         multimodal_bundle = build_pdf_multimodal_contents(
             prompt=current_prompt,
             evidence=evidence,
-            max_files=3,
+            max_files=100,
         )
         multimodal_attached_evidence_ids = list(multimodal_bundle.attached_evidence_ids)
         if multimodal_bundle.has_attachments:
@@ -269,7 +269,7 @@ async def create_prediction(
         multimodal_bundle = build_pdf_multimodal_contents(
             prompt=prompt,
             evidence=evidence,
-            max_files=3,
+            max_files=100,
         )
         multimodal_attached_evidence_ids = list(multimodal_bundle.attached_evidence_ids)
         if multimodal_bundle.has_attachments:

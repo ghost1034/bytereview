@@ -414,7 +414,7 @@ Prediction responses return:
 Current behavior:
 
 - only PDF preview assets are attached
-- at most 3 files are attached
+- at most 100 files are attached
 - duplicate assets are skipped
 - the prompt is augmented with the evidence IDs corresponding to attached files
 

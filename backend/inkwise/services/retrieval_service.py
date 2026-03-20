@@ -30,7 +30,7 @@ class InkwiseRetrievalService:
         history_messages: list[dict[str, str]] | None = None,
         draft_selection_text: str | None = None,
         max_evidence: int = 12,
-        max_total_chars: int = 18000,
+        max_total_chars: int = 90000,
     ) -> tuple[InkwiseRetrievalRun, list[EvidenceItem]]:
         document = (
             db.query(InkwiseDocument)
