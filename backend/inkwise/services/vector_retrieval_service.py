@@ -59,7 +59,7 @@ class InkwiseVectorRetrievalService:
         document_language: str | None = None,
         document_purpose: str | None = None,
         max_evidence: int = 12,
-        max_total_chars: int = 18000,
+        max_total_chars: int = 90000,
     ) -> tuple[list[EvidenceItem], dict[str, Any], str]:
         settings = get_inkwise_settings()
         clean_query = (query or "").strip()
@@ -486,7 +486,7 @@ def _float_or_none(value: Any) -> float | None:
 
 def _make_excerpt(text: str) -> str:
     clean = " ".join((text or "").replace("\n", " ").split()).strip()
-    return clean[:1200]
+    return clean[:6000]
 
 
 def _candidate_excerpt(candidate: RetrievalCandidate) -> str:
