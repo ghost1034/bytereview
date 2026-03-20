@@ -126,7 +126,7 @@ def build_prediction_prompt(*, body: InkwisePredictionRequest, document: Inkwise
         parts.append(current_block)
 
     parts.append("")
-    parts.append("Text before cursor:")
+    parts.append("Text before current block:")
     parts.append(before_text)
     if after_text:
         parts.append("")
@@ -189,7 +189,7 @@ def build_grounded_prediction_prompt(
         parts.append(current_block)
 
     parts.append("")
-    parts.append("Text before cursor:")
+    parts.append("Text before current block:")
     parts.append(before_text)
     if after_text:
         parts.append("")

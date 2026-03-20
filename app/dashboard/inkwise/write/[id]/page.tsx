@@ -44,6 +44,12 @@ type PredictionState = {
   evidence: InkwiseCitation[]
 }
 
+type PredictionContext = {
+  beforeText: string
+  currentBlockText: string
+  afterText: string
+}
+
 function messageCitations(message: InkwiseChatMessage): InkwiseCitation[] {
   const raw = message.citations_json?.citations
   return Array.isArray(raw) ? raw : []
@@ -91,9 +97,17 @@ export default function InkwiseDocumentPage() {
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
   const predictionTimeoutRef = useRef<number | null>(null)
   const predictionSeqRef = useRef(0)
+  const suppressPredictionUntilRef = useRef(0)
+
+  const suppressPredictions = (durationMs = 1500) => {
+    suppressPredictionUntilRef.current = Date.now() + durationMs
+    predictionSeqRef.current += 1
+    setPredictionState(null)
+  }
 
   useEffect(() => {
     if (!documentQuery.data) return
+    suppressPredictions(1800)
     setTitle(documentQuery.data.title || 'Untitled document')
     setInitPrompt(documentQuery.data.init_prompt || '')
     setContentHtml(documentQuery.data.content_html || '')
@@ -176,6 +190,7 @@ export default function InkwiseDocumentPage() {
   const restoreRevision = useMutation({
     mutationFn: (revisionId: string) => apiClient.restoreInkwiseDocumentRevision(documentId, revisionId),
     onSuccess: async (updated) => {
+      suppressPredictions(1800)
       setTitle(updated.title || 'Untitled document')
       setInitPrompt(updated.init_prompt || '')
       setContentHtml(updated.content_html || '')
@@ -333,6 +348,7 @@ export default function InkwiseDocumentPage() {
     },
     onSuccess: (output) => {
       if (output.trim()) {
+        suppressPredictions(1800)
         setContentHtml(output)
         toast({ title: 'Draft refreshed', description: 'The writing tool returned a revised version in the editor.' })
       }
@@ -389,15 +405,21 @@ export default function InkwiseDocumentPage() {
       predictionTimeoutRef.current = null
     }
 
-      const { from, to, empty } = editor.state.selection
+      const { empty } = editor.state.selection
       if (!empty) {
       setPredictionState(null)
       return
     }
 
-    const beforeText = editor.state.doc.textBetween(0, from, '\n', '\n').trim()
-    const afterText = editor.state.doc.textBetween(to, editor.state.doc.content.size, '\n', '\n').trim()
-    const currentBlockText = editor.state.selection.$from.parent.textContent?.trim() || ''
+    if (Date.now() < suppressPredictionUntilRef.current) {
+      setPredictionState(null)
+      return
+    }
+
+    const context = getPredictionContext(editor)
+    const beforeText = context.beforeText
+    const afterText = context.afterText
+    const currentBlockText = context.currentBlockText
 
     if (beforeText.length < 20) {
       setPredictionState(null)
@@ -524,7 +546,12 @@ export default function InkwiseDocumentPage() {
           </div>
 
           <div className="space-y-4 px-4 py-4 sm:px-5">
-            <InlineWritingTools editor={editor} documentId={documentId} boundSources={boundSources} />
+            <InlineWritingTools
+              editor={editor}
+              documentId={documentId}
+              boundSources={boundSources}
+              onProgrammaticEdit={() => suppressPredictions(1800)}
+            />
 
             <InkwiseEditor
               contentJson={contentJson}
@@ -534,9 +561,8 @@ export default function InkwiseDocumentPage() {
               predictionText={predictionState?.text || ''}
               onAcceptPrediction={() => {
                 if (!editor || !predictionState?.text) return
+                suppressPredictions(1800)
                 editor.chain().focus().insertContent(predictionState.text).run()
-                setPredictionState(null)
-                setPredictionTick((value) => value + 1)
               }}
               onDismissPrediction={() => setPredictionState(null)}
               onBlur={() => saveDocument.mutate()}
@@ -995,4 +1021,17 @@ function stripHtml(value?: string | null): string {
   const html = (value || '').trim()
   if (!html) return ''
   return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+function getPredictionContext(editor: TiptapEditor): PredictionContext {
+  const { state } = editor
+  const { from } = state.selection
+  const blockStart = state.selection.$from.start()
+  const blockEnd = state.selection.$from.end()
+
+  return {
+    beforeText: state.doc.textBetween(0, blockStart, '\n', '\n').trim(),
+    currentBlockText: state.selection.$from.parent.textContent?.trim() || '',
+    afterText: state.doc.textBetween(blockEnd, state.doc.content.size, '\n', '\n').trim(),
+  }
 }

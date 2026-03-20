@@ -34,10 +34,12 @@ export function InlineWritingTools({
   editor,
   documentId,
   boundSources,
+  onProgrammaticEdit,
 }: {
   editor: Editor | null
   documentId: string
   boundSources: InkwiseBoundSource[]
+  onProgrammaticEdit?: () => void
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -179,10 +181,13 @@ export function InlineWritingTools({
       if (!html) return
 
       if (mode === 'replace') {
+        onProgrammaticEdit?.()
         editor.chain().focus().insertContentAt({ from: rangeRef.current.from, to: rangeRef.current.to }, html).run()
       } else if (mode === 'insert') {
+        onProgrammaticEdit?.()
         editor.chain().focus().insertContentAt(rangeRef.current.to, html).run()
       } else {
+        onProgrammaticEdit?.()
         editor.chain().focus().insertContentAt(rangeRef.current.to, `<p></p>${html}`).run()
       }
     } finally {
