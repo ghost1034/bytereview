@@ -80,3 +80,44 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .ProseMirror h1 {
+    margin: 1.5rem 0 0.75rem;
+    font-size: 2rem;
+    line-height: 1.2;
+    font-weight: 700;
+  }
+
+  .ProseMirror h2 {
+    margin: 1.25rem 0 0.75rem;
+    font-size: 1.5rem;
+    line-height: 1.3;
+    font-weight: 600;
+  }
+
+  .ProseMirror ul,
+  .ProseMirror ol {
+    margin: 1rem 0;
+    padding-left: 1.5rem;
+  }
+
+  .ProseMirror ul {
+    list-style: disc;
+  }
+
+  .ProseMirror ol {
+    list-style: decimal;
+  }
+
+  .ProseMirror li + li {
+    margin-top: 0.25rem;
+  }
+
+  .ProseMirror blockquote {
+    margin: 1rem 0;
+    border-left: 3px solid hsl(var(--border));
+    padding-left: 1rem;
+    color: hsl(var(--muted-foreground));
+  }
+}
