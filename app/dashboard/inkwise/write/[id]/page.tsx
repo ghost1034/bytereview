@@ -9,6 +9,7 @@ import { Download, History, LibraryBig, Loader2, MessageSquarePlus, MessageSquar
 import { InkwiseEditor } from '@/components/inkwise/inkwise-editor'
 import { InlineWritingTools } from '@/components/inkwise/inline-writing-tools'
 import { InkwiseCitationBubbles } from '@/components/inkwise/citation-bubbles'
+import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -29,6 +30,7 @@ import {
   useInkwiseSources,
 } from '@/hooks/useInkwise'
 import { apiClient, InkwiseChatMessage, InkwiseCitation, InkwiseDocumentRevision, InkwisePredictionResponse, InkwiseSseEvent } from '@/lib/api'
+import { markdownToSafeHtml } from '@/lib/inkwise-markdown'
 import { cn } from '@/lib/utils'
 
 type StreamState = {
@@ -49,6 +51,9 @@ type PredictionContext = {
   currentBlockText: string
   afterText: string
 }
+
+const assistantMarkdownClassName =
+  'prose prose-sm max-w-none break-words text-slate-700 prose-headings:text-slate-900 prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-blockquote:border-slate-300 prose-blockquote:text-slate-600 prose-pre:bg-slate-950 prose-pre:text-slate-50 prose-code:text-slate-800 prose-a:text-sky-700'
 
 function messageCitations(message: InkwiseChatMessage): InkwiseCitation[] {
   const raw = message.citations_json?.citations
@@ -348,11 +353,21 @@ export default function InkwiseDocumentPage() {
       )
       return output
     },
-    onSuccess: (output) => {
-      if (output.trim()) {
+    onSuccess: async (output) => {
+      const markdown = output.trim()
+      if (!markdown) return
+
+      try {
+        const html = await markdownToSafeHtml(markdown)
+        if (!html) return
+
         suppressPredictions(1800)
-        setContentHtml(output)
+        setContentJson(null)
+        setContentHtml(html)
         toast({ title: 'Draft refreshed', description: 'The writing tool returned a revised version in the editor.' })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'The AI response could not be rendered as Markdown.'
+        toast({ title: 'Could not render draft', description: message, variant: 'destructive' })
       }
     },
     onError: (error: Error) => {
@@ -692,7 +707,11 @@ export default function InkwiseDocumentPage() {
                               </div>
                             ) : null}
                           </div>
-                          <div className="whitespace-pre-wrap">{message.content}</div>
+                          {message.role === 'assistant' ? (
+                            <InkwiseMarkdownView markdown={message.content} className={assistantMarkdownClassName} />
+                          ) : (
+                            <div className="whitespace-pre-wrap">{message.content}</div>
+                          )}
                           {messageCitations(message).length ? (
                             <div className="mt-3">
                               <InkwiseCitationBubbles citations={messageCitations(message)} />
@@ -704,7 +723,11 @@ export default function InkwiseDocumentPage() {
                       {streamState ? (
                         <div className="rounded-2xl border bg-white p-3 text-sm">
                           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">assistant</div>
-                          <div className="whitespace-pre-wrap">{streamState.text || 'Thinking...'}</div>
+                          {streamState.text ? (
+                            <InkwiseMarkdownView markdown={streamState.text} className={assistantMarkdownClassName} />
+                          ) : (
+                            <div className="text-slate-500">Thinking...</div>
+                          )}
                           {streamState.citations?.length ? (
                             <div className="mt-3">
                               <InkwiseCitationBubbles citations={streamState.citations} />
