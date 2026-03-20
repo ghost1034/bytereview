@@ -88,6 +88,7 @@ export default function InkwiseDocumentPage() {
   const [streamState, setStreamState] = useState<StreamState | null>(null)
   const [editor, setEditor] = useState<TiptapEditor | null>(null)
   const [predictionState, setPredictionState] = useState<PredictionState | null>(null)
+  const [predictionLoading, setPredictionLoading] = useState(false)
   const [predictionTick, setPredictionTick] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [sidebarTab, setSidebarTab] = useState<'chat' | 'references'>('chat')
@@ -102,6 +103,7 @@ export default function InkwiseDocumentPage() {
   const suppressPredictions = (durationMs = 1500) => {
     suppressPredictionUntilRef.current = Date.now() + durationMs
     predictionSeqRef.current += 1
+    setPredictionLoading(false)
     setPredictionState(null)
   }
 
@@ -405,13 +407,15 @@ export default function InkwiseDocumentPage() {
       predictionTimeoutRef.current = null
     }
 
-      const { empty } = editor.state.selection
-      if (!empty) {
+    const { empty } = editor.state.selection
+    if (!empty) {
+      setPredictionLoading(false)
       setPredictionState(null)
       return
     }
 
     if (Date.now() < suppressPredictionUntilRef.current) {
+      setPredictionLoading(false)
       setPredictionState(null)
       return
     }
@@ -422,12 +426,15 @@ export default function InkwiseDocumentPage() {
     const currentBlockText = context.currentBlockText
 
     if (beforeText.length < 20) {
+      setPredictionLoading(false)
       setPredictionState(null)
       return
     }
 
+    const seq = ++predictionSeqRef.current
     predictionTimeoutRef.current = window.setTimeout(async () => {
-      const seq = ++predictionSeqRef.current
+      if (seq !== predictionSeqRef.current) return
+      setPredictionLoading(true)
       try {
         const prediction = await apiClient.createInkwisePrediction(documentId, {
           before_text: beforeText,
@@ -435,10 +442,12 @@ export default function InkwiseDocumentPage() {
           current_block_text: currentBlockText || undefined,
         })
         if (seq === predictionSeqRef.current) {
+          setPredictionLoading(false)
           setPredictionState(normalizePredictionState(prediction))
         }
       } catch {
         if (seq === predictionSeqRef.current) {
+          setPredictionLoading(false)
           setPredictionState(null)
         }
       }
@@ -448,6 +457,9 @@ export default function InkwiseDocumentPage() {
       if (predictionTimeoutRef.current) {
         window.clearTimeout(predictionTimeoutRef.current)
         predictionTimeoutRef.current = null
+      }
+      if (seq === predictionSeqRef.current) {
+        setPredictionLoading(false)
       }
     }
   }, [editor, documentId, documentQuery.data, predictionTick, contentHtml])
@@ -559,12 +571,16 @@ export default function InkwiseDocumentPage() {
               placeholder="Start writing here..."
               onEditor={setEditor}
               predictionText={predictionState?.text || ''}
+              predictionLoading={predictionLoading}
               onAcceptPrediction={() => {
                 if (!editor || !predictionState?.text) return
                 suppressPredictions(1800)
                 editor.chain().focus().insertContent(predictionState.text).run()
               }}
-              onDismissPrediction={() => setPredictionState(null)}
+              onDismissPrediction={() => {
+                setPredictionLoading(false)
+                setPredictionState(null)
+              }}
               onBlur={() => saveDocument.mutate()}
               onChange={(value) => {
                 setContentJson(value.json)
@@ -575,7 +591,9 @@ export default function InkwiseDocumentPage() {
             />
 
             <div className="rounded-2xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
-              {predictionState?.grounded
+              {predictionLoading
+                ? 'Inkwise is drafting the next suggestion...'
+                : predictionState?.grounded
                 ? `Press Tab to accept the grounded inline prediction. Using ${predictionState.evidence.length} evidence ${predictionState.evidence.length === 1 ? 'segment' : 'segments'}.`
                 : 'Press Tab to accept inline predictions when they appear.'}
             </div>

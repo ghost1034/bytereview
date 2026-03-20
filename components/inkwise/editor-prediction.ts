@@ -8,6 +8,7 @@ const predictionPluginKey = new PluginKey('inkwisePrediction')
 
 type PredictionExtensionOptions = {
   getSuggestion: () => string
+  getLoading: () => boolean
   onAccept: () => void
   onDismiss: () => void
 }
@@ -31,11 +32,30 @@ export function createPredictionExtension(options: PredictionExtensionOptions) {
           props: {
             decorations(state: EditorState) {
               const suggestion = options.getSuggestion()
-              if (!suggestion || !state.selection.empty) return null
+              const loading = options.getLoading()
+              if ((!suggestion && !loading) || !state.selection.empty) return null
 
-              const widget = document.createElement('span')
-              widget.className = 'pointer-events-none select-none text-slate-400'
-              widget.textContent = suggestion
+              let widget: HTMLElement
+              if (suggestion) {
+                widget = document.createElement('span')
+                widget.className = 'pointer-events-none select-none text-slate-400'
+                widget.textContent = suggestion
+              } else if (loading) {
+                widget = document.createElement('span')
+                widget.className = 'pointer-events-none inline-flex select-none items-center gap-0.5 text-slate-400'
+                widget.setAttribute('aria-hidden', 'true')
+
+                for (let index = 0; index < 3; index += 1) {
+                  const dot = document.createElement('span')
+                  dot.className = 'inline-block text-base leading-none animate-pulse'
+                  dot.textContent = '.'
+                  dot.style.animationDelay = `${index * 0.18}s`
+                  dot.style.animationDuration = '1s'
+                  widget.appendChild(dot)
+                }
+              } else {
+                return null
+              }
 
               return DecorationSet.create(state.doc, [
                 Decoration.widget(state.selection.from, widget, {

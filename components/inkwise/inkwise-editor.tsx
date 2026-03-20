@@ -22,6 +22,7 @@ export function InkwiseEditor({
   onChange,
   onEditor,
   predictionText,
+  predictionLoading,
   onAcceptPrediction,
   onDismissPrediction,
   onBlur,
@@ -35,6 +36,7 @@ export function InkwiseEditor({
   onChange: (value: InkwiseEditorValue) => void
   onEditor?: (editor: Editor | null) => void
   predictionText?: string
+  predictionLoading?: boolean
   onAcceptPrediction?: () => void
   onDismissPrediction?: () => void
   onBlur?: () => void
@@ -51,6 +53,8 @@ export function InkwiseEditor({
   const lastExternalSetRef = useRef<string | null>(null)
   const predictionTextRef = useRef(predictionText || '')
   predictionTextRef.current = predictionText || ''
+  const predictionLoadingRef = useRef(Boolean(predictionLoading))
+  predictionLoadingRef.current = Boolean(predictionLoading)
 
   const acceptPredictionRef = useRef(onAcceptPrediction)
   acceptPredictionRef.current = onAcceptPrediction
@@ -65,6 +69,7 @@ export function InkwiseEditor({
     () =>
       createPredictionExtension({
         getSuggestion: () => predictionTextRef.current,
+        getLoading: () => predictionLoadingRef.current,
         onAccept: () => acceptPredictionRef.current?.(),
         onDismiss: () => dismissPredictionRef.current?.(),
       }),
@@ -124,7 +129,7 @@ export function InkwiseEditor({
 
   useEffect(() => {
     refreshPredictionDecorations(editor)
-  }, [editor, predictionText])
+  }, [editor, predictionText, predictionLoading])
 
   if (!editor) {
     return <div className={`min-h-[320px] rounded-2xl border bg-white ${className || ''}`} />
