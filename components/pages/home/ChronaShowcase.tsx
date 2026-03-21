@@ -13,7 +13,7 @@ const features = [
 
 export default function ChronaShowcase() {
   return (
-    <section className="py-20 bg-gray-900 text-white">
+    <section id="chrona-showcase" className="py-20 bg-gray-900 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           className="text-center mb-10"

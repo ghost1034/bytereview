@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { FileText, PenTool, Clock, Bot, BarChart3, FolderKanban } from "lucide-react";
 import { fadeInUp, staggerContainer, staggerChild, hoverLift, viewportOnce } from "@/lib/animations";
 
@@ -9,49 +10,61 @@ const products = [
     name: "Universal Document Analysis",
     description: "Extract, analyze, and automate any document type with AI precision.",
     icon: FileText,
-    color: "bg-blue-100 text-blue-600",
+    iconBg: "bg-gradient-to-br from-blue-100 to-blue-50",
+    iconText: "text-blue-600",
     status: "Available" as const,
+    href: "#extraction-features",
   },
   {
     name: "Inkwise",
     description: "AI-powered writing with citation-grounded references from your own documents.",
     icon: PenTool,
-    color: "bg-purple-100 text-purple-600",
+    iconBg: "bg-gradient-to-br from-purple-100 to-purple-50",
+    iconText: "text-purple-600",
     status: "Available" as const,
+    href: "#inkwise-showcase",
   },
   {
     name: "Chrona",
     description: "Automatic time tracking that turns your screen into a structured daily timeline.",
     icon: Clock,
-    color: "bg-amber-100 text-amber-600",
+    iconBg: "bg-gradient-to-br from-amber-100 to-amber-50",
+    iconText: "text-amber-600",
     status: "Coming Soon" as const,
+    href: "#chrona-showcase",
   },
   {
     name: "AccountingClaw / FinanceClaw / LegalClaw",
     description: "One-click AI agents with hundreds of pre-built skills for regulated industries.",
     icon: Bot,
-    color: "bg-green-100 text-green-600",
+    iconBg: "bg-gradient-to-br from-green-100 to-green-50",
+    iconText: "text-green-600",
     status: "Coming Soon" as const,
+    href: "#roadmap",
   },
   {
     name: "AI Analysis Suite",
     description: "Reconciliation, flux analysis, amortization, and distribution waterfalls.",
     icon: BarChart3,
-    color: "bg-red-100 text-red-600",
+    iconBg: "bg-gradient-to-br from-red-100 to-red-50",
+    iconText: "text-red-600",
     status: "Coming Soon" as const,
+    href: "#roadmap",
   },
   {
     name: "AI Productivity Suite",
     description: "Project management, month-end checklists, presentations, and expense reimbursement.",
     icon: FolderKanban,
-    color: "bg-teal-100 text-teal-600",
+    iconBg: "bg-gradient-to-br from-teal-100 to-teal-50",
+    iconText: "text-teal-600",
     status: "Coming Soon" as const,
+    href: "#roadmap",
   },
 ];
 
 export default function ProductSuite() {
   return (
-    <section className="py-20 bg-white">
+    <section id="product-suite" className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           className="text-center mb-16"
@@ -60,7 +73,10 @@ export default function ProductSuite() {
           whileInView="visible"
           viewport={viewportOnce}
         >
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">One Platform, Every Tool You Need</h2>
+          <span className="inline-block text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full mb-4">
+            Full Product Suite
+          </span>
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">One Platform, Every Tool You Need</h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Purpose-built for accounting, finance, and legal teams — from document processing to autonomous AI agents.
           </p>
@@ -75,10 +91,10 @@ export default function ProductSuite() {
         >
           {products.map((product) => {
             const Icon = product.icon;
-            return (
+            const card = (
               <motion.div
                 key={product.name}
-                className="relative rounded-xl border border-gray-200 bg-white p-6 transition-shadow hover:shadow-lg"
+                className="group relative rounded-xl border border-gray-200 bg-white p-6 transition-shadow hover:shadow-lg cursor-pointer"
                 variants={staggerChild}
                 {...hoverLift}
               >
@@ -92,18 +108,34 @@ export default function ProductSuite() {
                     Available
                   </span>
                 )}
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${product.color}`}>
-                  <Icon className="w-6 h-6" />
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${product.iconBg}`}>
+                  <Icon className={`w-6 h-6 ${product.iconText}`} />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">{product.name}</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                  {product.name}
+                </h3>
                 <p className="text-gray-600 text-sm">{product.description}</p>
               </motion.div>
+            );
+
+            // Wrap available products in Links, coming-soon in anchor scroll
+            if (product.href.startsWith("#")) {
+              return (
+                <a key={product.name} href={product.href} className="block">
+                  {card}
+                </a>
+              );
+            }
+            return (
+              <Link key={product.name} href={product.href} className="block">
+                {card}
+              </Link>
             );
           })}
         </motion.div>
 
         <motion.p
-          className="text-center text-sm text-gray-500 mt-8"
+          className="text-center text-sm text-gray-500 mt-10"
           variants={fadeInUp}
           initial="hidden"
           whileInView="visible"
