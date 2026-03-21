@@ -5,14 +5,37 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Menu, X, LogOut, User } from "lucide-react";
+import { Menu, X, LogOut, User, ChevronDown, FileText, PenTool, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthModal from "@/components/auth/AuthModal";
+
+const productLinks = [
+  {
+    label: "Document Analysis",
+    href: "/features",
+    description: "AI extraction & automations",
+    icon: FileText,
+  },
+  {
+    label: "Inkwise",
+    href: "/dashboard/inkwise",
+    description: "AI writing with citations",
+    icon: PenTool,
+  },
+  {
+    label: "Chrona",
+    href: "/#chrona-showcase",
+    description: "AI time tracking",
+    icon: Clock,
+    badge: "Soon",
+  },
+];
 
 export default function Header() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isProductsOpen, setIsProductsOpen] = useState(false);
   const { user, loading, requiresPhoneVerification, signOut } = useAuth();
 
   const primaryAuthenticatedHref = requiresPhoneVerification ? "/complete-signup" : "/dashboard";
@@ -25,6 +48,9 @@ export default function Header() {
       setIsAuthModalOpen(true);
     }
   };
+
+  const navLinkClass = (path: string) =>
+    `text-gray-700 hover:text-lido-blue transition-colors ${pathname === path ? 'text-lido-blue' : ''}`;
 
   return (
     <nav className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-50">
@@ -40,31 +66,74 @@ export default function Header() {
                 className="h-10 w-auto"
               />
             </Link>
-            
-            <div className="hidden md:flex space-x-6">
+
+            <div className="hidden md:flex items-center space-x-6">
               {user && (
-                <Link href={primaryAuthenticatedHref} className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === primaryAuthenticatedHref ? 'text-lido-blue' : ''}`}>
+                <Link href={primaryAuthenticatedHref} className={navLinkClass(primaryAuthenticatedHref)}>
                   {primaryAuthenticatedLabel}
                 </Link>
               )}
-              <Link href="/demo" className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === '/demo' ? 'text-lido-blue' : ''}`}>
+
+              {/* Products dropdown */}
+              <div
+                className="relative"
+                onMouseEnter={() => setIsProductsOpen(true)}
+                onMouseLeave={() => setIsProductsOpen(false)}
+              >
+                <button className="flex items-center gap-1 text-gray-700 hover:text-lido-blue transition-colors">
+                  Products
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isProductsOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isProductsOpen && (
+                  <div className="absolute top-full left-0 pt-2">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-lg p-2 w-64">
+                      {productLinks.map((p) => {
+                        const Icon = p.icon;
+                        return (
+                          <Link
+                            key={p.label}
+                            href={p.href}
+                            className="flex items-start gap-3 rounded-lg p-3 hover:bg-gray-50 transition-colors"
+                            onClick={() => setIsProductsOpen(false)}
+                          >
+                            <div className="w-8 h-8 rounded-md bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <Icon className="w-4 h-4 text-gray-600" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-gray-900">{p.label}</span>
+                                {p.badge && (
+                                  <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                                    {p.badge}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-xs text-gray-500">{p.description}</span>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Link href="/demo" className={navLinkClass('/demo')}>
                 Demo
               </Link>
-              <Link href="/pricing" className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === '/pricing' ? 'text-lido-blue' : ''}`}>
+              <Link href="/pricing" className={navLinkClass('/pricing')}>
                 Pricing
               </Link>
-              <Link href="/features" className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === '/features' ? 'text-lido-blue' : ''}`}>
-                Features
-              </Link>
-              <Link href="/about" className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === '/about' ? 'text-lido-blue' : ''}`}>
+              <Link href="/about" className={navLinkClass('/about')}>
                 About
               </Link>
-              <Link href="/contact" className={`text-gray-700 hover:text-lido-blue transition-colors ${pathname === '/contact' ? 'text-lido-blue' : ''}`}>
+              <Link href="/contact" className={navLinkClass('/contact')}>
                 Contact
               </Link>
             </div>
           </div>
-          
+
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
               <div className="flex items-center space-x-3">
@@ -74,8 +143,8 @@ export default function Header() {
                   </div>
                   <span className="text-sm text-gray-700">{user.displayName || user.email}</span>
                 </div>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={handleAuthAction}
                   className="flex items-center space-x-1"
@@ -85,7 +154,7 @@ export default function Header() {
                 </Button>
               </div>
             ) : (
-              <Button 
+              <Button
                 className="lido-blue hover:lido-blue-dark text-white"
                 onClick={handleAuthAction}
                 disabled={loading}
@@ -94,7 +163,7 @@ export default function Header() {
               </Button>
             )}
           </div>
-          
+
           <div className="md:hidden">
             <Button
               variant="ghost"
@@ -105,24 +174,45 @@ export default function Header() {
             </Button>
           </div>
         </div>
-        
+
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
           <div className="md:hidden pb-4 space-y-4">
-            <div className="space-y-2">
-              <Link href="/demo" className="block text-gray-700 hover:text-lido-blue py-2">
+            <div className="space-y-1">
+              {/* Mobile Products section */}
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 pt-2 pb-1">Products</p>
+              {productLinks.map((p) => {
+                const Icon = p.icon;
+                return (
+                  <Link
+                    key={p.label}
+                    href={p.href}
+                    className="flex items-center gap-3 text-gray-700 hover:text-lido-blue py-2 px-2 rounded-lg hover:bg-gray-50"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <Icon className="w-4 h-4 text-gray-500" />
+                    <span>{p.label}</span>
+                    {p.badge && (
+                      <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded ml-auto">
+                        {p.badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+
+              <div className="border-t border-gray-100 my-2" />
+
+              <Link href="/demo" className="block text-gray-700 hover:text-lido-blue py-2 px-2" onClick={() => setIsMobileMenuOpen(false)}>
                 Demo
               </Link>
-              <Link href="/pricing" className="block text-gray-700 hover:text-lido-blue py-2">
+              <Link href="/pricing" className="block text-gray-700 hover:text-lido-blue py-2 px-2" onClick={() => setIsMobileMenuOpen(false)}>
                 Pricing
               </Link>
-              <Link href="/features" className="block text-gray-700 hover:text-lido-blue py-2">
-                Features
-              </Link>
-              <Link href="/about" className="block text-gray-700 hover:text-lido-blue py-2">
+              <Link href="/about" className="block text-gray-700 hover:text-lido-blue py-2 px-2" onClick={() => setIsMobileMenuOpen(false)}>
                 About
               </Link>
-              <Link href="/contact" className="block text-gray-700 hover:text-lido-blue py-2">
+              <Link href="/contact" className="block text-gray-700 hover:text-lido-blue py-2 px-2" onClick={() => setIsMobileMenuOpen(false)}>
                 Contact
               </Link>
             </div>
@@ -135,8 +225,8 @@ export default function Header() {
                     </div>
                     <span className="text-sm text-gray-700">{user.displayName || user.email}</span>
                   </div>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full flex items-center justify-center space-x-2"
                     onClick={handleAuthAction}
                   >
@@ -145,7 +235,7 @@ export default function Header() {
                   </Button>
                 </div>
               ) : (
-                <Button 
+                <Button
                   className="w-full lido-blue hover:lido-blue-dark text-white"
                   onClick={handleAuthAction}
                   disabled={loading}
@@ -157,10 +247,10 @@ export default function Header() {
           </div>
         )}
       </div>
-      
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)} 
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
       />
     </nav>
   );
