@@ -1,5 +1,25 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithRedirect, signInWithPopup, getRedirectResult, GoogleAuthProvider, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, type User } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  getAuth,
+  getMultiFactorResolver,
+  getRedirectResult,
+  GoogleAuthProvider,
+  multiFactor,
+  onAuthStateChanged,
+  PhoneMultiFactorGenerator,
+  sendEmailVerification,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut,
+  updateProfile,
+  type MultiFactorError,
+  type MultiFactorInfo,
+  type MultiFactorResolver,
+  type PhoneMultiFactorInfo,
+  type User,
+} from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -71,15 +91,37 @@ export const signInWithEmail = (email: string, password: string) => {
   return signInWithEmailAndPassword(auth, email, password);
 };
 
-export const hasVerifiedPhone = (user: User | null | undefined) => {
+export const sendVerificationEmailToUser = (user: User) => {
+  return sendEmailVerification(user)
+}
+
+export const isPhoneMultiFactorInfo = (factor: MultiFactorInfo): factor is PhoneMultiFactorInfo => {
+  return factor.factorId === PhoneMultiFactorGenerator.FACTOR_ID
+}
+
+export const getEnrolledPhoneMfaFactors = (user: User | null | undefined): PhoneMultiFactorInfo[] => {
   if (!user) {
-    return false;
+    return []
   }
 
-  return Boolean(
-    user.phoneNumber || user.providerData.some((provider) => provider.providerId === "phone")
-  );
-};
+  return multiFactor(user).enrolledFactors.filter(isPhoneMultiFactorInfo)
+}
+
+export const hasEnrolledPhoneMfa = (user: User | null | undefined) => {
+  return getEnrolledPhoneMfaFactors(user).length > 0
+}
+
+export const isMultiFactorAuthRequiredError = (error: unknown) => {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'auth/multi-factor-auth-required'
+}
+
+export const getPhoneMfaResolver = (error: unknown): MultiFactorResolver => {
+  return getMultiFactorResolver(auth, error as MultiFactorError)
+}
+
+export const getPreferredPhoneMfaHint = (resolver: MultiFactorResolver): PhoneMultiFactorInfo | null => {
+  return resolver.hints.find(isPhoneMultiFactorInfo) ?? null
+}
 
 // Auth state observer
 export const onAuthStateChange = (callback: (user: any) => void) => {

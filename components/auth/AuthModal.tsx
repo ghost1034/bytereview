@@ -11,7 +11,6 @@ import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { useAuth } from "@/contexts/AuthContext";
 import PhoneNumberInput from "@/components/auth/PhoneNumberInput";
-import PhoneVerificationForm from "@/components/auth/PhoneVerificationForm";
 import { createDefaultPhoneNumberInputValue, getE164PhoneNumber, type PhoneNumberInputValue } from "@/lib/phone-number";
 
 
@@ -45,7 +44,6 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [authStep, setAuthStep] = useState<'credentials' | 'verify-phone'>('credentials');
   
   // Form states
   const [signInData, setSignInData] = useState({ email: "", password: "" });
@@ -55,7 +53,6 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
     setShowPassword(false);
     setIsLoading(false);
     setError("");
-    setAuthStep('credentials');
     setSignInData({ email: "", password: "" });
     setSignUpData(createEmptySignUpData());
   };
@@ -124,8 +121,14 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
     }
     
     try {
-      await signUpWithEmailAndPassword(signUpData.email, signUpData.password, signUpData.displayName);
-      setAuthStep('verify-phone');
+      await signUpWithEmailAndPassword({
+        email: signUpData.email,
+        password: signUpData.password,
+        displayName: signUpData.displayName,
+        phoneNumber: normalizedPhoneNumber,
+        redirectTo,
+      });
+      closeModal();
     } catch (error: any) {
       setError(error.message || "Failed to create account");
     } finally {
@@ -138,44 +141,36 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center text-2xl font-bold">
-            {authStep === 'verify-phone' ? 'Verify Your Phone Number' : 'Welcome to CPAAutomation'}
+            Welcome to CPAAutomation
           </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-6">
-          {authStep === 'verify-phone' ? (
-            <PhoneVerificationForm
-              initialPhoneNumber={getE164PhoneNumber(signUpData.phone) ?? ''}
-              redirectTo={redirectTo}
-              autoSendOnMount
-              onVerified={closeModal}
-            />
-          ) : (
-            <>
-              {/* Google Sign In */}
-              <Button
-                onClick={handleGoogleSignIn}
-                disabled={isLoading}
-                variant="outline"
-                className="w-full h-12 text-gray-700 border-gray-300 hover:bg-gray-50"
-              >
-                <FcGoogle className="w-5 h-5 mr-3" />
-                Continue with Google
-              </Button>
+          <>
+            {/* Google Sign In */}
+            <Button
+              onClick={handleGoogleSignIn}
+              disabled={isLoading}
+              variant="outline"
+              className="w-full h-12 text-gray-700 border-gray-300 hover:bg-gray-50"
+            >
+              <FcGoogle className="w-5 h-5 mr-3" />
+              Continue with Google
+            </Button>
 
-              <div className="relative">
-                <Separator />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="bg-white px-2 text-sm text-gray-500">or</span>
-                </div>
+            <div className="relative">
+              <Separator />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="bg-white px-2 text-sm text-gray-500">or</span>
               </div>
+            </div>
 
-              {/* Email Authentication Tabs */}
-              <Tabs defaultValue={defaultTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="signin">Sign In</TabsTrigger>
-                  <TabsTrigger value="signup">Create Account</TabsTrigger>
-                </TabsList>
+            {/* Email Authentication Tabs */}
+            <Tabs defaultValue={defaultTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="signin">Sign In</TabsTrigger>
+                <TabsTrigger value="signup">Create Account</TabsTrigger>
+              </TabsList>
 
                 {/* Sign In Tab */}
                 <TabsContent value="signin" className="space-y-4">
@@ -268,7 +263,7 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
                         disabled={isLoading}
                         required
                       />
-                      <p className="text-xs text-gray-500">Choose a country code, then enter the rest of your phone number.</p>
+                      <p className="text-xs text-gray-500">Choose a country code now and we will use it to prefill your SMS sign-in setup.</p>
                     </div>
 
                     <div className="space-y-2">
@@ -316,9 +311,8 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
                     </Button>
                   </form>
                 </TabsContent>
-              </Tabs>
-            </>
-          )}
+            </Tabs>
+          </>
 
           {/* Error Message */}
           {error && (

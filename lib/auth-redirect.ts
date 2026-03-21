@@ -19,3 +19,17 @@ export function buildPhoneVerificationRedirect(path?: string | null): string {
 
   return `/complete-signup?redirectTo=${encodeURIComponent(redirectTo)}`
 }
+
+export function buildMfaEnrollmentRedirect(path?: string | null): string {
+  return buildPhoneVerificationRedirect(path)
+}
+
+export function buildMfaChallengeRedirect(path?: string | null): string {
+  const redirectTo = normalizeAuthRedirectPath(path, DEFAULT_AUTHENTICATED_REDIRECT)
+
+  if (redirectTo === DEFAULT_AUTHENTICATED_REDIRECT) {
+    return "/complete-signin"
+  }
+
+  return `/complete-signin?redirectTo=${encodeURIComponent(redirectTo)}`
+}

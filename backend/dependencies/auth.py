@@ -41,21 +41,14 @@ def _normalize_phone_number(phone_number: Optional[str]) -> Optional[str]:
     return clean_phone or None
 
 
-def _get_verified_phone_number(uid: str) -> str:
-    try:
-        user_record = firebase_auth.get_user(uid)
-    except firebase_auth.UserNotFoundError as exc:
-        logger.error("Firebase user not found for uid=%s", uid)
-        raise HTTPException(status_code=401, detail="User account not found") from exc
-    except Exception as exc:
-        logger.error("Failed to load Firebase user record for uid=%s: %s", uid, exc)
-        raise HTTPException(status_code=401, detail="Unable to verify authenticated user") from exc
-
-    phone_number = _normalize_phone_number(getattr(user_record, "phone_number", None))
-    if not phone_number:
-        raise HTTPException(status_code=403, detail="Phone verification is required to access CPAAutomation")
-
-    return phone_number
+def _require_phone_mfa(decoded_token: Dict) -> None:
+    firebase_claims = decoded_token.get("firebase") or {}
+    sign_in_second_factor = firebase_claims.get("sign_in_second_factor")
+    if sign_in_second_factor != "phone":
+        raise HTTPException(
+            status_code=403,
+            detail="A fresh SMS verification code is required to access CPAAutomation",
+        )
 
 async def verify_firebase_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict:
     """
@@ -73,7 +66,8 @@ async def verify_firebase_token(credentials: HTTPAuthorizationCredentials = Depe
         if not uid:
             raise HTTPException(status_code=401, detail="User ID not found in token")
 
-        decoded_token["phone_number"] = _get_verified_phone_number(uid)
+        _require_phone_mfa(decoded_token)
+        decoded_token["phone_number"] = _normalize_phone_number(decoded_token.get("phone_number"))
         logger.info(f"Token verified for user: {decoded_token.get('uid', 'unknown')}")
         return decoded_token
     except HTTPException:
@@ -112,7 +106,7 @@ async def verify_token_string(token: str) -> str:
         if not user_id:
             logger.error("User ID not found in decoded token")
             raise HTTPException(status_code=401, detail="User ID not found in token")
-        _get_verified_phone_number(user_id)
+        _require_phone_mfa(decoded_token)
         logger.info(f"Token verified successfully for user: {user_id}")
         return user_id
     except HTTPException:

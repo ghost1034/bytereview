@@ -10,19 +10,19 @@ import { useAuth } from "@/contexts/AuthContext";
 import AuthModal from "@/components/auth/AuthModal";
 import { useSubscriptionPlans, useCreateCheckoutSession } from "@/hooks/useBilling";
 import UsageStats from "@/components/subscription/UsageStats";
-import { buildPhoneVerificationRedirect } from "@/lib/auth-redirect";
+import { buildMfaEnrollmentRedirect } from "@/lib/auth-redirect";
 
 export default function Pricing() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<string>("");
-  const { user, requiresPhoneVerification } = useAuth();
+  const { user, requiresMfaEnrollment } = useAuth();
   const { data: plans, isLoading } = useSubscriptionPlans();
   const createCheckoutSession = useCreateCheckoutSession();
   const router = useRouter();
 
   // Handle post-authentication checkout
   useEffect(() => {
-    if (user && !requiresPhoneVerification && typeof window !== 'undefined') {
+    if (user && !requiresMfaEnrollment && typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const planParam = urlParams.get('plan');
       const checkoutParam = urlParams.get('checkout');
@@ -39,7 +39,7 @@ export default function Pricing() {
         });
       }
     }
-  }, [createCheckoutSession, requiresPhoneVerification, user]);
+  }, [createCheckoutSession, requiresMfaEnrollment, user]);
 
   const getPlanPrice = (planCode: string) => {
     switch (planCode) {
@@ -91,12 +91,12 @@ export default function Pricing() {
       
       setPendingPlan(redirectUrl);
       setIsAuthModalOpen(true);
-    } else if (requiresPhoneVerification) {
+    } else if (requiresMfaEnrollment) {
       const redirectUrl = planCode === 'free'
         ? '/dashboard'
         : `/pricing?plan=${planCode}&checkout=true`;
 
-      router.push(buildPhoneVerificationRedirect(redirectUrl));
+      router.push(buildMfaEnrollmentRedirect(redirectUrl));
     } else {
       if (planCode === 'free') {
         // Free plan - redirect to dashboard

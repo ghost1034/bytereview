@@ -37,7 +37,7 @@ export default function Header() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isProductsOpen, setIsProductsOpen] = useState(false);
   const productsRef = useRef<HTMLDivElement>(null);
-  const { user, loading, requiresPhoneVerification, signOut } = useAuth();
+  const { user, loading, requiresMfaEnrollment, signOut } = useAuth();
 
   // Close products dropdown on outside click
   useEffect(() => {
@@ -52,8 +52,8 @@ export default function Header() {
     }
   }, [isProductsOpen]);
 
-  const primaryAuthenticatedHref = requiresPhoneVerification ? "/complete-signup" : "/dashboard";
-  const primaryAuthenticatedLabel = requiresPhoneVerification ? "Complete Signup" : "Dashboard";
+  const primaryAuthenticatedHref = requiresMfaEnrollment ? "/complete-signup" : "/dashboard";
+  const primaryAuthenticatedLabel = requiresMfaEnrollment ? "Secure Sign-In" : "Dashboard";
 
   const handleAuthAction = () => {
     if (user) {

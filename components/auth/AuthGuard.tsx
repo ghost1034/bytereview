@@ -1,8 +1,7 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
-import { buildPhoneVerificationRedirect } from '@/lib/auth-redirect'
-import { hasVerifiedPhone } from '@/lib/firebase'
+import { buildMfaEnrollmentRedirect } from '@/lib/auth-redirect'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
@@ -10,17 +9,17 @@ import { Loader2 } from 'lucide-react'
 interface AuthGuardProps {
   children: React.ReactNode
   requireAuth?: boolean // true = require authentication, false = require no authentication
-  requireVerifiedPhone?: boolean
+  requireMfaEnrollment?: boolean
   redirectTo?: string
 }
 
 export default function AuthGuard({ 
   children, 
   requireAuth = true, 
-  requireVerifiedPhone = requireAuth,
+  requireMfaEnrollment = requireAuth,
   redirectTo 
 }: AuthGuardProps) {
-  const { user, loading } = useAuth()
+  const { loading, requiresMfaEnrollment, user } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
 
@@ -34,13 +33,13 @@ export default function AuthGuard({
     if (requireAuth && !user) {
       // User must be authenticated but isn't
       router.push(redirectTo || '/')
-    } else if (requireAuth && requireVerifiedPhone && user && !hasVerifiedPhone(user)) {
-      router.push(buildPhoneVerificationRedirect(currentPath))
+    } else if (requireAuth && requireMfaEnrollment && user && requiresMfaEnrollment) {
+      router.push(buildMfaEnrollmentRedirect(currentPath))
     } else if (!requireAuth && user) {
       // User must NOT be authenticated but is
       router.push(redirectTo || '/dashboard')
     }
-  }, [loading, pathname, redirectTo, requireAuth, requireVerifiedPhone, router, user])
+  }, [loading, pathname, redirectTo, requireAuth, requireMfaEnrollment, requiresMfaEnrollment, router, user])
 
   // Show loading while checking auth state
   if (loading) {
@@ -65,11 +64,11 @@ export default function AuthGuard({
     )
   }
 
-  if (requireAuth && requireVerifiedPhone && user && !hasVerifiedPhone(user)) {
+  if (requireAuth && requireMfaEnrollment && user && requiresMfaEnrollment) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600">Redirecting to phone verification...</p>
+          <p className="text-gray-600">Redirecting to sign-in security setup...</p>
         </div>
       </div>
     )
