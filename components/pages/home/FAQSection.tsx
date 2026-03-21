@@ -43,17 +43,20 @@ const faqs = [
 
 export default function FAQSection({ onGetStarted }: FAQSectionProps) {
   return (
-    <section className="py-20 bg-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-24 bg-white">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
-          className="text-center mb-16"
+          className="text-center mb-12"
           variants={fadeInUp}
           initial="hidden"
           whileInView="visible"
           viewport={viewportOnce}
         >
+          <span className="inline-block text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-full mb-4">
+            FAQ
+          </span>
           <h2 className="text-4xl font-bold text-gray-900 mb-4">Frequently Asked Questions</h2>
-          <p className="text-xl text-gray-600">Everything you need to know about CPAAutomation</p>
+          <p className="text-lg text-gray-600">Everything you need to know about CPAAutomation</p>
         </motion.div>
 
         <motion.div
@@ -62,13 +65,17 @@ export default function FAQSection({ onGetStarted }: FAQSectionProps) {
           whileInView="visible"
           viewport={viewportOnce}
         >
-          <Accordion type="single" collapsible className="w-full">
+          <Accordion type="single" collapsible className="w-full space-y-2">
             {faqs.map((faq, i) => (
-              <AccordionItem key={i} value={`faq-${i}`}>
-                <AccordionTrigger className="text-left text-base font-semibold">
+              <AccordionItem
+                key={i}
+                value={`faq-${i}`}
+                className="bg-gray-50 rounded-xl border border-gray-200 px-5 data-[state=open]:bg-white data-[state=open]:shadow-sm transition-colors"
+              >
+                <AccordionTrigger className="text-left text-base font-semibold text-gray-900 hover:no-underline py-4">
                   {faq.question}
                 </AccordionTrigger>
-                <AccordionContent className="text-gray-600">
+                <AccordionContent className="text-gray-600 pb-4 leading-relaxed">
                   {faq.answer}
                 </AccordionContent>
               </AccordionItem>
@@ -84,9 +91,9 @@ export default function FAQSection({ onGetStarted }: FAQSectionProps) {
           viewport={viewportOnce}
         >
           <p className="text-gray-600 mb-6">Still have questions? We&apos;re here to help.</p>
-          <div className="flex justify-center space-x-4">
+          <div className="flex justify-center gap-4">
             <Link href="/contact">
-              <Button variant="outline">Contact Support</Button>
+              <Button variant="outline" className="border-gray-300">Contact Support</Button>
             </Link>
             <Button onClick={onGetStarted} className="bg-lido-green hover:bg-lido-green-dark text-white">
               Start Free Plan →
