@@ -82,6 +82,20 @@ body {
 }
 
 @layer components {
+  /* Brand button background utilities (used as bare class names on buttons) */
+  .lido-blue {
+    background-color: #2563EB;
+  }
+  .lido-blue-dark {
+    background-color: #1D4ED8;
+  }
+  .lido-green {
+    background-color: #16A34A;
+  }
+  .lido-green-dark {
+    background-color: #15803D;
+  }
+
   .ProseMirror h1 {
     margin: 1.5rem 0 0.75rem;
     font-size: 2rem;

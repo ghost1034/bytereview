@@ -1,4 +1,4 @@
-import Home from '@/components/pages/home'
+import Home from '@/components/pages/home/index'
 import { generateMetadata } from '@/lib/metadata'
 import { pageMetadata } from '@/lib/metadata'
 

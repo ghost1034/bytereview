@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -n \"lido-\" /Users/ianstewart/bytereview/components/pages/*.tsx)",
+      "Bash(wc:*)",
+      "Bash(ls -la /Users/ianstewart/bytereview/app/\\\\\\(general\\\\\\)/)",
+      "Bash(npx next:*)"
+    ]
+  }
+}
