@@ -38,19 +38,8 @@ export const hoverLift = {
   whileTap: { scale: 0.98 },
 };
 
-// ── Count-up helper ───────────────────────────────────────────────
-// Usage: <CountUp target={95} suffix="%" />
-// (implemented as a component in the hero; this is the easing config)
-export const countUpTransition = {
-  duration: 2,
-  ease: "easeOut" as const,
-};
-
-// ── Section wrapper props (convenience) ───────────────────────────
-// Spread onto a <motion.section> to get standard fade-in-up on scroll
-export const sectionReveal = {
-  variants: fadeInUp,
-  initial: "hidden" as const,
-  whileInView: "visible" as const,
-  viewport: viewportOnce,
+// ── Scale + fade in (for standalone visuals, mockups) ─────────────
+export const scaleIn: Variants = {
+  hidden: { opacity: 0, scale: 0.95 },
+  visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: "easeOut" } },
 };

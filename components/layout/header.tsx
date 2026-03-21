@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -36,7 +36,21 @@ export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isProductsOpen, setIsProductsOpen] = useState(false);
+  const productsRef = useRef<HTMLDivElement>(null);
   const { user, loading, requiresPhoneVerification, signOut } = useAuth();
+
+  // Close products dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (productsRef.current && !productsRef.current.contains(e.target as Node)) {
+        setIsProductsOpen(false);
+      }
+    }
+    if (isProductsOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isProductsOpen]);
 
   const primaryAuthenticatedHref = requiresPhoneVerification ? "/complete-signup" : "/dashboard";
   const primaryAuthenticatedLabel = requiresPhoneVerification ? "Complete Signup" : "Dashboard";
@@ -76,6 +90,7 @@ export default function Header() {
 
               {/* Products dropdown */}
               <div
+                ref={productsRef}
                 className="relative"
                 onMouseEnter={() => setIsProductsOpen(true)}
                 onMouseLeave={() => setIsProductsOpen(false)}

@@ -109,9 +109,9 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
                 Get Started Free →
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 onClick={scrollToDemo}
-                className="border-white/20 text-white hover:bg-white/10 px-8 py-3 text-base w-full sm:w-auto"
+                className="border border-white/20 text-white hover:bg-white/10 hover:text-white px-8 py-3 text-base w-full sm:w-auto"
               >
                 <Play className="w-4 h-4 mr-2" />
                 Watch Demo

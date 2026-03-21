@@ -1,21 +1,25 @@
 'use client'
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthModal from "@/components/auth/AuthModal";
 
+// Above the fold — load immediately
 import HeroSection from "./HeroSection";
 import ProductSuite from "./ProductSuite";
-import ExtractionFeatures from "./ExtractionFeatures";
-import AutomationFlow from "./AutomationFlow";
-import InkwiseShowcase from "./InkwiseShowcase";
-import ChronaShowcase from "./ChronaShowcase";
-import RoadmapPreview from "./RoadmapPreview";
-import Testimonials from "./Testimonials";
-import SecurityTrust from "./SecurityTrust";
-import FAQSection from "./FAQSection";
-import CTABanner from "./CTABanner";
+
+// Below the fold — lazy load
+const ExtractionFeatures = dynamic(() => import("./ExtractionFeatures"));
+const AutomationFlow = dynamic(() => import("./AutomationFlow"));
+const InkwiseShowcase = dynamic(() => import("./InkwiseShowcase"));
+const ChronaShowcase = dynamic(() => import("./ChronaShowcase"));
+const RoadmapPreview = dynamic(() => import("./RoadmapPreview"));
+const Testimonials = dynamic(() => import("./Testimonials"));
+const SecurityTrust = dynamic(() => import("./SecurityTrust"));
+const FAQSection = dynamic(() => import("./FAQSection"));
+const CTABanner = dynamic(() => import("./CTABanner"));
 
 export default function Home() {
   const router = useRouter();

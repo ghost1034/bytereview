@@ -192,8 +192,8 @@ export default function ExtractionFeatures({ onGetStarted }: ExtractionFeaturesP
                 <div className="w-3 h-3 bg-green-400 rounded-full" />
                 <span className="text-sm text-gray-500 ml-2">Investment Statement Extract</span>
               </div>
-              <div className="p-4">
-                <div className="grid grid-cols-6 gap-1.5 text-xs">
+              <div className="p-4 overflow-x-auto">
+                <div className="grid grid-cols-6 gap-1.5 text-xs min-w-[480px]">
                   {["Portfolio Co.", "Quarter", "Revenue", "EBITDA", "Growth %", "Valuation"].map((h) => (
                     <div key={h} className="bg-blue-50 p-2 rounded text-center font-semibold text-blue-800 truncate">{h}</div>
                   ))}
