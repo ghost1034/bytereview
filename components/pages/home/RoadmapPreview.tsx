@@ -7,30 +7,51 @@ import { fadeInUp, staggerContainer, staggerChild, viewportOnce } from "@/lib/an
 const milestones = [
   {
     icon: Bot,
-    color: "bg-green-100 text-green-600 border-green-200",
-    accentLine: "bg-green-500",
+    iconBg: "bg-gradient-to-br from-green-100 to-green-50",
+    iconText: "text-green-600",
+    accentBorder: "border-l-green-500",
     title: "AccountingClaw / FinanceClaw / LegalClaw",
     description: "Hundreds of pre-built AI skills for regulated environments. One-click setup powered by OpenClaw, an open-source AI agent framework.",
+    capabilities: [
+      "Automated bank reconciliations",
+      "Contract clause extraction and review",
+      "Tax form preparation and validation",
+      "Regulatory compliance checks",
+    ],
   },
   {
     icon: BarChart3,
-    color: "bg-red-100 text-red-600 border-red-200",
-    accentLine: "bg-red-500",
+    iconBg: "bg-gradient-to-br from-red-100 to-red-50",
+    iconText: "text-red-600",
+    accentBorder: "border-l-red-500",
     title: "AI Analysis Suite",
     description: "Automated reconciliation, flux analysis, amortization schedules, and distribution waterfalls.",
+    capabilities: [
+      "Multi-period flux analysis with variance explanations",
+      "Amortization schedule generation",
+      "Distribution waterfall calculations",
+      "Automated reconciliation matching",
+    ],
   },
   {
     icon: FolderKanban,
-    color: "bg-teal-100 text-teal-600 border-teal-200",
-    accentLine: "bg-teal-500",
+    iconBg: "bg-gradient-to-br from-teal-100 to-teal-50",
+    iconText: "text-teal-600",
+    accentBorder: "border-l-teal-500",
     title: "AI Productivity Suite",
     description: "AI-powered project management, month-end checklists, slide decks, and expense reimbursement.",
+    capabilities: [
+      "Month-end close checklists with progress tracking",
+      "AI-generated slide presentations from data",
+      "Expense reimbursement processing",
+      "Project timeline and task management",
+    ],
   },
 ];
 
 export default function RoadmapPreview() {
   return (
-    <section id="roadmap" className="py-20 bg-white">
+    <section id="roadmap" className="py-24 bg-white">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           className="text-center mb-16"
@@ -39,30 +60,46 @@ export default function RoadmapPreview() {
           whileInView="visible"
           viewport={viewportOnce}
         >
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">What&apos;s Coming Next</h2>
-          <p className="text-xl text-gray-600">We&apos;re building the tools professional services teams have been waiting for.</p>
+          <span className="inline-block text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-full mb-4">
+            Roadmap
+          </span>
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">What&apos;s Coming Next</h2>
+          <p className="text-xl text-gray-600">
+            We&apos;re building the tools professional services teams have been waiting for.
+          </p>
         </motion.div>
 
         <motion.div
-          className="relative space-y-8"
+          className="relative space-y-6"
           variants={staggerContainer}
           initial="hidden"
           whileInView="visible"
           viewport={viewportOnce}
         >
           {/* Vertical timeline line */}
-          <div className="absolute left-6 top-0 bottom-0 w-px bg-gray-200 hidden md:block" />
+          <div className="absolute left-[23px] top-6 bottom-6 w-px bg-gradient-to-b from-green-300 via-red-300 to-teal-300 hidden md:block" />
 
           {milestones.map((m) => {
             const Icon = m.icon;
             return (
-              <motion.div key={m.title} className="flex items-start space-x-6 relative" variants={staggerChild}>
-                <div className={`relative z-10 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 border ${m.color}`}>
-                  <Icon className="w-6 h-6" />
+              <motion.div key={m.title} className="flex items-start gap-6 relative" variants={staggerChild}>
+                {/* Timeline dot */}
+                <div className={`relative z-10 w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${m.iconBg} shadow-sm`}>
+                  <Icon className={`w-6 h-6 ${m.iconText}`} />
                 </div>
-                <div className="pt-1">
-                  <h3 className="text-lg font-bold text-gray-900 mb-1">{m.title}</h3>
-                  <p className="text-gray-600">{m.description}</p>
+
+                {/* Content card */}
+                <div className={`flex-1 bg-gray-50 rounded-xl border border-gray-200 border-l-4 ${m.accentBorder} p-6`}>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">{m.title}</h3>
+                  <p className="text-gray-600 mb-4">{m.description}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {m.capabilities.map((cap) => (
+                      <div key={cap} className="flex items-start space-x-2 text-sm">
+                        <div className="w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0 mt-1.5" />
+                        <span className="text-gray-500">{cap}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </motion.div>
             );
