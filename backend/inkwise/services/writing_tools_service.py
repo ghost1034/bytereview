@@ -4,8 +4,16 @@ from __future__ import annotations
 
 # pyright: reportAttributeAccessIssue=false, reportGeneralTypeIssues=false, reportArgumentType=false, reportOptionalMemberAccess=false
 
+from dataclasses import dataclass
+
 from inkwise.schemas import InkwisePredictionRequest, InkwiseWritingToolRequest
 from models.inkwise_models import InkwiseDocument
+
+
+@dataclass(frozen=True)
+class NormalizedPredictionResult:
+    text: str
+    reason: str | None = None
 
 
 def build_writing_tool_prompt(*, body: InkwiseWritingToolRequest, document: InkwiseDocument | None) -> str:
@@ -122,11 +130,11 @@ def build_prediction_prompt(*, body: InkwisePredictionRequest, document: Inkwise
     parts.append(f"Document title: {document.title}")
     if current_block:
         parts.append("")
-        parts.append("Current block:")
+        parts.append("Current cursor block context:")
         parts.append(current_block)
 
     parts.append("")
-    parts.append("Text before current block:")
+    parts.append("Text before cursor:")
     parts.append(before_text)
     if after_text:
         parts.append("")
@@ -185,11 +193,11 @@ def build_grounded_prediction_prompt(
     parts.append(f"Document title: {document.title}")
     if current_block:
         parts.append("")
-        parts.append("Current block:")
+        parts.append("Current cursor block context:")
         parts.append(current_block)
 
     parts.append("")
-    parts.append("Text before current block:")
+    parts.append("Text before cursor:")
     parts.append(before_text)
     if after_text:
         parts.append("")
@@ -203,24 +211,28 @@ def build_grounded_prediction_prompt(
     return "\n".join(parts).strip() + "\n"
 
 
-def normalize_prediction_text(*, raw_text: str, body: InkwisePredictionRequest) -> str:
+def normalize_prediction_result(*, raw_text: str, body: InkwisePredictionRequest) -> NormalizedPredictionResult:
     text = (raw_text or "").replace("\r\n", "\n").replace("\r", "\n")
     text = text.replace("```", "").strip("\n\t")
 
     lines = [line for line in text.split("\n") if line.strip()]
     if not lines:
-        return ""
+        return NormalizedPredictionResult(text="", reason="empty_response")
 
     suggestion = lines[0][:240].rstrip()
     if not suggestion:
-        return ""
+        return NormalizedPredictionResult(text="", reason="empty_first_line")
 
     before_tail = body.before_text[-200:].strip()
     if before_tail and suggestion.strip() == before_tail:
-        return ""
+        return NormalizedPredictionResult(text="", reason="duplicate_before_context")
 
     after_head = (body.after_text or "")[:200].strip()
     if after_head and suggestion.strip() == after_head:
-        return ""
+        return NormalizedPredictionResult(text="", reason="duplicate_after_context")
 
-    return suggestion
+    return NormalizedPredictionResult(text=suggestion, reason=None)
+
+
+def normalize_prediction_text(*, raw_text: str, body: InkwisePredictionRequest) -> str:
+    return normalize_prediction_result(raw_text=raw_text, body=body).text

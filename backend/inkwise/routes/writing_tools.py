@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import uuid
 from collections.abc import AsyncGenerator
 from typing import Any, cast
@@ -34,11 +35,12 @@ from inkwise.services.writing_tools_service import (
     build_prediction_prompt,
     build_writing_tool_prompt,
     build_writing_tool_retrieval_query,
-    normalize_prediction_text,
+    normalize_prediction_result,
 )
 from inkwise.settings import get_inkwise_settings
 
 router = APIRouter(tags=["inkwise-writing-tools"])
+logger = logging.getLogger(__name__)
 document_service = InkwiseDocumentService()
 document_source_service = InkwiseDocumentSourceService()
 retrieval_service = InkwiseRetrievalService()
@@ -261,6 +263,11 @@ async def create_prediction(
                     evidence_pack=build_evidence_pack(evidence),
                 )
         except Exception:
+            logger.warning(
+                "Inkwise prediction retrieval failed; falling back to ungrounded prediction",
+                extra={"document_id": str(document_id), "attempt_id": str(attempt.id)},
+                exc_info=True,
+            )
             retrieval_run_id = None
             evidence = []
             grounded = False
@@ -294,7 +301,18 @@ async def create_prediction(
         generation_attempt_service.fail_attempt(db, attempt_id=cast(uuid.UUID, attempt.id), message=str(exc), retrieval_run_id=retrieval_run_id)
         raise HTTPException(status_code=502, detail=f"Prediction provider error: {exc}") from exc
 
-    suggestion_text = normalize_prediction_text(raw_text=result.text, body=body)
+    normalized_prediction = normalize_prediction_result(raw_text=result.text, body=body)
+    suggestion_text = normalized_prediction.text
+    if not suggestion_text:
+        logger.info(
+            "Inkwise prediction returned no suggestion after normalization",
+            extra={
+                "document_id": str(document_id),
+                "attempt_id": str(attempt.id),
+                "grounded": grounded,
+                "reason": normalized_prediction.reason,
+            },
+        )
     generation_attempt_service.complete_attempt(
         db,
         attempt_id=cast(uuid.UUID, attempt.id),
@@ -305,6 +323,7 @@ async def create_prediction(
             "grounded": grounded,
             "evidence_count": len(evidence),
             "multimodal_pdf_evidence_ids": multimodal_attached_evidence_ids,
+            "normalization_reason": normalized_prediction.reason,
         },
     )
     return InkwisePredictionResponse(

@@ -29,9 +29,23 @@ import {
   useInkwiseDocumentSources,
   useInkwiseSources,
 } from '@/hooks/useInkwise'
-import { apiClient, InkwiseChatMessage, InkwiseCitation, InkwiseDocumentRevision, InkwisePredictionResponse, InkwiseSseEvent } from '@/lib/api'
+import {
+  ApiError,
+  apiClient,
+  InkwiseChatMessage,
+  InkwiseCitation,
+  InkwiseDocumentRevision,
+  InkwisePredictionRequest,
+  InkwisePredictionResponse,
+  InkwiseSseEvent,
+} from '@/lib/api'
 import { markdownToSafeHtml } from '@/lib/inkwise-markdown'
 import { cn } from '@/lib/utils'
+
+const MAX_PREDICTION_BEFORE_TEXT = 12000
+const MAX_PREDICTION_AFTER_TEXT = 4000
+const MAX_PREDICTION_BLOCK_TEXT = 4000
+const PREDICTION_DEBOUNCE_MS = 900
 
 type StreamState = {
   text: string
@@ -48,8 +62,9 @@ type PredictionState = {
 
 type PredictionContext = {
   beforeText: string
-  currentBlockText: string
   afterText: string
+  beforeCursorInBlock: string
+  afterCursorInBlock: string
 }
 
 const assistantMarkdownClassName =
@@ -104,12 +119,31 @@ export default function InkwiseDocumentPage() {
   const predictionTimeoutRef = useRef<number | null>(null)
   const predictionSeqRef = useRef(0)
   const suppressPredictionUntilRef = useRef(0)
+  const predictionAbortRef = useRef<AbortController | null>(null)
 
-  const suppressPredictions = (durationMs = 1500) => {
-    suppressPredictionUntilRef.current = Date.now() + durationMs
+  const clearPredictionTimeout = () => {
+    if (predictionTimeoutRef.current) {
+      window.clearTimeout(predictionTimeoutRef.current)
+      predictionTimeoutRef.current = null
+    }
+  }
+
+  const abortPredictionRequest = () => {
+    predictionAbortRef.current?.abort()
+    predictionAbortRef.current = null
+  }
+
+  const clearPrediction = () => {
+    clearPredictionTimeout()
+    abortPredictionRequest()
     predictionSeqRef.current += 1
     setPredictionLoading(false)
     setPredictionState(null)
+  }
+
+  const suppressPredictions = (durationMs = 1500) => {
+    suppressPredictionUntilRef.current = Date.now() + durationMs
+    clearPrediction()
   }
 
   useEffect(() => {
@@ -417,9 +451,13 @@ export default function InkwiseDocumentPage() {
 
   useEffect(() => {
     if (!editor || !documentQuery.data) return
-    if (predictionTimeoutRef.current) {
-      window.clearTimeout(predictionTimeoutRef.current)
-      predictionTimeoutRef.current = null
+    clearPredictionTimeout()
+    abortPredictionRequest()
+
+    if (!editor.isFocused || Boolean((editor.view as { composing?: boolean }).composing)) {
+      setPredictionLoading(false)
+      setPredictionState(null)
+      return
     }
 
     const { empty } = editor.state.selection
@@ -437,42 +475,43 @@ export default function InkwiseDocumentPage() {
 
     const context = getPredictionContext(editor)
     const beforeText = context.beforeText
-    const afterText = context.afterText
-    const currentBlockText = context.currentBlockText
 
-    if (beforeText.length < 20) {
+    if (!beforeText.trim()) {
       setPredictionLoading(false)
       setPredictionState(null)
       return
     }
 
+    const requestBody = buildPredictionRequest(context)
+
     const seq = ++predictionSeqRef.current
     predictionTimeoutRef.current = window.setTimeout(async () => {
       if (seq !== predictionSeqRef.current) return
+      const controller = new AbortController()
+      predictionAbortRef.current = controller
       setPredictionLoading(true)
       try {
-        const prediction = await apiClient.createInkwisePrediction(documentId, {
-          before_text: beforeText,
-          after_text: afterText || undefined,
-          current_block_text: currentBlockText || undefined,
-        })
+        const prediction = await apiClient.createInkwisePrediction(documentId, requestBody, { signal: controller.signal })
         if (seq === predictionSeqRef.current) {
           setPredictionLoading(false)
           setPredictionState(normalizePredictionState(prediction))
         }
-      } catch {
+      } catch (error) {
+        if (isAbortError(error)) return
+        logPredictionError(error)
         if (seq === predictionSeqRef.current) {
           setPredictionLoading(false)
           setPredictionState(null)
         }
+      } finally {
+        if (predictionAbortRef.current === controller) {
+          predictionAbortRef.current = null
+        }
       }
-    }, 900)
+    }, PREDICTION_DEBOUNCE_MS)
 
     return () => {
-      if (predictionTimeoutRef.current) {
-        window.clearTimeout(predictionTimeoutRef.current)
-        predictionTimeoutRef.current = null
-      }
+      clearPredictionTimeout()
       if (seq === predictionSeqRef.current) {
         setPredictionLoading(false)
       }
@@ -593,10 +632,12 @@ export default function InkwiseDocumentPage() {
                 editor.chain().focus().insertContent(predictionState.text).run()
               }}
               onDismissPrediction={() => {
-                setPredictionLoading(false)
-                setPredictionState(null)
+                clearPrediction()
               }}
-              onBlur={() => saveDocument.mutate()}
+              onBlur={() => {
+                clearPrediction()
+                saveDocument.mutate()
+              }}
               onChange={(value) => {
                 setContentJson(value.json)
                 setContentHtml(value.html)
@@ -1069,10 +1110,56 @@ function getPredictionContext(editor: TiptapEditor): PredictionContext {
   const { from } = state.selection
   const blockStart = state.selection.$from.start()
   const blockEnd = state.selection.$from.end()
+  const beforeCursorInBlock = state.doc.textBetween(blockStart, from, '\n', '\n')
+  const afterCursorInBlock = state.doc.textBetween(from, blockEnd, '\n', '\n')
 
   return {
-    beforeText: state.doc.textBetween(0, blockStart, '\n', '\n').trim(),
-    currentBlockText: state.selection.$from.parent.textContent?.trim() || '',
-    afterText: state.doc.textBetween(blockEnd, state.doc.content.size, '\n', '\n').trim(),
+    beforeText: state.doc.textBetween(0, from, '\n', '\n'),
+    afterText: state.doc.textBetween(from, state.doc.content.size, '\n', '\n'),
+    beforeCursorInBlock,
+    afterCursorInBlock,
   }
+}
+
+function buildPredictionRequest(context: PredictionContext): InkwisePredictionRequest {
+  return {
+    before_text: context.beforeText.slice(-MAX_PREDICTION_BEFORE_TEXT),
+    after_text: context.afterText.slice(0, MAX_PREDICTION_AFTER_TEXT) || undefined,
+    current_block_text:
+      truncateAroundCursor(context.beforeCursorInBlock, context.afterCursorInBlock, MAX_PREDICTION_BLOCK_TEXT) || undefined,
+  }
+}
+
+function truncateAroundCursor(beforeCursor: string, afterCursor: string, maxChars: number): string {
+  const safeMaxChars = Math.max(1, maxChars)
+  const fullText = `${beforeCursor}${afterCursor}`
+  if (fullText.length <= safeMaxChars) return fullText
+
+  const initialHeadBudget = Math.min(beforeCursor.length, Math.ceil(safeMaxChars / 2))
+  const initialTailBudget = Math.min(afterCursor.length, safeMaxChars - initialHeadBudget)
+  const remainingBudget = Math.max(0, safeMaxChars - initialHeadBudget - initialTailBudget)
+  const extraHeadBudget = Math.min(beforeCursor.length - initialHeadBudget, remainingBudget)
+  const finalHeadBudget = initialHeadBudget + extraHeadBudget
+  const finalTailBudget = Math.min(afterCursor.length, safeMaxChars - finalHeadBudget)
+
+  return `${beforeCursor.slice(-finalHeadBudget)}${afterCursor.slice(0, finalTailBudget)}`
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError'
+}
+
+function logPredictionError(error: unknown): void {
+  if (process.env.NODE_ENV === 'production' || isAbortError(error)) return
+
+  if (error instanceof ApiError) {
+    console.warn('Inkwise prediction request failed', {
+      status: error.status,
+      message: error.message,
+      body: error.body,
+    })
+    return
+  }
+
+  console.warn('Inkwise prediction request failed', error)
 }

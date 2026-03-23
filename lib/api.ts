@@ -944,9 +944,14 @@ export class ApiClient {
     return this.streamSse(`/api/inkwise/chat/threads/${threadId}/messages/${messageId}:retry`, data, onEvent, opts)
   }
 
-  async createInkwisePrediction(documentId: string, data: InkwisePredictionRequest): Promise<InkwisePredictionResponse> {
+  async createInkwisePrediction(
+    documentId: string,
+    data: InkwisePredictionRequest,
+    opts?: { signal?: AbortSignal }
+  ): Promise<InkwisePredictionResponse> {
     return this.request(`/api/inkwise/documents/${documentId}/predictions`, {
       method: 'POST',
+      signal: opts?.signal,
       body: JSON.stringify(data),
     })
   }
