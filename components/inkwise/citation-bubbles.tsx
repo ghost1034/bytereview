@@ -11,9 +11,11 @@ import { apiClient, InkwiseCitation, InkwiseSource } from '@/lib/api'
 export function InkwiseCitationBubbles({
   citations,
   bubbleClassName,
+  onSheetOpenChange,
 }: {
   citations: InkwiseCitation[]
   bubbleClassName?: string
+  onSheetOpenChange?: (open: boolean) => void
 }) {
   const items = useMemo(() => citations.filter((citation) => Boolean(citation?.evidence_id || citation?.excerpt)), [citations])
   const [open, setOpen] = useState(false)
@@ -67,6 +69,7 @@ export function InkwiseCitationBubbles({
   if (!items.length) return null
 
   const goTo = (index: number) => {
+    onSheetOpenChange?.(true)
     setSelectedIndex(index)
     setOpen(true)
   }
@@ -78,6 +81,7 @@ export function InkwiseCitationBubbles({
           <button
             key={`${citation.evidence_id ?? index}-${index}`}
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => goTo(index)}
             className={bubbleClassName || 'rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-700 transition hover:bg-emerald-200'}
           >
@@ -86,7 +90,7 @@ export function InkwiseCitationBubbles({
         ))}
       </div>
 
-      <Sheet open={open} onOpenChange={setOpen}>
+      <Sheet open={open} onOpenChange={(value) => { setOpen(value); onSheetOpenChange?.(value) }}>
         <SheetContent side="right" className="w-full overflow-hidden sm:max-w-2xl">
           {selected ? (
             <div className="flex h-full flex-col">

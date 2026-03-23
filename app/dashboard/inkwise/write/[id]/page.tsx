@@ -1,7 +1,7 @@
 'use client'
 
 import type { Editor as TiptapEditor, JSONContent } from '@tiptap/core'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Download, History, LibraryBig, Loader2, MessageSquarePlus, MessageSquareText, PanelRightClose, PanelRightOpen, Save, Settings2, Sparkles, Unplug, Wand2 } from 'lucide-react'
@@ -120,6 +120,7 @@ export default function InkwiseDocumentPage() {
   const predictionSeqRef = useRef(0)
   const suppressPredictionUntilRef = useRef(0)
   const predictionAbortRef = useRef<AbortController | null>(null)
+  const citationSheetOpenRef = useRef(false)
 
   const clearPredictionTimeout = () => {
     if (predictionTimeoutRef.current) {
@@ -145,6 +146,10 @@ export default function InkwiseDocumentPage() {
     suppressPredictionUntilRef.current = Date.now() + durationMs
     clearPrediction()
   }
+
+  const onCitationSheetOpenChange = useCallback((open: boolean) => {
+    citationSheetOpenRef.current = open
+  }, [])
 
   useEffect(() => {
     if (!documentQuery.data) return
@@ -635,7 +640,9 @@ export default function InkwiseDocumentPage() {
                 clearPrediction()
               }}
               onBlur={() => {
-                clearPrediction()
+                if (!citationSheetOpenRef.current) {
+                  clearPrediction()
+                }
                 saveDocument.mutate()
               }}
               onChange={(value) => {
@@ -657,7 +664,7 @@ export default function InkwiseDocumentPage() {
             {predictionState?.grounded && predictionState.evidence.length ? (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 px-4 py-3">
                 <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Prediction Evidence</div>
-                <InkwiseCitationBubbles citations={predictionState.evidence} />
+                <InkwiseCitationBubbles citations={predictionState.evidence} onSheetOpenChange={onCitationSheetOpenChange} />
               </div>
             ) : null}
           </div>
