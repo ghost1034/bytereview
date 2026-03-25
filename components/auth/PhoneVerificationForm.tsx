@@ -1,6 +1,6 @@
 'use client'
 
-import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { multiFactor, PhoneAuthProvider, PhoneMultiFactorGenerator, RecaptchaVerifier } from 'firebase/auth'
 import { Loader2, MailCheck } from 'lucide-react'
 
@@ -54,6 +54,18 @@ function getPhoneVerificationErrorMessage(error: unknown): string {
   }
 }
 
+function shouldResetRecaptchaVerifier(error: unknown): boolean {
+  const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
+  const message = error instanceof Error ? error.message : ''
+
+  return (
+    code === 'auth/captcha-check-failed'
+    || code === 'auth/invalid-app-credential'
+    || code === 'auth/missing-app-credential'
+    || /reCAPTCHA has already been rendered in this element/i.test(message)
+  )
+}
+
 export default function PhoneVerificationForm({
   mode = 'enroll',
   initialPhoneNumber = '',
@@ -81,10 +93,11 @@ export default function PhoneVerificationForm({
   const [isVerifyingCode, setIsVerifyingCode] = useState(false)
   const [isRefreshingUser, setIsRefreshingUser] = useState(false)
   const [isSendingEmailVerification, setIsSendingEmailVerification] = useState(false)
+  const [recaptchaContainerKey, setRecaptchaContainerKey] = useState(0)
 
   const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null)
+  const recaptchaContainerRef = useRef<HTMLDivElement | null>(null)
   const hasAutoSentRef = useRef(false)
-  const recaptchaElementId = useId().replace(/:/g, '-')
   const currentUser = auth.currentUser
   const needsEmailVerification = mode === 'enroll' && !!currentUser && !currentUser.emailVerified
 
@@ -94,22 +107,51 @@ export default function PhoneVerificationForm({
     )
   }, [initialPhoneNumber])
 
-  useEffect(() => {
-    const verifier = new RecaptchaVerifier(auth, recaptchaElementId, {
+  const disposeRecaptchaVerifier = useCallback(() => {
+    recaptchaVerifierRef.current?.clear()
+    recaptchaVerifierRef.current = null
+  }, [])
+
+  const resetRecaptchaVerifier = useCallback(() => {
+    disposeRecaptchaVerifier()
+    setRecaptchaContainerKey((currentKey) => currentKey + 1)
+  }, [disposeRecaptchaVerifier])
+
+  const ensureRecaptchaVerifier = useCallback(async () => {
+    if (recaptchaVerifierRef.current) {
+      return recaptchaVerifierRef.current
+    }
+
+    const container = recaptchaContainerRef.current
+    if (!container) {
+      throw new Error('Phone verification is still loading. Please try again in a moment.')
+    }
+
+    const verifier = new RecaptchaVerifier(auth, container, {
       size: 'invisible',
     })
 
     recaptchaVerifierRef.current = verifier
 
-    void verifier.render().catch((renderError) => {
-      console.error('Failed to render reCAPTCHA verifier', renderError)
-    })
-
-    return () => {
+    try {
+      await verifier.render()
+      return verifier
+    } catch (renderError) {
       verifier.clear()
-      recaptchaVerifierRef.current = null
+      if (recaptchaVerifierRef.current === verifier) {
+        recaptchaVerifierRef.current = null
+      }
+      setRecaptchaContainerKey((currentKey) => currentKey + 1)
+      console.error('Failed to render reCAPTCHA verifier', renderError)
+      throw new Error('Phone verification is still loading. Please try again in a moment.')
     }
-  }, [recaptchaElementId])
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      disposeRecaptchaVerifier()
+    }
+  }, [disposeRecaptchaVerifier])
 
   const sendEnrollmentCodeToPhone = useCallback(async (normalizedPhoneNumber: string) => {
     const enrollmentUser = auth.currentUser
@@ -129,10 +171,7 @@ export default function PhoneVerificationForm({
       return normalizedPhoneNumber
     }
 
-    const verifier = recaptchaVerifierRef.current
-    if (!verifier) {
-      throw new Error('Phone verification is still loading. Please try again in a moment.')
-    }
+    const verifier = await ensureRecaptchaVerifier()
 
     const multiFactorSession = await multiFactor(enrollmentUser).getSession()
     const nextVerificationId = await new PhoneAuthProvider(auth).verifyPhoneNumber({
@@ -144,14 +183,11 @@ export default function PhoneVerificationForm({
     setVerificationId(nextVerificationId)
     setVerificationCode('')
     return normalizedPhoneNumber
-  }, [completeMfaEnrollment, onVerified, redirectTo])
+  }, [completeMfaEnrollment, ensureRecaptchaVerifier, onVerified, redirectTo])
 
   const sendVerificationCode = useCallback(async () => {
     if (mode === 'signin') {
-      const verifier = recaptchaVerifierRef.current
-      if (!verifier) {
-        throw new Error('Phone verification is still loading. Please try again in a moment.')
-      }
+      const verifier = await ensureRecaptchaVerifier()
 
       const nextVerificationId = await sendMfaChallengeCode(verifier)
       setVerificationId(nextVerificationId)
@@ -165,7 +201,7 @@ export default function PhoneVerificationForm({
     }
 
     return sendEnrollmentCodeToPhone(normalizedPhoneNumber)
-  }, [mode, pendingMfaPhoneNumber, phoneValue, sendEnrollmentCodeToPhone, sendMfaChallengeCode])
+  }, [ensureRecaptchaVerifier, mode, pendingMfaPhoneNumber, phoneValue, sendEnrollmentCodeToPhone, sendMfaChallengeCode])
 
   useEffect(() => {
     if (!autoSendOnMount || hasAutoSentRef.current || needsEmailVerification) {
@@ -199,12 +235,15 @@ export default function PhoneVerificationForm({
       })
       .catch((sendError) => {
         setError(getPhoneVerificationErrorMessage(sendError))
+        if (shouldResetRecaptchaVerifier(sendError)) {
+          resetRecaptchaVerifier()
+        }
         hasAutoSentRef.current = false
       })
       .finally(() => {
         setIsSendingCode(false)
       })
-  }, [autoSendOnMount, initialPhoneNumber, mode, needsEmailVerification, pendingMfaPhoneNumber, sendVerificationCode, toast])
+  }, [autoSendOnMount, initialPhoneNumber, mode, needsEmailVerification, pendingMfaPhoneNumber, resetRecaptchaVerifier, sendVerificationCode, toast])
 
   const handleSendCode = async (event: FormEvent) => {
     event.preventDefault()
@@ -219,13 +258,9 @@ export default function PhoneVerificationForm({
       })
     } catch (sendError) {
       setError(getPhoneVerificationErrorMessage(sendError))
-      recaptchaVerifierRef.current?.clear()
-      recaptchaVerifierRef.current = new RecaptchaVerifier(auth, recaptchaElementId, {
-        size: 'invisible',
-      })
-      void recaptchaVerifierRef.current.render().catch((renderError) => {
-        console.error('Failed to rerender reCAPTCHA verifier', renderError)
-      })
+      if (shouldResetRecaptchaVerifier(sendError)) {
+        resetRecaptchaVerifier()
+      }
     } finally {
       setIsSendingCode(false)
     }
@@ -435,7 +470,7 @@ export default function PhoneVerificationForm({
         </div>
       )}
 
-      <div id={recaptchaElementId} />
+      <div key={recaptchaContainerKey} ref={recaptchaContainerRef} />
     </div>
   )
 }
