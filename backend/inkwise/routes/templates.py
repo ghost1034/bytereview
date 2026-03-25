@@ -16,6 +16,7 @@ from inkwise.schemas import (
 )
 from inkwise.services.source_service import InkwiseSourceService
 from inkwise.services.template_service import InkwiseTemplateService
+from services.user_service import DuplicatePhoneNumberError
 
 router = APIRouter(tags=["inkwise-templates"])
 template_service = InkwiseTemplateService()
@@ -59,6 +60,9 @@ def create_template(
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except DuplicatePhoneNumberError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to create template: {exc}") from exc

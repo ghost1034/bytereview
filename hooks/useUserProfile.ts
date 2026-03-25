@@ -6,7 +6,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
-import { apiClient } from '@/lib/api'
+import { apiClient, ApiError } from '@/lib/api'
 
 export interface UserProfile {
   uid: string
@@ -50,7 +50,13 @@ export function useUserProfile() {
     },
     enabled: !!firebaseUser,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: 3,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && error.status < 500) {
+        return false
+      }
+
+      return failureCount < 3
+    },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   })
 }

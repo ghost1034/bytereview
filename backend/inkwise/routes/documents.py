@@ -22,6 +22,7 @@ from inkwise.schemas import (
 from inkwise.services.document_sources import InkwiseDocumentSourceService
 from inkwise.services.document_service import InkwiseDocumentService
 from inkwise.services.source_service import InkwiseSourceService
+from services.user_service import DuplicatePhoneNumberError
 
 router = APIRouter(prefix="/documents", tags=["inkwise-documents"])
 document_service = InkwiseDocumentService()
@@ -66,6 +67,9 @@ def create_document(
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except DuplicatePhoneNumberError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to create document: {exc}") from exc

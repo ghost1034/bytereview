@@ -2,6 +2,10 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
 
+
+class PhoneAvailabilityResponse(BaseModel):
+    available: bool
+
 class UserCreate(BaseModel):
     uid: str
     email: EmailStr

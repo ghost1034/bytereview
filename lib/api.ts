@@ -71,6 +71,11 @@ export class ApiClient {
     return this.request('/api/users/me')
   }
 
+  async checkPhoneNumberAvailability(phoneNumber: string): Promise<ApiResponse<ApiPaths['/api/users/phone-availability']['get']>> {
+    const searchParams = new URLSearchParams({ phone_number: phoneNumber })
+    return this.request(`/api/users/phone-availability?${searchParams.toString()}`)
+  }
+
   async syncUserProfile(profileData?: { display_name?: string; photo_url?: string }): Promise<ApiResponse<ApiPaths['/api/users/me/sync']['post']>> {
     return this.request('/api/users/me/sync', {
       method: 'POST',

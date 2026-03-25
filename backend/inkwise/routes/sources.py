@@ -25,6 +25,7 @@ from inkwise.services.ingestion_service import InkwiseIngestionService
 from inkwise.services.source_service import InkwiseSourceService
 from inkwise.services.task_service import enqueue_ingestion_task
 from inkwise.settings import get_inkwise_settings
+from services.user_service import DuplicatePhoneNumberError
 
 router = APIRouter(prefix="/sources", tags=["inkwise-sources"])
 source_service = InkwiseSourceService()
@@ -70,6 +71,9 @@ async def create_source(
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except DuplicatePhoneNumberError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to create source: {exc}") from exc
@@ -134,6 +138,9 @@ async def init_source_upload(
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except DuplicatePhoneNumberError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except RuntimeError as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -161,6 +168,9 @@ async def capture_webpage_source(
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except DuplicatePhoneNumberError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except RuntimeError as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(exc)) from exc

@@ -12,6 +12,7 @@ import { FcGoogle } from "react-icons/fc";
 import { useAuth } from "@/contexts/AuthContext";
 import PhoneNumberInput from "@/components/auth/PhoneNumberInput";
 import { createDefaultPhoneNumberInputValue, getE164PhoneNumber, type PhoneNumberInputValue } from "@/lib/phone-number";
+import { apiClient, ApiError } from '@/lib/api'
 
 
 interface AuthModalProps {
@@ -118,6 +119,23 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
       setError("Enter a valid phone number for the selected country");
       setIsLoading(false);
       return;
+    }
+
+    try {
+      const availability = await apiClient.checkPhoneNumberAvailability(normalizedPhoneNumber)
+      if (!availability.available) {
+        setError('That phone number is already linked to another account')
+        setIsLoading(false)
+        return
+      }
+    } catch (availabilityError) {
+      if (availabilityError instanceof ApiError && availabilityError.status === 400) {
+        setError(availabilityError.message)
+      } else {
+        setError('Unable to verify that phone number right now. Please try again.')
+      }
+      setIsLoading(false)
+      return
     }
     
     try {

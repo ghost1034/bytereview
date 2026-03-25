@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
+import { apiClient, ApiError } from '@/lib/api'
 import { auth, hasEnrolledPhoneMfa } from '@/lib/firebase'
 import {
   createDefaultPhoneNumberInputValue,
@@ -24,6 +25,12 @@ interface PhoneVerificationFormProps {
   redirectTo?: string
   autoSendOnMount?: boolean
   onVerified?: () => void
+}
+
+function createPhoneAlreadyInUseError(): Error & { code: string } {
+  const error = new Error('That phone number is already linked to another account') as Error & { code: string }
+  error.code = 'app/phone-number-already-in-use'
+  return error
 }
 
 function getPhoneVerificationErrorCode(error: unknown): string {
@@ -52,6 +59,7 @@ function getPhoneVerificationErrorMessage(error: unknown): string {
     case 'auth/unsupported-first-factor':
       return 'This account was signed in with a method that cannot enable SMS sign-in codes. Sign out and sign back in with Google or email and password, then try again.'
     case 'auth/second-factor-already-in-use':
+    case 'app/phone-number-already-in-use':
       return 'That phone number is already being used for sign-in codes on another account.'
     case 'auth/too-many-requests':
       return 'Too many verification attempts were made. Please wait a bit and try again.'
@@ -179,6 +187,11 @@ export default function PhoneVerificationForm({
       return normalizedPhoneNumber
     }
 
+    const availability = await apiClient.checkPhoneNumberAvailability(normalizedPhoneNumber)
+    if (!availability.available) {
+      throw createPhoneAlreadyInUseError()
+    }
+
     const verifier = await ensureRecaptchaVerifier()
 
     const multiFactorSession = await multiFactor(enrollmentUser).getSession()
@@ -268,6 +281,11 @@ export default function PhoneVerificationForm({
         description: `We sent a 6-digit code to ${destinationPhoneNumber}.`,
       })
     } catch (sendError) {
+      if (sendError instanceof ApiError && sendError.status === 400) {
+        setErrorCode(getPhoneVerificationErrorCode(sendError))
+        setError(sendError.message)
+        return
+      }
       setErrorCode(getPhoneVerificationErrorCode(sendError))
       setError(getPhoneVerificationErrorMessage(sendError))
       if (shouldResetRecaptchaVerifier(sendError)) {

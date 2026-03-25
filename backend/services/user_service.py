@@ -12,8 +12,11 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from datetime import datetime
 from typing import Optional, cast
 import logging
+import re
 
 logger = logging.getLogger(__name__)
+
+_E164_PHONE_NUMBER_RE = re.compile(r"^\+[1-9]\d{1,14}$")
 
 
 class DuplicatePhoneNumberError(Exception):
@@ -44,6 +47,15 @@ class UserService:
     def _normalize_phone_number(phone_number: Optional[str]) -> Optional[str]:
         clean_phone = (phone_number or "").strip()
         return clean_phone or None
+
+    @staticmethod
+    def normalize_e164_phone_number(phone_number: Optional[str]) -> Optional[str]:
+        normalized_phone = UserService._normalize_phone_number(phone_number)
+        if normalized_phone is None:
+            return None
+        if not _E164_PHONE_NUMBER_RE.fullmatch(normalized_phone):
+            raise ValueError("Enter a valid phone number in E.164 format")
+        return normalized_phone
 
     @staticmethod
     def _to_response(pg_user: DBUser) -> UserResponse:
@@ -78,6 +90,18 @@ class UserService:
         error_message = str(error.orig).lower()
         if "phone_number" in error_message:
             raise DuplicatePhoneNumberError("That phone number is already linked to another account") from error
+
+    async def is_phone_number_available(self, phone_number: str) -> bool:
+        normalized_phone = self.normalize_e164_phone_number(phone_number)
+        db = self._get_session()
+        try:
+            existing_user = db.query(DBUser.id).filter(DBUser.phone_number == normalized_phone).first()
+            return existing_user is None
+        except SQLAlchemyError as e:
+            logger.error(f"Failed to check phone availability for {normalized_phone}: {e}")
+            raise
+        finally:
+            db.close()
 
     async def create_user(self, user_data: UserCreate) -> UserResponse:
         """Create a new user in PostgreSQL"""

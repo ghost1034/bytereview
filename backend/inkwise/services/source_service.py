@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 
 import requests
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from inkwise.schemas import (
@@ -28,6 +29,7 @@ from inkwise.settings import get_inkwise_settings, is_valid_gcs_bucket_name, nor
 from models.db_models import User
 from models.inkwise_models import InkwiseSource
 from services.gcs_service import GCSService
+from services.user_service import DuplicatePhoneNumberError, UserService
 
 
 _SAFE_FILENAME_RE = re.compile(r"[^a-zA-Z0-9._ -]+")
@@ -54,32 +56,39 @@ class SignedDownload:
 class InkwiseSourceService:
     def ensure_user_record(self, db: Session, *, user_id: str, email: str | None, phone_number: str | None) -> None:
         existing = db.query(User).filter(User.id == user_id).first()
-        if existing is not None:
-            if phone_number and existing.phone_number != phone_number:
-                existing.phone_number = phone_number
-                if existing.phone_verified_at is None:
-                    existing.phone_verified_at = datetime.utcnow()
-            return
+        clean_phone_number = UserService._normalize_phone_number(phone_number)
 
-        clean_email = (email or "").strip()
-        if not clean_email:
-            raise ValueError("User profile is not initialized; email is required to create the account record")
+        try:
+            if existing is not None:
+                if clean_phone_number and existing.phone_number != clean_phone_number:
+                    existing.phone_number = clean_phone_number
+                    if existing.phone_verified_at is None:
+                        existing.phone_verified_at = datetime.utcnow()
+                    db.flush()
+                return
 
-        clean_phone_number = (phone_number or "").strip()
-        if not clean_phone_number:
-            raise ValueError("User profile is not initialized; a verified phone number is required to create the account record")
+            clean_email = (email or "").strip()
+            if not clean_email:
+                raise ValueError("User profile is not initialized; email is required to create the account record")
 
-        db.add(
-            User(
-                id=user_id,
-                email=clean_email,
-                phone_number=clean_phone_number,
-                phone_verified_at=datetime.utcnow(),
-                display_name=None,
-                photo_url=None,
+            if not clean_phone_number:
+                raise ValueError("User profile is not initialized; a verified phone number is required to create the account record")
+
+            db.add(
+                User(
+                    id=user_id,
+                    email=clean_email,
+                    phone_number=clean_phone_number,
+                    phone_verified_at=datetime.utcnow(),
+                    display_name=None,
+                    photo_url=None,
+                )
             )
-        )
-        db.flush()
+            db.flush()
+        except IntegrityError as exc:
+            db.rollback()
+            UserService._raise_if_phone_conflict(exc)
+            raise
 
     def list_sources(self, db: Session, *, user_id: str, page: int, limit: int) -> tuple[list[InkwiseSource], int]:
         if page < 1 or limit < 1 or limit > 100:

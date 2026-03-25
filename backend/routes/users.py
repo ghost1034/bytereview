@@ -2,18 +2,32 @@
 User management routes for ByteReview
 PostgreSQL-only implementation
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
+from pydantic import BaseModel
 from typing import Optional
 import logging
 from services.user_service import DuplicatePhoneNumberError, UserService
-from models.user import UserResponse, UserUpdate, UpdateProfileRequest
+from models.user import PhoneAvailabilityResponse, UserResponse, UserUpdate, UpdateProfileRequest
 # Usage tracking imports will be added when billing is implemented
-from dependencies.auth import verify_firebase_token, get_current_user_id
+from dependencies.auth import verify_firebase_token
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 user_service = UserService()
+
+@router.get("/phone-availability", response_model=PhoneAvailabilityResponse)
+async def get_phone_number_availability(
+    phone_number: str = Query(..., min_length=2, max_length=32),
+):
+    try:
+        return PhoneAvailabilityResponse(
+            available=await user_service.is_phone_number_available(phone_number),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error checking phone availability: {str(e)}")
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(token_data: dict = Depends(verify_firebase_token)):
@@ -39,8 +53,6 @@ async def get_current_user(token_data: dict = Depends(verify_firebase_token)):
         raise HTTPException(status_code=409, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting user: {str(e)}")
-
-from pydantic import BaseModel
 
 class UserSyncRequest(BaseModel):
     display_name: Optional[str] = None

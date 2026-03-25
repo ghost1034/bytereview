@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/users/phone-availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Phone Number Availability */
+        get: operations["get_phone_number_availability_api_users_phone_availability_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/me": {
         parameters: {
             query?: never;
@@ -3339,7 +3356,7 @@ export interface components {
             /** Source Ids */
             source_ids?: string[] | null;
             /** Selection Text */
-            selection_text: string;
+            selection_text?: string | null;
             /** Surrounding Text */
             surrounding_text?: string | null;
             /** Instruction */
@@ -3916,6 +3933,11 @@ export interface components {
          * @enum {string}
          */
         JobStatus: "pending" | "in_progress" | "partially_completed" | "completed" | "failed" | "cancelled";
+        /** PhoneAvailabilityResponse */
+        PhoneAvailabilityResponse: {
+            /** Available */
+            available: boolean;
+        };
         /**
          * PortalSessionResponse
          * @description Response containing portal session URL
@@ -4172,6 +4194,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_phone_number_availability_api_users_phone_availability_get: {
+        parameters: {
+            query: {
+                phone_number: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhoneAvailabilityResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

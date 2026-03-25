@@ -8,6 +8,8 @@ from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
+
+from services.user_service import DuplicatePhoneNumberError
 from starlette.responses import StreamingResponse
 
 from core.database import get_db
@@ -319,6 +321,9 @@ def create_thread(
     except FileNotFoundError as exc:
         db.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except DuplicatePhoneNumberError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to create thread: {exc}") from exc
