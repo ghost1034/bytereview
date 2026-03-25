@@ -26,8 +26,12 @@ interface PhoneVerificationFormProps {
   onVerified?: () => void
 }
 
+function getPhoneVerificationErrorCode(error: unknown): string {
+  return typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
+}
+
 function getPhoneVerificationErrorMessage(error: unknown): string {
-  const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
+  const code = getPhoneVerificationErrorCode(error)
 
   switch (code) {
     case 'auth/unverified-email':
@@ -45,6 +49,8 @@ function getPhoneVerificationErrorMessage(error: unknown): string {
       return 'This verification step expired. Please sign in again.'
     case 'auth/requires-recent-login':
       return 'For security, please sign out and sign back in before changing your sign-in code settings.'
+    case 'auth/unsupported-first-factor':
+      return 'This account was signed in with a method that cannot enable SMS sign-in codes. Sign out and sign back in with Google or email and password, then try again.'
     case 'auth/second-factor-already-in-use':
       return 'That phone number is already being used for sign-in codes on another account.'
     case 'auth/too-many-requests':
@@ -80,6 +86,7 @@ export default function PhoneVerificationForm({
     refreshCurrentUser,
     sendCurrentUserEmailVerification,
     sendMfaChallengeCode,
+    signOut,
   } = useAuth()
   const { toast } = useToast()
 
@@ -89,6 +96,7 @@ export default function PhoneVerificationForm({
   const [verificationCode, setVerificationCode] = useState('')
   const [verificationId, setVerificationId] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [errorCode, setErrorCode] = useState('')
   const [isSendingCode, setIsSendingCode] = useState(false)
   const [isVerifyingCode, setIsVerifyingCode] = useState(false)
   const [isRefreshingUser, setIsRefreshingUser] = useState(false)
@@ -225,6 +233,7 @@ export default function PhoneVerificationForm({
 
     setIsSendingCode(true)
     setError('')
+    setErrorCode('')
 
     void sendVerificationCode()
       .then((destinationPhoneNumber) => {
@@ -234,6 +243,7 @@ export default function PhoneVerificationForm({
         })
       })
       .catch((sendError) => {
+        setErrorCode(getPhoneVerificationErrorCode(sendError))
         setError(getPhoneVerificationErrorMessage(sendError))
         if (shouldResetRecaptchaVerifier(sendError)) {
           resetRecaptchaVerifier()
@@ -249,6 +259,7 @@ export default function PhoneVerificationForm({
     event.preventDefault()
     setIsSendingCode(true)
     setError('')
+    setErrorCode('')
 
     try {
       const destinationPhoneNumber = await sendVerificationCode()
@@ -257,6 +268,7 @@ export default function PhoneVerificationForm({
         description: `We sent a 6-digit code to ${destinationPhoneNumber}.`,
       })
     } catch (sendError) {
+      setErrorCode(getPhoneVerificationErrorCode(sendError))
       setError(getPhoneVerificationErrorMessage(sendError))
       if (shouldResetRecaptchaVerifier(sendError)) {
         resetRecaptchaVerifier()
@@ -281,6 +293,7 @@ export default function PhoneVerificationForm({
 
     setIsVerifyingCode(true)
     setError('')
+    setErrorCode('')
 
     try {
       const credential = PhoneAuthProvider.credential(verificationId, verificationCode)
@@ -311,6 +324,7 @@ export default function PhoneVerificationForm({
         })
       }
     } catch (verificationError) {
+      setErrorCode(getPhoneVerificationErrorCode(verificationError))
       setError(getPhoneVerificationErrorMessage(verificationError))
     } finally {
       setIsVerifyingCode(false)
@@ -320,6 +334,7 @@ export default function PhoneVerificationForm({
   const handleRefreshUser = async () => {
     setIsRefreshingUser(true)
     setError('')
+    setErrorCode('')
 
     try {
       const refreshedUser = await refreshCurrentUser()
@@ -333,6 +348,7 @@ export default function PhoneVerificationForm({
         description: 'You can now enable your SMS sign-in code.',
       })
     } catch (refreshError) {
+      setErrorCode(getPhoneVerificationErrorCode(refreshError))
       setError(getPhoneVerificationErrorMessage(refreshError))
     } finally {
       setIsRefreshingUser(false)
@@ -342,6 +358,7 @@ export default function PhoneVerificationForm({
   const handleSendEmailVerification = async () => {
     setIsSendingEmailVerification(true)
     setError('')
+    setErrorCode('')
 
     try {
       await sendCurrentUserEmailVerification()
@@ -350,6 +367,7 @@ export default function PhoneVerificationForm({
         description: 'Open the email we sent you, then come back here to continue.',
       })
     } catch (sendError) {
+      setErrorCode(getPhoneVerificationErrorCode(sendError))
       setError(getPhoneVerificationErrorMessage(sendError))
     } finally {
       setIsSendingEmailVerification(false)
@@ -465,8 +483,20 @@ export default function PhoneVerificationForm({
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
-          {error}
+        <div className="space-y-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+          <p>{error}</p>
+          {errorCode === 'auth/unsupported-first-factor' && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                void signOut()
+              }}
+              className="border-red-200 bg-white text-red-700 hover:bg-red-100 hover:text-red-800"
+            >
+              Sign Out
+            </Button>
+          )}
         </div>
       )}
 
