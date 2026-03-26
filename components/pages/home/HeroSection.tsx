@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import Link from "next/link";
 import { motion, useInView } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Check, Play } from "lucide-react";
@@ -46,11 +47,6 @@ interface HeroSectionProps {
 }
 
 export default function HeroSection({ onGetStarted }: HeroSectionProps) {
-  const scrollToDemo = () => {
-    const el = document.getElementById("extraction-features");
-    if (el) el.scrollIntoView({ behavior: "smooth" });
-  };
-
   return (
     <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white min-h-[calc(100vh-var(--header-height))] flex items-center py-20 overflow-hidden">
       {/* Background grid */}
@@ -108,14 +104,15 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
               >
                 Get Started Free →
               </Button>
-              <Button
-                variant="ghost"
-                onClick={scrollToDemo}
-                className="border border-white/20 text-white hover:bg-white/10 hover:text-white px-8 py-3 text-base w-full sm:w-auto"
-              >
-                <Play className="w-4 h-4 mr-2" />
-                Watch Demo
-              </Button>
+              <Link href="/demo">
+                <Button
+                  variant="ghost"
+                  className="border border-white/20 text-white hover:bg-white/10 hover:text-white px-8 py-3 text-base w-full sm:w-auto"
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  Watch Demo
+                </Button>
+              </Link>
             </div>
             <div className="flex items-center justify-center gap-6 text-sm text-gray-400 mt-5">
               <div className="flex items-center space-x-1.5">
