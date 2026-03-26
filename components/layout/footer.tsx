@@ -46,6 +46,21 @@ export default function Footer() {
                 </span>
               </li>
               <li>
+                <span className="text-gray-500">
+                  Claw Series <span className="text-xs text-gray-600">(Soon)</span>
+                </span>
+              </li>
+              <li>
+                <span className="text-gray-500">
+                  AI Analysis Suite <span className="text-xs text-gray-600">(Soon)</span>
+                </span>
+              </li>
+              <li>
+                <span className="text-gray-500">
+                  AI Productivity Suite <span className="text-xs text-gray-600">(Soon)</span>
+                </span>
+              </li>
+              <li>
                 <Link href="/dashboard/cpe-tracker" className="text-gray-400 hover:text-white transition-colors">
                   CPE Tracker
                 </Link>

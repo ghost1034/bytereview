@@ -5,20 +5,20 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Menu, X, LogOut, User, ChevronDown, FileText, PenTool, Clock } from "lucide-react";
+import { Menu, X, LogOut, User, ChevronDown, FileText, PenTool, Clock, Bot, BarChart3, FolderKanban } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthModal from "@/components/auth/AuthModal";
 
 const productLinks = [
   {
     label: "Document Analysis",
-    href: "/features",
+    href: "/#extraction-features",
     description: "AI extraction & automations",
     icon: FileText,
   },
   {
     label: "Inkwise",
-    href: "/dashboard/inkwise",
+    href: "/#inkwise-showcase",
     description: "AI writing with citations",
     icon: PenTool,
   },
@@ -27,6 +27,27 @@ const productLinks = [
     href: "/#chrona-showcase",
     description: "AI time tracking",
     icon: Clock,
+    badge: "Soon",
+  },
+  {
+    label: "Claw Series",
+    href: "/#claw-showcase",
+    description: "AI digital workers",
+    icon: Bot,
+    badge: "Soon",
+  },
+  {
+    label: "AI Analysis Suite",
+    href: "/#roadmap",
+    description: "Reconciliation & flux analysis",
+    icon: BarChart3,
+    badge: "Soon",
+  },
+  {
+    label: "AI Productivity Suite",
+    href: "/#roadmap",
+    description: "Project management & more",
+    icon: FolderKanban,
     badge: "Soon",
   },
 ];
