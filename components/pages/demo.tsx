@@ -42,11 +42,11 @@ function VideoCard({ title, src, badge, description, allow }: VideoCardProps) {
           />
         </div>
       </div>
-      <h3 className="text-base font-semibold text-gray-900 mt-3">
+      <h3 className="text-base font-semibold text-gray-900 mt-3 text-center">
         {title}
         {badge && <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0 align-middle">{badge}</Badge>}
       </h3>
-      {description && <p className="text-sm text-gray-500 mt-1">{description}</p>}
+      {description && <p className="text-sm text-gray-500 mt-1 text-center">{description}</p>}
     </div>
   );
 }
@@ -56,7 +56,6 @@ const analysisVideos = [
   {
     title: "Build P&L in 2 Minutes",
     src: "https://www.youtube-nocookie.com/embed/tNwpajJZ8zA?si=y6cb2ZD7I42YRXND",
-    badge: "New",
   },
   {
     title: "Free CPE Tracker",
@@ -129,7 +128,7 @@ export default function Demo() {
       <section className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
-            className="mb-10"
+            className="mb-10 text-center"
             variants={fadeInUp}
             initial="hidden"
             whileInView="visible"
@@ -138,18 +137,18 @@ export default function Demo() {
             <span className="inline-block text-sm font-medium text-blue-600 bg-blue-100 px-3 py-1 rounded-full mb-3">
               Document Analysis
             </span>
-            <h2 className="text-3xl font-bold text-gray-900">AI Extraction & Automations</h2>
+            <h2 className="text-3xl font-bold text-gray-900">AI Extraction, Analysis, and Automations</h2>
           </motion.div>
 
           <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+            className="flex flex-wrap justify-center gap-8"
             variants={staggerContainer}
             initial="hidden"
             whileInView="visible"
             viewport={viewportOnce}
           >
             {analysisVideos.map((v) => (
-              <motion.div key={v.title} variants={staggerChild}>
+              <motion.div key={v.title} className="w-full md:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1.34rem)]" variants={staggerChild}>
                 <VideoCard {...v} />
               </motion.div>
             ))}
@@ -161,7 +160,7 @@ export default function Demo() {
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
-            className="mb-10"
+            className="mb-10 text-center"
             variants={fadeInUp}
             initial="hidden"
             whileInView="visible"
@@ -171,20 +170,20 @@ export default function Demo() {
               Products to Come
             </span>
             <h2 className="text-3xl font-bold text-gray-900">What We&apos;re Building Next</h2>
-            <p className="text-gray-600 mt-2 max-w-2xl">
+            <p className="text-gray-600 mt-2 max-w-2xl mx-auto">
               Preview the next generation of tools coming to the CPAAutomation platform.
             </p>
           </motion.div>
 
           <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 gap-8"
+            className="flex flex-wrap justify-center gap-8"
             variants={staggerContainer}
             initial="hidden"
             whileInView="visible"
             viewport={viewportOnce}
           >
             {upcomingVideos.map((v) => (
-              <motion.div key={v.title} variants={staggerChild}>
+              <motion.div key={v.title} className="w-full md:w-[calc(50%-1rem)]" variants={staggerChild}>
                 <VideoCard {...v} />
               </motion.div>
             ))}
