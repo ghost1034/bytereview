@@ -35,12 +35,12 @@ const products = [
   },
   {
     name: "AccountingClaw / FinanceClaw / LegalClaw",
-    description: "One-click AI agents with hundreds of pre-built skills for regulated industries.",
+    description: "Digital workers with hundreds of pre-built skills for regulated industries.",
     icon: Bot,
     iconBg: "bg-gradient-to-br from-green-100 to-green-50",
     iconText: "text-green-600",
     status: "Coming Soon" as const,
-    href: "#roadmap",
+    href: "#claw-showcase",
   },
   {
     name: "AI Analysis Suite",

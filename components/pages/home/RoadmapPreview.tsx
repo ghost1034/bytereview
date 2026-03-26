@@ -1,24 +1,10 @@
 'use client'
 
 import { motion } from "framer-motion";
-import { Bot, BarChart3, FolderKanban } from "lucide-react";
+import { BarChart3, FolderKanban } from "lucide-react";
 import { fadeInUp, staggerContainer, staggerChild, viewportOnce } from "@/lib/animations";
 
 const milestones = [
-  {
-    icon: Bot,
-    iconBg: "bg-gradient-to-br from-green-100 to-green-50",
-    iconText: "text-green-600",
-    accentBorder: "border-l-green-500",
-    title: "AccountingClaw / FinanceClaw / LegalClaw",
-    description: "Hundreds of pre-built AI skills for regulated environments. One-click setup powered by OpenClaw, an open-source AI agent framework.",
-    capabilities: [
-      "Automated bank reconciliations",
-      "Contract clause extraction and review",
-      "Tax form preparation and validation",
-      "Regulatory compliance checks",
-    ],
-  },
   {
     icon: BarChart3,
     iconBg: "bg-gradient-to-br from-red-100 to-red-50",
@@ -77,7 +63,7 @@ export default function RoadmapPreview() {
           viewport={viewportOnce}
         >
           {/* Vertical timeline line */}
-          <div className="absolute left-[23px] top-6 bottom-6 w-px bg-gradient-to-b from-green-300 via-red-300 to-teal-300 hidden md:block" />
+          <div className="absolute left-[23px] top-6 bottom-6 w-px bg-gradient-to-b from-red-300 to-teal-300 hidden md:block" />
 
           {milestones.map((m) => {
             const Icon = m.icon;

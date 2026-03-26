@@ -15,6 +15,7 @@ const ExtractionFeatures = dynamic(() => import("./ExtractionFeatures"));
 const AutomationFlow = dynamic(() => import("./AutomationFlow"));
 const InkwiseShowcase = dynamic(() => import("./InkwiseShowcase"));
 const ChronaShowcase = dynamic(() => import("./ChronaShowcase"));
+const ClawShowcase = dynamic(() => import("./ClawShowcase"));
 const RoadmapPreview = dynamic(() => import("./RoadmapPreview"));
 const Testimonials = dynamic(() => import("./Testimonials"));
 const SecurityTrust = dynamic(() => import("./SecurityTrust"));
@@ -42,6 +43,7 @@ export default function Home() {
       <AutomationFlow onGetStarted={handleGetStarted} />
       <InkwiseShowcase />
       <ChronaShowcase />
+      <ClawShowcase />
       <RoadmapPreview />
       <Testimonials />
       <SecurityTrust />
