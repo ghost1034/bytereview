@@ -256,7 +256,7 @@ export default function ExtractionFeatures({ onGetStarted }: ExtractionFeaturesP
           viewport={viewportOnce}
         >
           <motion.div variants={staggerChild}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">See how it works</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">See a free bonus</h3>
             <div className="rounded-xl overflow-hidden border border-gray-200 shadow-md">
               <div className="relative bg-black aspect-video">
                 <iframe

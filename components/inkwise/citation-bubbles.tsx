@@ -186,13 +186,27 @@ export function InkwiseCitationBubbles({
 }
 
 export function formatCitationLabel(citation: InkwiseCitation): string {
-  const sourceTitle = citation.source_title || 'Source'
+  const sourceTitle = formatCitationSourceTitle(citation, { maxLength: 56 })
   const locationLabel = formatLocatorLabel(citation)
-  return `${citation.evidence_id || 'Evidence'} · ${sourceTitle}${locationLabel ? ` ${locationLabel}` : ''}`.trim()
+  return joinCitationLabelParts(sourceTitle, locationLabel)
 }
 
 export function formatCompactCitationLabel(citation: InkwiseCitation): string {
-  return citation.evidence_id || 'Evidence'
+  const sourceTitle = formatCitationSourceTitle(citation, { maxLength: 22 })
+  const locationLabel = formatLocatorLabel(citation)
+  return joinCitationLabelParts(sourceTitle, locationLabel)
+}
+
+function joinCitationLabelParts(sourceTitle: string, locationLabel: string): string {
+  const normalizedLocation = locationLabel === 'evidence' ? '' : locationLabel
+  return [sourceTitle, normalizedLocation].filter(Boolean).join(' ')
+}
+
+function formatCitationSourceTitle(citation: InkwiseCitation, { maxLength }: { maxLength: number }): string {
+  const rawTitle = citation.source_title || citation.segment_title || (citation.locator_json?.kind === 'web_snapshot' ? 'Web snapshot' : 'Evidence')
+  const normalized = rawTitle.replace(/\s+/g, ' ').trim()
+  if (normalized.length <= maxLength) return normalized
+  return `${normalized.slice(0, Math.max(1, maxLength - 3)).trimEnd()}...`
 }
 
 export function formatLocatorLabel(citation: InkwiseCitation): string {
