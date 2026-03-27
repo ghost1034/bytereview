@@ -2,7 +2,11 @@ import { generateHTML, generateJSON } from '@tiptap/html'
 import type { JSONContent } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 
-export const INKWISE_TIPTAP_EXTENSIONS = [StarterKit]
+import { InkwiseCitationAnchorNode } from '@/lib/inkwise-citation-anchor'
+
+export const INKWISE_TIPTAP_BASE_EXTENSIONS = [StarterKit]
+
+export const INKWISE_TIPTAP_EXTENSIONS = [...INKWISE_TIPTAP_BASE_EXTENSIONS, InkwiseCitationAnchorNode]
 
 export function contentJsonToHtml(contentJson: JSONContent | null | undefined): string {
   if (!contentJson) return ''

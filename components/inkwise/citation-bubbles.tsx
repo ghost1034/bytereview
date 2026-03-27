@@ -12,10 +12,14 @@ export function InkwiseCitationBubbles({
   citations,
   bubbleClassName,
   onSheetOpenChange,
+  inline = false,
+  compactLabels = false,
 }: {
   citations: InkwiseCitation[]
   bubbleClassName?: string
   onSheetOpenChange?: (open: boolean) => void
+  inline?: boolean
+  compactLabels?: boolean
 }) {
   const items = useMemo(() => citations.filter((citation) => Boolean(citation?.evidence_id || citation?.excerpt)), [citations])
   const [open, setOpen] = useState(false)
@@ -74,9 +78,12 @@ export function InkwiseCitationBubbles({
     setOpen(true)
   }
 
+  const RootTag = inline ? 'span' : 'div'
+  const rootClassName = inline ? 'inline-flex flex-wrap gap-2 align-middle' : 'flex flex-wrap gap-2'
+
   return (
     <>
-      <div className="flex flex-wrap gap-2">
+      <RootTag className={rootClassName}>
         {items.map((citation, index) => (
           <button
             key={`${citation.evidence_id ?? index}-${index}`}
@@ -85,10 +92,10 @@ export function InkwiseCitationBubbles({
             onClick={() => goTo(index)}
             className={bubbleClassName || 'rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-700 transition hover:bg-emerald-200'}
           >
-            {formatCitationLabel(citation)}
+            {compactLabels ? formatCompactCitationLabel(citation) : formatCitationLabel(citation)}
           </button>
         ))}
-      </div>
+      </RootTag>
 
       <Sheet open={open} onOpenChange={(value) => { setOpen(value); onSheetOpenChange?.(value) }}>
         <SheetContent side="right" className="w-full overflow-hidden sm:max-w-2xl">
@@ -182,6 +189,10 @@ export function formatCitationLabel(citation: InkwiseCitation): string {
   const sourceTitle = citation.source_title || 'Source'
   const locationLabel = formatLocatorLabel(citation)
   return `${citation.evidence_id || 'Evidence'} · ${sourceTitle}${locationLabel ? ` ${locationLabel}` : ''}`.trim()
+}
+
+export function formatCompactCitationLabel(citation: InkwiseCitation): string {
+  return citation.evidence_id || 'Evidence'
 }
 
 export function formatLocatorLabel(citation: InkwiseCitation): string {

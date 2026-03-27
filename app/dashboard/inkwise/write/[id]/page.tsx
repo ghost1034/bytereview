@@ -39,6 +39,13 @@ import {
   InkwisePredictionResponse,
   InkwiseSseEvent,
 } from '@/lib/api'
+import {
+  getInkwiseEditorTarget,
+  type InkwiseEditorTarget,
+  insertMarkdownIntoEditor,
+  replaceEditorDocumentWithMarkdown,
+  stripInkwiseChatCitationMarkers,
+} from '@/lib/inkwise-editor'
 import { markdownToSafeHtml } from '@/lib/inkwise-markdown'
 import { cn } from '@/lib/utils'
 
@@ -58,6 +65,16 @@ type PredictionState = {
   text: string
   grounded: boolean
   evidence: InkwiseCitation[]
+  attemptId?: string | null
+  retrievalRunId?: string | null
+}
+
+type ImprovedDraftResult = {
+  markdown: string
+  grounded: boolean
+  evidence: InkwiseCitation[]
+  attemptId?: string | null
+  retrievalRunId?: string | null
 }
 
 type PredictionContext = {
@@ -66,6 +83,8 @@ type PredictionContext = {
   beforeCursorInBlock: string
   afterCursorInBlock: string
 }
+
+type ChatInsertMode = 'insert' | 'replace' | 'append'
 
 const assistantMarkdownClassName =
   'prose prose-sm max-w-none break-words text-slate-700 prose-headings:text-slate-900 prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-blockquote:border-slate-300 prose-blockquote:text-slate-600 prose-pre:bg-slate-950 prose-pre:text-slate-50 prose-code:text-slate-800 prose-a:text-sky-700'
@@ -82,7 +101,15 @@ function normalizePredictionState(prediction: InkwisePredictionResponse): Predic
     text,
     grounded: Boolean(prediction.grounded),
     evidence: Array.isArray(prediction.evidence) ? prediction.evidence : [],
+    attemptId: prediction.attempt_id || null,
+    retrievalRunId: prediction.retrieval_run_id || null,
   }
+}
+
+function buildDraftSelectionLabel(target: InkwiseEditorTarget | null): string | undefined {
+  const preview = (target?.text || '').replace(/\s+/g, ' ').trim()
+  if (!preview) return undefined
+  return preview.length > 80 ? `${preview.slice(0, 77)}...` : preview
 }
 
 export default function InkwiseDocumentPage() {
@@ -107,6 +134,7 @@ export default function InkwiseDocumentPage() {
   const [chatInput, setChatInput] = useState('')
   const [streamState, setStreamState] = useState<StreamState | null>(null)
   const [editor, setEditor] = useState<TiptapEditor | null>(null)
+  const [editorTarget, setEditorTarget] = useState<InkwiseEditorTarget | null>(null)
   const [predictionState, setPredictionState] = useState<PredictionState | null>(null)
   const [predictionLoading, setPredictionLoading] = useState(false)
   const [predictionTick, setPredictionTick] = useState(0)
@@ -116,6 +144,7 @@ export default function InkwiseDocumentPage() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
+  const [chatInsertKey, setChatInsertKey] = useState<string | null>(null)
   const predictionTimeoutRef = useRef<number | null>(null)
   const predictionSeqRef = useRef(0)
   const suppressPredictionUntilRef = useRef(0)
@@ -159,6 +188,7 @@ export default function InkwiseDocumentPage() {
     setContentHtml(documentQuery.data.content_html || '')
     setContentJson((documentQuery.data.content_json as JSONContent | null) ?? null)
     setVersion(documentQuery.data.version)
+    setEditorTarget(null)
   }, [documentQuery.data])
 
   useEffect(() => {
@@ -188,6 +218,8 @@ export default function InkwiseDocumentPage() {
     () => readyChatSources.filter((item) => chatSourceChecked[item.source.id] ?? true).map((item) => item.source.id),
     [readyChatSources, chatSourceChecked]
   )
+  const activeDraftSelection = useMemo(() => (editorTarget?.hasSelection ? editorTarget : null), [editorTarget])
+  const draftSelectionLabel = useMemo(() => buildDraftSelectionLabel(activeDraftSelection), [activeDraftSelection])
 
   useEffect(() => {
     if (!readyChatSources.length) return
@@ -298,7 +330,12 @@ export default function InkwiseDocumentPage() {
       setStreamState({ text: '' })
       await apiClient.streamInkwiseChatMessage(
         threadId,
-        { content: chatInput, source_ids: selectedChatSourceIds },
+        {
+          content: chatInput,
+          source_ids: selectedChatSourceIds,
+          draft_selection_text: activeDraftSelection?.text || null,
+          draft_selection_label: draftSelectionLabel || null,
+        },
         (event: InkwiseSseEvent) => {
           if (event.event === 'token') {
             setStreamState((current) => ({ ...(current ?? { text: '' }), text: `${current?.text ?? ''}${event.data?.text ?? ''}` }))
@@ -371,11 +408,15 @@ export default function InkwiseDocumentPage() {
   })
 
   const runWritingTool = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<ImprovedDraftResult> => {
       const selection = contentHtml.trim()
       if (!selection) throw new Error('Add some document content before using a writing tool')
 
       let output = ''
+      let grounded = false
+      let evidence: InkwiseCitation[] = []
+      let attemptId: string | null = null
+      let retrievalRunId: string | null = null
       await apiClient.streamInkwiseWritingTool(
         {
           action: 'improve',
@@ -388,21 +429,64 @@ export default function InkwiseDocumentPage() {
           if (event.event === 'token') {
             output += event.data?.text ?? ''
           }
+          if (event.event === 'meta') {
+            if (typeof event.data?.grounded === 'boolean') {
+              grounded = Boolean(event.data.grounded)
+            }
+            if (Array.isArray(event.data?.evidence)) {
+              evidence = event.data.evidence
+            }
+            if (event.data?.attempt_id) {
+              attemptId = String(event.data.attempt_id)
+            }
+            if (event.data?.retrieval_run_id) {
+              retrievalRunId = String(event.data.retrieval_run_id)
+            }
+          }
+          if (event.event === 'done') {
+            if (event.data?.attempt_id) {
+              attemptId = String(event.data.attempt_id)
+            }
+            if (event.data?.retrieval_run_id) {
+              retrievalRunId = String(event.data.retrieval_run_id)
+            }
+          }
         }
       )
-      return output
+      return {
+        markdown: output,
+        grounded,
+        evidence,
+        attemptId,
+        retrievalRunId,
+      }
     },
-    onSuccess: async (output) => {
-      const markdown = output.trim()
+    onSuccess: async (result) => {
+      const markdown = result.markdown.trim()
       if (!markdown) return
 
       try {
-        const html = await markdownToSafeHtml(markdown)
-        if (!html) return
-
         suppressPredictions(1800)
-        setContentJson(null)
-        setContentHtml(html)
+        if (editor) {
+          const applied = await replaceEditorDocumentWithMarkdown({
+            editor,
+            markdown,
+            citationAnchor: result.grounded && result.evidence.length
+              ? {
+                  sourceKind: 'writing_tool',
+                  citations: result.evidence,
+                  attemptId: result.attemptId,
+                  retrievalRunId: result.retrievalRunId,
+                }
+              : null,
+          })
+          if (!applied) return
+        } else {
+          const html = await markdownToSafeHtml(markdown)
+          if (!html) return
+          setContentJson(null)
+          setContentHtml(html)
+        }
         toast({ title: 'Draft refreshed', description: 'The writing tool returned a revised version in the editor.' })
       } catch (error) {
         const message = error instanceof Error ? error.message : 'The AI response could not be rendered as Markdown.'
@@ -429,6 +513,76 @@ export default function InkwiseDocumentPage() {
     }
   }
 
+  const copyAssistantMessage = useCallback(async (message: InkwiseChatMessage) => {
+    const cleaned = stripInkwiseChatCitationMarkers(message.content || '')
+    if (!cleaned) {
+      toast({ title: 'Nothing to copy', description: 'This assistant message has no document-ready text.' })
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(cleaned)
+      toast({ title: 'Copied', description: 'Chat output is ready to paste into the document.' })
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'Clipboard access failed'
+      toast({ title: 'Could not copy text', description: messageText, variant: 'destructive' })
+    }
+  }, [toast])
+
+  const insertAssistantMessage = useCallback(async (message: InkwiseChatMessage, mode: ChatInsertMode) => {
+    if (!editor) {
+      toast({ title: 'Editor not ready', description: 'Wait for the document editor to finish loading.', variant: 'destructive' })
+      return
+    }
+
+    const cleaned = stripInkwiseChatCitationMarkers(message.content || '')
+    if (!cleaned) {
+      toast({ title: 'Nothing to insert', description: 'This assistant message has no document-ready text.' })
+      return
+    }
+
+    const key = `${message.id}:${mode}`
+    setChatInsertKey(key)
+
+    try {
+      suppressPredictions(1800)
+      const appliedMode = await insertMarkdownIntoEditor({
+        editor,
+        markdown: cleaned,
+        mode,
+        target: mode === 'append' ? null : editorTarget,
+        citationAnchor: messageCitations(message).length
+          ? {
+              sourceKind: 'chat',
+              citations: messageCitations(message),
+              attemptId: typeof message.provider_meta?.attempt_id === 'string' ? message.provider_meta.attempt_id : null,
+              retrievalRunId: message.citations_json?.retrieval_run_id || null,
+            }
+          : null,
+      })
+
+      if (!appliedMode) {
+        throw new Error('The assistant response could not be inserted into the editor.')
+      }
+
+      setEditorTarget(getInkwiseEditorTarget(editor))
+
+      const description =
+        appliedMode === 'replace'
+          ? 'Chat output replaced the selected draft text.'
+          : appliedMode === 'append'
+            ? 'Chat output was appended to the end of the document.'
+            : 'Chat output was inserted at the cursor.'
+
+      toast({ title: 'Draft updated', description })
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'Insertion failed'
+      toast({ title: 'Could not insert chat output', description: messageText, variant: 'destructive' })
+    } finally {
+      setChatInsertKey(null)
+    }
+  }, [editor, editorTarget, toast])
+
   const renderedMessages: InkwiseChatMessage[] = messagesQuery.data?.items ?? []
   const latestAssistantMessageId = useMemo(() => {
     for (let index = renderedMessages.length - 1; index >= 0; index -= 1) {
@@ -440,11 +594,19 @@ export default function InkwiseDocumentPage() {
     () => revisionsQuery.data?.items.find((item) => item.id === selectedRevisionId),
     [revisionsQuery.data, selectedRevisionId]
   )
+  const primaryChatInsertMode: ChatInsertMode = editorTarget ? 'insert' : 'append'
+  const primaryChatInsertLabel = editorTarget ? 'Insert at cursor' : 'Append to end'
 
   useEffect(() => {
-    if (!editor) return
+    if (!editor) {
+      setEditorTarget(null)
+      return
+    }
+
+    setEditorTarget(getInkwiseEditorTarget(editor))
 
     const onSelection = () => {
+      setEditorTarget(getInkwiseEditorTarget(editor))
       setPredictionTick((value) => value + 1)
     }
 
@@ -634,7 +796,27 @@ export default function InkwiseDocumentPage() {
               onAcceptPrediction={() => {
                 if (!editor || !predictionState?.text) return
                 suppressPredictions(1800)
-                editor.chain().focus().insertContent(predictionState.text).run()
+                void (async () => {
+                  try {
+                    await insertMarkdownIntoEditor({
+                      editor,
+                      markdown: predictionState.text,
+                      mode: 'insert',
+                      target: getInkwiseEditorTarget(editor),
+                      citationAnchor: predictionState.grounded && predictionState.evidence.length
+                        ? {
+                            sourceKind: 'prediction',
+                            citations: predictionState.evidence,
+                            attemptId: predictionState.attemptId,
+                            retrievalRunId: predictionState.retrievalRunId,
+                          }
+                        : null,
+                    })
+                  } catch (error) {
+                    const message = error instanceof Error ? error.message : 'Could not insert prediction'
+                    toast({ title: 'Prediction insert failed', description: message, variant: 'destructive' })
+                  }
+                })()
               }}
               onDismissPrediction={() => {
                 clearPrediction()
@@ -648,6 +830,9 @@ export default function InkwiseDocumentPage() {
               onChange={(value) => {
                 setContentJson(value.json)
                 setContentHtml(value.html)
+                if (editor) {
+                  setEditorTarget(getInkwiseEditorTarget(editor))
+                }
                 setPredictionTick((tick) => tick + 1)
               }}
               className="min-h-[56vh] border-0 shadow-none"
@@ -765,6 +950,37 @@ export default function InkwiseDocumentPage() {
                               <InkwiseCitationBubbles citations={messageCitations(message)} />
                             </div>
                           ) : null}
+                          {message.role === 'assistant' ? (
+                            <div className="mt-3 flex flex-wrap justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-[10px]"
+                                onClick={() => copyAssistantMessage(message)}
+                              >
+                                Copy
+                              </Button>
+                              {activeDraftSelection ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 text-[10px]"
+                                  onClick={() => void insertAssistantMessage(message, 'replace')}
+                                  disabled={Boolean(chatInsertKey)}
+                                >
+                                  {chatInsertKey === `${message.id}:replace` ? 'Replacing...' : 'Replace selection'}
+                                </Button>
+                              ) : null}
+                              <Button
+                                size="sm"
+                                className="h-7 px-2 text-[10px]"
+                                onClick={() => void insertAssistantMessage(message, primaryChatInsertMode)}
+                                disabled={Boolean(chatInsertKey)}
+                              >
+                                {chatInsertKey === `${message.id}:${primaryChatInsertMode}` ? 'Inserting...' : primaryChatInsertLabel}
+                              </Button>
+                            </div>
+                          ) : null}
                         </div>
                       ))}
 
@@ -793,6 +1009,11 @@ export default function InkwiseDocumentPage() {
                       placeholder="Ask a grounded question about this draft or your bound sources..."
                       className="min-h-[110px] bg-white"
                     />
+                    {activeDraftSelection ? (
+                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs text-emerald-800">
+                        Draft selection attached for context{draftSelectionLabel ? `: ${draftSelectionLabel}` : '.'}
+                      </div>
+                    ) : null}
                     <div className="rounded-2xl border bg-white p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div>

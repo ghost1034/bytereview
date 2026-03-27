@@ -3,11 +3,12 @@
 import type { Editor, JSONContent } from '@tiptap/core'
 import Placeholder from '@tiptap/extension-placeholder'
 import { EditorContent, useEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
 import { useEffect, useMemo, useRef } from 'react'
 
+import { InkwiseCitationAnchorEditorNode } from '@/components/inkwise/editor-citation-anchor'
 import { createPredictionExtension, refreshPredictionDecorations } from '@/components/inkwise/editor-prediction'
 import { InkwiseEditorToolbar } from '@/components/inkwise/editor-toolbar'
+import { INKWISE_TIPTAP_BASE_EXTENSIONS } from '@/lib/inkwise-tiptap'
 
 export type InkwiseEditorValue = {
   json: JSONContent
@@ -78,8 +79,9 @@ export function InkwiseEditor({
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      ...INKWISE_TIPTAP_BASE_EXTENSIONS,
       Placeholder.configure({ placeholder: placeholder || 'Start writing...' }),
+      InkwiseCitationAnchorEditorNode,
       predictionExtension,
     ],
     content: incoming,

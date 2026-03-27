@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { apiClient, InkwiseBoundSource, InkwiseCitation, InkwiseSseEvent, InkwiseWritingAction } from '@/lib/api'
-import { markdownToSafeHtml } from '@/lib/inkwise-markdown'
+import { getInkwiseEditorTarget, type InkwiseEditorTarget, insertMarkdownIntoEditor } from '@/lib/inkwise-editor'
 import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
 
 type ToolAction = Exclude<InkwiseWritingAction, 'other'> | 'custom'
@@ -19,15 +19,9 @@ type ToolAction = Exclude<InkwiseWritingAction, 'other'> | 'custom'
 type GroundingState = {
   grounded: boolean
   evidenceCount: number
+  retrievalRunId?: string | null
   fallback?: string | null
   evidence?: InkwiseCitation[]
-}
-
-type ToolTarget = {
-  from: number
-  to: number
-  text: string
-  hasSelection: boolean
 }
 
 export function InlineWritingTools({
@@ -53,7 +47,7 @@ export function InlineWritingTools({
   const [attemptId, setAttemptId] = useState<string | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
 
-  const rangeRef = useRef<ToolTarget | null>(null)
+  const rangeRef = useRef<InkwiseEditorTarget | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   const readySources = useMemo(() => boundSources.filter((item) => item.grounded_chat_ready), [boundSources])
@@ -90,17 +84,11 @@ export function InlineWritingTools({
     }
   }, [editor, busy])
 
-  function selectionTarget(currentEditor: Editor): ToolTarget | null {
-    const { from, to, empty } = currentEditor.state.selection
-    if (!empty) {
-      const text = currentEditor.state.doc.textBetween(from, to, '\n')
-      if (!text.trim()) return null
-      return { from, to, text, hasSelection: true }
-    }
-    return { from, to, text: '', hasSelection: false }
+  function selectionTarget(currentEditor: Editor): InkwiseEditorTarget | null {
+    return getInkwiseEditorTarget(currentEditor)
   }
 
-  function activeTarget(): ToolTarget | null {
+  function activeTarget(): InkwiseEditorTarget | null {
     return editor ? selectionTarget(editor) : null
   }
 
@@ -152,6 +140,7 @@ export function InlineWritingTools({
             setGroundingState({
               grounded: Boolean(event.data.grounded),
               evidenceCount: Number(event.data?.evidence_count || 0),
+              retrievalRunId: event.data?.retrieval_run_id ? String(event.data.retrieval_run_id) : null,
               fallback: event.data?.grounding_fallback || null,
               evidence: Array.isArray(event.data?.evidence) ? event.data.evidence : [],
             })
@@ -177,19 +166,21 @@ export function InlineWritingTools({
 
     setInserting(mode)
     try {
-      const html = await markdownToSafeHtml(markdown)
-      if (!html) return
-
-      if (mode === 'replace') {
-        onProgrammaticEdit?.()
-        editor.chain().focus().insertContentAt({ from: rangeRef.current.from, to: rangeRef.current.to }, html).run()
-      } else if (mode === 'insert') {
-        onProgrammaticEdit?.()
-        editor.chain().focus().insertContentAt(rangeRef.current.to, html).run()
-      } else {
-        onProgrammaticEdit?.()
-        editor.chain().focus().insertContentAt(rangeRef.current.to, `<p></p>${html}`).run()
-      }
+      onProgrammaticEdit?.()
+      await insertMarkdownIntoEditor({
+        editor,
+        markdown,
+        mode,
+        target: rangeRef.current,
+        citationAnchor: groundingState?.grounded && groundingState.evidence?.length
+          ? {
+              sourceKind: 'writing_tool',
+              citations: groundingState.evidence,
+              attemptId,
+              retrievalRunId: groundingState.retrievalRunId,
+            }
+          : null,
+      })
     } finally {
       setInserting(null)
     }
@@ -239,6 +230,7 @@ export function InlineWritingTools({
             setGroundingState({
               grounded: Boolean(event.data.grounded),
               evidenceCount: Number(event.data?.evidence_count || 0),
+              retrievalRunId: event.data?.retrieval_run_id ? String(event.data.retrieval_run_id) : null,
               fallback: event.data?.grounding_fallback || null,
               evidence: Array.isArray(event.data?.evidence) ? event.data.evidence : [],
             })
