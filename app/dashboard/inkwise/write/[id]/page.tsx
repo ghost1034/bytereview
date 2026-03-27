@@ -56,6 +56,7 @@ const PREDICTION_DEBOUNCE_MS = 900
 
 type StreamState = {
   text: string
+  contentWithCitations?: string | null
   retrievalRunId?: string
   citations?: InkwiseCitation[]
   attemptId?: string
@@ -94,6 +95,10 @@ const assistantMarkdownClassName =
 function messageCitations(message: InkwiseChatMessage): InkwiseCitation[] {
   const raw = message.citations_json?.citations
   return Array.isArray(raw) ? raw : []
+}
+
+function messageDisplayMarkdown(message: InkwiseChatMessage): string {
+  return message.content_with_citations || message.citations_json?.content_with_citations || message.content || ''
 }
 
 function normalizePredictionState(prediction: InkwisePredictionResponse): PredictionState | null {
@@ -346,6 +351,7 @@ export default function InkwiseDocumentPage() {
           if (event.event === 'meta' && event.data?.citations) {
             setStreamState((current) => ({
               ...(current ?? { text: '' }),
+              contentWithCitations: typeof event.data?.content_with_citations === 'string' ? event.data.content_with_citations : current?.contentWithCitations,
               retrievalRunId: event.data?.retrieval_run_id,
               citations: event.data?.citations,
               attemptId: event.data?.attempt_id,
@@ -387,6 +393,7 @@ export default function InkwiseDocumentPage() {
           if (event.event === 'meta' && event.data?.citations) {
             setStreamState((current) => ({
               ...(current ?? { text: '' }),
+              contentWithCitations: typeof event.data?.content_with_citations === 'string' ? event.data.content_with_citations : current?.contentWithCitations,
               retrievalRunId: event.data?.retrieval_run_id,
               citations: event.data?.citations,
               attemptId: event.data?.attempt_id,
@@ -955,15 +962,15 @@ export default function InkwiseDocumentPage() {
                             ) : null}
                           </div>
                           {message.role === 'assistant' ? (
-                            <InkwiseMarkdownView markdown={message.content} className={assistantMarkdownClassName} />
+                            <InkwiseMarkdownView
+                              markdown={messageDisplayMarkdown(message)}
+                              citations={messageCitations(message)}
+                              renderInlineCitations
+                              className={assistantMarkdownClassName}
+                            />
                           ) : (
                             <div className="whitespace-pre-wrap">{message.content}</div>
                           )}
-                          {messageCitations(message).length ? (
-                            <div className="mt-3">
-                              <InkwiseCitationBubbles citations={messageCitations(message)} />
-                            </div>
-                          ) : null}
                           {message.role === 'assistant' ? (
                             <div className="mt-3 flex flex-wrap justify-end gap-2">
                               <Button
@@ -1002,15 +1009,15 @@ export default function InkwiseDocumentPage() {
                         <div className="rounded-2xl border bg-white p-3 text-sm">
                           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">assistant</div>
                           {streamState.text ? (
-                            <InkwiseMarkdownView markdown={streamState.text} className={assistantMarkdownClassName} />
+                            <InkwiseMarkdownView
+                              markdown={streamState.contentWithCitations || streamState.text}
+                              citations={streamState.citations}
+                              renderInlineCitations
+                              className={assistantMarkdownClassName}
+                            />
                           ) : (
                             <div className="text-slate-500">Thinking...</div>
                           )}
-                          {streamState.citations?.length ? (
-                            <div className="mt-3">
-                              <InkwiseCitationBubbles citations={streamState.citations} />
-                            </div>
-                          ) : null}
                         </div>
                       ) : null}
                     </div>
