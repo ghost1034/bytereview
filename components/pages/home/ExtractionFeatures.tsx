@@ -209,9 +209,47 @@ export default function ExtractionFeatures({ onGetStarted }: ExtractionFeaturesP
           </div>
         </motion.div>
 
-        {/* Video + CPE bonus */}
+        {/* Video + Invoice extraction */}
         <motion.div
           className="mt-16 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center"
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportOnce}
+        >
+          <motion.div variants={staggerChild}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">See it in action</h3>
+            <div className="rounded-xl overflow-hidden border border-gray-200 shadow-md">
+              <div className="relative bg-black aspect-video">
+                <iframe
+                  className="absolute inset-0 w-full h-full border-0"
+                  loading="lazy"
+                  src="https://www.youtube-nocookie.com/embed/uWA5ds9VuPM?si=DxjCBqrxZ997eF5A"
+                  title="Invoice Extraction and Contract Review"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          </motion.div>
+          <motion.div variants={staggerChild}>
+            <span className="inline-block text-xs font-medium text-blue-700 bg-blue-100 px-2.5 py-1 rounded-full mb-3">
+              See It in Action
+            </span>
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">Invoice Extraction & Contract Review</h3>
+            <p className="text-gray-600 mb-6">
+              Extract line items from invoices and review key contract terms automatically. Custom fields let you pull exactly the data points your workflow requires.
+            </p>
+            <Button onClick={onGetStarted} className="bg-lido-blue hover:bg-lido-blue-dark text-white">
+              Try It Free →
+            </Button>
+          </motion.div>
+        </motion.div>
+
+        {/* Video + CPE bonus */}
+        <motion.div
+          className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center"
           variants={staggerContainer}
           initial="hidden"
           whileInView="visible"
