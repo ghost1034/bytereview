@@ -14,6 +14,12 @@ import {
   InkwiseSystemTemplateCategory,
 } from '@/lib/api'
 
+type InkwiseQueryOptions = {
+  enabled?: boolean
+  refetchInterval?: number | false | ((query: { state: { data?: unknown } }) => number | false | undefined)
+  refetchOnWindowFocus?: boolean
+}
+
 export function useInkwiseDocuments(page = 1, limit = 50) {
   return useQuery<InkwisePaginatedDocuments>({
     queryKey: ['inkwise', 'documents', page, limit],
@@ -37,25 +43,33 @@ export function useInkwiseDocumentRevisions(documentId: string) {
   })
 }
 
-export function useInkwiseSources(page = 1, limit = 50) {
+export function useInkwiseSources(page = 1, limit = 50, options?: InkwiseQueryOptions) {
   return useQuery<InkwisePaginatedSources>({
     queryKey: ['inkwise', 'sources', page, limit],
     queryFn: () => apiClient.listInkwiseSources({ page, limit }),
+    enabled: options?.enabled,
+    refetchInterval: options?.refetchInterval,
+    refetchOnWindowFocus: options?.refetchOnWindowFocus,
   })
 }
 
-export function useInkwiseSourceIngestions(sourceId?: string) {
+export function useInkwiseSourceIngestions(sourceId?: string, options?: InkwiseQueryOptions) {
   return useQuery<InkwiseSourceIngestionListResponse>({
     queryKey: ['inkwise', 'source-ingestions', sourceId ?? 'all'],
     queryFn: () => apiClient.listInkwiseSourceIngestions(sourceId),
+    enabled: options?.enabled,
+    refetchInterval: options?.refetchInterval,
+    refetchOnWindowFocus: options?.refetchOnWindowFocus,
   })
 }
 
-export function useInkwiseDocumentSources(documentId: string) {
+export function useInkwiseDocumentSources(documentId: string, options?: InkwiseQueryOptions) {
   return useQuery({
     queryKey: ['inkwise', 'document-sources', documentId],
     queryFn: () => apiClient.getInkwiseDocumentSources(documentId),
-    enabled: Boolean(documentId),
+    enabled: (options?.enabled ?? true) && Boolean(documentId),
+    refetchInterval: options?.refetchInterval,
+    refetchOnWindowFocus: options?.refetchOnWindowFocus,
   })
 }
 

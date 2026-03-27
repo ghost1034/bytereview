@@ -116,3 +116,6 @@ stripe-cli.log
 
 # Service account keys
 *service-account*.json
+
+# AI tools
+.claude/

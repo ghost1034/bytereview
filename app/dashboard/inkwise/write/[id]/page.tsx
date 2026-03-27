@@ -47,6 +47,7 @@ import {
   stripInkwiseChatCitationMarkers,
 } from '@/lib/inkwise-editor'
 import { markdownToSafeHtml } from '@/lib/inkwise-markdown'
+import { INKWISE_SOURCE_POLL_INTERVAL_MS, isInkwiseSourceActiveStatus } from '@/lib/inkwise-source-status'
 import { cn } from '@/lib/utils'
 
 const MAX_PREDICTION_BEFORE_TEXT = 12000
@@ -128,8 +129,20 @@ export default function InkwiseDocumentPage() {
   const documentId = params.id
 
   const documentQuery = useInkwiseDocument(documentId)
-  const sourcesQuery = useInkwiseSources(1, 100)
-  const bindingsQuery = useInkwiseDocumentSources(documentId)
+  const sourcesQuery = useInkwiseSources(1, 100, {
+    refetchInterval: (query) => {
+      const data = query.state.data as { items?: Array<{ status?: string | null }> } | undefined
+      return data?.items?.some((source) => isInkwiseSourceActiveStatus(source.status)) ? INKWISE_SOURCE_POLL_INTERVAL_MS : false
+    },
+    refetchOnWindowFocus: true,
+  })
+  const bindingsQuery = useInkwiseDocumentSources(documentId, {
+    refetchInterval: (query) => {
+      const data = query.state.data as { sources?: Array<{ source?: { status?: string | null } | null }> } | undefined
+      return data?.sources?.some((binding) => isInkwiseSourceActiveStatus(binding.source?.status)) ? INKWISE_SOURCE_POLL_INTERVAL_MS : false
+    },
+    refetchOnWindowFocus: true,
+  })
   const threadsQuery = useInkwiseChatThreads(documentId)
   const revisionsQuery = useInkwiseDocumentRevisions(documentId)
 

@@ -10,13 +10,26 @@ import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
 import { useInkwiseSourceIngestions, useInkwiseSources } from '@/hooks/useInkwise'
 import { apiClient } from '@/lib/api'
+import { INKWISE_SOURCE_POLL_INTERVAL_MS, isInkwiseIngestionActiveStatus, isInkwiseSourceActiveStatus } from '@/lib/inkwise-source-status'
 
 export default function InkwiseReferencesPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const queryClient = useQueryClient()
   const { toast } = useToast()
-  const sources = useInkwiseSources(1, 50)
-  const ingestions = useInkwiseSourceIngestions()
+  const sources = useInkwiseSources(1, 50, {
+    refetchInterval: (query) => {
+      const data = query.state.data as { items?: Array<{ status?: string | null }> } | undefined
+      return data?.items?.some((source) => isInkwiseSourceActiveStatus(source.status)) ? INKWISE_SOURCE_POLL_INTERVAL_MS : false
+    },
+    refetchOnWindowFocus: true,
+  })
+  const ingestions = useInkwiseSourceIngestions(undefined, {
+    refetchInterval: (query) => {
+      const data = query.state.data as { ingestions?: Array<{ status?: string | null }> } | undefined
+      return data?.ingestions?.some((ingestion) => isInkwiseIngestionActiveStatus(ingestion.status)) ? INKWISE_SOURCE_POLL_INTERVAL_MS : false
+    },
+    refetchOnWindowFocus: true,
+  })
   const [webpageUrl, setWebpageUrl] = useState('')
 
   const latestIngestionBySourceId = useMemo(() => {
