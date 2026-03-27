@@ -224,8 +224,8 @@ export default function ExtractionFeatures({ onGetStarted }: ExtractionFeaturesP
                 <iframe
                   className="absolute inset-0 w-full h-full border-0"
                   loading="lazy"
-                  src="https://www.youtube-nocookie.com/embed/mxDEliIRWtc?si=brPvZMmN0F5Tbeeh"
-                  title="See how it works: Bank Statement Analysis"
+                  src="https://www.youtube-nocookie.com/embed/gchB4SbxsJM?si=KlJMFOjH0nKP08yX"
+                  title="Free CPE Tracker"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   referrerPolicy="strict-origin-when-cross-origin"
                   allowFullScreen
