@@ -74,7 +74,13 @@ def build_grounded_writing_tool_prompt(
     parts.append("Use the evidence for factual accuracy whenever it is relevant.")
     if selection_text:
         parts.append("If the selected text conflicts with the evidence, prefer the evidence.")
-    parts.append("Return only the requested text, with no preamble, notes, or citation markers.")
+    parts.append("Return only the requested text, with no preamble or notes.")
+    parts.append("")
+    parts.append("Citation rules:")
+    parts.append("- Whenever a sentence or clause relies on grounded evidence, append the supporting evidence IDs immediately after that sentence or clause, like [E01] or [E01][E02].")
+    parts.append("- Only cite IDs that appear in the grounded evidence below.")
+    parts.append("- Do not move all citations to the end. Place them exactly where the support applies.")
+    parts.append("- Leave purely connective or stylistic text uncited if it does not rely on evidence.")
     parts.append("")
 
     if document and document.language:
@@ -182,7 +188,9 @@ def build_grounded_prediction_prompt(
     parts.append("- Keep the completion short and tabbable: usually one clause or one sentence fragment.")
     parts.append("- Include any needed leading space or punctuation.")
     parts.append("- Do not repeat text that is already before the cursor.")
-    parts.append("- Do not include citation markers, notes, bullets, or explanations.")
+    parts.append("- If the completion relies on grounded evidence, append the supporting evidence IDs immediately after the supported clause, like [E01] or [E01][E02].")
+    parts.append("- Only cite IDs that appear in the grounded evidence below.")
+    parts.append("- Do not add notes, bullets, or explanations.")
     parts.append("")
 
     if document.language:

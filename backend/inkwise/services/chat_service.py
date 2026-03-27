@@ -8,6 +8,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
+from inkwise.services.citation_text import parse_citation_text
 from models.inkwise_models import InkwiseChatMessage, InkwiseChatThread, InkwiseDocument
 
 
@@ -228,7 +229,9 @@ class InkwiseChatService:
         *,
         thread_id: uuid.UUID,
         content: str,
+        content_with_citations: str | None,
         citations: list[dict],
+        segments: list[dict] | None,
         retrieval_run_id: uuid.UUID | None,
         provider: str,
         provider_meta: dict,
@@ -238,10 +241,11 @@ class InkwiseChatService:
             thread_id=thread_id,
             role="assistant",
             content=content.strip(),
-            content_with_citations=content.strip(),
+            content_with_citations=(content_with_citations or content).strip(),
             citations_json={
                 "retrieval_run_id": str(retrieval_run_id) if retrieval_run_id is not None else None,
                 "citations": citations,
+                "segments": list(segments or []),
             },
             provider=provider,
             provider_meta=provider_meta,
@@ -405,28 +409,4 @@ def build_grounded_chat_prompt(
 
 
 def extract_citations(*, assistant_text: str, evidence: list) -> list[dict]:
-    evidence_by_id = {item.evidence_id: item for item in evidence}
-    cited_ids: list[str] = []
-    for match in _EVIDENCE_ID_RE.finditer(assistant_text or ""):
-        evidence_id = match.group(1)
-        if evidence_id in evidence_by_id and evidence_id not in cited_ids:
-            cited_ids.append(evidence_id)
-
-    citations: list[dict] = []
-    for evidence_id in cited_ids:
-        item = evidence_by_id[evidence_id]
-        citations.append(
-            {
-                "evidence_id": evidence_id,
-                "source_id": str(item.source_id),
-                "source_title": item.source_title,
-                "page_number": item.page_number,
-                "segment_id": str(item.segment_id) if item.segment_id is not None else None,
-                "segment_title": item.segment_title,
-                "locator_json": item.locator_json,
-                "preview_bucket": item.preview_bucket,
-                "preview_object": item.preview_object,
-                "excerpt": item.excerpt,
-            }
-        )
-    return citations
+    return parse_citation_text(text=assistant_text, evidence=evidence).citations

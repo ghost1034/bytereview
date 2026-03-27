@@ -1,11 +1,12 @@
 import type { Editor, JSONContent } from '@tiptap/core'
 
-import type { InkwiseCitation } from '@/lib/api'
+import type { InkwiseCitation, InkwiseGroundedSegment } from '@/lib/api'
 import {
   appendCitationAnchorToContent,
   createInkwiseCitationAnchorAttrs,
   extractInsertableContent,
   hasInkwiseCitations,
+  injectCitationAnchorsFromMarkedContent,
   type InkwiseCitationAnchorSourceKind,
 } from '@/lib/inkwise-citation-anchor'
 import { markdownToSafeHtml } from '@/lib/inkwise-markdown'
@@ -25,6 +26,8 @@ export type InkwiseEditorCitationAnchor = {
   citations: InkwiseCitation[]
   attemptId?: string | null
   retrievalRunId?: string | null
+  contentWithCitations?: string | null
+  segments?: InkwiseGroundedSegment[] | null
 }
 
 export function getInkwiseEditorTarget(editor: Editor | null): InkwiseEditorTarget | null {
@@ -62,9 +65,27 @@ async function buildInkwiseDocumentContentFromMarkdown({
   const html = await markdownToSafeHtml(value)
   if (!html) return null
 
-  const baseContent = htmlToContentJson(html)
+  let baseContent = htmlToContentJson(html)
   if (!citationAnchor || !hasInkwiseCitations(citationAnchor.citations)) {
     return baseContent
+  }
+
+  const markedValue = (citationAnchor.contentWithCitations || '').trim()
+  if (markedValue) {
+    const markedHtml = await markdownToSafeHtml(markedValue)
+    if (markedHtml) {
+      const markedContent = htmlToContentJson(markedHtml)
+      const injected = injectCitationAnchorsFromMarkedContent({
+        content: markedContent,
+        citations: citationAnchor.citations,
+        sourceKind: citationAnchor.sourceKind,
+        attemptId: citationAnchor.attemptId,
+        retrievalRunId: citationAnchor.retrievalRunId,
+      })
+      if (injected.inserted) {
+        return injected.content
+      }
+    }
   }
 
   return appendCitationAnchorToContent(

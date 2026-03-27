@@ -63,6 +63,7 @@ type StreamState = {
 
 type PredictionState = {
   text: string
+  contentWithCitations?: string | null
   grounded: boolean
   evidence: InkwiseCitation[]
   attemptId?: string | null
@@ -71,6 +72,7 @@ type PredictionState = {
 
 type ImprovedDraftResult = {
   markdown: string
+  contentWithCitations?: string | null
   grounded: boolean
   evidence: InkwiseCitation[]
   attemptId?: string | null
@@ -95,12 +97,13 @@ function messageCitations(message: InkwiseChatMessage): InkwiseCitation[] {
 }
 
 function normalizePredictionState(prediction: InkwisePredictionResponse): PredictionState | null {
-  const text = (prediction?.suggestion_text || '').trim()
-  if (!text) return null
+  const text = prediction?.suggestion_text || ''
+  if (!text.trim()) return null
   return {
     text,
+    contentWithCitations: prediction.content_with_citations || text,
     grounded: Boolean(prediction.grounded),
-    evidence: Array.isArray(prediction.evidence) ? prediction.evidence : [],
+    evidence: Array.isArray(prediction.citations) && prediction.citations.length ? prediction.citations : Array.isArray(prediction.evidence) ? prediction.evidence : [],
     attemptId: prediction.attempt_id || null,
     retrievalRunId: prediction.retrieval_run_id || null,
   }
@@ -413,6 +416,7 @@ export default function InkwiseDocumentPage() {
       if (!selection) throw new Error('Add some document content before using a writing tool')
 
       let output = ''
+      let contentWithCitations: string | null = null
       let grounded = false
       let evidence: InkwiseCitation[] = []
       let attemptId: string | null = null
@@ -450,11 +454,18 @@ export default function InkwiseDocumentPage() {
             if (event.data?.retrieval_run_id) {
               retrievalRunId = String(event.data.retrieval_run_id)
             }
+            if (event.data?.content_with_citations) {
+              contentWithCitations = String(event.data.content_with_citations)
+            }
+            if (Array.isArray(event.data?.citations) && event.data.citations.length) {
+              evidence = event.data.citations
+            }
           }
         }
       )
       return {
         markdown: output,
+        contentWithCitations,
         grounded,
         evidence,
         attemptId,
@@ -472,13 +483,14 @@ export default function InkwiseDocumentPage() {
             editor,
             markdown,
             citationAnchor: result.grounded && result.evidence.length
-              ? {
-                  sourceKind: 'writing_tool',
-                  citations: result.evidence,
-                  attemptId: result.attemptId,
-                  retrievalRunId: result.retrievalRunId,
-                }
-              : null,
+                ? {
+                    sourceKind: 'writing_tool',
+                    citations: result.evidence,
+                    attemptId: result.attemptId,
+                    retrievalRunId: result.retrievalRunId,
+                    contentWithCitations: result.contentWithCitations || markdown,
+                  }
+                : null,
           })
           if (!applied) return
         } else {
@@ -557,6 +569,7 @@ export default function InkwiseDocumentPage() {
               citations: messageCitations(message),
               attemptId: typeof message.provider_meta?.attempt_id === 'string' ? message.provider_meta.attempt_id : null,
               retrievalRunId: message.citations_json?.retrieval_run_id || null,
+              contentWithCitations: message.content_with_citations || message.citations_json?.content_with_citations || message.content || cleaned,
             }
           : null,
       })
@@ -809,6 +822,7 @@ export default function InkwiseDocumentPage() {
                             citations: predictionState.evidence,
                             attemptId: predictionState.attemptId,
                             retrievalRunId: predictionState.retrievalRunId,
+                            contentWithCitations: predictionState.contentWithCitations || predictionState.text,
                           }
                         : null,
                     })

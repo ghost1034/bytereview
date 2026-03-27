@@ -26,10 +26,10 @@ from inkwise.schemas import (
 from inkwise.services.chat_service import (
     InkwiseChatService,
     build_grounded_chat_prompt,
-    extract_citations,
     prepare_grounded_chat_history,
     truncate_text,
 )
+from inkwise.services.citation_text import parse_citation_text
 from inkwise.services.document_sources import InkwiseDocumentSourceService
 from inkwise.services.generation_attempts import InkwiseGenerationAttemptService
 from inkwise.services.gemini import GeminiError, generate_content, generate_text
@@ -151,7 +151,9 @@ async def _stream_chat_attempt(
                 db,
                 thread_id=thread_db_id,
                 content=assistant_text,
+                content_with_citations=assistant_text,
                 citations=[],
+                segments=[],
                 retrieval_run_id=retrieval_run_id,
                 provider="system",
                 provider_meta=assistant_meta,
@@ -160,12 +162,12 @@ async def _stream_chat_attempt(
                 db,
                 attempt_id=attempt_id,
                 response_text=assistant_text,
-                citations_json={"retrieval_run_id": str(retrieval_run_id) if retrieval_run_id else None, "citations": []},
+                citations_json={"retrieval_run_id": str(retrieval_run_id) if retrieval_run_id else None, "citations": [], "segments": []},
                 retrieval_run_id=retrieval_run_id,
                 chat_message_id=cast(uuid.UUID, assistant_message.id),
                 meta_json=assistant_meta,
             )
-            yield _sse("meta", {"citations": [], "evidence": [], "retrieval_run_id": str(retrieval_run_id), "attempt_id": str(attempt_id)})
+            yield _sse("meta", {"citations": [], "evidence": [], "segments": [], "content_with_citations": assistant_text, "retrieval_run_id": str(retrieval_run_id), "attempt_id": str(attempt_id)})
             yield _sse("done", {"message_id": str(assistant_message.id), "retrieval_run_id": str(retrieval_run_id), "attempt_id": str(attempt_id)})
             return
 
@@ -214,7 +216,8 @@ async def _stream_chat_attempt(
                 max_output_tokens=65536,
                 timeout_seconds=120,
             )
-        assistant_text = result.text
+        parsed_citation_text = parse_citation_text(text=result.text, evidence=evidence)
+        assistant_text = parsed_citation_text.plain_text
 
         for idx in range(0, len(assistant_text), 80):
             if await request.is_disconnected():
@@ -239,7 +242,7 @@ async def _stream_chat_attempt(
         yield _sse("meta", {"error": "internal_error", "message": "Missing retrieval_run_id", "attempt_id": str(attempt_id)})
         return
 
-    citations = extract_citations(assistant_text=assistant_text, evidence=evidence)
+    citations = parsed_citation_text.citations
     assistant_meta = {
         **assistant_provider_meta,
         "attempt_id": str(attempt_id),
@@ -248,8 +251,10 @@ async def _stream_chat_attempt(
     assistant_message = chat_service.create_assistant_message(
         db,
         thread_id=thread_db_id,
-        content=assistant_text,
+        content=parsed_citation_text.plain_text,
+        content_with_citations=parsed_citation_text.content_with_citations,
         citations=citations,
+        segments=parsed_citation_text.segments,
         retrieval_run_id=retrieval_run_id,
         provider="vertex_ai",
         provider_meta=assistant_meta,
@@ -257,10 +262,12 @@ async def _stream_chat_attempt(
     generation_attempt_service.complete_attempt(
         db,
         attempt_id=attempt_id,
-        response_text=assistant_text,
+        response_text=parsed_citation_text.plain_text,
         citations_json={
             "retrieval_run_id": str(retrieval_run_id),
             "citations": citations,
+            "segments": parsed_citation_text.segments,
+            "content_with_citations": parsed_citation_text.content_with_citations,
         },
         retrieval_run_id=retrieval_run_id,
         chat_message_id=cast(uuid.UUID, assistant_message.id),
@@ -271,6 +278,8 @@ async def _stream_chat_attempt(
         {
             "citations": citations,
             "evidence": [evidence_item_to_payload(item) for item in evidence],
+            "segments": parsed_citation_text.segments,
+            "content_with_citations": parsed_citation_text.content_with_citations,
             "retrieval_run_id": str(retrieval_run_id),
             "attempt_id": str(attempt_id),
         },

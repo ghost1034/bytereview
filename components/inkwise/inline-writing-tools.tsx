@@ -38,6 +38,7 @@ export function InlineWritingTools({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [outputMd, setOutputMd] = useState('')
+  const [outputWithCitations, setOutputWithCitations] = useState<string | null>(null)
   const [lastAction, setLastAction] = useState<ToolAction | null>(null)
   const [customOpen, setCustomOpen] = useState(false)
   const [instruction, setInstruction] = useState('Improve clarity, keep meaning.')
@@ -71,6 +72,7 @@ export function InlineWritingTools({
       if (!busy) {
         setError(null)
         setOutputMd('')
+        setOutputWithCitations(null)
         setLastAction(null)
         setGroundingState(null)
         setAttemptId(null)
@@ -109,6 +111,7 @@ export function InlineWritingTools({
     setError(null)
     setBusy(true)
     setOutputMd('')
+    setOutputWithCitations(null)
     setLastAction(action)
     setGroundingState(null)
     setAttemptId(null)
@@ -148,6 +151,20 @@ export function InlineWritingTools({
           if ((event.event === 'meta' || event.event === 'done') && event.data?.attempt_id) {
             setAttemptId(String(event.data.attempt_id))
           }
+          if (event.event === 'done' && event.data?.content_with_citations) {
+            setOutputWithCitations(String(event.data.content_with_citations))
+          }
+          if (event.event === 'done' && Array.isArray(event.data?.citations) && event.data.citations.length) {
+            setGroundingState((current) =>
+              current
+                ? {
+                    ...current,
+                    evidence: event.data.citations,
+                    evidenceCount: event.data.citations.length,
+                  }
+                : current,
+            )
+          }
         },
         { signal: controller.signal },
       )
@@ -178,6 +195,7 @@ export function InlineWritingTools({
               citations: groundingState.evidence,
               attemptId,
               retrievalRunId: groundingState.retrievalRunId,
+              contentWithCitations: outputWithCitations || outputMd,
             }
           : null,
       })
@@ -194,6 +212,7 @@ export function InlineWritingTools({
   function closePanel() {
     setError(null)
     setOutputMd('')
+    setOutputWithCitations(null)
     setLastAction(null)
     setGroundingState(null)
     setAttemptId(null)
@@ -208,6 +227,7 @@ export function InlineWritingTools({
     setError(null)
     setBusy(true)
     setOutputMd('')
+    setOutputWithCitations(null)
     setGroundingState(null)
     setPanelOpen(true)
 
@@ -237,6 +257,20 @@ export function InlineWritingTools({
           }
           if ((event.event === 'meta' || event.event === 'done') && event.data?.attempt_id) {
             setAttemptId(String(event.data.attempt_id))
+          }
+          if (event.event === 'done' && event.data?.content_with_citations) {
+            setOutputWithCitations(String(event.data.content_with_citations))
+          }
+          if (event.event === 'done' && Array.isArray(event.data?.citations) && event.data.citations.length) {
+            setGroundingState((current) =>
+              current
+                ? {
+                    ...current,
+                    evidence: event.data.citations,
+                    evidenceCount: event.data.citations.length,
+                  }
+                : current,
+            )
           }
         },
         { signal: controller.signal },

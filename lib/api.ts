@@ -1231,6 +1231,11 @@ export interface InkwiseCitation {
   excerpt?: string
 }
 
+export interface InkwiseGroundedSegment {
+  text: string
+  citation_ids?: string[]
+}
+
 export interface InkwiseDocument {
   id: string
   user_id: string
@@ -1460,6 +1465,8 @@ export interface InkwiseChatMessage {
   citations_json?: {
     retrieval_run_id?: string | null
     citations?: InkwiseCitation[]
+    segments?: InkwiseGroundedSegment[]
+    content_with_citations?: string | null
     [key: string]: any
   } | null
   provider: string
@@ -1493,11 +1500,14 @@ export interface InkwisePredictionRequest {
 
 export interface InkwisePredictionResponse {
   suggestion_text: string
+  content_with_citations?: string | null
+  segments?: InkwiseGroundedSegment[]
   grounded: boolean
   retrieval_run_id?: string | null
   attempt_id?: string | null
   evidence_count?: number
   evidence?: InkwiseCitation[]
+  citations?: InkwiseCitation[]
   provider: string
   model: string
 }

@@ -24,6 +24,7 @@ from inkwise.schemas import (
 from inkwise.services.document_sources import InkwiseDocumentSourceService
 from inkwise.services.document_service import InkwiseDocumentService
 from inkwise.services.generation_attempts import InkwiseGenerationAttemptService
+from inkwise.services.citation_text import parse_citation_text
 from inkwise.services.gemini import GeminiError, generate_content, generate_text
 from inkwise.services.multimodal_evidence import build_pdf_multimodal_contents
 from inkwise.services.retrieval_service import InkwiseRetrievalService, build_evidence_pack
@@ -180,7 +181,8 @@ async def _stream_writing_tool_attempt(
         yield _sse("done", {"ok": False, "attempt_id": str(attempt_id)})
         return
 
-    text = result.text
+    parsed_citation_text = parse_citation_text(text=result.text, evidence=evidence)
+    text = parsed_citation_text.plain_text
     for idx in range(0, len(text), 80):
         if await request.is_disconnected():
             generation_attempt_service.fail_attempt(db, attempt_id=attempt_id, message="cancelled", retrieval_run_id=retrieval_run_id)
@@ -192,7 +194,12 @@ async def _stream_writing_tool_attempt(
         db,
         attempt_id=attempt_id,
         response_text=text,
-        citations_json={"evidence": [evidence_item_to_payload(item) for item in evidence]},
+        citations_json={
+            "evidence": [evidence_item_to_payload(item) for item in evidence],
+            "citations": parsed_citation_text.citations,
+            "segments": parsed_citation_text.segments,
+            "content_with_citations": parsed_citation_text.content_with_citations,
+        },
         retrieval_run_id=retrieval_run_id,
         meta_json={**attempt_meta, "multimodal_pdf_evidence_ids": multimodal_attached_evidence_ids},
     )
@@ -200,6 +207,9 @@ async def _stream_writing_tool_attempt(
     done_payload: dict[str, Any] = {"ok": True, "grounded": grounded, "attempt_id": str(attempt_id)}
     if retrieval_run_id is not None:
         done_payload["retrieval_run_id"] = str(retrieval_run_id)
+    done_payload["content_with_citations"] = parsed_citation_text.content_with_citations
+    done_payload["segments"] = parsed_citation_text.segments
+    done_payload["citations"] = parsed_citation_text.citations
     yield _sse("done", done_payload)
 
 
@@ -302,7 +312,8 @@ async def create_prediction(
         raise HTTPException(status_code=502, detail=f"Prediction provider error: {exc}") from exc
 
     normalized_prediction = normalize_prediction_result(raw_text=result.text, body=body)
-    suggestion_text = normalized_prediction.text
+    parsed_prediction = parse_citation_text(text=normalized_prediction.text, evidence=evidence)
+    suggestion_text = parsed_prediction.plain_text
     if not suggestion_text:
         logger.info(
             "Inkwise prediction returned no suggestion after normalization",
@@ -317,7 +328,12 @@ async def create_prediction(
         db,
         attempt_id=cast(uuid.UUID, attempt.id),
         response_text=suggestion_text,
-        citations_json={"evidence": [evidence_item_to_payload(item) for item in evidence]},
+        citations_json={
+            "evidence": [evidence_item_to_payload(item) for item in evidence],
+            "citations": parsed_prediction.citations,
+            "segments": parsed_prediction.segments,
+            "content_with_citations": parsed_prediction.content_with_citations,
+        },
         retrieval_run_id=retrieval_run_id,
         meta_json={
             "grounded": grounded,
@@ -328,11 +344,14 @@ async def create_prediction(
     )
     return InkwisePredictionResponse(
         suggestion_text=suggestion_text,
+        content_with_citations=parsed_prediction.content_with_citations,
+        segments=parsed_prediction.segments,
         grounded=grounded,
         retrieval_run_id=retrieval_run_id,
         attempt_id=cast(uuid.UUID, attempt.id),
         evidence_count=len(evidence),
         evidence=[evidence_item_to_payload(item) for item in evidence],
+        citations=parsed_prediction.citations,
         provider="vertex_ai",
         model=settings.gemini_model,
     )

@@ -17,6 +17,7 @@ export type InkwiseCitationAnchorAttrs = {
 }
 
 const TEXTBLOCK_TYPES = new Set(['paragraph', 'heading'])
+const EVIDENCE_MARKER_RE = /\[(E\d{2})\]/g
 
 function parseJson<T>(value: string | null | undefined, fallback: T): T {
   if (!value) return fallback
@@ -40,6 +41,14 @@ function buildAnchorNode(attrs: InkwiseCitationAnchorAttrs): JSONContent {
   return {
     type: INKWISE_CITATION_ANCHOR_NODE,
     attrs,
+  }
+}
+
+function buildTextNode(text: string, template?: JSONContent): JSONContent {
+  return {
+    ...(template || {}),
+    type: 'text',
+    text,
   }
 }
 
@@ -103,6 +112,125 @@ export function appendCitationAnchorToContent(
   }
 
   return doc
+}
+
+function splitTextNodeByCitationMarkers({
+  node,
+  citationById,
+  sourceKind,
+  attemptId,
+  retrievalRunId,
+}: {
+  node: JSONContent
+  citationById: Map<string, InkwiseCitation>
+  sourceKind: InkwiseCitationAnchorSourceKind
+  attemptId?: string | null
+  retrievalRunId?: string | null
+}): { nodes: JSONContent[]; inserted: boolean } {
+  const text = typeof node.text === 'string' ? node.text : ''
+  if (!text) return { nodes: [node], inserted: false }
+
+  EVIDENCE_MARKER_RE.lastIndex = 0
+  const parts: JSONContent[] = []
+  let cursor = 0
+  let inserted = false
+
+  while (cursor < text.length) {
+    EVIDENCE_MARKER_RE.lastIndex = cursor
+    const match = EVIDENCE_MARKER_RE.exec(text)
+    if (!match) break
+
+    if (match.index > cursor) {
+      parts.push(buildTextNode(text.slice(cursor, match.index), node))
+    }
+
+    const citationIds: string[] = []
+    let nextCursor = match.index
+    while (true) {
+      EVIDENCE_MARKER_RE.lastIndex = nextCursor
+      const nextMatch = EVIDENCE_MARKER_RE.exec(text)
+      if (!nextMatch || nextMatch.index !== nextCursor) break
+      const evidenceId = nextMatch[1]
+      if (citationById.has(evidenceId) && !citationIds.includes(evidenceId)) {
+        citationIds.push(evidenceId)
+      }
+      nextCursor = nextMatch.index + nextMatch[0].length
+    }
+
+    if (citationIds.length) {
+      parts.push(
+        buildAnchorNode(
+          createInkwiseCitationAnchorAttrs({
+            citations: citationIds.map((citationId) => citationById.get(citationId)).filter(Boolean) as InkwiseCitation[],
+            sourceKind,
+            attemptId,
+            retrievalRunId,
+          }),
+        ),
+      )
+      inserted = true
+    } else {
+      parts.push(buildTextNode(text.slice(match.index, nextCursor), node))
+    }
+
+    cursor = nextCursor
+  }
+
+  if (cursor < text.length) {
+    parts.push(buildTextNode(text.slice(cursor), node))
+  }
+
+  if (!inserted) {
+    return { nodes: [node], inserted: false }
+  }
+
+  return {
+    nodes: parts.filter((part) => !(part.type === 'text' && !part.text)),
+    inserted: true,
+  }
+}
+
+export function injectCitationAnchorsFromMarkedContent({
+  content,
+  citations,
+  sourceKind,
+  attemptId,
+  retrievalRunId,
+}: {
+  content: JSONContent | null | undefined
+  citations: InkwiseCitation[]
+  sourceKind: InkwiseCitationAnchorSourceKind
+  attemptId?: string | null
+  retrievalRunId?: string | null
+}): { content: JSONContent; inserted: boolean } {
+  const doc = JSON.parse(JSON.stringify(content && content.type === 'doc' ? content : { type: 'doc', content: [] })) as JSONContent
+  const citationById = new Map(
+    citations
+      .filter((citation) => citation?.evidence_id)
+      .map((citation) => [String(citation.evidence_id), citation] as const),
+  )
+  let inserted = false
+
+  function visit(node: JSONContent): JSONContent[] {
+    if (node.type === 'text') {
+      const result = splitTextNodeByCitationMarkers({ node, citationById, sourceKind, attemptId, retrievalRunId })
+      inserted = inserted || result.inserted
+      return result.nodes
+    }
+
+    if (!Array.isArray(node.content) || !node.content.length) {
+      return [node]
+    }
+
+    const nextContent = node.content.flatMap((child) => visit(child))
+    return [{ ...node, content: nextContent }]
+  }
+
+  const nextContent = Array.isArray(doc.content) ? doc.content.flatMap((child) => visit(child)) : []
+  return {
+    content: { ...doc, content: nextContent },
+    inserted,
+  }
 }
 
 export function extractInsertableContent(content: JSONContent | null | undefined): JSONContent | JSONContent[] {
