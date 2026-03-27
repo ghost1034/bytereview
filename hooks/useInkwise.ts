@@ -8,6 +8,7 @@ import {
   InkwisePaginatedDocuments,
   InkwiseDocumentRevisionListResponse,
   InkwisePaginatedSources,
+  InkwiseSourceIngestionListResponse,
   InkwisePaginatedTemplates,
   InkwiseSystemTemplate,
   InkwiseSystemTemplateCategory,
@@ -40,6 +41,13 @@ export function useInkwiseSources(page = 1, limit = 50) {
   return useQuery<InkwisePaginatedSources>({
     queryKey: ['inkwise', 'sources', page, limit],
     queryFn: () => apiClient.listInkwiseSources({ page, limit }),
+  })
+}
+
+export function useInkwiseSourceIngestions(sourceId?: string) {
+  return useQuery<InkwiseSourceIngestionListResponse>({
+    queryKey: ['inkwise', 'source-ingestions', sourceId ?? 'all'],
+    queryFn: () => apiClient.listInkwiseSourceIngestions(sourceId),
   })
 }
 

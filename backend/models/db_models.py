@@ -504,6 +504,7 @@ class UsageEvent(Base):
     occurred_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     source = Column(Text, nullable=False)  # 'extraction_task', 'manual_adjustment', etc.
     task_id = Column(UUID(as_uuid=True), ForeignKey("extraction_tasks.id", ondelete="SET NULL"), nullable=True)  # NULL for manual adjustments
+    inkwise_ingestion_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_source_ingestions.id", ondelete="SET NULL"), nullable=True)
     pages = Column(Integer, nullable=False)
     stripe_reported = Column(Boolean, nullable=False, default=False)
     stripe_record_id = Column(Text, nullable=True)

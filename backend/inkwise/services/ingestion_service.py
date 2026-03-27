@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tempfile
 import uuid
@@ -25,6 +26,9 @@ from models.inkwise_models import InkwiseSource, InkwiseSourceIngestion, Inkwise
 
 class IngestionError(RuntimeError):
     pass
+
+
+logger = logging.getLogger(__name__)
 
 
 class InkwiseIngestionService:
@@ -125,6 +129,24 @@ class InkwiseIngestionService:
                     title=source.title,
                     source_url=source.source_url,
                 )
+                ingestion.page_count = normalized.page_count or None
+                ingestion.provider_document_name = source.original_filename or source.title
+                db.commit()
+
+                page_limit_error = self._check_usage_limits(
+                    db,
+                    user_id=source.user_id,
+                    page_count=normalized.page_count,
+                )
+                if page_limit_error is not None:
+                    self._mark_failed(
+                        db,
+                        ingestion_id=ingestion_id,
+                        code="billing_limit_exceeded",
+                        message=page_limit_error,
+                    )
+                    return self._get_ingestion_or_404(db, ingestion_id)
+
                 derived_bucket = normalize_gcs_bucket_name(settings.derived_bucket or source_bucket)
                 if not derived_bucket or not is_valid_gcs_bucket_name(derived_bucket):
                     raise IngestionError("Derived storage bucket is invalid")
@@ -136,8 +158,6 @@ class InkwiseIngestionService:
                 )
                 ingestion.canonical_pdf_gcs_bucket = canonical_bucket
                 ingestion.canonical_pdf_gcs_object = canonical_object
-                ingestion.page_count = normalized.page_count or None
-                ingestion.provider_document_name = source.original_filename or source.title
 
                 self._persist_vector_artifacts(
                     db,
@@ -155,6 +175,15 @@ class InkwiseIngestionService:
                 source.failure_detail = None
                 source.updated_at = datetime.utcnow()
                 db.commit()
+
+                try:
+                    self._record_usage_for_ingestion(
+                        db,
+                        source=source,
+                        ingestion=ingestion,
+                    )
+                except Exception:
+                    db.refresh(ingestion)
                 db.refresh(ingestion)
                 return ingestion
 
@@ -386,6 +415,68 @@ class InkwiseIngestionService:
         if ingestion is None:
             raise FileNotFoundError("Ingestion not found")
         return ingestion
+
+    def _check_usage_limits(self, db: Session, *, user_id: str, page_count: int) -> str | None:
+        if page_count <= 0:
+            return None
+
+        from services.billing_service import get_billing_service
+
+        billing_service = get_billing_service(db)
+        if billing_service.check_page_limit(user_id, page_count):
+            return None
+
+        billing_info = billing_service.get_billing_info(user_id)
+        pages_used = int(billing_info.get("pages_used") or 0)
+        pages_included = int(billing_info.get("pages_included") or 0)
+        pages_remaining = max(0, pages_included - pages_used)
+        plan_name = billing_info.get("plan_display_name") or "current"
+        return (
+            f"Cannot ingest this reference: processing {page_count} pages would exceed your {plan_name} plan limit. "
+            f"You have {pages_remaining} pages remaining out of {pages_included}. "
+            "Please upgrade your plan or reduce the number of reference pages."
+        )
+
+    def _record_usage_for_ingestion(
+        self,
+        db: Session,
+        *,
+        source: InkwiseSource,
+        ingestion: InkwiseSourceIngestion,
+    ) -> None:
+        page_count = int(ingestion.page_count or 0)
+        if page_count <= 0:
+            return
+
+        from services.billing_service import PlanLimitExceeded, get_billing_service
+
+        billing_service = get_billing_service(db)
+        try:
+            event_id = billing_service.record_usage(
+                user_id=source.user_id,
+                pages=page_count,
+                source="inkwise_source_ingestion",
+                inkwise_ingestion_id=str(ingestion.id),
+                notes=f"Inkwise ingestion for source {source.id}",
+            )
+            logger.info(
+                "Recorded %s Inkwise usage pages for ingestion %s (event %s)",
+                page_count,
+                ingestion.id,
+                event_id,
+            )
+        except PlanLimitExceeded as exc:
+            logger.error("Plan limit exceeded after successful Inkwise ingestion %s: %s", ingestion.id, exc)
+            message = self._check_usage_limits(db, user_id=source.user_id, page_count=page_count) or str(exc)
+            self._mark_failed(
+                db,
+                ingestion_id=uuid.UUID(str(ingestion.id)),
+                code="billing_limit_exceeded",
+                message=message,
+            )
+            raise
+        except Exception as exc:
+            logger.error("Failed to record Inkwise usage for ingestion %s: %s", ingestion.id, exc)
 
     def _mark_failed(self, db: Session, *, ingestion_id: uuid.UUID, code: str, message: str) -> None:
         try:

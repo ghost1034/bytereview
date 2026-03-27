@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Eye, FileUp, Globe, Loader2, RefreshCw, Trash2 } from 'lucide-react'
 
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
-import { useInkwiseSources } from '@/hooks/useInkwise'
+import { useInkwiseSourceIngestions, useInkwiseSources } from '@/hooks/useInkwise'
 import { apiClient } from '@/lib/api'
 
 export default function InkwiseReferencesPage() {
@@ -16,10 +16,22 @@ export default function InkwiseReferencesPage() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const sources = useInkwiseSources(1, 50)
+  const ingestions = useInkwiseSourceIngestions()
   const [webpageUrl, setWebpageUrl] = useState('')
+
+  const latestIngestionBySourceId = useMemo(() => {
+    const latest = new Map<string, NonNullable<typeof ingestions.data>['ingestions'][number]>()
+    for (const ingestion of ingestions.data?.ingestions ?? []) {
+      if (!latest.has(ingestion.source_id)) {
+        latest.set(ingestion.source_id, ingestion)
+      }
+    }
+    return latest
+  }, [ingestions.data])
 
   const refreshSources = async () => {
     await queryClient.invalidateQueries({ queryKey: ['inkwise', 'sources'] })
+    await queryClient.invalidateQueries({ queryKey: ['inkwise', 'source-ingestions'] })
   }
 
   const uploadSource = useMutation({
@@ -177,46 +189,57 @@ export default function InkwiseReferencesPage() {
             </CardContent>
           </Card>
         ) : sources.data?.items.length ? (
-          sources.data.items.map((source) => (
-            <Card key={source.id}>
-              <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-semibold text-slate-900">{source.title}</h2>
-                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
-                      {sourceTypeLabel(source.type, source.content_type)}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-                      {source.status}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-500">
-                    {source.source_url || source.original_filename || source.content_type} • {Math.max(1, Math.round(source.size_bytes / 1024))} KB
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                    <span>Updated {new Date(source.updated_at).toLocaleString()}</span>
-                    <span>•</span>
-                    <span>{referenceStatusLabel(source.status)}</span>
-                  </div>
-                </div>
+          sources.data.items.map((source) => {
+            const latestIngestion = latestIngestionBySourceId.get(source.id)
 
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" onClick={() => previewSource.mutate(source.id)}>
-                    <Eye className="mr-2 h-4 w-4" />
-                    Preview
-                  </Button>
-                  <Button variant="outline" onClick={() => ingestSource.mutate(source.id)}>
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Re-ingest
-                  </Button>
-                  <Button variant="outline" onClick={() => deleteSource.mutate(source.id)}>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Remove
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+            return (
+              <Card key={source.id}>
+                <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="font-semibold text-slate-900">{source.title}</h2>
+                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
+                        {sourceTypeLabel(source.type, source.content_type)}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+                        {source.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-500">
+                      {source.source_url || source.original_filename || source.content_type} • {Math.max(1, Math.round(source.size_bytes / 1024))} KB
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                      <span>Updated {new Date(source.updated_at).toLocaleString()}</span>
+                      <span>•</span>
+                      <span>{referenceStatusLabel(source.status)}</span>
+                      {typeof latestIngestion?.page_count === 'number' ? (
+                        <>
+                          <span>•</span>
+                          <span>{formatReferencePageCount(latestIngestion.page_count)}</span>
+                        </>
+                      ) : null}
+                    </div>
+                    {source.failure_detail ? <p className="text-sm text-rose-600">{source.failure_detail}</p> : null}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={() => previewSource.mutate(source.id)}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Preview
+                    </Button>
+                    <Button variant="outline" onClick={() => ingestSource.mutate(source.id)}>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Re-ingest
+                    </Button>
+                    <Button variant="outline" onClick={() => deleteSource.mutate(source.id)}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Remove
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })
         ) : (
           <Card>
             <CardContent className="p-10 text-center text-sm text-slate-500">
@@ -256,4 +279,8 @@ function referenceStatusLabel(status: string): string {
   if (status === 'failed') return 'Needs attention'
   if (status === 'uploading') return 'Uploading'
   return status || 'Reference status'
+}
+
+function formatReferencePageCount(pageCount: number): string {
+  return `${pageCount.toLocaleString()} ${pageCount === 1 ? 'page' : 'pages'} processed`
 }

@@ -55,6 +55,14 @@ def _month_bounds_utc(now: datetime) -> Tuple[datetime, datetime]:
     return start, end
 
 
+def _coerce_uuid(value: Any) -> Optional[uuid.UUID]:
+    if value in (None, ""):
+        return None
+    if isinstance(value, uuid.UUID):
+        return value
+    return uuid.UUID(str(value))
+
+
 def _extract_period_from_subscription(sub: Any) -> Tuple[Optional[int], Optional[int]]:
     """
     Extract (current_period_start, current_period_end) from a Subscription object/dict.
@@ -234,6 +242,7 @@ class BillingService:
         pages: int,
         source: str,
         task_id: Optional[str] = None,
+        inkwise_ingestion_id: Optional[str] = None,
         notes: Optional[str] = None,
     ) -> Optional[str]:
         """Append a usage event and bump the cached counter. Report to Stripe for paid plans.
@@ -242,6 +251,26 @@ class BillingService:
         """
         if pages <= 0:
             return None
+
+        task_uuid = _coerce_uuid(task_id)
+        inkwise_ingestion_uuid = _coerce_uuid(inkwise_ingestion_id)
+
+        duplicate_query = self.db.query(UsageEvent).filter(
+            UsageEvent.user_id == user_id,
+            UsageEvent.source == source,
+        )
+        if task_uuid is not None:
+            existing_event = duplicate_query.filter(UsageEvent.task_id == task_uuid).first()
+            if existing_event is not None:
+                logger.info(f"Usage already recorded for task {task_uuid}; skipping duplicate metering")
+                return str(existing_event.id)
+        if inkwise_ingestion_uuid is not None:
+            existing_event = duplicate_query.filter(UsageEvent.inkwise_ingestion_id == inkwise_ingestion_uuid).first()
+            if existing_event is not None:
+                logger.info(
+                    f"Usage already recorded for Inkwise ingestion {inkwise_ingestion_uuid}; skipping duplicate metering"
+                )
+                return str(existing_event.id)
 
         acct = self.get_or_create_billing_account(user_id)
 
@@ -255,7 +284,8 @@ class BillingService:
                 id=event_id,
                 user_id=user_id,
                 source=source,
-                task_id=task_id,
+                task_id=task_uuid,
+                inkwise_ingestion_id=inkwise_ingestion_uuid,
                 pages=pages,
                 notes=notes,
             )
