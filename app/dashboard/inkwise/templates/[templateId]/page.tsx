@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Loader2, Save, Trash2 } from 'lucide-react'
+import { FilePlus2, Loader2, Save, Trash2 } from 'lucide-react'
 
 import { InkwiseEditor } from '@/components/inkwise/inkwise-editor'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { useInkwiseTemplate } from '@/hooks/useInkwise'
 import { apiClient } from '@/lib/api'
+import { createInkwiseDocumentFromTemplate } from '@/lib/inkwise-template-documents'
 
 export default function InkwiseTemplateDetailPage() {
   const params = useParams<{ templateId: string }>()
@@ -69,6 +70,22 @@ export default function InkwiseTemplateDetailPage() {
     },
   })
 
+  const createDocument = useMutation({
+    mutationFn: async () => {
+      return createInkwiseDocumentFromTemplate({
+        title: title || templateQuery.data?.title || 'Untitled template',
+        content_json: contentJson ?? templateQuery.data?.content_json ?? { type: 'doc', content: [{ type: 'paragraph' }] },
+      })
+    },
+    onSuccess: async (document) => {
+      await queryClient.invalidateQueries({ queryKey: ['inkwise', 'documents'] })
+      router.push(`/dashboard/inkwise/write/${document.id}`)
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Could not create document', description: error.message, variant: 'destructive' })
+    },
+  })
+
   return (
     <Card>
       <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -77,6 +94,10 @@ export default function InkwiseTemplateDetailPage() {
           <CardDescription>Adjust the metadata and JSON payload used to seed new Inkwise drafts.</CardDescription>
         </div>
         <div className="flex gap-2">
+          <Button onClick={() => createDocument.mutate()} disabled={createDocument.isPending || !contentJson}>
+            {createDocument.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FilePlus2 className="mr-2 h-4 w-4" />}
+            Use template
+          </Button>
           <Button variant="outline" onClick={() => deleteTemplate.mutate()} disabled={deleteTemplate.isPending}>
             <Trash2 className="mr-2 h-4 w-4" />
             Delete
