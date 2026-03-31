@@ -265,7 +265,7 @@ class CloudRunTaskService:
                         "rate_limits": {
                             "max_dispatches_per_second": 10.0,
                             "max_burst_size": 100,
-                            "max_concurrent_dispatches": 50
+                            "max_concurrent_dispatches": 5
                         },
                         "retry_config": {
                             "max_attempts": 3,
