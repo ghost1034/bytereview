@@ -82,6 +82,11 @@ const upcomingVideos = [
     description: "AI digital workers that perform accounting tasks autonomously.",
   },
   {
+    title: "Dual Agent Technical Accounting Memo",
+    src: "https://www.youtube-nocookie.com/embed/hePBTs8MnFQ?si=exJDcDO07KvjXkb4",
+    description: "Two AI agents collaborate to solve a technical accounting problem through structured reasoning.",
+  },
+  {
     title: "Chrona Demo",
     src: "https://player.vimeo.com/video/1163177906?badge=0&autopause=0&player_id=0&app_id=58479",
     description: "Automatic screen-based time tracking with AI-powered timelines.",

@@ -55,31 +55,59 @@ export default function ClawShowcase() {
             </motion.p>
           </motion.div>
 
-          {/* Right: video */}
+          {/* Right: videos */}
           <motion.div
-            className="rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden"
-            variants={fadeInUp}
+            className="space-y-6"
+            variants={staggerContainer}
             initial="hidden"
             whileInView="visible"
             viewport={viewportOnce}
           >
-            <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center space-x-2">
-              <div className="w-3 h-3 bg-red-400 rounded-full" />
-              <div className="w-3 h-3 bg-yellow-400 rounded-full" />
-              <div className="w-3 h-3 bg-green-400 rounded-full" />
-              <span className="text-sm text-gray-500 ml-2">AccountingClaw Preview</span>
-            </div>
-            <div className="relative bg-black aspect-video">
-              <iframe
-                className="absolute inset-0 w-full h-full border-0"
-                loading="lazy"
-                src="https://www.youtube-nocookie.com/embed/976yIJsO1cA?si=82I14R9fUPznZX1E"
-                title="AccountingClaw Preview"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                referrerPolicy="strict-origin-when-cross-origin"
-                allowFullScreen
-              />
-            </div>
+            <motion.div
+              className="rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden"
+              variants={staggerChild}
+            >
+              <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center space-x-2">
+                <div className="w-3 h-3 bg-red-400 rounded-full" />
+                <div className="w-3 h-3 bg-yellow-400 rounded-full" />
+                <div className="w-3 h-3 bg-green-400 rounded-full" />
+                <span className="text-sm text-gray-500 ml-2">AccountingClaw Preview</span>
+              </div>
+              <div className="relative bg-black aspect-video">
+                <iframe
+                  className="absolute inset-0 w-full h-full border-0"
+                  loading="lazy"
+                  src="https://www.youtube-nocookie.com/embed/976yIJsO1cA?si=82I14R9fUPznZX1E"
+                  title="AccountingClaw Preview"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                />
+              </div>
+            </motion.div>
+
+            <motion.div
+              className="rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden"
+              variants={staggerChild}
+            >
+              <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center space-x-2">
+                <div className="w-3 h-3 bg-red-400 rounded-full" />
+                <div className="w-3 h-3 bg-yellow-400 rounded-full" />
+                <div className="w-3 h-3 bg-green-400 rounded-full" />
+                <span className="text-sm text-gray-500 ml-2">Dual Agent Technical Accounting Memo</span>
+              </div>
+              <div className="relative bg-black aspect-video">
+                <iframe
+                  className="absolute inset-0 w-full h-full border-0"
+                  loading="lazy"
+                  src="https://www.youtube-nocookie.com/embed/hePBTs8MnFQ?si=exJDcDO07KvjXkb4"
+                  title="Dual Agent Technical Accounting Memo"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                />
+              </div>
+            </motion.div>
           </motion.div>
         </div>
       </div>
