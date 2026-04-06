@@ -453,6 +453,7 @@ Prerequisites
 - Node.js 20+
 - Python 3.11+
 - Docker Desktop (for Postgres)
+- LibreOffice (`soffice`) for backend DOCX->PDF conversion, including Inkwise DOCX ingestion
 - gcloud CLI (for GCP auth and optional local secrets)
 - Firebase project (for client auth) and a Firebase service account JSON for local backend
 

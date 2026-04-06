@@ -4,11 +4,14 @@ FROM python:3.11-slim AS base
 # Minimal, predictable runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app \
+    HOME=/tmp
 
 # System deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc g++ libpq-dev \
+    libreoffice-writer libreoffice-core libreoffice-common \
+    fonts-dejavu-core fonts-liberation \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

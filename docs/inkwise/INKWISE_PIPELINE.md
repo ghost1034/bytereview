@@ -120,6 +120,7 @@ Current behavior by source type:
   - text is extracted page by page with PyMuPDF helpers in `backend/inkwise/services/pdf_extract.py`
 - `docx`
   - DOCX is converted to PDF through the shared document conversion service
+  - the ingestion runtime must have LibreOffice (`soffice`) installed because Inkwise calls the shared converter directly
   - text is then extracted from the generated PDF
   - retrieval treats the converted PDF as the canonical asset
 - `webpage`

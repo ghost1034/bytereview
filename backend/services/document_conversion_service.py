@@ -3,7 +3,6 @@ import asyncio
 import logging
 import shutil
 import tempfile
-import subprocess
 from typing import Tuple, Optional
 
 logger = logging.getLogger(__name__)
@@ -13,6 +12,7 @@ DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.docu
 class DocumentConversionService:
     def __init__(self):
         self.enabled = os.getenv("DOCX_CONVERSION_ENABLED", "true").lower() != "false"
+        self.soffice_binary = os.getenv("SOFFICE_BINARY", "soffice").strip() or "soffice"
         try:
             self.timeout = int(os.getenv("DOCX_CONVERSION_TIMEOUT", "120"))
         except Exception:
@@ -38,6 +38,12 @@ class DocumentConversionService:
         if not os.path.exists(docx_path):
             raise FileNotFoundError(f"Input DOCX not found: {docx_path}")
 
+        soffice_path = shutil.which(self.soffice_binary)
+        if not soffice_path:
+            raise RuntimeError(
+                f"LibreOffice/soffice is not installed in this runtime (expected binary: {self.soffice_binary})"
+            )
+
         created_tmp = False
         if out_dir is None:
             # Create a temporary output directory if none provided
@@ -50,7 +56,7 @@ class DocumentConversionService:
 
         # Run soffice headless conversion
         cmd = [
-            "soffice",
+            soffice_path,
             "--headless",
             "--convert-to", "pdf",
             "--outdir", out_dir,
