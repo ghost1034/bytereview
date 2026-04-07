@@ -87,10 +87,9 @@ const upcomingVideos = [
     description: "Two AI agents collaborate to solve a technical accounting problem through structured reasoning.",
   },
   {
-    title: "Chrona Demo",
-    src: "https://player.vimeo.com/video/1163177906?badge=0&autopause=0&player_id=0&app_id=58479",
-    description: "Automatic screen-based time tracking with AI-powered timelines.",
-    allow: "autoplay; fullscreen; picture-in-picture",
+    title: "AI Skill for Browser Automation",
+    src: "https://www.youtube-nocookie.com/embed/939uCq5jxN0?si=77c9Gr7DVJiHKlnx",
+    description: "Automatically download a NetSuite report with SOX- and audit-compliant screenshots.",
   },
 ];
 
