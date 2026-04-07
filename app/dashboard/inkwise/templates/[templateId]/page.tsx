@@ -26,7 +26,6 @@ export default function InkwiseTemplateDetailPage() {
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [icon, setIcon] = useState('')
   const [contentJson, setContentJson] = useState<Record<string, any> | null>(null)
   const [contentHtml, setContentHtml] = useState('')
 
@@ -34,7 +33,6 @@ export default function InkwiseTemplateDetailPage() {
     if (!templateQuery.data) return
     setTitle(templateQuery.data.title)
     setDescription(templateQuery.data.description || '')
-    setIcon(templateQuery.data.icon || '')
     setContentJson(templateQuery.data.content_json ?? { type: 'doc', content: [{ type: 'paragraph' }] })
     setContentHtml('')
   }, [templateQuery.data])
@@ -44,7 +42,6 @@ export default function InkwiseTemplateDetailPage() {
       return apiClient.updateInkwiseTemplate(templateId, {
         title,
         description,
-        icon,
         content_json: contentJson ?? { type: 'doc', content: [{ type: 'paragraph' }] },
       })
     },
@@ -109,15 +106,9 @@ export default function InkwiseTemplateDetailPage() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="inkwise-template-title">Title</Label>
-            <Input id="inkwise-template-title" value={title} onChange={(event) => setTitle(event.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="inkwise-template-icon">Icon</Label>
-            <Input id="inkwise-template-icon" value={icon} onChange={(event) => setIcon(event.target.value)} placeholder="Optional icon name" />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="inkwise-template-title">Title</Label>
+          <Input id="inkwise-template-title" value={title} onChange={(event) => setTitle(event.target.value)} />
         </div>
 
         <div className="space-y-2">

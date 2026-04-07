@@ -2963,6 +2963,12 @@ export interface components {
         InkwisePredictionResponse: {
             /** Suggestion Text */
             suggestion_text: string;
+            /** Content With Citations */
+            content_with_citations?: string | null;
+            /** Segments */
+            segments?: {
+                [key: string]: unknown;
+            }[];
             /**
              * Grounded
              * @default false
@@ -2979,6 +2985,10 @@ export interface components {
             evidence_count: number;
             /** Evidence */
             evidence?: {
+                [key: string]: unknown;
+            }[];
+            /** Citations */
+            citations?: {
                 [key: string]: unknown;
             }[];
             /**
@@ -3259,8 +3269,6 @@ export interface components {
             category_id: number;
             /** Title */
             title: string;
-            /** Icon */
-            icon?: string | null;
             /** Description */
             description?: string | null;
             /** Content Json */
@@ -3272,8 +3280,6 @@ export interface components {
         InkwiseTemplateCreateRequest: {
             /** Title */
             title: string;
-            /** Icon */
-            icon?: string | null;
             /** Description */
             description?: string | null;
             /** Content Json */
@@ -3292,8 +3298,6 @@ export interface components {
             user_id: string;
             /** Title */
             title: string;
-            /** Icon */
-            icon?: string | null;
             /** Description */
             description?: string | null;
             /** Content Json */
@@ -3315,8 +3319,6 @@ export interface components {
         InkwiseTemplateUpdateRequest: {
             /** Title */
             title?: string | null;
-            /** Icon */
-            icon?: string | null;
             /** Description */
             description?: string | null;
             /** Content Json */

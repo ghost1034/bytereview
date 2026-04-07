@@ -246,7 +246,6 @@ def apply_seed(converted_templates: list[ConvertedTemplate], *, apply_changes: b
                 )
 
             description = None
-            icon = None
             if not rows:
                 stats["templates_created"] += 1
                 if apply_changes:
@@ -256,7 +255,6 @@ def apply_seed(converted_templates: list[ConvertedTemplate], *, apply_changes: b
                         category_id=category_id,
                         title=item.source.title,
                         description=description,
-                        icon=icon,
                         content_json=item.content_json,
                     )
                     db.add(template)
@@ -266,14 +264,12 @@ def apply_seed(converted_templates: list[ConvertedTemplate], *, apply_changes: b
             template = rows[0]
             changed = (
                 template.description != description
-                or template.icon != icon
                 or template.content_json != item.content_json
             )
             if changed:
                 stats["templates_updated"] += 1
                 if apply_changes:
                     template.description = description
-                    template.icon = icon
                     template.content_json = item.content_json
                     db.commit()
             else:

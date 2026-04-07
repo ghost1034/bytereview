@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { apiClient, InkwiseBoundSource, InkwiseCitation, InkwiseSseEvent, InkwiseWritingAction } from '@/lib/api'
 import { getInkwiseEditorTarget, type InkwiseEditorTarget, insertMarkdownIntoEditor } from '@/lib/inkwise-editor'
 import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
+import { compareNaturalText } from '@/lib/utils'
 
 type ToolAction = Exclude<InkwiseWritingAction, 'other'> | 'custom'
 
@@ -51,7 +52,12 @@ export function InlineWritingTools({
   const rangeRef = useRef<InkwiseEditorTarget | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  const readySources = useMemo(() => boundSources.filter((item) => item.grounded_chat_ready), [boundSources])
+  const sortedBoundSources = useMemo(() => {
+    const items = [...boundSources]
+    items.sort((left, right) => compareNaturalText(left.source.title, right.source.title))
+    return items
+  }, [boundSources])
+  const readySources = useMemo(() => sortedBoundSources.filter((item) => item.grounded_chat_ready), [sortedBoundSources])
   const selectedSourceIds = useMemo(
     () => readySources.filter((item) => sourceChecked[item.source.id] ?? true).map((item) => item.source.id),
     [readySources, sourceChecked],
@@ -221,7 +227,7 @@ export function InlineWritingTools({
     rangeRef.current = null
   }
 
-  async function retryAttempt(freshRetrieval: boolean) {
+  async function retryAttempt() {
     if (!attemptId) return
 
     setError(null)
@@ -238,7 +244,7 @@ export function InlineWritingTools({
     try {
       await apiClient.streamInkwiseRetryWritingTool(
         attemptId,
-        { fresh_retrieval: freshRetrieval },
+        { fresh_retrieval: true },
         (event: InkwiseSseEvent) => {
           if (event.event === 'token') {
             setOutputMd((current) => current + (event.data?.text ?? ''))
@@ -342,9 +348,9 @@ export function InlineWritingTools({
           ) : null}
         </div>
 
-        {boundSources.length ? (
+        {sortedBoundSources.length ? (
           <div className="mt-3 grid max-h-36 gap-2 overflow-auto">
-            {boundSources.map((item) => (
+            {sortedBoundSources.map((item) => (
               <label key={item.binding_id} className={`flex items-center gap-3 text-sm ${item.grounded_chat_ready ? 'text-slate-700' : 'text-slate-400'}`}>
                 <Checkbox
                   checked={sourceChecked[item.source.id] ?? item.grounded_chat_ready}
@@ -398,11 +404,8 @@ export function InlineWritingTools({
             </div>
           ) : null}
           <div className="mt-3 flex flex-wrap justify-end gap-2">
-            <Button size="sm" variant="outline" onClick={() => retryAttempt(false)} disabled={!attemptId || busy}>
+            <Button size="sm" variant="outline" onClick={() => retryAttempt()} disabled={!attemptId || busy}>
               Retry
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => retryAttempt(true)} disabled={!attemptId || busy}>
-              Fresh evidence
             </Button>
             {rangeRef.current?.hasSelection ? (
               <>

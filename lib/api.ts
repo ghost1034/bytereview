@@ -1395,7 +1395,6 @@ export interface InkwiseTemplate {
   id: string
   user_id: string
   title: string
-  icon?: string | null
   description?: string | null
   content_json: Record<string, any>
   created_at: string
@@ -1411,14 +1410,12 @@ export interface InkwisePaginatedTemplates {
 
 export interface InkwiseTemplateCreateRequest {
   title: string
-  icon?: string | null
   description?: string | null
   content_json: Record<string, any>
 }
 
 export interface InkwiseTemplateUpdateRequest {
   title?: string | null
-  icon?: string | null
   description?: string | null
   content_json?: Record<string, any> | null
 }
@@ -1432,7 +1429,6 @@ export interface InkwiseSystemTemplate {
   id: string
   category_id: number
   title: string
-  icon?: string | null
   description?: string | null
   content_json: Record<string, any>
 }

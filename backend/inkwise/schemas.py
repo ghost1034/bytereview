@@ -211,7 +211,6 @@ class InkwiseTemplateOut(BaseModel):
     id: uuid.UUID
     user_id: str
     title: str
-    icon: str | None = None
     description: str | None = None
     content_json: dict
     created_at: datetime
@@ -227,14 +226,12 @@ class InkwisePaginatedTemplates(BaseModel):
 
 class InkwiseTemplateCreateRequest(BaseModel):
     title: str
-    icon: str | None = None
     description: str | None = None
     content_json: dict
 
 
 class InkwiseTemplateUpdateRequest(BaseModel):
     title: str | None = None
-    icon: str | None = None
     description: str | None = None
     content_json: dict | None = None
 
@@ -252,7 +249,6 @@ class InkwiseSystemTemplateOut(BaseModel):
     id: uuid.UUID
     category_id: int
     title: str
-    icon: str | None = None
     description: str | None = None
     content_json: dict
 

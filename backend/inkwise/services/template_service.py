@@ -31,7 +31,6 @@ class InkwiseTemplateService:
         template = InkwiseTemplate(
             user_id=user_id,
             title=body.title.strip(),
-            icon=body.icon,
             description=body.description,
             content_json=body.content_json,
             created_at=now,
@@ -64,8 +63,6 @@ class InkwiseTemplateService:
         fields = body.model_fields_set
         if "title" in fields and body.title is not None:
             template.title = body.title.strip() or template.title
-        if "icon" in fields:
-            template.icon = body.icon
         if "description" in fields:
             template.description = body.description
         if "content_json" in fields and body.content_json is not None:

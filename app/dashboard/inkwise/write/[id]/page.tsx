@@ -48,7 +48,7 @@ import {
 } from '@/lib/inkwise-editor'
 import { markdownToSafeHtml } from '@/lib/inkwise-markdown'
 import { INKWISE_SOURCE_POLL_INTERVAL_MS, isInkwiseSourceActiveStatus } from '@/lib/inkwise-source-status'
-import { cn } from '@/lib/utils'
+import { cn, compareNaturalText } from '@/lib/utils'
 
 const MAX_PREDICTION_BEFORE_TEXT = 12000
 const MAX_PREDICTION_AFTER_TEXT = 4000
@@ -228,12 +228,18 @@ export default function InkwiseDocumentPage() {
 
   const messagesQuery = useInkwiseChatMessages(selectedThreadId)
 
+  const boundSources = useMemo(() => {
+    const items = [...(bindingsQuery.data?.sources ?? [])]
+    items.sort((left, right) => compareNaturalText(left.source.title, right.source.title))
+    return items
+  }, [bindingsQuery.data?.sources])
   const availableSources = useMemo(() => {
     const allSources = sourcesQuery.data?.items ?? []
-    const boundIds = new Set((bindingsQuery.data?.sources ?? []).map((item) => item.source.id))
-    return allSources.filter((source) => !boundIds.has(source.id))
-  }, [sourcesQuery.data, bindingsQuery.data])
-  const boundSources = bindingsQuery.data?.sources ?? []
+    const boundIds = new Set(boundSources.map((item) => item.source.id))
+    return allSources
+      .filter((source) => !boundIds.has(source.id))
+      .sort((left, right) => compareNaturalText(left.title, right.title))
+  }, [sourcesQuery.data?.items, boundSources])
   const readyChatSources = useMemo(() => boundSources.filter((item) => item.grounded_chat_ready), [boundSources])
   const selectedChatSourceIds = useMemo(
     () => readyChatSources.filter((item) => chatSourceChecked[item.source.id] ?? true).map((item) => item.source.id),
@@ -267,7 +273,6 @@ export default function InkwiseDocumentPage() {
       await queryClient.invalidateQueries({ queryKey: ['inkwise', 'document', documentId] })
       await queryClient.invalidateQueries({ queryKey: ['inkwise', 'document-revisions', documentId] })
       await queryClient.invalidateQueries({ queryKey: ['inkwise', 'documents'] })
-      toast({ title: 'Document saved', description: 'Your Inkwise draft is up to date.' })
     },
     onError: (error: Error) => {
       toast({ title: 'Could not save document', description: error.message, variant: 'destructive' })
@@ -957,19 +962,10 @@ export default function InkwiseDocumentPage() {
                                   size="sm"
                                   variant="outline"
                                   className="h-7 px-2 text-[10px]"
-                                  onClick={() => retryChat.mutate({ messageId: message.id, freshRetrieval: false })}
-                                  disabled={retryChat.isPending || sendChat.isPending}
-                                >
-                                  Retry
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 px-2 text-[10px]"
                                   onClick={() => retryChat.mutate({ messageId: message.id, freshRetrieval: true })}
                                   disabled={retryChat.isPending || sendChat.isPending}
                                 >
-                                  Fresh evidence
+                                  Retry
                                 </Button>
                               </div>
                             ) : null}
@@ -1031,6 +1027,10 @@ export default function InkwiseDocumentPage() {
                           ) : (
                             <div className="text-slate-500">Thinking...</div>
                           )}
+                        </div>
+                      ) : !renderedMessages.length ? (
+                        <div className="rounded-2xl border border-dashed bg-white p-4 text-sm text-slate-500">
+                          Waiting for your first question.
                         </div>
                       ) : null}
                     </div>
