@@ -328,7 +328,7 @@ export function InlineWritingTools({
                 onClick={() => setSourceChecked(Object.fromEntries(readySources.map((item) => [item.source.id, true])))}
                 disabled={busy}
               >
-                All ready
+                Select All
               </Button>
               <Button
                 size="sm"

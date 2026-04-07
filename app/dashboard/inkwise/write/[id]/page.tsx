@@ -1068,7 +1068,7 @@ export default function InkwiseDocumentPage() {
                               onClick={() => setChatSourceChecked(Object.fromEntries(readyChatSources.map((item) => [item.source.id, true])))}
                               disabled={sendChat.isPending}
                             >
-                              All ready
+                              Select All
                             </Button>
                             <Button
                               size="sm"
