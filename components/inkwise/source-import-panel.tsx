@@ -20,7 +20,7 @@ type InkwiseSourceImportPanelProps = {
 
 export function InkwiseSourceImportPanel({
   title = 'Add References',
-  description = 'Upload files, folders, ZIP archives, webpages, or selected Google Drive files.',
+  description = 'Upload documents, images, audio, video, folders, ZIP archives, webpages, or selected Google Drive files.',
   onImported,
   compact = false,
 }: InkwiseSourceImportPanelProps) {
@@ -51,7 +51,7 @@ export function InkwiseSourceImportPanel({
     mutationFn: async (files: File[]) => {
       const supportedFiles = files.filter(isSupportedSourceFile)
       if (!supportedFiles.length) {
-        throw new Error('No supported PDF, DOCX, or ZIP files were selected')
+        throw new Error('No supported document, image, audio, video, or ZIP files were selected')
       }
       const imported: InkwiseSource[] = []
       for (const file of supportedFiles) {
@@ -128,7 +128,7 @@ export function InkwiseSourceImportPanel({
           ref={fileInputRef}
           type="file"
           multiple
-          accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip,application/x-zip-compressed,.pdf,.docx,.zip"
+          accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip,application/x-zip-compressed,image/jpeg,image/png,audio/mp3,audio/mpeg,audio/wav,video/mp4,video/mpeg,.pdf,.docx,.zip,.jpg,.jpeg,.png,.mp3,.wav,.mp4,.mpeg,.mpg"
           className="hidden"
           onChange={(event) => {
             const files = Array.from(event.target.files ?? [])
@@ -187,6 +187,13 @@ export function InkwiseSourceImportPanel({
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'application/zip',
             'application/x-zip-compressed',
+            'image/jpeg',
+            'image/png',
+            'audio/mp3',
+            'audio/mpeg',
+            'audio/wav',
+            'video/mp4',
+            'video/mpeg',
           ]}
         />
       </CardContent>
@@ -213,11 +220,21 @@ function normalizeWebpageUrlInput(value: string): string {
 
 function inferSourceContentType(file: File): string {
   const explicit = (file.type || '').trim().toLowerCase()
+  if (explicit === 'image/jpg') return 'image/jpeg'
+  if (explicit === 'audio/mpeg') return 'audio/mp3'
+  if (explicit === 'audio/x-wav' || explicit === 'audio/wave') return 'audio/wav'
+  if (explicit === 'video/mpg') return 'video/mpeg'
   if (explicit) return explicit
   const filename = file.name.toLowerCase()
   if (filename.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   if (filename.endsWith('.zip')) return 'application/zip'
   if (filename.endsWith('.pdf')) return 'application/pdf'
+  if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) return 'image/jpeg'
+  if (filename.endsWith('.png')) return 'image/png'
+  if (filename.endsWith('.mp3')) return 'audio/mp3'
+  if (filename.endsWith('.wav')) return 'audio/wav'
+  if (filename.endsWith('.mp4')) return 'video/mp4'
+  if (filename.endsWith('.mpeg') || filename.endsWith('.mpg')) return 'video/mpeg'
   return 'application/octet-stream'
 }
 
@@ -228,5 +245,17 @@ function getRelativePath(file: File): string {
 
 function isSupportedSourceFile(file: File): boolean {
   const filename = file.name.toLowerCase()
-  return filename.endsWith('.pdf') || filename.endsWith('.docx') || filename.endsWith('.zip')
+  return (
+    filename.endsWith('.pdf') ||
+    filename.endsWith('.docx') ||
+    filename.endsWith('.zip') ||
+    filename.endsWith('.jpg') ||
+    filename.endsWith('.jpeg') ||
+    filename.endsWith('.png') ||
+    filename.endsWith('.mp3') ||
+    filename.endsWith('.wav') ||
+    filename.endsWith('.mp4') ||
+    filename.endsWith('.mpeg') ||
+    filename.endsWith('.mpg')
+  )
 }

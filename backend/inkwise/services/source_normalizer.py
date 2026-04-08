@@ -15,6 +15,15 @@ from services.document_conversion_service import DOCX_MIME, get_document_convers
 
 PDF_MIME = "application/pdf"
 HTML_MIME = "text/html"
+IMAGE_JPEG_MIME = "image/jpeg"
+IMAGE_PNG_MIME = "image/png"
+IMAGE_MIME_TYPES = {IMAGE_JPEG_MIME, IMAGE_PNG_MIME}
+AUDIO_MP3_MIME = "audio/mp3"
+AUDIO_WAV_MIME = "audio/wav"
+AUDIO_MIME_TYPES = {AUDIO_MP3_MIME, AUDIO_WAV_MIME}
+VIDEO_MP4_MIME = "video/mp4"
+VIDEO_MPEG_MIME = "video/mpeg"
+VIDEO_MIME_TYPES = {VIDEO_MP4_MIME, VIDEO_MPEG_MIME}
 _HTML_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 
 
@@ -80,6 +89,12 @@ class InkwiseSourceNormalizer:
             return self._normalize_docx(local_path=path, title=resolved_title)
         if detected_mime == HTML_MIME:
             return self._normalize_webpage(local_path=path, title=resolved_title, source_url=source_url)
+        if detected_mime in IMAGE_MIME_TYPES:
+            return self._normalize_binary_media(local_path=path, title=resolved_title, source_kind="image", mime_type=detected_mime)
+        if detected_mime in AUDIO_MIME_TYPES:
+            return self._normalize_binary_media(local_path=path, title=resolved_title, source_kind="audio", mime_type=detected_mime)
+        if detected_mime in VIDEO_MIME_TYPES:
+            return self._normalize_binary_media(local_path=path, title=resolved_title, source_kind="video", mime_type=detected_mime)
 
         raise SourceNormalizationError(f"Unsupported source type for normalization: {detected_mime}")
 
@@ -183,6 +198,29 @@ class InkwiseSourceNormalizer:
             },
         )
 
+    def _normalize_binary_media(
+        self,
+        *,
+        local_path: str,
+        title: str,
+        source_kind: str,
+        mime_type: str,
+    ) -> NormalizedSource:
+        return NormalizedSource(
+            source_kind=source_kind,
+            title=title,
+            original_local_path=local_path,
+            original_mime_type=mime_type,
+            canonical_local_path=local_path,
+            canonical_mime_type=mime_type,
+            text_blocks=[],
+            assets=[NormalizedAsset(kind=f"{source_kind}_asset", mime_type=mime_type, local_path=local_path)],
+            metadata={
+                "page_count": 0,
+                "normalization": f"{source_kind}_passthrough",
+            },
+        )
+
     def _pages_to_blocks(self, pages: list[ExtractedPage]) -> list[NormalizedTextBlock]:
         blocks: list[NormalizedTextBlock] = []
         for idx, page in enumerate(pages):
@@ -200,6 +238,18 @@ class InkwiseSourceNormalizer:
         clean_content_type = (content_type or "").strip().lower()
         if clean_content_type in {PDF_MIME, DOCX_MIME, HTML_MIME}:
             return clean_content_type
+        if clean_content_type in {"image/jpeg", "image/jpg"}:
+            return IMAGE_JPEG_MIME
+        if clean_content_type == IMAGE_PNG_MIME:
+            return IMAGE_PNG_MIME
+        if clean_content_type in {"audio/mp3", "audio/mpeg"}:
+            return AUDIO_MP3_MIME
+        if clean_content_type in {"audio/wav", "audio/x-wav", "audio/wave"}:
+            return AUDIO_WAV_MIME
+        if clean_content_type == VIDEO_MP4_MIME:
+            return VIDEO_MP4_MIME
+        if clean_content_type in {"video/mpeg", "video/mpg"}:
+            return VIDEO_MPEG_MIME
         lowered = (filename or "").strip().lower()
         if lowered.endswith(".pdf"):
             return PDF_MIME
@@ -207,6 +257,18 @@ class InkwiseSourceNormalizer:
             return DOCX_MIME
         if lowered.endswith(".html") or lowered.endswith(".htm"):
             return HTML_MIME
+        if lowered.endswith((".jpg", ".jpeg")):
+            return IMAGE_JPEG_MIME
+        if lowered.endswith(".png"):
+            return IMAGE_PNG_MIME
+        if lowered.endswith(".mp3"):
+            return AUDIO_MP3_MIME
+        if lowered.endswith(".wav"):
+            return AUDIO_WAV_MIME
+        if lowered.endswith(".mp4"):
+            return VIDEO_MP4_MIME
+        if lowered.endswith((".mpeg", ".mpg")):
+            return VIDEO_MPEG_MIME
         return clean_content_type or "application/octet-stream"
 
     def _extract_html_title(self, html_text: str) -> str | None:

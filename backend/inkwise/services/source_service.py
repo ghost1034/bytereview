@@ -37,11 +37,44 @@ from services.user_service import DuplicatePhoneNumberError, UserService
 
 _SAFE_FILENAME_RE = re.compile(r"[^a-zA-Z0-9._ -]+")
 _HTML_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+_UPLOAD_KIND_TO_CONTENT_TYPE = {
+    "pdf": "application/pdf",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "zip": "application/zip",
+    "image_jpeg": "image/jpeg",
+    "image_png": "image/png",
+    "audio_mp3": "audio/mp3",
+    "audio_wav": "audio/wav",
+    "video_mp4": "video/mp4",
+    "video_mpeg": "video/mpeg",
+}
+_UPLOAD_KIND_TO_EXTENSION = {
+    "pdf": ".pdf",
+    "docx": ".docx",
+    "zip": ".zip",
+    "image_jpeg": ".jpg",
+    "image_png": ".png",
+    "audio_mp3": ".mp3",
+    "audio_wav": ".wav",
+    "video_mp4": ".mp4",
+    "video_mpeg": ".mpeg",
+}
 _SUPPORTED_UPLOAD_MIME_TYPES = {
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/zip",
     "application/x-zip-compressed",
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "audio/mp3",
+    "audio/mpeg",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/wave",
+    "video/mp4",
+    "video/mpeg",
+    "video/mpg",
 }
 
 
@@ -532,7 +565,7 @@ class InkwiseSourceService:
             raise ValueError("Uploaded ZIP file could not be opened") from exc
 
         if not imported:
-            raise ValueError("ZIP file did not contain any supported PDF or DOCX files")
+            raise ValueError("ZIP file did not contain any supported references")
         return imported
 
     def _signed_download_for_source(self, source: InkwiseSource, *, inline: bool) -> str:
@@ -611,7 +644,7 @@ class InkwiseSourceService:
 
         upload_kind = self._detect_upload_kind(filename=filename, content_type=content_type)
         if upload_kind is None:
-            raise ValueError("Only PDF, DOCX, and ZIP uploads are currently supported")
+            raise ValueError("Only PDF, DOCX, image, audio, video, and ZIP uploads are currently supported")
 
     def _build_storage_object_name(self, *, user_id: str, source_id: uuid.UUID, original_filename: str) -> str:
         return f"inkwise/uploads/{user_id}/{source_id}/original/{original_filename}"
@@ -651,21 +684,25 @@ class InkwiseSourceService:
             return "docx"
         if lowered_type in {"application/zip", "application/x-zip-compressed"} or lowered_filename.endswith(".zip"):
             return "zip"
+        if lowered_type in {"image/jpeg", "image/jpg"} or lowered_filename.endswith((".jpg", ".jpeg")):
+            return "image_jpeg"
+        if lowered_type == "image/png" or lowered_filename.endswith(".png"):
+            return "image_png"
+        if lowered_type in {"audio/mp3", "audio/mpeg"} or lowered_filename.endswith(".mp3"):
+            return "audio_mp3"
+        if lowered_type in {"audio/wav", "audio/x-wav", "audio/wave"} or lowered_filename.endswith(".wav"):
+            return "audio_wav"
+        if lowered_type == "video/mp4" or lowered_filename.endswith(".mp4"):
+            return "video_mp4"
+        if lowered_type in {"video/mpeg", "video/mpg"} or lowered_filename.endswith((".mpeg", ".mpg")):
+            return "video_mpeg"
         return None
 
     def _resolved_content_type_for_kind(self, upload_kind: str | None) -> str:
-        if upload_kind == "docx":
-            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        if upload_kind == "zip":
-            return "application/zip"
-        return "application/pdf"
+        return _UPLOAD_KIND_TO_CONTENT_TYPE.get(upload_kind or "", "application/pdf")
 
     def _default_extension_for_kind(self, upload_kind: str | None) -> str:
-        if upload_kind == "docx":
-            return ".docx"
-        if upload_kind == "zip":
-            return ".zip"
-        return ".pdf"
+        return _UPLOAD_KIND_TO_EXTENSION.get(upload_kind or "", ".pdf")
 
     def _is_ignored_archive_member(self, value: str) -> bool:
         normalized = (value or "").replace("\\", "/").strip()

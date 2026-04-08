@@ -101,7 +101,7 @@ export default function InkwiseReferencesPage() {
         <Card>
           <CardContent className="space-y-2 p-5">
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">1. Add References</div>
-            <div className="text-sm text-slate-700">Upload files, folders, or ZIPs, capture a webpage, or import selected files from Google Drive.</div>
+            <div className="text-sm text-slate-700">Upload documents, images, audio, video, folders, or ZIPs, capture a webpage, or import selected files from Google Drive.</div>
           </CardContent>
         </Card>
         <Card>
@@ -181,7 +181,7 @@ export default function InkwiseReferencesPage() {
         ) : (
           <Card>
             <CardContent className="p-10 text-center text-sm text-slate-500">
-              No sources yet. Upload a PDF or DOCX, or capture a webpage to start building your grounded source library.
+              No sources yet. Upload a document, image, audio file, video, or capture a webpage to start building your grounded source library.
             </CardContent>
           </Card>
         )}
@@ -199,6 +199,12 @@ function sourceTypeLabel(type: string, contentType: string): string {
   if (contentType === 'application/zip') return 'zip'
   if (contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx'
   if (contentType === 'application/pdf') return 'pdf'
+  if (contentType === 'image/jpeg') return 'image'
+  if (contentType === 'image/png') return 'image'
+  if (contentType === 'audio/mp3') return 'audio'
+  if (contentType === 'audio/wav') return 'audio'
+  if (contentType === 'video/mp4') return 'video'
+  if (contentType === 'video/mpeg') return 'video'
   return type || 'reference'
 }
 

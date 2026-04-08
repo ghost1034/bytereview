@@ -63,6 +63,17 @@ class InkwiseSegmentationService:
                 },
             )
 
+        if normalized.source_kind in {"image", "audio", "video"}:
+            media_segments = self._build_media_segments(normalized)
+            return SegmentationResult(
+                segments=media_segments,
+                stats={
+                    "media_segment_count": len(media_segments),
+                    "segment_count": len(media_segments),
+                    "page_count": 0,
+                },
+            )
+
         raise ValueError(f"Unsupported canonical mime type for segmentation: {normalized.canonical_mime_type}")
 
     def _build_pdf_window_segments(self, normalized: NormalizedSource) -> list[SegmentDraft]:
@@ -244,6 +255,34 @@ class InkwiseSegmentationService:
         flush()
         return out
 
+    def _build_media_segments(self, normalized: NormalizedSource) -> list[SegmentDraft]:
+        source_kind = normalized.source_kind
+        if source_kind not in {"image", "audio", "video"}:
+            return []
+        segment_type = {
+            "image": "image_asset",
+            "audio": "audio_clip",
+            "video": "video_clip",
+        }[source_kind]
+        return [
+            SegmentDraft(
+                segment_type=segment_type,
+                modality=source_kind,
+                order_index=0,
+                title=_media_segment_title(normalized.title, source_kind),
+                text_content=None,
+                char_count=0,
+                token_count=None,
+                locator_json={"kind": f"{source_kind}_asset"},
+                meta_json={
+                    "source_kind": normalized.source_kind,
+                    "segment_family": segment_type,
+                },
+                asset_local_path=normalized.canonical_local_path,
+                asset_mime_type=normalized.canonical_mime_type,
+            )
+        ]
+
 
 def _split_paragraphs(text: str | None) -> list[str]:
     cleaned = (text or "").strip()
@@ -274,3 +313,14 @@ def _page_range_title(title: str, page_start: int | None, page_end: int | None) 
 def _web_segment_title(title: str, index: int) -> str:
     clean_title = (title or "Untitled source").strip() or "Untitled source"
     return f"{clean_title} section {index}"
+
+
+def _media_segment_title(title: str, source_kind: str) -> str:
+    clean_title = (title or "Untitled source").strip() or "Untitled source"
+    if source_kind == "image":
+        return f"{clean_title} image"
+    if source_kind == "audio":
+        return f"{clean_title} audio"
+    if source_kind == "video":
+        return f"{clean_title} video"
+    return clean_title

@@ -75,7 +75,7 @@ class InkwiseIngestionService:
                 db,
                 ingestion_id=ingestion_id,
                 code="unsupported_type",
-                message="Only PDF, DOCX, and webpage snapshot sources are supported",
+                message="Only PDF, DOCX, webpage, image, audio, and video sources are supported",
             )
             return self._get_ingestion_or_404(db, ingestion_id)
 
@@ -282,6 +282,19 @@ class InkwiseIngestionService:
                     output_dimensionality=settings.embedding_dimension,
                     document_ocr=settings.embedding_enable_document_ocr,
                 )
+            elif draft.modality in {"image", "audio", "video"} and draft.asset_mime_type:
+                if not source.storage_bucket or not source.storage_object:
+                    raise IngestionError("Media segment source storage path is missing")
+                segment.asset_bucket = source.storage_bucket
+                segment.asset_object = source.storage_object
+                segment.preview_bucket = source.storage_bucket
+                segment.preview_object = source.storage_object
+                embedding_result = self.embedding_service.embed_file_gcs_sync(
+                    gcs_uri=f"gs://{source.storage_bucket}/{source.storage_object}",
+                    mime_type=draft.asset_mime_type,
+                    output_dimensionality=settings.embedding_dimension,
+                    audio_track_extraction=(draft.modality == "video"),
+                )
             else:
                 if normalized.canonical_mime_type == "text/html":
                     segment.asset_bucket = source.storage_bucket
@@ -330,6 +343,8 @@ class InkwiseIngestionService:
                     "order_index": draft.order_index,
                     "page_start": draft.page_start,
                     "page_end": draft.page_end,
+                    "time_start_ms": draft.time_start_ms,
+                    "time_end_ms": draft.time_end_ms,
                     "asset_bucket": segment.asset_bucket,
                     "asset_object": segment.asset_object,
                 }
@@ -509,8 +524,37 @@ class InkwiseIngestionService:
             return True
         if content_type == "text/html":
             return True
+        if content_type in {
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "audio/mp3",
+            "audio/mpeg",
+            "audio/wav",
+            "audio/x-wav",
+            "audio/wave",
+            "video/mp4",
+            "video/mpeg",
+            "video/mpg",
+        }:
+            return True
         filename = (source.original_filename or "").lower()
-        return filename.endswith(".pdf") or filename.endswith(".docx") or filename.endswith(".html") or filename.endswith(".htm")
+        return filename.endswith(
+            (
+                ".pdf",
+                ".docx",
+                ".html",
+                ".htm",
+                ".jpg",
+                ".jpeg",
+                ".png",
+                ".mp3",
+                ".wav",
+                ".mp4",
+                ".mpeg",
+                ".mpg",
+            )
+        )
 
     def _persist_canonical_asset(
         self,

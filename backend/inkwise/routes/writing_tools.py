@@ -26,7 +26,7 @@ from inkwise.services.document_service import InkwiseDocumentService
 from inkwise.services.generation_attempts import InkwiseGenerationAttemptService
 from inkwise.services.citation_text import parse_citation_text
 from inkwise.services.gemini import GeminiError, generate_content, generate_text
-from inkwise.services.multimodal_evidence import build_pdf_multimodal_contents
+from inkwise.services.multimodal_evidence import build_multimodal_contents
 from inkwise.services.retrieval_service import InkwiseRetrievalService, build_evidence_pack
 from inkwise.services.retrieval_types import evidence_item_to_payload
 from inkwise.services.writing_tools_service import (
@@ -155,7 +155,7 @@ async def _stream_writing_tool_attempt(
                 )
 
     try:
-        multimodal_bundle = build_pdf_multimodal_contents(
+        multimodal_bundle = build_multimodal_contents(
             prompt=current_prompt,
             evidence=evidence,
             max_files=100,
@@ -201,7 +201,7 @@ async def _stream_writing_tool_attempt(
             "content_with_citations": parsed_citation_text.content_with_citations,
         },
         retrieval_run_id=retrieval_run_id,
-        meta_json={**attempt_meta, "multimodal_pdf_evidence_ids": multimodal_attached_evidence_ids},
+        meta_json={**attempt_meta, "multimodal_evidence_ids": multimodal_attached_evidence_ids},
     )
 
     done_payload: dict[str, Any] = {"ok": True, "grounded": grounded, "attempt_id": str(attempt_id)}
@@ -283,7 +283,7 @@ async def create_prediction(
             grounded = False
 
     try:
-        multimodal_bundle = build_pdf_multimodal_contents(
+        multimodal_bundle = build_multimodal_contents(
             prompt=prompt,
             evidence=evidence,
             max_files=100,
@@ -338,7 +338,7 @@ async def create_prediction(
         meta_json={
             "grounded": grounded,
             "evidence_count": len(evidence),
-            "multimodal_pdf_evidence_ids": multimodal_attached_evidence_ids,
+            "multimodal_evidence_ids": multimodal_attached_evidence_ids,
             "normalization_reason": normalized_prediction.reason,
         },
     )

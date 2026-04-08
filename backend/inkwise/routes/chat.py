@@ -35,7 +35,7 @@ from inkwise.services.citation_text import parse_citation_text
 from inkwise.services.document_sources import InkwiseDocumentSourceService
 from inkwise.services.generation_attempts import InkwiseGenerationAttemptService
 from inkwise.services.gemini import GeminiError, generate_content, generate_text
-from inkwise.services.multimodal_evidence import build_pdf_multimodal_contents
+from inkwise.services.multimodal_evidence import build_multimodal_contents
 from inkwise.services.retrieval_service import InkwiseRetrievalService, build_evidence_pack
 from inkwise.services.retrieval_types import evidence_item_to_payload
 from inkwise.services.source_service import InkwiseSourceService
@@ -222,7 +222,7 @@ async def _stream_chat_attempt(
             draft_selection_text=draft_text or None,
             history_messages=grounded_history_messages,
         )
-        multimodal_bundle = build_pdf_multimodal_contents(
+        multimodal_bundle = build_multimodal_contents(
             prompt=prompt,
             evidence=evidence,
             max_files=100,
@@ -276,7 +276,7 @@ async def _stream_chat_attempt(
     assistant_meta = {
         **assistant_provider_meta,
         "attempt_id": str(attempt_id),
-        "multimodal_pdf_evidence_ids": multimodal_attached_evidence_ids,
+        "multimodal_evidence_ids": multimodal_attached_evidence_ids,
     }
     assistant_message = chat_service.create_assistant_message(
         db,

@@ -23,6 +23,13 @@ _ALLOWED_FILE_MIME_TYPES = {
     "video/mp4",
     "video/mpeg",
 }
+_FILE_MIME_TYPE_ALIASES = {
+    "image/jpg": "image/jpeg",
+    "audio/mpeg": "audio/mp3",
+    "audio/x-wav": "audio/wav",
+    "audio/wave": "audio/wav",
+    "video/mpg": "video/mpeg",
+}
 
 
 class InkwiseEmbeddingError(VertexAIError):
@@ -81,6 +88,11 @@ def _validate_dimension(value: int) -> int:
 def _clean_task_type(task_type: str | None) -> str | None:
     value = (task_type or "").strip().upper()
     return value or None
+
+
+def _normalize_file_mime_type(mime_type: str | None) -> str:
+    clean_mime = (mime_type or "").strip().lower()
+    return _FILE_MIME_TYPE_ALIASES.get(clean_mime, clean_mime)
 
 
 def _build_config(
@@ -257,7 +269,7 @@ class InkwiseEmbeddingService:
         timeout_seconds: float = 120,
     ) -> InkwiseEmbeddingResult:
         clean_uri = (gcs_uri or "").strip()
-        clean_mime = (mime_type or "").strip().lower()
+        clean_mime = _normalize_file_mime_type(mime_type)
         if not clean_uri.startswith("gs://"):
             raise InkwiseEmbeddingError("GCS URI is required for file embeddings")
         if clean_mime not in _ALLOWED_FILE_MIME_TYPES:

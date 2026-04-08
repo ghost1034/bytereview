@@ -41,6 +41,7 @@ export function InkwiseCitationBubbles({
   const [actionPendingId, setActionPendingId] = useState<string | null>(null)
 
   const selected = items[selectedIndex] ?? null
+  const previewKind = getPreviewKind(selected, source)
 
   useEffect(() => {
     if (!open || !selected?.source_id) return
@@ -80,7 +81,7 @@ export function InkwiseCitationBubbles({
     return () => {
       active = false
     }
-  }, [open, selected?.source_id])
+  }, [open, selected?.source_id, selected?.preview_bucket, selected?.preview_object])
 
   if (!items.length) return null
 
@@ -209,11 +210,34 @@ export function InkwiseCitationBubbles({
                         Loading preview...
                       </div>
                     ) : previewUrl ? (
-                      <iframe
-                        title={`Evidence preview ${selected.evidence_id || selectedIndex + 1}`}
-                        src={previewUrl}
-                        className="h-[28rem] w-full rounded-xl border bg-white"
-                      />
+                      previewKind === 'image' ? (
+                        <img
+                          alt={selected.source_title || 'Evidence preview'}
+                          src={previewUrl}
+                          className="max-h-[28rem] w-full rounded-xl border bg-white object-contain"
+                        />
+                      ) : previewKind === 'audio' ? (
+                        <div className="rounded-xl border bg-white p-6">
+                          <audio src={previewUrl} controls className="w-full" />
+                        </div>
+                      ) : previewKind === 'video' ? (
+                        <video
+                          src={previewUrl}
+                          controls
+                          className="max-h-[28rem] w-full rounded-xl border bg-black"
+                        />
+                      ) : previewKind === 'pdf' ? (
+                        <iframe
+                          title={`Evidence preview ${selected.evidence_id || selectedIndex + 1}`}
+                          src={previewUrl}
+                          className="h-[28rem] w-full rounded-xl border bg-white"
+                        />
+                      ) : (
+                        <div className="flex h-72 flex-col items-center justify-center rounded-xl border border-dashed text-sm text-slate-500">
+                          <FileText className="mb-3 h-5 w-5" />
+                          Preview is available in a new tab.
+                        </div>
+                      )
                     ) : (
                       <div className="flex h-72 flex-col items-center justify-center rounded-xl border border-dashed text-sm text-slate-500">
                         <FileText className="mb-3 h-5 w-5" />
@@ -257,13 +281,37 @@ function formatCitationSourceTitle(citation: InkwiseCitation, { maxLength }: { m
 
 export function formatLocatorLabel(citation: InkwiseCitation): string {
   const locator = citation.locator_json || {}
+  const locatorKind = typeof locator.kind === 'string' ? locator.kind : null
   const rawPageStart = citation.page_number ?? locator.page_start ?? null
   const pageStart = typeof rawPageStart === 'number' && rawPageStart > 0 ? rawPageStart : null
   const pageEnd = locator.page_end ?? null
   if (typeof pageStart === 'number') {
     return typeof pageEnd === 'number' && pageEnd !== pageStart ? `pp.${pageStart}-${pageEnd}` : `p.${pageStart}`
   }
+  if (locatorKind === 'image_asset') return 'image'
+  if (locatorKind === 'audio_asset') return 'audio'
+  if (locatorKind === 'video_asset') return 'video'
   if (citation.segment_title) return citation.segment_title
   if (locator.kind === 'web_snapshot') return 'web snapshot'
   return 'evidence'
+}
+
+function getPreviewKind(citation: InkwiseCitation | null, source: InkwiseSource | null): 'pdf' | 'image' | 'audio' | 'video' | 'other' {
+  const contentType = (source?.content_type || '').toLowerCase()
+  if (contentType === 'application/pdf') return 'pdf'
+  if (contentType === 'image/jpeg' || contentType === 'image/png') return 'image'
+  if (contentType === 'audio/mp3' || contentType === 'audio/wav') return 'audio'
+  if (contentType === 'video/mp4' || contentType === 'video/mpeg') return 'video'
+
+  const previewObject = (citation?.preview_object || '').toLowerCase()
+  if (previewObject.endsWith('.pdf')) return 'pdf'
+  if (previewObject.endsWith('.jpg') || previewObject.endsWith('.jpeg') || previewObject.endsWith('.png')) return 'image'
+  if (previewObject.endsWith('.mp3') || previewObject.endsWith('.wav')) return 'audio'
+  if (previewObject.endsWith('.mp4') || previewObject.endsWith('.mpeg') || previewObject.endsWith('.mpg')) return 'video'
+
+  const locatorKind = citation?.locator_json?.kind
+  if (locatorKind === 'image_asset') return 'image'
+  if (locatorKind === 'audio_asset') return 'audio'
+  if (locatorKind === 'video_asset') return 'video'
+  return 'other'
 }
