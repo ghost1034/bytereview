@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import urllib.request
 from datetime import timedelta
 
@@ -14,6 +15,9 @@ from google.cloud import storage
 
 class InkwiseGcsError(RuntimeError):
     pass
+
+
+_PAGE_SUFFIX_FILENAME_RE = re.compile(r"^(?P<stem>.+?)(?P<ext>\.[A-Za-z0-9]+)\s+(?P<suffix>p\.\d+(?:-\d+)?|pp\.\d+(?:-\d+)?)$")
 
 
 def _metadata_service_account_email() -> str | None:
@@ -59,6 +63,28 @@ def _ensure_access_token(creds: object) -> str:
 
 def storage_client() -> storage.Client:
     return storage.Client()
+
+
+def _normalize_disposition_filename(disposition_filename: str | None, object_name: str) -> str | None:
+    clean = os.path.basename((disposition_filename or "").strip()).replace('"', "").replace("\n", " ").replace("\r", " ").strip()
+    inferred_ext = os.path.splitext(os.path.basename(object_name or ""))[1].strip().lower()
+
+    if not clean:
+        clean = os.path.basename(object_name or "").strip()
+    if not clean:
+        return None
+
+    match = _PAGE_SUFFIX_FILENAME_RE.match(clean)
+    if match:
+        clean = f"{match.group('stem')} {match.group('suffix')}{match.group('ext')}"
+
+    current_ext = os.path.splitext(clean)[1].strip().lower()
+    if inferred_ext and current_ext != inferred_ext:
+        clean = f"{os.path.splitext(clean)[0]}{inferred_ext}"
+    elif inferred_ext and not current_ext:
+        clean = f"{clean}{inferred_ext}"
+
+    return clean[:220] or None
 
 
 def generate_signed_upload_url(
@@ -137,9 +163,10 @@ def generate_signed_download_url(
         signing_email = _resolve_signing_service_account_email(source_creds)
 
         response_disposition = None
-        if disposition_filename:
+        normalized_filename = _normalize_disposition_filename(disposition_filename, object_name)
+        if normalized_filename:
             disposition_type = "inline" if inline else "attachment"
-            response_disposition = f'{disposition_type}; filename="{disposition_filename}"'
+            response_disposition = f'{disposition_type}; filename="{normalized_filename}"'
 
         try:
             if hasattr(source_creds, "sign_bytes"):

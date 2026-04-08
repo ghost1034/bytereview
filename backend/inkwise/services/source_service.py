@@ -4,15 +4,21 @@
 
 from __future__ import annotations
 
+import io
 import os
 import re
 import uuid
-from html import unescape
+from html import escape, unescape
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
 import requests
+from reportlab.lib.colors import HexColor
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -27,7 +33,7 @@ from inkwise.schemas import (
 from inkwise.services.gcs import generate_signed_download_url, generate_signed_upload_url, storage_client
 from inkwise.settings import get_inkwise_settings, is_valid_gcs_bucket_name, normalize_gcs_bucket_name
 from models.db_models import User
-from models.inkwise_models import InkwiseSource
+from models.inkwise_models import InkwiseSource, InkwiseSourceIngestion
 from services.gcs_service import GCSService
 from services.user_service import DuplicatePhoneNumberError, UserService
 
@@ -200,11 +206,11 @@ class InkwiseSourceService:
     ) -> InkwiseSource:
         clean_url = self._validate_webpage_url(body.source_url)
         bucket = self._require_bucket()
-        html_bytes, content_type, resolved_title = self._fetch_webpage_snapshot(
+        pdf_bytes, resolved_title = self._build_webpage_snapshot_pdf(
             clean_url,
             preferred_title=(body.title or "").strip() or None,
         )
-        filename = self._sanitize_filename(self._webpage_filename(clean_url, resolved_title), default_extension=".html")
+        filename = self._sanitize_filename(self._webpage_filename(clean_url, resolved_title, extension=".pdf"), default_extension=".pdf")
 
         now = datetime.utcnow()
         source = InkwiseSource(
@@ -212,8 +218,8 @@ class InkwiseSourceService:
             type="webpage",
             title=resolved_title,
             original_filename=filename,
-            content_type=content_type,
-            size_bytes=len(html_bytes),
+            content_type="application/pdf",
+            size_bytes=len(pdf_bytes),
             storage_bucket=bucket,
             source_url=clean_url,
             status="queued",
@@ -229,8 +235,8 @@ class InkwiseSourceService:
             original_filename=filename,
         )
         storage_client().bucket(bucket).blob(source.storage_object).upload_from_string(
-            html_bytes,
-            content_type=content_type,
+            pdf_bytes,
+            content_type="application/pdf",
         )
         db.commit()
         db.refresh(source)
@@ -274,7 +280,13 @@ class InkwiseSourceService:
         source_id: uuid.UUID,
     ) -> SignedDownload:
         source = self.get_source_or_404(db, user_id=user_id, source_id=source_id)
-        url = self._signed_download_for_source(source, inline=True)
+        bucket, object_name = self._resolve_preview_storage_path(db, source)
+        url = generate_signed_download_url(
+            bucket=bucket,
+            object_name=object_name,
+            disposition_filename=self._preview_filename_for_object(source, object_name),
+            inline=True,
+        )
         expires_at = (datetime.utcnow() + timedelta(minutes=15)).isoformat() + "Z"
         return SignedDownload(url=url, expires_at=expires_at)
 
@@ -331,6 +343,37 @@ class InkwiseSourceService:
             disposition_filename=source.original_filename,
             inline=inline,
         )
+
+    def _resolve_preview_storage_path(self, db: Session, source: InkwiseSource) -> tuple[str, str]:
+        preview_ingestion = (
+            db.query(InkwiseSourceIngestion)
+            .filter(
+                InkwiseSourceIngestion.source_id == source.id,
+                InkwiseSourceIngestion.status == "completed",
+                InkwiseSourceIngestion.canonical_pdf_gcs_bucket.isnot(None),
+                InkwiseSourceIngestion.canonical_pdf_gcs_object.isnot(None),
+            )
+            .order_by(InkwiseSourceIngestion.created_at.desc())
+            .first()
+        )
+        preview_bucket = normalize_gcs_bucket_name(
+            str(preview_ingestion.canonical_pdf_gcs_bucket or "") if preview_ingestion else str(source.storage_bucket or "")
+        )
+        preview_object = (
+            str(preview_ingestion.canonical_pdf_gcs_object or "").strip()
+            if preview_ingestion
+            else str(source.storage_object or "").strip()
+        )
+        if not preview_bucket or not preview_object:
+            raise FileNotFoundError("Source file is not available")
+        return preview_bucket, preview_object
+
+    def _preview_filename_for_object(self, source: InkwiseSource, object_name: str) -> str | None:
+        inferred_ext = os.path.splitext(os.path.basename(object_name or ""))[1].lower()
+        if inferred_ext == ".pdf":
+            preferred_name = source.original_filename or source.title or "reference.pdf"
+            return self._sanitize_filename(preferred_name, default_extension=".pdf")
+        return source.original_filename
 
     def _is_allowed_preview_asset(self, *, source: InkwiseSource, bucket: str, object_name: str) -> bool:
         source_bucket = normalize_gcs_bucket_name(str(source.storage_bucket or ""))
@@ -392,12 +435,22 @@ class InkwiseSourceService:
         return None
 
     def _validate_webpage_url(self, raw_url: str) -> str:
-        parsed = urlparse((raw_url or "").strip())
+        clean_url = (raw_url or "").strip()
+        if not clean_url:
+            raise ValueError("A valid webpage URL is required")
+        if "://" not in clean_url:
+            clean_url = f"https://{clean_url.lstrip('/')}"
+        parsed = urlparse(clean_url)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise ValueError("A valid http or https URL is required")
         return parsed.geturl()
 
-    def _fetch_webpage_snapshot(self, url: str, *, preferred_title: str | None) -> tuple[bytes, str, str]:
+    def _build_webpage_snapshot_pdf(self, url: str, *, preferred_title: str | None) -> tuple[bytes, str]:
+        html_text, resolved_title = self._fetch_webpage_html(url, preferred_title=preferred_title)
+        pdf_bytes = self._render_webpage_snapshot_pdf(url=url, title=resolved_title, html_text=html_text)
+        return pdf_bytes, resolved_title
+
+    def _fetch_webpage_html(self, url: str, *, preferred_title: str | None) -> tuple[str, str]:
         settings = get_inkwise_settings()
         max_bytes = max(1, settings.max_upload_mb) * 1024 * 1024
         try:
@@ -419,7 +472,58 @@ class InkwiseSourceService:
 
         html_text = content.decode(response.encoding or "utf-8", errors="ignore")
         title = preferred_title or self._extract_html_title(html_text) or urlparse(url).netloc or "Webpage snapshot"
-        return html_text.encode("utf-8"), "text/html", title[:400]
+        return html_text, title[:400]
+
+    def _render_webpage_snapshot_pdf(self, *, url: str, title: str, html_text: str) -> bytes:
+        paragraphs = self._extract_html_paragraphs(html_text)
+        if not paragraphs:
+            paragraphs = [title or url]
+
+        buffer = io.BytesIO()
+        document = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            leftMargin=0.75 * inch,
+            rightMargin=0.75 * inch,
+            topMargin=0.75 * inch,
+            bottomMargin=0.75 * inch,
+            title=title[:250],
+        )
+        styles = getSampleStyleSheet()
+        title_style = styles["Title"]
+        body_style = ParagraphStyle(
+            "InkwiseWebpageBody",
+            parent=styles["BodyText"],
+            leading=14,
+            spaceAfter=8,
+        )
+        meta_style = ParagraphStyle(
+            "InkwiseWebpageMeta",
+            parent=styles["BodyText"],
+            textColor=HexColor("#475569"),
+            fontSize=9,
+            leading=12,
+            spaceAfter=10,
+        )
+
+        story: list[object] = [
+            Paragraph(escape((title or "Webpage snapshot").strip() or "Webpage snapshot"), title_style),
+            Spacer(1, 0.15 * inch),
+            Paragraph(escape(url), meta_style),
+            Paragraph(escape(f"Captured {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}"), meta_style),
+            Spacer(1, 0.1 * inch),
+        ]
+        for paragraph in paragraphs:
+            clean_paragraph = paragraph.strip()
+            if not clean_paragraph:
+                continue
+            story.append(Paragraph(escape(clean_paragraph), body_style))
+
+        try:
+            document.build(story)
+        except Exception as exc:
+            raise ValueError(f"Could not generate webpage PDF snapshot: {exc}") from exc
+        return buffer.getvalue()
 
     def _extract_html_title(self, html_text: str) -> str | None:
         match = _HTML_TITLE_RE.search(html_text or "")
@@ -428,9 +532,19 @@ class InkwiseSourceService:
         title = unescape(re.sub(r"\s+", " ", match.group(1))).strip()
         return title or None
 
-    def _webpage_filename(self, url: str, title: str) -> str:
+    def _extract_html_paragraphs(self, html_text: str) -> list[str]:
+        cleaned = re.sub(r"<!--.*?-->", " ", html_text or "", flags=re.DOTALL)
+        cleaned = re.sub(r"<script[^>]*>.*?</script>", " ", cleaned, flags=re.IGNORECASE | re.DOTALL)
+        cleaned = re.sub(r"<style[^>]*>.*?</style>", " ", cleaned, flags=re.IGNORECASE | re.DOTALL)
+        cleaned = re.sub(r"<(p|div|section|article|li|h1|h2|h3|h4|h5|h6|br)[^>]*>", "\n\n", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"<[^>]+>", " ", cleaned)
+        cleaned = unescape(cleaned)
+        parts = [re.sub(r"\s+", " ", part).strip() for part in re.split(r"\n\s*\n+", cleaned)]
+        return [part for part in parts if part]
+
+    def _webpage_filename(self, url: str, title: str, *, extension: str = ".html") -> str:
         parsed = urlparse(url)
         stem = (title or parsed.netloc or "webpage").strip() or "webpage"
         stem = re.sub(r"\s+", "-", stem)
         stem = _SAFE_FILENAME_RE.sub("", stem).strip("- ") or "webpage"
-        return f"{stem[:120]}.html"
+        return f"{stem[:120]}{extension}"

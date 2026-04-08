@@ -100,6 +100,10 @@ export function InlineWritingTools({
     return editor ? selectionTarget(editor) : null
   }
 
+  function preventEditorBlur(event: { preventDefault: () => void }) {
+    event.preventDefault()
+  }
+
   function openPanel() {
     const target = activeTarget()
     if (!target) return
@@ -295,138 +299,147 @@ export function InlineWritingTools({
   const hasSelection = Boolean(currentTarget?.hasSelection)
 
   const panel = (
-    <div className="w-[32rem] rounded-2xl border bg-white/95 p-3 shadow-2xl backdrop-blur">
+    <div className="flex max-h-[min(80vh,42rem)] w-[min(32rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-2xl border bg-white/95 p-3 shadow-2xl backdrop-blur">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-2">
           {hasSelection ? (
             <>
-              <Button size="sm" onClick={() => run('improve')} disabled={busy}>Improve</Button>
-              <Button size="sm" variant="outline" onClick={() => run('concise')} disabled={busy}>Concise</Button>
-              <Button size="sm" variant="outline" onClick={() => run('longer')} disabled={busy}>Longer</Button>
-              <Button size="sm" variant="outline" onClick={() => setCustomOpen((value) => !value)} disabled={busy}>Custom</Button>
+              <Button size="sm" onMouseDown={preventEditorBlur} onClick={() => run('improve')} disabled={busy}>Improve</Button>
+              <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => run('concise')} disabled={busy}>Concise</Button>
+              <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => run('longer')} disabled={busy}>Longer</Button>
+              <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => setCustomOpen((value) => !value)} disabled={busy}>Custom</Button>
             </>
           ) : (
             <div className="text-sm font-medium text-slate-900">Write with AI</div>
           )}
         </div>
         <div>
-          {busy ? <Button size="sm" variant="outline" onClick={stop}>Stop</Button> : outputMd || error ? <Button size="sm" variant="outline" onClick={closePanel}>Close</Button> : null}
+          {busy ? <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={stop}>Stop</Button> : outputMd || error ? <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={closePanel}>Close</Button> : null}
         </div>
       </div>
 
-      <div className="mt-3 rounded-xl border bg-slate-50 p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-sm font-medium text-slate-900">Sources</div>
-            <div className="text-xs text-slate-500">
-              {readySources.length
-                ? `${selectedSourceIds.length} of ${readySources.length} ready sources attached`
-                : boundSources.length
-                  ? 'No ready sources attached yet'
-                  : 'No sources bound to this document'}
+      <div className="mt-3 flex-1 space-y-3 overflow-y-auto pr-1">
+        <div className="rounded-xl border bg-slate-50 p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-medium text-slate-900">Sources</div>
+              <div className="text-xs text-slate-500">
+                {readySources.length
+                  ? `${selectedSourceIds.length} of ${readySources.length} ready sources attached`
+                  : boundSources.length
+                    ? 'No ready sources attached yet'
+                    : 'No sources bound to this document'}
+              </div>
             </div>
+            {readySources.length ? (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onMouseDown={preventEditorBlur}
+                  onClick={() => setSourceChecked(Object.fromEntries(readySources.map((item) => [item.source.id, true])))}
+                  disabled={busy}
+                >
+                  Select All
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onMouseDown={preventEditorBlur}
+                  onClick={() => setSourceChecked(Object.fromEntries(readySources.map((item) => [item.source.id, false])))}
+                  disabled={busy}
+                >
+                  None
+                </Button>
+              </div>
+            ) : null}
           </div>
-          {readySources.length ? (
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setSourceChecked(Object.fromEntries(readySources.map((item) => [item.source.id, true])))}
-                disabled={busy}
-              >
-                Select All
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setSourceChecked(Object.fromEntries(readySources.map((item) => [item.source.id, false])))}
-                disabled={busy}
-              >
-                None
-              </Button>
+
+          {sortedBoundSources.length ? (
+            <div className="mt-3 grid max-h-36 gap-2 overflow-auto">
+              {sortedBoundSources.map((item) => (
+                <label
+                  key={item.binding_id}
+                  onMouseDown={preventEditorBlur}
+                  className={`flex items-center gap-3 text-sm ${item.grounded_chat_ready ? 'text-slate-700' : 'text-slate-400'}`}
+                >
+                  <Checkbox
+                    checked={sourceChecked[item.source.id] ?? item.grounded_chat_ready}
+                    disabled={!item.grounded_chat_ready || busy}
+                    onMouseDown={preventEditorBlur}
+                    onCheckedChange={(checked) => {
+                      setSourceChecked((prev) => ({ ...prev, [item.source.id]: Boolean(checked) }))
+                    }}
+                  />
+                  <span>{item.source.title}</span>
+                  {!item.grounded_chat_ready ? <span className="text-xs">({item.grounded_chat_reason || 'Not ready'})</span> : null}
+                </label>
+              ))}
             </div>
           ) : null}
         </div>
 
-        {sortedBoundSources.length ? (
-          <div className="mt-3 grid max-h-36 gap-2 overflow-auto">
-            {sortedBoundSources.map((item) => (
-              <label key={item.binding_id} className={`flex items-center gap-3 text-sm ${item.grounded_chat_ready ? 'text-slate-700' : 'text-slate-400'}`}>
-                <Checkbox
-                  checked={sourceChecked[item.source.id] ?? item.grounded_chat_ready}
-                  disabled={!item.grounded_chat_ready || busy}
-                  onCheckedChange={(checked) => {
-                    setSourceChecked((prev) => ({ ...prev, [item.source.id]: Boolean(checked) }))
-                  }}
-                />
-                <span>{item.source.title}</span>
-                {!item.grounded_chat_ready ? <span className="text-xs">({item.grounded_chat_reason || 'Not ready'})</span> : null}
-              </label>
-            ))}
+        {(customOpen || !hasSelection) ? (
+          <div className="space-y-2">
+            <Label htmlFor="inkwise-custom-tool">Instruction</Label>
+            <Input id="inkwise-custom-tool" value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder={hasSelection ? 'e.g. rewrite in a persuasive tone' : 'e.g. draft a concise transition sentence'} />
+            <div className="flex justify-end">
+              <Button size="sm" onMouseDown={preventEditorBlur} onClick={() => run('custom', instruction)} disabled={busy || !instruction.trim()}>
+                Run
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {error ? <div className="text-sm text-red-600">{error}</div> : null}
+
+        {busy || outputMd ? (
+          <div className="rounded-xl border bg-white p-3">
+            <div className="text-sm font-medium text-slate-900">{busy ? 'Writing...' : lastAction ? `Result (${lastAction})` : 'Result'}</div>
+            {groundingState ? (
+              <div className="mt-1 text-xs text-slate-500">
+                {groundingState.grounded
+                  ? `Grounded to ${groundingState.evidenceCount} evidence ${groundingState.evidenceCount === 1 ? 'segment' : 'segments'}`
+                  : groundingState.fallback === 'no_evidence'
+                    ? 'No matching evidence found in the selected sources'
+                    : groundingState.fallback === 'retrieval_error'
+                      ? 'Grounding fell back to an ungrounded rewrite'
+                      : 'Running without grounded evidence'}
+              </div>
+            ) : null}
+            <div className="mt-3 max-h-56 overflow-auto text-sm text-slate-700">
+              {outputMd ? <InkwiseMarkdownView markdown={outputMd} className="prose prose-sm max-w-none" /> : <div className="text-slate-400">...</div>}
+            </div>
+            {groundingState?.evidence?.length ? (
+              <div className="mt-3">
+                <InkwiseCitationBubbles citations={groundingState.evidence} />
+              </div>
+            ) : null}
+            <div className="mt-3 flex flex-wrap justify-end gap-2">
+              <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => retryAttempt()} disabled={!attemptId || busy}>
+                Retry
+              </Button>
+              {rangeRef.current?.hasSelection ? (
+                <>
+                  <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => insert('after')} disabled={!outputMd || inserting === 'after'}>
+                    {inserting === 'after' ? 'Inserting...' : 'Insert after'}
+                  </Button>
+                  <Button size="sm" onMouseDown={preventEditorBlur} onClick={() => insert('replace')} disabled={!outputMd || inserting === 'replace'}>
+                    {inserting === 'replace' ? 'Replacing...' : 'Replace selection'}
+                  </Button>
+                </>
+              ) : (
+                <Button size="sm" onMouseDown={preventEditorBlur} onClick={() => insert('insert')} disabled={!outputMd || inserting === 'insert'}>
+                  {inserting === 'insert' ? 'Inserting...' : 'Insert'}
+                </Button>
+              )}
+              <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => navigator.clipboard?.writeText(outputMd || '')} disabled={!outputMd}>
+                Copy
+              </Button>
+            </div>
           </div>
         ) : null}
       </div>
-
-      {(customOpen || !hasSelection) ? (
-        <div className="mt-3 space-y-2">
-          <Label htmlFor="inkwise-custom-tool">Instruction</Label>
-          <Input id="inkwise-custom-tool" value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder={hasSelection ? 'e.g. rewrite in a persuasive tone' : 'e.g. draft a concise transition sentence'} />
-          <div className="flex justify-end">
-            <Button size="sm" onClick={() => run('custom', instruction)} disabled={busy || !instruction.trim()}>
-              Run
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
-      {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
-
-      {busy || outputMd ? (
-        <div className="mt-3 rounded-xl border bg-white p-3">
-          <div className="text-sm font-medium text-slate-900">{busy ? 'Writing...' : lastAction ? `Result (${lastAction})` : 'Result'}</div>
-          {groundingState ? (
-            <div className="mt-1 text-xs text-slate-500">
-              {groundingState.grounded
-                ? `Grounded to ${groundingState.evidenceCount} evidence ${groundingState.evidenceCount === 1 ? 'segment' : 'segments'}`
-                : groundingState.fallback === 'no_evidence'
-                  ? 'No matching evidence found in the selected sources'
-                  : groundingState.fallback === 'retrieval_error'
-                    ? 'Grounding fell back to an ungrounded rewrite'
-                    : 'Running without grounded evidence'}
-            </div>
-          ) : null}
-          <div className="mt-3 max-h-56 overflow-auto text-sm text-slate-700">
-            {outputMd ? <InkwiseMarkdownView markdown={outputMd} className="prose prose-sm max-w-none" /> : <div className="text-slate-400">...</div>}
-          </div>
-          {groundingState?.evidence?.length ? (
-            <div className="mt-3">
-              <InkwiseCitationBubbles citations={groundingState.evidence} />
-            </div>
-          ) : null}
-          <div className="mt-3 flex flex-wrap justify-end gap-2">
-            <Button size="sm" variant="outline" onClick={() => retryAttempt()} disabled={!attemptId || busy}>
-              Retry
-            </Button>
-            {rangeRef.current?.hasSelection ? (
-              <>
-                <Button size="sm" variant="outline" onClick={() => insert('after')} disabled={!outputMd || inserting === 'after'}>
-                  {inserting === 'after' ? 'Inserting...' : 'Insert after'}
-                </Button>
-                <Button size="sm" onClick={() => insert('replace')} disabled={!outputMd || inserting === 'replace'}>
-                  {inserting === 'replace' ? 'Replacing...' : 'Replace selection'}
-                </Button>
-              </>
-            ) : (
-              <Button size="sm" onClick={() => insert('insert')} disabled={!outputMd || inserting === 'insert'}>
-                {inserting === 'insert' ? 'Inserting...' : 'Insert'}
-              </Button>
-            )}
-            <Button size="sm" variant="outline" onClick={() => navigator.clipboard?.writeText(outputMd || '')} disabled={!outputMd}>
-              Copy
-            </Button>
-          </div>
-        </div>
-      ) : null}
     </div>
   )
 

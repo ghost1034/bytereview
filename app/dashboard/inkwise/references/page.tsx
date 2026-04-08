@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
 import { useInkwiseSourceIngestions, useInkwiseSources } from '@/hooks/useInkwise'
-import { apiClient } from '@/lib/api'
+import { apiClient, InkwiseSource, InkwiseSourceIngestion } from '@/lib/api'
 import { INKWISE_SOURCE_POLL_INTERVAL_MS, isInkwiseIngestionActiveStatus, isInkwiseSourceActiveStatus } from '@/lib/inkwise-source-status'
 
 export default function InkwiseReferencesPage() {
@@ -93,9 +93,26 @@ export default function InkwiseReferencesPage() {
   })
 
   const previewSource = useMutation({
-    mutationFn: async (sourceId: string) => {
-      const result = await apiClient.previewInkwiseSource(sourceId)
+    mutationFn: async ({ source, latestIngestion }: { source: InkwiseSource; latestIngestion?: InkwiseSourceIngestion }) => {
+      const canonicalBucket = (latestIngestion?.canonical_pdf_gcs_bucket || '').trim()
+      const canonicalObject = (latestIngestion?.canonical_pdf_gcs_object || '').trim()
+      if (canonicalBucket && canonicalObject) {
+        const result = await apiClient.previewInkwiseSourceAsset(source.id, {
+          bucket: canonicalBucket,
+          object_name: canonicalObject,
+          disposition_filename: source.original_filename || source.title,
+        })
+        window.open(result.url, '_blank', 'noopener,noreferrer')
+        return
+      }
+      if (isDocxSource(source)) {
+        throw new Error('PDF preview will be available after ingestion completes.')
+      }
+      const result = await apiClient.previewInkwiseSource(source.id)
       window.open(result.url, '_blank', 'noopener,noreferrer')
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Could not preview source', description: error.message, variant: 'destructive' })
     },
   })
 
@@ -157,11 +174,11 @@ export default function InkwiseReferencesPage() {
               <Input
                 value={webpageUrl}
                 onChange={(event) => setWebpageUrl(event.target.value)}
-                placeholder="https://example.com/reference"
+                placeholder="example.com/reference"
               />
               <Button
                 variant="outline"
-                onClick={() => captureWebpage.mutate(webpageUrl.trim())}
+                onClick={() => captureWebpage.mutate(normalizeWebpageUrlInput(webpageUrl))}
                 disabled={captureWebpage.isPending || !webpageUrl.trim()}
               >
                 {captureWebpage.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Globe className="mr-2 h-4 w-4" />}
@@ -236,7 +253,7 @@ export default function InkwiseReferencesPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={() => previewSource.mutate(source.id)}>
+                    <Button variant="outline" onClick={() => previewSource.mutate({ source, latestIngestion })}>
                       <Eye className="mr-2 h-4 w-4" />
                       Preview
                     </Button>
@@ -263,6 +280,16 @@ export default function InkwiseReferencesPage() {
       </div>
     </div>
   )
+}
+
+function normalizeWebpageUrlInput(value: string): string {
+  const cleanValue = value.trim()
+  if (!cleanValue) return ''
+  return cleanValue.includes('://') ? cleanValue : `https://${cleanValue.replace(/^\/+/, '')}`
+}
+
+function isDocxSource(source: InkwiseSource): boolean {
+  return (source.content_type || '').toLowerCase() === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 }
 
 function inferSourceContentType(file: File): string {
