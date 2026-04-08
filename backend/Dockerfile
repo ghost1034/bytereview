@@ -10,6 +10,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # System deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc g++ libpq-dev \
+    ffmpeg \
     libreoffice-writer libreoffice-core libreoffice-common \
     fonts-dejavu-core fonts-liberation \
  && rm -rf /var/lib/apt/lists/*

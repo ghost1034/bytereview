@@ -20,6 +20,8 @@ from sqlalchemy.orm import Session
 
 from inkwise.services.embeddings import InkwiseEmbeddingError, InkwiseEmbeddingService
 from inkwise.services.gcs import storage_client
+from inkwise.services.media_chunker import InkwiseMediaChunker, MediaChunk, MediaChunkError
+from inkwise.services.media_probe import MediaProbeError
 from inkwise.services.segmentation_service import InkwiseSegmentationService, SegmentDraft
 from inkwise.services.source_normalizer import InkwiseSourceNormalizer, SourceNormalizationError
 from inkwise.settings import get_inkwise_settings, is_valid_gcs_bucket_name, normalize_gcs_bucket_name
@@ -46,6 +48,7 @@ class InkwiseIngestionService:
         self.embedding_service = InkwiseEmbeddingService()
         self.source_normalizer = InkwiseSourceNormalizer()
         self.segmentation_service = InkwiseSegmentationService()
+        self.media_chunker = InkwiseMediaChunker()
 
     def enqueue_ingestion(self, db: Session, *, user_id: str, source_id: uuid.UUID) -> InkwiseSourceIngestion:
         source = self._get_source_for_user(db, user_id=user_id, source_id=source_id)
@@ -139,6 +142,14 @@ class InkwiseIngestionService:
                     title=source.title,
                     source_url=source.source_url,
                 )
+                media_chunks: list[MediaChunk] | None = None
+                if normalized.source_kind in {"audio", "video"}:
+                    _probe_result, media_chunks = self.media_chunker.create_chunks(
+                        local_path=normalized.canonical_local_path,
+                        source_kind=normalized.source_kind,
+                        mime_type=normalized.canonical_mime_type,
+                        output_dir=os.path.join(temp_dir, "media_chunks"),
+                    )
                 ingestion.page_count = normalized.page_count or None
                 ingestion.provider_document_name = source.original_filename or source.title
                 provisional_usage = self._build_usage_measurement(normalized=normalized, embedded_media_tokens=None)
@@ -180,6 +191,7 @@ class InkwiseIngestionService:
                     ingestion=ingestion,
                     normalized=normalized,
                     derived_bucket=derived_bucket,
+                    media_chunks=media_chunks,
                 )
 
                 final_usage = self._build_usage_measurement(
@@ -220,7 +232,7 @@ class InkwiseIngestionService:
                 db.refresh(ingestion)
                 return ingestion
 
-        except (IngestionError, SourceNormalizationError, InkwiseEmbeddingError) as exc:
+        except (IngestionError, SourceNormalizationError, InkwiseEmbeddingError, MediaChunkError, MediaProbeError) as exc:
             self._mark_failed(db, ingestion_id=ingestion_id, code="ingest_failed", message=str(exc))
             return self._get_ingestion_or_404(db, ingestion_id)
         except Exception as exc:
@@ -270,9 +282,10 @@ class InkwiseIngestionService:
         ingestion: InkwiseSourceIngestion,
         normalized: Any,
         derived_bucket: str,
+        media_chunks: list[MediaChunk] | None = None,
     ) -> int:
         settings = get_inkwise_settings()
-        segmentation = self.segmentation_service.build_segments(normalized)
+        segmentation = self.segmentation_service.build_segments(normalized, media_chunks=media_chunks)
         db.query(InkwiseSourceSegmentEmbedding).filter(InkwiseSourceSegmentEmbedding.source_id == source.id).delete()
         db.query(InkwiseSourceSegment).filter(InkwiseSourceSegment.source_id == source.id).delete()
 
@@ -317,14 +330,27 @@ class InkwiseIngestionService:
                     document_ocr=settings.embedding_enable_document_ocr,
                 )
             elif draft.modality in {"image", "audio", "video"} and draft.asset_mime_type:
-                if not source.storage_bucket or not source.storage_object:
-                    raise IngestionError("Media segment source storage path is missing")
-                segment.asset_bucket = source.storage_bucket
-                segment.asset_object = source.storage_object
-                segment.preview_bucket = source.storage_bucket
-                segment.preview_object = source.storage_object
+                uses_original_asset = bool((draft.meta_json or {}).get("uses_original_asset"))
+                if uses_original_asset:
+                    if not source.storage_bucket or not source.storage_object:
+                        raise IngestionError("Media segment source storage path is missing")
+                    segment.asset_bucket = source.storage_bucket
+                    segment.asset_object = source.storage_object
+                    segment.preview_bucket = source.storage_bucket
+                    segment.preview_object = source.storage_object
+                else:
+                    asset_object = self._upload_media_clip_asset(
+                        source=source,
+                        ingestion=ingestion,
+                        draft=draft,
+                        bucket=derived_bucket,
+                    )
+                    segment.asset_bucket = derived_bucket
+                    segment.asset_object = asset_object
+                    segment.preview_bucket = derived_bucket
+                    segment.preview_object = asset_object
                 embedding_result = self.embedding_service.embed_file_gcs_sync(
-                    gcs_uri=f"gs://{source.storage_bucket}/{source.storage_object}",
+                    gcs_uri=f"gs://{segment.asset_bucket}/{segment.asset_object}",
                     mime_type=draft.asset_mime_type,
                     output_dimensionality=settings.embedding_dimension,
                     audio_track_extraction=(draft.modality == "video"),
@@ -476,6 +502,43 @@ class InkwiseIngestionService:
             object_name = f"inkwise/derived/{source.user_id}/{source.id}/segments/{ingestion.id}/{segment_family}/{filename}"
             storage_client().bucket(bucket).blob(object_name).upload_from_filename(local_pdf, content_type="application/pdf")
             return object_name
+
+    def _upload_media_clip_asset(
+        self,
+        *,
+        source: InkwiseSource,
+        ingestion: InkwiseSourceIngestion,
+        draft: SegmentDraft,
+        bucket: str,
+    ) -> str:
+        clip_path = str(draft.asset_local_path or "").strip()
+        mime_type = str(draft.asset_mime_type or "").strip().lower()
+        if not clip_path or not os.path.exists(clip_path):
+            raise IngestionError("Media clip segment is missing its local asset")
+        if not is_valid_gcs_bucket_name(bucket):
+            raise IngestionError("Derived storage bucket is invalid")
+
+        segment_family = str(draft.segment_type or "segment").strip().lower() or "segment"
+        ext = os.path.splitext(clip_path)[1].lower() or self._default_extension_for_mime_type(mime_type)
+        filename = f"{segment_family}_{draft.order_index:04d}_{int(draft.time_start_ms or 0):010d}_{int(draft.time_end_ms or 0):010d}{ext}"
+        object_name = f"inkwise/derived/{source.user_id}/{source.id}/segments/{ingestion.id}/{segment_family}/{filename}"
+        storage_client().bucket(bucket).blob(object_name).upload_from_filename(clip_path, content_type=mime_type or None)
+        return object_name
+
+    def _default_extension_for_mime_type(self, mime_type: str) -> str:
+        if mime_type == "image/jpeg":
+            return ".jpg"
+        if mime_type == "image/png":
+            return ".png"
+        if mime_type == "audio/mp3":
+            return ".mp3"
+        if mime_type == "audio/wav":
+            return ".wav"
+        if mime_type == "video/mp4":
+            return ".mp4"
+        if mime_type == "video/mpeg":
+            return ".mpeg"
+        return ".bin"
 
     def _write_pdf_window(
         self,

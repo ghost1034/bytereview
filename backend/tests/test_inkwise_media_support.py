@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 import uuid
 from pathlib import Path
+from unittest.mock import patch
 
+from inkwise.services.media_chunker import InkwiseMediaChunker, MediaChunk
 from inkwise.services.multimodal_evidence import build_multimodal_contents
-from inkwise.services.retrieval_types import EvidenceItem, evidence_excerpt, evidence_preview_mime_type
+from inkwise.services.retrieval_types import EvidenceItem, build_evidence_pack, evidence_excerpt, evidence_preview_mime_type
 from inkwise.services.segmentation_service import InkwiseSegmentationService
 from inkwise.services.source_normalizer import InkwiseSourceNormalizer
 from inkwise.services.source_service import InkwiseSourceService
@@ -64,6 +67,74 @@ class InkwiseMediaSegmentationTests(unittest.TestCase):
         self.assertEqual(result.segments[0].segment_type, "audio_clip")
         self.assertEqual(result.segments[0].modality, "audio")
         self.assertEqual(result.segments[0].locator_json, {"kind": "audio_asset"})
+
+    def test_build_audio_segments_from_chunked_media(self) -> None:
+        normalizer = InkwiseSourceNormalizer()
+        segmentation = InkwiseSegmentationService()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            audio_path = Path(temp_dir) / "recording.wav"
+            audio_path.write_bytes(b"wav-bytes")
+            normalized = normalizer.normalize_local_source(
+                local_path=str(audio_path),
+                filename="recording.wav",
+                content_type="audio/wav",
+                title="Client Interview",
+            )
+
+        result = segmentation.build_segments(
+            normalized,
+            media_chunks=[
+                MediaChunk(order_index=0, time_start_ms=0, time_end_ms=60000, local_path="/tmp/chunk0.wav", mime_type="audio/wav"),
+                MediaChunk(order_index=1, time_start_ms=58000, time_end_ms=120000, local_path="/tmp/chunk1.wav", mime_type="audio/wav"),
+            ],
+        )
+
+        self.assertEqual(result.stats["segment_count"], 2)
+        self.assertEqual(result.stats["media_chunk_count"], 2)
+        self.assertEqual(result.segments[0].locator_json["kind"], "time_range")
+        self.assertEqual(result.segments[0].time_start_ms, 0)
+        self.assertEqual(result.segments[0].time_end_ms, 60000)
+        self.assertIn("00:00-01:00", str(result.segments[0].title))
+
+
+class InkwiseMediaChunkerTests(unittest.TestCase):
+    def test_build_chunk_windows_respects_overlap(self) -> None:
+        chunker = InkwiseMediaChunker()
+        with patch.dict(
+            os.environ,
+            {
+                "INKWISE_AUDIO_CHUNK_SECONDS": "60",
+                "INKWISE_VIDEO_CHUNK_SECONDS": "45",
+                "INKWISE_MEDIA_CHUNK_OVERLAP_SECONDS": "2",
+                "INKWISE_MEDIA_MAX_CLIPS_PER_SOURCE": "10",
+            },
+            clear=False,
+        ):
+            windows = chunker.build_chunk_windows(duration_ms=130000, source_kind="audio")
+
+        self.assertEqual([(item.time_start_ms, item.time_end_ms) for item in windows], [(0, 60000), (58000, 118000), (116000, 130000)])
+
+    def test_create_chunks_keeps_original_asset_when_single_window(self) -> None:
+        chunker = InkwiseMediaChunker()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            audio_path = Path(temp_dir) / "short.wav"
+            audio_path.write_bytes(b"wav-bytes")
+            with (
+                patch.object(chunker.probe_service, "probe", return_value=type("Probe", (), {"duration_ms": 45000})()),
+                patch.object(chunker, "_extract_chunk") as extract_chunk,
+                patch.dict(os.environ, {"INKWISE_AUDIO_CHUNK_SECONDS": "60", "INKWISE_MEDIA_CHUNK_OVERLAP_SECONDS": "2"}, clear=False),
+            ):
+                _probe, chunks = chunker.create_chunks(
+                    local_path=str(audio_path),
+                    source_kind="audio",
+                    mime_type="audio/wav",
+                    output_dir=str(Path(temp_dir) / "clips"),
+                )
+
+        self.assertEqual(len(chunks), 1)
+        self.assertTrue(chunks[0].uses_original_asset)
+        self.assertEqual(chunks[0].local_path, str(audio_path))
+        extract_chunk.assert_not_called()
 
 
 class InkwiseMultimodalEvidenceTests(unittest.TestCase):
@@ -126,6 +197,24 @@ class InkwiseMultimodalEvidenceTests(unittest.TestCase):
 
         self.assertEqual(evidence_preview_mime_type(item), "audio/wav")
         self.assertIn("attached audio file", evidence_excerpt(item))
+
+    def test_time_range_evidence_helpers_include_clip_locator(self) -> None:
+        item = EvidenceItem(
+            evidence_id="E02",
+            source_id=uuid.uuid4(),
+            source_title="Site Walkthrough",
+            page_number=0,
+            excerpt="",
+            score=0.7,
+            locator_json={"kind": "time_range", "source_kind": "video", "time_start_ms": 45000, "time_end_ms": 75000},
+            preview_bucket="bucket",
+            preview_object="refs/tour_0045_0075.mp4",
+            segment_title="Site Walkthrough video 00:45-01:15",
+        )
+
+        self.assertEqual(evidence_preview_mime_type(item), "video/mp4")
+        self.assertIn("attached video clip 00:45-01:15", evidence_excerpt(item))
+        self.assertIn('locator="00:45-01:15"', build_evidence_pack([item]))
 
 
 if __name__ == "__main__":

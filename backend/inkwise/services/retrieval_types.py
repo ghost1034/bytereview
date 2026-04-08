@@ -30,6 +30,7 @@ def evidence_excerpt(item: EvidenceItem) -> str:
     locator = item.locator_json or {}
     locator_kind = str(locator.get("kind") or "").strip().lower() if isinstance(locator, dict) else ""
     page_end = locator.get("page_end") if isinstance(locator, dict) else None
+    time_range_label = format_time_range_locator(locator)
     if item.page_number > 0 and isinstance(page_end, int) and page_end != item.page_number:
         return (
             f"Relevant evidence is contained in the attached PDF pages {item.page_number}-{page_end} "
@@ -46,6 +47,12 @@ def evidence_excerpt(item: EvidenceItem) -> str:
         return f"Relevant evidence is contained in the attached audio file from {item.source_title}."
     if locator_kind == "video_asset":
         return f"Relevant evidence is contained in the attached video file from {item.source_title}."
+    if locator_kind == "time_range":
+        source_kind = str(locator.get("source_kind") or "media").strip().lower()
+        clip_label = "audio clip" if source_kind == "audio" else "video clip" if source_kind == "video" else "media clip"
+        if time_range_label:
+            return f"Relevant evidence is contained in the attached {clip_label} {time_range_label} from {item.source_title}."
+        return f"Relevant evidence is contained in the attached {clip_label} from {item.source_title}."
     return f"Relevant evidence is available in the attached reference asset from {item.source_title}."
 
 
@@ -80,6 +87,12 @@ def evidence_preview_mime_type(item: EvidenceItem) -> str | None:
         return "audio/mp3"
     if locator_kind == "video_asset":
         return "video/mp4"
+    if locator_kind == "time_range":
+        source_kind = str(locator.get("source_kind") or "").strip().lower()
+        if source_kind == "audio":
+            return "audio/mp3"
+        if source_kind == "video":
+            return "video/mp4"
     return None
 
 
@@ -101,10 +114,40 @@ def build_evidence_pack(evidence: list[EvidenceItem]) -> str:
                 header += ' locator="audio"'
             elif locator_kind == "video_asset":
                 header += ' locator="video"'
+            elif locator_kind == "time_range":
+                time_range_label = format_time_range_locator(locator)
+                if time_range_label:
+                    header += f' locator="{time_range_label}"'
         if item.segment_title:
             header += f' segment="{item.segment_title}"'
         blocks.append(header + "\n" + evidence_excerpt(item))
     return ("\n\n".join(blocks).strip() + "\n") if blocks else ""
+
+
+def format_time_range_locator(locator: dict[str, Any] | None) -> str | None:
+    if not isinstance(locator, dict):
+        return None
+    start_ms = _int_or_none(locator.get("time_start_ms"))
+    end_ms = _int_or_none(locator.get("time_end_ms"))
+    if start_ms is None or end_ms is None:
+        return None
+    return f"{_format_timestamp(start_ms)}-{_format_timestamp(end_ms)}"
+
+
+def _format_timestamp(value_ms: int) -> str:
+    total_seconds = max(0, int(value_ms) // 1000)
+    minutes, seconds = divmod(total_seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours > 0:
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    return f"{minutes:02d}:{seconds:02d}"
+
+
+def _int_or_none(value: Any) -> int | None:
+    try:
+        return int(value) if value is not None else None
+    except Exception:
+        return None
 
 
 def evidence_item_to_payload(item: EvidenceItem) -> dict[str, Any]:

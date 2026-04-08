@@ -89,6 +89,10 @@ class InkwiseSettings:
     segment_pdf_window_pages: int
     segment_pdf_window_overlap_pages: int
     segment_text_chunk_chars: int
+    audio_chunk_seconds: int
+    video_chunk_seconds: int
+    media_chunk_overlap_seconds: int
+    media_max_clips_per_source: int
     grounded_model: str
     grounded_chat_history_enabled: bool
     grounded_chat_max_history_messages: int
@@ -149,6 +153,10 @@ def get_inkwise_settings() -> InkwiseSettings:
         segment_pdf_window_pages=max(1, _env_int("INKWISE_SEGMENT_PDF_WINDOW_PAGES", 4)),
         segment_pdf_window_overlap_pages=max(0, _env_int("INKWISE_SEGMENT_PDF_WINDOW_OVERLAP_PAGES", 1)),
         segment_text_chunk_chars=max(500, _env_int("INKWISE_SEGMENT_TEXT_CHUNK_CHARS", 3000)),
+        audio_chunk_seconds=max(5, _env_int("INKWISE_AUDIO_CHUNK_SECONDS", 60)),
+        video_chunk_seconds=max(5, _env_int("INKWISE_VIDEO_CHUNK_SECONDS", 60)),
+        media_chunk_overlap_seconds=max(0, _env_int("INKWISE_MEDIA_CHUNK_OVERLAP_SECONDS", 2)),
+        media_max_clips_per_source=max(1, _env_int("INKWISE_MEDIA_MAX_CLIPS_PER_SOURCE", 256)),
         grounded_model=os.getenv("INKWISE_GROUNDED_MODEL", default_model),
         grounded_chat_history_enabled=_env_bool("INKWISE_GROUNDED_CHAT_HISTORY_ENABLED", True),
         grounded_chat_max_history_messages=_env_int("INKWISE_GROUNDED_CHAT_MAX_HISTORY_MESSAGES", 6),

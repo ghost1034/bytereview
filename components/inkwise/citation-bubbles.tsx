@@ -288,6 +288,10 @@ export function formatLocatorLabel(citation: InkwiseCitation): string {
   if (typeof pageStart === 'number') {
     return typeof pageEnd === 'number' && pageEnd !== pageStart ? `pp.${pageStart}-${pageEnd}` : `p.${pageStart}`
   }
+  if (locatorKind === 'time_range') {
+    const timeLabel = formatTimeRangeLocator(locator)
+    if (timeLabel) return timeLabel
+  }
   if (locatorKind === 'image_asset') return 'image'
   if (locatorKind === 'audio_asset') return 'audio'
   if (locatorKind === 'video_asset') return 'video'
@@ -313,5 +317,27 @@ function getPreviewKind(citation: InkwiseCitation | null, source: InkwiseSource 
   if (locatorKind === 'image_asset') return 'image'
   if (locatorKind === 'audio_asset') return 'audio'
   if (locatorKind === 'video_asset') return 'video'
+  if (locatorKind === 'time_range') {
+    const sourceKind = citation?.locator_json?.source_kind
+    if (sourceKind === 'audio') return 'audio'
+    if (sourceKind === 'video') return 'video'
+  }
   return 'other'
+}
+
+function formatTimeRangeLocator(locator: Record<string, any>): string | null {
+  const startMs = typeof locator.time_start_ms === 'number' ? locator.time_start_ms : null
+  const endMs = typeof locator.time_end_ms === 'number' ? locator.time_end_ms : null
+  if (startMs === null || endMs === null) return null
+  return `${formatTimestamp(startMs)}-${formatTimestamp(endMs)}`
+}
+
+function formatTimestamp(valueMs: number): string {
+  const totalSeconds = Math.max(0, Math.floor(valueMs / 1000))
+  const seconds = totalSeconds % 60
+  const totalMinutes = Math.floor(totalSeconds / 60)
+  const minutes = totalMinutes % 60
+  const hours = Math.floor(totalMinutes / 60)
+  if (hours > 0) return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }

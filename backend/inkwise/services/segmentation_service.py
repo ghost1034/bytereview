@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from inkwise.services.media_chunker import MediaChunk
 from inkwise.services.source_normalizer import NormalizedSource
 from inkwise.settings import get_inkwise_settings
 
@@ -39,7 +40,7 @@ class SegmentationResult:
 
 
 class InkwiseSegmentationService:
-    def build_segments(self, normalized: NormalizedSource) -> SegmentationResult:
+    def build_segments(self, normalized: NormalizedSource, *, media_chunks: list[MediaChunk] | None = None) -> SegmentationResult:
         if normalized.canonical_mime_type == "application/pdf":
             pdf_window_segments = self._build_pdf_window_segments(normalized)
             text_chunk_segments = self._build_text_chunk_segments(normalized)
@@ -64,11 +65,12 @@ class InkwiseSegmentationService:
             )
 
         if normalized.source_kind in {"image", "audio", "video"}:
-            media_segments = self._build_media_segments(normalized)
+            media_segments = self._build_media_segments(normalized, media_chunks=media_chunks)
             return SegmentationResult(
                 segments=media_segments,
                 stats={
                     "media_segment_count": len(media_segments),
+                    "media_chunk_count": len(media_segments) if normalized.source_kind in {"audio", "video"} else 0,
                     "segment_count": len(media_segments),
                     "page_count": 0,
                 },
@@ -255,10 +257,38 @@ class InkwiseSegmentationService:
         flush()
         return out
 
-    def _build_media_segments(self, normalized: NormalizedSource) -> list[SegmentDraft]:
+    def _build_media_segments(self, normalized: NormalizedSource, *, media_chunks: list[MediaChunk] | None) -> list[SegmentDraft]:
         source_kind = normalized.source_kind
         if source_kind not in {"image", "audio", "video"}:
             return []
+        if source_kind in {"audio", "video"} and media_chunks:
+            return [
+                SegmentDraft(
+                    segment_type="audio_clip" if source_kind == "audio" else "video_clip",
+                    modality=source_kind,
+                    order_index=chunk.order_index,
+                    title=_media_time_range_title(normalized.title, source_kind, chunk.time_start_ms, chunk.time_end_ms),
+                    text_content=None,
+                    char_count=0,
+                    token_count=None,
+                    time_start_ms=chunk.time_start_ms,
+                    time_end_ms=chunk.time_end_ms,
+                    locator_json={
+                        "kind": "time_range",
+                        "source_kind": source_kind,
+                        "time_start_ms": chunk.time_start_ms,
+                        "time_end_ms": chunk.time_end_ms,
+                    },
+                    meta_json={
+                        "source_kind": normalized.source_kind,
+                        "segment_family": "audio_clip" if source_kind == "audio" else "video_clip",
+                        "uses_original_asset": bool(chunk.uses_original_asset),
+                    },
+                    asset_local_path=chunk.local_path,
+                    asset_mime_type=chunk.mime_type,
+                )
+                for chunk in media_chunks
+            ]
         segment_type = {
             "image": "image_asset",
             "audio": "audio_clip",
@@ -324,3 +354,23 @@ def _media_segment_title(title: str, source_kind: str) -> str:
     if source_kind == "video":
         return f"{clean_title} video"
     return clean_title
+
+
+def _media_time_range_title(title: str, source_kind: str, time_start_ms: int, time_end_ms: int) -> str:
+    clean_title = _media_segment_title(title, source_kind)
+    return f"{clean_title} {_format_time_range(time_start_ms, time_end_ms)}"
+
+
+def _format_time_range(time_start_ms: int | None, time_end_ms: int | None) -> str:
+    if time_start_ms is None or time_end_ms is None:
+        return "clip"
+    return f"{_format_timestamp(time_start_ms)}-{_format_timestamp(time_end_ms)}"
+
+
+def _format_timestamp(value_ms: int) -> str:
+    total_seconds = max(0, int(value_ms) // 1000)
+    minutes, seconds = divmod(total_seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours > 0:
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    return f"{minutes:02d}:{seconds:02d}"
