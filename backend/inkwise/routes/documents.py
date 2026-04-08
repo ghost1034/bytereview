@@ -11,6 +11,11 @@ from inkwise.schemas import (
     InkwiseBoundSourceOut,
     InkwiseDocumentBoundSourcesOut,
     InkwiseDocumentCreateRequest,
+    InkwiseDocumentFolderCreateRequest,
+    InkwiseDocumentFolderListResponse,
+    InkwiseDocumentFolderOut,
+    InkwiseDocumentFolderUpdateRequest,
+    InkwiseDocumentMoveRequest,
     InkwiseDocumentRevisionListResponse,
     InkwiseDocumentRevisionOut,
     InkwiseDocumentOut,
@@ -28,6 +33,61 @@ router = APIRouter(prefix="/documents", tags=["inkwise-documents"])
 document_service = InkwiseDocumentService()
 document_source_service = InkwiseDocumentSourceService()
 user_support = InkwiseSourceService()
+
+
+@router.get("/folders", response_model=InkwiseDocumentFolderListResponse)
+def list_document_folders(
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseDocumentFolderListResponse:
+    items = document_service.list_folders(db, user_id=token_data["uid"])
+    return InkwiseDocumentFolderListResponse(items=[InkwiseDocumentFolderOut.model_validate(item) for item in items])
+
+
+@router.post("/folders", response_model=InkwiseDocumentFolderOut, status_code=201)
+def create_document_folder(
+    body: InkwiseDocumentFolderCreateRequest,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseDocumentFolderOut:
+    try:
+        folder = document_service.create_folder(db, user_id=token_data["uid"], body=body)
+        return InkwiseDocumentFolderOut.model_validate(folder)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.put("/folders/{folder_id}", response_model=InkwiseDocumentFolderOut)
+def update_document_folder(
+    folder_id: uuid.UUID,
+    body: InkwiseDocumentFolderUpdateRequest,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseDocumentFolderOut:
+    try:
+        folder = document_service.update_folder(db, user_id=token_data["uid"], folder_id=folder_id, body=body)
+        return InkwiseDocumentFolderOut.model_validate(folder)
+    except FileNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete("/folders/{folder_id}", response_model=InkwiseMessageResponse)
+def delete_document_folder(
+    folder_id: uuid.UUID,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseMessageResponse:
+    try:
+        document_service.delete_folder(db, user_id=token_data["uid"], folder_id=folder_id)
+        return InkwiseMessageResponse(message="Folder deleted successfully")
+    except FileNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("", response_model=InkwisePaginatedDocuments)
@@ -129,6 +189,24 @@ def delete_document(
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to delete document: {exc}") from exc
+
+
+@router.post("/{document_id}:move", response_model=InkwiseDocumentOut)
+def move_document(
+    document_id: uuid.UUID,
+    body: InkwiseDocumentMoveRequest,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseDocumentOut:
+    try:
+        document = document_service.move_document(db, user_id=token_data["uid"], document_id=document_id, body=body)
+        return InkwiseDocumentOut.model_validate(document)
+    except FileNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/{document_id}/sources", response_model=InkwiseDocumentBoundSourcesOut)

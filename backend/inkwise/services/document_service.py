@@ -9,8 +9,14 @@ from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from inkwise.schemas import InkwiseDocumentCreateRequest, InkwiseDocumentUpdateRequest
-from models.inkwise_models import InkwiseDocument, InkwiseDocumentRevision
+from inkwise.schemas import (
+    InkwiseDocumentCreateRequest,
+    InkwiseDocumentFolderCreateRequest,
+    InkwiseDocumentFolderUpdateRequest,
+    InkwiseDocumentMoveRequest,
+    InkwiseDocumentUpdateRequest,
+)
+from models.inkwise_models import InkwiseDocument, InkwiseDocumentFolder, InkwiseDocumentRevision
 
 
 class InkwiseDocumentService:
@@ -32,6 +38,7 @@ class InkwiseDocumentService:
         now = datetime.utcnow()
         document = InkwiseDocument(
             user_id=user_id,
+            folder_id=self._resolve_folder_id(db, user_id=user_id, folder_id=body.folder_id),
             title=(body.title or "Untitled").strip() or "Untitled",
             content_json=body.content_json,
             content_html=body.content_html,
@@ -82,6 +89,10 @@ class InkwiseDocumentService:
             next_title = (body.title or "Untitled").strip() or "Untitled"
             changed = changed or next_title != document.title
             document.title = next_title
+        if "folder_id" in fields:
+            next_folder_id = self._resolve_folder_id(db, user_id=user_id, folder_id=body.folder_id)
+            changed = changed or next_folder_id != document.folder_id
+            document.folder_id = next_folder_id
         if "content_json" in fields:
             changed = changed or body.content_json != document.content_json
             document.content_json = body.content_json
@@ -183,6 +194,99 @@ class InkwiseDocumentService:
         db.delete(document)
         db.commit()
 
+    def list_folders(self, db: Session, *, user_id: str) -> list[InkwiseDocumentFolder]:
+        return (
+            db.query(InkwiseDocumentFolder)
+            .filter(InkwiseDocumentFolder.user_id == user_id)
+            .order_by(func.lower(InkwiseDocumentFolder.name).asc(), InkwiseDocumentFolder.created_at.asc())
+            .all()
+        )
+
+    def create_folder(
+        self,
+        db: Session,
+        *,
+        user_id: str,
+        body: InkwiseDocumentFolderCreateRequest,
+    ) -> InkwiseDocumentFolder:
+        name = self._normalize_folder_name(body.name)
+        existing = (
+            db.query(InkwiseDocumentFolder)
+            .filter(InkwiseDocumentFolder.user_id == user_id, func.lower(InkwiseDocumentFolder.name) == name.lower())
+            .first()
+        )
+        if existing is not None:
+            raise ValueError("A folder with that name already exists")
+
+        folder = InkwiseDocumentFolder(user_id=user_id, name=name, created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+        db.add(folder)
+        db.commit()
+        db.refresh(folder)
+        return folder
+
+    def update_folder(
+        self,
+        db: Session,
+        *,
+        user_id: str,
+        folder_id: uuid.UUID,
+        body: InkwiseDocumentFolderUpdateRequest,
+    ) -> InkwiseDocumentFolder:
+        folder = self.get_folder_or_404(db, user_id=user_id, folder_id=folder_id)
+        name = self._normalize_folder_name(body.name)
+        existing = (
+            db.query(InkwiseDocumentFolder)
+            .filter(
+                InkwiseDocumentFolder.user_id == user_id,
+                func.lower(InkwiseDocumentFolder.name) == name.lower(),
+                InkwiseDocumentFolder.id != folder_id,
+            )
+            .first()
+        )
+        if existing is not None:
+            raise ValueError("A folder with that name already exists")
+
+        folder.name = name
+        folder.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(folder)
+        return folder
+
+    def delete_folder(self, db: Session, *, user_id: str, folder_id: uuid.UUID) -> None:
+        folder = self.get_folder_or_404(db, user_id=user_id, folder_id=folder_id)
+        (
+            db.query(InkwiseDocument)
+            .filter(InkwiseDocument.user_id == user_id, InkwiseDocument.folder_id == folder_id)
+            .update({InkwiseDocument.folder_id: None, InkwiseDocument.updated_at: datetime.utcnow()}, synchronize_session=False)
+        )
+        db.delete(folder)
+        db.commit()
+
+    def move_document(
+        self,
+        db: Session,
+        *,
+        user_id: str,
+        document_id: uuid.UUID,
+        body: InkwiseDocumentMoveRequest,
+    ) -> InkwiseDocument:
+        document = self.get_document_or_404(db, user_id=user_id, document_id=document_id)
+        document.folder_id = self._resolve_folder_id(db, user_id=user_id, folder_id=body.folder_id)
+        document.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(document)
+        return document
+
+    def get_folder_or_404(self, db: Session, *, user_id: str, folder_id: uuid.UUID) -> InkwiseDocumentFolder:
+        folder = (
+            db.query(InkwiseDocumentFolder)
+            .filter(InkwiseDocumentFolder.id == folder_id, InkwiseDocumentFolder.user_id == user_id)
+            .first()
+        )
+        if folder is None:
+            raise FileNotFoundError("Folder not found")
+        return folder
+
     def _create_revision(
         self,
         db: Session,
@@ -217,6 +321,7 @@ class InkwiseDocumentService:
 
     def _snapshot_document(self, document: InkwiseDocument) -> dict[str, Any]:
         return {
+            "folder_id": document.folder_id,
             "title": document.title,
             "content_json": document.content_json,
             "content_html": document.content_html,
@@ -224,3 +329,20 @@ class InkwiseDocumentService:
             "language": document.language,
             "version": document.version,
         }
+
+    def _resolve_folder_id(self, db: Session, *, user_id: str, folder_id: uuid.UUID | None) -> uuid.UUID | None:
+        if folder_id is None:
+            return None
+        try:
+            self.get_folder_or_404(db, user_id=user_id, folder_id=folder_id)
+        except FileNotFoundError as exc:
+            raise ValueError("Folder not found") from exc
+        return folder_id
+
+    def _normalize_folder_name(self, value: str | None) -> str:
+        name = (value or "").strip()
+        if not name:
+            raise ValueError("Folder name is required")
+        if len(name) > 200:
+            raise ValueError("Folder name is too long")
+        return name

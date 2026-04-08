@@ -7,11 +7,13 @@ from core.database import get_db
 from dependencies.auth import verify_firebase_token
 from inkwise.schemas import (
     InkwiseAssetPreviewRequest,
+    InkwiseDriveImportRequest,
     InkwiseMessageResponse,
     InkwisePaginatedSources,
     InkwisePlaceholderResponse,
     InkwiseSignedUrlResponse,
     InkwiseSourceCreateRequest,
+    InkwiseSourceImportResponse,
     InkwiseWebpageCaptureRequest,
     InkwiseSourceOut,
     InkwiseSourceIngestionOut,
@@ -179,22 +181,56 @@ async def capture_webpage_source(
         raise HTTPException(status_code=500, detail=f"Failed to capture webpage: {exc}") from exc
 
 
-@router.post("/{source_id}/upload:complete", response_model=InkwiseSourceOut)
+@router.post("/import:gdrive", response_model=InkwiseSourceImportResponse)
+async def import_drive_sources(
+    body: InkwiseDriveImportRequest,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseSourceImportResponse:
+    user_id = token_data["uid"]
+    try:
+        imported = source_service.import_drive_files(db, user_id=user_id, file_ids=body.file_ids)
+        return InkwiseSourceImportResponse(
+            sources=[InkwiseSourceOut.model_validate(item) for item in imported],
+            expanded_archives=sum(1 for item in imported if (item.external_meta or {}).get("archive_entry_path")),
+            message=f"Imported {len(imported)} reference{'s' if len(imported) != 1 else ''} from Google Drive",
+        )
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to import Google Drive sources: {exc}") from exc
+
+
+@router.post("/{source_id}/upload:complete", response_model=InkwiseSourceImportResponse)
 async def complete_source_upload(
     source_id: uuid.UUID,
     body: InkwiseSourceUploadCompleteRequest | None = None,
     token_data: dict = Depends(verify_firebase_token),
     db: Session = Depends(get_db),
-) -> InkwiseSourceOut:
+) -> InkwiseSourceImportResponse:
     user_id = token_data["uid"]
     try:
-        source = source_service.complete_upload(
+        imported_sources = source_service.complete_upload(
             db,
             user_id=user_id,
             source_id=source_id,
             checksum_sha256=body.checksum_sha256 if body else None,
         )
-        return InkwiseSourceOut.model_validate(source)
+        return InkwiseSourceImportResponse(
+            sources=[InkwiseSourceOut.model_validate(item) for item in imported_sources],
+            expanded_archives=(
+                1
+                if imported_sources and any((item.external_meta or {}).get("archive_entry_path") for item in imported_sources)
+                else 0
+            ),
+            message=(
+                f"Imported {len(imported_sources)} reference{'s' if len(imported_sources) != 1 else ''} from ZIP archive"
+                if imported_sources and any((item.external_meta or {}).get("archive_entry_path") for item in imported_sources)
+                else "Upload completed"
+            ),
+        )
     except FileNotFoundError as exc:
         db.rollback()
         status_code = 404 if str(exc) == "Source not found" else 400

@@ -51,10 +51,14 @@ class InkwiseSourceOut(BaseModel):
     type: str
     title: str
     original_filename: str | None = None
+    original_path: str | None = None
     content_type: str
     size_bytes: int
     checksum_sha256: str | None = None
     source_url: str | None = None
+    external_source: str | None = None
+    external_id: str | None = None
+    external_meta: dict | None = None
     status: str
     failure_code: str | None = None
     failure_detail: str | None = None
@@ -83,6 +87,7 @@ class InkwiseSourceUploadInitRequest(BaseModel):
     content_type: str
     size_bytes: int
     title: str | None = None
+    original_path: str | None = None
 
 
 class InkwiseWebpageCaptureRequest(BaseModel):
@@ -106,6 +111,16 @@ class InkwiseSourceUploadCompleteRequest(BaseModel):
     checksum_sha256: str | None = None
 
 
+class InkwiseSourceImportResponse(BaseModel):
+    sources: list[InkwiseSourceOut] = Field(default_factory=list)
+    expanded_archives: int = 0
+    message: str
+
+
+class InkwiseDriveImportRequest(BaseModel):
+    file_ids: list[str] = Field(default_factory=list)
+
+
 class InkwiseSignedUrlResponse(BaseModel):
     url: str
     expires_at: str
@@ -126,6 +141,7 @@ class InkwiseDocumentOut(BaseModel):
 
     id: uuid.UUID
     user_id: str
+    folder_id: uuid.UUID | None = None
     title: str
     content_json: dict | None = None
     content_html: str | None = None
@@ -159,6 +175,20 @@ class InkwiseDocumentRevisionListResponse(BaseModel):
     items: list[InkwiseDocumentRevisionOut]
 
 
+class InkwiseDocumentFolderOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: str
+    name: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class InkwiseDocumentFolderListResponse(BaseModel):
+    items: list[InkwiseDocumentFolderOut]
+
+
 class InkwisePaginatedDocuments(BaseModel):
     items: list[InkwiseDocumentOut]
     page: int
@@ -190,6 +220,7 @@ class InkwiseBindSourcesResponse(BaseModel):
 
 class InkwiseDocumentCreateRequest(BaseModel):
     title: str | None = None
+    folder_id: uuid.UUID | None = None
     content_json: dict | None = None
     content_html: str | None = None
     init_prompt: str | None = None
@@ -199,10 +230,23 @@ class InkwiseDocumentCreateRequest(BaseModel):
 class InkwiseDocumentUpdateRequest(BaseModel):
     version: int
     title: str | None = None
+    folder_id: uuid.UUID | None = None
     content_json: dict | None = None
     content_html: str | None = None
     init_prompt: str | None = None
     language: str | None = None
+
+
+class InkwiseDocumentFolderCreateRequest(BaseModel):
+    name: str
+
+
+class InkwiseDocumentFolderUpdateRequest(BaseModel):
+    name: str
+
+
+class InkwiseDocumentMoveRequest(BaseModel):
+    folder_id: uuid.UUID | None = None
 
 
 class InkwiseTemplateOut(BaseModel):
@@ -418,3 +462,15 @@ class InkwisePredictionResponse(BaseModel):
     citations: list[dict] = Field(default_factory=list)
     provider: str = "vertex_ai"
     model: str
+
+
+class InkwiseDriveExportRequest(BaseModel):
+    type: Literal["pdf", "docx"]
+    folder_id: str | None = None
+
+
+class InkwiseDriveExportResponse(BaseModel):
+    id: str
+    name: str
+    webViewLink: str | None = None
+    webContentLink: str | None = None

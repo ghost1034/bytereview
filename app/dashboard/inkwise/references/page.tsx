@@ -1,19 +1,18 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Eye, FileUp, Globe, Loader2, RefreshCw, Trash2 } from 'lucide-react'
+import { Eye, Loader2, RefreshCw, Trash2 } from 'lucide-react'
 
+import { InkwiseSourceImportPanel } from '@/components/inkwise/source-import-panel'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
 import { useInkwiseSourceIngestions, useInkwiseSources } from '@/hooks/useInkwise'
 import { apiClient, InkwiseSource, InkwiseSourceIngestion } from '@/lib/api'
 import { INKWISE_SOURCE_POLL_INTERVAL_MS, isInkwiseIngestionActiveStatus, isInkwiseSourceActiveStatus } from '@/lib/inkwise-source-status'
 
 export default function InkwiseReferencesPage() {
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const sources = useInkwiseSources(1, 50, {
@@ -30,8 +29,6 @@ export default function InkwiseReferencesPage() {
     },
     refetchOnWindowFocus: true,
   })
-  const [webpageUrl, setWebpageUrl] = useState('')
-
   const latestIngestionBySourceId = useMemo(() => {
     const latest = new Map<string, NonNullable<typeof ingestions.data>['ingestions'][number]>()
     for (const ingestion of ingestions.data?.ingestions ?? []) {
@@ -46,51 +43,6 @@ export default function InkwiseReferencesPage() {
     await queryClient.invalidateQueries({ queryKey: ['inkwise', 'sources'] })
     await queryClient.invalidateQueries({ queryKey: ['inkwise', 'source-ingestions'] })
   }
-
-  const uploadSource = useMutation({
-    mutationFn: async (file: File) => {
-      const inferredContentType = inferSourceContentType(file)
-      const init = await apiClient.initInkwiseSourceUpload({
-        original_filename: file.name,
-        content_type: inferredContentType,
-        size_bytes: file.size,
-      })
-
-      const response = await fetch(init.upload.url, {
-        method: 'PUT',
-        headers: init.upload.headers,
-        body: file,
-      })
-      if (!response.ok) throw new Error(`Upload failed (${response.status})`)
-
-      await apiClient.completeInkwiseSourceUpload(init.source.id)
-      await apiClient.ingestInkwiseSource(init.source.id)
-      return init.source.id
-    },
-    onSuccess: async () => {
-      await refreshSources()
-      toast({ title: 'Upload started', description: 'Your reference was uploaded and queued for ingestion.' })
-    },
-    onError: (error: Error) => {
-      toast({ title: 'Upload failed', description: error.message, variant: 'destructive' })
-    },
-  })
-
-  const captureWebpage = useMutation({
-    mutationFn: async (sourceUrl: string) => {
-      const source = await apiClient.captureInkwiseWebpage({ source_url: sourceUrl })
-      await apiClient.ingestInkwiseSource(source.id)
-      return source.id
-    },
-    onSuccess: async () => {
-      setWebpageUrl('')
-      await refreshSources()
-      toast({ title: 'Webpage captured', description: 'The webpage snapshot was stored and queued for ingestion.' })
-    },
-    onError: (error: Error) => {
-      toast({ title: 'Could not capture webpage', description: error.message, variant: 'destructive' })
-    },
-  })
 
   const previewSource = useMutation({
     mutationFn: async ({ source, latestIngestion }: { source: InkwiseSource; latestIngestion?: InkwiseSourceIngestion }) => {
@@ -140,60 +92,16 @@ export default function InkwiseReferencesPage() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <CardTitle>References</CardTitle>
-            <CardDescription>
-              Build the reference library that powers document grounding, citation bubbles, grounded chat, and predictive writing.
-            </CardDescription>
-          </div>
-          <div className="flex flex-col gap-2 md:items-end">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,.docx"
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0]
-                event.target.value = ''
-                if (file) uploadSource.mutate(file)
-              }}
-            />
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => refreshSources()}>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Refresh
-              </Button>
-              <Button onClick={() => fileInputRef.current?.click()} disabled={uploadSource.isPending || captureWebpage.isPending}>
-                {uploadSource.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
-                Upload PDF or DOCX
-              </Button>
-            </div>
-            <div className="flex w-full gap-2 md:max-w-xl">
-              <Input
-                value={webpageUrl}
-                onChange={(event) => setWebpageUrl(event.target.value)}
-                placeholder="example.com/reference"
-              />
-              <Button
-                variant="outline"
-                onClick={() => captureWebpage.mutate(normalizeWebpageUrlInput(webpageUrl))}
-                disabled={captureWebpage.isPending || !webpageUrl.trim()}
-              >
-                {captureWebpage.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Globe className="mr-2 h-4 w-4" />}
-                Capture webpage
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+      <InkwiseSourceImportPanel
+        title="References"
+        description="Build the reference library that powers document grounding, citation bubbles, grounded chat, and predictive writing."
+      />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardContent className="space-y-2 p-5">
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">1. Add References</div>
-            <div className="text-sm text-slate-700">Upload PDFs or DOCX files, or capture a webpage snapshot for the source library.</div>
+            <div className="text-sm text-slate-700">Upload files, folders, or ZIPs, capture a webpage, or import selected files from Google Drive.</div>
           </CardContent>
         </Card>
         <Card>
@@ -236,7 +144,7 @@ export default function InkwiseReferencesPage() {
                       </span>
                     </div>
                     <p className="text-sm text-slate-500">
-                      {source.source_url || source.original_filename || source.content_type} • {Math.max(1, Math.round(source.size_bytes / 1024))} KB
+                      {source.original_path || source.source_url || source.original_filename || source.content_type} • {Math.max(1, Math.round(source.size_bytes / 1024))} KB
                     </p>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
                       <span>Updated {new Date(source.updated_at).toLocaleString()}</span>
@@ -282,31 +190,13 @@ export default function InkwiseReferencesPage() {
   )
 }
 
-function normalizeWebpageUrlInput(value: string): string {
-  const cleanValue = value.trim()
-  if (!cleanValue) return ''
-  return cleanValue.includes('://') ? cleanValue : `https://${cleanValue.replace(/^\/+/, '')}`
-}
-
 function isDocxSource(source: InkwiseSource): boolean {
   return (source.content_type || '').toLowerCase() === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 }
 
-function inferSourceContentType(file: File): string {
-  const explicit = (file.type || '').trim().toLowerCase()
-  if (explicit) return explicit
-  const filename = file.name.toLowerCase()
-  if (filename.endsWith('.docx')) {
-    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  }
-  if (filename.endsWith('.pdf')) {
-    return 'application/pdf'
-  }
-  return 'application/octet-stream'
-}
-
 function sourceTypeLabel(type: string, contentType: string): string {
   if (type === 'webpage') return 'webpage'
+  if (contentType === 'application/zip') return 'zip'
   if (contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx'
   if (contentType === 'application/pdf') return 'pdf'
   return type || 'reference'

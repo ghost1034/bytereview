@@ -742,6 +742,37 @@ export class ApiClient {
     })
   }
 
+  async moveInkwiseDocument(documentId: string, folderId: string | null): Promise<InkwiseDocument> {
+    return this.request(`/api/inkwise/documents/${documentId}:move`, {
+      method: 'POST',
+      body: JSON.stringify({ folder_id: folderId }),
+    })
+  }
+
+  async listInkwiseDocumentFolders(): Promise<InkwiseDocumentFolderListResponse> {
+    return this.request('/api/inkwise/documents/folders')
+  }
+
+  async createInkwiseDocumentFolder(data: InkwiseDocumentFolderCreateRequest): Promise<InkwiseDocumentFolder> {
+    return this.request('/api/inkwise/documents/folders', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateInkwiseDocumentFolder(folderId: string, data: InkwiseDocumentFolderUpdateRequest): Promise<InkwiseDocumentFolder> {
+    return this.request(`/api/inkwise/documents/folders/${folderId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteInkwiseDocumentFolder(folderId: string): Promise<{ message: string }> {
+    return this.request(`/api/inkwise/documents/folders/${folderId}`, {
+      method: 'DELETE',
+    })
+  }
+
   async listInkwiseDocumentRevisions(documentId: string): Promise<InkwiseDocumentRevisionListResponse> {
     return this.request(`/api/inkwise/documents/${documentId}/revisions`)
   }
@@ -800,6 +831,13 @@ export class ApiClient {
     return { blob, filename }
   }
 
+  async exportInkwiseDocumentToDrive(documentId: string, data: InkwiseDriveExportRequest): Promise<InkwiseDriveExportResponse> {
+    return this.request(`/api/inkwise/documents/${documentId}/export:gdrive`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
   async listInkwiseSources(params?: { page?: number; limit?: number }): Promise<InkwisePaginatedSources> {
     const searchParams = new URLSearchParams()
     if (params?.page) searchParams.set('page', params.page.toString())
@@ -826,7 +864,14 @@ export class ApiClient {
     })
   }
 
-  async completeInkwiseSourceUpload(sourceId: string, checksumSha256?: string): Promise<InkwiseSource> {
+  async importInkwiseDriveSources(fileIds: string[]): Promise<InkwiseSourceImportResponse> {
+    return this.request('/api/inkwise/sources/import:gdrive', {
+      method: 'POST',
+      body: JSON.stringify({ file_ids: fileIds }),
+    })
+  }
+
+  async completeInkwiseSourceUpload(sourceId: string, checksumSha256?: string): Promise<InkwiseSourceImportResponse> {
     return this.request(`/api/inkwise/sources/${sourceId}/upload:complete`, {
       method: 'POST',
       body: JSON.stringify({ checksum_sha256: checksumSha256 ?? null }),
@@ -1239,6 +1284,7 @@ export interface InkwiseGroundedSegment {
 export interface InkwiseDocument {
   id: string
   user_id: string
+  folder_id?: string | null
   title: string
   content_json: Record<string, any> | null
   content_html: string | null
@@ -1270,6 +1316,18 @@ export interface InkwiseDocumentRevisionListResponse {
   items: InkwiseDocumentRevision[]
 }
 
+export interface InkwiseDocumentFolder {
+  id: string
+  user_id: string
+  name: string
+  created_at: string
+  updated_at: string
+}
+
+export interface InkwiseDocumentFolderListResponse {
+  items: InkwiseDocumentFolder[]
+}
+
 export interface InkwisePaginatedDocuments {
   items: InkwiseDocument[]
   page: number
@@ -1279,6 +1337,7 @@ export interface InkwisePaginatedDocuments {
 
 export interface InkwiseDocumentCreateRequest {
   title?: string | null
+  folder_id?: string | null
   content_json?: Record<string, any> | null
   content_html?: string | null
   init_prompt?: string | null
@@ -1294,10 +1353,14 @@ export interface InkwiseSource {
   type: string
   title: string
   original_filename: string | null
+  original_path?: string | null
   content_type: string
   size_bytes: number
   checksum_sha256: string | null
   source_url?: string | null
+  external_source?: string | null
+  external_id?: string | null
+  external_meta?: Record<string, any> | null
   status: string
   failure_code?: string | null
   failure_detail?: string | null
@@ -1317,6 +1380,7 @@ export interface InkwiseSourceUploadInitRequest {
   content_type: string
   size_bytes: number
   title?: string | null
+  original_path?: string | null
 }
 
 export interface InkwiseWebpageCaptureRequest {
@@ -1332,6 +1396,12 @@ export interface InkwiseSourceUploadInitResponse {
     headers: Record<string, string>
     expires_at: string
   }
+}
+
+export interface InkwiseSourceImportResponse {
+  sources: InkwiseSource[]
+  expanded_archives: number
+  message: string
 }
 
 export interface InkwiseSignedUrlResponse {
@@ -1371,6 +1441,14 @@ export interface InkwiseSourceIngestion {
 export interface InkwiseSourceIngestionListResponse {
   source_id?: string | null
   ingestions: InkwiseSourceIngestion[]
+}
+
+export interface InkwiseDocumentFolderCreateRequest {
+  name: string
+}
+
+export interface InkwiseDocumentFolderUpdateRequest {
+  name: string
 }
 
 export interface InkwiseBoundSource {
@@ -1506,6 +1584,18 @@ export interface InkwisePredictionResponse {
   citations?: InkwiseCitation[]
   provider: string
   model: string
+}
+
+export interface InkwiseDriveExportRequest {
+  type: 'pdf' | 'docx'
+  folder_id?: string | null
+}
+
+export interface InkwiseDriveExportResponse {
+  id: string
+  name: string
+  webViewLink?: string | null
+  webContentLink?: string | null
 }
 
 export type InkwiseWritingAction =

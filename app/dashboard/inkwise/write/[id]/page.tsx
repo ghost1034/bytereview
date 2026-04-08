@@ -4,12 +4,14 @@ import type { Editor as TiptapEditor, JSONContent } from '@tiptap/core'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Download, History, LibraryBig, Loader2, MessageSquarePlus, MessageSquareText, PanelRightClose, PanelRightOpen, Save, Settings2, Sparkles, Unplug, Wand2 } from 'lucide-react'
+import { Cloud, Download, History, LibraryBig, Loader2, MessageSquarePlus, MessageSquareText, PanelRightClose, PanelRightOpen, Save, Settings2, Sparkles, Unplug, Wand2 } from 'lucide-react'
 
 import { InkwiseEditor, type InkwiseEditorReviewState } from '@/components/inkwise/inkwise-editor'
+import { InkwiseSourceImportPanel } from '@/components/inkwise/source-import-panel'
 import { InlineWritingTools } from '@/components/inkwise/inline-writing-tools'
 import { InkwiseCitationBubbles } from '@/components/inkwise/citation-bubbles'
 import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
+import { GoogleDriveFolderPicker } from '@/components/integrations/GoogleDriveFolderPicker'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -35,10 +37,12 @@ import {
   InkwiseChatMessage,
   InkwiseCitation,
   InkwiseDocumentRevision,
+  InkwiseDriveExportResponse,
   InkwisePredictionRequest,
   InkwisePredictionResponse,
   InkwiseSseEvent,
 } from '@/lib/api'
+import { diffParagraphs } from '@/lib/inkwise-diff'
 import {
   getInkwiseEditorTarget,
   type InkwiseEditorTarget,
@@ -97,6 +101,12 @@ type PredictionContext = {
 }
 
 type ChatInsertMode = 'insert' | 'replace' | 'append'
+
+type DriveFolderSelection = {
+  id: string
+  name: string
+  url?: string
+}
 
 const assistantMarkdownClassName =
   'prose prose-sm max-w-none break-words text-slate-700 prose-headings:text-slate-900 prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-blockquote:border-slate-300 prose-blockquote:text-slate-600 prose-pre:bg-slate-950 prose-pre:text-slate-50 prose-code:text-slate-800 prose-a:text-sky-700'
@@ -172,6 +182,8 @@ export default function InkwiseDocumentPage() {
   const [chatSourceChecked, setChatSourceChecked] = useState<Record<string, boolean>>({})
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [driveExportOpen, setDriveExportOpen] = useState(false)
+  const [driveExportFolder, setDriveExportFolder] = useState<DriveFolderSelection | null>(null)
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
   const [chatInsertKey, setChatInsertKey] = useState<string | null>(null)
   const [trackChangesEnabled, setTrackChangesEnabled] = useState(false)
@@ -560,6 +572,24 @@ export default function InkwiseDocumentPage() {
     }
   }
 
+  const exportToDrive = useMutation({
+    mutationFn: (type: 'pdf' | 'docx') =>
+      apiClient.exportInkwiseDocumentToDrive(documentId, {
+        type,
+        folder_id: driveExportFolder?.id || null,
+      }),
+    onSuccess: (result: InkwiseDriveExportResponse) => {
+      toast({ title: 'Exported to Google Drive', description: `${result.name} was created in Google Drive.` })
+      if (result.webViewLink) {
+        window.open(result.webViewLink, '_blank', 'noopener,noreferrer')
+      }
+      setDriveExportOpen(false)
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Could not export to Google Drive', description: error.message, variant: 'destructive' })
+    },
+  })
+
   const copyAssistantMessage = useCallback(async (message: InkwiseChatMessage) => {
     const cleaned = stripInkwiseChatCitationMarkers(message.content || '')
     if (!cleaned) {
@@ -641,6 +671,18 @@ export default function InkwiseDocumentPage() {
   const selectedRevision = useMemo<InkwiseDocumentRevision | undefined>(
     () => revisionsQuery.data?.items.find((item) => item.id === selectedRevisionId),
     [revisionsQuery.data, selectedRevisionId]
+  )
+  const comparisonRevision = useMemo<InkwiseDocumentRevision | undefined>(() => {
+    const items = revisionsQuery.data?.items ?? []
+    const index = items.findIndex((item) => item.id === selectedRevisionId)
+    if (index < 0 || index >= items.length - 1) return undefined
+    return items[index + 1]
+  }, [revisionsQuery.data, selectedRevisionId])
+  const selectedRevisionText = useMemo(() => stripHtml(selectedRevision?.content_html), [selectedRevision])
+  const comparisonRevisionText = useMemo(() => stripHtml(comparisonRevision?.content_html), [comparisonRevision])
+  const revisionDiffBlocks = useMemo(
+    () => diffParagraphs(comparisonRevisionText, selectedRevisionText),
+    [comparisonRevisionText, selectedRevisionText]
   )
   const primaryChatInsertMode: ChatInsertMode = editorTarget ? 'insert' : 'append'
   const primaryChatInsertLabel = editorTarget ? 'Insert at cursor' : 'Append to end'
@@ -835,6 +877,10 @@ export default function InkwiseDocumentPage() {
             <Button variant="outline" size="sm" onClick={() => handleExport('docx')}>
               <Download className="mr-2 h-4 w-4" />
               DOCX
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setDriveExportOpen(true)}>
+              <Cloud className="mr-2 h-4 w-4" />
+              Export to Drive
             </Button>
             <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)}>
               <History className="mr-2 h-4 w-4" />
@@ -1193,6 +1239,17 @@ export default function InkwiseDocumentPage() {
               <TabsContent value="references" className="mt-0 min-h-0 flex-1 px-3 pb-3">
                 <ScrollArea className="h-full rounded-2xl bg-slate-50 p-3">
                   <div className="space-y-5 p-1">
+                    <InkwiseSourceImportPanel
+                      compact
+                      title="Add and bind references"
+                      description="Import new references without leaving the write workspace. New references are bound to this document automatically."
+                      onImported={async (sources) => {
+                        if (!sources.length) return
+                        await bindSources.mutateAsync(sources.map((source) => source.id))
+                        await queryClient.invalidateQueries({ queryKey: ['inkwise', 'document-sources', documentId] })
+                      }}
+                    />
+
                     <div>
                       <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Bound to this document</div>
                       <div className="space-y-3">
@@ -1203,6 +1260,7 @@ export default function InkwiseDocumentPage() {
                                 <div>
                                   <div className="font-medium text-slate-900">{binding.source.title}</div>
                                   <div className="mt-1 text-xs text-slate-500">
+                                    {binding.source.original_path ? `${binding.source.original_path} • ` : ''}
                                     {binding.grounded_chat_ready ? 'Ready for grounding' : binding.grounded_chat_reason || 'Not ready yet'}
                                   </div>
                                 </div>
@@ -1230,7 +1288,10 @@ export default function InkwiseDocumentPage() {
                               <div className="flex items-start justify-between gap-3">
                                 <div>
                                   <div className="font-medium text-slate-900">{source.title}</div>
-                                  <div className="mt-1 text-xs text-slate-500">{source.status} • {new Date(source.updated_at).toLocaleString()}</div>
+                                  <div className="mt-1 text-xs text-slate-500">
+                                    {source.original_path ? `${source.original_path} • ` : ''}
+                                    {source.status} • {new Date(source.updated_at).toLocaleString()}
+                                  </div>
                                 </div>
                                 <Button size="sm" onClick={() => bindSources.mutate([source.id])}>
                                   Bind
@@ -1397,6 +1458,40 @@ export default function InkwiseDocumentPage() {
         </aside>
       </div>
 
+      <Dialog open={driveExportOpen} onOpenChange={setDriveExportOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Export To Google Drive</DialogTitle>
+            <DialogDescription>Create a new PDF or DOCX file in Google Drive. Leave the folder unset to export to the root of My Drive.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <GoogleDriveFolderPicker
+              selectedFolder={driveExportFolder}
+              onFolderSelected={(folder) => setDriveExportFolder(folder)}
+              buttonText={driveExportFolder ? `Folder: ${driveExportFolder.name}` : 'Select Destination Folder'}
+            />
+            <div className="text-xs text-slate-500">
+              Each export creates a new Drive file. Existing Drive exports are not overwritten.
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDriveExportOpen(false)}>
+              Close
+            </Button>
+            <Button variant="outline" onClick={() => exportToDrive.mutate('pdf')} disabled={exportToDrive.isPending}>
+              {exportToDrive.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Cloud className="mr-2 h-4 w-4" />}
+              Export PDF
+            </Button>
+            <Button onClick={() => exportToDrive.mutate('docx')} disabled={exportToDrive.isPending}>
+              {exportToDrive.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Cloud className="mr-2 h-4 w-4" />}
+              Export DOCX
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
@@ -1524,9 +1619,32 @@ export default function InkwiseDocumentPage() {
                 </div>
                 <ScrollArea className="flex-1">
                   <div className="p-4">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Snapshot Preview</div>
-                    <div className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-700">
-                      <div className="whitespace-pre-wrap">{stripHtml(selectedRevision?.content_html) || 'No document content stored for this revision.'}</div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Diff Preview</div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      {comparisonRevision
+                        ? `Compared with revision ${comparisonRevision.revision_number}`
+                        : 'No earlier revision is available for comparison.'}
+                    </div>
+                    <div className="mt-3 space-y-3">
+                      {revisionDiffBlocks.length ? (
+                        revisionDiffBlocks.map((block, index) => (
+                          <div
+                            key={`${block.type}-${index}`}
+                            className={cn(
+                              'whitespace-pre-wrap rounded-xl border px-4 py-3 text-sm',
+                              block.type === 'insert' && 'border-emerald-200 bg-emerald-50 text-emerald-900',
+                              block.type === 'delete' && 'border-rose-200 bg-rose-50 text-rose-900 line-through',
+                              block.type === 'equal' && 'border-slate-200 bg-slate-50 text-slate-700'
+                            )}
+                          >
+                            {block.text}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-700">
+                          {selectedRevisionText || 'No document content stored for this revision.'}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </ScrollArea>
@@ -1549,7 +1667,15 @@ function formatRevisionSourceKind(sourceKind: string): string {
 function stripHtml(value?: string | null): string {
   const html = (value || '').trim()
   if (!html) return ''
-  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  return html
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|section|article|li|blockquote|h1|h2|h3|h4|h5|h6)>/gi, '\n\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 function getPredictionContext(editor: TiptapEditor): PredictionContext {

@@ -6,6 +6,7 @@ import {
   apiClient,
   InkwisePaginatedChatMessages,
   InkwisePaginatedDocuments,
+  InkwiseDocumentFolderListResponse,
   InkwiseDocumentRevisionListResponse,
   InkwisePaginatedSources,
   InkwiseSourceIngestionListResponse,
@@ -32,6 +33,13 @@ export function useInkwiseDocument(documentId: string) {
     queryKey: ['inkwise', 'document', documentId],
     queryFn: () => apiClient.getInkwiseDocument(documentId),
     enabled: Boolean(documentId),
+  })
+}
+
+export function useInkwiseDocumentFolders() {
+  return useQuery<InkwiseDocumentFolderListResponse>({
+    queryKey: ['inkwise', 'document-folders'],
+    queryFn: () => apiClient.listInkwiseDocumentFolders(),
   })
 }
 

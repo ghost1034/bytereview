@@ -70,6 +70,7 @@ class InkwiseDocument(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    folder_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_document_folders.id", ondelete="SET NULL"), nullable=True, index=True)
     title = Column(String(300), nullable=False, default="Untitled")
     content_json = Column(JSONB, nullable=True)
     content_html = Column(Text, nullable=True)
@@ -84,6 +85,7 @@ class InkwiseDocument(Base):
         onupdate=func.now(),
     )
 
+    folder = relationship("InkwiseDocumentFolder", back_populates="documents")
     sources = relationship(
         "InkwiseDocumentSourceBinding",
         back_populates="document",
@@ -110,6 +112,24 @@ class InkwiseDocument(Base):
         back_populates="document",
         cascade="all, delete-orphan",
     )
+
+
+class InkwiseDocumentFolder(Base):
+    __tablename__ = "inkwise_document_folders"
+    __table_args__ = (UniqueConstraint("user_id", "name", name="uq_inkwise_document_folders_user_name"),)
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    documents = relationship("InkwiseDocument", back_populates="folder")
 
 
 class InkwiseDocumentRevision(Base):
@@ -143,12 +163,16 @@ class InkwiseSource(Base):
     type = Column(String(32), nullable=False)
     title = Column(String(400), nullable=False)
     original_filename = Column(String(512), nullable=True)
+    original_path = Column(String(1024), nullable=True)
     content_type = Column(String(200), nullable=False)
     size_bytes = Column(BigInteger, nullable=False, default=0)
     checksum_sha256 = Column(String(64), nullable=True)
     storage_bucket = Column(String(200), nullable=True)
     storage_object = Column(String(1024), nullable=True)
     source_url = Column(Text, nullable=True)
+    external_source = Column(String(32), nullable=True)
+    external_id = Column(String(512), nullable=True)
+    external_meta = Column(JSONB, nullable=True)
     status = Column(String(32), nullable=False, default="queued")
     failure_code = Column(String(100), nullable=True)
     failure_detail = Column(Text, nullable=True)

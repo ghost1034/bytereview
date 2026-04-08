@@ -8,6 +8,7 @@ import io
 import os
 import re
 import uuid
+import zipfile
 from html import escape, unescape
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -29,6 +30,7 @@ from inkwise.services.gcs import generate_signed_download_url, generate_signed_u
 from inkwise.settings import get_inkwise_settings, is_valid_gcs_bucket_name, normalize_gcs_bucket_name
 from models.db_models import User
 from models.inkwise_models import InkwiseSource, InkwiseSourceIngestion
+from services.google_service import GoogleService
 from services.gcs_service import GCSService
 from services.user_service import DuplicatePhoneNumberError, UserService
 
@@ -38,6 +40,8 @@ _HTML_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOT
 _SUPPORTED_UPLOAD_MIME_TYPES = {
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/zip",
+    "application/x-zip-compressed",
 }
 
 
@@ -123,12 +127,14 @@ class InkwiseSourceService:
         return source
 
     def create_source(self, db: Session, *, user_id: str, body: InkwiseSourceCreateRequest) -> InkwiseSource:
+        filename = self._sanitize_filename(body.original_filename) if body.original_filename else None
         now = datetime.utcnow()
         source = InkwiseSource(
             user_id=user_id,
             type=(body.type or "upload").strip() or "upload",
             title=(body.title or body.original_filename or "Untitled Source").strip() or "Untitled Source",
-            original_filename=self._sanitize_filename(body.original_filename) if body.original_filename else None,
+            original_filename=filename,
+            original_path=self._sanitize_relative_path(body.original_filename, fallback_filename=filename),
             content_type=(body.content_type or "application/pdf").strip() or "application/pdf",
             size_bytes=max(0, int(body.size_bytes)),
             source_url=(body.source_url or "").strip() or None,
@@ -149,14 +155,10 @@ class InkwiseSourceService:
             filename=(body.original_filename or "").strip(),
             content_type=(body.content_type or "").strip().lower(),
         )
-        resolved_content_type = (
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            if upload_kind == "docx"
-            else "application/pdf"
-        )
+        resolved_content_type = self._resolved_content_type_for_kind(upload_kind)
         filename = self._sanitize_filename(
             body.original_filename,
-            default_extension=".docx" if upload_kind == "docx" else ".pdf",
+            default_extension=self._default_extension_for_kind(upload_kind),
         )
         now = datetime.utcnow()
         source = InkwiseSource(
@@ -164,6 +166,7 @@ class InkwiseSourceService:
             type="upload",
             title=(body.title or filename).strip() or filename,
             original_filename=filename,
+            original_path=self._sanitize_relative_path(body.original_path, fallback_filename=filename),
             content_type=resolved_content_type,
             size_bytes=int(body.size_bytes),
             storage_bucket=bucket,
@@ -244,7 +247,7 @@ class InkwiseSourceService:
         user_id: str,
         source_id: uuid.UUID,
         checksum_sha256: str | None,
-    ) -> InkwiseSource:
+    ) -> list[InkwiseSource]:
         source = self.get_source_or_404(db, user_id=user_id, source_id=source_id)
         if not source.storage_bucket or not source.storage_object:
             raise ValueError("Source storage path is missing")
@@ -259,13 +262,63 @@ class InkwiseSourceService:
             source.checksum_sha256 = checksum_sha256.strip() or None
         if blob.size is not None:
             source.size_bytes = int(blob.size)
+
+        upload_kind = self._detect_upload_kind(
+            filename=str(source.original_filename or ""),
+            content_type=str(source.content_type or ""),
+        )
+        if upload_kind == "zip":
+            imported = self._import_archive_blob(db, source=source, blob=blob)
+            return imported
+
         source.status = "queued"
         source.failure_code = None
         source.failure_detail = None
         source.updated_at = datetime.utcnow()
         db.commit()
         db.refresh(source)
-        return source
+        return [source]
+
+    def import_drive_files(self, db: Session, *, user_id: str, file_ids: list[str]) -> list[InkwiseSource]:
+        clean_ids = [file_id.strip() for file_id in file_ids if str(file_id or "").strip()]
+        if not clean_ids:
+            raise ValueError("file_ids required")
+
+        google_service = GoogleService()
+        if not google_service.has_drive_access(db, user_id):
+            raise ValueError("Google Drive is not connected for this account")
+
+        imported: list[InkwiseSource] = []
+        for file_id in clean_ids:
+            metadata = google_service.get_drive_file_metadata(db, user_id, file_id)
+            if not metadata:
+                raise ValueError(f"Could not access Drive file {file_id}")
+
+            filename = str(metadata.get("name") or "reference")
+            content_type = str(metadata.get("mimeType") or "application/octet-stream")
+            content = google_service.download_drive_file(db, user_id, file_id)
+            if content is None:
+                raise ValueError(f"Could not download Drive file {filename}")
+
+            imported.extend(
+                self._import_source_payload(
+                    db,
+                    user_id=user_id,
+                    filename=filename,
+                    content_type=content_type,
+                    content=content,
+                    original_path=filename,
+                    external_source="gdrive",
+                    external_id=file_id,
+                    external_meta={
+                        "web_view_link": metadata.get("webViewLink"),
+                        "drive_id": metadata.get("driveId"),
+                        "parents": metadata.get("parents") or [],
+                    },
+                )
+            )
+
+        return imported
 
     def signed_preview(
         self,
@@ -327,6 +380,160 @@ class InkwiseSourceService:
         source.status = "deleted"
         source.updated_at = datetime.utcnow()
         db.commit()
+
+    def _import_archive_blob(self, db: Session, *, source: InkwiseSource, blob) -> list[InkwiseSource]:
+        archive_bytes = blob.download_as_bytes()
+        imported = self._import_archive_bytes(
+            db,
+            user_id=source.user_id,
+            archive_filename=source.original_filename or "archive.zip",
+            archive_bytes=archive_bytes,
+            external_source=source.external_source,
+            external_id=source.external_id,
+            external_meta=source.external_meta or {},
+        )
+        source.status = "deleted"
+        source.failure_code = None
+        source.failure_detail = None
+        source.updated_at = datetime.utcnow()
+        db.commit()
+        return imported
+
+    def _import_source_payload(
+        self,
+        db: Session,
+        *,
+        user_id: str,
+        filename: str,
+        content_type: str,
+        content: bytes,
+        original_path: str | None,
+        external_source: str | None = None,
+        external_id: str | None = None,
+        external_meta: dict | None = None,
+    ) -> list[InkwiseSource]:
+        upload_kind = self._detect_upload_kind(filename=filename, content_type=content_type)
+        if upload_kind is None:
+            raise ValueError(f"Unsupported reference type for {filename}")
+        if upload_kind == "zip":
+            return self._import_archive_bytes(
+                db,
+                user_id=user_id,
+                archive_filename=filename,
+                archive_bytes=content,
+                external_source=external_source,
+                external_id=external_id,
+                external_meta=external_meta or {},
+            )
+        return [
+            self._create_source_from_bytes(
+                db,
+                user_id=user_id,
+                filename=filename,
+                content_type=self._resolved_content_type_for_kind(upload_kind),
+                content=content,
+                original_path=original_path,
+                external_source=external_source,
+                external_id=external_id,
+                external_meta=external_meta,
+            )
+        ]
+
+    def _create_source_from_bytes(
+        self,
+        db: Session,
+        *,
+        user_id: str,
+        filename: str,
+        content_type: str,
+        content: bytes,
+        original_path: str | None,
+        external_source: str | None = None,
+        external_id: str | None = None,
+        external_meta: dict | None = None,
+    ) -> InkwiseSource:
+        bucket = self._require_bucket()
+        clean_filename = self._sanitize_filename(
+            filename,
+            default_extension=self._default_extension_for_kind(self._detect_upload_kind(filename=filename, content_type=content_type)),
+        )
+        now = datetime.utcnow()
+        source = InkwiseSource(
+            user_id=user_id,
+            type="upload",
+            title=clean_filename,
+            original_filename=clean_filename,
+            original_path=self._sanitize_relative_path(original_path, fallback_filename=clean_filename),
+            content_type=content_type,
+            size_bytes=len(content),
+            storage_bucket=bucket,
+            external_source=(external_source or "").strip() or None,
+            external_id=(external_id or "").strip() or None,
+            external_meta=external_meta or None,
+            status="queued",
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(source)
+        db.flush()
+
+        source.storage_object = self._build_storage_object_name(
+            user_id=user_id,
+            source_id=source.id,
+            original_filename=clean_filename,
+        )
+        storage_client().bucket(bucket).blob(source.storage_object).upload_from_string(content, content_type=content_type)
+        db.commit()
+        db.refresh(source)
+        return source
+
+    def _import_archive_bytes(
+        self,
+        db: Session,
+        *,
+        user_id: str,
+        archive_filename: str,
+        archive_bytes: bytes,
+        external_source: str | None,
+        external_id: str | None,
+        external_meta: dict | None,
+    ) -> list[InkwiseSource]:
+        imported: list[InkwiseSource] = []
+        try:
+            with zipfile.ZipFile(io.BytesIO(archive_bytes), "r") as archive:
+                for info in archive.infolist():
+                    if info.is_dir():
+                        continue
+                    entry_name = str(info.filename or "").strip()
+                    if self._is_ignored_archive_member(entry_name):
+                        continue
+                    upload_kind = self._detect_upload_kind(filename=entry_name, content_type="")
+                    if upload_kind is None or upload_kind == "zip":
+                        continue
+
+                    imported.append(
+                        self._create_source_from_bytes(
+                            db,
+                            user_id=user_id,
+                            filename=entry_name,
+                            content_type=self._resolved_content_type_for_kind(upload_kind),
+                            content=archive.read(info),
+                            original_path=entry_name,
+                            external_source=external_source,
+                            external_id=external_id,
+                            external_meta={
+                                **(external_meta or {}),
+                                "archive_filename": archive_filename,
+                                "archive_entry_path": entry_name,
+                            },
+                        )
+                    )
+        except zipfile.BadZipFile as exc:
+            raise ValueError("Uploaded ZIP file could not be opened") from exc
+
+        if not imported:
+            raise ValueError("ZIP file did not contain any supported PDF or DOCX files")
+        return imported
 
     def _signed_download_for_source(self, source: InkwiseSource, *, inline: bool) -> str:
         if not source.storage_bucket or not source.storage_object:
@@ -404,7 +611,7 @@ class InkwiseSourceService:
 
         upload_kind = self._detect_upload_kind(filename=filename, content_type=content_type)
         if upload_kind is None:
-            raise ValueError("Only PDF and DOCX uploads are currently supported")
+            raise ValueError("Only PDF, DOCX, and ZIP uploads are currently supported")
 
     def _build_storage_object_name(self, *, user_id: str, source_id: uuid.UUID, original_filename: str) -> str:
         return f"inkwise/uploads/{user_id}/{source_id}/original/{original_filename}"
@@ -420,14 +627,54 @@ class InkwiseSourceService:
             filename += default_extension
         return filename[:180]
 
+    def _sanitize_relative_path(self, original_path: str | None, *, fallback_filename: str | None = None) -> str | None:
+        raw = (original_path or "").replace("\\", "/").strip().strip("/")
+        if not raw:
+            return fallback_filename
+
+        parts: list[str] = []
+        for part in raw.split("/"):
+            clean_part = _SAFE_FILENAME_RE.sub("", part).strip()
+            if not clean_part or clean_part in {".", ".."}:
+                continue
+            parts.append(clean_part[:180])
+        if not parts:
+            return fallback_filename
+        return "/".join(parts)[:1024]
+
     def _detect_upload_kind(self, *, filename: str, content_type: str) -> str | None:
         lowered_filename = filename.lower()
         lowered_type = (content_type or "").lower()
         if lowered_type == "application/pdf" or lowered_type.endswith("/pdf") or lowered_filename.endswith(".pdf"):
             return "pdf"
-        if lowered_type in _SUPPORTED_UPLOAD_MIME_TYPES or lowered_filename.endswith(".docx"):
+        if lowered_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or lowered_filename.endswith(".docx"):
             return "docx"
+        if lowered_type in {"application/zip", "application/x-zip-compressed"} or lowered_filename.endswith(".zip"):
+            return "zip"
         return None
+
+    def _resolved_content_type_for_kind(self, upload_kind: str | None) -> str:
+        if upload_kind == "docx":
+            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        if upload_kind == "zip":
+            return "application/zip"
+        return "application/pdf"
+
+    def _default_extension_for_kind(self, upload_kind: str | None) -> str:
+        if upload_kind == "docx":
+            return ".docx"
+        if upload_kind == "zip":
+            return ".zip"
+        return ".pdf"
+
+    def _is_ignored_archive_member(self, value: str) -> bool:
+        normalized = (value or "").replace("\\", "/").strip()
+        if not normalized:
+            return True
+        if normalized.startswith("__MACOSX/"):
+            return True
+        base = os.path.basename(normalized)
+        return base in {".DS_Store"}
 
     def _validate_webpage_url(self, raw_url: str) -> str:
         clean_url = (raw_url or "").strip()
