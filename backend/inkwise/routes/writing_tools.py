@@ -476,7 +476,7 @@ async def retry_writing_tool_output(
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     retry_body = InkwiseWritingToolRequest(
-        action=str(request_json.get("action") or "improve"),
+        action=str(request_json.get("action") or "coherent"),
         document_id=uuid.UUID(str(document_id_value)) if document_id_value else None,
         source_ids=[uuid.UUID(str(value)) for value in (request_json.get("source_ids") or [])],
         selection_text=request_json.get("selection_text"),

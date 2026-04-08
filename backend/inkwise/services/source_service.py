@@ -14,11 +14,6 @@ from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
 import requests
-from reportlab.lib.colors import HexColor
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import inch
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -475,6 +470,15 @@ class InkwiseSourceService:
         return html_text, title[:400]
 
     def _render_webpage_snapshot_pdf(self, *, url: str, title: str, html_text: str) -> bytes:
+        try:
+            from reportlab.lib.colors import HexColor
+            from reportlab.lib.pagesizes import letter
+            from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+            from reportlab.lib.units import inch
+            from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+        except Exception as exc:
+            raise ValueError("reportlab is required to capture webpage snapshots") from exc
+
         paragraphs = self._extract_html_paragraphs(html_text)
         if not paragraphs:
             paragraphs = [title or url]

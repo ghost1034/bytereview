@@ -8,18 +8,27 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { apiClient, InkwiseCitation, InkwiseSource } from '@/lib/api'
 
+type CitationReferenceAction = {
+  id: string
+  label: string
+  onClick: () => void | Promise<void>
+  variant?: 'default' | 'outline'
+}
+
 export function InkwiseCitationBubbles({
   citations,
   bubbleClassName,
   onSheetOpenChange,
   inline = false,
   compactLabels = false,
+  referenceActions,
 }: {
   citations: InkwiseCitation[]
   bubbleClassName?: string
   onSheetOpenChange?: (open: boolean) => void
   inline?: boolean
   compactLabels?: boolean
+  referenceActions?: CitationReferenceAction[]
 }) {
   const items = useMemo(() => citations.filter((citation) => Boolean(citation?.evidence_id || citation?.excerpt)), [citations])
   const [open, setOpen] = useState(false)
@@ -28,6 +37,8 @@ export function InkwiseCitationBubbles({
   const [source, setSource] = useState<InkwiseSource | null>(null)
   const [loading, setLoading] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [actionPendingId, setActionPendingId] = useState<string | null>(null)
 
   const selected = items[selectedIndex] ?? null
 
@@ -36,6 +47,7 @@ export function InkwiseCitationBubbles({
     let active = true
     setLoading(true)
     setPreviewError(null)
+    setActionError(null)
     setPreviewUrl(null)
     setSource(null)
 
@@ -76,6 +88,20 @@ export function InkwiseCitationBubbles({
     onSheetOpenChange?.(true)
     setSelectedIndex(index)
     setOpen(true)
+  }
+
+  async function runReferenceAction(action: CitationReferenceAction) {
+    setActionPendingId(action.id)
+    setActionError(null)
+    try {
+      await action.onClick()
+      setOpen(false)
+      onSheetOpenChange?.(false)
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not convert this reference.')
+    } finally {
+      setActionPendingId(null)
+    }
   }
 
   const RootTag = inline ? 'span' : 'div'
@@ -121,6 +147,26 @@ export function InkwiseCitationBubbles({
                   </Button>
                 </div>
               </div>
+
+              {referenceActions?.length ? (
+                <div className="mt-4 border-b pb-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Convert Reference</div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {referenceActions.map((action) => (
+                      <Button
+                        key={action.id}
+                        size="sm"
+                        variant={action.variant || 'outline'}
+                        onClick={() => void runReferenceAction(action)}
+                        disabled={Boolean(actionPendingId)}
+                      >
+                        {actionPendingId === action.id ? 'Converting...' : action.label}
+                      </Button>
+                    ))}
+                  </div>
+                  {actionError ? <div className="mt-2 text-xs text-red-600">{actionError}</div> : null}
+                </div>
+              ) : null}
 
               <ScrollArea className="mt-4 flex-1 pr-2">
                 <div className="space-y-4 pb-8">

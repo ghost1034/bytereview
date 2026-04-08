@@ -25,7 +25,9 @@ from inkwise.schemas import (
 )
 from inkwise.services.chat_service import (
     InkwiseChatService,
+    build_thread_title_prompt,
     build_grounded_chat_prompt,
+    normalize_thread_title_candidate,
     prepare_grounded_chat_history,
     truncate_text,
 )
@@ -45,6 +47,34 @@ document_source_service = InkwiseDocumentSourceService()
 retrieval_service = InkwiseRetrievalService()
 generation_attempt_service = InkwiseGenerationAttemptService()
 user_support = InkwiseSourceService()
+
+
+async def _maybe_auto_name_thread(
+    *,
+    db: Session,
+    settings: Any,
+    thread: Any,
+    document: Any,
+    user_message: str,
+) -> None:
+    if normalize_thread_title_candidate(getattr(thread, "title", None)):
+        return
+
+    prompt = build_thread_title_prompt(document=document, user_message=user_message)
+    try:
+        result = await generate_text(
+            model=settings.grounded_model,
+            prompt=prompt,
+            temperature=0.2,
+            max_output_tokens=24,
+            timeout_seconds=10,
+        )
+    except Exception:
+        return
+
+    title = normalize_thread_title_candidate(result.text)
+    if title:
+        chat_service.update_thread_title(db, thread=thread, title=title)
 
 
 def _sse(event: str, data: object) -> bytes:
@@ -413,6 +443,13 @@ async def stream_thread_message(
         draft_selection_label=draft_label,
         draft_selection_text=draft_text or None,
         draft_selection_truncated=draft_truncated,
+    )
+    await _maybe_auto_name_thread(
+        db=db,
+        settings=settings,
+        thread=thread,
+        document=document,
+        user_message=body.content,
     )
 
     query_rewrite_history_limit = max(0, int(settings.query_rewrite_max_history_messages))

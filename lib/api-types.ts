@@ -3352,7 +3352,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "improve" | "longer" | "opposing_argument" | "translate" | "concise" | "humanize" | "other";
+            action: "coherent" | "concise" | "detailed" | "humanize" | "other";
             /** Document Id */
             document_id?: string | null;
             /** Source Ids */

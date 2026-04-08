@@ -387,11 +387,9 @@ class InkwiseRetryRequest(BaseModel):
 
 class InkwiseWritingToolRequest(BaseModel):
     action: Literal[
-        "improve",
-        "longer",
-        "opposing_argument",
-        "translate",
+        "coherent",
         "concise",
+        "detailed",
         "humanize",
         "other",
     ]

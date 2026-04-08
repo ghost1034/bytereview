@@ -17,6 +17,25 @@ import { compareNaturalText } from '@/lib/utils'
 
 type ToolAction = Exclude<InkwiseWritingAction, 'other'> | 'custom'
 
+const TOOL_CONFIG: Record<Exclude<ToolAction, 'custom'>, { label: string; instruction: string }> = {
+  coherent: {
+    label: 'Coherent',
+    instruction: 'Make this more coherent by improving flow, transitions, and structure while preserving meaning.',
+  },
+  concise: {
+    label: 'Concise',
+    instruction: 'Make this more concise while preserving the key meaning and important details.',
+  },
+  detailed: {
+    label: 'Detailed',
+    instruction: 'Expand this with more relevant detail, specificity, and helpful context without adding filler.',
+  },
+  humanize: {
+    label: 'Humanize',
+    instruction: 'Make this sound more natural and human while preserving the underlying meaning.',
+  },
+}
+
 type GroundingState = {
   grounded: boolean
   evidenceCount: number
@@ -133,6 +152,10 @@ export function InlineWritingTools({
     abortRef.current = controller
 
     try {
+      const resolvedInstruction =
+        action === 'custom'
+          ? (customInstruction ?? instruction).trim()
+          : TOOL_CONFIG[action].instruction
       await apiClient.streamInkwiseWritingTool(
         {
           action: action === 'custom' ? 'other' : action,
@@ -140,7 +163,7 @@ export function InlineWritingTools({
           source_ids: selectedSourceIds,
           selection_text: selection.hasSelection ? selection.text : null,
           surrounding_text: null,
-          instruction: (customInstruction ?? instruction).trim(),
+          instruction: resolvedInstruction,
         },
         (event: InkwiseSseEvent) => {
           if (event.event === 'token') {
@@ -301,15 +324,16 @@ export function InlineWritingTools({
   const panel = (
     <div className="flex max-h-[min(80vh,42rem)] w-[min(32rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-2xl border bg-white/95 p-3 shadow-2xl backdrop-blur">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-2">
-          {hasSelection ? (
-            <>
-              <Button size="sm" onMouseDown={preventEditorBlur} onClick={() => run('improve')} disabled={busy}>Improve</Button>
-              <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => run('concise')} disabled={busy}>Concise</Button>
-              <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => run('longer')} disabled={busy}>Longer</Button>
-              <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => setCustomOpen((value) => !value)} disabled={busy}>Custom</Button>
-            </>
-          ) : (
+            <div className="flex flex-wrap gap-2">
+              {hasSelection ? (
+                <>
+                  <Button size="sm" onMouseDown={preventEditorBlur} onClick={() => run('coherent')} disabled={busy}>Coherent</Button>
+                  <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => run('concise')} disabled={busy}>Concise</Button>
+                  <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => run('detailed')} disabled={busy}>Detailed</Button>
+                  <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => run('humanize')} disabled={busy}>Humanize</Button>
+                  <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => setCustomOpen((value) => !value)} disabled={busy}>Custom</Button>
+                </>
+              ) : (
             <div className="text-sm font-medium text-slate-900">Write with AI</div>
           )}
         </div>
@@ -395,7 +419,9 @@ export function InlineWritingTools({
 
         {busy || outputMd ? (
           <div className="rounded-xl border bg-white p-3">
-            <div className="text-sm font-medium text-slate-900">{busy ? 'Writing...' : lastAction ? `Result (${lastAction})` : 'Result'}</div>
+            <div className="text-sm font-medium text-slate-900">
+              {busy ? 'Writing...' : lastAction ? `Result (${lastAction === 'custom' ? 'Custom' : TOOL_CONFIG[lastAction].label})` : 'Result'}
+            </div>
             {groundingState ? (
               <div className="mt-1 text-xs text-slate-500">
                 {groundingState.grounded

@@ -312,7 +312,7 @@ export default function InkwiseDocumentPage() {
   })
 
   const createThread = useMutation({
-    mutationFn: () => apiClient.createInkwiseChatThread({ document_id: documentId, title: `${title || 'Draft'} chat` }),
+    mutationFn: () => apiClient.createInkwiseChatThread({ document_id: documentId, title: null }),
     onSuccess: async (thread) => {
       await queryClient.invalidateQueries({ queryKey: ['inkwise', 'chat-threads', documentId] })
       setSelectedThreadId(thread.id)
@@ -348,7 +348,7 @@ export default function InkwiseDocumentPage() {
     mutationFn: async () => {
       let threadId = selectedThreadId
       if (!threadId) {
-        const created = await apiClient.createInkwiseChatThread({ document_id: documentId, title: `${title || 'Draft'} chat` })
+        const created = await apiClient.createInkwiseChatThread({ document_id: documentId, title: null })
         threadId = created.id
         setSelectedThreadId(created.id)
       }
@@ -448,11 +448,11 @@ export default function InkwiseDocumentPage() {
       let retrievalRunId: string | null = null
       await apiClient.streamInkwiseWritingTool(
         {
-          action: 'improve',
+          action: 'coherent',
           document_id: documentId,
           selection_text: selection,
           surrounding_text: initPrompt,
-          instruction: 'Improve this draft while preserving the original intent and structure.',
+          instruction: 'Make this draft more coherent while preserving the original intent, structure, and grounded support.',
         },
         (event: InkwiseSseEvent) => {
           if (event.event === 'token') {
@@ -769,7 +769,7 @@ export default function InkwiseDocumentPage() {
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => runWritingTool.mutate()} disabled={runWritingTool.isPending}>
               {runWritingTool.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-              Improve draft
+              Coherent draft
             </Button>
             <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
               <Settings2 className="mr-2 h-4 w-4" />
@@ -933,21 +933,25 @@ export default function InkwiseDocumentPage() {
 
               <TabsContent value="chat" className="mt-0 flex min-h-0 flex-1 flex-col px-3 pb-3">
                 <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-2xl bg-slate-50 p-3">
-                  <div className="flex flex-wrap gap-2">
-                    {(threadsQuery.data?.threads ?? []).map((thread) => (
-                      <Button
-                        key={thread.id}
-                        variant={selectedThreadId === thread.id ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setSelectedThreadId(thread.id)}
-                      >
-                        {thread.title || 'Grounded thread'}
-                      </Button>
-                    ))}
-                    <Button variant="outline" size="sm" onClick={() => createThread.mutate()} disabled={createThread.isPending}>
-                      <MessageSquarePlus className="mr-2 h-4 w-4" />
-                      New thread
-                    </Button>
+                  <div className="rounded-2xl border bg-white">
+                    <ScrollArea className="max-h-28">
+                      <div className="flex flex-wrap gap-2 p-3 pr-4">
+                        {(threadsQuery.data?.threads ?? []).map((thread) => (
+                          <Button
+                            key={thread.id}
+                            variant={selectedThreadId === thread.id ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setSelectedThreadId(thread.id)}
+                          >
+                            {thread.title || 'Untitled thread'}
+                          </Button>
+                        ))}
+                        <Button variant="outline" size="sm" onClick={() => createThread.mutate()} disabled={createThread.isPending}>
+                          <MessageSquarePlus className="mr-2 h-4 w-4" />
+                          New thread
+                        </Button>
+                      </div>
+                    </ScrollArea>
                   </div>
 
                   <ScrollArea className="min-h-0 flex-1 rounded-2xl border bg-white">

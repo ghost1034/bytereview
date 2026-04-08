@@ -16,6 +16,34 @@ class NormalizedPredictionResult:
     reason: str | None = None
 
 
+def _action_guidance(*, action: str, has_selection: bool) -> list[str]:
+    if action == "coherent":
+        return [
+            "Make the writing more coherent by improving flow, transitions, and structure.",
+            "Preserve the original meaning, claims, and intent.",
+        ]
+    if action == "concise":
+        return [
+            "Make the writing more concise.",
+            "Keep the essential meaning and key details.",
+        ]
+    if action == "detailed":
+        return [
+            "Add relevant detail, specificity, and supporting context where it helps the reader.",
+            "Do not pad with repetition or generic filler.",
+        ]
+    if action == "humanize":
+        return [
+            "Make the writing sound more natural, clear, and human.",
+            "Keep the substance accurate and professional.",
+        ]
+    if action == "other":
+        if has_selection:
+            return ["Revise the selected text exactly as requested by the user."]
+        return ["Write new text at the cursor exactly as requested by the user."]
+    return []
+
+
 def build_writing_tool_prompt(*, body: InkwiseWritingToolRequest, document: InkwiseDocument | None) -> str:
     selection_text = (body.selection_text or "").strip()
     parts: list[str] = []
@@ -30,6 +58,7 @@ def build_writing_tool_prompt(*, body: InkwiseWritingToolRequest, document: Inkw
         parts.append(f"Document guidance: {document.init_prompt}")
 
     parts.append(f"Action: {body.action}")
+    parts.extend(_action_guidance(action=body.action, has_selection=bool(selection_text)))
     parts.append(f"Instruction: {body.instruction}")
     if selection_text:
         parts.append("")
@@ -89,6 +118,7 @@ def build_grounded_writing_tool_prompt(
         parts.append(f"Document guidance: {document.init_prompt}")
 
     parts.append(f"Action: {body.action}")
+    parts.extend(_action_guidance(action=body.action, has_selection=bool(selection_text)))
     parts.append(f"Instruction: {body.instruction}")
     if selection_text:
         parts.append("")

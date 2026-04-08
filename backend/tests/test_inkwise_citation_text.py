@@ -4,7 +4,7 @@ import unittest
 from types import SimpleNamespace
 
 from inkwise.services.citation_text import parse_citation_text
-from inkwise.services.writing_tools_service import build_grounded_prediction_prompt, build_grounded_writing_tool_prompt
+from inkwise.services.writing_tools_service import build_grounded_prediction_prompt, build_grounded_writing_tool_prompt, build_writing_tool_prompt
 
 
 class ParseCitationTextTests(unittest.TestCase):
@@ -87,13 +87,21 @@ class ParseCitationTextTests(unittest.TestCase):
 class GroundedPromptMarkerTests(unittest.TestCase):
     def test_grounded_writing_tool_prompt_requests_inline_markers(self) -> None:
         prompt = build_grounded_writing_tool_prompt(
-            body=SimpleNamespace(action="improve", instruction="Improve", selection_text="Text", surrounding_text=None),
+            body=SimpleNamespace(action="coherent", instruction="Improve coherence", selection_text="Text", surrounding_text=None),
             document=SimpleNamespace(language="English", init_prompt="Be precise"),
             evidence_pack="[E01] Evidence block",
         )
 
         self.assertIn("append the supporting evidence IDs immediately after", prompt)
         self.assertIn("[E01]", prompt)
+
+    def test_writing_tool_prompt_includes_action_specific_guidance(self) -> None:
+        prompt = build_writing_tool_prompt(
+            body=SimpleNamespace(action="detailed", instruction="Add detail", selection_text="Text", surrounding_text=None),
+            document=SimpleNamespace(language="English", init_prompt="Be precise"),
+        )
+
+        self.assertIn("Add relevant detail, specificity", prompt)
 
     def test_grounded_prediction_prompt_requests_inline_markers(self) -> None:
         prompt = build_grounded_prediction_prompt(

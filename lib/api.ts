@@ -1509,11 +1509,9 @@ export interface InkwisePredictionResponse {
 }
 
 export type InkwiseWritingAction =
-  | 'improve'
-  | 'longer'
-  | 'opposing_argument'
-  | 'translate'
+  | 'coherent'
   | 'concise'
+  | 'detailed'
   | 'humanize'
   | 'other'
 

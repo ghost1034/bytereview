@@ -16,11 +16,42 @@ _EVIDENCE_ID_RE = re.compile(r"\[(E\d{2})\]")
 _WHITESPACE_RE = re.compile(r"[ \t]+")
 _BLANK_LINES_RE = re.compile(r"\n{3,}")
 _SPACE_BEFORE_PUNCT_RE = re.compile(r"\s+([,.;:!?])")
+_THREAD_TITLE_EDGE_RE = re.compile(r"^[\s\-:;,.!?\'\"`]+|[\s\-:;,.!?\'\"`]+$")
 _HISTORY_ROLE_LABELS = {
     "assistant": "Assistant",
     "system": "System",
     "user": "User",
 }
+
+
+def normalize_thread_title_candidate(value: str | None) -> str | None:
+    raw = str(value or "").replace("\r", " ").replace("\n", " ").strip()
+    if not raw:
+        return None
+    raw = _THREAD_TITLE_EDGE_RE.sub("", raw)
+    raw = re.sub(r"\s+", " ", raw).strip()
+    if not raw:
+        return None
+    if len(raw) > 80:
+        raw = raw[:80].rsplit(" ", 1)[0].strip() or raw[:80].strip()
+    return raw[:200] or None
+
+
+def build_thread_title_prompt(*, document: InkwiseDocument, user_message: str) -> str:
+    parts = [
+        "You name Inkwise chat threads.",
+        "Return only the title text.",
+        "Write a short, specific title that captures the main topic of the user's request.",
+        "Prefer 2 to 6 words when possible.",
+        "Do not use quotes, markdown, trailing punctuation, or generic labels like Chat or Thread.",
+    ]
+    if getattr(document, "title", None):
+        parts.append(f"Document title: {document.title}")
+    if getattr(document, "init_prompt", None):
+        parts.append(f"Document guidance: {document.init_prompt}")
+    parts.append("User message:")
+    parts.append(user_message.strip()[:2000])
+    return "\n".join(parts).strip() + "\n"
 
 
 class InkwiseChatService:
@@ -73,6 +104,22 @@ class InkwiseChatService:
             mode="grounded",
             created_at=datetime.utcnow(),
         )
+        db.add(thread)
+        db.commit()
+        db.refresh(thread)
+        return thread
+
+    def update_thread_title(
+        self,
+        db: Session,
+        *,
+        thread: InkwiseChatThread,
+        title: str,
+    ) -> InkwiseChatThread:
+        normalized = normalize_thread_title_candidate(title)
+        if not normalized:
+            return thread
+        thread.title = normalized
         db.add(thread)
         db.commit()
         db.refresh(thread)

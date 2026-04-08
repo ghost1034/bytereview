@@ -1,4 +1,6 @@
 import type { Editor, JSONContent } from '@tiptap/core'
+import { Fragment, type Node as ProseMirrorNode } from '@tiptap/pm/model'
+import type { Transaction } from '@tiptap/pm/state'
 
 import type { InkwiseCitation, InkwiseGroundedSegment } from '@/lib/api'
 import {
@@ -21,6 +23,8 @@ export type InkwiseEditorTarget = {
 
 export type InkwiseEditorInsertionMode = 'replace' | 'insert' | 'after' | 'append'
 
+export type InkwiseCitationReferenceMode = 'inline' | 'footnote' | 'endnote'
+
 export type InkwiseEditorCitationAnchor = {
   sourceKind: InkwiseCitationAnchorSourceKind
   citations: InkwiseCitation[]
@@ -41,6 +45,150 @@ export function getInkwiseEditorTarget(editor: Editor | null): InkwiseEditorTarg
   }
 
   return { from, to, text: '', hasSelection: false }
+}
+
+function normalizeCitationText(value: string | null | undefined): string {
+  return (value || '').replace(/\s+/g, ' ').trim()
+}
+
+function formatCitationLocatorText(citation: InkwiseCitation): string {
+  const locator = citation.locator_json || {}
+  const rawPageStart = citation.page_number ?? locator.page_start ?? null
+  const pageStart = typeof rawPageStart === 'number' && rawPageStart > 0 ? rawPageStart : null
+  const pageEnd = typeof locator.page_end === 'number' && locator.page_end > 0 ? locator.page_end : null
+  if (typeof pageStart === 'number') {
+    return typeof pageEnd === 'number' && pageEnd !== pageStart ? `pp.${pageStart}-${pageEnd}` : `p.${pageStart}`
+  }
+  if (citation.segment_title) return citation.segment_title
+  if (locator.kind === 'web_snapshot') return 'web snapshot'
+  return ''
+}
+
+function dedupeCitations(citations: InkwiseCitation[]): InkwiseCitation[] {
+  const seen = new Set<string>()
+  const items: InkwiseCitation[] = []
+  for (const citation of citations) {
+    const key = String(citation?.evidence_id || `${citation?.source_id || 'source'}:${citation?.excerpt || ''}`)
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    items.push(citation)
+  }
+  return items
+}
+
+function buildCitationReferenceLabel(citation: InkwiseCitation): string {
+  const sourceTitle = normalizeCitationText(citation.source_title || citation.segment_title || 'Evidence')
+  const locator = normalizeCitationText(formatCitationLocatorText(citation))
+  return [sourceTitle, locator].filter(Boolean).join(' ')
+}
+
+function buildCitationReferenceSummary(citation: InkwiseCitation): string {
+  const label = buildCitationReferenceLabel(citation)
+  const excerpt = normalizeCitationText(citation.excerpt)
+  if (!excerpt) return label
+  const trimmedExcerpt = excerpt.length > 140 ? `${excerpt.slice(0, 137).trimEnd()}...` : excerpt
+  return `${label}: ${trimmedExcerpt}`
+}
+
+function buildInlineReferenceText(citations: InkwiseCitation[]): string {
+  const labels = dedupeCitations(citations).map(buildCitationReferenceLabel).filter(Boolean)
+  if (!labels.length) return ''
+  return ` (${labels.join('; ')})`
+}
+
+function buildNoteReferenceText(citations: InkwiseCitation[]): string {
+  const parts = dedupeCitations(citations).map(buildCitationReferenceSummary).filter(Boolean)
+  return parts.join('; ')
+}
+
+function getNextCitationReferenceNumber(editor: Editor): number {
+  const text = editor.state.doc.textBetween(0, editor.state.doc.content.size, '\n', '\n')
+  let maxValue = 0
+  for (const pattern of [/\[\^(\d+)\]/g, /^\[\^(\d+)\]:/gm, /\[(\d+)\]/g, /^(\d+)\.\s/gm]) {
+    for (const match of text.matchAll(pattern)) {
+      const value = Number(match[1])
+      if (Number.isFinite(value) && value > maxValue) {
+        maxValue = value
+      }
+    }
+  }
+  return maxValue + 1
+}
+
+function resolveTextblockDepth(editor: Editor, pos: number): number | null {
+  const resolvedPos = editor.state.doc.resolve(pos)
+  for (let depth = resolvedPos.depth; depth >= 0; depth -= 1) {
+    if (resolvedPos.node(depth).isTextblock) return depth
+  }
+  return null
+}
+
+function buildParagraphNode(editor: Editor, text: string): ProseMirrorNode {
+  return editor.state.schema.nodes.paragraph.create(null, text ? editor.state.schema.text(text) : undefined)
+}
+
+function hasTopLevelSection(editor: Editor, title: string): boolean {
+  const normalizedTitle = normalizeCitationText(title).toLowerCase()
+  for (let index = 0; index < editor.state.doc.childCount; index += 1) {
+    const child = editor.state.doc.child(index)
+    if (!child.isTextblock) continue
+    if (normalizeCitationText(child.textContent).toLowerCase() === normalizedTitle) {
+      return true
+    }
+  }
+  return false
+}
+
+function dispatchCitationTransaction(editor: Editor, transaction: Transaction): boolean {
+  editor.commands.focus()
+  editor.view.dispatch(transaction.scrollIntoView())
+  return true
+}
+
+export function convertCitationAnchorReference({
+  editor,
+  from,
+  to,
+  citations,
+  mode,
+}: {
+  editor: Editor | null
+  from: number
+  to: number
+  citations: InkwiseCitation[]
+  mode: InkwiseCitationReferenceMode
+}): boolean {
+  if (!editor || !citations.length) return false
+
+  if (mode === 'inline') {
+    const inlineText = buildInlineReferenceText(citations)
+    if (!inlineText) return false
+    return dispatchCitationTransaction(editor, editor.state.tr.replaceWith(from, to, editor.state.schema.text(inlineText)))
+  }
+
+  const noteText = buildNoteReferenceText(citations)
+  if (!noteText) return false
+
+  const referenceNumber = getNextCitationReferenceNumber(editor)
+  if (mode === 'footnote') {
+    const marker = `[^${referenceNumber}]`
+    const noteParagraph = buildParagraphNode(editor, `[^${referenceNumber}]: ${noteText}`)
+    const textblockDepth = resolveTextblockDepth(editor, from)
+    const insertAfter = textblockDepth == null ? editor.state.doc.content.size : editor.state.doc.resolve(from).after(textblockDepth)
+    let transaction = editor.state.tr.replaceWith(from, to, editor.state.schema.text(marker))
+    transaction = transaction.insert(transaction.mapping.map(insertAfter), noteParagraph)
+    return dispatchCitationTransaction(editor, transaction)
+  }
+
+  const marker = `[${referenceNumber}]`
+  const endnoteNodes: ProseMirrorNode[] = []
+  if (!hasTopLevelSection(editor, 'Endnotes')) {
+    endnoteNodes.push(buildParagraphNode(editor, 'Endnotes'))
+  }
+  endnoteNodes.push(buildParagraphNode(editor, `${referenceNumber}. ${noteText}`))
+  let transaction = editor.state.tr.replaceWith(from, to, editor.state.schema.text(marker))
+  transaction = transaction.insert(transaction.mapping.map(editor.state.doc.content.size), Fragment.fromArray(endnoteNodes))
+  return dispatchCitationTransaction(editor, transaction)
 }
 
 export function stripInkwiseChatCitationMarkers(markdown: string): string {
