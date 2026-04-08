@@ -91,6 +91,10 @@ class SignedDownload:
     expires_at: str
 
 
+class InkwisePlanRestrictionError(PermissionError):
+    pass
+
+
 class InkwiseSourceService:
     def ensure_user_record(self, db: Session, *, user_id: str, email: str | None, phone_number: str | None) -> None:
         existing = db.query(User).filter(User.id == user_id).first()
@@ -160,6 +164,15 @@ class InkwiseSourceService:
         return source
 
     def create_source(self, db: Session, *, user_id: str, body: InkwiseSourceCreateRequest) -> InkwiseSource:
+        upload_kind = self._detect_upload_kind(
+            filename=(body.original_filename or body.title or "reference").strip(),
+            content_type=(body.content_type or "").strip().lower(),
+        )
+        self._assert_upload_kind_allowed_for_plan(
+            upload_kind=upload_kind,
+            filename=(body.original_filename or body.title or "reference").strip() or "reference",
+            plan_code=self._get_plan_code(db, user_id),
+        )
         filename = self._sanitize_filename(body.original_filename) if body.original_filename else None
         now = datetime.utcnow()
         source = InkwiseSource(
@@ -187,6 +200,11 @@ class InkwiseSourceService:
         upload_kind = self._detect_upload_kind(
             filename=(body.original_filename or "").strip(),
             content_type=(body.content_type or "").strip().lower(),
+        )
+        self._assert_upload_kind_allowed_for_plan(
+            upload_kind=upload_kind,
+            filename=(body.original_filename or "").strip() or "reference",
+            plan_code=self._get_plan_code(db, user_id),
         )
         resolved_content_type = self._resolved_content_type_for_kind(upload_kind)
         filename = self._sanitize_filename(
@@ -301,8 +319,13 @@ class InkwiseSourceService:
             content_type=str(source.content_type or ""),
         )
         if upload_kind == "zip":
-            imported = self._import_archive_blob(db, source=source, blob=blob)
-            return imported
+            try:
+                imported = self._import_archive_blob(db, source=source, blob=blob)
+                return imported
+            except (ValueError, InkwisePlanRestrictionError) as exc:
+                self._mark_source_failed(source, code="upload_rejected", message=str(exc))
+                db.commit()
+                raise
 
         source.status = "queued"
         source.failure_code = None
@@ -322,6 +345,7 @@ class InkwiseSourceService:
             raise ValueError("Google Drive is not connected for this account")
 
         imported: list[InkwiseSource] = []
+        plan_code = self._get_plan_code(db, user_id)
         for file_id in clean_ids:
             metadata = google_service.get_drive_file_metadata(db, user_id, file_id)
             if not metadata:
@@ -329,6 +353,12 @@ class InkwiseSourceService:
 
             filename = str(metadata.get("name") or "reference")
             content_type = str(metadata.get("mimeType") or "application/octet-stream")
+            upload_kind = self._detect_upload_kind(filename=filename, content_type=content_type)
+            self._assert_upload_kind_allowed_for_plan(
+                upload_kind=upload_kind,
+                filename=filename,
+                plan_code=plan_code,
+            )
             content = google_service.download_drive_file(db, user_id, file_id)
             if content is None:
                 raise ValueError(f"Could not download Drive file {filename}")
@@ -343,6 +373,7 @@ class InkwiseSourceService:
                     original_path=filename,
                     external_source="gdrive",
                     external_id=file_id,
+                    plan_code=plan_code,
                     external_meta={
                         "web_view_link": metadata.get("webViewLink"),
                         "drive_id": metadata.get("driveId"),
@@ -421,6 +452,7 @@ class InkwiseSourceService:
             user_id=source.user_id,
             archive_filename=source.original_filename or "archive.zip",
             archive_bytes=archive_bytes,
+            plan_code=self._get_plan_code(db, source.user_id),
             external_source=source.external_source,
             external_id=source.external_id,
             external_meta=source.external_meta or {},
@@ -441,6 +473,7 @@ class InkwiseSourceService:
         content_type: str,
         content: bytes,
         original_path: str | None,
+        plan_code: str | None = None,
         external_source: str | None = None,
         external_id: str | None = None,
         external_meta: dict | None = None,
@@ -448,12 +481,18 @@ class InkwiseSourceService:
         upload_kind = self._detect_upload_kind(filename=filename, content_type=content_type)
         if upload_kind is None:
             raise ValueError(f"Unsupported reference type for {filename}")
+        self._assert_upload_kind_allowed_for_plan(
+            upload_kind=upload_kind,
+            filename=filename,
+            plan_code=plan_code,
+        )
         if upload_kind == "zip":
             return self._import_archive_bytes(
                 db,
                 user_id=user_id,
                 archive_filename=filename,
                 archive_bytes=content,
+                plan_code=plan_code,
                 external_source=external_source,
                 external_id=external_id,
                 external_meta=external_meta or {},
@@ -466,6 +505,7 @@ class InkwiseSourceService:
                 content_type=self._resolved_content_type_for_kind(upload_kind),
                 content=content,
                 original_path=original_path,
+                plan_code=plan_code,
                 external_source=external_source,
                 external_id=external_id,
                 external_meta=external_meta,
@@ -481,14 +521,21 @@ class InkwiseSourceService:
         content_type: str,
         content: bytes,
         original_path: str | None,
+        plan_code: str | None = None,
         external_source: str | None = None,
         external_id: str | None = None,
         external_meta: dict | None = None,
     ) -> InkwiseSource:
+        upload_kind = self._detect_upload_kind(filename=filename, content_type=content_type)
+        self._assert_upload_kind_allowed_for_plan(
+            upload_kind=upload_kind,
+            filename=filename,
+            plan_code=plan_code,
+        )
         bucket = self._require_bucket()
         clean_filename = self._sanitize_filename(
             filename,
-            default_extension=self._default_extension_for_kind(self._detect_upload_kind(filename=filename, content_type=content_type)),
+            default_extension=self._default_extension_for_kind(upload_kind),
         )
         now = datetime.utcnow()
         source = InkwiseSource(
@@ -527,6 +574,7 @@ class InkwiseSourceService:
         user_id: str,
         archive_filename: str,
         archive_bytes: bytes,
+        plan_code: str | None,
         external_source: str | None,
         external_id: str | None,
         external_meta: dict | None,
@@ -543,6 +591,11 @@ class InkwiseSourceService:
                     upload_kind = self._detect_upload_kind(filename=entry_name, content_type="")
                     if upload_kind is None or upload_kind == "zip":
                         continue
+                    self._assert_upload_kind_allowed_for_plan(
+                        upload_kind=upload_kind,
+                        filename=entry_name,
+                        plan_code=plan_code,
+                    )
 
                     imported.append(
                         self._create_source_from_bytes(
@@ -552,6 +605,7 @@ class InkwiseSourceService:
                             content_type=self._resolved_content_type_for_kind(upload_kind),
                             content=archive.read(info),
                             original_path=entry_name,
+                            plan_code=plan_code,
                             external_source=external_source,
                             external_id=external_id,
                             external_meta={
@@ -645,6 +699,33 @@ class InkwiseSourceService:
         upload_kind = self._detect_upload_kind(filename=filename, content_type=content_type)
         if upload_kind is None:
             raise ValueError("Only PDF, DOCX, image, audio, video, and ZIP uploads are currently supported")
+
+    def _mark_source_failed(self, source: InkwiseSource, *, code: str, message: str) -> None:
+        source.status = "failed"
+        source.failure_code = code
+        source.failure_detail = (message or "")[:2000]
+        source.updated_at = datetime.utcnow()
+
+    def _get_plan_code(self, db: Session, user_id: str) -> str:
+        from services.billing_service import get_billing_service
+
+        billing_info = get_billing_service(db).get_billing_info(user_id)
+        return str(billing_info.get("plan_code") or "free").strip().lower() or "free"
+
+    def _assert_upload_kind_allowed_for_plan(
+        self,
+        *,
+        upload_kind: str | None,
+        filename: str,
+        plan_code: str | None,
+    ) -> None:
+        if upload_kind not in {"audio_mp3", "audio_wav", "video_mp4", "video_mpeg"}:
+            return
+        if (plan_code or "").strip().lower() == "pro":
+            return
+        raise InkwisePlanRestrictionError(
+            f'Audio and video references like "{filename}" are available on the Pro plan only.'
+        )
 
     def _build_storage_object_name(self, *, user_id: str, source_id: uuid.UUID, original_filename: str) -> str:
         return f"inkwise/uploads/{user_id}/{source_id}/original/{original_filename}"

@@ -150,10 +150,10 @@ export default function InkwiseReferencesPage() {
                       <span>Updated {new Date(source.updated_at).toLocaleString()}</span>
                       <span>•</span>
                       <span>{referenceStatusLabel(source.status)}</span>
-                      {typeof latestIngestion?.page_count === 'number' ? (
+                      {latestIngestion ? (
                         <>
                           <span>•</span>
-                          <span>{formatReferencePageCount(latestIngestion.page_count)}</span>
+                          <span>{formatReferenceUsage(latestIngestion)}</span>
                         </>
                       ) : null}
                     </div>
@@ -217,6 +217,25 @@ function referenceStatusLabel(status: string): string {
   return status || 'Reference status'
 }
 
-function formatReferencePageCount(pageCount: number): string {
-  return `${pageCount.toLocaleString()} ${pageCount === 1 ? 'page' : 'pages'} processed`
+function formatReferenceUsage(ingestion: InkwiseSourceIngestion): string {
+  const usagePages = typeof ingestion.usage_pages === 'number' ? ingestion.usage_pages : null
+  const usageTokens = typeof ingestion.usage_tokens === 'number' ? ingestion.usage_tokens : null
+  const pageCount = typeof ingestion.page_count === 'number' ? ingestion.page_count : null
+
+  if (ingestion.usage_basis === 'media_tokens' && usagePages !== null) {
+    if (usageTokens !== null && usageTokens > 0) {
+      return `${usagePages.toLocaleString()} ${usagePages === 1 ? 'page' : 'pages'} billed from ${usageTokens.toLocaleString()} tokens`
+    }
+    return `${usagePages.toLocaleString()} ${usagePages === 1 ? 'page' : 'pages'} billed`
+  }
+  if (usagePages !== null && ingestion.usage_basis === 'single_page_image') {
+    return `${usagePages.toLocaleString()} ${usagePages === 1 ? 'page' : 'pages'} billed`
+  }
+  if (pageCount !== null) {
+    return `${pageCount.toLocaleString()} ${pageCount === 1 ? 'page' : 'pages'} processed`
+  }
+  if (usagePages !== null) {
+    return `${usagePages.toLocaleString()} ${usagePages === 1 ? 'page' : 'pages'} billed`
+  }
+  return 'Usage pending'
 }

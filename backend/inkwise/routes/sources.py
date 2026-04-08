@@ -24,7 +24,7 @@ from inkwise.schemas import (
     build_placeholder_response,
 )
 from inkwise.services.ingestion_service import InkwiseIngestionService
-from inkwise.services.source_service import InkwiseSourceService
+from inkwise.services.source_service import InkwisePlanRestrictionError, InkwiseSourceService
 from inkwise.services.task_service import enqueue_ingestion_task
 from inkwise.settings import get_inkwise_settings
 from services.user_service import DuplicatePhoneNumberError
@@ -73,6 +73,9 @@ async def create_source(
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except InkwisePlanRestrictionError as exc:
+        db.rollback()
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except DuplicatePhoneNumberError as exc:
         db.rollback()
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -140,6 +143,9 @@ async def init_source_upload(
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except InkwisePlanRestrictionError as exc:
+        db.rollback()
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except DuplicatePhoneNumberError as exc:
         db.rollback()
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -189,6 +195,12 @@ async def import_drive_sources(
 ) -> InkwiseSourceImportResponse:
     user_id = token_data["uid"]
     try:
+        source_service.ensure_user_record(
+            db,
+            user_id=user_id,
+            email=token_data.get("email"),
+            phone_number=token_data.get("phone_number"),
+        )
         imported = source_service.import_drive_files(db, user_id=user_id, file_ids=body.file_ids)
         return InkwiseSourceImportResponse(
             sources=[InkwiseSourceOut.model_validate(item) for item in imported],
@@ -198,6 +210,12 @@ async def import_drive_sources(
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except InkwisePlanRestrictionError as exc:
+        db.rollback()
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except DuplicatePhoneNumberError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to import Google Drive sources: {exc}") from exc
@@ -235,6 +253,9 @@ async def complete_source_upload(
         db.rollback()
         status_code = 404 if str(exc) == "Source not found" else 400
         raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+    except InkwisePlanRestrictionError as exc:
+        db.rollback()
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc

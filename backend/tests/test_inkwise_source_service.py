@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import unittest
 import uuid
+import zipfile
+from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from inkwise.schemas import InkwiseWebpageCaptureRequest
 from inkwise.services.gcs import _normalize_disposition_filename
-from inkwise.services.source_service import InkwiseSourceService
+from inkwise.services.source_service import InkwisePlanRestrictionError, InkwiseSourceService
 
 
 class _FakeBlob:
@@ -78,6 +80,11 @@ class InkwiseSourceServiceTests(unittest.TestCase):
     def test_render_webpage_snapshot_pdf_returns_pdf_bytes(self) -> None:
         service = InkwiseSourceService()
 
+        try:
+            import reportlab  # noqa: F401
+        except ImportError:
+            self.skipTest("reportlab is not installed in this environment")
+
         payload = service._render_webpage_snapshot_pdf(
             url="https://example.com/reference",
             title="Example Reference",
@@ -132,6 +139,59 @@ class InkwiseSourceServiceTests(unittest.TestCase):
             signed_url.call_args.kwargs["object_name"],
             "inkwise/derived/user/source/canonical/latest/canonical.pdf",
         )
+
+    def test_init_upload_rejects_audio_for_non_pro_plan(self) -> None:
+        service = InkwiseSourceService()
+        db = _FakeDb()
+        request = SimpleNamespace(
+            original_filename="call.mp3",
+            content_type="audio/mpeg",
+            size_bytes=1024,
+            title=None,
+            original_path=None,
+        )
+
+        with (
+            patch.object(service, "_require_bucket", return_value="inkwise-test-bucket"),
+            patch.object(service, "_get_plan_code", return_value="basic"),
+        ):
+            with self.assertRaises(InkwisePlanRestrictionError):
+                service.init_upload(db, user_id="user-123", body=request)
+
+    def test_import_archive_rejects_media_entries_for_non_pro_plan(self) -> None:
+        service = InkwiseSourceService()
+        db = _FakeDb()
+        archive_buffer = BytesIO()
+        with zipfile.ZipFile(archive_buffer, "w") as archive:
+            archive.writestr("meeting.wav", b"wav-bytes")
+
+        with self.assertRaises(InkwisePlanRestrictionError):
+            service._import_archive_bytes(
+                db,
+                user_id="user-123",
+                archive_filename="bundle.zip",
+                archive_bytes=archive_buffer.getvalue(),
+                plan_code="free",
+                external_source=None,
+                external_id=None,
+                external_meta=None,
+            )
+
+    def test_import_drive_rejects_video_for_non_pro_plan(self) -> None:
+        service = InkwiseSourceService()
+        db = _FakeDb()
+        google_service = SimpleNamespace(
+            has_drive_access=lambda *_args, **_kwargs: True,
+            get_drive_file_metadata=lambda *_args, **_kwargs: {"name": "walkthrough.mp4", "mimeType": "video/mp4"},
+            download_drive_file=lambda *_args, **_kwargs: b"video-bytes",
+        )
+
+        with (
+            patch("inkwise.services.source_service.GoogleService", return_value=google_service),
+            patch.object(service, "_get_plan_code", return_value="basic"),
+        ):
+            with self.assertRaises(InkwisePlanRestrictionError):
+                service.import_drive_files(db, user_id="user-123", file_ids=["file-1"])
 
 
 class InkwiseDispositionFilenameTests(unittest.TestCase):

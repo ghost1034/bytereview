@@ -206,6 +206,7 @@ class InkwiseSourceNormalizer:
         source_kind: str,
         mime_type: str,
     ) -> NormalizedSource:
+        page_count = 1 if source_kind == "image" else 0
         return NormalizedSource(
             source_kind=source_kind,
             title=title,
@@ -216,7 +217,7 @@ class InkwiseSourceNormalizer:
             text_blocks=[],
             assets=[NormalizedAsset(kind=f"{source_kind}_asset", mime_type=mime_type, local_path=local_path)],
             metadata={
-                "page_count": 0,
+                "page_count": page_count,
                 "normalization": f"{source_kind}_passthrough",
             },
         )

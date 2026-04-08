@@ -1430,6 +1430,10 @@ export interface InkwiseSourceIngestion {
   started_at?: string | null
   finished_at?: string | null
   page_count?: number | null
+  usage_basis?: string | null
+  usage_pages?: number | null
+  usage_tokens?: number | null
+  usage_tokens_per_page?: number | null
   segment_count?: number | null
   provider_document_name?: string | null
   preview_manifest_bucket?: string | null

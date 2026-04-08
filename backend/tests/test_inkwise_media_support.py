@@ -39,6 +39,7 @@ class InkwiseMediaNormalizationTests(unittest.TestCase):
 
         self.assertEqual(normalized.source_kind, "image")
         self.assertEqual(normalized.canonical_mime_type, "image/png")
+        self.assertEqual(normalized.page_count, 1)
         self.assertEqual(normalized.text_blocks, [])
         self.assertEqual(normalized.assets[0].kind, "image_asset")
 

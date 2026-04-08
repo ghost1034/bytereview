@@ -8,6 +8,7 @@ import { GoogleDrivePicker } from '@/components/integrations/GoogleDrivePicker'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { useBillingAccount } from '@/hooks/useBilling'
 import { useToast } from '@/hooks/use-toast'
 import { apiClient, type InkwiseSource } from '@/lib/api'
 
@@ -28,7 +29,9 @@ export function InkwiseSourceImportPanel({
   const folderInputRef = useRef<HTMLInputElement | null>(null)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { data: billingAccount } = useBillingAccount()
   const [webpageUrl, setWebpageUrl] = useState('')
+  const allowRichMedia = billingAccount?.plan_code === 'pro'
 
   const refreshSources = async () => {
     await queryClient.invalidateQueries({ queryKey: ['inkwise', 'sources'] })
@@ -49,9 +52,16 @@ export function InkwiseSourceImportPanel({
 
   const uploadLocalItems = useMutation({
     mutationFn: async (files: File[]) => {
-      const supportedFiles = files.filter(isSupportedSourceFile)
+      if (!allowRichMedia && files.some(isAudioOrVideoSourceFile)) {
+        throw new Error('Audio and video references require the Pro plan.')
+      }
+      const supportedFiles = files.filter((file) => isSupportedSourceFile(file, allowRichMedia))
       if (!supportedFiles.length) {
-        throw new Error('No supported document, image, audio, video, or ZIP files were selected')
+        throw new Error(
+          allowRichMedia
+            ? 'No supported document, image, audio, video, or ZIP files were selected'
+            : 'No supported document, image, or ZIP files were selected'
+        )
       }
       const imported: InkwiseSource[] = []
       for (const file of supportedFiles) {
@@ -119,16 +129,19 @@ export function InkwiseSourceImportPanel({
 
   return (
     <Card>
-      <CardHeader className={compact ? 'pb-3' : undefined}>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
+        <CardHeader className={compact ? 'pb-3' : undefined}>
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
+          {!allowRichMedia ? (
+            <p className="text-sm text-slate-500">Audio and video references require the Pro plan.</p>
+          ) : null}
+        </CardHeader>
       <CardContent className={compact ? 'space-y-4' : 'space-y-5'}>
         <input
           ref={fileInputRef}
           type="file"
           multiple
-          accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip,application/x-zip-compressed,image/jpeg,image/png,audio/mp3,audio/mpeg,audio/wav,video/mp4,video/mpeg,.pdf,.docx,.zip,.jpg,.jpeg,.png,.mp3,.wav,.mp4,.mpeg,.mpg"
+          accept={buildAcceptedSourceTypes(allowRichMedia)}
           className="hidden"
           onChange={(event) => {
             const files = Array.from(event.target.files ?? [])
@@ -189,11 +202,9 @@ export function InkwiseSourceImportPanel({
             'application/x-zip-compressed',
             'image/jpeg',
             'image/png',
-            'audio/mp3',
-            'audio/mpeg',
-            'audio/wav',
-            'video/mp4',
-            'video/mpeg',
+            ...(allowRichMedia
+              ? ['audio/mp3', 'audio/mpeg', 'audio/wav', 'video/mp4', 'video/mpeg']
+              : []),
           ]}
         />
       </CardContent>
@@ -243,7 +254,37 @@ function getRelativePath(file: File): string {
   return withRelativePath.webkitRelativePath?.trim() || file.name
 }
 
-function isSupportedSourceFile(file: File): boolean {
+function buildAcceptedSourceTypes(allowRichMedia: boolean): string {
+  return [
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/zip',
+    'application/x-zip-compressed',
+    'image/jpeg',
+    'image/png',
+    ...(allowRichMedia ? ['audio/mp3', 'audio/mpeg', 'audio/wav', 'video/mp4', 'video/mpeg'] : []),
+    '.pdf',
+    '.docx',
+    '.zip',
+    '.jpg',
+    '.jpeg',
+    '.png',
+    ...(allowRichMedia ? ['.mp3', '.wav', '.mp4', '.mpeg', '.mpg'] : []),
+  ].join(',')
+}
+
+function isAudioOrVideoSourceFile(file: File): boolean {
+  const filename = file.name.toLowerCase()
+  return (
+    filename.endsWith('.mp3') ||
+    filename.endsWith('.wav') ||
+    filename.endsWith('.mp4') ||
+    filename.endsWith('.mpeg') ||
+    filename.endsWith('.mpg')
+  )
+}
+
+function isSupportedSourceFile(file: File, allowRichMedia: boolean): boolean {
   const filename = file.name.toLowerCase()
   return (
     filename.endsWith('.pdf') ||
@@ -252,10 +293,6 @@ function isSupportedSourceFile(file: File): boolean {
     filename.endsWith('.jpg') ||
     filename.endsWith('.jpeg') ||
     filename.endsWith('.png') ||
-    filename.endsWith('.mp3') ||
-    filename.endsWith('.wav') ||
-    filename.endsWith('.mp4') ||
-    filename.endsWith('.mpeg') ||
-    filename.endsWith('.mpg')
+    (allowRichMedia && isAudioOrVideoSourceFile(file))
   )
 }
