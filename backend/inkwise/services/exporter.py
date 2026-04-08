@@ -16,6 +16,7 @@ class ExportError(RuntimeError):
 _TAG_RE = re.compile(r"<[^>]+>")
 _BR_RE = re.compile(r"<\s*br\s*/?\s*>", re.IGNORECASE)
 _P_END_RE = re.compile(r"</\s*p\s*>", re.IGNORECASE)
+_PAGE_BREAK_SENTINEL = "\f"
 
 
 def html_to_text(content_html: str | None) -> str:
@@ -31,17 +32,80 @@ def html_to_text(content_html: str | None) -> str:
     return text.strip()
 
 
+def _normalize_block_text(value: str) -> str:
+    value = (value or "").replace("\r\n", "\n").replace("\r", "\n")
+    value = re.sub(r"\n{3,}", "\n\n", value)
+    return value.strip()
+
+
+def _content_json_to_text(content_json: Any) -> str:
+    def render_node(node: Any) -> str:
+        if isinstance(node, str):
+            return node
+        if not isinstance(node, dict):
+            return ""
+
+        node_type = node.get("type")
+        content = node.get("content") or []
+
+        if node_type == "text":
+            return str(node.get("text") or "")
+        if node_type == "inkwiseCitationAnchor":
+            return ""
+        if node_type == "inkwisePageBreak":
+            return _PAGE_BREAK_SENTINEL
+
+        if node_type in {"doc", "paragraph", "heading", "blockquote", "tableCell", "tableHeader"}:
+            rendered = "".join(render_node(child) for child in content)
+            return _normalize_block_text(rendered)
+
+        if node_type == "listItem":
+            rendered = " ".join(part for part in (render_node(child) for child in content) if part)
+            return _normalize_block_text(rendered)
+
+        if node_type == "bulletList":
+            return "\n".join(f"- {item}" for item in (render_node(child) for child in content) if item)
+
+        if node_type == "orderedList":
+            items = [item for item in (render_node(child) for child in content) if item]
+            return "\n".join(f"{index}. {item}" for index, item in enumerate(items, start=1))
+
+        if node_type == "tableRow":
+            cells = [render_node(child) for child in content]
+            return "\t".join(cell for cell in cells if cell is not None)
+
+        if node_type == "table":
+            rows = [render_node(child) for child in content]
+            return "\n".join(row for row in rows if row)
+
+        rendered_children = [render_node(child) for child in content]
+        return _normalize_block_text("\n".join(part for part in rendered_children if part))
+
+    if not isinstance(content_json, dict):
+        return ""
+
+    text = render_node(content_json)
+    text = text.replace(f"{_PAGE_BREAK_SENTINEL}\n", _PAGE_BREAK_SENTINEL)
+    text = text.replace(f"\n{_PAGE_BREAK_SENTINEL}", _PAGE_BREAK_SENTINEL)
+    return _normalize_block_text(text.replace(_PAGE_BREAK_SENTINEL, f"\n{_PAGE_BREAK_SENTINEL}\n"))
+
+
 def content_to_text(*, content_html: str | None, content_json: Any = None) -> str:
+    if isinstance(content_json, dict):
+        structured_text = _content_json_to_text(content_json)
+        if structured_text:
+            return structured_text
+
     text = html_to_text(content_html)
     if text:
         return text
+    if isinstance(content_json, str):
+        return content_json.strip()
     if isinstance(content_json, dict):
         try:
             return json.dumps(content_json, ensure_ascii=True, indent=2)
         except Exception:
             return str(content_json)
-    if isinstance(content_json, str):
-        return content_json.strip()
     return ""
 
 
@@ -78,8 +142,12 @@ def render_docx(*, title: str, content_html: str | None, content_json: Any = Non
     doc.add_heading(title or "Untitled", level=1)
     text = content_to_text(content_html=content_html, content_json=content_json)
     if text:
-        for paragraph in text.split("\n\n"):
-            doc.add_paragraph(paragraph)
+        page_chunks = text.split(_PAGE_BREAK_SENTINEL)
+        for page_index, page_chunk in enumerate(page_chunks):
+            if page_index > 0:
+                doc.add_page_break()
+            for paragraph in [item for item in page_chunk.split("\n\n") if item.strip()]:
+                doc.add_paragraph(paragraph)
 
     buf = io.BytesIO()
     doc.save(buf)
@@ -117,18 +185,24 @@ def render_pdf(*, title: str, content_html: str | None, content_json: Any = None
     canvas.setFont(font_body, 11)
 
     text = content_to_text(content_html=content_html, content_json=content_json)
-    lines = _wrap_lines(text, max_chars=95)
     leading = 14
-    for line in lines:
-        if y <= margin_y:
+    for page_index, page_chunk in enumerate(text.split(_PAGE_BREAK_SENTINEL)):
+        if page_index > 0:
             canvas.showPage()
             canvas.setFont(font_body, 11)
             y = page_h - margin_y
-        if not line:
+
+        lines = _wrap_lines(page_chunk, max_chars=95)
+        for line in lines:
+            if y <= margin_y:
+                canvas.showPage()
+                canvas.setFont(font_body, 11)
+                y = page_h - margin_y
+            if not line:
+                y -= leading
+                continue
+            canvas.drawString(margin_x, y, line[:200])
             y -= leading
-            continue
-        canvas.drawString(margin_x, y, line[:200])
-        y -= leading
 
     canvas.showPage()
     canvas.save()

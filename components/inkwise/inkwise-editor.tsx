@@ -8,12 +8,24 @@ import { useEffect, useMemo, useRef } from 'react'
 import { InkwiseCitationAnchorEditorNode } from '@/components/inkwise/editor-citation-anchor'
 import { createPredictionExtension, refreshPredictionDecorations } from '@/components/inkwise/editor-prediction'
 import { InkwiseEditorToolbar } from '@/components/inkwise/editor-toolbar'
+import {
+  createTrackChangesExtension,
+  getInkwiseComments,
+  getInkwiseTrackedChanges,
+  type InkwiseEditorCommentThread,
+  type InkwiseTrackedChange,
+} from '@/lib/inkwise-editor-extensions'
 import { INKWISE_TIPTAP_BASE_EXTENSIONS } from '@/lib/inkwise-tiptap'
 
 export type InkwiseEditorValue = {
   json: JSONContent
   html: string
   text: string
+}
+
+export type InkwiseEditorReviewState = {
+  comments: InkwiseEditorCommentThread[]
+  changes: InkwiseTrackedChange[]
 }
 
 export function InkwiseEditor({
@@ -29,6 +41,9 @@ export function InkwiseEditor({
   onBlur,
   editable = true,
   allowExternalSetContent = true,
+  trackChangesEnabled = false,
+  onTrackChangesEnabledChange,
+  onReviewDataChange,
   className,
 }: {
   contentJson: JSONContent | null | undefined
@@ -43,6 +58,9 @@ export function InkwiseEditor({
   onBlur?: () => void
   editable?: boolean
   allowExternalSetContent?: boolean
+  trackChangesEnabled?: boolean
+  onTrackChangesEnabledChange?: (enabled: boolean) => void
+  onReviewDataChange?: (value: InkwiseEditorReviewState) => void
   className?: string
 }) {
   const incoming = useMemo(() => {
@@ -65,6 +83,11 @@ export function InkwiseEditor({
 
   const onBlurRef = useRef(onBlur)
   onBlurRef.current = onBlur
+  const trackChangesEnabledRef = useRef(Boolean(trackChangesEnabled))
+  trackChangesEnabledRef.current = Boolean(trackChangesEnabled)
+
+  const onReviewDataChangeRef = useRef(onReviewDataChange)
+  onReviewDataChangeRef.current = onReviewDataChange
 
   const predictionExtension = useMemo(
     () =>
@@ -76,6 +99,7 @@ export function InkwiseEditor({
       }),
     [],
   )
+  const trackChangesExtension = useMemo(() => createTrackChangesExtension(() => trackChangesEnabledRef.current), [])
 
   const editor = useEditor({
     extensions: [
@@ -83,6 +107,7 @@ export function InkwiseEditor({
       Placeholder.configure({ placeholder: placeholder || 'Start writing...' }),
       InkwiseCitationAnchorEditorNode,
       predictionExtension,
+      trackChangesExtension,
     ],
     content: incoming,
     editable,
@@ -133,13 +158,38 @@ export function InkwiseEditor({
     refreshPredictionDecorations(editor)
   }, [editor, predictionText, predictionLoading])
 
+  useEffect(() => {
+    if (!editor) return
+
+    const syncReviewData = () => {
+      onReviewDataChangeRef.current?.({
+        comments: getInkwiseComments(editor),
+        changes: getInkwiseTrackedChanges(editor),
+      })
+    }
+
+    syncReviewData()
+    editor.on('update', syncReviewData)
+    editor.on('selectionUpdate', syncReviewData)
+    return () => {
+      editor.off('update', syncReviewData)
+      editor.off('selectionUpdate', syncReviewData)
+    }
+  }, [editor])
+
   if (!editor) {
     return <div className={`min-h-[320px] rounded-2xl border bg-white ${className || ''}`} />
   }
 
   return (
     <div className={`overflow-hidden rounded-2xl border bg-white shadow-sm ${className || ''}`}>
-      {editable ? <InkwiseEditorToolbar editor={editor} /> : null}
+      {editable ? (
+        <InkwiseEditorToolbar
+          editor={editor}
+          trackChangesEnabled={trackChangesEnabled}
+          onTrackChangesEnabledChange={onTrackChangesEnabledChange}
+        />
+      ) : null}
       <EditorContent editor={editor} />
     </div>
   )

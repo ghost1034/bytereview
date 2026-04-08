@@ -25,6 +25,8 @@ export type InkwiseEditorInsertionMode = 'replace' | 'insert' | 'after' | 'appen
 
 export type InkwiseCitationReferenceMode = 'inline' | 'footnote' | 'endnote'
 
+export type InkwiseReferenceNoteMode = Exclude<InkwiseCitationReferenceMode, 'inline'>
+
 export type InkwiseEditorCitationAnchor = {
   sourceKind: InkwiseCitationAnchorSourceKind
   citations: InkwiseCitation[]
@@ -187,6 +189,46 @@ export function convertCitationAnchorReference({
   }
   endnoteNodes.push(buildParagraphNode(editor, `${referenceNumber}. ${noteText}`))
   let transaction = editor.state.tr.replaceWith(from, to, editor.state.schema.text(marker))
+  transaction = transaction.insert(transaction.mapping.map(editor.state.doc.content.size), Fragment.fromArray(endnoteNodes))
+  return dispatchCitationTransaction(editor, transaction)
+}
+
+export function insertManualReferenceNote({
+  editor,
+  noteText,
+  mode,
+  target,
+}: {
+  editor: Editor | null
+  noteText: string
+  mode: InkwiseReferenceNoteMode
+  target?: InkwiseEditorTarget | null
+}): boolean {
+  if (!editor) return false
+  const normalizedNoteText = normalizeCitationText(noteText)
+  if (!normalizedNoteText) return false
+
+  const resolvedTarget = target ?? getInkwiseEditorTarget(editor)
+  const markerPosition = resolvedTarget?.to ?? editor.state.selection.to
+  const referenceNumber = getNextCitationReferenceNumber(editor)
+
+  if (mode === 'footnote') {
+    const marker = `[^${referenceNumber}]`
+    const noteParagraph = buildParagraphNode(editor, `[^${referenceNumber}]: ${normalizedNoteText}`)
+    const textblockDepth = resolveTextblockDepth(editor, markerPosition)
+    const insertAfter = textblockDepth == null ? editor.state.doc.content.size : editor.state.doc.resolve(markerPosition).after(textblockDepth)
+    let transaction = editor.state.tr.insertText(marker, markerPosition)
+    transaction = transaction.insert(transaction.mapping.map(insertAfter), noteParagraph)
+    return dispatchCitationTransaction(editor, transaction)
+  }
+
+  const marker = `[${referenceNumber}]`
+  const endnoteNodes: ProseMirrorNode[] = []
+  if (!hasTopLevelSection(editor, 'Endnotes')) {
+    endnoteNodes.push(buildParagraphNode(editor, 'Endnotes'))
+  }
+  endnoteNodes.push(buildParagraphNode(editor, `${referenceNumber}. ${normalizedNoteText}`))
+  let transaction = editor.state.tr.insertText(marker, markerPosition)
   transaction = transaction.insert(transaction.mapping.map(editor.state.doc.content.size), Fragment.fromArray(endnoteNodes))
   return dispatchCitationTransaction(editor, transaction)
 }

@@ -3,8 +3,9 @@ import type { JSONContent } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 
 import { InkwiseCitationAnchorNode } from '@/lib/inkwise-citation-anchor'
+import { INKWISE_EDITOR_EXTENSIONS } from '@/lib/inkwise-editor-extensions'
 
-export const INKWISE_TIPTAP_BASE_EXTENSIONS = [StarterKit]
+export const INKWISE_TIPTAP_BASE_EXTENSIONS = [StarterKit, ...INKWISE_EDITOR_EXTENSIONS]
 
 export const INKWISE_TIPTAP_EXTENSIONS = [...INKWISE_TIPTAP_BASE_EXTENSIONS, InkwiseCitationAnchorNode]
 

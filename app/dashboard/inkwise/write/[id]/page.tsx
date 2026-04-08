@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Download, History, LibraryBig, Loader2, MessageSquarePlus, MessageSquareText, PanelRightClose, PanelRightOpen, Save, Settings2, Sparkles, Unplug, Wand2 } from 'lucide-react'
 
-import { InkwiseEditor } from '@/components/inkwise/inkwise-editor'
+import { InkwiseEditor, type InkwiseEditorReviewState } from '@/components/inkwise/inkwise-editor'
 import { InlineWritingTools } from '@/components/inkwise/inline-writing-tools'
 import { InkwiseCitationBubbles } from '@/components/inkwise/citation-bubbles'
 import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
@@ -46,6 +46,14 @@ import {
   replaceEditorDocumentWithMarkdown,
   stripInkwiseChatCitationMarkers,
 } from '@/lib/inkwise-editor'
+import {
+  acceptAllInkwiseTrackedChanges,
+  acceptInkwiseTrackedChange,
+  rejectAllInkwiseTrackedChanges,
+  rejectInkwiseTrackedChange,
+  removeInkwiseComment,
+  updateInkwiseComment,
+} from '@/lib/inkwise-editor-extensions'
 import { markdownToSafeHtml } from '@/lib/inkwise-markdown'
 import { INKWISE_SOURCE_POLL_INTERVAL_MS, isInkwiseSourceActiveStatus } from '@/lib/inkwise-source-status'
 import { cn, compareNaturalText } from '@/lib/utils'
@@ -160,12 +168,14 @@ export default function InkwiseDocumentPage() {
   const [predictionLoading, setPredictionLoading] = useState(false)
   const [predictionTick, setPredictionTick] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [sidebarTab, setSidebarTab] = useState<'chat' | 'references'>('chat')
+  const [sidebarTab, setSidebarTab] = useState<'chat' | 'references' | 'review'>('chat')
   const [chatSourceChecked, setChatSourceChecked] = useState<Record<string, boolean>>({})
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
   const [chatInsertKey, setChatInsertKey] = useState<string | null>(null)
+  const [trackChangesEnabled, setTrackChangesEnabled] = useState(false)
+  const [reviewState, setReviewState] = useState<InkwiseEditorReviewState>({ comments: [], changes: [] })
   const predictionTimeoutRef = useRef<number | null>(null)
   const predictionSeqRef = useRef(0)
   const suppressPredictionUntilRef = useRef(0)
@@ -634,6 +644,49 @@ export default function InkwiseDocumentPage() {
   )
   const primaryChatInsertMode: ChatInsertMode = editorTarget ? 'insert' : 'append'
   const primaryChatInsertLabel = editorTarget ? 'Insert at cursor' : 'Append to end'
+  const pendingCommentCount = useMemo(() => reviewState.comments.filter((comment) => !comment.resolved).length, [reviewState.comments])
+  const pendingChangeCount = reviewState.changes.length
+
+  const focusEditorRange = useCallback((from: number, to: number) => {
+    if (!editor) return
+    editor.chain().focus().setTextSelection({ from, to }).run()
+  }, [editor])
+
+  const handleCommentResolvedChange = useCallback((commentId: string, resolved: boolean) => {
+    if (!editor) return
+    suppressPredictions(1800)
+    updateInkwiseComment(editor, commentId, { resolved })
+  }, [editor])
+
+  const handleCommentDelete = useCallback((commentId: string) => {
+    if (!editor) return
+    suppressPredictions(1800)
+    removeInkwiseComment(editor, commentId)
+  }, [editor])
+
+  const handleAcceptChange = useCallback((changeId: string) => {
+    if (!editor) return
+    suppressPredictions(1800)
+    acceptInkwiseTrackedChange(editor, changeId)
+  }, [editor])
+
+  const handleRejectChange = useCallback((changeId: string) => {
+    if (!editor) return
+    suppressPredictions(1800)
+    rejectInkwiseTrackedChange(editor, changeId)
+  }, [editor])
+
+  const handleAcceptAllChanges = useCallback(() => {
+    if (!editor) return
+    suppressPredictions(1800)
+    acceptAllInkwiseTrackedChanges(editor)
+  }, [editor])
+
+  const handleRejectAllChanges = useCallback(() => {
+    if (!editor) return
+    suppressPredictions(1800)
+    rejectAllInkwiseTrackedChanges(editor)
+  }, [editor])
 
   useEffect(() => {
     if (!editor) {
@@ -802,7 +855,11 @@ export default function InkwiseDocumentPage() {
             Select text in the editor to open inline rewrite tools. Grounded predictions and citations stay attached to the writing surface.
           </div>
           <div className="hidden lg:block">
-            {initPrompt.trim() ? 'Prompt guidance is active for this document.' : 'Prompt guidance is currently empty.'}
+            {trackChangesEnabled
+              ? 'Track changes is on. New edits are marked for review.'
+              : initPrompt.trim()
+                ? 'Prompt guidance is active for this document.'
+                : 'Prompt guidance is currently empty.'}
           </div>
         </div>
       </section>
@@ -829,6 +886,9 @@ export default function InkwiseDocumentPage() {
               contentHtml={contentHtml}
               placeholder="Start writing here..."
               onEditor={setEditor}
+              trackChangesEnabled={trackChangesEnabled}
+              onTrackChangesEnabledChange={setTrackChangesEnabled}
+              onReviewDataChange={setReviewState}
               predictionText={predictionState?.text || ''}
               predictionLoading={predictionLoading}
               onAcceptPrediction={() => {
@@ -917,9 +977,9 @@ export default function InkwiseDocumentPage() {
           </div>
 
           {sidebarOpen ? (
-            <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as 'chat' | 'references')} className="flex h-full min-h-[32rem] flex-col">
+            <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as 'chat' | 'references' | 'review')} className="flex h-full min-h-[32rem] flex-col">
               <div className="border-b px-3 py-3">
-                <TabsList className="grid w-full grid-cols-2 rounded-2xl bg-slate-100">
+                <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-slate-100">
                   <TabsTrigger value="chat" className="rounded-xl">
                     <MessageSquareText className="mr-2 h-4 w-4" />
                     AI Chat
@@ -927,6 +987,10 @@ export default function InkwiseDocumentPage() {
                   <TabsTrigger value="references" className="rounded-xl">
                     <LibraryBig className="mr-2 h-4 w-4" />
                     References
+                  </TabsTrigger>
+                  <TabsTrigger value="review" className="rounded-xl">
+                    <Wand2 className="mr-2 h-4 w-4" />
+                    Review
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -1184,6 +1248,111 @@ export default function InkwiseDocumentPage() {
                   </div>
                 </ScrollArea>
               </TabsContent>
+
+              <TabsContent value="review" className="mt-0 min-h-0 flex-1 px-3 pb-3">
+                <ScrollArea className="h-full rounded-2xl bg-slate-50 p-3">
+                  <div className="space-y-5 p-1">
+                    <div className="rounded-2xl border bg-white p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-medium text-slate-900">Tracked changes</div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            {trackChangesEnabled ? 'New edits are being marked.' : 'Turn on track changes in the editor toolbar to mark edits.'}
+                          </div>
+                        </div>
+                        <div className="text-xs text-slate-500">{pendingChangeCount} pending</div>
+                      </div>
+
+                      {reviewState.changes.length ? (
+                        <>
+                          <div className="mt-3 flex gap-2">
+                            <Button size="sm" variant="outline" onClick={handleRejectAllChanges}>
+                              Reject all
+                            </Button>
+                            <Button size="sm" onClick={handleAcceptAllChanges}>
+                              Accept all
+                            </Button>
+                          </div>
+                          <div className="mt-4 space-y-3">
+                            {reviewState.changes.map((change) => (
+                              <div key={change.id} className="rounded-2xl border bg-slate-50 p-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <div className="text-sm font-medium text-slate-900">{change.kind === 'deletion' ? 'Deletion' : 'Insertion'}</div>
+                                    <div className="mt-1 text-xs text-slate-500">{change.createdAt ? new Date(change.createdAt).toLocaleString() : 'Pending review'}</div>
+                                  </div>
+                                  <Button size="sm" variant="outline" onClick={() => focusEditorRange(change.from, change.to)}>
+                                    Jump to change
+                                  </Button>
+                                </div>
+                                <div className="mt-3 rounded-xl border bg-white px-3 py-2 text-sm text-slate-700">{change.text || 'No text captured.'}</div>
+                                <div className="mt-3 flex gap-2">
+                                  <Button size="sm" variant="outline" onClick={() => handleRejectChange(change.id)}>
+                                    Reject
+                                  </Button>
+                                  <Button size="sm" onClick={() => handleAcceptChange(change.id)}>
+                                    Accept
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="mt-3 rounded-2xl border border-dashed bg-slate-50 p-4 text-sm text-slate-500">
+                          No tracked changes yet.
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="rounded-2xl border bg-white p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-medium text-slate-900">Comments</div>
+                          <div className="mt-1 text-xs text-slate-500">Select text in the editor and use the Comment action in the toolbar.</div>
+                        </div>
+                        <div className="text-xs text-slate-500">{pendingCommentCount} open</div>
+                      </div>
+
+                      {reviewState.comments.length ? (
+                        <div className="mt-4 space-y-3">
+                          {reviewState.comments.map((comment) => (
+                            <div key={comment.id} className={cn('rounded-2xl border p-3', comment.resolved ? 'bg-slate-50' : 'bg-amber-50/50')}>
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="text-sm font-medium text-slate-900">{comment.resolved ? 'Resolved comment' : 'Open comment'}</div>
+                                  <div className="mt-1 text-xs text-slate-500">{comment.createdAt ? new Date(comment.createdAt).toLocaleString() : 'Just added'}</div>
+                                </div>
+                                <Button size="sm" variant="outline" onClick={() => focusEditorRange(comment.from, comment.to)}>
+                                  Jump to text
+                                </Button>
+                              </div>
+                              <div className="mt-3 rounded-xl border bg-white px-3 py-2 text-sm text-slate-700">{comment.body}</div>
+                              <div className="mt-2 text-xs text-slate-500">Quoted text: {comment.quote || 'No quoted text available.'}</div>
+                              <div className="mt-3 flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCommentResolvedChange(comment.id, !comment.resolved)}
+                                >
+                                  {comment.resolved ? 'Reopen' : 'Resolve'}
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => handleCommentDelete(comment.id)}>
+                                  Delete
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="mt-3 rounded-2xl border border-dashed bg-slate-50 p-4 text-sm text-slate-500">
+                          No comments yet.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </ScrollArea>
+              </TabsContent>
             </Tabs>
           ) : (
             <div className="flex flex-col gap-2 p-3 xl:items-center xl:justify-start xl:py-4">
@@ -1210,6 +1379,18 @@ export default function InkwiseDocumentPage() {
                 aria-label="Open References sidebar"
               >
                 <LibraryBig className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={sidebarTab === 'review' ? 'default' : 'outline'}
+                size="icon"
+                className="h-11 w-11 rounded-2xl"
+                onClick={() => {
+                  setSidebarTab('review')
+                  setSidebarOpen(true)
+                }}
+                aria-label="Open Review sidebar"
+              >
+                <Wand2 className="h-4 w-4" />
               </Button>
             </div>
           )}
