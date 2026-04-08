@@ -24,10 +24,12 @@ export function InkwiseEditorToolbar({
   editor,
   trackChangesEnabled = false,
   onTrackChangesEnabledChange,
+  focusMode = false,
 }: {
   editor: Editor
   trackChangesEnabled?: boolean
   onTrackChangesEnabledChange?: (enabled: boolean) => void
+  focusMode?: boolean
 }) {
   const [, setRenderTick] = useState(0)
   const [tableRows, setTableRows] = useState('3')
@@ -87,7 +89,11 @@ export function InkwiseEditorToolbar({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-t-xl border-b bg-slate-50 p-3">
+    <div
+      className={focusMode
+        ? 'flex flex-wrap items-center gap-2 rounded-t-xl border-b border-white/20 bg-white/35 p-3 backdrop-blur-xl'
+        : 'flex flex-wrap items-center gap-2 rounded-t-xl border-b bg-slate-50 p-3'}
+    >
       {items.map((item) => (
         <Button
           key={item.label}
@@ -213,7 +219,7 @@ export function InkwiseEditorToolbar({
         </PopoverContent>
       </Popover>
 
-      <div className="ml-auto flex items-center gap-3 rounded-xl border bg-white px-3 py-2">
+      <div className={focusMode ? 'ml-auto flex items-center gap-3 rounded-xl border border-white/20 bg-white/50 px-3 py-2 backdrop-blur' : 'ml-auto flex items-center gap-3 rounded-xl border bg-white px-3 py-2'}>
         <div>
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Track changes</div>
           <div className="text-[11px] text-slate-500">Single-user review mode</div>

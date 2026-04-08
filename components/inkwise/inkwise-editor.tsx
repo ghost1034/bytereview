@@ -45,6 +45,7 @@ export function InkwiseEditor({
   onTrackChangesEnabledChange,
   onReviewDataChange,
   className,
+  focusMode = false,
 }: {
   contentJson: JSONContent | null | undefined
   contentHtml: string | null | undefined
@@ -62,6 +63,7 @@ export function InkwiseEditor({
   onTrackChangesEnabledChange?: (enabled: boolean) => void
   onReviewDataChange?: (value: InkwiseEditorReviewState) => void
   className?: string
+  focusMode?: boolean
 }) {
   const incoming = useMemo(() => {
     if (contentJson) return contentJson
@@ -114,7 +116,9 @@ export function InkwiseEditor({
     editorProps: {
       attributes: {
         class:
-          'prose prose-slate max-w-none min-h-[320px] px-4 py-4 focus:outline-none prose-headings:font-semibold prose-p:leading-7',
+          focusMode
+            ? 'prose prose-slate max-w-none min-h-[calc(100vh-18rem)] px-5 py-5 focus:outline-none text-slate-900 prose-headings:font-semibold prose-p:leading-7 sm:px-6 sm:py-6'
+            : 'prose prose-slate max-w-none min-h-[320px] px-4 py-4 focus:outline-none prose-headings:font-semibold prose-p:leading-7',
       },
     },
     onUpdate: ({ editor }) => {
@@ -178,16 +182,23 @@ export function InkwiseEditor({
   }, [editor])
 
   if (!editor) {
-    return <div className={`min-h-[320px] rounded-2xl border bg-white ${className || ''}`} />
+    return (
+      <div
+        className={`min-h-[320px] rounded-2xl border ${focusMode ? 'border-white/20 bg-white/45 shadow-2xl shadow-slate-950/20 backdrop-blur-xl' : 'bg-white'} ${className || ''}`}
+      />
+    )
   }
 
   return (
-    <div className={`overflow-hidden rounded-2xl border bg-white shadow-sm ${className || ''}`}>
+    <div
+      className={`overflow-hidden rounded-2xl border ${focusMode ? 'border-white/25 bg-white/45 shadow-2xl shadow-slate-950/20 backdrop-blur-xl' : 'bg-white shadow-sm'} ${className || ''}`}
+    >
       {editable ? (
         <InkwiseEditorToolbar
           editor={editor}
           trackChangesEnabled={trackChangesEnabled}
           onTrackChangesEnabledChange={onTrackChangesEnabledChange}
+          focusMode={focusMode}
         />
       ) : null}
       <EditorContent editor={editor} />

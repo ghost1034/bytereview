@@ -82,7 +82,7 @@ export function Sidebar({ className }: SidebarProps) {
 
   return (
     <div className={cn(
-      "flex flex-col bg-white border-r border-gray-200 transition-all duration-300",
+      "dashboard-sidebar-shell flex flex-col border-r border-gray-200 bg-white transition-all duration-300",
       collapsed ? "w-16" : "w-64",
       className
     )}>

@@ -4,7 +4,7 @@ import type { Editor as TiptapEditor, JSONContent } from '@tiptap/core'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Cloud, Download, History, LibraryBig, Loader2, MessageSquarePlus, MessageSquareText, PanelRightClose, PanelRightOpen, Save, Settings2, Sparkles, Unplug, Wand2 } from 'lucide-react'
+import { Cloud, Download, History, LibraryBig, Loader2, Maximize2, MessageSquarePlus, MessageSquareText, Minimize2, PanelRightClose, PanelRightOpen, Save, Settings2, Sparkles, Unplug, Volume2, VolumeX, Wand2 } from 'lucide-react'
 
 import { InkwiseEditor, type InkwiseEditorReviewState } from '@/components/inkwise/inkwise-editor'
 import { InkwiseSourceImportPanel } from '@/components/inkwise/source-import-panel'
@@ -66,6 +66,8 @@ const MAX_PREDICTION_BEFORE_TEXT = 12000
 const MAX_PREDICTION_AFTER_TEXT = 4000
 const MAX_PREDICTION_BLOCK_TEXT = 4000
 const PREDICTION_DEBOUNCE_MS = 900
+const FOCUS_MODE_MUTE_STORAGE_KEY = 'cpaa_inkwise_focus_mode_muted_v1'
+const FOCUS_MODE_AUDIO_SRC = '/audio/inkwise-white-noise-loop.wav'
 
 type StreamState = {
   text: string
@@ -188,11 +190,18 @@ export default function InkwiseDocumentPage() {
   const [chatInsertKey, setChatInsertKey] = useState<string | null>(null)
   const [trackChangesEnabled, setTrackChangesEnabled] = useState(false)
   const [reviewState, setReviewState] = useState<InkwiseEditorReviewState>({ comments: [], changes: [] })
+  const [focusModeEnabled, setFocusModeEnabled] = useState(false)
+  const [browserFullscreenActive, setBrowserFullscreenActive] = useState(false)
+  const [focusModeMuted, setFocusModeMuted] = useState(false)
+  const [focusMutePreferenceReady, setFocusMutePreferenceReady] = useState(false)
   const predictionTimeoutRef = useRef<number | null>(null)
   const predictionSeqRef = useRef(0)
   const suppressPredictionUntilRef = useRef(0)
   const predictionAbortRef = useRef<AbortController | null>(null)
   const citationSheetOpenRef = useRef(false)
+  const focusModeEnabledRef = useRef(false)
+  const fullscreenWasActiveRef = useRef(false)
+  const focusAudioRef = useRef<HTMLAudioElement | null>(null)
 
   const clearPredictionTimeout = () => {
     if (predictionTimeoutRef.current) {
@@ -247,6 +256,78 @@ export default function InkwiseDocumentPage() {
       setSelectedRevisionId(firstRevisionId)
     }
   }, [revisionsQuery.data, selectedRevisionId])
+
+  useEffect(() => {
+    focusModeEnabledRef.current = focusModeEnabled
+  }, [focusModeEnabled])
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(FOCUS_MODE_MUTE_STORAGE_KEY)
+      if (stored === 'true' || stored === 'false') {
+        setFocusModeMuted(stored === 'true')
+      }
+    } catch {
+      // localStorage unavailable
+    } finally {
+      setFocusMutePreferenceReady(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!focusMutePreferenceReady) return
+    try {
+      window.localStorage.setItem(FOCUS_MODE_MUTE_STORAGE_KEY, String(focusModeMuted))
+    } catch {
+      // localStorage unavailable
+    }
+  }, [focusModeMuted, focusMutePreferenceReady])
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const active = Boolean(document.fullscreenElement)
+      setBrowserFullscreenActive(active)
+
+      if (!active && fullscreenWasActiveRef.current && focusModeEnabledRef.current) {
+        setFocusModeEnabled(false)
+      }
+
+      fullscreenWasActiveRef.current = active
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!focusModeEnabled || browserFullscreenActive) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setFocusModeEnabled(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [focusModeEnabled, browserFullscreenActive])
+
+  useEffect(() => {
+    if (!focusModeEnabled) return
+
+    document.body.classList.add('inkwise-focus-mode-active')
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.classList.remove('inkwise-focus-mode-active')
+      document.body.style.overflow = previousOverflow
+    }
+  }, [focusModeEnabled])
 
   const messagesQuery = useInkwiseChatMessages(selectedThreadId)
 
@@ -688,6 +769,7 @@ export default function InkwiseDocumentPage() {
   const primaryChatInsertLabel = editorTarget ? 'Insert at cursor' : 'Append to end'
   const pendingCommentCount = useMemo(() => reviewState.comments.filter((comment) => !comment.resolved).length, [reviewState.comments])
   const pendingChangeCount = reviewState.changes.length
+  const focusModeStatusLabel = browserFullscreenActive ? 'Browser fullscreen active' : 'Overlay fallback active'
 
   const focusEditorRange = useCallback((from: number, to: number) => {
     if (!editor) return
@@ -729,6 +811,77 @@ export default function InkwiseDocumentPage() {
     suppressPredictions(1800)
     rejectAllInkwiseTrackedChanges(editor)
   }, [editor])
+
+  const syncFocusAudio = useCallback((nextEnabled: boolean, nextMuted: boolean, shouldAttemptPlayback: boolean) => {
+    const audio = focusAudioRef.current
+    if (!audio) return
+
+    audio.loop = true
+    audio.muted = nextMuted
+    audio.volume = 0.18
+
+    if (!nextEnabled || nextMuted) {
+      audio.pause()
+      return
+    }
+
+    if (shouldAttemptPlayback || !audio.paused) {
+      void audio.play().catch(() => {
+        // Autoplay can still be blocked; keep the UI responsive and allow retry via mute toggle.
+      })
+    }
+  }, [])
+
+  const enterFocusMode = useCallback(async () => {
+    setFocusModeEnabled(true)
+    syncFocusAudio(true, focusModeMuted, true)
+
+    if (document.fullscreenElement) {
+      setBrowserFullscreenActive(true)
+      fullscreenWasActiveRef.current = true
+      return
+    }
+
+    try {
+      await document.documentElement.requestFullscreen()
+    } catch {
+      setBrowserFullscreenActive(false)
+      fullscreenWasActiveRef.current = false
+    }
+  }, [focusModeMuted, syncFocusAudio])
+
+  const exitFocusMode = useCallback(() => {
+    setFocusModeEnabled(false)
+    syncFocusAudio(false, focusModeMuted, false)
+
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {
+        // Ignore browser-specific fullscreen exit failures.
+      })
+    }
+  }, [focusModeMuted, syncFocusAudio])
+
+  const toggleFocusModeMuted = useCallback(() => {
+    const nextMuted = !focusModeMuted
+    setFocusModeMuted(nextMuted)
+    syncFocusAudio(focusModeEnabled, nextMuted, focusModeEnabled && !nextMuted)
+  }, [focusModeEnabled, focusModeMuted, syncFocusAudio])
+
+  useEffect(() => {
+    syncFocusAudio(focusModeEnabled, focusModeMuted, false)
+  }, [focusModeEnabled, focusModeMuted, syncFocusAudio])
+
+  useEffect(() => {
+    return () => {
+      document.body.classList.remove('inkwise-focus-mode-active')
+      focusAudioRef.current?.pause()
+      if (document.fullscreenElement) {
+        void document.exitFullscreen().catch(() => {
+          // Ignore browser-specific fullscreen exit failures.
+        })
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (!editor) {
@@ -840,86 +993,159 @@ export default function InkwiseDocumentPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <section className="rounded-3xl border bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0 flex-1 space-y-2">
-            <Label htmlFor="inkwise-title" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Document Title
-            </Label>
-            <Input
-              id="inkwise-title"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              className="h-auto border-0 px-0 text-2xl font-semibold tracking-tight shadow-none focus-visible:ring-0"
-            />
-            <div className="text-xs text-slate-500">
-              {version != null ? `Version ${version}` : 'Draft'} · Editor-first workspace with grounded assistance and references.
+    <div
+      className={cn(
+        'flex flex-col gap-4',
+        focusModeEnabled && 'fixed inset-0 z-40 isolate overflow-y-auto px-4 pb-6 pt-4 sm:px-6 lg:px-8'
+      )}
+    >
+      {focusModeEnabled ? (
+        <>
+          <div className="inkwise-focus-backdrop pointer-events-none absolute inset-0" />
+          <div className="inkwise-rain-layer inkwise-rain-layer-far pointer-events-none" />
+          <div className="inkwise-rain-layer pointer-events-none" />
+          <div className="inkwise-rain-layer inkwise-rain-layer-near pointer-events-none" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_42%),linear-gradient(180deg,rgba(15,23,42,0.06),rgba(15,23,42,0.4))]" />
+
+          <div className="sticky top-0 z-20 flex items-center justify-between gap-3 py-2">
+            <div className="min-w-0 rounded-full border border-white/15 bg-slate-950/25 px-4 py-3 text-white shadow-lg backdrop-blur-xl">
+              <div className="truncate text-sm font-semibold">{title || 'Untitled document'}</div>
+              <div className="text-[11px] uppercase tracking-[0.2em] text-white/65">{focusModeStatusLabel}</div>
             </div>
-            <div className="text-xs text-slate-500">
-              {initPrompt.trim() ? 'Document guidance configured in settings.' : 'No document guidance yet. Use settings to add prompt instructions.'}
+
+            <div className="flex items-center gap-2 rounded-full border border-white/15 bg-slate-950/25 p-2 shadow-lg backdrop-blur-xl">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-white/15 bg-white/10 text-white hover:bg-white/15 hover:text-white"
+                onClick={() => saveDocument.mutate()}
+                disabled={saveDocument.isPending || version == null}
+              >
+                {saveDocument.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="border-white/15 bg-white/10 text-white hover:bg-white/15 hover:text-white"
+                onClick={toggleFocusModeMuted}
+                aria-label={focusModeMuted ? 'Unmute white noise' : 'Mute white noise'}
+              >
+                {focusModeMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-white/15 bg-white/10 text-white hover:bg-white/15 hover:text-white"
+                onClick={exitFocusMode}
+              >
+                <Minimize2 className="mr-2 h-4 w-4" />
+                Exit focus
+              </Button>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {!focusModeEnabled ? (
+        <section className="rounded-3xl border bg-white shadow-sm">
+          <div className="flex flex-col gap-4 border-b px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0 flex-1 space-y-2">
+              <Label htmlFor="inkwise-title" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Document Title
+              </Label>
+              <Input
+                id="inkwise-title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                className="h-auto border-0 px-0 text-2xl font-semibold tracking-tight shadow-none focus-visible:ring-0"
+              />
+              <div className="text-xs text-slate-500">
+                {version != null ? `Version ${version}` : 'Draft'} · Editor-first workspace with grounded assistance and references.
+              </div>
+              <div className="text-xs text-slate-500">
+                {initPrompt.trim() ? 'Document guidance configured in settings.' : 'No document guidance yet. Use settings to add prompt instructions.'}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => runWritingTool.mutate()} disabled={runWritingTool.isPending}>
+                {runWritingTool.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                Coherent draft
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
+                <Settings2 className="mr-2 h-4 w-4" />
+                Settings
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => void enterFocusMode()}>
+                <Maximize2 className="mr-2 h-4 w-4" />
+                Focus mode
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
+                <Download className="mr-2 h-4 w-4" />
+                PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExport('docx')}>
+                <Download className="mr-2 h-4 w-4" />
+                DOCX
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setDriveExportOpen(true)}>
+                <Cloud className="mr-2 h-4 w-4" />
+                Export to Drive
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)}>
+                <History className="mr-2 h-4 w-4" />
+                Version history
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => deleteDocument.mutate()} disabled={deleteDocument.isPending}>
+                Delete
+              </Button>
+              <Button size="sm" onClick={() => saveDocument.mutate()} disabled={saveDocument.isPending || version == null}>
+                {saveDocument.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save
+              </Button>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => runWritingTool.mutate()} disabled={runWritingTool.isPending}>
-              {runWritingTool.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-              Coherent draft
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
-              <Settings2 className="mr-2 h-4 w-4" />
-              Settings
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
-              <Download className="mr-2 h-4 w-4" />
-              PDF
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => handleExport('docx')}>
-              <Download className="mr-2 h-4 w-4" />
-              DOCX
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setDriveExportOpen(true)}>
-              <Cloud className="mr-2 h-4 w-4" />
-              Export to Drive
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)}>
-              <History className="mr-2 h-4 w-4" />
-              Version history
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => deleteDocument.mutate()} disabled={deleteDocument.isPending}>
-              Delete
-            </Button>
-            <Button size="sm" onClick={() => saveDocument.mutate()} disabled={saveDocument.isPending || version == null}>
-              {saveDocument.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Save
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between gap-4 px-5 py-3 text-xs text-slate-500">
-          <div>
-            Select text in the editor to open inline rewrite tools. Grounded predictions and citations stay attached to the writing surface.
-          </div>
-          <div className="hidden lg:block">
-            {trackChangesEnabled
-              ? 'Track changes is on. New edits are marked for review.'
-              : initPrompt.trim()
-                ? 'Prompt guidance is active for this document.'
-                : 'Prompt guidance is currently empty.'}
-          </div>
-        </div>
-      </section>
-
-      <div className="flex min-h-[72vh] flex-col gap-4 xl:flex-row">
-        <section className="min-w-0 flex-1 rounded-3xl border bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b px-5 py-4">
+          <div className="flex items-center justify-between gap-4 px-5 py-3 text-xs text-slate-500">
             <div>
-              <div className="text-sm font-semibold text-slate-900">Write</div>
-              <div className="text-xs text-slate-500">The editor stays central while chat and references move into the sidebar.</div>
+              Select text in the editor to open inline rewrite tools. Grounded predictions and citations stay attached to the writing surface.
+            </div>
+            <div className="hidden lg:block">
+              {trackChangesEnabled
+                ? 'Track changes is on. New edits are marked for review.'
+                : initPrompt.trim()
+                  ? 'Prompt guidance is active for this document.'
+                  : 'Prompt guidance is currently empty.'}
             </div>
           </div>
+        </section>
+      ) : null}
 
-          <div className="space-y-4 px-4 py-4 sm:px-5">
+      <div className={cn('flex min-h-[72vh] flex-col gap-4 xl:flex-row', focusModeEnabled && 'relative z-10 min-h-[calc(100vh-5rem)] flex-1')}>
+        <section className={cn('min-w-0 flex-1 rounded-3xl border bg-white shadow-sm', focusModeEnabled && 'border-transparent bg-transparent shadow-none')}>
+          {!focusModeEnabled ? (
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <div>
+                <div className="text-sm font-semibold text-slate-900">Write</div>
+                <div className="text-xs text-slate-500">The editor stays central while chat and references move into the sidebar.</div>
+              </div>
+            </div>
+          ) : null}
+
+          <div className={cn('space-y-4 px-4 py-4 sm:px-5', focusModeEnabled && 'mx-auto flex h-full w-full max-w-5xl flex-col gap-5 px-0 py-4 sm:px-0')}>
+            {focusModeEnabled ? (
+              <div className="rounded-3xl border border-white/15 bg-slate-950/20 px-4 py-3 text-xs text-white/80 shadow-lg backdrop-blur-xl">
+                <div>
+                  {predictionLoading
+                    ? 'Inkwise is drafting the next suggestion while focus mode stays fullscreen.'
+                    : predictionState?.grounded
+                      ? `Press Tab to accept the grounded inline prediction. Using ${predictionState.evidence.length} evidence ${predictionState.evidence.length === 1 ? 'segment' : 'segments'}.`
+                      : 'Press Tab to accept inline predictions when they appear.'}
+                </div>
+              </div>
+            ) : null}
+
             <InlineWritingTools
               editor={editor}
               documentId={documentId}
@@ -980,10 +1206,11 @@ export default function InkwiseDocumentPage() {
                 }
                 setPredictionTick((tick) => tick + 1)
               }}
-              className="min-h-[56vh] border-0 shadow-none"
+              focusMode={focusModeEnabled}
+              className={cn('min-h-[56vh] border-0 shadow-none', focusModeEnabled && 'min-h-[calc(100vh-16rem)]')}
             />
 
-            <div className="rounded-2xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
+            <div className={cn('rounded-2xl px-4 py-3 text-xs', focusModeEnabled ? 'border border-white/15 bg-slate-950/20 text-white/80 shadow-lg backdrop-blur-xl' : 'bg-slate-50 text-slate-500')}>
               {predictionLoading
                 ? 'Inkwise is drafting the next suggestion...'
                 : predictionState?.grounded
@@ -992,7 +1219,7 @@ export default function InkwiseDocumentPage() {
             </div>
 
             {predictionState?.grounded && predictionState.evidence.length ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 px-4 py-3">
+              <div className={cn('rounded-2xl border px-4 py-3', focusModeEnabled ? 'border-emerald-200/50 bg-emerald-100/15 text-white shadow-lg backdrop-blur-xl' : 'border-emerald-200 bg-emerald-50/50')}>
                 <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Prediction Evidence</div>
                 <InkwiseCitationBubbles citations={predictionState.evidence} onSheetOpenChange={onCitationSheetOpenChange} />
               </div>
@@ -1000,30 +1227,31 @@ export default function InkwiseDocumentPage() {
           </div>
         </section>
 
-        <aside
-          className={cn(
-            'rounded-3xl border bg-white shadow-sm transition-all duration-200 xl:sticky xl:top-28 xl:self-start',
-            sidebarOpen ? 'w-full xl:w-[25rem]' : 'w-full xl:w-[5.5rem]'
-          )}
-        >
-          <div className="flex items-center justify-between border-b px-3 py-3">
-            <div className={cn('min-w-0', !sidebarOpen && 'xl:hidden')}>
-              <div className="text-sm font-semibold text-slate-900">Sidebar</div>
-              <div className="text-xs text-slate-500">AI Chat and document references</div>
+        {!focusModeEnabled ? (
+          <aside
+            className={cn(
+              'rounded-3xl border bg-white shadow-sm transition-all duration-200 xl:sticky xl:top-28 xl:self-start',
+              sidebarOpen ? 'w-full xl:w-[25rem]' : 'w-full xl:w-[5.5rem]'
+            )}
+          >
+            <div className="flex items-center justify-between border-b px-3 py-3">
+              <div className={cn('min-w-0', !sidebarOpen && 'xl:hidden')}>
+                <div className="text-sm font-semibold text-slate-900">Sidebar</div>
+                <div className="text-xs text-slate-500">AI Chat and document references</div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-xl"
+                onClick={() => setSidebarOpen((value) => !value)}
+                aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+              >
+                {sidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+              </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 rounded-xl"
-              onClick={() => setSidebarOpen((value) => !value)}
-              aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-            >
-              {sidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-            </Button>
-          </div>
 
-          {sidebarOpen ? (
-            <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as 'chat' | 'references' | 'review')} className="flex h-full min-h-[32rem] flex-col">
+            {sidebarOpen ? (
+              <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as 'chat' | 'references' | 'review')} className="flex h-full min-h-[32rem] flex-col">
               <div className="border-b px-3 py-3">
                 <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-slate-100">
                   <TabsTrigger value="chat" className="rounded-xl">
@@ -1455,8 +1683,11 @@ export default function InkwiseDocumentPage() {
               </Button>
             </div>
           )}
-        </aside>
+          </aside>
+        ) : null}
       </div>
+
+      <audio ref={focusAudioRef} src={FOCUS_MODE_AUDIO_SRC} preload="auto" loop playsInline />
 
       <Dialog open={driveExportOpen} onOpenChange={setDriveExportOpen}>
         <DialogContent className="sm:max-w-xl">
