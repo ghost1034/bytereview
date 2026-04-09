@@ -22,6 +22,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { useGaplessAudioLoop } from '@/hooks/useGaplessAudioLoop'
 import { useToast } from '@/hooks/use-toast'
 import {
   useInkwiseChatMessages,
@@ -201,7 +202,7 @@ export default function InkwiseDocumentPage() {
   const citationSheetOpenRef = useRef(false)
   const focusModeEnabledRef = useRef(false)
   const fullscreenWasActiveRef = useRef(false)
-  const focusAudioRef = useRef<HTMLAudioElement | null>(null)
+  const { syncFocusAudio, cleanup: cleanupFocusAudio } = useGaplessAudioLoop(FOCUS_MODE_AUDIO_SRC, 0.18)
 
   const clearPredictionTimeout = () => {
     if (predictionTimeoutRef.current) {
@@ -812,26 +813,6 @@ export default function InkwiseDocumentPage() {
     rejectAllInkwiseTrackedChanges(editor)
   }, [editor])
 
-  const syncFocusAudio = useCallback((nextEnabled: boolean, nextMuted: boolean, shouldAttemptPlayback: boolean) => {
-    const audio = focusAudioRef.current
-    if (!audio) return
-
-    audio.loop = true
-    audio.muted = nextMuted
-    audio.volume = 0.18
-
-    if (!nextEnabled || nextMuted) {
-      audio.pause()
-      return
-    }
-
-    if (shouldAttemptPlayback || !audio.paused) {
-      void audio.play().catch(() => {
-        // Autoplay can still be blocked; keep the UI responsive and allow retry via mute toggle.
-      })
-    }
-  }, [])
-
   const enterFocusMode = useCallback(async () => {
     setFocusModeEnabled(true)
     syncFocusAudio(true, focusModeMuted, true)
@@ -874,14 +855,14 @@ export default function InkwiseDocumentPage() {
   useEffect(() => {
     return () => {
       document.body.classList.remove('inkwise-focus-mode-active')
-      focusAudioRef.current?.pause()
+      cleanupFocusAudio()
       if (document.fullscreenElement) {
         void document.exitFullscreen().catch(() => {
           // Ignore browser-specific fullscreen exit failures.
         })
       }
     }
-  }, [])
+  }, [cleanupFocusAudio])
 
   useEffect(() => {
     if (!editor) {
@@ -1672,8 +1653,6 @@ export default function InkwiseDocumentPage() {
           )}
         </aside>
       </div>
-
-      <audio ref={focusAudioRef} src={FOCUS_MODE_AUDIO_SRC} preload="auto" loop playsInline />
 
       <Dialog open={driveExportOpen} onOpenChange={setDriveExportOpen}>
         <DialogContent className="sm:max-w-xl">
