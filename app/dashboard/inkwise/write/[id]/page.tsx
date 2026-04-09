@@ -68,7 +68,7 @@ const MAX_PREDICTION_AFTER_TEXT = 4000
 const MAX_PREDICTION_BLOCK_TEXT = 4000
 const PREDICTION_DEBOUNCE_MS = 900
 const FOCUS_MODE_MUTE_STORAGE_KEY = 'cpaa_inkwise_focus_mode_muted_v1'
-const FOCUS_MODE_AUDIO_SRC = '/audio/inkwise-white-noise-loop.wav'
+const FOCUS_MODE_AUDIO_SRC = '/audio/inkwise-white-noise-loop.mp3'
 
 type StreamState = {
   text: string
