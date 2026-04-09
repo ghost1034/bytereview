@@ -999,8 +999,7 @@ export default function InkwiseDocumentPage() {
         focusModeEnabled && 'fixed inset-0 z-40 isolate overflow-y-auto px-4 pb-6 pt-4 sm:px-6 lg:px-8'
       )}
     >
-      {focusModeEnabled ? (
-        <>
+      <div className={cn(focusModeEnabled ? 'contents' : 'hidden')}>
           <div className="inkwise-focus-backdrop pointer-events-none absolute inset-0" />
           <div className="inkwise-rain-layer inkwise-rain-layer-far pointer-events-none" />
           <div className="inkwise-rain-layer pointer-events-none" />
@@ -1044,11 +1043,9 @@ export default function InkwiseDocumentPage() {
               </Button>
             </div>
           </div>
-        </>
-      ) : null}
+      </div>
 
-      {!focusModeEnabled ? (
-        <section className="rounded-3xl border bg-white shadow-sm">
+      <section className={cn('rounded-3xl border bg-white shadow-sm', focusModeEnabled && 'hidden')}>
           <div className="flex flex-col gap-4 border-b px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0 flex-1 space-y-2">
               <Label htmlFor="inkwise-title" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -1119,23 +1116,19 @@ export default function InkwiseDocumentPage() {
                   : 'Prompt guidance is currently empty.'}
             </div>
           </div>
-        </section>
-      ) : null}
+      </section>
 
       <div className={cn('flex min-h-[72vh] flex-col gap-4 xl:flex-row', focusModeEnabled && 'relative z-10 min-h-[calc(100vh-5rem)] flex-1')}>
         <section className={cn('min-w-0 flex-1 rounded-3xl border bg-white shadow-sm', focusModeEnabled && 'border-transparent bg-transparent shadow-none')}>
-          {!focusModeEnabled ? (
-            <div className="flex items-center justify-between border-b px-5 py-4">
+          <div className={cn('flex items-center justify-between border-b px-5 py-4', focusModeEnabled && 'hidden')}>
               <div>
                 <div className="text-sm font-semibold text-slate-900">Write</div>
                 <div className="text-xs text-slate-500">The editor stays central while chat and references move into the sidebar.</div>
               </div>
-            </div>
-          ) : null}
+          </div>
 
           <div className={cn('space-y-4 px-4 py-4 sm:px-5', focusModeEnabled && 'mx-auto flex h-full w-full max-w-5xl flex-col gap-5 px-0 py-4 sm:px-0')}>
-            {focusModeEnabled ? (
-              <div className="rounded-3xl border border-white/15 bg-slate-950/20 px-4 py-3 text-xs text-white/80 shadow-lg backdrop-blur-xl">
+            <div className={cn('rounded-3xl border border-white/15 bg-slate-950/20 px-4 py-3 text-xs text-white/80 shadow-lg backdrop-blur-xl', !focusModeEnabled && 'hidden')}>
                 <div>
                   {predictionLoading
                     ? 'Inkwise is drafting the next suggestion while focus mode stays fullscreen.'
@@ -1143,8 +1136,7 @@ export default function InkwiseDocumentPage() {
                       ? `Press Tab to accept the grounded inline prediction. Using ${predictionState.evidence.length} evidence ${predictionState.evidence.length === 1 ? 'segment' : 'segments'}.`
                       : 'Press Tab to accept inline predictions when they appear.'}
                 </div>
-              </div>
-            ) : null}
+            </div>
 
             <InlineWritingTools
               editor={editor}
@@ -1227,11 +1219,11 @@ export default function InkwiseDocumentPage() {
           </div>
         </section>
 
-        {!focusModeEnabled ? (
-          <aside
+        <aside
             className={cn(
               'rounded-3xl border bg-white shadow-sm transition-all duration-200 xl:sticky xl:top-28 xl:self-start',
-              sidebarOpen ? 'w-full xl:w-[25rem]' : 'w-full xl:w-[5.5rem]'
+              sidebarOpen ? 'w-full xl:w-[25rem]' : 'w-full xl:w-[5.5rem]',
+              focusModeEnabled && 'hidden'
             )}
           >
             <div className="flex items-center justify-between border-b px-3 py-3">
@@ -1683,8 +1675,7 @@ export default function InkwiseDocumentPage() {
               </Button>
             </div>
           )}
-          </aside>
-        ) : null}
+        </aside>
       </div>
 
       <audio ref={focusAudioRef} src={FOCUS_MODE_AUDIO_SRC} preload="auto" loop playsInline />
