@@ -999,12 +999,8 @@ export default function InkwiseDocumentPage() {
         focusModeEnabled && 'fixed inset-0 z-40 isolate overflow-y-auto px-4 pb-6 pt-4 sm:px-6 lg:px-8'
       )}
     >
-      <div className={cn('absolute inset-0 overflow-hidden pointer-events-none', !focusModeEnabled && 'hidden')}>
+      <div className={cn('absolute inset-0 pointer-events-none', !focusModeEnabled && 'hidden')}>
           <div className="inkwise-focus-backdrop pointer-events-none absolute inset-0" />
-          <div className="inkwise-bokeh-layer inkwise-bokeh-layer-far pointer-events-none" />
-          <div className="inkwise-bokeh-layer pointer-events-none" />
-          <div className="inkwise-bokeh-layer inkwise-bokeh-layer-near pointer-events-none" />
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_42%),linear-gradient(180deg,rgba(15,23,42,0.06),rgba(15,23,42,0.4))]" />
       </div>
       <div className={cn('sticky top-0 z-20 flex items-center justify-between gap-3 py-2', !focusModeEnabled && 'hidden')}>
             <div className="min-w-0 rounded-full border border-white/15 bg-slate-950/25 px-4 py-3 text-white shadow-lg backdrop-blur-xl">

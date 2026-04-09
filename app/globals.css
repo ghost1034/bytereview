@@ -158,58 +158,8 @@ body {
     color: hsl(var(--muted-foreground));
   }
 
-  @keyframes inkwise-bokeh-drift {
-    0% { transform: translate3d(0, 0, 0) scale(1); }
-    33% { transform: translate3d(3%, -2%, 0) scale(1.03); }
-    66% { transform: translate3d(-2%, 1.5%, 0) scale(0.97); }
-    100% { transform: translate3d(0, 0, 0) scale(1); }
-  }
-
-  @keyframes inkwise-bokeh-pulse {
-    0%, 100% { opacity: var(--bokeh-opacity-low); }
-    50% { opacity: var(--bokeh-opacity-high); }
-  }
-
   .inkwise-focus-backdrop {
-    background:
-      radial-gradient(circle at top, rgba(148, 163, 184, 0.22), transparent 38%),
-      radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.18), transparent 30%),
-      linear-gradient(180deg, #07111f 0%, #0f172a 40%, #111827 100%);
-  }
-
-  .inkwise-bokeh-layer {
-    position: absolute;
-    inset: 0;
-    background-image:
-      radial-gradient(circle, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.06) 35%, rgba(255,255,255,0.02) 55%, transparent 65%),
-      radial-gradient(circle, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 30%, rgba(255,255,255,0.015) 50%, transparent 60%),
-      radial-gradient(circle, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 40%, transparent 58%);
-    background-size:
-      190px 210px,
-      270px 310px,
-      410px 370px;
-    background-repeat: repeat;
-    mix-blend-mode: screen;
-    --bokeh-opacity-low: 0.5;
-    --bokeh-opacity-high: 0.7;
-    opacity: 0.5;
-    animation: inkwise-bokeh-drift 20s ease-in-out infinite, inkwise-bokeh-pulse 8s ease-in-out infinite;
-  }
-
-  .inkwise-bokeh-layer-near {
-    background-size: 150px 170px, 220px 250px, 340px 300px;
-    --bokeh-opacity-low: 0.55;
-    --bokeh-opacity-high: 0.8;
-    opacity: 0.55;
-    animation-duration: 16s, 6s;
-  }
-
-  .inkwise-bokeh-layer-far {
-    background-size: 250px 280px, 370px 420px, 530px 480px;
-    --bokeh-opacity-low: 0.3;
-    --bokeh-opacity-high: 0.45;
-    opacity: 0.3;
-    animation-duration: 28s, 12s;
+    background: #0f172a;
   }
 
   body.inkwise-focus-mode-active .app-header {
@@ -224,11 +174,4 @@ body {
     pointer-events: none;
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .inkwise-bokeh-layer,
-    .inkwise-bokeh-layer-near,
-    .inkwise-bokeh-layer-far {
-      animation: none;
-    }
-  }
 }
