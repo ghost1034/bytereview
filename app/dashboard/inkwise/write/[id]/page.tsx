@@ -1001,9 +1001,9 @@ export default function InkwiseDocumentPage() {
     >
       <div className={cn('absolute inset-0 overflow-hidden pointer-events-none', !focusModeEnabled && 'hidden')}>
           <div className="inkwise-focus-backdrop pointer-events-none absolute inset-0" />
-          <div className="inkwise-rain-layer inkwise-rain-layer-far pointer-events-none" />
-          <div className="inkwise-rain-layer pointer-events-none" />
-          <div className="inkwise-rain-layer inkwise-rain-layer-near pointer-events-none" />
+          <div className="inkwise-bokeh-layer inkwise-bokeh-layer-far pointer-events-none" />
+          <div className="inkwise-bokeh-layer pointer-events-none" />
+          <div className="inkwise-bokeh-layer inkwise-bokeh-layer-near pointer-events-none" />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_42%),linear-gradient(180deg,rgba(15,23,42,0.06),rgba(15,23,42,0.4))]" />
       </div>
       <div className={cn('sticky top-0 z-20 flex items-center justify-between gap-3 py-2', !focusModeEnabled && 'hidden')}>
@@ -1122,7 +1122,7 @@ export default function InkwiseDocumentPage() {
           <div className={cn('flex items-center justify-between border-b px-5 py-4', focusModeEnabled && 'hidden')}>
               <div>
                 <div className="text-sm font-semibold text-slate-900">Write</div>
-                <div className="text-xs text-slate-500">The editor stays central while chat and references move into the sidebar.</div>
+                <div className="text-xs text-slate-500">The editor is central while chat and references are in the sidebar.</div>
               </div>
           </div>
 
