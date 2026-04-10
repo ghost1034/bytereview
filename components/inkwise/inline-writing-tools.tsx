@@ -430,7 +430,7 @@ export function InlineWritingTools({
               </div>
             ) : null}
             <div className="mt-3 max-h-56 overflow-auto text-sm text-slate-700">
-              {outputMd ? <InkwiseMarkdownView markdown={outputMd} citations={groundingState?.evidence} renderInlineCitations className="prose prose-sm max-w-none" /> : <div className="text-slate-400">...</div>}
+              {outputMd ? <InkwiseMarkdownView markdown={outputWithCitations || outputMd} citations={groundingState?.evidence} renderInlineCitations className="prose prose-sm max-w-none" /> : <div className="text-slate-400">...</div>}
             </div>
             <div className="mt-3 flex flex-wrap justify-end gap-2">
               <Button size="sm" variant="outline" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={() => retryAttempt()} disabled={!attemptId || busy} aria-label="Retry">
