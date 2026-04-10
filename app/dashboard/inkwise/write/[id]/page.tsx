@@ -1223,25 +1223,23 @@ export default function InkwiseDocumentPage() {
 
               <TabsContent value="chat" className="mt-0 flex min-h-0 flex-1 flex-col px-3 pb-3">
                 <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-2xl bg-slate-50 p-3">
-                  <div className="rounded-2xl border bg-white">
-                    <ScrollArea className="max-h-28">
-                      <div className="flex flex-wrap gap-2 p-3 pr-4">
-                        {(threadsQuery.data?.threads ?? []).map((thread) => (
-                          <Button
-                            key={thread.id}
-                            variant={selectedThreadId === thread.id ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => setSelectedThreadId(thread.id)}
-                          >
-                            {thread.title || 'Untitled thread'}
-                          </Button>
-                        ))}
-                        <Button variant="outline" size="sm" onClick={() => createThread.mutate()} disabled={createThread.isPending}>
-                          <MessageSquarePlus className="mr-2 h-4 w-4" />
-                          New thread
+                  <div className="max-h-28 overflow-y-auto rounded-2xl border bg-white">
+                    <div className="flex flex-wrap gap-2 p-3 pr-4">
+                      {(threadsQuery.data?.threads ?? []).map((thread) => (
+                        <Button
+                          key={thread.id}
+                          variant={selectedThreadId === thread.id ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedThreadId(thread.id)}
+                        >
+                          {thread.title || 'Untitled thread'}
                         </Button>
-                      </div>
-                    </ScrollArea>
+                      ))}
+                      <Button variant="outline" size="sm" onClick={() => createThread.mutate()} disabled={createThread.isPending}>
+                        <MessageSquarePlus className="mr-2 h-4 w-4" />
+                        New thread
+                      </Button>
+                    </div>
                   </div>
 
                   <ScrollArea className="min-h-0 flex-1 rounded-2xl border bg-white">
