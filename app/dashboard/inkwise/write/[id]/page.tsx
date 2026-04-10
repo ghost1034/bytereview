@@ -1144,7 +1144,7 @@ export default function InkwiseDocumentPage() {
                     await insertMarkdownIntoEditor({
                       editor,
                       markdown: predictionState.text,
-                      mode: 'insert',
+                      mode: 'inline',
                       target: getInkwiseEditorTarget(editor),
                       citationAnchor: predictionState.grounded && predictionState.evidence.length
                         ? {

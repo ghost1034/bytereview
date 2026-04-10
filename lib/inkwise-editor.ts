@@ -22,7 +22,7 @@ export type InkwiseEditorTarget = {
   hasSelection: boolean
 }
 
-export type InkwiseEditorInsertionMode = 'replace' | 'insert' | 'after' | 'append'
+export type InkwiseEditorInsertionMode = 'replace' | 'insert' | 'inline' | 'after' | 'append'
 
 export type InkwiseCitationReferenceMode = 'inline' | 'footnote' | 'endnote'
 
@@ -367,6 +367,16 @@ export async function insertMarkdownIntoEditor({
   if (mode === 'after' && resolvedTarget) {
     editor.chain().focus().insertContentAt(resolvedTarget.to, [{ type: 'paragraph' }, ...(Array.isArray(insertableContent) ? insertableContent : [insertableContent])]).run()
     return 'after'
+  }
+
+  if (mode === 'inline' && resolvedTarget) {
+    const inlineContent = Array.isArray(insertableContent)
+      ? insertableContent.flatMap((node) => (node.type === 'paragraph' && Array.isArray(node.content) ? node.content : [node]))
+      : insertableContent.type === 'paragraph' && Array.isArray(insertableContent.content)
+        ? insertableContent.content
+        : [insertableContent]
+    editor.chain().focus().insertContentAt(resolvedTarget.to, inlineContent).run()
+    return 'inline'
   }
 
   if (resolvedTarget) {
