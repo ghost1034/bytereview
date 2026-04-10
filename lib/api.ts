@@ -1274,6 +1274,8 @@ export interface InkwiseCitation {
   source_id?: string
   source_title?: string
   page_number?: number
+  modality?: string | null
+  segment_type?: string | null
   segment_id?: string | null
   segment_title?: string | null
   locator_json?: InkwiseEvidenceLocator | null

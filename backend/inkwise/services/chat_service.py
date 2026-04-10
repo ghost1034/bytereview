@@ -442,6 +442,9 @@ def build_grounded_chat_prompt(
         ),
         "Answer the user using ONLY the evidence blocks provided.",
         "If the evidence is insufficient, say what is missing and ask a clarifying question.",
+        "Each evidence block includes modality and segment_type metadata.",
+        "If multiple evidence blocks overlap or say the same thing, cite the single most specific block.",
+        "Avoid citing duplicate support from different modalities unless both are necessary.",
         (
             "If the user requests exact text or verbatim quotes, quote the exact wording visible in the evidence excerpts."
             if wants_verbatim_quotes(question)

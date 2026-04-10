@@ -344,6 +344,8 @@ class InkwiseRetrievalEvidenceOut(BaseModel):
     source_id: uuid.UUID
     source_title: str
     page_number: int
+    modality: str | None = None
+    segment_type: str | None = None
     segment_id: uuid.UUID | None = None
     segment_title: str | None = None
     locator_json: dict | None = None

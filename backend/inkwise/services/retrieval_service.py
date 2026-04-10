@@ -136,6 +136,8 @@ class InkwiseRetrievalService:
                 page_number=_page_number(item.page_number, item.locator_json),
                 excerpt=item.excerpt,
                 score=float(item.score) if item.score is not None else None,
+                modality=segment.modality if segment is not None else None,
+                segment_type=segment.segment_type if segment is not None else None,
                 segment_id=item.segment_id,
                 segment_title=segment.title if segment is not None else None,
                 locator_json=item.locator_json,

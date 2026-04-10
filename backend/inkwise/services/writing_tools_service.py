@@ -110,6 +110,9 @@ def build_grounded_writing_tool_prompt(
     parts.append("- Only cite IDs that appear in the grounded evidence below.")
     parts.append("- Do not move all citations to the end. Place them exactly where the support applies.")
     parts.append("- Leave purely connective or stylistic text uncited if it does not rely on evidence.")
+    parts.append("- Evidence headers include modality and segment_type metadata.")
+    parts.append("- If multiple evidence blocks overlap or say the same thing, cite the single most specific block.")
+    parts.append("- Avoid citing duplicate support from different modalities unless both are necessary.")
     parts.append("")
 
     if document and document.language:
@@ -220,6 +223,9 @@ def build_grounded_prediction_prompt(
     parts.append("- Do not repeat text that is already before the cursor.")
     parts.append("- If the completion relies on grounded evidence, append the supporting evidence IDs immediately after the supported clause, like [E01] or [E01][E02].")
     parts.append("- Only cite IDs that appear in the grounded evidence below.")
+    parts.append("- Evidence headers include modality and segment_type metadata.")
+    parts.append("- If multiple evidence blocks overlap or say the same thing, cite the single most specific block.")
+    parts.append("- Avoid citing duplicate support from different modalities unless both are necessary.")
     parts.append("- Do not add notes, bullets, or explanations.")
     parts.append("")
 

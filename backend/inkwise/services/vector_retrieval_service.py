@@ -28,6 +28,8 @@ class RetrievalCandidate:
     segment_id: uuid.UUID
     source_id: uuid.UUID
     source_title: str
+    modality: str | None
+    segment_type: str | None
     segment_title: str | None
     text_content: str
     page_start: int | None
@@ -209,6 +211,8 @@ class InkwiseVectorRetrievalService:
               s.id as segment_id,
               s.source_id as source_id,
               src.title as source_title,
+              s.modality as modality,
+              s.segment_type as segment_type,
               s.title as segment_title,
               coalesce(s.text_content, '') as text_content,
               s.page_start as page_start,
@@ -241,6 +245,8 @@ class InkwiseVectorRetrievalService:
                     segment_id=self._uuid(row.get("segment_id")),
                     source_id=self._uuid(row.get("source_id")),
                     source_title=str(row.get("source_title") or ""),
+                    modality=_text_or_none(row.get("modality")),
+                    segment_type=_text_or_none(row.get("segment_type")),
                     segment_title=_text_or_none(row.get("segment_title")),
                     text_content=str(row.get("text_content") or ""),
                     page_start=_int_or_none(row.get("page_start")),
@@ -271,6 +277,8 @@ class InkwiseVectorRetrievalService:
               s.id as segment_id,
               s.source_id as source_id,
               src.title as source_title,
+              s.modality as modality,
+              s.segment_type as segment_type,
               s.title as segment_title,
               coalesce(s.text_content, '') as text_content,
               s.page_start as page_start,
@@ -305,6 +313,8 @@ class InkwiseVectorRetrievalService:
                     segment_id=self._uuid(row.get("segment_id")),
                     source_id=self._uuid(row.get("source_id")),
                     source_title=str(row.get("source_title") or ""),
+                    modality=_text_or_none(row.get("modality")),
+                    segment_type=_text_or_none(row.get("segment_type")),
                     segment_title=_text_or_none(row.get("segment_title")),
                     text_content=str(row.get("text_content") or ""),
                     page_start=_int_or_none(row.get("page_start")),
@@ -377,6 +387,8 @@ class InkwiseVectorRetrievalService:
                 {
                     "candidate_id": candidate_id,
                     "source_title": candidate.source_title,
+                    "modality": candidate.modality,
+                    "segment_type": candidate.segment_type,
                     "segment_title": candidate.segment_title,
                     "page_start": candidate.page_start,
                     "page_end": candidate.page_end,
@@ -449,6 +461,8 @@ class InkwiseVectorRetrievalService:
                     page_number=int(candidate.page_start or 0),
                     excerpt=excerpt,
                     score=candidate.fused_score,
+                    modality=candidate.modality,
+                    segment_type=candidate.segment_type,
                     segment_id=candidate.segment_id,
                     segment_title=candidate.segment_title,
                     locator_json=candidate.locator_json,
@@ -500,6 +514,8 @@ def _candidate_excerpt(candidate: RetrievalCandidate) -> str:
         page_number=int(candidate.page_start or 0),
         excerpt="",
         score=candidate.fused_score,
+        modality=candidate.modality,
+        segment_type=candidate.segment_type,
         segment_id=candidate.segment_id,
         segment_title=candidate.segment_title,
         locator_json=candidate.locator_json,

@@ -24,6 +24,8 @@ def _citation_payload(item: Any, *, evidence_id: str) -> dict[str, Any]:
         "source_id": str(item.source_id),
         "source_title": item.source_title,
         "page_number": item.page_number,
+        "modality": item.modality,
+        "segment_type": item.segment_type,
         "segment_id": str(item.segment_id) if item.segment_id is not None else None,
         "segment_title": item.segment_title,
         "locator_json": item.locator_json,

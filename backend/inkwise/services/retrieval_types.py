@@ -15,6 +15,8 @@ class EvidenceItem:
     page_number: int
     excerpt: str
     score: float | None
+    modality: str | None = None
+    segment_type: str | None = None
     segment_id: uuid.UUID | None = None
     segment_title: str | None = None
     locator_json: dict[str, Any] | None = None
@@ -118,6 +120,10 @@ def build_evidence_pack(evidence: list[EvidenceItem]) -> str:
                 time_range_label = format_time_range_locator(locator)
                 if time_range_label:
                     header += f' locator="{time_range_label}"'
+        if item.modality:
+            header += f' modality="{item.modality}"'
+        if item.segment_type:
+            header += f' segment_type="{item.segment_type}"'
         if item.segment_title:
             header += f' segment="{item.segment_title}"'
         blocks.append(header + "\n" + evidence_excerpt(item))
@@ -156,6 +162,8 @@ def evidence_item_to_payload(item: EvidenceItem) -> dict[str, Any]:
         "source_id": str(item.source_id),
         "source_title": item.source_title,
         "page_number": item.page_number,
+        "modality": item.modality,
+        "segment_type": item.segment_type,
         "segment_id": str(item.segment_id) if item.segment_id is not None else None,
         "segment_title": item.segment_title,
         "locator_json": item.locator_json,

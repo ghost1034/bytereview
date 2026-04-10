@@ -145,7 +145,7 @@ def get_inkwise_settings() -> InkwiseSettings:
         embedding_enable_document_ocr=_env_bool("INKWISE_EMBEDDING_ENABLE_DOCUMENT_OCR", True),
         embedding_enable_audio_track_extraction=_env_bool("INKWISE_EMBEDDING_ENABLE_AUDIO_TRACK_EXTRACTION", True),
         use_lexical_fusion=_env_bool("INKWISE_USE_LEXICAL_FUSION", True),
-        use_vector_rerank=_env_bool("INKWISE_USE_VECTOR_RERANK", True),
+        use_vector_rerank=_env_bool("INKWISE_USE_VECTOR_RERANK", False),
         vector_search_top_k=max(1, _env_int("INKWISE_VECTOR_SEARCH_TOP_K", 24)),
         lexical_search_top_k=max(1, _env_int("INKWISE_LEXICAL_SEARCH_TOP_K", 16)),
         rerank_top_k=max(1, _env_int("INKWISE_RERANK_TOP_K", 12)),
