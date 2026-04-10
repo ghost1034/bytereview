@@ -125,6 +125,11 @@ class InkwiseChatService:
         db.refresh(thread)
         return thread
 
+    def delete_thread(self, db: Session, *, user_id: str, thread_id: uuid.UUID) -> None:
+        thread = self.get_thread_or_404(db, user_id=user_id, thread_id=thread_id)
+        db.delete(thread)
+        db.commit()
+
     def list_messages(
         self,
         db: Session,

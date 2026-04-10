@@ -4,7 +4,7 @@ import type { Editor as TiptapEditor, JSONContent } from '@tiptap/core'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Cloud, Download, History, LibraryBig, Loader2, Maximize2, MessageSquarePlus, MessageSquareText, Minimize2, PanelRightClose, PanelRightOpen, Save, Settings2, Sparkles, Unplug, Volume2, VolumeX, Wand2 } from 'lucide-react'
+import { Cloud, Download, History, LibraryBig, Loader2, Maximize2, MessageSquarePlus, MessageSquareText, Minimize2, PanelRightClose, PanelRightOpen, Save, Settings2, Sparkles, Unplug, Volume2, VolumeX, Wand2, X } from 'lucide-react'
 
 import { InkwiseEditor, type InkwiseEditorReviewState } from '@/components/inkwise/inkwise-editor'
 import { InkwiseSourceImportPanel } from '@/components/inkwise/source-import-panel'
@@ -419,6 +419,19 @@ export default function InkwiseDocumentPage() {
     },
     onError: (error: Error) => {
       toast({ title: 'Could not create thread', description: error.message, variant: 'destructive' })
+    },
+  })
+
+  const deleteThread = useMutation({
+    mutationFn: (threadId: string) => apiClient.deleteInkwiseChatThread(threadId),
+    onSuccess: async (_data, threadId) => {
+      if (selectedThreadId === threadId) {
+        setSelectedThreadId(undefined)
+      }
+      await queryClient.invalidateQueries({ queryKey: ['inkwise', 'chat-threads', documentId] })
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Could not delete thread', description: error.message, variant: 'destructive' })
     },
   })
 
@@ -1227,14 +1240,28 @@ export default function InkwiseDocumentPage() {
                   <div className="max-h-28 overflow-y-auto rounded-2xl border bg-white">
                     <div className="flex flex-wrap gap-2 p-3 pr-4">
                       {(threadsQuery.data?.threads ?? []).map((thread) => (
-                        <Button
-                          key={thread.id}
-                          variant={selectedThreadId === thread.id ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setSelectedThreadId(thread.id)}
-                        >
-                          {thread.title || 'Untitled thread'}
-                        </Button>
+                        <div key={thread.id} className="group relative">
+                          <Button
+                            variant={selectedThreadId === thread.id ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setSelectedThreadId(thread.id)}
+                            className="pr-7"
+                          >
+                            {thread.title || 'Untitled thread'}
+                          </Button>
+                          <button
+                            className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 opacity-0 transition-opacity hover:bg-black/10 group-hover:opacity-100"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (window.confirm('Delete this thread and all its messages?')) {
+                                deleteThread.mutate(thread.id)
+                              }
+                            }}
+                            disabled={deleteThread.isPending}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
                       ))}
                       <Button variant="outline" size="sm" onClick={() => createThread.mutate()} disabled={createThread.isPending}>
                         <MessageSquarePlus className="mr-2 h-4 w-4" />

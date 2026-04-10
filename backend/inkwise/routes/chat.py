@@ -16,6 +16,7 @@ from core.database import get_db
 from dependencies.auth import verify_firebase_token
 from inkwise.schemas import (
     InkwiseChatMessageOut,
+    InkwiseMessageResponse,
     InkwiseRetryRequest,
     InkwiseChatSendRequest,
     InkwiseChatThreadCreateRequest,
@@ -366,6 +367,23 @@ def create_thread(
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to create thread: {exc}") from exc
+
+
+@router.delete("/threads/{thread_id}", response_model=InkwiseMessageResponse)
+def delete_thread(
+    thread_id: uuid.UUID,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseMessageResponse:
+    try:
+        chat_service.delete_thread(db, user_id=token_data["uid"], thread_id=thread_id)
+        return InkwiseMessageResponse(message="Thread deleted successfully")
+    except FileNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete thread: {exc}") from exc
 
 
 @router.get("/threads/{thread_id}/messages", response_model=InkwisePaginatedChatMessages)

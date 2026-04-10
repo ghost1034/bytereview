@@ -967,6 +967,12 @@ export class ApiClient {
     })
   }
 
+  async deleteInkwiseChatThread(threadId: string): Promise<{ message: string }> {
+    return this.request(`/api/inkwise/chat/threads/${threadId}`, {
+      method: 'DELETE',
+    })
+  }
+
   async listInkwiseChatMessages(threadId: string, params?: { page?: number; limit?: number }): Promise<InkwisePaginatedChatMessages> {
     const searchParams = new URLSearchParams()
     if (params?.page) searchParams.set('page', params.page.toString())
