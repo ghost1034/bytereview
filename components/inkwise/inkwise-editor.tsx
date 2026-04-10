@@ -125,7 +125,7 @@ export function InkwiseEditor({
         class:
           focusMode
             ? 'prose prose-slate max-w-none min-h-0 px-5 py-5 focus:outline-none text-slate-900 prose-headings:font-semibold prose-p:leading-7 sm:px-6 sm:py-6'
-            : 'prose prose-slate max-w-none min-h-[320px] px-4 py-4 focus:outline-none prose-headings:font-semibold prose-p:leading-7',
+            : 'prose prose-slate max-w-none min-h-[500px] px-4 py-4 focus:outline-none prose-headings:font-semibold prose-p:leading-7',
       },
       handleTextInput() {
         onUserTypingRef.current?.()
@@ -195,7 +195,7 @@ export function InkwiseEditor({
   if (!editor) {
     return (
       <div
-        className={`min-h-[320px] rounded-2xl border ${focusMode ? 'border-white/20 bg-white/45 shadow-2xl shadow-slate-950/20 backdrop-blur-xl' : 'bg-white'} ${className || ''}`}
+        className={`min-h-[500px] rounded-2xl border ${focusMode ? 'border-white/20 bg-white/45 shadow-2xl shadow-slate-950/20 backdrop-blur-xl' : 'bg-white'} ${className || ''}`}
       />
     )
   }

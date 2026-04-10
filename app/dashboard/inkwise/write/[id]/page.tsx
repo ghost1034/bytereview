@@ -1180,7 +1180,7 @@ export default function InkwiseDocumentPage() {
                 }
               }}
               focusMode={focusModeEnabled}
-              className={cn('min-h-[56vh] border-0 shadow-none', focusModeEnabled && 'min-h-0 flex-1')}
+              className={cn('min-h-[65vh] border-0 shadow-none', focusModeEnabled && 'min-h-0 flex-1')}
             />
 
             <div className={cn('rounded-2xl px-4 py-3 text-xs', focusModeEnabled ? 'hidden' : 'bg-slate-50 text-slate-500')}>
