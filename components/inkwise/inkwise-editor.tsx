@@ -38,6 +38,7 @@ export function InkwiseEditor({
   predictionLoading,
   onAcceptPrediction,
   onDismissPrediction,
+  onUserTyping,
   onBlur,
   editable = true,
   allowExternalSetContent = true,
@@ -56,6 +57,7 @@ export function InkwiseEditor({
   predictionLoading?: boolean
   onAcceptPrediction?: () => void
   onDismissPrediction?: () => void
+  onUserTyping?: () => void
   onBlur?: () => void
   editable?: boolean
   allowExternalSetContent?: boolean
@@ -82,6 +84,9 @@ export function InkwiseEditor({
 
   const dismissPredictionRef = useRef(onDismissPrediction)
   dismissPredictionRef.current = onDismissPrediction
+
+  const onUserTypingRef = useRef(onUserTyping)
+  onUserTypingRef.current = onUserTyping
 
   const onBlurRef = useRef(onBlur)
   onBlurRef.current = onBlur
@@ -119,6 +124,10 @@ export function InkwiseEditor({
           focusMode
             ? 'prose prose-slate max-w-none min-h-0 px-5 py-5 focus:outline-none text-slate-900 prose-headings:font-semibold prose-p:leading-7 sm:px-6 sm:py-6'
             : 'prose prose-slate max-w-none min-h-[320px] px-4 py-4 focus:outline-none prose-headings:font-semibold prose-p:leading-7',
+      },
+      handleTextInput() {
+        onUserTypingRef.current?.()
+        return false
       },
     },
     onUpdate: ({ editor }) => {

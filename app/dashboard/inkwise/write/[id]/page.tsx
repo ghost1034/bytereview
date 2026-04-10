@@ -67,7 +67,7 @@ import { cn, compareNaturalText } from '@/lib/utils'
 const MAX_PREDICTION_BEFORE_TEXT = 12000
 const MAX_PREDICTION_AFTER_TEXT = 4000
 const MAX_PREDICTION_BLOCK_TEXT = 4000
-const PREDICTION_DEBOUNCE_MS = 900
+const PREDICTION_DEBOUNCE_MS = 1000
 const FOCUS_MODE_MUTE_STORAGE_KEY = 'cpaa_inkwise_focus_mode_muted_v1'
 const FOCUS_MODE_AUDIO_SRC = '/audio/inkwise-white-noise-loop.mp3'
 
@@ -198,7 +198,6 @@ export default function InkwiseDocumentPage() {
   const [focusMutePreferenceReady, setFocusMutePreferenceReady] = useState(false)
   const predictionTimeoutRef = useRef<number | null>(null)
   const predictionSeqRef = useRef(0)
-  const suppressPredictionUntilRef = useRef(0)
   const predictionAbortRef = useRef<AbortController | null>(null)
   const citationSheetOpenRef = useRef(false)
   const focusModeEnabledRef = useRef(false)
@@ -225,18 +224,13 @@ export default function InkwiseDocumentPage() {
     setPredictionState(null)
   }
 
-  const suppressPredictions = (durationMs = 1500) => {
-    suppressPredictionUntilRef.current = Date.now() + durationMs
-    clearPrediction()
-  }
-
   const onCitationSheetOpenChange = useCallback((open: boolean) => {
     citationSheetOpenRef.current = open
   }, [])
 
   useEffect(() => {
     if (!documentQuery.data) return
-    suppressPredictions(1800)
+    clearPrediction()
     setTitle(documentQuery.data.title || 'Untitled document')
     setInitPrompt(documentQuery.data.init_prompt || '')
     setContentHtml(documentQuery.data.content_html || '')
@@ -399,7 +393,7 @@ export default function InkwiseDocumentPage() {
   const restoreRevision = useMutation({
     mutationFn: (revisionId: string) => apiClient.restoreInkwiseDocumentRevision(documentId, revisionId),
     onSuccess: async (updated) => {
-      suppressPredictions(1800)
+      clearPrediction()
       setTitle(updated.title || 'Untitled document')
       setInitPrompt(updated.init_prompt || '')
       setContentHtml(updated.content_html || '')
@@ -607,7 +601,7 @@ export default function InkwiseDocumentPage() {
       if (!markdown) return
 
       try {
-        suppressPredictions(1800)
+        clearPrediction()
         if (editor) {
           const applied = await replaceEditorDocumentWithMarkdown({
             editor,
@@ -705,7 +699,7 @@ export default function InkwiseDocumentPage() {
     setChatInsertKey(key)
 
     try {
-      suppressPredictions(1800)
+      clearPrediction()
       const appliedMode = await insertMarkdownIntoEditor({
         editor,
         markdown: cleaned,
@@ -780,37 +774,37 @@ export default function InkwiseDocumentPage() {
 
   const handleCommentResolvedChange = useCallback((commentId: string, resolved: boolean) => {
     if (!editor) return
-    suppressPredictions(1800)
+    clearPrediction()
     updateInkwiseComment(editor, commentId, { resolved })
   }, [editor])
 
   const handleCommentDelete = useCallback((commentId: string) => {
     if (!editor) return
-    suppressPredictions(1800)
+    clearPrediction()
     removeInkwiseComment(editor, commentId)
   }, [editor])
 
   const handleAcceptChange = useCallback((changeId: string) => {
     if (!editor) return
-    suppressPredictions(1800)
+    clearPrediction()
     acceptInkwiseTrackedChange(editor, changeId)
   }, [editor])
 
   const handleRejectChange = useCallback((changeId: string) => {
     if (!editor) return
-    suppressPredictions(1800)
+    clearPrediction()
     rejectInkwiseTrackedChange(editor, changeId)
   }, [editor])
 
   const handleAcceptAllChanges = useCallback(() => {
     if (!editor) return
-    suppressPredictions(1800)
+    clearPrediction()
     acceptAllInkwiseTrackedChanges(editor)
   }, [editor])
 
   const handleRejectAllChanges = useCallback(() => {
     if (!editor) return
-    suppressPredictions(1800)
+    clearPrediction()
     rejectAllInkwiseTrackedChanges(editor)
   }, [editor])
 
@@ -875,7 +869,7 @@ export default function InkwiseDocumentPage() {
 
     const onSelection = () => {
       setEditorTarget(getInkwiseEditorTarget(editor))
-      setPredictionTick((value) => value + 1)
+      clearPrediction()
     }
 
     editor.on('selectionUpdate', onSelection)
@@ -897,12 +891,6 @@ export default function InkwiseDocumentPage() {
 
     const { empty } = editor.state.selection
     if (!empty) {
-      setPredictionLoading(false)
-      setPredictionState(null)
-      return
-    }
-
-    if (Date.now() < suppressPredictionUntilRef.current) {
       setPredictionLoading(false)
       setPredictionState(null)
       return
@@ -951,7 +939,8 @@ export default function InkwiseDocumentPage() {
         setPredictionLoading(false)
       }
     }
-  }, [editor, documentId, documentQuery.data, predictionTick, contentHtml])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, documentId, documentQuery.data, predictionTick])
 
   if (documentQuery.isLoading) {
     return (
@@ -1114,7 +1103,6 @@ export default function InkwiseDocumentPage() {
               editor={editor}
               documentId={documentId}
               boundSources={boundSources}
-              onProgrammaticEdit={() => suppressPredictions(1800)}
             />
 
             <InkwiseEditor
@@ -1129,7 +1117,7 @@ export default function InkwiseDocumentPage() {
               predictionLoading={predictionLoading}
               onAcceptPrediction={() => {
                 if (!editor || !predictionState?.text) return
-                suppressPredictions(1800)
+                clearPrediction()
                 void (async () => {
                   try {
                     await insertMarkdownIntoEditor({
@@ -1156,6 +1144,7 @@ export default function InkwiseDocumentPage() {
               onDismissPrediction={() => {
                 clearPrediction()
               }}
+              onUserTyping={() => setPredictionTick((tick) => tick + 1)}
               onBlur={() => {
                 if (!citationSheetOpenRef.current) {
                   clearPrediction()
@@ -1168,7 +1157,6 @@ export default function InkwiseDocumentPage() {
                 if (editor) {
                   setEditorTarget(getInkwiseEditorTarget(editor))
                 }
-                setPredictionTick((tick) => tick + 1)
               }}
               focusMode={focusModeEnabled}
               className={cn('min-h-[56vh] border-0 shadow-none', focusModeEnabled && 'min-h-0 flex-1')}

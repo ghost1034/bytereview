@@ -48,12 +48,10 @@ export function InlineWritingTools({
   editor,
   documentId,
   boundSources,
-  onProgrammaticEdit,
 }: {
   editor: Editor | null
   documentId: string
   boundSources: InkwiseBoundSource[]
-  onProgrammaticEdit?: () => void
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -216,7 +214,6 @@ export function InlineWritingTools({
 
     setInserting(mode)
     try {
-      onProgrammaticEdit?.()
       await insertMarkdownIntoEditor({
         editor,
         markdown,
