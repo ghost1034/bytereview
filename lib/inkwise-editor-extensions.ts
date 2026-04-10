@@ -265,7 +265,7 @@ function buildTrackedChangeMark(name: typeof INKWISE_INSERTION_MARK | typeof INK
 export const InkwiseInsertionMark = buildTrackedChangeMark(INKWISE_INSERTION_MARK)
 export const InkwiseDeletionMark = buildTrackedChangeMark(INKWISE_DELETION_MARK)
 
-function applyMarkedDeletion(view: EditorView, from: number, to: number): boolean {
+function applyMarkedDeletion(view: EditorView, from: number, to: number, changeId?: string, createdAt?: string): boolean {
   if (from >= to) return false
   const deletionMark = view.state.schema.marks[INKWISE_DELETION_MARK]
   if (!deletionMark) return false
@@ -273,8 +273,8 @@ function applyMarkedDeletion(view: EditorView, from: number, to: number): boolea
   if (!slice.content.size) return false
 
   const mark = deletionMark.create({
-    changeId: createInkwiseEntityId('change'),
-    createdAt: new Date().toISOString(),
+    changeId: changeId || createInkwiseEntityId('change'),
+    createdAt: createdAt || new Date().toISOString(),
     kind: 'deletion',
   })
   const deletionSlice = mapSliceWithMark(slice, mark)
@@ -286,6 +286,28 @@ function applyMarkedDeletion(view: EditorView, from: number, to: number): boolea
 }
 
 export function createTrackChangesExtension(getEnabled: () => boolean) {
+  const SESSION_TIMEOUT_MS = 2000
+  let session: {
+    changeId: string
+    createdAt: string
+    kind: 'insertion' | 'deletion'
+    lastPos: number
+    lastTime: number
+  } | null = null
+
+  function getOrCreateSession(kind: 'insertion' | 'deletion', pos: number): { changeId: string; createdAt: string } {
+    const now = Date.now()
+    if (session && session.kind === kind && now - session.lastTime < SESSION_TIMEOUT_MS && Math.abs(pos - session.lastPos) <= 1) {
+      session.lastTime = now
+      session.lastPos = pos
+      return { changeId: session.changeId, createdAt: session.createdAt }
+    }
+    const changeId = createInkwiseEntityId('change')
+    const createdAt = new Date().toISOString()
+    session = { changeId, createdAt, kind, lastPos: pos, lastTime: now }
+    return { changeId, createdAt }
+  }
+
   return Extension.create({
     name: 'inkwiseTrackChanges',
 
@@ -304,6 +326,7 @@ export function createTrackChangesExtension(getEnabled: () => boolean) {
               let insertAt = from
 
               if (from !== to) {
+                session = null
                 const deletionSlice = mapSliceWithMark(
                   view.state.doc.slice(from, to),
                   deletionMark.create({
@@ -316,22 +339,25 @@ export function createTrackChangesExtension(getEnabled: () => boolean) {
                 insertAt = tr.mapping.map(to, 1)
               }
 
+              const insertionSession = getOrCreateSession('insertion', insertAt)
               tr.insertText(text, insertAt)
               tr.addMark(
                 insertAt,
                 insertAt + text.length,
                 insertionMark.create({
-                  changeId: createInkwiseEntityId('change'),
-                  createdAt: new Date().toISOString(),
+                  changeId: insertionSession.changeId,
+                  createdAt: insertionSession.createdAt,
                   kind: 'insertion',
                 }),
               )
+              if (session) session.lastPos = insertAt + text.length
               tr.setSelection(TextSelection.create(tr.doc, clampSelectionPos(tr.doc, insertAt + text.length)))
               view.dispatch(tr.scrollIntoView())
               return true
             },
 
             handlePaste(view, _event, slice) {
+              session = null
               if (!getEnabled()) return false
               const insertionMark = view.state.schema.marks[INKWISE_INSERTION_MARK]
               const deletionMark = view.state.schema.marks[INKWISE_DELETION_MARK]
@@ -373,6 +399,7 @@ export function createTrackChangesExtension(getEnabled: () => boolean) {
 
               const selection = view.state.selection
               if (!selection.empty) {
+                session = null
                 event.preventDefault()
                 return applyMarkedDeletion(view, selection.from, selection.to)
               }
@@ -380,7 +407,10 @@ export function createTrackChangesExtension(getEnabled: () => boolean) {
               const adjacent = resolveAdjacentDeletionRange(view, event.key === 'Backspace' ? -1 : 1)
               if (!adjacent) return false
               event.preventDefault()
-              return applyMarkedDeletion(view, adjacent.from, adjacent.to)
+              const deletionSession = getOrCreateSession('deletion', adjacent.from)
+              const result = applyMarkedDeletion(view, adjacent.from, adjacent.to, deletionSession.changeId, deletionSession.createdAt)
+              if (result && session) session.lastPos = adjacent.from
+              return result
             },
           },
 
@@ -388,6 +418,9 @@ export function createTrackChangesExtension(getEnabled: () => boolean) {
             if (!getEnabled()) return null
             if (!transactions.some((transaction) => transaction.docChanged)) return null
             if (transactions.some((transaction) => transaction.getMeta(TRACK_CHANGES_SKIP_META) || transaction.getMeta(TRACK_CHANGES_PROCESSED_META))) {
+              if (transactions.some((transaction) => transaction.getMeta(TRACK_CHANGES_SKIP_META) && transaction.docChanged)) {
+                session = null
+              }
               return null
             }
 
