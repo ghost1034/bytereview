@@ -978,7 +978,7 @@ export default function InkwiseDocumentPage() {
     <div
       className={cn(
         'flex flex-col gap-4',
-        focusModeEnabled && 'fixed inset-0 z-40 isolate overflow-y-auto px-4 pb-6 pt-4 sm:px-6 lg:px-8'
+        focusModeEnabled && 'fixed inset-0 z-40 isolate overflow-hidden px-4 pb-6 pt-4 sm:px-6 lg:px-8'
       )}
     >
       <div className={cn('absolute inset-0 pointer-events-none', !focusModeEnabled && 'hidden')}>
@@ -1099,8 +1099,8 @@ export default function InkwiseDocumentPage() {
           </div>
       </section>
 
-      <div className={cn('flex min-h-[72vh] flex-col gap-4 xl:flex-row', focusModeEnabled && 'relative z-10 min-h-[calc(100vh-5rem)] flex-1')}>
-        <section className={cn('min-w-0 flex-1 rounded-3xl border bg-white shadow-sm', focusModeEnabled && 'border-transparent bg-transparent shadow-none')}>
+      <div className={cn('flex min-h-[72vh] flex-col gap-4 xl:flex-row', focusModeEnabled && 'relative z-10 min-h-0 flex-1')}>
+        <section className={cn('min-w-0 flex-1 rounded-3xl border bg-white shadow-sm', focusModeEnabled && 'flex min-h-0 flex-col border-transparent bg-transparent shadow-none')}>
           <div className={cn('flex items-center justify-between border-b px-5 py-4', focusModeEnabled && 'hidden')}>
               <div>
                 <div className="text-sm font-semibold text-slate-900">Write</div>
@@ -1108,7 +1108,7 @@ export default function InkwiseDocumentPage() {
               </div>
           </div>
 
-          <div className={cn('space-y-4 px-4 py-4 sm:px-5', focusModeEnabled && 'mx-auto flex h-full w-full max-w-5xl flex-col gap-5 px-0 py-4 sm:px-0')}>
+          <div className={cn('space-y-4 px-4 py-4 sm:px-5', focusModeEnabled && 'mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-5 px-0 py-4 sm:px-0')}>
 
             <InlineWritingTools
               editor={editor}

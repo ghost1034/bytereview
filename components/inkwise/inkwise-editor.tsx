@@ -117,7 +117,7 @@ export function InkwiseEditor({
       attributes: {
         class:
           focusMode
-            ? 'prose prose-slate max-w-none min-h-[calc(100vh-18rem)] px-5 py-5 focus:outline-none text-slate-900 prose-headings:font-semibold prose-p:leading-7 sm:px-6 sm:py-6'
+            ? 'prose prose-slate max-w-none min-h-0 px-5 py-5 focus:outline-none text-slate-900 prose-headings:font-semibold prose-p:leading-7 sm:px-6 sm:py-6'
             : 'prose prose-slate max-w-none min-h-[320px] px-4 py-4 focus:outline-none prose-headings:font-semibold prose-p:leading-7',
       },
     },
@@ -191,7 +191,7 @@ export function InkwiseEditor({
 
   return (
     <div
-      className={`overflow-hidden rounded-2xl border ${focusMode ? 'border-white/25 bg-white/45 shadow-2xl shadow-slate-950/20 backdrop-blur-xl' : 'bg-white shadow-sm'} ${className || ''}`}
+      className={`rounded-2xl border ${focusMode ? 'flex min-h-0 flex-col overflow-hidden border-white/25 bg-white/45 shadow-2xl shadow-slate-950/20 backdrop-blur-xl' : 'overflow-hidden bg-white shadow-sm'} ${className || ''}`}
     >
       {editable ? (
         <InkwiseEditorToolbar
@@ -201,7 +201,9 @@ export function InkwiseEditor({
           focusMode={focusMode}
         />
       ) : null}
-      <EditorContent editor={editor} />
+      <div className={focusMode ? 'min-h-0 flex-1 overflow-y-auto' : undefined}>
+        <EditorContent editor={editor} />
+      </div>
     </div>
   )
 }
