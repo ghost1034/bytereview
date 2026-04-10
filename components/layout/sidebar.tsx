@@ -12,13 +12,28 @@ import {
   Settings,
   LogOut,
   Plug,
-  Bot,
-  GraduationCap
+  Zap,
+  GraduationCap,
+  Clock,
+  Bot
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+
+interface NavItem {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  badge?: string
+  badgeColor?: string
+}
+
+interface NavGroup {
+  label: string
+  items: NavItem[]
+}
 
 interface SidebarProps {
   className?: string
@@ -29,56 +44,58 @@ export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname()
   const { signOut } = useAuth()
 
-  const navigation = [
-    {
-      name: 'Dashboard',
-      href: '/dashboard',
-      icon: Home,
-      current: pathname === '/dashboard'
-    },
-    {
-      name: 'Jobs',
-      href: '/dashboard/jobs',
-      icon: Briefcase,
-      current: pathname.startsWith('/dashboard/jobs')
-    },
-    {
-      name: 'CPE Tracker',
-      href: '/dashboard/cpe-tracker',
-      icon: GraduationCap,
-      current: pathname.startsWith('/dashboard/cpe-tracker')
-    },
-    {
-      name: 'Inkwise',
-      href: '/dashboard/inkwise',
-      icon: PenTool,
-      current: pathname.startsWith('/dashboard/inkwise')
-    },
-    {
-      name: 'Templates',
-      href: '/dashboard/templates',
-      icon: FileText,
-      current: pathname.startsWith('/dashboard/templates')
-    },
-    {
-      name: 'Integrations',
-      href: '/dashboard/integrations',
-      icon: Plug,
-      current: pathname.startsWith('/dashboard/integrations')
-    },
-    {
-      name: 'Automations',
-      href: '/dashboard/automations',
-      icon: Bot,
-      current: pathname.startsWith('/dashboard/automations')
-    },
-    {
-      name: 'Settings',
-      href: '/dashboard/settings',
-      icon: Settings,
-      current: pathname.startsWith('/dashboard/settings')
-    }
+  const udaGroup: NavGroup = {
+    label: 'Universal Document Analysis',
+    items: [
+      { name: 'Dashboard', href: '/dashboard', icon: Home },
+      { name: 'Jobs', href: '/dashboard/jobs', icon: Briefcase },
+      { name: 'Templates', href: '/dashboard/templates', icon: FileText },
+      { name: 'Integrations', href: '/dashboard/integrations', icon: Plug },
+      { name: 'Automations', href: '/dashboard/automations', icon: Zap },
+      { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+      { name: 'CPE Tracker', href: '/dashboard/cpe-tracker', icon: GraduationCap, badge: 'Free', badgeColor: 'bg-green-100 text-green-700' },
+    ],
+  }
+
+  const productLinks: NavItem[] = [
+    { name: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
+    { name: 'Chrona', href: '/#chrona-showcase', icon: Clock, badge: 'Soon', badgeColor: 'bg-gray-100 text-gray-500' },
+    { name: 'Claw Series', href: '/#claw-showcase', icon: Bot, badge: 'Soon', badgeColor: 'bg-gray-100 text-gray-500' },
   ]
+
+  const isCurrent = (href: string) => {
+    if (href === '/dashboard') return pathname === '/dashboard'
+    return pathname.startsWith(href)
+  }
+
+  const renderItem = (item: NavItem) => {
+    const Icon = item.icon
+    return (
+      <Link
+        key={item.name}
+        href={item.href}
+        className={cn(
+          "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+          isCurrent(item.href)
+            ? "bg-blue-50 text-blue-700 border border-blue-200"
+            : "text-gray-700 hover:bg-gray-100",
+          collapsed && "justify-center"
+        )}
+      >
+        <Icon className="w-5 h-5 flex-shrink-0" />
+        {!collapsed && (
+          <>
+            <span>{item.name}</span>
+            {item.badge && (
+              <span className={cn("ml-auto text-[10px] font-medium px-1.5 py-0.5 rounded", item.badgeColor)}>
+                {item.badge}
+              </span>
+            )}
+          </>
+        )}
+      </Link>
+    )
+  }
 
   return (
     <div className={cn(
@@ -91,7 +108,7 @@ export function Sidebar({ className }: SidebarProps) {
         {!collapsed && (
           <span className="font-semibold text-gray-900">Navigation</span>
         )}
-        
+
         <Button
           variant="ghost"
           size="sm"
@@ -107,26 +124,25 @@ export function Sidebar({ className }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2">
-        {navigation.map((item) => {
-          const Icon = item.icon
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                item.current
-                  ? "bg-blue-50 text-blue-700 border border-blue-200"
-                  : "text-gray-700 hover:bg-gray-100",
-                collapsed && "justify-center"
-              )}
-            >
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>{item.name}</span>}
-            </Link>
-          )
-        })}
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {/* UDA group */}
+        {!collapsed && (
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 pb-1">
+            UDA
+          </p>
+        )}
+        {udaGroup.items.map(renderItem)}
+
+        {/* Divider */}
+        <div className={cn("border-t border-gray-200", collapsed ? "my-2" : "my-3")} />
+
+        {/* Product links */}
+        {!collapsed && (
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 pb-1">
+            Products
+          </p>
+        )}
+        {productLinks.map(renderItem)}
       </nav>
 
       {/* Footer */}
