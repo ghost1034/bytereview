@@ -3,15 +3,19 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { FilePenLine, Folder, FolderPlus, Loader2, Plus, Trash2 } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from '@/components/ui/resizable'
+import { FolderSidebar } from '@/components/inkwise/write/folder-sidebar'
+import { DocumentGrid, type SortKey } from '@/components/inkwise/write/document-grid'
+import { CreateFolderDialog, RenameFolderDialog, DeleteFolderDialog } from '@/components/inkwise/write/folder-dialogs'
+import { CreateDocumentDialog } from '@/components/inkwise/write/create-document-dialog'
 import { useInkwiseDocumentFolders, useInkwiseDocuments } from '@/hooks/useInkwise'
 import { useToast } from '@/hooks/use-toast'
-import { apiClient } from '@/lib/api'
+import { apiClient, type InkwiseDocumentFolder } from '@/lib/api'
 
 const UNFILED_FOLDER_ID = '__unfiled__'
 
@@ -21,16 +25,31 @@ export default function InkwiseWritePage() {
   const { toast } = useToast()
   const documents = useInkwiseDocuments(1, 100)
   const folders = useInkwiseDocumentFolders()
-  const [newFolderName, setNewFolderName] = useState('')
+
+  // UI state
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey>('updated_at')
+
+  // Dialog state
+  const [createFolderOpen, setCreateFolderOpen] = useState(false)
+  const [renameFolderOpen, setRenameFolderOpen] = useState(false)
+  const [deleteFolderOpen, setDeleteFolderOpen] = useState(false)
+  const [createDocumentOpen, setCreateDocumentOpen] = useState(false)
+  const [targetFolder, setTargetFolder] = useState<InkwiseDocumentFolder | null>(null)
 
   const refreshLists = async () => {
     await queryClient.invalidateQueries({ queryKey: ['inkwise', 'documents'] })
     await queryClient.invalidateQueries({ queryKey: ['inkwise', 'document-folders'] })
   }
 
+  // -- Mutations --
+
   const createDocument = useMutation({
-    mutationFn: () => apiClient.createInkwiseDocument({ title: 'Untitled document', content_html: '<p></p>' }),
+    mutationFn: ({ title, folderId }: { title: string; folderId: string | null }) =>
+      apiClient.createInkwiseDocument({ title, folder_id: folderId, content_html: '<p></p>' }),
     onSuccess: async (document) => {
+      setCreateDocumentOpen(false)
       await queryClient.invalidateQueries({ queryKey: ['inkwise', 'documents'] })
       router.push(`/dashboard/inkwise/write/${document.id}`)
     },
@@ -40,9 +59,9 @@ export default function InkwiseWritePage() {
   })
 
   const createFolder = useMutation({
-    mutationFn: () => apiClient.createInkwiseDocumentFolder({ name: newFolderName.trim() }),
+    mutationFn: (name: string) => apiClient.createInkwiseDocumentFolder({ name }),
     onSuccess: async () => {
-      setNewFolderName('')
+      setCreateFolderOpen(false)
       await refreshLists()
       toast({ title: 'Folder created', description: 'Your writing workspace has a new folder.' })
     },
@@ -52,8 +71,10 @@ export default function InkwiseWritePage() {
   })
 
   const renameFolder = useMutation({
-    mutationFn: ({ folderId, name }: { folderId: string; name: string }) => apiClient.updateInkwiseDocumentFolder(folderId, { name }),
+    mutationFn: ({ folderId, name }: { folderId: string; name: string }) =>
+      apiClient.updateInkwiseDocumentFolder(folderId, { name }),
     onSuccess: async () => {
+      setRenameFolderOpen(false)
       await refreshLists()
       toast({ title: 'Folder renamed', description: 'The folder name was updated.' })
     },
@@ -65,6 +86,8 @@ export default function InkwiseWritePage() {
   const deleteFolder = useMutation({
     mutationFn: (folderId: string) => apiClient.deleteInkwiseDocumentFolder(folderId),
     onSuccess: async () => {
+      setDeleteFolderOpen(false)
+      if (targetFolder && selectedFolderId === targetFolder.id) setSelectedFolderId(null)
       await refreshLists()
       toast({ title: 'Folder deleted', description: 'Documents in that folder were moved to Unfiled.' })
     },
@@ -74,7 +97,8 @@ export default function InkwiseWritePage() {
   })
 
   const moveDocument = useMutation({
-    mutationFn: ({ documentId, folderId }: { documentId: string; folderId: string | null }) => apiClient.moveInkwiseDocument(documentId, folderId),
+    mutationFn: ({ documentId, folderId }: { documentId: string; folderId: string | null }) =>
+      apiClient.moveInkwiseDocument(documentId, folderId),
     onSuccess: async () => {
       await refreshLists()
     },
@@ -83,178 +107,147 @@ export default function InkwiseWritePage() {
     },
   })
 
-  const groupedDocuments = useMemo(() => {
-    const docs = documents.data?.items ?? []
-    const groups = new Map<string, typeof docs>()
-    groups.set(UNFILED_FOLDER_ID, [])
-    for (const folder of folders.data?.items ?? []) groups.set(folder.id, [])
-    for (const document of docs) {
-      const key = document.folder_id || UNFILED_FOLDER_ID
-      const current = groups.get(key) ?? []
-      current.push(document)
-      groups.set(key, current)
-    }
-    return groups
-  }, [documents.data?.items, folders.data?.items])
+  // -- Derived data --
 
-  const sections = useMemo(() => {
-    const folderSections = (folders.data?.items ?? []).map((folder) => ({
-      id: folder.id,
-      name: folder.name,
-      isUnfiled: false,
-      documents: groupedDocuments.get(folder.id) ?? [],
-    }))
-    return [
-      {
-        id: UNFILED_FOLDER_ID,
-        name: 'Unfiled',
-        isUnfiled: true,
-        documents: groupedDocuments.get(UNFILED_FOLDER_ID) ?? [],
-      },
-      ...folderSections,
-    ]
-  }, [folders.data?.items, groupedDocuments])
+  const allDocs = documents.data?.items ?? []
+  const allFolders = folders.data?.items ?? []
+
+  const documentCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    counts.set(UNFILED_FOLDER_ID, 0)
+    for (const folder of allFolders) counts.set(folder.id, 0)
+    for (const doc of allDocs) {
+      const key = doc.folder_id || UNFILED_FOLDER_ID
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    return counts
+  }, [allDocs, allFolders])
+
+  const filteredAndSorted = useMemo(() => {
+    let result = allDocs
+
+    // Filter by folder
+    if (selectedFolderId === UNFILED_FOLDER_ID) {
+      result = result.filter((d) => !d.folder_id)
+    } else if (selectedFolderId) {
+      result = result.filter((d) => d.folder_id === selectedFolderId)
+    }
+
+    // Filter by search
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase()
+      result = result.filter((d) => (d.title || 'Untitled document').toLowerCase().includes(q))
+    }
+
+    // Sort
+    const sorted = [...result]
+    switch (sortKey) {
+      case 'updated_at':
+        sorted.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+        break
+      case 'title_asc':
+        sorted.sort((a, b) => (a.title || 'Untitled document').localeCompare(b.title || 'Untitled document'))
+        break
+      case 'title_desc':
+        sorted.sort((a, b) => (b.title || 'Untitled document').localeCompare(a.title || 'Untitled document'))
+        break
+      case 'created_at_desc':
+        sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        break
+      case 'created_at_asc':
+        sorted.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+        break
+    }
+    return sorted
+  }, [allDocs, selectedFolderId, searchQuery, sortKey])
+
+  // Resolve folder name for the grid header
+  const folderName = useMemo(() => {
+    if (selectedFolderId === null) return 'All Documents'
+    if (selectedFolderId === UNFILED_FOLDER_ID) return 'Unfiled'
+    return allFolders.find((f) => f.id === selectedFolderId)?.name ?? 'All Documents'
+  }, [selectedFolderId, allFolders])
+
+  // Resolve default folder for new document dialog
+  const defaultDocFolderId = selectedFolderId === null ? null : selectedFolderId === UNFILED_FOLDER_ID ? null : selectedFolderId
+
+  const isLoading = documents.isLoading || folders.isLoading
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <CardTitle>Writing Workspace</CardTitle>
-            <CardDescription>Open an existing draft, start a new grounded document, and organize documents into flat folders.</CardDescription>
-          </div>
-          <Button onClick={() => createDocument.mutate()} disabled={createDocument.isPending}>
-            {createDocument.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-            New document
-          </Button>
-        </CardHeader>
-      </Card>
+    <>
+      <div className="h-[calc(100vh-4rem)]">
+        <ResizablePanelGroup direction="horizontal" className="h-full rounded-lg border bg-white">
+          <ResizablePanel defaultSize={25} minSize={18} maxSize={35}>
+            <FolderSidebar
+              folders={allFolders}
+              documentCounts={documentCounts}
+              totalCount={allDocs.length}
+              selectedFolderId={selectedFolderId}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onSelectFolder={setSelectedFolderId}
+              onCreateFolder={() => setCreateFolderOpen(true)}
+              onRenameFolder={(folder) => {
+                setTargetFolder(folder)
+                setRenameFolderOpen(true)
+              }}
+              onDeleteFolder={(folder) => {
+                setTargetFolder(folder)
+                setDeleteFolderOpen(true)
+              }}
+              isLoading={isLoading}
+            />
+          </ResizablePanel>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <FolderPlus className="h-4 w-4" />
-            Create Folder
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2 md:flex-row">
-          <Input value={newFolderName} onChange={(event) => setNewFolderName(event.target.value)} placeholder="Folder name" />
-          <Button onClick={() => createFolder.mutate()} disabled={createFolder.isPending || !newFolderName.trim()}>
-            {createFolder.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderPlus className="mr-2 h-4 w-4" />}
-            Add folder
-          </Button>
-        </CardContent>
-      </Card>
+          <ResizableHandle withHandle />
 
-      {documents.isLoading || folders.isLoading ? (
-        <Card>
-          <CardContent className="flex items-center gap-3 p-6 text-sm text-slate-500">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading workspace...
-          </CardContent>
-        </Card>
-      ) : sections.some((section) => section.documents.length) ? (
-        sections.map((section) => (
-          <section key={section.id} className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Folder className="h-4 w-4 text-slate-500" />
-                <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-600">{section.name}</h2>
-                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">{section.documents.length}</span>
-              </div>
-              {!section.isUnfiled ? (
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const nextName = window.prompt('Rename folder', section.name)?.trim()
-                      if (nextName && nextName !== section.name) {
-                        renameFolder.mutate({ folderId: section.id, name: nextName })
-                      }
-                    }}
-                  >
-                    Rename
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (window.confirm(`Delete the folder "${section.name}"? Documents will move to Unfiled.`)) {
-                        deleteFolder.mutate(section.id)
-                      }
-                    }}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </Button>
-                </div>
-              ) : null}
-            </div>
+          <ResizablePanel defaultSize={75}>
+            <DocumentGrid
+              documents={filteredAndSorted}
+              folders={allFolders}
+              folderName={folderName}
+              sortKey={sortKey}
+              onSortChange={setSortKey}
+              showFolderBadge={selectedFolderId === null}
+              onMoveDocument={(documentId, folderId) => moveDocument.mutate({ documentId, folderId })}
+              onCreateDocument={() => setCreateDocumentOpen(true)}
+              isCreating={createDocument.isPending}
+              isLoading={isLoading}
+            />
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </div>
 
-            {section.documents.length ? (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {section.documents.map((document) => (
-                  <Card key={document.id} className="h-full border-slate-200">
-                    <CardContent className="flex h-full flex-col gap-4 p-6">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-                            <FilePenLine className="h-5 w-5" />
-                          </div>
-                          <h3 className="line-clamp-2 text-lg font-semibold text-slate-900">{document.title || 'Untitled document'}</h3>
-                        </div>
-                        <div className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">v{document.version}</div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Folder</div>
-                        <Select
-                          value={document.folder_id || UNFILED_FOLDER_ID}
-                          onValueChange={(value) => moveDocument.mutate({ documentId: document.id, folderId: value === UNFILED_FOLDER_ID ? null : value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value={UNFILED_FOLDER_ID}>Unfiled</SelectItem>
-                            {(folders.data?.items ?? []).map((folder) => (
-                              <SelectItem key={folder.id} value={folder.id}>
-                                {folder.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="mt-auto flex items-center justify-between gap-3">
-                        <div className="text-sm text-slate-500">Updated {new Date(document.updated_at).toLocaleString()}</div>
-                        <Button onClick={() => router.push(`/dashboard/inkwise/write/${document.id}`)}>Open</Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="p-6 text-sm text-slate-500">No documents in this folder.</CardContent>
-              </Card>
-            )}
-          </section>
-        ))
-      ) : (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
-            <div className="rounded-full bg-slate-100 p-4 text-slate-500">
-              <FilePenLine className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="font-medium text-slate-900">No documents yet</p>
-              <p className="text-sm text-slate-500">Create your first draft to start using Inkwise inside CPAAutomation.</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+      {/* Dialogs */}
+      <CreateFolderDialog
+        open={createFolderOpen}
+        onOpenChange={setCreateFolderOpen}
+        onSubmit={(name) => createFolder.mutate(name)}
+        isPending={createFolder.isPending}
+      />
+      <RenameFolderDialog
+        open={renameFolderOpen}
+        onOpenChange={setRenameFolderOpen}
+        folder={targetFolder}
+        onSubmit={(folderId, name) => renameFolder.mutate({ folderId, name })}
+        isPending={renameFolder.isPending}
+      />
+      <DeleteFolderDialog
+        open={deleteFolderOpen}
+        onOpenChange={setDeleteFolderOpen}
+        folder={targetFolder}
+        documentCount={targetFolder ? (documentCounts.get(targetFolder.id) ?? 0) : 0}
+        onConfirm={(folderId) => deleteFolder.mutate(folderId)}
+        isPending={deleteFolder.isPending}
+      />
+      <CreateDocumentDialog
+        open={createDocumentOpen}
+        onOpenChange={setCreateDocumentOpen}
+        folders={allFolders}
+        defaultFolderId={defaultDocFolderId}
+        onSubmit={(title, folderId) => createDocument.mutate({ title, folderId })}
+        isPending={createDocument.isPending}
+      />
+    </>
   )
 }
