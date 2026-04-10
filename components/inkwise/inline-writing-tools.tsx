@@ -5,7 +5,6 @@ import { BubbleMenu, FloatingMenu } from '@tiptap/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Copy, Play, RefreshCw, Square, Wand2, X } from 'lucide-react'
 
-import { InkwiseCitationBubbles } from '@/components/inkwise/citation-bubbles'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -431,13 +430,8 @@ export function InlineWritingTools({
               </div>
             ) : null}
             <div className="mt-3 max-h-56 overflow-auto text-sm text-slate-700">
-              {outputMd ? <InkwiseMarkdownView markdown={outputMd} className="prose prose-sm max-w-none" /> : <div className="text-slate-400">...</div>}
+              {outputMd ? <InkwiseMarkdownView markdown={outputMd} citations={groundingState?.evidence} renderInlineCitations className="prose prose-sm max-w-none" /> : <div className="text-slate-400">...</div>}
             </div>
-            {groundingState?.evidence?.length ? (
-              <div className="mt-3">
-                <InkwiseCitationBubbles citations={groundingState.evidence} />
-              </div>
-            ) : null}
             <div className="mt-3 flex flex-wrap justify-end gap-2">
               <Button size="sm" variant="outline" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={() => retryAttempt()} disabled={!attemptId || busy} aria-label="Retry">
                 <RefreshCw className="h-4 w-4" />
