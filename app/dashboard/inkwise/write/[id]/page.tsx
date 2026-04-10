@@ -1109,15 +1109,6 @@ export default function InkwiseDocumentPage() {
           </div>
 
           <div className={cn('space-y-4 px-4 py-4 sm:px-5', focusModeEnabled && 'mx-auto flex h-full w-full max-w-5xl flex-col gap-5 px-0 py-4 sm:px-0')}>
-            <div className={cn('rounded-3xl border border-white/15 bg-slate-950/20 px-4 py-3 text-xs text-white/80 shadow-lg backdrop-blur-xl', !focusModeEnabled && 'hidden')}>
-                <div>
-                  {predictionLoading
-                    ? 'Inkwise is drafting the next suggestion while focus mode stays fullscreen.'
-                    : predictionState?.grounded
-                      ? `Press Tab to accept the grounded inline prediction. Using ${predictionState.evidence.length} evidence ${predictionState.evidence.length === 1 ? 'segment' : 'segments'}.`
-                      : 'Press Tab to accept inline predictions when they appear.'}
-                </div>
-            </div>
 
             <InlineWritingTools
               editor={editor}
