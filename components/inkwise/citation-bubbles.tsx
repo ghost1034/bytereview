@@ -138,13 +138,11 @@ export function InkwiseCitationBubbles({
                   Evidence {selectedIndex + 1} of {items.length}
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setSelectedIndex((value) => Math.max(0, value - 1))} disabled={selectedIndex === 0}>
-                    <ChevronLeft className="mr-1 h-4 w-4" />
-                    Prev
+                  <Button size="sm" variant="outline" onClick={() => setSelectedIndex((value) => Math.max(0, value - 1))} disabled={selectedIndex === 0} aria-label="Previous">
+                    <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setSelectedIndex((value) => Math.min(items.length - 1, value + 1))} disabled={selectedIndex >= items.length - 1}>
-                    Next
-                    <ChevronRight className="ml-1 h-4 w-4" />
+                  <Button size="sm" variant="outline" onClick={() => setSelectedIndex((value) => Math.min(items.length - 1, value + 1))} disabled={selectedIndex >= items.length - 1} aria-label="Next">
+                    <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
               </div>

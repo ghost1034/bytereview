@@ -3,7 +3,7 @@
 import type { Editor } from '@tiptap/core'
 import { BubbleMenu, FloatingMenu } from '@tiptap/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Wand2 } from 'lucide-react'
+import { Copy, Play, RefreshCw, Square, Wand2, X } from 'lucide-react'
 
 import { InkwiseCitationBubbles } from '@/components/inkwise/citation-bubbles'
 import { Button } from '@/components/ui/button'
@@ -335,7 +335,7 @@ export function InlineWritingTools({
           )}
         </div>
         <div>
-          {busy ? <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={stop}>Stop</Button> : outputMd || error ? <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={closePanel}>Close</Button> : null}
+          {busy ? <Button size="sm" variant="outline" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={stop} aria-label="Stop"><Square className="h-4 w-4" /></Button> : outputMd || error ? <Button size="sm" variant="outline" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={closePanel} aria-label="Close"><X className="h-4 w-4" /></Button> : null}
         </div>
       </div>
 
@@ -405,8 +405,8 @@ export function InlineWritingTools({
             <Label htmlFor="inkwise-custom-tool">Instruction</Label>
             <Input id="inkwise-custom-tool" value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder={hasSelection ? 'e.g. rewrite in a persuasive tone' : 'e.g. draft a concise transition sentence'} />
             <div className="flex justify-end">
-              <Button size="sm" onMouseDown={preventEditorBlur} onClick={() => run('custom', instruction)} disabled={busy || !instruction.trim()}>
-                Run
+              <Button size="sm" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={() => run('custom', instruction)} disabled={busy || !instruction.trim()} aria-label="Run">
+                <Play className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -439,8 +439,8 @@ export function InlineWritingTools({
               </div>
             ) : null}
             <div className="mt-3 flex flex-wrap justify-end gap-2">
-              <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => retryAttempt()} disabled={!attemptId || busy}>
-                Retry
+              <Button size="sm" variant="outline" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={() => retryAttempt()} disabled={!attemptId || busy} aria-label="Retry">
+                <RefreshCw className="h-4 w-4" />
               </Button>
               {rangeRef.current?.hasSelection ? (
                 <>
@@ -456,8 +456,8 @@ export function InlineWritingTools({
                   {inserting === 'insert' ? 'Inserting...' : 'Insert'}
                 </Button>
               )}
-              <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => navigator.clipboard?.writeText(outputMd || '')} disabled={!outputMd}>
-                Copy
+              <Button size="sm" variant="outline" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={() => navigator.clipboard?.writeText(outputMd || '')} disabled={!outputMd} aria-label="Copy">
+                <Copy className="h-4 w-4" />
               </Button>
             </div>
           </div>
