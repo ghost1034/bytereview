@@ -477,7 +477,19 @@ export function InlineWritingTools({
       <BubbleMenu
         editor={editor}
         shouldShow={({ editor }) => Boolean(editor && selectionTarget(editor)?.hasSelection)}
-        tippyOptions={{ duration: 120, maxWidth: 560, placement: 'top', appendTo: () => document.body, interactive: true }}
+        tippyOptions={{
+          duration: 120,
+          maxWidth: 560,
+          placement: 'top',
+          appendTo: () => document.body,
+          interactive: true,
+          popperOptions: {
+            modifiers: [
+              { name: 'flip', options: { fallbackPlacements: ['bottom', 'top'] } },
+              { name: 'preventOverflow', options: { padding: 8 } },
+            ],
+          },
+        }}
       >
         {panelOpen && hasSelection ? panel : icon}
       </BubbleMenu>
@@ -485,7 +497,19 @@ export function InlineWritingTools({
       <FloatingMenu
         editor={editor}
         shouldShow={({ editor }) => Boolean(editor?.isFocused && selectionTarget(editor) && !selectionTarget(editor)?.hasSelection)}
-        tippyOptions={{ duration: 120, maxWidth: 560, placement: 'top', appendTo: () => document.body, interactive: true }}
+        tippyOptions={{
+          duration: 120,
+          maxWidth: 560,
+          placement: 'top',
+          appendTo: () => document.body,
+          interactive: true,
+          popperOptions: {
+            modifiers: [
+              { name: 'flip', options: { fallbackPlacements: ['bottom', 'top'] } },
+              { name: 'preventOverflow', options: { padding: 8 } },
+            ],
+          },
+        }}
       >
         {panelOpen && !hasSelection ? panel : icon}
       </FloatingMenu>

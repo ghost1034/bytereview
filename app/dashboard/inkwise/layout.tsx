@@ -14,7 +14,7 @@ export default function InkwiseLayout({ children }: { children: ReactNode }) {
             </div>
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Inkwise</h1>
-              <p className="text-sm text-slate-500">Grounded drafting, references, templates, and help in one app shell.</p>
+              <p className="text-sm text-slate-500">Multimodal AI-assisted writing</p>
             </div>
           </div>
           <InkwiseModuleNav />
