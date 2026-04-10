@@ -52,6 +52,22 @@ def _content_json_to_text(content_json: Any) -> str:
             return str(node.get("text") or "")
         if node_type == "inkwiseCitationAnchor":
             return ""
+        if node_type == "inkwiseNoteRef":
+            attrs = node.get("attrs") or {}
+            note_number = attrs.get("noteNumber", "")
+            note_kind = attrs.get("noteKind", "footnote")
+            if note_kind == "footnote":
+                return f"[^{note_number}]"
+            return f"[{note_number}]"
+        if node_type == "inkwiseNoteDefinition":
+            attrs = node.get("attrs") or {}
+            note_number = attrs.get("noteNumber", "")
+            note_kind = attrs.get("noteKind", "footnote")
+            inner_text = "".join(render_node(child) for child in content)
+            inner_text = _normalize_block_text(inner_text)
+            if note_kind == "footnote":
+                return f"[^{note_number}]: {inner_text}"
+            return f"{note_number}. {inner_text}"
         if node_type == "inkwisePageBreak":
             return _PAGE_BREAK_SENTINEL
 

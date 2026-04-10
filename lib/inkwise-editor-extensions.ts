@@ -14,9 +14,11 @@ export const INKWISE_PAGE_BREAK_NODE = 'inkwisePageBreak'
 export const INKWISE_COMMENT_MARK = 'inkwiseComment'
 export const INKWISE_INSERTION_MARK = 'inkwiseInsertion'
 export const INKWISE_DELETION_MARK = 'inkwiseDeletion'
+export const INKWISE_NOTE_REF_NODE = 'inkwiseNoteRef'
+export const INKWISE_NOTE_DEFINITION_NODE = 'inkwiseNoteDefinition'
 
 const trackChangesPluginKey = new PluginKey('inkwiseTrackChanges')
-const TRACK_CHANGES_SKIP_META = 'inkwise-track-changes-skip'
+export const TRACK_CHANGES_SKIP_META = 'inkwise-track-changes-skip'
 const TRACK_CHANGES_PROCESSED_META = 'inkwise-track-changes-processed'
 
 export type InkwiseEditorCommentThread = {
@@ -456,6 +458,106 @@ export function createTrackChangesExtension(getEnabled: () => boolean) {
   })
 }
 
+export const InkwiseNoteRefNode = TiptapNode.create({
+  name: INKWISE_NOTE_REF_NODE,
+  group: 'inline',
+  inline: true,
+  atom: true,
+  selectable: true,
+
+  addAttributes() {
+    return {
+      noteId: {
+        default: null,
+        parseHTML: (element: HTMLElement) => parseStringValue(element.getAttribute('data-note-id')),
+      },
+      noteKind: {
+        default: 'footnote',
+        parseHTML: (element: HTMLElement) => parseStringValue(element.getAttribute('data-note-kind')) || 'footnote',
+      },
+      noteNumber: {
+        default: 1,
+        parseHTML: (element: HTMLElement) => {
+          const value = Number(element.getAttribute('data-note-number'))
+          return Number.isFinite(value) ? value : 1
+        },
+      },
+    }
+  },
+
+  parseHTML() {
+    return [{ tag: 'span[data-inkwise-note-ref="true"]' }]
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    const noteNumber = Number(HTMLAttributes.noteNumber) || 1
+    return [
+      'span',
+      mergeAttributes(HTMLAttributes, {
+        'data-inkwise-note-ref': 'true',
+        'data-note-id': parseStringValue(HTMLAttributes.noteId) || '',
+        'data-note-kind': parseStringValue(HTMLAttributes.noteKind) || 'footnote',
+        'data-note-number': String(noteNumber),
+        class: 'cursor-pointer text-[0.7em] font-semibold text-blue-600 align-super',
+        contenteditable: 'false',
+      }),
+      String(noteNumber),
+    ]
+  },
+})
+
+export const InkwiseNoteDefinitionNode = TiptapNode.create({
+  name: INKWISE_NOTE_DEFINITION_NODE,
+  group: 'block',
+  content: 'inline*',
+  defining: true,
+  selectable: true,
+
+  addAttributes() {
+    return {
+      noteId: {
+        default: null,
+        parseHTML: (element: HTMLElement) => parseStringValue(element.getAttribute('data-note-id')),
+      },
+      noteKind: {
+        default: 'footnote',
+        parseHTML: (element: HTMLElement) => parseStringValue(element.getAttribute('data-note-kind')) || 'footnote',
+      },
+      noteNumber: {
+        default: 1,
+        parseHTML: (element: HTMLElement) => {
+          const value = Number(element.getAttribute('data-note-number'))
+          return Number.isFinite(value) ? value : 1
+        },
+      },
+    }
+  },
+
+  parseHTML() {
+    return [{ tag: 'div[data-inkwise-note-definition="true"]' }]
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    const noteNumber = Number(HTMLAttributes.noteNumber) || 1
+    const noteKind = parseStringValue(HTMLAttributes.noteKind) || 'footnote'
+    const isFootnote = noteKind === 'footnote'
+    return [
+      'div',
+      mergeAttributes(HTMLAttributes, {
+        'data-inkwise-note-definition': 'true',
+        'data-note-id': parseStringValue(HTMLAttributes.noteId) || '',
+        'data-note-kind': noteKind,
+        'data-note-number': String(noteNumber),
+        class: isFootnote
+          ? 'my-1 flex gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600'
+          : 'my-1 flex gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm text-slate-600',
+      }),
+      ['span', { contenteditable: 'false', class: 'font-semibold text-slate-400 shrink-0 select-none' }, `${noteNumber}.`],
+      ['span', { class: 'flex-1' }, 0],
+    ]
+  },
+})
+
 export const INKWISE_EDITOR_EXTENSIONS = [
   Table.configure({
     resizable: false,
@@ -467,6 +569,7 @@ export const INKWISE_EDITOR_EXTENSIONS = [
   TableHeader.configure({ HTMLAttributes: { class: 'border border-slate-300 bg-slate-100 px-3 py-2 text-left font-semibold' } }),
   TableCell.configure({ HTMLAttributes: { class: 'border border-slate-300 px-3 py-2 align-top' } }),
   InkwisePageBreakNode,
+  InkwiseNoteDefinitionNode,
   InkwiseCommentMark,
   InkwiseInsertionMark,
   InkwiseDeletionMark,

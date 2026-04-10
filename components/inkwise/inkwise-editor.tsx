@@ -6,6 +6,7 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import { useEffect, useMemo, useRef } from 'react'
 
 import { InkwiseCitationAnchorEditorNode } from '@/components/inkwise/editor-citation-anchor'
+import { InkwiseNoteRefEditorNode } from '@/components/inkwise/editor-note-ref'
 import { createPredictionExtension, refreshPredictionDecorations } from '@/components/inkwise/editor-prediction'
 import { InkwiseEditorToolbar } from '@/components/inkwise/editor-toolbar'
 import {
@@ -113,6 +114,7 @@ export function InkwiseEditor({
       ...INKWISE_TIPTAP_BASE_EXTENSIONS,
       Placeholder.configure({ placeholder: placeholder || 'Start writing...' }),
       InkwiseCitationAnchorEditorNode,
+      InkwiseNoteRefEditorNode,
       predictionExtension,
       trackChangesExtension,
     ],
