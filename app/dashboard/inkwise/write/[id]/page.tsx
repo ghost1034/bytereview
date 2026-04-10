@@ -4,7 +4,7 @@ import type { Editor as TiptapEditor, JSONContent } from '@tiptap/core'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Cloud, Download, History, LibraryBig, Loader2, Maximize2, MessageSquarePlus, MessageSquareText, Minimize2, PanelRightClose, PanelRightOpen, Save, Settings2, Sparkles, Unplug, Volume2, VolumeX, Wand2, X } from 'lucide-react'
+import { Cloud, Download, History, LibraryBig, Loader2, Maximize2, MessageSquarePlus, MessageSquareText, Minimize2, MoreHorizontal, PanelRightClose, PanelRightOpen, Save, Settings2, Sparkles, Trash2, Unplug, Volume2, VolumeX, Wand2, X } from 'lucide-react'
 
 import { InkwiseEditor, type InkwiseEditorReviewState } from '@/components/inkwise/inkwise-editor'
 import { InkwiseSourceImportPanel } from '@/components/inkwise/source-import-panel'
@@ -18,6 +18,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -1030,74 +1037,74 @@ export default function InkwiseDocumentPage() {
       </div>
 
       <section className={cn('rounded-3xl border bg-white shadow-sm', focusModeEnabled && 'hidden')}>
-          <div className="flex flex-col gap-4 border-b px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0 flex-1 space-y-2">
-              <Label htmlFor="inkwise-title" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                Document Title
-              </Label>
+          <div className="flex flex-col gap-2 px-5 py-2 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0 flex-1 space-y-0.5">
               <Input
                 id="inkwise-title"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                className="h-auto border-0 px-0 text-2xl font-semibold tracking-tight shadow-none focus-visible:ring-0"
+                placeholder="Document title"
+                className="h-auto border-0 px-0 text-lg font-semibold tracking-tight shadow-none focus-visible:ring-0"
               />
               <div className="text-xs text-slate-500">
-                {version != null ? `Version ${version}` : 'Draft'} · Editor-first workspace with grounded assistance and references.
-              </div>
-              <div className="text-xs text-slate-500">
-                {initPrompt.trim() ? 'Document guidance configured in settings.' : 'No document guidance yet. Use settings to add prompt instructions.'}
+                {version != null ? `Version ${version}` : 'Draft'} · {initPrompt.trim() ? 'Guidance active' : 'No guidance set'}
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               <Button variant="outline" size="sm" onClick={() => runWritingTool.mutate()} disabled={runWritingTool.isPending}>
-                {runWritingTool.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                {runWritingTool.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Wand2 className="mr-1.5 h-4 w-4" />}
                 Coherent draft
               </Button>
               <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
-                <Settings2 className="mr-2 h-4 w-4" />
+                <Settings2 className="mr-1.5 h-4 w-4" />
                 Settings
               </Button>
               <Button variant="outline" size="sm" onClick={() => void enterFocusMode()}>
-                <Maximize2 className="mr-2 h-4 w-4" />
+                <Maximize2 className="mr-1.5 h-4 w-4" />
                 Focus mode
               </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
-                <Download className="mr-2 h-4 w-4" />
-                PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExport('docx')}>
-                <Download className="mr-2 h-4 w-4" />
-                DOCX
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setDriveExportOpen(true)}>
-                <Cloud className="mr-2 h-4 w-4" />
-                Export to Drive
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)}>
-                <History className="mr-2 h-4 w-4" />
-                Version history
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => deleteDocument.mutate()} disabled={deleteDocument.isPending}>
-                Delete
-              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export as PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('docx')}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export as DOCX
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setDriveExportOpen(true)}>
+                    <Cloud className="mr-2 h-4 w-4" />
+                    Export to Drive
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
+                    <History className="mr-2 h-4 w-4" />
+                    Version history
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-red-600 focus:text-red-600"
+                    onClick={() => deleteDocument.mutate()}
+                    disabled={deleteDocument.isPending}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete document
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Button size="sm" onClick={() => saveDocument.mutate()} disabled={saveDocument.isPending || version == null}>
-                {saveDocument.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                {saveDocument.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
                 Save
               </Button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-4 px-5 py-3 text-xs text-slate-500">
-            <div>
-              Select text in the editor to open inline rewrite tools. Grounded predictions and citations stay attached to the writing surface.
-            </div>
-            <div className="hidden lg:block">
-              {trackChangesEnabled
-                ? 'Track changes is on. New edits are marked for review.'
-                : initPrompt.trim()
-                  ? 'Prompt guidance is active for this document.'
-                  : 'Prompt guidance is currently empty.'}
             </div>
           </div>
       </section>
