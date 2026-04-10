@@ -1171,10 +1171,10 @@ export default function InkwiseDocumentPage() {
                 setPredictionTick((tick) => tick + 1)
               }}
               focusMode={focusModeEnabled}
-              className={cn('min-h-[56vh] border-0 shadow-none', focusModeEnabled && 'min-h-[calc(100vh-16rem)]')}
+              className={cn('min-h-[56vh] border-0 shadow-none', focusModeEnabled && 'min-h-0 flex-1')}
             />
 
-            <div className={cn('rounded-2xl px-4 py-3 text-xs', focusModeEnabled ? 'border border-white/15 bg-slate-950/20 text-white/80 shadow-lg backdrop-blur-xl' : 'bg-slate-50 text-slate-500')}>
+            <div className={cn('rounded-2xl px-4 py-3 text-xs', focusModeEnabled ? 'hidden' : 'bg-slate-50 text-slate-500')}>
               {predictionLoading
                 ? 'Inkwise is drafting the next suggestion...'
                 : predictionState?.grounded
