@@ -128,7 +128,7 @@ export function Sidebar({ className }: SidebarProps) {
         {/* UDA group */}
         {!collapsed && (
           <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 pb-1">
-            UDA
+            Universal Document Analysis (UDA)
           </p>
         )}
         {udaGroup.items.map(renderItem)}
@@ -138,7 +138,7 @@ export function Sidebar({ className }: SidebarProps) {
 
         {/* Product links */}
         {!collapsed && (
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 pb-1">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 pt-1 pb-1">
             Products
           </p>
         )}
