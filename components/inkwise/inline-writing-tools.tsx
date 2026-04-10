@@ -480,12 +480,12 @@ export function InlineWritingTools({
         tippyOptions={{
           duration: 120,
           maxWidth: 560,
-          placement: 'top',
+          placement: 'bottom',
           appendTo: () => document.body,
           interactive: true,
           popperOptions: {
             modifiers: [
-              { name: 'flip', options: { fallbackPlacements: ['bottom', 'top'] } },
+              { name: 'flip', options: { fallbackPlacements: ['top', 'bottom'] } },
               { name: 'preventOverflow', options: { padding: 8 } },
             ],
           },
@@ -500,12 +500,12 @@ export function InlineWritingTools({
         tippyOptions={{
           duration: 120,
           maxWidth: 560,
-          placement: 'top',
+          placement: 'bottom',
           appendTo: () => document.body,
           interactive: true,
           popperOptions: {
             modifiers: [
-              { name: 'flip', options: { fallbackPlacements: ['bottom', 'top'] } },
+              { name: 'flip', options: { fallbackPlacements: ['top', 'bottom'] } },
               { name: 'preventOverflow', options: { padding: 8 } },
             ],
           },
