@@ -187,6 +187,7 @@ export default function InkwiseDocumentPage() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [driveExportOpen, setDriveExportOpen] = useState(false)
+  const [isDrivePickerOpen, setIsDrivePickerOpen] = useState(false)
   const [driveExportFolder, setDriveExportFolder] = useState<DriveFolderSelection | null>(null)
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
   const [chatInsertKey, setChatInsertKey] = useState<string | null>(null)
@@ -1637,7 +1638,7 @@ export default function InkwiseDocumentPage() {
       </div>
 
       <Dialog open={driveExportOpen} onOpenChange={setDriveExportOpen}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="sm:max-w-xl" onInteractOutside={(e) => { if (isDrivePickerOpen) e.preventDefault(); }}>
           <DialogHeader>
             <DialogTitle>Export To Google Drive</DialogTitle>
             <DialogDescription>Create a new PDF or DOCX file in Google Drive. Leave the folder unset to export to the root of My Drive.</DialogDescription>
@@ -1648,6 +1649,7 @@ export default function InkwiseDocumentPage() {
               selectedFolder={driveExportFolder}
               onFolderSelected={(folder) => setDriveExportFolder(folder)}
               buttonText={driveExportFolder ? `Folder: ${driveExportFolder.name}` : 'Select Destination Folder'}
+              onPickerStateChange={setIsDrivePickerOpen}
             />
             <div className="text-xs text-slate-500">
               Each export creates a new Drive file. Existing Drive exports are not overwritten.
