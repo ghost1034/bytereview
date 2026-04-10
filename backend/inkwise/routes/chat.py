@@ -67,7 +67,7 @@ async def _maybe_auto_name_thread(
             model=settings.grounded_model,
             prompt=prompt,
             temperature=0.2,
-            max_output_tokens=24,
+            max_output_tokens=65536,
             timeout_seconds=10,
         )
     except Exception:
