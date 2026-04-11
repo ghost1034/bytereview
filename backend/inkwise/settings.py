@@ -100,7 +100,6 @@ class InkwiseSettings:
     query_rewrite_model: str
     query_rewrite_enabled: bool
     query_rewrite_max_history_messages: int
-    query_rewrite_max_queries: int
     query_rewrite_max_query_chars: int
     query_rewrite_timeout_seconds: float
     max_bound_sources: int
@@ -164,7 +163,6 @@ def get_inkwise_settings() -> InkwiseSettings:
         query_rewrite_model=os.getenv("INKWISE_QUERY_REWRITE_MODEL", default_model),
         query_rewrite_enabled=_env_bool("INKWISE_QUERY_REWRITE_ENABLED", True),
         query_rewrite_max_history_messages=_env_int("INKWISE_QUERY_REWRITE_MAX_HISTORY_MESSAGES", 12),
-        query_rewrite_max_queries=_env_int("INKWISE_QUERY_REWRITE_MAX_QUERIES", 4),
         query_rewrite_max_query_chars=_env_int("INKWISE_QUERY_REWRITE_MAX_QUERY_CHARS", 180),
         query_rewrite_timeout_seconds=_env_float("INKWISE_QUERY_REWRITE_TIMEOUT_SECONDS", 15.0),
         max_bound_sources=_env_int("INKWISE_MAX_BOUND_SOURCES", 100),

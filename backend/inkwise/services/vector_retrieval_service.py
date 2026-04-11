@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from inkwise.services.embeddings import InkwiseEmbeddingService
 from inkwise.services.json_utils import extract_first_json_object
-from inkwise.services.query_rewrite import QueryRewriteConfig, rewrite_retrieval_query
+from inkwise.services.query_rewrite import QueryRewriteConfig, QueryRewriteResult, rewrite_retrieval_query
 from inkwise.services.retrieval_types import EvidenceItem, evidence_excerpt as _evidence_excerpt
 from inkwise.services.vertex_ai import VertexAIError, generate_text_sync
 from inkwise.settings import get_inkwise_settings
@@ -72,13 +72,13 @@ class InkwiseVectorRetrievalService:
             enabled=bool(settings.query_rewrite_enabled and settings.vertex_enabled),
             model=settings.query_rewrite_model,
             max_history_messages=int(settings.query_rewrite_max_history_messages),
-            max_queries=int(settings.query_rewrite_max_queries),
             max_query_chars=int(settings.query_rewrite_max_query_chars),
             timeout_seconds=float(settings.query_rewrite_timeout_seconds),
         )
 
-        attempts = [clean_query]
-        rewrite_meta: dict[str, Any] = {"enabled": rewrite_cfg.enabled, "triggered": False, "attempts": [clean_query]}
+        has_chat_history = bool(history_messages)
+        rewrite_meta: dict[str, Any] = {"enabled": rewrite_cfg.enabled, "triggered": False, "has_chat_history": has_chat_history}
+        rewrite: QueryRewriteResult | None = None
         if rewrite_cfg.enabled:
             try:
                 rewrite = rewrite_retrieval_query(
@@ -90,36 +90,55 @@ class InkwiseVectorRetrievalService:
                     scoped_source_titles=[title for _source_id, title in bound_sources],
                     draft_selection_text=draft_selection_text,
                 )
-                extra_attempts: list[str] = []
-                if rewrite.standalone_question:
-                    extra_attempts.append(rewrite.standalone_question)
-                if rewrite.fts_query:
-                    extra_attempts.append(rewrite.fts_query)
-                extra_attempts.extend(rewrite.subqueries)
-                for attempt in extra_attempts:
-                    clean_attempt = (attempt or "").strip()
-                    if clean_attempt and clean_attempt not in attempts:
-                        attempts.append(clean_attempt)
-                    if len(attempts) >= max(1, int(rewrite_cfg.max_queries)):
-                        break
-                rewrite_meta["triggered"] = len(attempts) > 1
-                rewrite_meta["attempts"] = attempts
+                rewrite_meta["triggered"] = bool(rewrite.standalone_question or rewrite.fts_query)
+                rewrite_meta["standalone_question"] = rewrite.standalone_question
+                rewrite_meta["fts_query"] = rewrite.fts_query
             except Exception as exc:
+                rewrite = None
                 rewrite_meta["error"] = str(exc)[:500]
+
+        # Build search attempts.
+        # When query rewrite produced a standalone_question AND there is chat history,
+        # the original query may contain unresolved references (pronouns, "it", "that
+        # section", etc.) so we lead with the rewritten standalone_question for vector
+        # search and use fts_query for lexical search.  The original query is kept as
+        # a fallback in case the rewritten queries return zero candidates.
+        # When there is no chat history the original query is self-contained, so we
+        # use it directly (standalone_question would be near-identical).
+        attempts: list[dict[str, str | None]] = []
+        if rewrite and rewrite.standalone_question and has_chat_history:
+            attempts.append({
+                "vector_query": rewrite.standalone_question,
+                "lexical_query": rewrite.fts_query,
+            })
+            # Fallback: original query (in case rewrite missed the intent)
+            attempts.append({
+                "vector_query": clean_query,
+                "lexical_query": None,
+            })
+        else:
+            # No chat history or rewrite failed/disabled — use original query.
+            fts_override = rewrite.fts_query if rewrite and rewrite.fts_query else None
+            attempts.append({
+                "vector_query": clean_query,
+                "lexical_query": fts_override,
+            })
+
+        rewrite_meta["attempts"] = attempts
 
         candidate_map: dict[uuid.UUID, RetrievalCandidate] = {}
         search_attempt_meta: list[dict[str, Any]] = []
         for idx, attempt in enumerate(attempts):
             candidates, meta = self._search_attempt(
                 db,
-                query=attempt,
+                query=attempt["vector_query"],
+                lexical_query=attempt.get("lexical_query"),
                 bound_sources=bound_sources,
                 vector_top_k=int(settings.vector_search_top_k),
                 lexical_top_k=int(settings.lexical_search_top_k),
                 use_lexical_fusion=bool(settings.use_lexical_fusion),
             )
             meta["attempt_index"] = idx + 1
-            meta["query"] = attempt
             search_attempt_meta.append(meta)
             for candidate in candidates:
                 existing = candidate_map.get(candidate.segment_id)
@@ -164,6 +183,7 @@ class InkwiseVectorRetrievalService:
         db: Session,
         *,
         query: str,
+        lexical_query: str | None = None,
         bound_sources: list[tuple[uuid.UUID, str]],
         vector_top_k: int,
         lexical_top_k: int,
@@ -176,10 +196,11 @@ class InkwiseVectorRetrievalService:
             source_ids=[source_id for source_id, _title in bound_sources],
             limit=vector_top_k,
         )
+        fts_q = lexical_query if lexical_query is not None else query
         lexical_candidates = (
             self._lexical_candidates(
                 db,
-                query=query,
+                query=fts_q,
                 source_ids=[source_id for source_id, _title in bound_sources],
                 limit=lexical_top_k,
             )
@@ -189,7 +210,9 @@ class InkwiseVectorRetrievalService:
         merged = self._merge_candidates(vector_candidates=vector_candidates, lexical_candidates=lexical_candidates)
         return merged, {
             "vector_count": len(vector_candidates),
+            "vector_query": query,
             "lexical_count": len(lexical_candidates),
+            "lexical_query": fts_q,
             "merged_count": len(merged),
             "prompt_token_count": query_embedding.usage.prompt_token_count,
             "truncated": query_embedding.usage.truncated,
