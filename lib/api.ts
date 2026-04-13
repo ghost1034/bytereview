@@ -988,6 +988,14 @@ export class ApiClient {
     return this.request(`/api/inkwise/chat/threads/${threadId}/messages${query ? `?${query}` : ''}`)
   }
 
+  async getInkwiseChatAttempt(attemptId: string): Promise<InkwiseGenerationAttemptDetail> {
+    return this.request(`/api/inkwise/chat/attempts/${attemptId}`)
+  }
+
+  async getInkwiseRetrievalRun(retrievalRunId: string): Promise<InkwiseRetrievalRunDetail> {
+    return this.request(`/api/inkwise/retrieval-runs/${retrievalRunId}`)
+  }
+
   async streamInkwiseChatMessage(
     threadId: string,
     data: InkwiseChatSendRequest,
@@ -1269,6 +1277,17 @@ export type InkwiseSseEvent = {
   data: any
 }
 
+export interface InkwiseDebugTimelineEntry {
+  stage: string
+  label: string
+  status: string
+  started_at?: string | null
+  finished_at?: string | null
+  duration_ms?: number | null
+  details?: Record<string, any>
+  error?: string | null
+}
+
 export interface InkwiseEvidenceLocator {
   kind?: string
   page_start?: number | null
@@ -1317,6 +1336,52 @@ export interface InkwiseCitation {
   preview_object?: string | null
   excerpt?: string
   bibliographic_metadata?: InkwiseBibliographicMetadata | null
+  score?: number | null
+}
+
+export interface InkwiseRetrievalRunSummary {
+  id: string
+  user_id: string
+  document_id: string
+  thread_id?: string | null
+  query: string
+  bound_source_ids: string[]
+  strategy_version: string
+  meta: Record<string, any>
+  created_at: string
+}
+
+export interface InkwiseRetrievalRunDetail {
+  run: InkwiseRetrievalRunSummary
+  evidence: InkwiseCitation[]
+  evidence_pack: string
+}
+
+export interface InkwiseGenerationAttempt {
+  id: string
+  user_id: string
+  document_id?: string | null
+  thread_id?: string | null
+  chat_message_id?: string | null
+  retrieval_run_id?: string | null
+  parent_attempt_id?: string | null
+  generation_group_id: string
+  kind: string
+  status: string
+  attempt_number: number
+  provider?: string | null
+  model?: string | null
+  request_json: Record<string, any>
+  response_text?: string | null
+  citations_json?: Record<string, any> | null
+  meta_json?: Record<string, any> | null
+  created_at: string
+  completed_at?: string | null
+}
+
+export interface InkwiseGenerationAttemptDetail {
+  attempt: InkwiseGenerationAttempt
+  debug_timeline: InkwiseDebugTimelineEntry[]
 }
 
 export interface InkwiseGroundedSegment {

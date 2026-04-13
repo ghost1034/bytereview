@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import time
 import uuid
 from dataclasses import dataclass
 from typing import Any
@@ -64,10 +65,11 @@ class InkwiseVectorRetrievalService:
         max_evidence: int = 12,
         max_total_chars: int = 90000,
     ) -> tuple[list[EvidenceItem], dict[str, Any], str]:
+        started = time.perf_counter()
         settings = get_inkwise_settings()
         clean_query = (query or "").strip()
         if not clean_query or not bound_sources:
-            return [], {"engine": "vector", "empty": True}, "vector-v1"
+            return [], {"engine": "vector", "empty": True, "total_duration_ms": int((time.perf_counter() - started) * 1000)}, "vector-v1"
 
         rewrite_cfg = QueryRewriteConfig(
             enabled=bool(settings.query_rewrite_enabled and settings.vertex_enabled),
@@ -130,6 +132,7 @@ class InkwiseVectorRetrievalService:
         candidate_map: dict[uuid.UUID, RetrievalCandidate] = {}
         search_attempt_meta: list[dict[str, Any]] = []
         for idx, attempt in enumerate(attempts):
+            attempt_started = time.perf_counter()
             candidates, meta = self._search_attempt(
                 db,
                 query=attempt["vector_query"],
@@ -140,6 +143,7 @@ class InkwiseVectorRetrievalService:
                 use_lexical_fusion=bool(settings.use_lexical_fusion),
             )
             meta["attempt_index"] = idx + 1
+            meta["duration_ms"] = int((time.perf_counter() - attempt_started) * 1000)
             search_attempt_meta.append(meta)
             for candidate in candidates:
                 existing = candidate_map.get(candidate.segment_id)
@@ -160,11 +164,13 @@ class InkwiseVectorRetrievalService:
             if reranked:
                 ordered_candidates = reranked + [c for c in ordered_candidates if c.segment_id not in {r.segment_id for r in reranked}]
 
+        evidence_pack_started = time.perf_counter()
         evidence = self._candidates_to_evidence(
             ordered_candidates,
             max_evidence=max_evidence,
             max_total_chars=max_total_chars,
         )
+        evidence_pack_duration_ms = int((time.perf_counter() - evidence_pack_started) * 1000)
         strategy_bits = ["vector"]
         if settings.use_lexical_fusion:
             strategy_bits.append("fusion")
@@ -177,6 +183,10 @@ class InkwiseVectorRetrievalService:
             "search_attempts": search_attempt_meta,
             "query_rewrite": rewrite_meta,
             "rerank": rerank_meta,
+            "candidate_count": len(ordered_candidates),
+            "evidence_count": len(evidence),
+            "evidence_pack_duration_ms": evidence_pack_duration_ms,
+            "total_duration_ms": int((time.perf_counter() - started) * 1000),
         }, "+".join(strategy_bits) + "-v1"
 
     def _search_attempt(
@@ -190,14 +200,21 @@ class InkwiseVectorRetrievalService:
         lexical_top_k: int,
         use_lexical_fusion: bool,
     ) -> tuple[list[RetrievalCandidate], dict[str, Any]]:
+        embedding_started = time.perf_counter()
         query_embedding = self.embedding_service.embed_query_text_sync(query)
+        embedding_duration_ms = int((time.perf_counter() - embedding_started) * 1000)
+
+        vector_started = time.perf_counter()
         vector_candidates = self._vector_candidates(
             db,
             embedding=query_embedding.values,
             source_ids=[source_id for source_id, _title in bound_sources],
             limit=vector_top_k,
         )
+        vector_duration_ms = int((time.perf_counter() - vector_started) * 1000)
+
         fts_q = lexical_query if lexical_query is not None else query
+        lexical_started = time.perf_counter()
         lexical_candidates = (
             self._lexical_candidates(
                 db,
@@ -208,7 +225,11 @@ class InkwiseVectorRetrievalService:
             if use_lexical_fusion
             else []
         )
+        lexical_duration_ms = int((time.perf_counter() - lexical_started) * 1000)
+
+        merge_started = time.perf_counter()
         merged = self._merge_candidates(vector_candidates=vector_candidates, lexical_candidates=lexical_candidates)
+        merge_duration_ms = int((time.perf_counter() - merge_started) * 1000)
         return merged, {
             "vector_count": len(vector_candidates),
             "vector_query": query,
@@ -217,6 +238,10 @@ class InkwiseVectorRetrievalService:
             "merged_count": len(merged),
             "prompt_token_count": query_embedding.usage.prompt_token_count,
             "truncated": query_embedding.usage.truncated,
+            "embedding_duration_ms": embedding_duration_ms,
+            "vector_search_duration_ms": vector_duration_ms,
+            "lexical_search_duration_ms": lexical_duration_ms,
+            "merge_duration_ms": merge_duration_ms,
         }
 
     def _vector_candidates(
@@ -404,9 +429,10 @@ class InkwiseVectorRetrievalService:
         limit: int,
         model: str,
     ) -> tuple[list[RetrievalCandidate], dict[str, Any]]:
+        started = time.perf_counter()
         top = candidates[:limit]
         if not top:
-            return [], {"enabled": True, "triggered": False, "candidate_count": 0}
+            return [], {"enabled": True, "triggered": False, "candidate_count": 0, "duration_ms": int((time.perf_counter() - started) * 1000)}
 
         candidate_map = {f"C{idx:02d}": candidate for idx, candidate in enumerate(top, start=1)}
         prompt_candidates = []
@@ -447,9 +473,11 @@ class InkwiseVectorRetrievalService:
             data = extract_first_json_object(result.text)
             ordered_ids = data.get("candidate_ids")
             if not isinstance(ordered_ids, list):
+                meta["duration_ms"] = int((time.perf_counter() - started) * 1000)
                 return [], meta
         except (VertexAIError, ValueError) as exc:
             meta["error"] = str(exc)[:500]
+            meta["duration_ms"] = int((time.perf_counter() - started) * 1000)
             return [], meta
 
         ranked: list[RetrievalCandidate] = []
@@ -463,6 +491,7 @@ class InkwiseVectorRetrievalService:
             candidate.rerank_rank = rank
             ranked.append(candidate)
         meta["selected_candidate_ids"] = list(seen)
+        meta["duration_ms"] = int((time.perf_counter() - started) * 1000)
         return ranked, meta
 
     def _candidates_to_evidence(

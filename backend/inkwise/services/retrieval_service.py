@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import time
 import uuid
 from datetime import datetime
 
@@ -32,6 +33,7 @@ class InkwiseRetrievalService:
         max_evidence: int = 12,
         max_total_chars: int = 90000,
     ) -> tuple[InkwiseRetrievalRun, list[EvidenceItem]]:
+        total_started = time.perf_counter()
         document = (
             db.query(InkwiseDocument)
             .filter(InkwiseDocument.id == document_id, InkwiseDocument.user_id == user_id)
@@ -56,8 +58,16 @@ class InkwiseRetrievalService:
 
         clean_query = (query or "").strip()
         if not clean_query or not bound_sources:
+            run.meta = {
+                "engine": "vector",
+                "empty": True,
+                "total_duration_ms": int((time.perf_counter() - total_started) * 1000),
+            }
+            db.commit()
+            db.refresh(run)
             return run, []
 
+        retrieval_started = time.perf_counter()
         evidence, meta, strategy_version = self.vector_retrieval_service.retrieve_evidence(
             db,
             query=clean_query,
@@ -69,11 +79,19 @@ class InkwiseRetrievalService:
             max_evidence=max_evidence,
             max_total_chars=max_total_chars,
         )
+        retrieval_duration_ms = int((time.perf_counter() - retrieval_started) * 1000)
         run.strategy_version = strategy_version
-        run.meta = meta
-        db.commit()
 
+        persist_started = time.perf_counter()
         self._persist_evidence(db, run=run, evidence=evidence)
+        persist_duration_ms = int((time.perf_counter() - persist_started) * 1000)
+        run.meta = {
+            **meta,
+            "retrieval_duration_ms": retrieval_duration_ms,
+            "evidence_persist_duration_ms": persist_duration_ms,
+            "total_duration_ms": int((time.perf_counter() - total_started) * 1000),
+        }
+        db.commit()
         db.refresh(run)
         return run, evidence
 
@@ -100,7 +118,6 @@ class InkwiseRetrievalService:
                     score=item.score,
                 )
             )
-        db.commit()
 
     def get_retrieval_run_for_user(
         self,

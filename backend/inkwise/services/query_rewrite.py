@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -81,12 +82,14 @@ def rewrite_retrieval_query(
     scoped_source_titles: list[str] | None = None,
     draft_selection_text: str | None = None,
 ) -> QueryRewriteResult:
+    started = time.perf_counter()
+
     if not cfg.enabled:
-        return QueryRewriteResult(None, None, {"enabled": False})
+        return QueryRewriteResult(None, None, {"enabled": False, "duration_ms": int((time.perf_counter() - started) * 1000)})
 
     question = _collapse_ws(current_question)
     if not question:
-        return QueryRewriteResult(None, None, {"enabled": True, "skipped": "empty_question"})
+        return QueryRewriteResult(None, None, {"enabled": True, "skipped": "empty_question", "duration_ms": int((time.perf_counter() - started) * 1000)})
 
     history = list(history_messages or [])
     if cfg.max_history_messages >= 0:
@@ -167,6 +170,7 @@ def rewrite_retrieval_query(
                 "fallback": "original_question",
                 "fts_query_present": bool(fts_fallback),
                 "standalone_present": False,
+                "duration_ms": int((time.perf_counter() - started) * 1000),
             },
         )
 
@@ -186,6 +190,7 @@ def rewrite_retrieval_query(
                 "fts_query_present": bool(fts_fallback),
                 "standalone_present": False,
                 "model_parse": parsed.meta,
+                "duration_ms": int((time.perf_counter() - started) * 1000),
             },
         )
 
@@ -197,5 +202,6 @@ def rewrite_retrieval_query(
             "fts_query_present": bool(parsed.fts_query),
             "standalone_present": bool(parsed.standalone_question),
             "model_parse": parsed.meta,
+            "duration_ms": int((time.perf_counter() - started) * 1000),
         },
     )

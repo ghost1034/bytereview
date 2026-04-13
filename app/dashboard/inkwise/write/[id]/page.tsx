@@ -9,6 +9,7 @@ import { Cloud, Download, History, LibraryBig, Loader2, Maximize2, MessageSquare
 import { InkwiseEditor, type InkwiseEditorReviewState } from '@/components/inkwise/inkwise-editor'
 import { InkwiseSourceImportPanel } from '@/components/inkwise/source-import-panel'
 import { InlineWritingTools } from '@/components/inkwise/inline-writing-tools'
+import { InkwiseChatDebugSheet } from '@/components/inkwise/chat-debug-sheet'
 import { InkwiseCitationBubbles } from '@/components/inkwise/citation-bubbles'
 import { RainBackground } from '@/components/inkwise/rain-background'
 import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
@@ -47,6 +48,7 @@ import {
   InkwiseChatMessage,
   InkwiseCitation,
   InkwiseCitationStyle,
+  InkwiseDebugTimelineEntry,
   InkwiseDocumentRevision,
   InkwiseDriveExportResponse,
   InkwisePredictionRequest,
@@ -87,6 +89,7 @@ type StreamState = {
   retrievalRunId?: string
   citations?: InkwiseCitation[]
   attemptId?: string
+  debugTimeline?: InkwiseDebugTimelineEntry[]
 }
 
 type PredictionState = {
@@ -132,6 +135,28 @@ function messageCitations(message: InkwiseChatMessage): InkwiseCitation[] {
 
 function messageDisplayMarkdown(message: InkwiseChatMessage): string {
   return message.content_with_citations || message.citations_json?.content_with_citations || message.content || ''
+}
+
+function messageAttemptId(message: InkwiseChatMessage): string | null {
+  return typeof message.provider_meta?.attempt_id === 'string' ? message.provider_meta.attempt_id : null
+}
+
+function messageRetrievalRunId(message: InkwiseChatMessage): string | null {
+  return message.citations_json?.retrieval_run_id || null
+}
+
+function upsertDebugTimelineEntry(entries: InkwiseDebugTimelineEntry[] | undefined, entry: InkwiseDebugTimelineEntry): InkwiseDebugTimelineEntry[] {
+  const current = entries ?? []
+  const index = current.findIndex((item) => item.stage === entry.stage)
+  if (index < 0) return [...current, entry]
+  const next = [...current]
+  next[index] = {
+    ...next[index],
+    ...entry,
+    details: entry.details ?? next[index].details,
+    error: entry.error ?? next[index].error,
+  }
+  return next
 }
 
 function normalizePredictionState(prediction: InkwisePredictionResponse): PredictionState | null {
@@ -202,6 +227,7 @@ export default function InkwiseDocumentPage() {
   const [driveExportFolder, setDriveExportFolder] = useState<DriveFolderSelection | null>(null)
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
   const [chatInsertKey, setChatInsertKey] = useState<string | null>(null)
+  const [chatDebugTarget, setChatDebugTarget] = useState<{ attemptId?: string | null; retrievalRunId?: string | null } | null>(null)
   const [trackChangesEnabled, setTrackChangesEnabled] = useState(false)
   const [reviewState, setReviewState] = useState<InkwiseEditorReviewState>({ comments: [], changes: [] })
   const [focusModeEnabled, setFocusModeEnabled] = useState(false)
@@ -498,6 +524,12 @@ export default function InkwiseDocumentPage() {
           if (event.event === 'token') {
             setStreamState((current) => ({ ...(current ?? { text: '' }), text: `${current?.text ?? ''}${event.data?.text ?? ''}` }))
           }
+          if (event.event === 'debug' && event.data?.stage && event.data?.label) {
+            setStreamState((current) => ({
+              ...(current ?? { text: '' }),
+              debugTimeline: upsertDebugTimelineEntry(current?.debugTimeline, event.data as InkwiseDebugTimelineEntry),
+            }))
+          }
           if (event.event === 'meta' && event.data?.citations) {
             setStreamState((current) => ({
               ...(current ?? { text: '' }),
@@ -539,6 +571,12 @@ export default function InkwiseDocumentPage() {
         (event: InkwiseSseEvent) => {
           if (event.event === 'token') {
             setStreamState((current) => ({ ...(current ?? { text: '' }), text: `${current?.text ?? ''}${event.data?.text ?? ''}` }))
+          }
+          if (event.event === 'debug' && event.data?.stage && event.data?.label) {
+            setStreamState((current) => ({
+              ...(current ?? { text: '' }),
+              debugTimeline: upsertDebugTimelineEntry(current?.debugTimeline, event.data as InkwiseDebugTimelineEntry),
+            }))
           }
           if (event.event === 'meta' && event.data?.citations) {
             setStreamState((current) => ({
@@ -1325,6 +1363,16 @@ export default function InkwiseDocumentPage() {
                           )}
                           {message.role === 'assistant' ? (
                             <div className="mt-3 flex flex-wrap justify-end gap-2">
+                              {(messageAttemptId(message) || messageRetrievalRunId(message)) ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 text-[10px]"
+                                  onClick={() => setChatDebugTarget({ attemptId: messageAttemptId(message), retrievalRunId: messageRetrievalRunId(message) })}
+                                >
+                                  Debug
+                                </Button>
+                              ) : null}
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -1370,6 +1418,22 @@ export default function InkwiseDocumentPage() {
                           ) : (
                             <div className="text-slate-500">Thinking...</div>
                           )}
+                          {streamState.debugTimeline?.length ? (
+                            <div className="mt-4 rounded-xl border bg-slate-50 p-3">
+                              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Backend debug</div>
+                              <div className="mt-2 space-y-2">
+                                {streamState.debugTimeline.map((entry) => (
+                                  <div key={entry.stage} className="flex items-start justify-between gap-3 text-xs text-slate-600">
+                                    <div>
+                                      <div className="font-medium text-slate-700">{entry.label}</div>
+                                      <div>{entry.status}</div>
+                                    </div>
+                                    <div className="whitespace-nowrap text-slate-500">{typeof entry.duration_ms === 'number' ? `${entry.duration_ms} ms` : ''}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
                       ) : !renderedMessages.length ? (
                         <div className="rounded-2xl border border-dashed bg-white p-4 text-sm text-slate-500">
@@ -1791,6 +1855,15 @@ export default function InkwiseDocumentPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <InkwiseChatDebugSheet
+        open={Boolean(chatDebugTarget)}
+        onOpenChange={(open) => {
+          if (!open) setChatDebugTarget(null)
+        }}
+        attemptId={chatDebugTarget?.attemptId}
+        retrievalRunId={chatDebugTarget?.retrievalRunId}
+      />
 
       <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
         <SheetContent side="right" className="w-full sm:max-w-3xl">

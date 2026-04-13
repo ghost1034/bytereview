@@ -91,11 +91,16 @@ class InkwiseGenerationAttemptService:
         attempt_id: uuid.UUID,
         message: str,
         retrieval_run_id: uuid.UUID | None = None,
+        meta_json: dict[str, Any] | None = None,
     ) -> InkwiseGenerationAttempt:
         attempt = self.get_attempt_or_404(db, attempt_id=attempt_id)
         attempt.status = "failed"
         attempt.retrieval_run_id = retrieval_run_id
-        attempt.meta_json = {**(attempt.meta_json or {}), "error": (message or "")[:1000]}
+        attempt.meta_json = {
+            **(attempt.meta_json or {}),
+            **(meta_json or {}),
+            "error": (message or "")[:1000],
+        }
         attempt.completed_at = datetime.utcnow()
         db.commit()
         db.refresh(attempt)
