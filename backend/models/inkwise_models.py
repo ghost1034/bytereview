@@ -76,6 +76,7 @@ class InkwiseDocument(Base):
     content_html = Column(Text, nullable=True)
     init_prompt = Column(Text, nullable=True)
     language = Column(String(50), nullable=True)
+    citation_style = Column(String(32), nullable=False, default="default")
     version = Column(Integer, nullable=False, default=1)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(
@@ -147,6 +148,7 @@ class InkwiseDocumentRevision(Base):
     content_html = Column(Text, nullable=True)
     init_prompt = Column(Text, nullable=True)
     language = Column(String(50), nullable=True)
+    citation_style = Column(String(32), nullable=False, default="default")
     document_version = Column(Integer, nullable=False)
     source_kind = Column(String(32), nullable=False)
     source_meta = Column(JSONB, nullable=True)
@@ -173,6 +175,7 @@ class InkwiseSource(Base):
     external_source = Column(String(32), nullable=True)
     external_id = Column(String(512), nullable=True)
     external_meta = Column(JSONB, nullable=True)
+    bibliographic_metadata = Column(JSONB, nullable=True)
     status = Column(String(32), nullable=False, default="queued")
     failure_code = Column(String(100), nullable=True)
     failure_detail = Column(Text, nullable=True)

@@ -16,6 +16,8 @@ from inkwise.schemas import (
     InkwiseDocumentMoveRequest,
     InkwiseDocumentUpdateRequest,
 )
+from inkwise.services.citation_styles import normalize_citation_style
+from inkwise.services.document_citations import content_json_to_html, refresh_document_citations
 from models.inkwise_models import InkwiseDocument, InkwiseDocumentFolder, InkwiseDocumentRevision
 
 
@@ -44,10 +46,17 @@ class InkwiseDocumentService:
             content_html=body.content_html,
             init_prompt=body.init_prompt,
             language=body.language,
+            citation_style=normalize_citation_style(body.citation_style),
             version=1,
             created_at=now,
             updated_at=now,
         )
+        if isinstance(document.content_json, dict):
+            document.content_json, _ = refresh_document_citations(
+                content_json=document.content_json,
+                citation_style=document.citation_style,
+            )
+            document.content_html = content_json_to_html(document.content_json) or document.content_html
         db.add(document)
         db.flush()
         self._create_revision(
@@ -105,6 +114,23 @@ class InkwiseDocumentService:
         if "language" in fields:
             changed = changed or body.language != document.language
             document.language = body.language
+        if "citation_style" in fields:
+            next_citation_style = normalize_citation_style(body.citation_style)
+            changed = changed or next_citation_style != document.citation_style
+            document.citation_style = next_citation_style
+
+        if isinstance(document.content_json, dict):
+            refreshed_content, refreshed = refresh_document_citations(
+                content_json=document.content_json,
+                citation_style=document.citation_style,
+            )
+            if refreshed_content != document.content_json:
+                document.content_json = refreshed_content
+            if refreshed:
+                next_html = content_json_to_html(document.content_json)
+                changed = True
+                if next_html:
+                    document.content_html = next_html
 
         if not changed:
             return document
@@ -174,6 +200,7 @@ class InkwiseDocumentService:
         document.content_html = revision.content_html
         document.init_prompt = revision.init_prompt
         document.language = revision.language
+        document.citation_style = normalize_citation_style(revision.citation_style)
         document.version += 1
         document.updated_at = datetime.utcnow()
         self._create_revision(
@@ -310,6 +337,7 @@ class InkwiseDocumentService:
             content_html=document.content_html,
             init_prompt=document.init_prompt,
             language=document.language,
+            citation_style=document.citation_style,
             document_version=document.version,
             source_kind=source_kind,
             source_meta=source_meta or {},
@@ -327,6 +355,7 @@ class InkwiseDocumentService:
             "content_html": document.content_html,
             "init_prompt": document.init_prompt,
             "language": document.language,
+            "citation_style": document.citation_style,
             "version": document.version,
         }
 

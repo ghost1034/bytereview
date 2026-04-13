@@ -1,7 +1,8 @@
 import type { JSONContent } from '@tiptap/core'
 import { mergeAttributes, Node } from '@tiptap/core'
 
-import type { InkwiseCitation } from '@/lib/api'
+import type { InkwiseCitation, InkwiseCitationStyle } from '@/lib/api'
+import { normalizeInkwiseCitationStyle } from '@/lib/inkwise-citation-format'
 
 export const INKWISE_CITATION_ANCHOR_NODE = 'inkwiseCitationAnchor'
 
@@ -10,6 +11,7 @@ export type InkwiseCitationAnchorSourceKind = 'chat' | 'writing_tool' | 'predict
 export type InkwiseCitationAnchorAttrs = {
   anchorId: string
   sourceKind: InkwiseCitationAnchorSourceKind
+  citationStyle: InkwiseCitationStyle
   attemptId?: string | null
   retrievalRunId?: string | null
   createdAt: string
@@ -77,17 +79,20 @@ export function hasInkwiseCitations(citations: InkwiseCitation[] | null | undefi
 export function createInkwiseCitationAnchorAttrs({
   citations,
   sourceKind,
+  citationStyle,
   attemptId,
   retrievalRunId,
 }: {
   citations: InkwiseCitation[]
   sourceKind: InkwiseCitationAnchorSourceKind
+  citationStyle?: InkwiseCitationStyle | null
   attemptId?: string | null
   retrievalRunId?: string | null
 }): InkwiseCitationAnchorAttrs {
   return {
     anchorId: globalThis.crypto?.randomUUID?.() || `inkwise-citation-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
     sourceKind,
+    citationStyle: normalizeInkwiseCitationStyle(citationStyle),
     attemptId: attemptId || null,
     retrievalRunId: retrievalRunId || null,
     createdAt: new Date().toISOString(),
@@ -118,12 +123,14 @@ function splitTextNodeByCitationMarkers({
   node,
   citationById,
   sourceKind,
+  citationStyle,
   attemptId,
   retrievalRunId,
 }: {
   node: JSONContent
   citationById: Map<string, InkwiseCitation>
   sourceKind: InkwiseCitationAnchorSourceKind
+  citationStyle?: InkwiseCitationStyle | null
   attemptId?: string | null
   retrievalRunId?: string | null
 }): { nodes: JSONContent[]; inserted: boolean } {
@@ -163,6 +170,7 @@ function splitTextNodeByCitationMarkers({
           createInkwiseCitationAnchorAttrs({
             citations: citationIds.map((citationId) => citationById.get(citationId)).filter(Boolean) as InkwiseCitation[],
             sourceKind,
+            citationStyle,
             attemptId,
             retrievalRunId,
           }),
@@ -194,12 +202,14 @@ export function injectCitationAnchorsFromMarkedContent({
   content,
   citations,
   sourceKind,
+  citationStyle,
   attemptId,
   retrievalRunId,
 }: {
   content: JSONContent | null | undefined
   citations: InkwiseCitation[]
   sourceKind: InkwiseCitationAnchorSourceKind
+  citationStyle?: InkwiseCitationStyle | null
   attemptId?: string | null
   retrievalRunId?: string | null
 }): { content: JSONContent; inserted: boolean } {
@@ -213,7 +223,7 @@ export function injectCitationAnchorsFromMarkedContent({
 
   function visit(node: JSONContent): JSONContent[] {
     if (node.type === 'text') {
-      const result = splitTextNodeByCitationMarkers({ node, citationById, sourceKind, attemptId, retrievalRunId })
+      const result = splitTextNodeByCitationMarkers({ node, citationById, sourceKind, citationStyle, attemptId, retrievalRunId })
       inserted = inserted || result.inserted
       return result.nodes
     }
@@ -255,6 +265,10 @@ export const InkwiseCitationAnchorNode = Node.create({
         default: 'writing_tool',
         parseHTML: (element: HTMLElement) => parseStringValue(element.getAttribute('data-source-kind')) || 'writing_tool',
       },
+      citationStyle: {
+        default: 'default',
+        parseHTML: (element: HTMLElement) => normalizeInkwiseCitationStyle(parseStringValue(element.getAttribute('data-citation-style'))),
+      },
       attemptId: {
         default: null,
         parseHTML: (element: HTMLElement) => parseStringValue(element.getAttribute('data-attempt-id')),
@@ -287,6 +301,7 @@ export const InkwiseCitationAnchorNode = Node.create({
       'data-inkwise-citation-anchor': 'true',
       'data-anchor-id': parseStringValue(HTMLAttributes.anchorId) || '',
       'data-source-kind': parseStringValue(HTMLAttributes.sourceKind) || 'writing_tool',
+      'data-citation-style': normalizeInkwiseCitationStyle(parseStringValue(HTMLAttributes.citationStyle)),
       'data-attempt-id': parseStringValue(HTMLAttributes.attemptId) || '',
       'data-retrieval-run-id': parseStringValue(HTMLAttributes.retrievalRunId) || '',
       'data-created-at': parseStringValue(HTMLAttributes.createdAt) || '',

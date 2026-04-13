@@ -70,6 +70,7 @@ def run_document_retrieval(
                     preview_bucket=item.preview_bucket,
                     preview_object=item.preview_object,
                     excerpt=item.excerpt,
+                    bibliographic_metadata=item.bibliographic_metadata,
                     score=item.score,
                 )
                 for item in evidence
@@ -115,6 +116,7 @@ def get_retrieval_run(
                     preview_bucket=item.preview_bucket,
                     preview_object=item.preview_object,
                     excerpt=item.excerpt,
+                    bibliographic_metadata=item.bibliographic_metadata,
                     score=item.score,
                 )
                 for item in evidence

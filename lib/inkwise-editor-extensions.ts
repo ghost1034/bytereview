@@ -10,10 +10,14 @@ import { Fragment, Slice, type Mark as ProseMirrorMark, type Node as ProseMirror
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 
+import type { InkwiseCitation } from '@/lib/api'
+import { formatInlineCitationText, normalizeInkwiseCitationStyle } from '@/lib/inkwise-citation-format'
+
 export const INKWISE_PAGE_BREAK_NODE = 'inkwisePageBreak'
 export const INKWISE_COMMENT_MARK = 'inkwiseComment'
 export const INKWISE_INSERTION_MARK = 'inkwiseInsertion'
 export const INKWISE_DELETION_MARK = 'inkwiseDeletion'
+export const INKWISE_INLINE_CITATION_NODE = 'inkwiseInlineCitation'
 export const INKWISE_NOTE_REF_NODE = 'inkwiseNoteRef'
 export const INKWISE_NOTE_DEFINITION_NODE = 'inkwiseNoteDefinition'
 
@@ -50,6 +54,20 @@ function parseStringValue(value: unknown): string | null {
 
 function parseBooleanValue(value: unknown): boolean {
   return value === true || value === 'true'
+}
+
+function parseJson<T>(value: string | null | undefined, fallback: T): T {
+  if (!value) return fallback
+  try {
+    return JSON.parse(value) as T
+  } catch {
+    return fallback
+  }
+}
+
+function parseCitations(value: unknown): InkwiseCitation[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((item) => Boolean(item && typeof item === 'object')) as InkwiseCitation[]
 }
 
 function clampSelectionPos(doc: ProseMirrorNode, position: number): number {
@@ -506,6 +524,53 @@ export const InkwiseNoteRefNode = TiptapNode.create({
   },
 })
 
+export const InkwiseInlineCitationNode = TiptapNode.create({
+  name: INKWISE_INLINE_CITATION_NODE,
+  group: 'inline',
+  inline: true,
+  atom: true,
+  selectable: true,
+
+  addAttributes() {
+    return {
+      citationStyle: {
+        default: 'default',
+        parseHTML: (element: HTMLElement) => normalizeInkwiseCitationStyle(parseStringValue(element.getAttribute('data-citation-style'))),
+      },
+      label: {
+        default: '',
+        parseHTML: (element: HTMLElement) => parseStringValue(element.getAttribute('data-label')) || element.textContent || '',
+      },
+      citations: {
+        default: [],
+        parseHTML: (element: HTMLElement) => parseCitations(parseJson(element.getAttribute('data-citations'), [] as InkwiseCitation[])),
+      },
+    }
+  },
+
+  parseHTML() {
+    return [{ tag: 'span[data-inkwise-inline-citation="true"]' }]
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    const citations = parseCitations(HTMLAttributes.citations)
+    const citationStyle = normalizeInkwiseCitationStyle(parseStringValue(HTMLAttributes.citationStyle))
+    const label = parseStringValue(HTMLAttributes.label) || formatInlineCitationText(citations, citationStyle).trim()
+    return [
+      'span',
+      mergeAttributes(HTMLAttributes, {
+        'data-inkwise-inline-citation': 'true',
+        'data-citation-style': citationStyle,
+        'data-label': label,
+        'data-citations': JSON.stringify(citations),
+        class: 'text-slate-500',
+        contenteditable: 'false',
+      }),
+      label,
+    ]
+  },
+})
+
 export const InkwiseNoteDefinitionNode = TiptapNode.create({
   name: INKWISE_NOTE_DEFINITION_NODE,
   group: 'block',
@@ -530,6 +595,14 @@ export const InkwiseNoteDefinitionNode = TiptapNode.create({
           return Number.isFinite(value) ? value : 1
         },
       },
+      citationStyle: {
+        default: 'default',
+        parseHTML: (element: HTMLElement) => normalizeInkwiseCitationStyle(parseStringValue(element.getAttribute('data-citation-style'))),
+      },
+      citations: {
+        default: [],
+        parseHTML: (element: HTMLElement) => parseCitations(parseJson(element.getAttribute('data-citations'), [] as InkwiseCitation[])),
+      },
     }
   },
 
@@ -548,6 +621,8 @@ export const InkwiseNoteDefinitionNode = TiptapNode.create({
         'data-note-id': parseStringValue(HTMLAttributes.noteId) || '',
         'data-note-kind': noteKind,
         'data-note-number': String(noteNumber),
+        'data-citation-style': normalizeInkwiseCitationStyle(parseStringValue(HTMLAttributes.citationStyle)),
+        'data-citations': JSON.stringify(parseCitations(HTMLAttributes.citations)),
         class: isFootnote
           ? 'my-1 flex gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600'
           : 'my-1 flex gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm text-slate-600',
@@ -569,6 +644,7 @@ export const INKWISE_EDITOR_EXTENSIONS = [
   TableHeader.configure({ HTMLAttributes: { class: 'border border-slate-300 bg-slate-100 px-3 py-2 text-left font-semibold' } }),
   TableCell.configure({ HTMLAttributes: { class: 'border border-slate-300 px-3 py-2 align-top' } }),
   InkwisePageBreakNode,
+  InkwiseInlineCitationNode,
   InkwiseNoteDefinitionNode,
   InkwiseCommentMark,
   InkwiseInsertionMark,

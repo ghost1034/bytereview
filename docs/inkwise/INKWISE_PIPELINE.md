@@ -356,7 +356,7 @@ Implementation path:
 5. run retrieval or reuse an old retrieval run on retry
 6. build the evidence pack
 7. build the grounded chat prompt
-8. optionally attach up to 3 PDF evidence files as multimodal Gemini inputs
+8. optionally attach up to 100 evidence files as multimodal Gemini inputs
 9. stream the assistant response from Vertex AI over SSE as model chunks arrive
 10. extract citations from `[E##]` markers and persist the assistant message
 
@@ -397,7 +397,7 @@ Behavior:
 - predictions always start from a short autocomplete prompt
 - if ready bound sources exist, Inkwise runs retrieval with current block text plus nearby draft context
 - if evidence is found, the prediction prompt becomes grounded
-- up to 3 PDF evidence files may be attached multimodally
+- up to 100 evidence files may be attached multimodally
 - the raw result is normalized down to a short insertion string
 
 Prediction responses return:

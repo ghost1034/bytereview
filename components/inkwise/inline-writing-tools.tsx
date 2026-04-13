@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { apiClient, InkwiseBoundSource, InkwiseCitation, InkwiseSseEvent, InkwiseWritingAction } from '@/lib/api'
+import { apiClient, InkwiseBoundSource, InkwiseCitationStyle, InkwiseCitation, InkwiseSseEvent, InkwiseWritingAction } from '@/lib/api'
 import { getInkwiseEditorTarget, type InkwiseEditorTarget, insertMarkdownIntoEditor } from '@/lib/inkwise-editor'
 import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
 import { compareNaturalText } from '@/lib/utils'
@@ -47,10 +47,12 @@ export function InlineWritingTools({
   editor,
   documentId,
   boundSources,
+  citationStyle,
 }: {
   editor: Editor | null
   documentId: string
   boundSources: InkwiseBoundSource[]
+  citationStyle: InkwiseCitationStyle
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -222,6 +224,7 @@ export function InlineWritingTools({
           ? {
               sourceKind: 'writing_tool',
               citations: groundingState.evidence,
+              citationStyle,
               attemptId,
               retrievalRunId: groundingState.retrievalRunId,
               contentWithCitations: outputWithCitations || outputMd,

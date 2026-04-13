@@ -143,6 +143,7 @@ class InkwiseRetrievalService:
                 locator_json=item.locator_json,
                 preview_bucket=item.preview_bucket,
                 preview_object=item.preview_object,
+                bibliographic_metadata=source.bibliographic_metadata if isinstance(source.bibliographic_metadata, dict) else None,
             )
             for item, source, segment in rows
         ]

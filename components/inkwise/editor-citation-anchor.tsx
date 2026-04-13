@@ -20,7 +20,7 @@ function InkwiseCitationAnchorView({ node, editor, getPos }: NodeViewProps) {
   }
 
   const referenceActions = [
-    { id: 'inline', label: 'Inline Reference', variant: 'default' as const },
+    { id: 'inline', label: 'Inline Citation', variant: 'default' as const },
     { id: 'footnote', label: 'Footnote Reference' },
     { id: 'endnote', label: 'Endnote Reference' },
   ].map((action) => ({
@@ -36,6 +36,7 @@ function InkwiseCitationAnchorView({ node, editor, getPos }: NodeViewProps) {
         to: position + node.nodeSize,
         citations,
         mode: action.id as 'inline' | 'footnote' | 'endnote',
+        citationStyle: typeof attrs.citationStyle === 'string' ? attrs.citationStyle : 'default',
       })
       if (!converted) {
         throw new Error('Could not convert this reference.')

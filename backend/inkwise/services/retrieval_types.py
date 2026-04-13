@@ -22,6 +22,7 @@ class EvidenceItem:
     locator_json: dict[str, Any] | None = None
     preview_bucket: str | None = None
     preview_object: str | None = None
+    bibliographic_metadata: dict[str, Any] | None = None
 
 
 def evidence_excerpt(item: EvidenceItem) -> str:
@@ -170,5 +171,6 @@ def evidence_item_to_payload(item: EvidenceItem) -> dict[str, Any]:
         "preview_bucket": item.preview_bucket,
         "preview_object": item.preview_object,
         "excerpt": evidence_excerpt(item),
+        "bibliographic_metadata": item.bibliographic_metadata,
         "score": item.score,
     }

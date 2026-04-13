@@ -850,6 +850,13 @@ export class ApiClient {
     return this.request(`/api/inkwise/sources/${sourceId}`)
   }
 
+  async updateInkwiseSource(sourceId: string, data: InkwiseSourceUpdateRequest): Promise<InkwiseSource> {
+    return this.request(`/api/inkwise/sources/${sourceId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
   async initInkwiseSourceUpload(data: InkwiseSourceUploadInitRequest): Promise<InkwiseSourceUploadInitResponse> {
     return this.request('/api/inkwise/sources/upload:init', {
       method: 'POST',
@@ -1269,6 +1276,33 @@ export interface InkwiseEvidenceLocator {
   [key: string]: any
 }
 
+export type InkwiseCitationStyle = 'default' | 'apa' | 'mla' | 'chicago' | 'bluebook'
+
+export interface InkwiseBibliographicMetadata {
+  citation_type?: 'book' | 'article' | 'case' | 'statute' | 'webpage' | 'report' | 'other' | null
+  authors?: string[]
+  editors?: string[]
+  title?: string | null
+  short_title?: string | null
+  container_title?: string | null
+  publisher?: string | null
+  edition?: string | null
+  volume?: string | null
+  issue?: string | null
+  pages?: string | null
+  year?: string | null
+  month?: string | null
+  day?: string | null
+  url?: string | null
+  accessed_date?: string | null
+  court?: string | null
+  reporter?: string | null
+  reporter_volume?: string | null
+  first_page?: string | null
+  pin_cite?: string | null
+  docket_number?: string | null
+}
+
 export interface InkwiseCitation {
   evidence_id?: string
   source_id?: string
@@ -1282,6 +1316,7 @@ export interface InkwiseCitation {
   preview_bucket?: string | null
   preview_object?: string | null
   excerpt?: string
+  bibliographic_metadata?: InkwiseBibliographicMetadata | null
 }
 
 export interface InkwiseGroundedSegment {
@@ -1298,6 +1333,7 @@ export interface InkwiseDocument {
   content_html: string | null
   init_prompt: string | null
   language?: string | null
+  citation_style: InkwiseCitationStyle
   version: number
   created_at: string
   updated_at: string
@@ -1313,6 +1349,7 @@ export interface InkwiseDocumentRevision {
   content_html: string | null
   init_prompt: string | null
   language?: string | null
+  citation_style: InkwiseCitationStyle
   document_version: number
   source_kind: string
   source_meta?: Record<string, any> | null
@@ -1350,6 +1387,7 @@ export interface InkwiseDocumentCreateRequest {
   content_html?: string | null
   init_prompt?: string | null
   language?: string | null
+  citation_style?: InkwiseCitationStyle | null
 }
 
 export interface InkwiseDocumentUpdateRequest extends InkwiseDocumentCreateRequest {
@@ -1369,6 +1407,7 @@ export interface InkwiseSource {
   external_source?: string | null
   external_id?: string | null
   external_meta?: Record<string, any> | null
+  bibliographic_metadata?: InkwiseBibliographicMetadata | null
   status: string
   failure_code?: string | null
   failure_detail?: string | null
@@ -1391,9 +1430,15 @@ export interface InkwiseSourceUploadInitRequest {
   original_path?: string | null
 }
 
+export interface InkwiseSourceUpdateRequest {
+  title?: string | null
+  bibliographic_metadata?: InkwiseBibliographicMetadata | null
+}
+
 export interface InkwiseWebpageCaptureRequest {
   source_url: string
   title?: string | null
+  bibliographic_metadata?: InkwiseBibliographicMetadata | null
 }
 
 export interface InkwiseSourceUploadInitResponse {

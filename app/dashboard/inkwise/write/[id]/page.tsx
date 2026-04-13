@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
@@ -45,6 +46,7 @@ import {
   apiClient,
   InkwiseChatMessage,
   InkwiseCitation,
+  InkwiseCitationStyle,
   InkwiseDocumentRevision,
   InkwiseDriveExportResponse,
   InkwisePredictionRequest,
@@ -67,6 +69,7 @@ import {
   removeInkwiseComment,
   updateInkwiseComment,
 } from '@/lib/inkwise-editor-extensions'
+import { INKWISE_CITATION_STYLE_OPTIONS } from '@/lib/inkwise-citation-format'
 import { markdownToSafeHtml } from '@/lib/inkwise-markdown'
 import { INKWISE_SOURCE_POLL_INTERVAL_MS, isInkwiseSourceActiveStatus } from '@/lib/inkwise-source-status'
 import { cn, compareNaturalText } from '@/lib/utils'
@@ -177,6 +180,7 @@ export default function InkwiseDocumentPage() {
 
   const [title, setTitle] = useState('')
   const [initPrompt, setInitPrompt] = useState('')
+  const [citationStyle, setCitationStyle] = useState<InkwiseCitationStyle>('default')
   const [contentHtml, setContentHtml] = useState('')
   const [contentJson, setContentJson] = useState<JSONContent | null>(null)
   const [version, setVersion] = useState<number | null>(null)
@@ -241,6 +245,7 @@ export default function InkwiseDocumentPage() {
     clearPrediction()
     setTitle(documentQuery.data.title || 'Untitled document')
     setInitPrompt(documentQuery.data.init_prompt || '')
+    setCitationStyle(documentQuery.data.citation_style || 'default')
     setContentHtml(documentQuery.data.content_html || '')
     setContentJson((documentQuery.data.content_json as JSONContent | null) ?? null)
     setVersion(documentQuery.data.version)
@@ -371,11 +376,17 @@ export default function InkwiseDocumentPage() {
         version,
         title,
         init_prompt: initPrompt,
+        citation_style: citationStyle,
         content_json: (contentJson as Record<string, any> | null) ?? null,
         content_html: contentHtml,
       })
     },
     onSuccess: async (updated) => {
+      setTitle(updated.title || 'Untitled document')
+      setInitPrompt(updated.init_prompt || '')
+      setCitationStyle(updated.citation_style || 'default')
+      setContentHtml(updated.content_html || '')
+      setContentJson((updated.content_json as JSONContent | null) ?? null)
       setVersion(updated.version)
       await queryClient.invalidateQueries({ queryKey: ['inkwise', 'document', documentId] })
       await queryClient.invalidateQueries({ queryKey: ['inkwise', 'document-revisions', documentId] })
@@ -404,6 +415,7 @@ export default function InkwiseDocumentPage() {
       clearPrediction()
       setTitle(updated.title || 'Untitled document')
       setInitPrompt(updated.init_prompt || '')
+      setCitationStyle(updated.citation_style || 'default')
       setContentHtml(updated.content_html || '')
       setContentJson((updated.content_json as JSONContent | null) ?? null)
       setVersion(updated.version)
@@ -628,12 +640,13 @@ export default function InkwiseDocumentPage() {
             editor,
             markdown,
             citationAnchor: result.grounded && result.evidence.length
-                ? {
-                    sourceKind: 'writing_tool',
-                    citations: result.evidence,
-                    attemptId: result.attemptId,
-                    retrievalRunId: result.retrievalRunId,
-                    contentWithCitations: result.contentWithCitations || markdown,
+                  ? {
+                      sourceKind: 'writing_tool',
+                      citations: result.evidence,
+                      citationStyle,
+                      attemptId: result.attemptId,
+                      retrievalRunId: result.retrievalRunId,
+                      contentWithCitations: result.contentWithCitations || markdown,
                   }
                 : null,
           })
@@ -730,6 +743,7 @@ export default function InkwiseDocumentPage() {
           ? {
               sourceKind: 'chat',
               citations: messageCitations(message),
+              citationStyle,
               attemptId: typeof message.provider_meta?.attempt_id === 'string' ? message.provider_meta.attempt_id : null,
               retrievalRunId: message.citations_json?.retrieval_run_id || null,
               contentWithCitations: message.content_with_citations || message.citations_json?.content_with_citations || message.content || cleaned,
@@ -1124,6 +1138,7 @@ export default function InkwiseDocumentPage() {
               editor={editor}
               documentId={documentId}
               boundSources={boundSources}
+              citationStyle={citationStyle}
             />
 
             <InkwiseEditor
@@ -1150,6 +1165,7 @@ export default function InkwiseDocumentPage() {
                         ? {
                             sourceKind: 'prediction',
                             citations: predictionState.evidence,
+                            citationStyle,
                             attemptId: predictionState.attemptId,
                             retrievalRunId: predictionState.retrievalRunId,
                             contentWithCitations: predictionState.contentWithCitations || predictionState.text,
@@ -1737,6 +1753,23 @@ export default function InkwiseDocumentPage() {
               />
               <div className="text-xs text-slate-500">
                 Example: Draft a professional memorandum for a CPA audience, keep the tone concise, and support factual claims with bound references.
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="inkwise-settings-citation-style">Citation style</Label>
+              <Select value={citationStyle} onValueChange={(value) => setCitationStyle(value as InkwiseCitationStyle)}>
+                <SelectTrigger id="inkwise-settings-citation-style">
+                  <SelectValue placeholder="Select a citation style" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INKWISE_CITATION_STYLE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="text-xs text-slate-500">
+                Changing the style automatically reformats semantic inline citations, footnotes, and endnotes in this document.
               </div>
             </div>
           </div>

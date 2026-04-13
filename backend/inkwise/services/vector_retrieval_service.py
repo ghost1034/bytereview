@@ -37,6 +37,7 @@ class RetrievalCandidate:
     locator_json: dict[str, Any] | None
     preview_bucket: str | None
     preview_object: str | None
+    bibliographic_metadata: dict[str, Any] | None = None
     vector_score: float | None = None
     lexical_score: float | None = None
     vector_rank: int | None = None
@@ -243,6 +244,7 @@ class InkwiseVectorRetrievalService:
               s.locator_json as locator_json,
               s.preview_bucket as preview_bucket,
               s.preview_object as preview_object,
+              src.bibliographic_metadata as bibliographic_metadata,
               (1 - (e.embedding <=> cast(:embedding as vector))) as vector_score
             from inkwise_source_segment_embeddings e
             join inkwise_source_segments s on s.id = e.segment_id
@@ -277,6 +279,7 @@ class InkwiseVectorRetrievalService:
                     locator_json=row.get("locator_json") if isinstance(row.get("locator_json"), dict) else None,
                     preview_bucket=_text_or_none(row.get("preview_bucket")),
                     preview_object=_text_or_none(row.get("preview_object")),
+                    bibliographic_metadata=row.get("bibliographic_metadata") if isinstance(row.get("bibliographic_metadata"), dict) else None,
                     vector_score=_float_or_none(row.get("vector_score")),
                     vector_rank=rank,
                     excerpt=_make_excerpt(str(row.get("text_content") or "")),
@@ -309,6 +312,7 @@ class InkwiseVectorRetrievalService:
               s.locator_json as locator_json,
               s.preview_bucket as preview_bucket,
               s.preview_object as preview_object,
+              src.bibliographic_metadata as bibliographic_metadata,
               ts_rank(s.text_tsv, websearch_to_tsquery('english', :query)) as lexical_score,
               ts_headline(
                 'english',
@@ -345,6 +349,7 @@ class InkwiseVectorRetrievalService:
                     locator_json=row.get("locator_json") if isinstance(row.get("locator_json"), dict) else None,
                     preview_bucket=_text_or_none(row.get("preview_bucket")),
                     preview_object=_text_or_none(row.get("preview_object")),
+                    bibliographic_metadata=row.get("bibliographic_metadata") if isinstance(row.get("bibliographic_metadata"), dict) else None,
                     lexical_score=_float_or_none(row.get("lexical_score")),
                     lexical_rank=rank,
                     excerpt=_make_excerpt(str(row.get("excerpt") or row.get("text_content") or "")),
@@ -491,6 +496,7 @@ class InkwiseVectorRetrievalService:
                     locator_json=candidate.locator_json,
                     preview_bucket=candidate.preview_bucket,
                     preview_object=candidate.preview_object,
+                    bibliographic_metadata=candidate.bibliographic_metadata,
                 )
             )
         return evidence
@@ -544,5 +550,6 @@ def _candidate_excerpt(candidate: RetrievalCandidate) -> str:
         locator_json=candidate.locator_json,
         preview_bucket=candidate.preview_bucket,
         preview_object=candidate.preview_object,
+        bibliographic_metadata=candidate.bibliographic_metadata,
     )
     return _evidence_excerpt(item)

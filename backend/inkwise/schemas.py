@@ -7,6 +7,31 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class InkwiseBibliographicMetadata(BaseModel):
+    citation_type: Literal["book", "article", "case", "statute", "webpage", "report", "other"] | None = None
+    authors: list[str] = Field(default_factory=list)
+    editors: list[str] = Field(default_factory=list)
+    title: str | None = None
+    short_title: str | None = None
+    container_title: str | None = None
+    publisher: str | None = None
+    edition: str | None = None
+    volume: str | None = None
+    issue: str | None = None
+    pages: str | None = None
+    year: str | None = None
+    month: str | None = None
+    day: str | None = None
+    url: str | None = None
+    accessed_date: str | None = None
+    court: str | None = None
+    reporter: str | None = None
+    reporter_volume: str | None = None
+    first_page: str | None = None
+    pin_cite: str | None = None
+    docket_number: str | None = None
+
+
 class InkwisePlaceholderResponse(BaseModel):
     phase: int = Field(default=2)
     status: str = Field(default="placeholder")
@@ -59,6 +84,7 @@ class InkwiseSourceOut(BaseModel):
     external_source: str | None = None
     external_id: str | None = None
     external_meta: dict | None = None
+    bibliographic_metadata: InkwiseBibliographicMetadata | None = None
     status: str
     failure_code: str | None = None
     failure_detail: str | None = None
@@ -80,6 +106,12 @@ class InkwiseSourceCreateRequest(BaseModel):
     size_bytes: int = 0
     source_url: str | None = None
     type: str = "upload"
+    bibliographic_metadata: InkwiseBibliographicMetadata | None = None
+
+
+class InkwiseSourceUpdateRequest(BaseModel):
+    title: str | None = None
+    bibliographic_metadata: InkwiseBibliographicMetadata | None = None
 
 
 class InkwiseSourceUploadInitRequest(BaseModel):
@@ -93,6 +125,7 @@ class InkwiseSourceUploadInitRequest(BaseModel):
 class InkwiseWebpageCaptureRequest(BaseModel):
     source_url: str
     title: str | None = None
+    bibliographic_metadata: InkwiseBibliographicMetadata | None = None
 
 
 class InkwiseUploadInfo(BaseModel):
@@ -147,6 +180,7 @@ class InkwiseDocumentOut(BaseModel):
     content_html: str | None = None
     init_prompt: str | None = None
     language: str | None = None
+    citation_style: str = "default"
     version: int
     created_at: datetime
     updated_at: datetime
@@ -164,6 +198,7 @@ class InkwiseDocumentRevisionOut(BaseModel):
     content_html: str | None = None
     init_prompt: str | None = None
     language: str | None = None
+    citation_style: str = "default"
     document_version: int
     source_kind: str
     source_meta: dict | None = None
@@ -225,6 +260,7 @@ class InkwiseDocumentCreateRequest(BaseModel):
     content_html: str | None = None
     init_prompt: str | None = None
     language: str | None = None
+    citation_style: str = "default"
 
 
 class InkwiseDocumentUpdateRequest(BaseModel):
@@ -235,6 +271,7 @@ class InkwiseDocumentUpdateRequest(BaseModel):
     content_html: str | None = None
     init_prompt: str | None = None
     language: str | None = None
+    citation_style: str | None = None
 
 
 class InkwiseDocumentFolderCreateRequest(BaseModel):
@@ -352,6 +389,7 @@ class InkwiseRetrievalEvidenceOut(BaseModel):
     preview_bucket: str | None = None
     preview_object: str | None = None
     excerpt: str
+    bibliographic_metadata: InkwiseBibliographicMetadata | None = None
     score: float | None = None
 
 

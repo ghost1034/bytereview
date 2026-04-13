@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 
 import requests
 
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -23,13 +24,16 @@ from inkwise.schemas import (
     InkwiseAssetPreviewRequest,
     InkwiseSourceCreateRequest,
     InkwiseSourceOut,
+    InkwiseSourceUpdateRequest,
     InkwiseSourceUploadInitRequest,
     InkwiseWebpageCaptureRequest,
 )
+from inkwise.services.document_citations import content_json_to_html, refresh_document_citations
+from inkwise.services.citation_styles import normalize_bibliographic_metadata
 from inkwise.services.gcs import generate_signed_download_url, generate_signed_upload_url, storage_client
 from inkwise.settings import get_inkwise_settings, is_valid_gcs_bucket_name, normalize_gcs_bucket_name
 from models.db_models import User
-from models.inkwise_models import InkwiseSource, InkwiseSourceIngestion
+from models.inkwise_models import InkwiseDocument, InkwiseDocumentRevision, InkwiseDocumentSourceBinding, InkwiseSource, InkwiseSourceIngestion
 from services.google_service import GoogleService
 from services.gcs_service import GCSService
 from services.user_service import DuplicatePhoneNumberError, UserService
@@ -184,6 +188,7 @@ class InkwiseSourceService:
             content_type=(body.content_type or "application/pdf").strip() or "application/pdf",
             size_bytes=max(0, int(body.size_bytes)),
             source_url=(body.source_url or "").strip() or None,
+            bibliographic_metadata=(body.bibliographic_metadata.model_dump(exclude_none=True) if body.bibliographic_metadata else None),
             status="pending",
             created_at=now,
             updated_at=now,
@@ -246,6 +251,31 @@ class InkwiseSourceService:
         expires_at = (datetime.utcnow() + timedelta(minutes=15)).isoformat() + "Z"
         return source, SignedUpload(url=url, headers=headers, expires_at=expires_at)
 
+    def update_source(self, db: Session, *, user_id: str, source_id: uuid.UUID, body: InkwiseSourceUpdateRequest) -> InkwiseSource:
+        source = self.get_source_or_404(db, user_id=user_id, source_id=source_id)
+        fields = body.model_fields_set
+        changed = False
+
+        if "title" in fields and body.title is not None:
+            next_title = body.title.strip() or source.title
+            changed = changed or next_title != source.title
+            source.title = next_title
+
+        if "bibliographic_metadata" in fields:
+            next_metadata = normalize_bibliographic_metadata(body.bibliographic_metadata.model_dump(exclude_none=True) if body.bibliographic_metadata else None)
+            current_metadata = normalize_bibliographic_metadata(source.bibliographic_metadata)
+            changed = changed or next_metadata != current_metadata
+            source.bibliographic_metadata = next_metadata or None
+
+        if not changed:
+            return source
+
+        source.updated_at = datetime.utcnow()
+        self._refresh_linked_documents_for_source(db, source=source)
+        db.commit()
+        db.refresh(source)
+        return source
+
     def capture_webpage_snapshot(
         self,
         db: Session,
@@ -271,6 +301,7 @@ class InkwiseSourceService:
             size_bytes=len(pdf_bytes),
             storage_bucket=bucket,
             source_url=clean_url,
+            bibliographic_metadata=(body.bibliographic_metadata.model_dump(exclude_none=True) if body.bibliographic_metadata else None),
             status="queued",
             created_at=now,
             updated_at=now,
@@ -673,6 +704,59 @@ class InkwiseSourceService:
         derived_bucket = normalize_gcs_bucket_name(get_inkwise_settings().derived_bucket or source_bucket)
         allowed_prefix = f"inkwise/derived/{source.user_id}/{source.id}/"
         return bucket == derived_bucket and object_name.startswith(allowed_prefix)
+
+    def _refresh_linked_documents_for_source(self, db: Session, *, source: InkwiseSource) -> None:
+        rows = (
+            db.query(InkwiseDocument)
+            .join(InkwiseDocumentSourceBinding, InkwiseDocumentSourceBinding.document_id == InkwiseDocument.id)
+            .filter(
+                InkwiseDocument.user_id == source.user_id,
+                InkwiseDocumentSourceBinding.source_id == source.id,
+                InkwiseDocumentSourceBinding.is_active.is_(True),
+            )
+            .all()
+        )
+        source_map = {
+            str(source.id): {
+                "title": source.title,
+                "bibliographic_metadata": normalize_bibliographic_metadata(source.bibliographic_metadata),
+            }
+        }
+        for document in rows:
+            refreshed_content, refreshed = refresh_document_citations(
+                content_json=document.content_json,
+                citation_style=document.citation_style,
+                source_map=source_map,
+            )
+            if not refreshed:
+                continue
+            document.content_json = refreshed_content
+            document.content_html = content_json_to_html(refreshed_content) or document.content_html
+            document.version += 1
+            document.updated_at = datetime.utcnow()
+            db.add(
+                InkwiseDocumentRevision(
+                    document_id=document.id,
+                    user_id=document.user_id,
+                    revision_number=(
+                        db.query(func.coalesce(func.max(InkwiseDocumentRevision.revision_number), 0))
+                        .filter(InkwiseDocumentRevision.document_id == document.id)
+                        .scalar()
+                        or 0
+                    )
+                    + 1,
+                    title=document.title,
+                    content_json=document.content_json,
+                    content_html=document.content_html,
+                    init_prompt=document.init_prompt,
+                    language=document.language,
+                    citation_style=document.citation_style,
+                    document_version=document.version,
+                    source_kind="citation_refresh",
+                    source_meta={"reason": "source_metadata_update", "source_id": str(source.id)},
+                    created_at=datetime.utcnow(),
+                )
+            )
 
     def _require_bucket(self) -> str:
         gcs_service = GCSService()

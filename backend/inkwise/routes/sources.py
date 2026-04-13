@@ -16,6 +16,7 @@ from inkwise.schemas import (
     InkwiseSourceImportResponse,
     InkwiseWebpageCaptureRequest,
     InkwiseSourceOut,
+    InkwiseSourceUpdateRequest,
     InkwiseSourceIngestionOut,
     InkwiseUploadInfo,
     InkwiseSourceUploadCompleteRequest,
@@ -96,6 +97,28 @@ async def get_source(
         return InkwiseSourceOut.model_validate(source)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.put("/{source_id}", response_model=InkwiseSourceOut)
+async def update_source(
+    source_id: uuid.UUID,
+    body: InkwiseSourceUpdateRequest,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> InkwiseSourceOut:
+    user_id = token_data["uid"]
+    try:
+        source = source_service.update_source(db, user_id=user_id, source_id=source_id, body=body)
+        return InkwiseSourceOut.model_validate(source)
+    except FileNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update source: {exc}") from exc
 
 
 @router.delete("/{source_id}", response_model=InkwiseMessageResponse)

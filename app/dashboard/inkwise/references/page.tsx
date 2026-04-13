@@ -1,15 +1,20 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Eye, Loader2, RefreshCw, Trash2 } from 'lucide-react'
+import { BookOpenText, Eye, Loader2, RefreshCw, Trash2 } from 'lucide-react'
 
 import { InkwiseSourceImportPanel } from '@/components/inkwise/source-import-panel'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { useInkwiseSourceIngestions, useInkwiseSources } from '@/hooks/useInkwise'
-import { apiClient, InkwiseSource, InkwiseSourceIngestion } from '@/lib/api'
+import { apiClient, InkwiseBibliographicMetadata, InkwiseSource, InkwiseSourceIngestion } from '@/lib/api'
 import { INKWISE_SOURCE_POLL_INTERVAL_MS, isInkwiseIngestionActiveStatus, isInkwiseSourceActiveStatus } from '@/lib/inkwise-source-status'
 
 export default function InkwiseReferencesPage() {
@@ -38,10 +43,13 @@ export default function InkwiseReferencesPage() {
     }
     return latest
   }, [ingestions.data])
+  const [editingSource, setEditingSource] = useState<InkwiseSource | null>(null)
+  const [metadataForm, setMetadataForm] = useState<MetadataFormState>(emptyMetadataForm())
 
   const refreshSources = async () => {
     await queryClient.invalidateQueries({ queryKey: ['inkwise', 'sources'] })
     await queryClient.invalidateQueries({ queryKey: ['inkwise', 'source-ingestions'] })
+    await queryClient.invalidateQueries({ queryKey: ['inkwise', 'documents'] })
   }
 
   const previewSource = useMutation({
@@ -89,6 +97,31 @@ export default function InkwiseReferencesPage() {
       toast({ title: 'Could not delete source', description: error.message, variant: 'destructive' })
     },
   })
+
+  const updateSource = useMutation({
+    mutationFn: async () => {
+      if (!editingSource) throw new Error('No source selected')
+      return apiClient.updateInkwiseSource(editingSource.id, {
+        title: metadataForm.title.trim() || editingSource.title,
+        bibliographic_metadata: buildBibliographicMetadata(metadataForm),
+      })
+    },
+    onSuccess: async () => {
+      await refreshSources()
+      await queryClient.invalidateQueries({ queryKey: ['inkwise', 'document'] })
+      await queryClient.invalidateQueries({ queryKey: ['inkwise', 'document-revisions'] })
+      toast({ title: 'Metadata updated', description: 'Inkwise refreshed citations in linked documents that use this source.' })
+      setEditingSource(null)
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Could not update source metadata', description: error.message, variant: 'destructive' })
+    },
+  })
+
+  function openMetadataEditor(source: InkwiseSource) {
+    setEditingSource(source)
+    setMetadataForm(metadataFormFromSource(source))
+  }
 
   return (
     <div className="space-y-6">
@@ -169,6 +202,10 @@ export default function InkwiseReferencesPage() {
                       <RefreshCw className="mr-2 h-4 w-4" />
                       Re-ingest
                     </Button>
+                    <Button variant="outline" onClick={() => openMetadataEditor(source)}>
+                      <BookOpenText className="mr-2 h-4 w-4" />
+                      Metadata
+                    </Button>
                     <Button variant="outline" onClick={() => deleteSource.mutate(source.id)}>
                       <Trash2 className="mr-2 h-4 w-4" />
                       Remove
@@ -186,8 +223,186 @@ export default function InkwiseReferencesPage() {
           </Card>
         )}
       </div>
+
+      <Dialog open={Boolean(editingSource)} onOpenChange={(open) => { if (!open) setEditingSource(null) }}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Bibliographic Metadata</DialogTitle>
+            <DialogDescription>
+              Inkwise uses this metadata to generate academic-style inline citations, footnotes, and endnotes, and linked documents refresh automatically when you save.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="inkwise-source-title">Source title</Label>
+              <Input id="inkwise-source-title" value={metadataForm.title} onChange={(event) => setMetadataForm((current) => ({ ...current, title: event.target.value }))} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="inkwise-citation-type">Citation type</Label>
+              <Select value={metadataForm.citationType} onValueChange={(value) => setMetadataForm((current) => ({ ...current, citationType: value }))}>
+                <SelectTrigger id="inkwise-citation-type">
+                  <SelectValue placeholder="Select a type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="book">Book</SelectItem>
+                  <SelectItem value="article">Article</SelectItem>
+                  <SelectItem value="case">Case</SelectItem>
+                  <SelectItem value="statute">Statute</SelectItem>
+                  <SelectItem value="webpage">Webpage</SelectItem>
+                  <SelectItem value="report">Report</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="inkwise-year">Year</Label>
+              <Input id="inkwise-year" value={metadataForm.year} onChange={(event) => setMetadataForm((current) => ({ ...current, year: event.target.value }))} placeholder="2024" />
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="inkwise-authors">Authors</Label>
+              <Textarea id="inkwise-authors" value={metadataForm.authors} onChange={(event) => setMetadataForm((current) => ({ ...current, authors: event.target.value }))} placeholder="One author per line" className="min-h-[96px]" />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="inkwise-short-title">Short title</Label>
+              <Input id="inkwise-short-title" value={metadataForm.shortTitle} onChange={(event) => setMetadataForm((current) => ({ ...current, shortTitle: event.target.value }))} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="inkwise-container-title">Container title</Label>
+              <Input id="inkwise-container-title" value={metadataForm.containerTitle} onChange={(event) => setMetadataForm((current) => ({ ...current, containerTitle: event.target.value }))} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="inkwise-publisher">Publisher</Label>
+              <Input id="inkwise-publisher" value={metadataForm.publisher} onChange={(event) => setMetadataForm((current) => ({ ...current, publisher: event.target.value }))} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="inkwise-url">URL</Label>
+              <Input id="inkwise-url" value={metadataForm.url} onChange={(event) => setMetadataForm((current) => ({ ...current, url: event.target.value }))} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="inkwise-court">Court</Label>
+              <Input id="inkwise-court" value={metadataForm.court} onChange={(event) => setMetadataForm((current) => ({ ...current, court: event.target.value }))} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="inkwise-reporter">Reporter</Label>
+              <Input id="inkwise-reporter" value={metadataForm.reporter} onChange={(event) => setMetadataForm((current) => ({ ...current, reporter: event.target.value }))} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="inkwise-reporter-volume">Reporter volume</Label>
+              <Input id="inkwise-reporter-volume" value={metadataForm.reporterVolume} onChange={(event) => setMetadataForm((current) => ({ ...current, reporterVolume: event.target.value }))} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="inkwise-first-page">First page</Label>
+              <Input id="inkwise-first-page" value={metadataForm.firstPage} onChange={(event) => setMetadataForm((current) => ({ ...current, firstPage: event.target.value }))} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="inkwise-pin-cite">Pin cite</Label>
+              <Input id="inkwise-pin-cite" value={metadataForm.pinCite} onChange={(event) => setMetadataForm((current) => ({ ...current, pinCite: event.target.value }))} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="inkwise-docket-number">Docket number</Label>
+              <Input id="inkwise-docket-number" value={metadataForm.docketNumber} onChange={(event) => setMetadataForm((current) => ({ ...current, docketNumber: event.target.value }))} />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingSource(null)}>Cancel</Button>
+            <Button onClick={() => updateSource.mutate()} disabled={updateSource.isPending || !editingSource}>
+              {updateSource.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save metadata
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
+}
+
+type MetadataFormState = {
+  title: string
+  citationType: string
+  authors: string
+  shortTitle: string
+  containerTitle: string
+  publisher: string
+  year: string
+  url: string
+  court: string
+  reporter: string
+  reporterVolume: string
+  firstPage: string
+  pinCite: string
+  docketNumber: string
+}
+
+function emptyMetadataForm(): MetadataFormState {
+  return {
+    title: '',
+    citationType: 'other',
+    authors: '',
+    shortTitle: '',
+    containerTitle: '',
+    publisher: '',
+    year: '',
+    url: '',
+    court: '',
+    reporter: '',
+    reporterVolume: '',
+    firstPage: '',
+    pinCite: '',
+    docketNumber: '',
+  }
+}
+
+function metadataFormFromSource(source: InkwiseSource): MetadataFormState {
+  const metadata = source.bibliographic_metadata || {}
+  return {
+    title: source.title || '',
+    citationType: metadata.citation_type || 'other',
+    authors: Array.isArray(metadata.authors) ? metadata.authors.join('\n') : '',
+    shortTitle: metadata.short_title || '',
+    containerTitle: metadata.container_title || '',
+    publisher: metadata.publisher || '',
+    year: metadata.year || '',
+    url: metadata.url || source.source_url || '',
+    court: metadata.court || '',
+    reporter: metadata.reporter || '',
+    reporterVolume: metadata.reporter_volume || '',
+    firstPage: metadata.first_page || '',
+    pinCite: metadata.pin_cite || '',
+    docketNumber: metadata.docket_number || '',
+  }
+}
+
+function buildBibliographicMetadata(form: MetadataFormState): InkwiseBibliographicMetadata {
+  return {
+    citation_type: form.citationType === 'other' ? 'other' : form.citationType as InkwiseBibliographicMetadata['citation_type'],
+    authors: form.authors.split('\n').map((item) => item.trim()).filter(Boolean),
+    short_title: form.shortTitle.trim() || null,
+    container_title: form.containerTitle.trim() || null,
+    publisher: form.publisher.trim() || null,
+    year: form.year.trim() || null,
+    url: form.url.trim() || null,
+    court: form.court.trim() || null,
+    reporter: form.reporter.trim() || null,
+    reporter_volume: form.reporterVolume.trim() || null,
+    first_page: form.firstPage.trim() || null,
+    pin_cite: form.pinCite.trim() || null,
+    docket_number: form.docketNumber.trim() || null,
+  }
 }
 
 function isDocxSource(source: InkwiseSource): boolean {

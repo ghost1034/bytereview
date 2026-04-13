@@ -2,8 +2,9 @@ import type { Editor, JSONContent } from '@tiptap/core'
 import { Fragment, type Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { Transaction } from '@tiptap/pm/state'
 
-import type { InkwiseCitation, InkwiseGroundedSegment } from '@/lib/api'
-import { INKWISE_NOTE_DEFINITION_NODE, INKWISE_NOTE_REF_NODE, TRACK_CHANGES_SKIP_META } from '@/lib/inkwise-editor-extensions'
+import type { InkwiseCitation, InkwiseCitationStyle, InkwiseGroundedSegment } from '@/lib/api'
+import { formatInlineCitationText, formatNoteCitationText, normalizeInkwiseCitationStyle } from '@/lib/inkwise-citation-format'
+import { INKWISE_INLINE_CITATION_NODE, INKWISE_NOTE_DEFINITION_NODE, INKWISE_NOTE_REF_NODE, TRACK_CHANGES_SKIP_META } from '@/lib/inkwise-editor-extensions'
 import {
   appendCitationAnchorToContent,
   createInkwiseCitationAnchorAttrs,
@@ -31,6 +32,7 @@ export type InkwiseReferenceNoteMode = Exclude<InkwiseCitationReferenceMode, 'in
 export type InkwiseEditorCitationAnchor = {
   sourceKind: InkwiseCitationAnchorSourceKind
   citations: InkwiseCitation[]
+  citationStyle?: InkwiseCitationStyle | null
   attemptId?: string | null
   retrievalRunId?: string | null
   contentWithCitations?: string | null
@@ -54,54 +56,12 @@ function normalizeCitationText(value: string | null | undefined): string {
   return (value || '').replace(/\s+/g, ' ').trim()
 }
 
-function formatCitationLocatorText(citation: InkwiseCitation): string {
-  const locator = citation.locator_json || {}
-  const rawPageStart = citation.page_number ?? locator.page_start ?? null
-  const pageStart = typeof rawPageStart === 'number' && rawPageStart > 0 ? rawPageStart : null
-  const pageEnd = typeof locator.page_end === 'number' && locator.page_end > 0 ? locator.page_end : null
-  if (typeof pageStart === 'number') {
-    return typeof pageEnd === 'number' && pageEnd !== pageStart ? `pp.${pageStart}-${pageEnd}` : `p.${pageStart}`
-  }
-  if (citation.segment_title) return citation.segment_title
-  if (locator.kind === 'web_snapshot') return 'web snapshot'
-  return ''
+function buildInlineReferenceText(citations: InkwiseCitation[], citationStyle?: string | null): string {
+  return formatInlineCitationText(citations, citationStyle)
 }
 
-function dedupeCitations(citations: InkwiseCitation[]): InkwiseCitation[] {
-  const seen = new Set<string>()
-  const items: InkwiseCitation[] = []
-  for (const citation of citations) {
-    const key = String(citation?.evidence_id || `${citation?.source_id || 'source'}:${citation?.excerpt || ''}`)
-    if (!key || seen.has(key)) continue
-    seen.add(key)
-    items.push(citation)
-  }
-  return items
-}
-
-function buildCitationReferenceLabel(citation: InkwiseCitation): string {
-  const sourceTitle = normalizeCitationText(citation.source_title || citation.segment_title || 'Evidence')
-  const locator = normalizeCitationText(formatCitationLocatorText(citation))
-  return [sourceTitle, locator].filter(Boolean).join(' ')
-}
-
-function buildCitationReferenceSummary(citation: InkwiseCitation): string {
-  const label = buildCitationReferenceLabel(citation)
-  const excerpt = normalizeCitationText(citation.excerpt)
-  if (!excerpt) return label
-  const trimmedExcerpt = excerpt.length > 140 ? `${excerpt.slice(0, 137).trimEnd()}...` : excerpt
-  return `${label}: ${trimmedExcerpt}`
-}
-
-function buildInlineReferenceText(citations: InkwiseCitation[]): string {
-  const labels = dedupeCitations(citations).map(buildCitationReferenceLabel).filter(Boolean)
-  if (!labels.length) return ''
-  return ` (${labels.join('; ')})`
-}
-
-function buildNoteReferenceText(citations: InkwiseCitation[]): string {
-  const parts = dedupeCitations(citations).map(buildCitationReferenceSummary).filter(Boolean)
-  return parts.join('; ')
+function buildNoteReferenceText(citations: InkwiseCitation[], citationStyle?: string | null): string {
+  return formatNoteCitationText(citations, citationStyle)
 }
 
 function createNoteId(): string {
@@ -162,9 +122,33 @@ function buildNoteRefNode(editor: Editor, noteId: string, noteKind: 'footnote' |
   return editor.state.schema.nodes[INKWISE_NOTE_REF_NODE].create({ noteId, noteKind, noteNumber })
 }
 
-function buildNoteDefinitionNode(editor: Editor, noteId: string, noteKind: 'footnote' | 'endnote', noteNumber: number, text: string): ProseMirrorNode {
+function buildInlineCitationNode(editor: Editor, citations: InkwiseCitation[], citationStyle?: string | null): ProseMirrorNode | null {
+  const label = buildInlineReferenceText(citations, citationStyle).trim()
+  if (!label) return null
+  return editor.state.schema.nodes[INKWISE_INLINE_CITATION_NODE].create({
+    citations,
+    citationStyle: normalizeInkwiseCitationStyle(citationStyle),
+    label,
+  })
+}
+
+function buildNoteDefinitionNode(
+  editor: Editor,
+  noteId: string,
+  noteKind: 'footnote' | 'endnote',
+  noteNumber: number,
+  text: string,
+  citations: InkwiseCitation[] = [],
+  citationStyle?: string | null,
+): ProseMirrorNode {
   return editor.state.schema.nodes[INKWISE_NOTE_DEFINITION_NODE].create(
-    { noteId, noteKind, noteNumber },
+    {
+      noteId,
+      noteKind,
+      noteNumber,
+      citations,
+      citationStyle: normalizeInkwiseCitationStyle(citationStyle),
+    },
     text ? editor.state.schema.text(text) : undefined,
   )
 }
@@ -175,22 +159,24 @@ export function convertCitationAnchorReference({
   to,
   citations,
   mode,
+  citationStyle,
 }: {
   editor: Editor | null
   from: number
   to: number
   citations: InkwiseCitation[]
   mode: InkwiseCitationReferenceMode
+  citationStyle?: string | null
 }): boolean {
   if (!editor || !citations.length) return false
 
   if (mode === 'inline') {
-    const inlineText = buildInlineReferenceText(citations)
-    if (!inlineText) return false
-    return dispatchCitationTransaction(editor, editor.state.tr.replaceWith(from, to, editor.state.schema.text(inlineText)))
+    const inlineNode = buildInlineCitationNode(editor, citations, citationStyle)
+    if (!inlineNode) return false
+    return dispatchCitationTransaction(editor, editor.state.tr.replaceWith(from, to, inlineNode))
   }
 
-  const noteText = buildNoteReferenceText(citations)
+  const noteText = buildNoteReferenceText(citations, citationStyle)
   if (!noteText) return false
 
   const noteId = createNoteId()
@@ -198,7 +184,7 @@ export function convertCitationAnchorReference({
 
   if (mode === 'footnote') {
     const refNode = buildNoteRefNode(editor, noteId, 'footnote', referenceNumber)
-    const defNode = buildNoteDefinitionNode(editor, noteId, 'footnote', referenceNumber, noteText)
+    const defNode = buildNoteDefinitionNode(editor, noteId, 'footnote', referenceNumber, noteText, citations, citationStyle)
     const textblockDepth = resolveTextblockDepth(editor, from)
     const insertAfter = textblockDepth == null ? editor.state.doc.content.size : editor.state.doc.resolve(from).after(textblockDepth)
     let transaction = editor.state.tr.replaceWith(from, to, refNode).setMeta(TRACK_CHANGES_SKIP_META, true)
@@ -207,7 +193,7 @@ export function convertCitationAnchorReference({
   }
 
   const refNode = buildNoteRefNode(editor, noteId, 'endnote', referenceNumber)
-  const defNode = buildNoteDefinitionNode(editor, noteId, 'endnote', referenceNumber, noteText)
+  const defNode = buildNoteDefinitionNode(editor, noteId, 'endnote', referenceNumber, noteText, citations, citationStyle)
   const endnoteNodes: ProseMirrorNode[] = []
   if (!hasTopLevelSection(editor, 'Endnotes')) {
     endnoteNodes.push(buildParagraphNode(editor, 'Endnotes'))
@@ -296,6 +282,7 @@ async function buildInkwiseDocumentContentFromMarkdown({
         content: markedContent,
         citations: citationAnchor.citations,
         sourceKind: citationAnchor.sourceKind,
+        citationStyle: citationAnchor.citationStyle,
         attemptId: citationAnchor.attemptId,
         retrievalRunId: citationAnchor.retrievalRunId,
       })
@@ -310,6 +297,7 @@ async function buildInkwiseDocumentContentFromMarkdown({
     createInkwiseCitationAnchorAttrs({
       citations: citationAnchor.citations,
       sourceKind: citationAnchor.sourceKind,
+      citationStyle: citationAnchor.citationStyle,
       attemptId: citationAnchor.attemptId,
       retrievalRunId: citationAnchor.retrievalRunId,
     }),

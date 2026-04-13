@@ -1,0 +1,239 @@
+import type { InkwiseBibliographicMetadata, InkwiseCitation, InkwiseCitationStyle } from '@/lib/api'
+
+export const INKWISE_CITATION_STYLE_OPTIONS: Array<{ value: InkwiseCitationStyle; label: string }> = [
+  { value: 'default', label: 'Default' },
+  { value: 'apa', label: 'APA' },
+  { value: 'mla', label: 'MLA' },
+  { value: 'chicago', label: 'Chicago' },
+  { value: 'bluebook', label: 'Bluebook' },
+]
+
+export function normalizeInkwiseCitationStyle(value?: string | null): InkwiseCitationStyle {
+  switch ((value || '').trim().toLowerCase()) {
+    case 'apa':
+    case 'mla':
+    case 'chicago':
+    case 'bluebook':
+      return value!.trim().toLowerCase() as InkwiseCitationStyle
+    default:
+      return 'default'
+  }
+}
+
+export function formatInlineCitationText(citations: InkwiseCitation[], style?: string | null): string {
+  const items = dedupeCitations(citations).map((citation) => formatInlineItem(citation, style)).filter(Boolean)
+  return items.length ? ` (${items.join('; ')})` : ''
+}
+
+export function formatNoteCitationText(citations: InkwiseCitation[], style?: string | null): string {
+  const normalizedStyle = normalizeInkwiseCitationStyle(style)
+  const items = dedupeCitations(citations).map((citation) => formatNoteItem(citation, normalizedStyle)).filter(Boolean)
+  return normalizedStyle === 'default' ? items.join('; ') : items.join(' ')
+}
+
+function dedupeCitations(citations: InkwiseCitation[]): InkwiseCitation[] {
+  const seen = new Set<string>()
+  const items: InkwiseCitation[] = []
+  for (const citation of citations) {
+    const key = String(citation?.evidence_id || `${citation?.source_id || 'source'}:${citation?.page_number || ''}:${citation?.excerpt || ''}`)
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    items.push(citation)
+  }
+  return items
+}
+
+function formatInlineItem(citation: InkwiseCitation, style?: string | null): string {
+  const normalizedStyle = normalizeInkwiseCitationStyle(style)
+  if (normalizedStyle === 'apa') return formatApaInline(citation)
+  if (normalizedStyle === 'mla') return formatMlaInline(citation)
+  if (normalizedStyle === 'chicago') return formatChicagoInline(citation)
+  if (normalizedStyle === 'bluebook') return formatBluebookInline(citation)
+  return formatDefaultInline(citation)
+}
+
+function formatNoteItem(citation: InkwiseCitation, style: InkwiseCitationStyle): string {
+  if (style === 'apa') return ensureTerminalPeriod(formatApaNote(citation))
+  if (style === 'mla') return ensureTerminalPeriod(formatMlaNote(citation))
+  if (style === 'chicago') return ensureTerminalPeriod(formatChicagoNote(citation))
+  if (style === 'bluebook') return ensureTerminalPeriod(formatBluebookNote(citation))
+  return formatDefaultNote(citation)
+}
+
+function formatDefaultInline(citation: InkwiseCitation): string {
+  return [titleForCitation(citation), defaultLocator(citation)].filter(Boolean).join(' ')
+}
+
+function formatDefaultNote(citation: InkwiseCitation): string {
+  const summary = formatDefaultInline(citation)
+  const excerpt = text(citation.excerpt)
+  if (excerpt) return summary ? `${summary}: ${excerpt}` : excerpt
+  return summary
+}
+
+function formatApaInline(citation: InkwiseCitation): string {
+  const author = authorShort(citation)
+  const year = yearValue(citation)
+  const locator = apaLocator(citation)
+  const body = [author, year].filter(Boolean).join(', ')
+  if (locator) return body ? `${body}, ${locator}` : locator
+  return body || titleForCitation(citation)
+}
+
+function formatApaNote(citation: InkwiseCitation): string {
+  const metadata = metadataFor(citation)
+  return [authorFull(citation), yearValue(citation) ? `(${yearValue(citation)})` : '', text(metadata.title) || titleForCitation(citation), text(metadata.publisher), apaLocator(citation)]
+    .filter(Boolean)
+    .map((part) => String(part).replace(/[.]+$/, ''))
+    .join('. ')
+}
+
+function formatMlaInline(citation: InkwiseCitation): string {
+  return [authorShort(citation) || shortTitle(citation), mlaLocator(citation)].filter(Boolean).join(' ')
+}
+
+function formatMlaNote(citation: InkwiseCitation): string {
+  const metadata = metadataFor(citation)
+  return [authorFull(citation), text(metadata.title) || titleForCitation(citation), text(metadata.container_title), text(metadata.publisher), yearValue(citation), defaultLocator(citation)]
+    .filter(Boolean)
+    .join(', ')
+}
+
+function formatChicagoInline(citation: InkwiseCitation): string {
+  const body = [authorShort(citation), yearValue(citation)].filter(Boolean).join(' ')
+  const locator = chicagoLocator(citation)
+  if (locator) return body ? `${body}, ${locator}` : locator
+  return body || shortTitle(citation)
+}
+
+function formatChicagoNote(citation: InkwiseCitation): string {
+  const metadata = metadataFor(citation)
+  const core = [text(metadata.publisher), yearValue(citation)].filter(Boolean).join(', ')
+  return [authorFull(citation), text(metadata.title) || titleForCitation(citation), core ? `(${core})` : '', chicagoLocator(citation)]
+    .filter(Boolean)
+    .join(', ')
+}
+
+function formatBluebookInline(citation: InkwiseCitation): string {
+  const caseCitation = bluebookCaseCitation(citation)
+  if (caseCitation) return caseCitation
+  const year = yearValue(citation)
+  const body = [text(metadataFor(citation).title) || titleForCitation(citation), bluebookLocator(citation)].filter(Boolean).join(', ')
+  return year ? `${body} (${year})` : body
+}
+
+function formatBluebookNote(citation: InkwiseCitation): string {
+  const caseCitation = bluebookCaseCitation(citation)
+  if (caseCitation) return caseCitation
+  const body = [authorFull(citation), text(metadataFor(citation).title) || titleForCitation(citation), bluebookLocator(citation) ? `at ${bluebookLocator(citation)}` : '']
+    .filter(Boolean)
+    .join(', ')
+  return yearValue(citation) ? `${body} (${yearValue(citation)})` : body
+}
+
+function bluebookCaseCitation(citation: InkwiseCitation): string {
+  const metadata = metadataFor(citation)
+  if (text(metadata.citation_type) !== 'case') return ''
+  const cite = [text(metadata.reporter_volume), text(metadata.reporter), text(metadata.first_page)].filter(Boolean).join(' ')
+  const pin = text(metadata.pin_cite) || locatorNumber(citation)
+  let body = cite ? `${text(metadata.title) || titleForCitation(citation)}, ${cite}` : (text(metadata.title) || titleForCitation(citation))
+  if (pin) body = `${body}, ${pin}`
+  const parenthetical = [text(metadata.court), yearValue(citation)].filter(Boolean).join(' ')
+  if (parenthetical) body = `${body} (${parenthetical})`
+  return body
+}
+
+function metadataFor(citation: InkwiseCitation): InkwiseBibliographicMetadata {
+  return citation.bibliographic_metadata || {}
+}
+
+function authors(citation: InkwiseCitation): string[] {
+  return Array.isArray(metadataFor(citation).authors) ? (metadataFor(citation).authors || []).map((item) => text(item)).filter(Boolean) : []
+}
+
+function authorShort(citation: InkwiseCitation): string {
+  const items = authors(citation)
+  if (!items.length) return shortTitle(citation)
+  const first = lastName(items[0])
+  if (items.length > 2) return `${first} et al.`
+  if (items.length === 2) return `${first} & ${lastName(items[1])}`
+  return first
+}
+
+function authorFull(citation: InkwiseCitation): string {
+  const items = authors(citation)
+  if (!items.length) return ''
+  if (items.length === 1) return items[0]
+  if (items.length === 2) return `${items[0]} and ${items[1]}`
+  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`
+}
+
+function titleForCitation(citation: InkwiseCitation): string {
+  return text(metadataFor(citation).title) || text(citation.source_title) || 'Evidence'
+}
+
+function shortTitle(citation: InkwiseCitation): string {
+  return text(metadataFor(citation).short_title) || titleForCitation(citation)
+}
+
+function yearValue(citation: InkwiseCitation): string {
+  return text(metadataFor(citation).year)
+}
+
+function defaultLocator(citation: InkwiseCitation): string {
+  const locator = locatorNumber(citation)
+  return locator ? `p.${locator}` : ''
+}
+
+function apaLocator(citation: InkwiseCitation): string {
+  const locator = locatorNumber(citation)
+  if (!locator) return ''
+  return locator.includes('-') ? `pp. ${locator}` : `p. ${locator}`
+}
+
+function mlaLocator(citation: InkwiseCitation): string {
+  return locatorNumber(citation)
+}
+
+function chicagoLocator(citation: InkwiseCitation): string {
+  return locatorNumber(citation)
+}
+
+function bluebookLocator(citation: InkwiseCitation): string {
+  return text(metadataFor(citation).pin_cite) || locatorNumber(citation)
+}
+
+function locatorNumber(citation: InkwiseCitation): string {
+  const explicit = text(metadataFor(citation).pin_cite)
+  if (explicit) return explicit
+  const locator = citation.locator_json || {}
+  const pageStart = integer(locator.page_start)
+  const pageEnd = integer(locator.page_end)
+  if (pageStart && pageEnd && pageEnd !== pageStart) return `${pageStart}-${pageEnd}`
+  if (pageStart) return String(pageStart)
+  const pageNumber = integer(citation.page_number)
+  return pageNumber ? String(pageNumber) : ''
+}
+
+function lastName(value?: string | null): string {
+  const cleaned = text(value)
+  if (!cleaned) return ''
+  if (cleaned.includes(',')) return cleaned.split(',', 1)[0]?.trim() || cleaned
+  const parts = cleaned.split(/\s+/)
+  return parts[parts.length - 1] || cleaned
+}
+
+function ensureTerminalPeriod(value: string): string {
+  const cleaned = value.trim()
+  if (!cleaned) return ''
+  return /[.!?]$/.test(cleaned) ? cleaned : `${cleaned}.`
+}
+
+function text(value?: string | null): string {
+  return String(value || '').trim()
+}
+
+function integer(value: unknown): number | null {
+  const number = Number(value)
+  return Number.isFinite(number) && number > 0 ? Math.trunc(number) : null
+}

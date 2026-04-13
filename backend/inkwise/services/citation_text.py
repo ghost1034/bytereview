@@ -32,6 +32,7 @@ def _citation_payload(item: Any, *, evidence_id: str) -> dict[str, Any]:
         "preview_bucket": item.preview_bucket,
         "preview_object": item.preview_object,
         "excerpt": item.excerpt,
+        "bibliographic_metadata": getattr(item, "bibliographic_metadata", None),
     }
 
 
