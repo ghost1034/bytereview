@@ -7,6 +7,7 @@ import base64
 import logging
 from dataclasses import dataclass
 from functools import lru_cache
+from collections.abc import AsyncGenerator
 from typing import Any
 
 from google import genai
@@ -32,6 +33,13 @@ class VertexAITextResult:
     raw: Any
 
 
+@dataclass(frozen=True)
+class VertexAITextChunk:
+    text: str
+    finish_reason: str | None
+    raw: Any
+
+
 def _require_project_id(project_id: str | None) -> str:
     if project_id:
         return project_id
@@ -46,6 +54,11 @@ def _get_client(project_id: str, location: str) -> genai.Client:
     return genai.Client(vertexai=True, project=project_id, location=location)
 
 
+@lru_cache(maxsize=8)
+def _get_async_client(project_id: str, location: str) -> Any:
+    return genai.Client(vertexai=True, project=project_id, location=location).aio
+
+
 def _extract_finish_reason(response: Any) -> str | None:
     try:
         candidates = getattr(response, "candidates", None)
@@ -58,9 +71,9 @@ def _extract_finish_reason(response: Any) -> str | None:
     return None
 
 
-def _extract_text(response: Any) -> str:
+def _extract_text_or_empty(response: Any) -> str:
     text = getattr(response, "text", None)
-    if isinstance(text, str) and text.strip():
+    if isinstance(text, str):
         return text
 
     try:
@@ -72,13 +85,20 @@ def _extract_text(response: Any) -> str:
                 joined = "".join(
                     part_text
                     for part in parts
-                    for part_text in [getattr(part, "text", None)]
-                    if isinstance(part_text, str)
-                )
-                if joined.strip():
-                    return joined
+                     for part_text in [getattr(part, "text", None)]
+                     if isinstance(part_text, str)
+                 )
+                return joined
     except Exception:
         pass
+
+    return ""
+
+
+def _extract_text(response: Any) -> str:
+    text = _extract_text_or_empty(response)
+    if text.strip():
+        return text
 
     raise VertexAIError("Vertex AI returned empty or unparseable text")
 
@@ -241,6 +261,49 @@ async def generate_content(
     return await asyncio.wait_for(task, timeout=timeout_seconds)
 
 
+async def generate_content_stream(
+    *,
+    model: str,
+    contents: list[Any],
+    generation_config: dict[str, Any] | None = None,
+    timeout_seconds: float = 120,
+    project_id: str | None = None,
+    location: str | None = None,
+) -> AsyncGenerator[VertexAITextChunk, None]:
+    settings = get_inkwise_settings()
+    resolved_project = _require_project_id(project_id)
+    resolved_location = location or settings.location
+    client = _get_async_client(resolved_project, resolved_location)
+    normalized_contents = _normalize_contents(contents)
+    config = _build_config(generation_config)
+
+    try:
+        async with asyncio.timeout(timeout_seconds):
+            stream = await client.models.generate_content_stream(
+                model=model,
+                contents=normalized_contents,
+                config=config,
+            )
+            saw_text = False
+            async for response in stream:
+                chunk_text = _extract_text_or_empty(response)
+                if chunk_text.strip():
+                    saw_text = True
+                yield VertexAITextChunk(
+                    text=chunk_text,
+                    finish_reason=_extract_finish_reason(response),
+                    raw=_coerce_raw_response(response),
+                )
+            if not saw_text:
+                raise VertexAIError("Vertex AI returned empty or unparseable text")
+    except TimeoutError as exc:
+        raise VertexAIError("Vertex AI request timed out") from exc
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        raise VertexAIError(f"Vertex AI request failed: {exc}") from exc
+
+
 def generate_text_sync(
     *,
     model: str,
@@ -283,3 +346,27 @@ async def generate_text(
         project_id=project_id,
         location=location,
     )
+
+
+async def generate_text_stream(
+    *,
+    model: str,
+    prompt: str,
+    temperature: float = 0.2,
+    max_output_tokens: int | None = None,
+    timeout_seconds: float = 120,
+    project_id: str | None = None,
+    location: str | None = None,
+) -> AsyncGenerator[VertexAITextChunk, None]:
+    async for chunk in generate_content_stream(
+        model=model,
+        contents=[{"role": "user", "parts": [{"text": prompt}]}],
+        generation_config={
+            "temperature": float(temperature),
+            **({"max_output_tokens": int(max_output_tokens)} if max_output_tokens is not None else {}),
+        },
+        timeout_seconds=timeout_seconds,
+        project_id=project_id,
+        location=location,
+    ):
+        yield chunk

@@ -25,7 +25,7 @@ from inkwise.services.document_sources import InkwiseDocumentSourceService
 from inkwise.services.document_service import InkwiseDocumentService
 from inkwise.services.generation_attempts import InkwiseGenerationAttemptService
 from inkwise.services.citation_text import parse_citation_text
-from inkwise.services.gemini import GeminiError, generate_content, generate_text
+from inkwise.services.gemini import GeminiError, generate_content, generate_content_stream, generate_text, generate_text_stream
 from inkwise.services.multimodal_evidence import build_multimodal_contents
 from inkwise.services.retrieval_service import InkwiseRetrievalService, build_evidence_pack
 from inkwise.services.retrieval_types import evidence_item_to_payload
@@ -46,10 +46,22 @@ document_service = InkwiseDocumentService()
 document_source_service = InkwiseDocumentSourceService()
 retrieval_service = InkwiseRetrievalService()
 generation_attempt_service = InkwiseGenerationAttemptService()
+_STREAM_SSE_CHARS = 48
 
 
 def _sse(event: str, data: object) -> bytes:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=True)}\n\n".encode()
+
+
+def _drain_stream_text_buffer(buffer: str, *, final: bool = False) -> tuple[list[str], str]:
+    pieces: list[str] = []
+    while len(buffer) >= _STREAM_SSE_CHARS:
+        pieces.append(buffer[:_STREAM_SSE_CHARS])
+        buffer = buffer[_STREAM_SSE_CHARS:]
+    if final and buffer:
+        pieces.append(buffer)
+        buffer = ""
+    return pieces, buffer
 
 
 def _validate_writing_tool_request(body: InkwiseWritingToolRequest) -> None:
@@ -79,6 +91,7 @@ async def _stream_writing_tool_attempt(
     resolved_source_ids = [str(source_id) for source_id, _title in scoped_sources]
     grounded = False
     multimodal_attached_evidence_ids: list[str] = []
+    parsed_citation_text = None
 
     yield _sse(
         "meta",
@@ -161,34 +174,63 @@ async def _stream_writing_tool_attempt(
             max_files=100,
         )
         multimodal_attached_evidence_ids = list(multimodal_bundle.attached_evidence_ids)
+        raw_response_text = ""
+        pending_text = ""
         if multimodal_bundle.has_attachments:
-            result = await generate_content(
+            stream = generate_content_stream(
                 model=settings.gemini_model,
                 contents=multimodal_bundle.contents,
                 generation_config={"temperature": 0.3},
                 timeout_seconds=60,
             )
         else:
-            result = await generate_text(
+            stream = generate_text_stream(
                 model=settings.gemini_model,
                 prompt=current_prompt,
                 temperature=0.3,
                 timeout_seconds=60,
             )
+        async for chunk in stream:
+            if await request.is_disconnected():
+                raise asyncio.CancelledError
+            if not chunk.text:
+                continue
+            raw_response_text += chunk.text
+            pending_text += chunk.text
+            pieces, pending_text = _drain_stream_text_buffer(pending_text)
+            for piece in pieces:
+                if await request.is_disconnected():
+                    raise asyncio.CancelledError
+                yield _sse("token", {"text": piece})
+                await asyncio.sleep(0)
+        pieces, pending_text = _drain_stream_text_buffer(pending_text, final=True)
+        for piece in pieces:
+            if await request.is_disconnected():
+                raise asyncio.CancelledError
+            yield _sse("token", {"text": piece})
+            await asyncio.sleep(0)
+        parsed_citation_text = parse_citation_text(text=raw_response_text, evidence=evidence)
+    except asyncio.CancelledError:
+        generation_attempt_service.fail_attempt(db, attempt_id=attempt_id, message="cancelled", retrieval_run_id=retrieval_run_id)
+        return
     except GeminiError as exc:
         generation_attempt_service.fail_attempt(db, attempt_id=attempt_id, message=str(exc), retrieval_run_id=retrieval_run_id)
         yield _sse("meta", {"error": "provider_error", "attempt_id": str(attempt_id)})
         yield _sse("done", {"ok": False, "attempt_id": str(attempt_id)})
         return
+    except Exception as exc:
+        generation_attempt_service.fail_attempt(db, attempt_id=attempt_id, message=str(exc), retrieval_run_id=retrieval_run_id)
+        yield _sse("meta", {"error": "provider_error", "attempt_id": str(attempt_id)})
+        yield _sse("done", {"ok": False, "attempt_id": str(attempt_id)})
+        return
 
-    parsed_citation_text = parse_citation_text(text=result.text, evidence=evidence)
+    if parsed_citation_text is None:
+        generation_attempt_service.fail_attempt(db, attempt_id=attempt_id, message="Missing parsed_citation_text", retrieval_run_id=retrieval_run_id)
+        yield _sse("meta", {"error": "internal_error", "attempt_id": str(attempt_id)})
+        yield _sse("done", {"ok": False, "attempt_id": str(attempt_id)})
+        return
+
     text = parsed_citation_text.plain_text
-    for idx in range(0, len(text), 80):
-        if await request.is_disconnected():
-            generation_attempt_service.fail_attempt(db, attempt_id=attempt_id, message="cancelled", retrieval_run_id=retrieval_run_id)
-            return
-        yield _sse("token", {"text": text[idx : idx + 80]})
-        await asyncio.sleep(0)
 
     generation_attempt_service.complete_attempt(
         db,

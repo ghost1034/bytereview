@@ -357,7 +357,7 @@ Implementation path:
 6. build the evidence pack
 7. build the grounded chat prompt
 8. optionally attach up to 3 PDF evidence files as multimodal Gemini inputs
-9. stream the assistant response over SSE
+9. stream the assistant response from Vertex AI over SSE as model chunks arrive
 10. extract citations from `[E##]` markers and persist the assistant message
 
 Prompt construction lives in `backend/inkwise/services/chat_service.py`.
@@ -381,7 +381,7 @@ Behavior:
 - if a document and ready sources are present, the tool runs retrieval using the instruction, selection text, and surrounding text
 - if evidence is found, it switches to a grounded prompt
 - if retrieval fails or returns nothing, it falls back to an ungrounded writing prompt
-- output is streamed over SSE
+- output is streamed from Vertex AI over SSE as model chunks arrive
 - evidence metadata is still returned to the client when grounding succeeds
 
 Unlike chat, writing tool output is instructed to return only the requested text with no citation markers.

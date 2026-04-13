@@ -35,7 +35,13 @@ from inkwise.services.chat_service import (
 from inkwise.services.citation_text import parse_citation_text
 from inkwise.services.document_sources import InkwiseDocumentSourceService
 from inkwise.services.generation_attempts import InkwiseGenerationAttemptService
-from inkwise.services.gemini import GeminiError, generate_content, generate_text
+from inkwise.services.gemini import (
+    GeminiError,
+    generate_content,
+    generate_content_stream,
+    generate_text,
+    generate_text_stream,
+)
 from inkwise.services.multimodal_evidence import build_multimodal_contents
 from inkwise.services.retrieval_service import InkwiseRetrievalService, build_evidence_pack
 from inkwise.services.retrieval_types import evidence_item_to_payload
@@ -48,6 +54,7 @@ document_source_service = InkwiseDocumentSourceService()
 retrieval_service = InkwiseRetrievalService()
 generation_attempt_service = InkwiseGenerationAttemptService()
 user_support = InkwiseSourceService()
+_STREAM_SSE_CHARS = 48
 
 
 async def _maybe_auto_name_thread(
@@ -80,6 +87,17 @@ async def _maybe_auto_name_thread(
 
 def _sse(event: str, data: object) -> bytes:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=True)}\n\n".encode()
+
+
+def _drain_stream_text_buffer(buffer: str, *, final: bool = False) -> tuple[list[str], str]:
+    pieces: list[str] = []
+    while len(buffer) >= _STREAM_SSE_CHARS:
+        pieces.append(buffer[:_STREAM_SSE_CHARS])
+        buffer = buffer[_STREAM_SSE_CHARS:]
+    if final and buffer:
+        pieces.append(buffer)
+        buffer = ""
+    return pieces, buffer
 
 
 def _resolve_scoped_chat_sources(
@@ -130,6 +148,7 @@ async def _stream_chat_attempt(
     retrieval_run_id: uuid.UUID | None = None
     evidence: list[Any] = []
     multimodal_attached_evidence_ids: list[str] = []
+    parsed_citation_text = None
     try:
         yield _sse(
             "meta",
@@ -167,10 +186,11 @@ async def _stream_chat_attempt(
                 "I couldn't find any relevant evidence in the bound sources for that question. "
                 "Try the section heading, an exact defined term, or a page or clause number."
             )
-            for idx in range(0, len(assistant_text), 80):
+            chunks, _ = _drain_stream_text_buffer(assistant_text, final=True)
+            for chunk in chunks:
                 if await request.is_disconnected():
                     raise asyncio.CancelledError
-                yield _sse("token", {"text": assistant_text[idx : idx + 80]})
+                yield _sse("token", {"text": chunk})
                 await asyncio.sleep(0)
 
             assistant_meta = {
@@ -229,8 +249,10 @@ async def _stream_chat_attempt(
             max_files=100,
         )
         multimodal_attached_evidence_ids = list(multimodal_bundle.attached_evidence_ids)
+        raw_response_text = ""
+        pending_text = ""
         if multimodal_bundle.has_attachments:
-            result = await generate_content(
+            stream = generate_content_stream(
                 model=settings.grounded_model,
                 contents=multimodal_bundle.contents,
                 generation_config={
@@ -240,21 +262,36 @@ async def _stream_chat_attempt(
                 timeout_seconds=120,
             )
         else:
-            result = await generate_text(
+            stream = generate_text_stream(
                 model=settings.grounded_model,
                 prompt=prompt,
                 temperature=0.2,
                 max_output_tokens=65536,
                 timeout_seconds=120,
             )
-        parsed_citation_text = parse_citation_text(text=result.text, evidence=evidence)
-        assistant_text = parsed_citation_text.plain_text
-
-        for idx in range(0, len(assistant_text), 80):
+        async for chunk in stream:
             if await request.is_disconnected():
                 raise asyncio.CancelledError
-            yield _sse("token", {"text": assistant_text[idx : idx + 80]})
+            if not chunk.text:
+                continue
+            raw_response_text += chunk.text
+            pending_text += chunk.text
+            pieces, pending_text = _drain_stream_text_buffer(pending_text)
+            for piece in pieces:
+                if await request.is_disconnected():
+                    raise asyncio.CancelledError
+                yield _sse("token", {"text": piece})
+                await asyncio.sleep(0)
+
+        pieces, pending_text = _drain_stream_text_buffer(pending_text, final=True)
+        for piece in pieces:
+            if await request.is_disconnected():
+                raise asyncio.CancelledError
+            yield _sse("token", {"text": piece})
             await asyncio.sleep(0)
+
+        parsed_citation_text = parse_citation_text(text=raw_response_text, evidence=evidence)
+        assistant_text = parsed_citation_text.plain_text
 
     except asyncio.CancelledError:
         generation_attempt_service.fail_attempt(db, attempt_id=attempt_id, message="cancelled", retrieval_run_id=retrieval_run_id)
@@ -271,6 +308,11 @@ async def _stream_chat_attempt(
     if retrieval_run_id is None:
         generation_attempt_service.fail_attempt(db, attempt_id=attempt_id, message="Missing retrieval_run_id")
         yield _sse("meta", {"error": "internal_error", "message": "Missing retrieval_run_id", "attempt_id": str(attempt_id)})
+        return
+
+    if parsed_citation_text is None:
+        generation_attempt_service.fail_attempt(db, attempt_id=attempt_id, message="Missing parsed_citation_text", retrieval_run_id=retrieval_run_id)
+        yield _sse("meta", {"error": "internal_error", "message": "Missing parsed_citation_text", "attempt_id": str(attempt_id)})
         return
 
     citations = parsed_citation_text.citations
