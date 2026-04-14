@@ -34,6 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { useGaplessAudioLoop } from '@/hooks/useGaplessAudioLoop'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   useInkwiseChatMessages,
   useInkwiseChatThreads,
@@ -82,6 +83,7 @@ const MAX_PREDICTION_BLOCK_TEXT = 4000
 const PREDICTION_DEBOUNCE_MS = 1000
 const FOCUS_MODE_MUTE_STORAGE_KEY = 'cpaa_inkwise_focus_mode_muted_v1'
 const FOCUS_MODE_AUDIO_SRC = '/audio/inkwise-white-noise-loop.mp3'
+const INKWISE_CHAT_DEBUG_USER_ID = 'jbvogQmSz6WKNk1KL79bmK31Uk63'
 
 type StreamState = {
   text: string
@@ -182,8 +184,10 @@ export default function InkwiseDocumentPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const { toast } = useToast()
   const documentId = params.id
+  const chatDebugEnabled = user?.uid === INKWISE_CHAT_DEBUG_USER_ID
 
   const documentQuery = useInkwiseDocument(documentId)
   const sourcesQuery = useInkwiseSources(1, 100, {
@@ -524,7 +528,7 @@ export default function InkwiseDocumentPage() {
           if (event.event === 'token') {
             setStreamState((current) => ({ ...(current ?? { text: '' }), text: `${current?.text ?? ''}${event.data?.text ?? ''}` }))
           }
-          if (event.event === 'debug' && event.data?.stage && event.data?.label) {
+          if (chatDebugEnabled && event.event === 'debug' && event.data?.stage && event.data?.label) {
             setStreamState((current) => ({
               ...(current ?? { text: '' }),
               debugTimeline: upsertDebugTimelineEntry(current?.debugTimeline, event.data as InkwiseDebugTimelineEntry),
@@ -572,7 +576,7 @@ export default function InkwiseDocumentPage() {
           if (event.event === 'token') {
             setStreamState((current) => ({ ...(current ?? { text: '' }), text: `${current?.text ?? ''}${event.data?.text ?? ''}` }))
           }
-          if (event.event === 'debug' && event.data?.stage && event.data?.label) {
+          if (chatDebugEnabled && event.event === 'debug' && event.data?.stage && event.data?.label) {
             setStreamState((current) => ({
               ...(current ?? { text: '' }),
               debugTimeline: upsertDebugTimelineEntry(current?.debugTimeline, event.data as InkwiseDebugTimelineEntry),
@@ -1363,7 +1367,7 @@ export default function InkwiseDocumentPage() {
                           )}
                           {message.role === 'assistant' ? (
                             <div className="mt-3 flex flex-wrap justify-end gap-2">
-                              {(messageAttemptId(message) || messageRetrievalRunId(message)) ? (
+                              {chatDebugEnabled && (messageAttemptId(message) || messageRetrievalRunId(message)) ? (
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -1418,7 +1422,7 @@ export default function InkwiseDocumentPage() {
                           ) : (
                             <div className="text-slate-500">Thinking...</div>
                           )}
-                          {streamState.debugTimeline?.length ? (
+                          {chatDebugEnabled && streamState.debugTimeline?.length ? (
                             <div className="mt-4 rounded-xl border bg-slate-50 p-3">
                               <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Backend debug</div>
                               <div className="mt-2 space-y-2">
@@ -1857,10 +1861,11 @@ export default function InkwiseDocumentPage() {
       </Dialog>
 
       <InkwiseChatDebugSheet
-        open={Boolean(chatDebugTarget)}
+        open={chatDebugEnabled && Boolean(chatDebugTarget)}
         onOpenChange={(open) => {
           if (!open) setChatDebugTarget(null)
         }}
+        enabled={chatDebugEnabled}
         attemptId={chatDebugTarget?.attemptId}
         retrievalRunId={chatDebugTarget?.retrievalRunId}
       />

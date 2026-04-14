@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from dependencies.auth import verify_firebase_token
+from inkwise.debug_access import can_access_inkwise_chat_debug
 from inkwise.schemas import (
     InkwiseRetrievalEvidenceOut,
     InkwiseRetrievalRunDetailOut,
@@ -94,6 +95,8 @@ def get_retrieval_run(
     token_data: dict = Depends(verify_firebase_token),
     db: Session = Depends(get_db),
 ) -> InkwiseRetrievalRunDetailOut:
+    if not can_access_inkwise_chat_debug(user_id=token_data["uid"]):
+        raise HTTPException(status_code=403, detail="Debug access not allowed")
     try:
         run, evidence = retrieval_service.get_retrieval_run_for_user(
             db,

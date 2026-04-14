@@ -17,25 +17,27 @@ import {
 export function InkwiseChatDebugSheet({
   open,
   onOpenChange,
+  enabled,
   attemptId,
   retrievalRunId,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
+  enabled: boolean
   attemptId?: string | null
   retrievalRunId?: string | null
 }) {
   const attemptQuery = useQuery<InkwiseGenerationAttemptDetail>({
     queryKey: ['inkwise', 'chat-attempt', attemptId],
     queryFn: () => apiClient.getInkwiseChatAttempt(String(attemptId)),
-    enabled: open && Boolean(attemptId),
+    enabled: enabled && open && Boolean(attemptId),
     staleTime: 30_000,
   })
 
   const retrievalQuery = useQuery<InkwiseRetrievalRunDetail>({
     queryKey: ['inkwise', 'retrieval-run', retrievalRunId],
     queryFn: () => apiClient.getInkwiseRetrievalRun(String(retrievalRunId)),
-    enabled: open && Boolean(retrievalRunId),
+    enabled: enabled && open && Boolean(retrievalRunId),
     staleTime: 30_000,
   })
 
@@ -58,6 +60,10 @@ export function InkwiseChatDebugSheet({
 
           <ScrollArea className="mt-4 flex-1 pr-2">
             <div className="space-y-4 pb-8">
+              {!enabled ? (
+                <EmptyCard message="Chat debug is not available for this user." tone="error" />
+              ) : null}
+
               {!attemptId && !retrievalRunId ? (
                 <EmptyCard message="No debug identifiers were saved for this message." />
               ) : null}

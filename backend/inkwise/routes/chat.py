@@ -17,6 +17,7 @@ from starlette.responses import StreamingResponse
 
 from core.database import db_config, get_db
 from dependencies.auth import verify_firebase_token
+from inkwise.debug_access import can_access_inkwise_chat_debug
 from inkwise.schemas import (
     InkwiseChatMessageOut,
     InkwiseGenerationAttemptDetailOut,
@@ -182,6 +183,16 @@ def _sse(event: str, data: object) -> bytes:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=True)}\n\n".encode()
 
 
+def _debug_sse(debug_enabled: bool, data: object) -> list[bytes]:
+    return [_sse("debug", data)] if debug_enabled else []
+
+
+def _attempt_meta_json(*, base_meta: dict[str, Any], debug_timeline: list[dict[str, Any]], debug_enabled: bool) -> dict[str, Any]:
+    if not debug_enabled:
+        return base_meta
+    return {**base_meta, "debug_timeline": debug_timeline}
+
+
 def _drain_stream_text_buffer(buffer: str, *, final: bool = False) -> tuple[list[str], str]:
     pieces: list[str] = []
     while len(buffer) >= _STREAM_SSE_CHARS:
@@ -237,6 +248,7 @@ async def _stream_chat_attempt(
     fresh_retrieval: bool = False,
     reuse_retrieval_run_id: uuid.UUID | None = None,
     debug_timeline: list[dict[str, Any]] | None = None,
+    debug_enabled: bool = False,
 ) -> AsyncGenerator[bytes, None]:
     debug_timeline = debug_timeline if debug_timeline is not None else []
     assistant_text = ""
@@ -261,7 +273,8 @@ async def _stream_chat_attempt(
             label="Retrieve evidence",
             details={"fresh_retrieval": bool(fresh_retrieval), "reused": bool(reuse_retrieval_run_id and not fresh_retrieval)},
         )
-        yield _sse("debug", retrieval_start_event)
+        for debug_chunk in _debug_sse(debug_enabled, retrieval_start_event):
+            yield debug_chunk
         if reuse_retrieval_run_id is not None and not fresh_retrieval:
             retrieval_run, evidence = retrieval_service.get_retrieval_run_for_user(
                 db,
@@ -282,8 +295,8 @@ async def _stream_chat_attempt(
             )
             retrieval_run_id = cast(uuid.UUID, retrieval_run.id)
         retrieval_meta = cast(dict[str, Any], getattr(retrieval_run, "meta", {}) or {})
-        yield _sse(
-            "debug",
+        for debug_chunk in _debug_sse(
+            debug_enabled,
             _stage_finish(
                 timeline=debug_timeline,
                 stage="retrieval",
@@ -300,7 +313,8 @@ async def _stream_chat_attempt(
                     "retrieval_duration_ms": retrieval_meta.get("retrieval_duration_ms") or retrieval_meta.get("total_duration_ms"),
                 },
             ),
-        )
+        ):
+            yield debug_chunk
 
         if not evidence:
             assistant_text = (
@@ -311,7 +325,8 @@ async def _stream_chat_attempt(
                 stage="no_evidence_response",
                 label="Return no-evidence response",
             )
-            yield _sse("debug", no_evidence_start_event)
+            for debug_chunk in _debug_sse(debug_enabled, no_evidence_start_event):
+                yield debug_chunk
             chunks, _ = _drain_stream_text_buffer(assistant_text, final=True)
             for chunk in chunks:
                 if await request.is_disconnected():
@@ -319,8 +334,8 @@ async def _stream_chat_attempt(
                 yield _sse("token", {"text": chunk})
                 await asyncio.sleep(0)
 
-            yield _sse(
-                "debug",
+            for debug_chunk in _debug_sse(
+                debug_enabled,
                 _stage_finish(
                     timeline=debug_timeline,
                     stage="no_evidence_response",
@@ -329,7 +344,8 @@ async def _stream_chat_attempt(
                     started_at=no_evidence_started_at,
                     details={"chunk_count": len(chunks)},
                 ),
-            )
+            ):
+                yield debug_chunk
             assistant_meta = {
                 **assistant_provider_meta,
                 "reason": "no_evidence",
@@ -340,7 +356,8 @@ async def _stream_chat_attempt(
                 label="Persist assistant message",
                 details={"provider": "system"},
             )
-            yield _sse("debug", persist_start_event)
+            for debug_chunk in _debug_sse(debug_enabled, persist_start_event):
+                yield debug_chunk
             assistant_message = chat_service.create_assistant_message(
                 db,
                 thread_id=thread_db_id,
@@ -352,8 +369,8 @@ async def _stream_chat_attempt(
                 provider="system",
                 provider_meta=assistant_meta,
             )
-            yield _sse(
-                "debug",
+            for debug_chunk in _debug_sse(
+                debug_enabled,
                 _stage_finish(
                     timeline=debug_timeline,
                     stage="persist_assistant_message",
@@ -362,12 +379,14 @@ async def _stream_chat_attempt(
                     started_at=persist_started_at,
                     details={"message_id": str(assistant_message.id), "provider": "system"},
                 ),
-            )
+            ):
+                yield debug_chunk
             complete_start_event, complete_started, complete_started_at = _stage_start(
                 stage="complete_attempt",
                 label="Complete generation attempt",
             )
-            yield _sse("debug", complete_start_event)
+            for debug_chunk in _debug_sse(debug_enabled, complete_start_event):
+                yield debug_chunk
             generation_attempt_service.complete_attempt(
                 db,
                 attempt_id=attempt_id,
@@ -375,10 +394,10 @@ async def _stream_chat_attempt(
                 citations_json={"retrieval_run_id": str(retrieval_run_id) if retrieval_run_id else None, "citations": [], "segments": []},
                 retrieval_run_id=retrieval_run_id,
                 chat_message_id=cast(uuid.UUID, assistant_message.id),
-                meta_json={**assistant_meta, "debug_timeline": debug_timeline},
+                meta_json=_attempt_meta_json(base_meta=assistant_meta, debug_timeline=debug_timeline, debug_enabled=debug_enabled),
             )
-            yield _sse(
-                "debug",
+            for debug_chunk in _debug_sse(
+                debug_enabled,
                 _stage_finish(
                     timeline=debug_timeline,
                     stage="complete_attempt",
@@ -387,7 +406,8 @@ async def _stream_chat_attempt(
                     started_at=complete_started_at,
                     details={"attempt_id": str(attempt_id), "status": "completed", "reason": "no_evidence"},
                 ),
-            )
+            ):
+                yield debug_chunk
             yield _sse("meta", {"citations": [], "evidence": [], "segments": [], "content_with_citations": assistant_text, "retrieval_run_id": str(retrieval_run_id), "attempt_id": str(attempt_id)})
             yield _sse("done", {"message_id": str(assistant_message.id), "retrieval_run_id": str(retrieval_run_id), "attempt_id": str(attempt_id)})
             return
@@ -397,7 +417,8 @@ async def _stream_chat_attempt(
             label="Build grounded prompt",
             details={"evidence_count": len(evidence)},
         )
-        yield _sse("debug", prompt_start_event)
+        for debug_chunk in _debug_sse(debug_enabled, prompt_start_event):
+            yield debug_chunk
         evidence_pack = build_evidence_pack(evidence)
         allowed_ids = [item.evidence_id for item in evidence]
         prompt = build_grounded_chat_prompt(
@@ -408,8 +429,8 @@ async def _stream_chat_attempt(
             draft_selection_text=draft_text or None,
             history_messages=grounded_history_messages,
         )
-        yield _sse(
-            "debug",
+        for debug_chunk in _debug_sse(
+            debug_enabled,
             _stage_finish(
                 timeline=debug_timeline,
                 stage="build_prompt",
@@ -423,7 +444,8 @@ async def _stream_chat_attempt(
                     "prompt_char_count": len(prompt),
                 },
             ),
-        )
+        ):
+            yield debug_chunk
         yield _sse(
             "meta",
             {
@@ -439,15 +461,16 @@ async def _stream_chat_attempt(
             stage="build_multimodal_bundle",
             label="Build multimodal request",
         )
-        yield _sse("debug", multimodal_start_event)
+        for debug_chunk in _debug_sse(debug_enabled, multimodal_start_event):
+            yield debug_chunk
         multimodal_bundle = build_multimodal_contents(
             prompt=prompt,
             evidence=evidence,
             max_files=100,
         )
         multimodal_attached_evidence_ids = list(multimodal_bundle.attached_evidence_ids)
-        yield _sse(
-            "debug",
+        for debug_chunk in _debug_sse(
+            debug_enabled,
             _stage_finish(
                 timeline=debug_timeline,
                 stage="build_multimodal_bundle",
@@ -460,7 +483,8 @@ async def _stream_chat_attempt(
                     "content_part_count": len(multimodal_bundle.contents),
                 },
             ),
-        )
+        ):
+            yield debug_chunk
         raw_response_text = ""
         pending_text = ""
         if multimodal_bundle.has_attachments:
@@ -489,7 +513,8 @@ async def _stream_chat_attempt(
                 "transport": "multimodal" if multimodal_bundle.has_attachments else "text",
             },
         )
-        yield _sse("debug", generation_start_event)
+        for debug_chunk in _debug_sse(debug_enabled, generation_start_event):
+            yield debug_chunk
         first_token_sent = False
         token_events = 0
         async for chunk in stream:
@@ -501,8 +526,8 @@ async def _stream_chat_attempt(
             pending_text += chunk.text
             if not first_token_sent:
                 first_token_sent = True
-                yield _sse(
-                    "debug",
+                for debug_chunk in _debug_sse(
+                    debug_enabled,
                     _stage_finish(
                         timeline=debug_timeline,
                         stage="first_token",
@@ -511,7 +536,8 @@ async def _stream_chat_attempt(
                         started_at=generation_started_at,
                         details={"transport": "multimodal" if multimodal_bundle.has_attachments else "text"},
                     ),
-                )
+                ):
+                    yield debug_chunk
             pieces, pending_text = _drain_stream_text_buffer(pending_text)
             for piece in pieces:
                 if await request.is_disconnected():
@@ -528,8 +554,8 @@ async def _stream_chat_attempt(
             yield _sse("token", {"text": piece})
             await asyncio.sleep(0)
 
-        yield _sse(
-            "debug",
+        for debug_chunk in _debug_sse(
+            debug_enabled,
             _stage_finish(
                 timeline=debug_timeline,
                 stage="generate_answer",
@@ -542,18 +568,20 @@ async def _stream_chat_attempt(
                     "transport": "multimodal" if multimodal_bundle.has_attachments else "text",
                 },
             ),
-        )
+        ):
+            yield debug_chunk
 
         citation_start_event, citation_started, citation_started_at = _stage_start(
             stage="parse_citations",
             label="Parse citation markers",
             details={"evidence_count": len(evidence)},
         )
-        yield _sse("debug", citation_start_event)
+        for debug_chunk in _debug_sse(debug_enabled, citation_start_event):
+            yield debug_chunk
         parsed_citation_text = parse_citation_text(text=raw_response_text, evidence=evidence)
         assistant_text = parsed_citation_text.plain_text
-        yield _sse(
-            "debug",
+        for debug_chunk in _debug_sse(
+            debug_enabled,
             _stage_finish(
                 timeline=debug_timeline,
                 stage="parse_citations",
@@ -565,7 +593,8 @@ async def _stream_chat_attempt(
                     "segment_count": len(parsed_citation_text.segments),
                 },
             ),
-        )
+        ):
+            yield debug_chunk
 
     except asyncio.CancelledError:
         generation_attempt_service.fail_attempt(
@@ -573,7 +602,7 @@ async def _stream_chat_attempt(
             attempt_id=attempt_id,
             message="cancelled",
             retrieval_run_id=retrieval_run_id,
-            meta_json={**assistant_provider_meta, "debug_timeline": debug_timeline},
+            meta_json=_attempt_meta_json(base_meta=assistant_provider_meta, debug_timeline=debug_timeline, debug_enabled=debug_enabled),
         )
         return
     except GeminiError as exc:
@@ -592,10 +621,10 @@ async def _stream_chat_attempt(
             attempt_id=attempt_id,
             message=str(exc),
             retrieval_run_id=retrieval_run_id,
-            meta_json={**assistant_provider_meta, "debug_timeline": debug_timeline},
+            meta_json=_attempt_meta_json(base_meta=assistant_provider_meta, debug_timeline=debug_timeline, debug_enabled=debug_enabled),
         )
-        yield _sse(
-            "debug",
+        for debug_chunk in _debug_sse(
+            debug_enabled,
             {
                 "stage": "generate_answer",
                 "label": "Generate grounded answer",
@@ -604,7 +633,8 @@ async def _stream_chat_attempt(
                 "details": {},
                 "error": str(exc)[:1000],
             },
-        )
+        ):
+            yield debug_chunk
         yield _sse("meta", {"error": "provider_error", "message": str(exc), "attempt_id": str(attempt_id)})
         return
     except Exception as exc:
@@ -623,10 +653,10 @@ async def _stream_chat_attempt(
             attempt_id=attempt_id,
             message=str(exc),
             retrieval_run_id=retrieval_run_id,
-            meta_json={**assistant_provider_meta, "debug_timeline": debug_timeline},
+            meta_json=_attempt_meta_json(base_meta=assistant_provider_meta, debug_timeline=debug_timeline, debug_enabled=debug_enabled),
         )
-        yield _sse(
-            "debug",
+        for debug_chunk in _debug_sse(
+            debug_enabled,
             {
                 "stage": "chat_request",
                 "label": "Chat request",
@@ -635,7 +665,8 @@ async def _stream_chat_attempt(
                 "details": {},
                 "error": str(exc)[:1000],
             },
-        )
+        ):
+            yield debug_chunk
         yield _sse("meta", {"error": "provider_error", "message": str(exc), "attempt_id": str(attempt_id)})
         return
 
@@ -644,7 +675,7 @@ async def _stream_chat_attempt(
             db,
             attempt_id=attempt_id,
             message="Missing retrieval_run_id",
-            meta_json={**assistant_provider_meta, "debug_timeline": debug_timeline},
+            meta_json=_attempt_meta_json(base_meta=assistant_provider_meta, debug_timeline=debug_timeline, debug_enabled=debug_enabled),
         )
         yield _sse("meta", {"error": "internal_error", "message": "Missing retrieval_run_id", "attempt_id": str(attempt_id)})
         return
@@ -655,7 +686,7 @@ async def _stream_chat_attempt(
             attempt_id=attempt_id,
             message="Missing parsed_citation_text",
             retrieval_run_id=retrieval_run_id,
-            meta_json={**assistant_provider_meta, "debug_timeline": debug_timeline},
+            meta_json=_attempt_meta_json(base_meta=assistant_provider_meta, debug_timeline=debug_timeline, debug_enabled=debug_enabled),
         )
         yield _sse("meta", {"error": "internal_error", "message": "Missing parsed_citation_text", "attempt_id": str(attempt_id)})
         return
@@ -671,7 +702,8 @@ async def _stream_chat_attempt(
         label="Persist assistant message",
         details={"provider": "vertex_ai"},
     )
-    yield _sse("debug", persist_start_event)
+    for debug_chunk in _debug_sse(debug_enabled, persist_start_event):
+        yield debug_chunk
     assistant_message = chat_service.create_assistant_message(
         db,
         thread_id=thread_db_id,
@@ -683,8 +715,8 @@ async def _stream_chat_attempt(
         provider="vertex_ai",
         provider_meta=assistant_meta,
     )
-    yield _sse(
-        "debug",
+    for debug_chunk in _debug_sse(
+        debug_enabled,
         _stage_finish(
             timeline=debug_timeline,
             stage="persist_assistant_message",
@@ -693,12 +725,14 @@ async def _stream_chat_attempt(
             started_at=persist_started_at,
             details={"message_id": str(assistant_message.id), "provider": "vertex_ai"},
         ),
-    )
+    ):
+        yield debug_chunk
     complete_start_event, complete_started, complete_started_at = _stage_start(
         stage="complete_attempt",
         label="Complete generation attempt",
     )
-    yield _sse("debug", complete_start_event)
+    for debug_chunk in _debug_sse(debug_enabled, complete_start_event):
+        yield debug_chunk
     generation_attempt_service.complete_attempt(
         db,
         attempt_id=attempt_id,
@@ -711,10 +745,10 @@ async def _stream_chat_attempt(
         },
         retrieval_run_id=retrieval_run_id,
         chat_message_id=cast(uuid.UUID, assistant_message.id),
-        meta_json={**assistant_meta, "debug_timeline": debug_timeline},
+        meta_json=_attempt_meta_json(base_meta=assistant_meta, debug_timeline=debug_timeline, debug_enabled=debug_enabled),
     )
-    yield _sse(
-        "debug",
+    for debug_chunk in _debug_sse(
+        debug_enabled,
         _stage_finish(
             timeline=debug_timeline,
             stage="complete_attempt",
@@ -723,7 +757,8 @@ async def _stream_chat_attempt(
             started_at=complete_started_at,
             details={"attempt_id": str(attempt_id), "status": "completed"},
         ),
-    )
+    ):
+        yield debug_chunk
     yield _sse(
         "meta",
         {
@@ -840,6 +875,8 @@ def get_chat_attempt(
     token_data: dict = Depends(verify_firebase_token),
     db: Session = Depends(get_db),
 ) -> InkwiseGenerationAttemptDetailOut:
+    if not can_access_inkwise_chat_debug(user_id=token_data["uid"]):
+        raise HTTPException(status_code=403, detail="Debug access not allowed")
     try:
         attempt = generation_attempt_service.get_attempt_for_user(db, user_id=token_data["uid"], attempt_id=attempt_id)
         if str(attempt.kind) != "chat":
@@ -865,6 +902,7 @@ async def stream_thread_message(
 ) -> StreamingResponse:
     user_id = token_data["uid"]
     settings = get_inkwise_settings()
+    debug_enabled = can_access_inkwise_chat_debug(user_id=user_id)
 
     try:
         thread = chat_service.get_thread_or_404(db, user_id=user_id, thread_id=thread_id)
@@ -886,15 +924,16 @@ async def stream_thread_message(
                 label="Resolve ready sources",
                 details={"requested_source_count": len(body.source_ids or [])},
             )
-            yield _sse("debug", source_start_event)
+            for debug_chunk in _debug_sse(debug_enabled, source_start_event):
+                yield debug_chunk
             ready_bound_sources = document_source_service.list_ready_bound_sources(
                 db,
                 document_id=thread_document_id,
                 user_id=user_id,
             )
             if not ready_bound_sources:
-                yield _sse(
-                    "debug",
+                for debug_chunk in _debug_sse(
+                    debug_enabled,
                     _stage_finish(
                         timeline=debug_timeline,
                         stage="resolve_sources",
@@ -904,7 +943,8 @@ async def stream_thread_message(
                         status="failed",
                         error="No grounded sources are ready. Ingest and bind at least one completed source.",
                     ),
-                )
+                ):
+                    yield debug_chunk
                 yield _sse("meta", {"error": "no_ready_sources", "message": "No grounded sources are ready. Ingest and bind at least one completed source."})
                 return
 
@@ -912,8 +952,8 @@ async def stream_thread_message(
                 ready_bound_sources=ready_bound_sources,
                 scoped_ids=body.source_ids,
             )
-            yield _sse(
-                "debug",
+            for debug_chunk in _debug_sse(
+                debug_enabled,
                 _stage_finish(
                     timeline=debug_timeline,
                     stage="resolve_sources",
@@ -922,13 +962,15 @@ async def stream_thread_message(
                     started_at=source_started_at,
                     details={"ready_source_count": len(ready_bound_sources), "scoped_source_ids": [str(source_id) for source_id in scoped_source_ids]},
                 ),
-            )
+            ):
+                yield debug_chunk
 
             user_message_start_event, user_message_started, user_message_started_at = _stage_start(
                 stage="persist_user_message",
                 label="Persist user message",
             )
-            yield _sse("debug", user_message_start_event)
+            for debug_chunk in _debug_sse(debug_enabled, user_message_start_event):
+                yield debug_chunk
             user_message = chat_service.create_user_message(
                 db,
                 thread_id=thread_db_id,
@@ -938,8 +980,8 @@ async def stream_thread_message(
                 draft_selection_text=draft_text or None,
                 draft_selection_truncated=draft_truncated,
             )
-            yield _sse(
-                "debug",
+            for debug_chunk in _debug_sse(
+                debug_enabled,
                 _stage_finish(
                     timeline=debug_timeline,
                     stage="persist_user_message",
@@ -948,13 +990,15 @@ async def stream_thread_message(
                     started_at=user_message_started_at,
                     details={"message_id": str(user_message.id), "draft_selection_attached": bool(draft_text), "draft_selection_truncated": bool(draft_truncated)},
                 ),
-            )
+            ):
+                yield debug_chunk
 
             history_start_event, history_started, history_started_at = _stage_start(
                 stage="prepare_history",
                 label="Prepare grounded chat history",
             )
-            yield _sse("debug", history_start_event)
+            for debug_chunk in _debug_sse(debug_enabled, history_start_event):
+                yield debug_chunk
             query_rewrite_history_limit = max(0, int(settings.query_rewrite_max_history_messages))
             grounded_history_limit = (
                 max(0, int(settings.grounded_chat_max_history_messages)) if settings.grounded_chat_history_enabled else 0
@@ -975,8 +1019,8 @@ async def stream_thread_message(
                 max_messages=grounded_history_limit,
                 max_chars=max(0, int(settings.grounded_chat_max_history_chars)),
             )
-            yield _sse(
-                "debug",
+            for debug_chunk in _debug_sse(
+                debug_enabled,
                 _stage_finish(
                     timeline=debug_timeline,
                     stage="prepare_history",
@@ -991,14 +1035,16 @@ async def stream_thread_message(
                         "history_truncated": grounded_history_meta.get("truncated"),
                     },
                 ),
-            )
+            ):
+                yield debug_chunk
 
             attempt_start_event, attempt_started, attempt_started_at = _stage_start(
                 stage="create_attempt",
                 label="Create generation attempt",
                 details={"kind": "chat"},
             )
-            yield _sse("debug", attempt_start_event)
+            for debug_chunk in _debug_sse(debug_enabled, attempt_start_event):
+                yield debug_chunk
             attempt = generation_attempt_service.create_attempt(
                 db,
                 user_id=user_id,
@@ -1016,8 +1062,8 @@ async def stream_thread_message(
                 model=settings.grounded_model,
                 meta_json={"fresh_retrieval": True},
             )
-            yield _sse(
-                "debug",
+            for debug_chunk in _debug_sse(
+                debug_enabled,
                 _stage_finish(
                     timeline=debug_timeline,
                     stage="create_attempt",
@@ -1026,7 +1072,8 @@ async def stream_thread_message(
                     started_at=attempt_started_at,
                     details={"attempt_id": str(attempt.id), "fresh_retrieval": True},
                 ),
-            )
+            ):
+                yield debug_chunk
 
             async for chunk in _stream_chat_attempt(
                 db=db,
@@ -1055,6 +1102,7 @@ async def stream_thread_message(
                 attempt_id=cast(uuid.UUID, attempt.id),
                 fresh_retrieval=True,
                 debug_timeline=debug_timeline,
+                debug_enabled=debug_enabled,
             ):
                 yield chunk
             _schedule_thread_auto_name_after_response(
@@ -1091,6 +1139,7 @@ async def retry_thread_message(
 ) -> StreamingResponse:
     user_id = token_data["uid"]
     settings = get_inkwise_settings()
+    debug_enabled = can_access_inkwise_chat_debug(user_id=user_id)
 
     try:
         thread = chat_service.get_thread_or_404(db, user_id=user_id, thread_id=thread_id)
@@ -1122,15 +1171,16 @@ async def retry_thread_message(
                 label="Resolve ready sources",
                 details={"retry_of_message_id": str(message_id)},
             )
-            yield _sse("debug", source_start_event)
+            for debug_chunk in _debug_sse(debug_enabled, source_start_event):
+                yield debug_chunk
             ready_bound_sources = document_source_service.list_ready_bound_sources(
                 db,
                 document_id=cast(uuid.UUID, thread.document_id),
                 user_id=user_id,
             )
             if not ready_bound_sources:
-                yield _sse(
-                    "debug",
+                for debug_chunk in _debug_sse(
+                    debug_enabled,
                     _stage_finish(
                         timeline=debug_timeline,
                         stage="resolve_sources",
@@ -1140,7 +1190,8 @@ async def retry_thread_message(
                         status="failed",
                         error="No grounded sources are ready. Ingest and bind at least one completed source.",
                     ),
-                )
+                ):
+                    yield debug_chunk
                 yield _sse("meta", {"error": "no_ready_sources", "message": "No grounded sources are ready. Ingest and bind at least one completed source."})
                 return
 
@@ -1150,8 +1201,8 @@ async def retry_thread_message(
                 ready_bound_sources=ready_bound_sources,
                 scoped_ids=scoped_source_ids_or_none,
             )
-            yield _sse(
-                "debug",
+            for debug_chunk in _debug_sse(
+                debug_enabled,
                 _stage_finish(
                     timeline=debug_timeline,
                     stage="resolve_sources",
@@ -1160,13 +1211,15 @@ async def retry_thread_message(
                     started_at=source_started_at,
                     details={"ready_source_count": len(ready_bound_sources), "scoped_source_ids": [str(source_id) for source_id in resolved_source_ids]},
                 ),
-            )
+            ):
+                yield debug_chunk
 
             history_start_event, history_started, history_started_at = _stage_start(
                 stage="prepare_history",
                 label="Prepare grounded chat history",
             )
-            yield _sse("debug", history_start_event)
+            for debug_chunk in _debug_sse(debug_enabled, history_start_event):
+                yield debug_chunk
             query_rewrite_history_limit = max(0, int(settings.query_rewrite_max_history_messages))
             grounded_history_limit = max(0, int(settings.grounded_chat_max_history_messages)) if settings.grounded_chat_history_enabled else 0
             history_limit = max(query_rewrite_history_limit, grounded_history_limit)
@@ -1186,8 +1239,8 @@ async def retry_thread_message(
                 max_messages=grounded_history_limit,
                 max_chars=max(0, int(settings.grounded_chat_max_history_chars)),
             )
-            yield _sse(
-                "debug",
+            for debug_chunk in _debug_sse(
+                debug_enabled,
                 _stage_finish(
                     timeline=debug_timeline,
                     stage="prepare_history",
@@ -1202,7 +1255,8 @@ async def retry_thread_message(
                         "history_truncated": grounded_history_meta.get("truncated"),
                     },
                 ),
-            )
+            ):
+                yield debug_chunk
 
             reuse_retrieval_run_id = None
             if not body.fresh_retrieval:
@@ -1225,7 +1279,8 @@ async def retry_thread_message(
                 label="Create generation attempt",
                 details={"kind": "chat_retry"},
             )
-            yield _sse("debug", attempt_start_event)
+            for debug_chunk in _debug_sse(debug_enabled, attempt_start_event):
+                yield debug_chunk
             attempt = generation_attempt_service.create_attempt(
                 db,
                 user_id=user_id,
@@ -1247,8 +1302,8 @@ async def retry_thread_message(
                 model=settings.grounded_model,
                 meta_json={"fresh_retrieval": bool(body.fresh_retrieval), "retry_of_message_id": str(message_id)},
             )
-            yield _sse(
-                "debug",
+            for debug_chunk in _debug_sse(
+                debug_enabled,
                 _stage_finish(
                     timeline=debug_timeline,
                     stage="create_attempt",
@@ -1257,7 +1312,8 @@ async def retry_thread_message(
                     started_at=attempt_started_at,
                     details={"attempt_id": str(attempt.id), "fresh_retrieval": bool(body.fresh_retrieval), "reused_retrieval_run_id": str(reuse_retrieval_run_id) if reuse_retrieval_run_id else None},
                 ),
-            )
+            ):
+                yield debug_chunk
 
             async for chunk in _stream_chat_attempt(
                 db=db,
@@ -1288,6 +1344,7 @@ async def retry_thread_message(
                 fresh_retrieval=bool(body.fresh_retrieval),
                 reuse_retrieval_run_id=reuse_retrieval_run_id,
                 debug_timeline=debug_timeline,
+                debug_enabled=debug_enabled,
             ):
                 yield chunk
             _schedule_thread_auto_name_after_response(
