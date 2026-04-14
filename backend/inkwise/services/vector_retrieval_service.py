@@ -82,7 +82,7 @@ class InkwiseVectorRetrievalService:
         has_chat_history = bool(history_messages)
         rewrite_meta: dict[str, Any] = {"enabled": rewrite_cfg.enabled, "triggered": False, "has_chat_history": has_chat_history}
         rewrite: QueryRewriteResult | None = None
-        if rewrite_cfg.enabled:
+        if rewrite_cfg.enabled and has_chat_history:
             try:
                 rewrite = rewrite_retrieval_query(
                     cfg=rewrite_cfg,
@@ -99,6 +99,8 @@ class InkwiseVectorRetrievalService:
             except Exception as exc:
                 rewrite = None
                 rewrite_meta["error"] = str(exc)[:500]
+        elif rewrite_cfg.enabled and not has_chat_history:
+            rewrite_meta["skipped"] = "no_chat_history"
 
         # Build search attempts.
         # When query rewrite produced a standalone_question AND there is chat history,
