@@ -29,8 +29,13 @@ import {
   buildMfaEnrollmentRedirect,
   normalizeAuthRedirectPath,
 } from '@/lib/auth-redirect'
+import { isPhoneMfaExemptEmail } from '@/lib/phone-mfa-exempt'
 
 const POST_AUTH_REDIRECT_STORAGE_KEY = 'post-auth-redirect'
+
+const requiresPhoneMfaEnrollment = (firebaseUser: User | null | undefined) => {
+  return !!firebaseUser && !isPhoneMfaExemptEmail(firebaseUser.email) && !hasEnrolledPhoneMfa(firebaseUser)
+}
 
 interface SignUpWithEmailOptions {
   email: string
@@ -118,9 +123,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [])
 
   const navigateAfterAuthentication = useCallback((firebaseUser: User, redirectTo?: string) => {
-    const destination = hasEnrolledPhoneMfa(firebaseUser)
-      ? normalizeAuthRedirectPath(redirectTo)
-      : buildMfaEnrollmentRedirect(redirectTo)
+    const destination = requiresPhoneMfaEnrollment(firebaseUser)
+      ? buildMfaEnrollmentRedirect(redirectTo)
+      : normalizeAuthRedirectPath(redirectTo)
 
     router.push(destination)
   }, [router])
@@ -253,9 +258,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.log('Email sign-up successful, awaiting MFA enrollment')
         await result.user.reload()
         const refreshedUser = auth.currentUser ?? result.user
-        setPendingEnrollmentPhoneNumber(phoneNumber ?? null)
+        setPendingEnrollmentPhoneNumber(requiresPhoneMfaEnrollment(refreshedUser) ? (phoneNumber ?? null) : null)
         setUser(refreshedUser)
-        router.push(buildMfaEnrollmentRedirect(readRedirectTarget()))
+        navigateAfterAuthentication(refreshedUser, consumeRedirectTarget())
       }
     } catch (error) {
       clearRedirectTarget()
@@ -347,7 +352,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const value = useMemo(() => ({
     user,
     loading,
-    requiresMfaEnrollment: !!user && !hasEnrolledPhoneMfa(user),
+    requiresMfaEnrollment: requiresPhoneMfaEnrollment(user),
     pendingEnrollmentPhoneNumber,
     pendingMfaChallenge: !!pendingMfaResolver,
     pendingMfaPhoneNumber,

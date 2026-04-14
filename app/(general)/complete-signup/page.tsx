@@ -7,6 +7,7 @@ import PhoneVerificationForm from '@/components/auth/PhoneVerificationForm'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/contexts/AuthContext'
 import { normalizeAuthRedirectPath } from '@/lib/auth-redirect'
+import { isPhoneMfaExemptEmail } from '@/lib/phone-mfa-exempt'
 
 function CompleteSignupContent() {
   const router = useRouter()
@@ -14,6 +15,7 @@ function CompleteSignupContent() {
   const { pendingEnrollmentPhoneNumber, user, loading, requiresMfaEnrollment } = useAuth()
 
   const redirectTo = normalizeAuthRedirectPath(searchParams.get('redirectTo'))
+  const isPhoneMfaExempt = isPhoneMfaExemptEmail(user?.email)
 
   useEffect(() => {
     if (loading) {
@@ -25,12 +27,17 @@ function CompleteSignupContent() {
       return
     }
 
+    if (isPhoneMfaExempt) {
+      router.replace(redirectTo)
+      return
+    }
+
     if (!requiresMfaEnrollment) {
       router.replace(redirectTo)
     }
-  }, [loading, redirectTo, requiresMfaEnrollment, router, user])
+  }, [isPhoneMfaExempt, loading, redirectTo, requiresMfaEnrollment, router, user])
 
-  if (loading || !user || !requiresMfaEnrollment) {
+  if (loading || !user || isPhoneMfaExempt || !requiresMfaEnrollment) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
         <p className="text-sm text-gray-600">Preparing your account...</p>

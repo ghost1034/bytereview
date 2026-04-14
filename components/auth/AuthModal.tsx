@@ -12,6 +12,7 @@ import { FcGoogle } from "react-icons/fc";
 import { useAuth } from "@/contexts/AuthContext";
 import PhoneNumberInput from "@/components/auth/PhoneNumberInput";
 import { createDefaultPhoneNumberInputValue, getE164PhoneNumber, type PhoneNumberInputValue } from "@/lib/phone-number";
+import { isPhoneMfaExemptEmail } from '@/lib/phone-mfa-exempt'
 import { apiClient, ApiError } from '@/lib/api'
 
 
@@ -101,6 +102,8 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
     e.preventDefault();
     setIsLoading(true);
     setError("");
+
+    const requiresPhoneMfa = !isPhoneMfaExemptEmail(signUpData.email)
     
     if (signUpData.password !== signUpData.confirmPassword) {
       setError("Passwords don't match");
@@ -114,28 +117,31 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
       return;
     }
 
-    const normalizedPhoneNumber = getE164PhoneNumber(signUpData.phone);
-    if (!normalizedPhoneNumber) {
-      setError("Enter a valid phone number for the selected country");
-      setIsLoading(false);
-      return;
-    }
+    let normalizedPhoneNumber: string | undefined
+    if (requiresPhoneMfa) {
+      normalizedPhoneNumber = getE164PhoneNumber(signUpData.phone) || undefined
+      if (!normalizedPhoneNumber) {
+        setError("Enter a valid phone number for the selected country");
+        setIsLoading(false);
+        return;
+      }
 
-    try {
-      const availability = await apiClient.checkPhoneNumberAvailability(normalizedPhoneNumber)
-      if (!availability.available) {
-        setError('That phone number is already linked to another account')
+      try {
+        const availability = await apiClient.checkPhoneNumberAvailability(normalizedPhoneNumber)
+        if (!availability.available) {
+          setError('That phone number is already linked to another account')
+          setIsLoading(false)
+          return
+        }
+      } catch (availabilityError) {
+        if (availabilityError instanceof ApiError && availabilityError.status === 400) {
+          setError(availabilityError.message)
+        } else {
+          setError('Unable to verify that phone number right now. Please try again.')
+        }
         setIsLoading(false)
         return
       }
-    } catch (availabilityError) {
-      if (availabilityError instanceof ApiError && availabilityError.status === 400) {
-        setError(availabilityError.message)
-      } else {
-        setError('Unable to verify that phone number right now. Please try again.')
-      }
-      setIsLoading(false)
-      return
     }
     
     try {
@@ -279,9 +285,13 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
                         value={signUpData.phone}
                         onChange={(phone) => setSignUpData({ ...signUpData, phone })}
                         disabled={isLoading}
-                        required
+                        required={!isPhoneMfaExemptEmail(signUpData.email)}
                       />
-                      <p className="text-xs text-gray-500">Choose a country code now and we will use it to prefill your SMS sign-in setup.</p>
+                      <p className="text-xs text-gray-500">
+                        {isPhoneMfaExemptEmail(signUpData.email)
+                          ? 'This account is exempt from SMS sign-in setup.'
+                          : 'Choose a country code now and we will use it to prefill your SMS sign-in setup.'}
+                      </p>
                     </div>
 
                     <div className="space-y-2">

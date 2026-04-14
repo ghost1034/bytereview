@@ -35,13 +35,30 @@ init_firebase()
 
 security = HTTPBearer()
 
+_PHONE_MFA_EXEMPT_EMAILS = {
+    "giorgi@itcare.ge",
+}
+
 
 def _normalize_phone_number(phone_number: Optional[str]) -> Optional[str]:
     clean_phone = (phone_number or "").strip()
     return clean_phone or None
 
 
+def _normalize_email(email: Optional[str]) -> Optional[str]:
+    clean_email = (email or "").strip().lower()
+    return clean_email or None
+
+
+def _is_phone_mfa_exempt(decoded_token: Dict) -> bool:
+    normalized_email = _normalize_email(decoded_token.get("email"))
+    return normalized_email in _PHONE_MFA_EXEMPT_EMAILS if normalized_email else False
+
+
 def _require_phone_mfa(decoded_token: Dict) -> None:
+    if _is_phone_mfa_exempt(decoded_token):
+        return
+
     firebase_claims = decoded_token.get("firebase") or {}
     sign_in_second_factor = firebase_claims.get("sign_in_second_factor")
     if sign_in_second_factor != "phone":
