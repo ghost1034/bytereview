@@ -1308,7 +1308,7 @@ export default function InkwiseDocumentPage() {
                             onClick={() => setSelectedThreadId(thread.id)}
                             className="pr-7"
                           >
-                            {thread.title || 'Untitled thread'}
+                            {thread.title || 'New chat'}
                           </Button>
                           <button
                             className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 opacity-0 transition-opacity hover:bg-black/10 group-hover:opacity-100"

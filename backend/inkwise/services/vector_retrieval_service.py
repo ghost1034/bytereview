@@ -48,6 +48,18 @@ class RetrievalCandidate:
     excerpt: str | None = None
 
 
+@dataclass(frozen=True)
+class RetrievalQueryPlan:
+    has_chat_history: bool
+    rewrite_enabled: bool
+    rewrite_executed: bool
+    rewrite_applied: bool
+    vector_query: str
+    lexical_query: str | None
+    vector_query_source: str
+    lexical_query_source: str | None
+
+
 class InkwiseVectorRetrievalService:
     def __init__(self) -> None:
         self.embedding_service = InkwiseEmbeddingService()
@@ -80,9 +92,16 @@ class InkwiseVectorRetrievalService:
         )
 
         has_chat_history = bool(history_messages)
-        rewrite_meta: dict[str, Any] = {"enabled": rewrite_cfg.enabled, "triggered": False, "has_chat_history": has_chat_history}
+        rewrite_meta: dict[str, Any] = {
+            "enabled": rewrite_cfg.enabled,
+            "executed": False,
+            "applied": False,
+            "triggered": False,
+            "has_chat_history": has_chat_history,
+        }
         rewrite: QueryRewriteResult | None = None
         if rewrite_cfg.enabled and has_chat_history:
+            rewrite_meta["executed"] = True
             try:
                 rewrite = rewrite_retrieval_query(
                     cfg=rewrite_cfg,
@@ -93,68 +112,55 @@ class InkwiseVectorRetrievalService:
                     scoped_source_titles=[title for _source_id, title in bound_sources],
                     draft_selection_text=draft_selection_text,
                 )
-                rewrite_meta["triggered"] = bool(rewrite.standalone_question or rewrite.fts_query)
-                rewrite_meta["standalone_question"] = rewrite.standalone_question
-                rewrite_meta["fts_query"] = rewrite.fts_query
+                rewrite_meta = {
+                    **rewrite_meta,
+                    **rewrite.meta,
+                    "triggered": bool(rewrite.standalone_question or rewrite.fts_query),
+                    "standalone_question": rewrite.standalone_question,
+                    "fts_query": rewrite.fts_query,
+                }
             except Exception as exc:
                 rewrite = None
                 rewrite_meta["error"] = str(exc)[:500]
         elif rewrite_cfg.enabled and not has_chat_history:
             rewrite_meta["skipped"] = "no_chat_history"
-
-        # Build search attempts.
-        # When query rewrite produced a standalone_question AND there is chat history,
-        # the original query may contain unresolved references (pronouns, "it", "that
-        # section", etc.) so we lead with the rewritten standalone_question for vector
-        # search and use fts_query for lexical search.  The original query is kept as
-        # a fallback in case the rewritten queries return zero candidates.
-        # When there is no chat history the original query is self-contained, so we
-        # use it directly (standalone_question would be near-identical).
-        attempts: list[dict[str, str | None]] = []
-        if rewrite and rewrite.standalone_question and has_chat_history:
-            attempts.append({
-                "vector_query": rewrite.standalone_question,
-                "lexical_query": rewrite.fts_query,
-            })
-            # Fallback: original query (in case rewrite missed the intent)
-            attempts.append({
-                "vector_query": clean_query,
-                "lexical_query": None,
-            })
         else:
-            # No chat history or rewrite failed/disabled — use original query.
-            fts_override = rewrite.fts_query if rewrite and rewrite.fts_query else None
-            attempts.append({
-                "vector_query": clean_query,
-                "lexical_query": fts_override,
-            })
+            rewrite_meta["skipped"] = "disabled"
 
-        rewrite_meta["attempts"] = attempts
+        query_plan = self._build_query_plan(
+            clean_query=clean_query,
+            rewrite_cfg=rewrite_cfg,
+            rewrite=rewrite,
+            rewrite_meta=rewrite_meta,
+            use_lexical_fusion=bool(settings.use_lexical_fusion),
+        )
+        rewrite_meta["applied"] = query_plan.rewrite_applied
+        rewrite_meta["triggered"] = query_plan.rewrite_applied
 
-        candidate_map: dict[uuid.UUID, RetrievalCandidate] = {}
-        search_attempt_meta: list[dict[str, Any]] = []
-        for idx, attempt in enumerate(attempts):
-            attempt_started = time.perf_counter()
-            candidates, meta = self._search_attempt(
-                db,
-                query=attempt["vector_query"],
-                lexical_query=attempt.get("lexical_query"),
-                bound_sources=bound_sources,
-                vector_top_k=int(settings.vector_search_top_k),
-                lexical_top_k=int(settings.lexical_search_top_k),
-                use_lexical_fusion=bool(settings.use_lexical_fusion),
-            )
-            meta["attempt_index"] = idx + 1
-            meta["duration_ms"] = int((time.perf_counter() - attempt_started) * 1000)
-            search_attempt_meta.append(meta)
-            for candidate in candidates:
-                existing = candidate_map.get(candidate.segment_id)
-                if existing is None or candidate.fused_score > existing.fused_score:
-                    candidate_map[candidate.segment_id] = candidate
-            if candidate_map:
-                break
+        search_attempt_started = time.perf_counter()
+        candidates, search_meta = self._search_attempt(
+            db,
+            query=query_plan.vector_query,
+            lexical_query=query_plan.lexical_query,
+            bound_sources=bound_sources,
+            vector_top_k=int(settings.vector_search_top_k),
+            lexical_top_k=int(settings.lexical_search_top_k),
+            use_lexical_fusion=bool(settings.use_lexical_fusion),
+        )
+        search_meta["attempt_index"] = 1
+        search_meta["pass_reason"] = "primary"
+        search_meta["vector_query_source"] = query_plan.vector_query_source
+        search_meta["lexical_query_source"] = query_plan.lexical_query_source
+        search_meta["duration_ms"] = int((time.perf_counter() - search_attempt_started) * 1000)
+        search_attempt_meta = [search_meta]
 
-        ordered_candidates = sorted(candidate_map.values(), key=lambda item: item.fused_score, reverse=True)
+        ordered_candidates = sorted(candidates, key=lambda item: item.fused_score, reverse=True)
+        lexical_fusion_meta = {
+            "enabled": bool(settings.use_lexical_fusion),
+            "executed": bool(settings.use_lexical_fusion),
+            "query": query_plan.lexical_query,
+            "query_source": query_plan.lexical_query_source,
+        }
         rerank_meta: dict[str, Any] = {"enabled": bool(settings.use_vector_rerank), "triggered": False}
         if settings.use_vector_rerank and ordered_candidates:
             reranked, rerank_meta = self._rerank_candidates(
@@ -178,18 +184,73 @@ class InkwiseVectorRetrievalService:
             strategy_bits.append("fusion")
         if bool(rerank_meta.get("triggered")):
             strategy_bits.append("rerank")
-        if bool(rewrite_meta.get("triggered")):
+        if query_plan.rewrite_applied:
             strategy_bits.append("qr")
         return evidence, {
             "engine": "vector",
+            "query_plan": {
+                "has_chat_history": query_plan.has_chat_history,
+                "rewrite_enabled": query_plan.rewrite_enabled,
+                "rewrite_executed": query_plan.rewrite_executed,
+                "rewrite_applied": query_plan.rewrite_applied,
+                "vector_query": query_plan.vector_query,
+                "vector_query_source": query_plan.vector_query_source,
+                "lexical_query": query_plan.lexical_query,
+                "lexical_query_source": query_plan.lexical_query_source,
+            },
             "search_attempts": search_attempt_meta,
+            "search_passes": [
+                {
+                    "pass": 1,
+                    "reason": "primary",
+                    "vector_query_source": query_plan.vector_query_source,
+                    "lexical_query_source": query_plan.lexical_query_source,
+                }
+            ],
             "query_rewrite": rewrite_meta,
+            "lexical_fusion": lexical_fusion_meta,
             "rerank": rerank_meta,
             "candidate_count": len(ordered_candidates),
             "evidence_count": len(evidence),
             "evidence_pack_duration_ms": evidence_pack_duration_ms,
             "total_duration_ms": int((time.perf_counter() - started) * 1000),
         }, "+".join(strategy_bits) + "-v1"
+
+    def _build_query_plan(
+        self,
+        *,
+        clean_query: str,
+        rewrite_cfg: QueryRewriteConfig,
+        rewrite: QueryRewriteResult | None,
+        rewrite_meta: dict[str, Any],
+        use_lexical_fusion: bool,
+    ) -> RetrievalQueryPlan:
+        vector_rewrite_applied = bool(rewrite and rewrite.standalone_question)
+        vector_query = rewrite.standalone_question if vector_rewrite_applied else clean_query
+        vector_query_source = "history_rewrite" if vector_rewrite_applied else "original"
+
+        lexical_query: str | None = None
+        lexical_query_source: str | None = None
+        if use_lexical_fusion:
+            if rewrite and rewrite.fts_query:
+                lexical_query = rewrite.fts_query
+                lexical_query_source = "rewrite_fts"
+            else:
+                lexical_query = vector_query
+                lexical_query_source = "selected_vector_query"
+
+        rewrite_applied = vector_rewrite_applied or lexical_query_source == "rewrite_fts"
+
+        return RetrievalQueryPlan(
+            has_chat_history=bool(rewrite_meta.get("has_chat_history")),
+            rewrite_enabled=bool(rewrite_cfg.enabled),
+            rewrite_executed=bool(rewrite_meta.get("executed")),
+            rewrite_applied=rewrite_applied,
+            vector_query=vector_query,
+            lexical_query=lexical_query,
+            vector_query_source=vector_query_source,
+            lexical_query_source=lexical_query_source,
+        )
 
     def _search_attempt(
         self,
@@ -236,7 +297,7 @@ class InkwiseVectorRetrievalService:
             "vector_count": len(vector_candidates),
             "vector_query": query,
             "lexical_count": len(lexical_candidates),
-            "lexical_query": fts_q,
+            "lexical_query": fts_q if use_lexical_fusion else None,
             "merged_count": len(merged),
             "prompt_token_count": query_embedding.usage.prompt_token_count,
             "truncated": query_embedding.usage.truncated,

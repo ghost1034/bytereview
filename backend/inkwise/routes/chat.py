@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import time
 import uuid
 from collections.abc import AsyncGenerator
@@ -14,7 +15,7 @@ from sqlalchemy.orm import Session
 from services.user_service import DuplicatePhoneNumberError
 from starlette.responses import StreamingResponse
 
-from core.database import get_db
+from core.database import db_config, get_db
 from dependencies.auth import verify_firebase_token
 from inkwise.schemas import (
     InkwiseChatMessageOut,
@@ -58,6 +59,7 @@ retrieval_service = InkwiseRetrievalService()
 generation_attempt_service = InkwiseGenerationAttemptService()
 user_support = InkwiseSourceService()
 _STREAM_SSE_CHARS = 48
+logger = logging.getLogger(__name__)
 
 
 def _now_iso() -> str:
@@ -133,6 +135,47 @@ async def _maybe_auto_name_thread(
         chat_service.update_thread_title(db, thread=thread, title=title)
         return {"updated": True, "title": title}
     return {"skipped": True, "reason": "empty_title_candidate"}
+
+
+async def _auto_name_thread_after_response(
+    *,
+    user_id: str,
+    thread_id: uuid.UUID,
+    user_message: str,
+) -> None:
+    db = db_config.get_session()
+    try:
+        thread = chat_service.get_thread_or_404(db, user_id=user_id, thread_id=thread_id)
+        document = chat_service.get_document_or_404(db, user_id=user_id, document_id=cast(uuid.UUID, thread.document_id))
+        await _maybe_auto_name_thread(
+            db=db,
+            settings=get_inkwise_settings(),
+            thread=thread,
+            document=document,
+            user_message=user_message,
+        )
+    except Exception:
+        logger.exception("inkwise thread auto-name failed", extra={"thread_id": str(thread_id), "user_id": user_id})
+    finally:
+        db.close()
+
+
+def _schedule_thread_auto_name_after_response(
+    *,
+    thread: Any,
+    user_id: str,
+    thread_id: uuid.UUID,
+    user_message: str,
+) -> None:
+    if normalize_thread_title_candidate(getattr(thread, "title", None)):
+        return
+    asyncio.create_task(
+        _auto_name_thread_after_response(
+            user_id=user_id,
+            thread_id=thread_id,
+            user_message=user_message,
+        )
+    )
 
 
 def _sse(event: str, data: object) -> bytes:
@@ -907,31 +950,6 @@ async def stream_thread_message(
                 ),
             )
 
-            auto_name_start_event, auto_name_started, auto_name_started_at = _stage_start(
-                stage="auto_name_thread",
-                label="Auto-name thread",
-            )
-            yield _sse("debug", auto_name_start_event)
-            auto_name_details = await _maybe_auto_name_thread(
-                db=db,
-                settings=settings,
-                thread=thread,
-                document=document,
-                user_message=body.content,
-            )
-            yield _sse(
-                "debug",
-                _stage_finish(
-                    timeline=debug_timeline,
-                    stage="auto_name_thread",
-                    label="Auto-name thread",
-                    started_perf=auto_name_started,
-                    started_at=auto_name_started_at,
-                    status="skipped" if auto_name_details.get("skipped") else "completed",
-                    details=auto_name_details,
-                ),
-            )
-
             history_start_event, history_started, history_started_at = _stage_start(
                 stage="prepare_history",
                 label="Prepare grounded chat history",
@@ -1039,6 +1057,12 @@ async def stream_thread_message(
                 debug_timeline=debug_timeline,
             ):
                 yield chunk
+            _schedule_thread_auto_name_after_response(
+                thread=thread,
+                user_id=user_id,
+                thread_id=thread_db_id,
+                user_message=body.content,
+            )
         except HTTPException as exc:
             yield _sse("meta", {"error": "invalid_request", "message": str(exc.detail)})
             return
@@ -1266,6 +1290,12 @@ async def retry_thread_message(
                 debug_timeline=debug_timeline,
             ):
                 yield chunk
+            _schedule_thread_auto_name_after_response(
+                thread=thread,
+                user_id=user_id,
+                thread_id=thread_id,
+                user_message=str(source_message.content),
+            )
         except HTTPException as exc:
             yield _sse("meta", {"error": "invalid_request", "message": str(exc.detail)})
             return

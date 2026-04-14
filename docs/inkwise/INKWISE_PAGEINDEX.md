@@ -229,8 +229,8 @@ The current retrieval stack is not vector-based. It is a layered, database-local
    - Fallback to page-level search if no matching nodes are found
 
 3. Query rewrite (optional)
-   - If the first retrieval pass returns no evidence, ask Vertex AI to rewrite the query
-   - Retry lexical retrieval using standalone or subqueries
+   - If recent chat history exists, optionally ask Vertex AI to rewrite the query into a standalone question and short FTS query
+   - Use that planned query directly for retrieval
 
 4. Tree search (optional)
    - If evidence is still sparse, ask Vertex AI to navigate candidate tree nodes
@@ -266,11 +266,12 @@ sequenceDiagram
   participant Vertex as Vertex AI
 
   Client->>RET: run_retrieval(query, bound_sources)
-  RET->>DB: source prefilter via FTS
-  RET->>DB: lexical node/page retrieval
-  alt No or weak evidence
+  alt Chat history present and rewrite enabled
     RET->>Vertex: rewrite query
-    RET->>DB: retry lexical retrieval
+  end
+  RET->>DB: vector retrieval
+  opt lexical fusion enabled
+    RET->>DB: lexical retrieval
   end
   alt Still sparse evidence
     RET->>Vertex: pick tree nodes from frontier

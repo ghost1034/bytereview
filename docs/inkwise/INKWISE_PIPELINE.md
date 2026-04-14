@@ -272,20 +272,20 @@ Evidence is then persisted to `inkwise_retrieval_evidence`.
 
 ### Query rewrite
 
-If enabled, retrieval first calls `backend/inkwise/services/query_rewrite.py`.
+If enabled, retrieval may call `backend/inkwise/services/query_rewrite.py`.
 
 The rewrite step can produce:
 
 - a standalone question
 - an FTS-oriented query
-- multiple short subqueries
-- keyword fallbacks
 
 Current behavior:
 
 - rewrite is optional and model-backed
+- rewrite only runs when recent chat history exists
 - it uses recent chat history, source titles, document language/purpose, and draft context
-- retrieval stops at the first rewritten attempt that returns any candidates
+- its main job is to resolve history-dependent references into a standalone retrieval query
+- retrieval uses a single planned query path; there is no second fallback pass back to the original query
 
 ### Vector search
 
@@ -306,6 +306,13 @@ If enabled, retrieval also runs PostgreSQL full-text search over `inkwise_source
 - `ts_headline` for excerpts
 
 This is English FTS only.
+
+Current behavior:
+
+- lexical fusion is independent from whether query rewrite runs
+- when rewrite provides an `fts_query`, lexical search uses it
+- otherwise lexical search uses the selected vector query directly
+- if lexical fusion is disabled, retrieval stays vector-only
 
 ### Rank fusion
 
@@ -501,7 +508,7 @@ Evidence from the codebase:
 
 Conceptually, the live pipeline is:
 
-`normalize -> segment -> embed -> vector retrieve -> lexical fuse -> rerank -> evidence pack -> generation`
+`normalize -> segment -> embed -> plan query -> vector retrieve -> optional lexical fuse -> rerank -> evidence pack -> generation`
 
 ## 13. Current Constraints And Notable Gaps
 
@@ -513,7 +520,7 @@ These are current implementation facts, not necessarily bugs:
 - webpage normalization is heuristic HTML cleanup, not a browser-rendered readability pipeline
 - PDF multimodal attachment is implemented; image/audio/video retrieval is not yet wired into the runtime
 - chat requires explicit citation markers in model output; writing tools and prediction do not return citation markers
-- retrieval currently stops after the first query-rewrite attempt that yields any candidate set
+- retrieval uses one explicit query plan and one search pass per request
 - there is very little automated test coverage today; only chat-history prompt handling has targeted backend tests in `backend/tests/test_inkwise_chat_history.py`
 
 ## 14. Key Files To Read First
