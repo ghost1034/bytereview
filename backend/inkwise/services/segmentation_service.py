@@ -42,11 +42,10 @@ class SegmentationResult:
 class InkwiseSegmentationService:
     def build_segments(self, normalized: NormalizedSource, *, media_chunks: list[MediaChunk] | None = None) -> SegmentationResult:
         if normalized.canonical_mime_type == "application/pdf":
-            pdf_window_segments = self._build_pdf_window_segments(normalized)
             text_chunk_segments = self._build_text_chunk_segments(normalized)
-            segments = pdf_window_segments + text_chunk_segments
+            segments = text_chunk_segments
             stats = {
-                "pdf_window_count": len(pdf_window_segments),
+                "pdf_window_count": 0,
                 "text_chunk_count": len(text_chunk_segments),
                 "segment_count": len(segments),
                 "page_count": normalized.page_count,

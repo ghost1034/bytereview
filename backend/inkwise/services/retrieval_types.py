@@ -36,12 +36,12 @@ def evidence_excerpt(item: EvidenceItem) -> str:
     time_range_label = format_time_range_locator(locator)
     if item.page_number > 0 and isinstance(page_end, int) and page_end != item.page_number:
         return (
-            f"Relevant evidence is contained in the attached PDF pages {item.page_number}-{page_end} "
+            f"Relevant evidence is located on PDF pages {item.page_number}-{page_end} "
             f"from {item.source_title}. No extracted text is available for this evidence block."
         )
     if item.page_number > 0:
         return (
-            f"Relevant evidence is contained in the attached PDF page {item.page_number} "
+            f"Relevant evidence is located on PDF page {item.page_number} "
             f"from {item.source_title}. No extracted text is available for this evidence block."
         )
     if locator_kind == "image_asset":

@@ -15,9 +15,10 @@ class PdfExtractError(RuntimeError):
 class ExtractedPage:
     page_number: int
     text: str
+    is_ocr: bool = False
 
 
-def extract_pdf_pages_text(*, pdf_path: str) -> list[ExtractedPage]:
+def extract_pdf_pages_text(*, pdf_path: str, is_ocr: bool = False) -> list[ExtractedPage]:
     try:
         doc = pymupdf.open(pdf_path)
     except Exception as exc:
@@ -29,7 +30,7 @@ def extract_pdf_pages_text(*, pdf_path: str) -> list[ExtractedPage]:
             page = doc.load_page(idx)
             text = page.get_text("text") or ""
             text = "\n".join([line.rstrip() for line in text.splitlines()]).strip()
-            out.append(ExtractedPage(page_number=idx + 1, text=text))
+            out.append(ExtractedPage(page_number=idx + 1, text=text, is_ocr=bool(is_ocr)))
     finally:
         try:
             doc.close()

@@ -116,13 +116,14 @@ Normalization is implemented in `backend/inkwise/services/source_normalizer.py`.
 Current behavior by source type:
 
 - `pdf`
-  - canonical asset is the original PDF
   - text is extracted page by page with PyMuPDF helpers in `backend/inkwise/services/pdf_extract.py`
+  - if the extracted text looks sparse or unusable, ingestion runs `OCRmyPDF` with Tesseract and re-extracts text from the OCR output
+  - the canonical preview asset is the original PDF unless OCR produced an OCR-enhanced replacement PDF
 - `docx`
   - DOCX is converted to PDF through the shared document conversion service
   - the ingestion runtime must have LibreOffice (`soffice`) installed because Inkwise calls the shared converter directly
-  - text is then extracted from the generated PDF
-  - retrieval treats the converted PDF as the canonical asset
+  - the generated PDF then goes through the same PyMuPDF plus optional OCRmyPDF/Tesseract flow used for native PDFs
+  - retrieval is text-first and uses the final extracted/OCR text, while preview continues to use the canonical PDF asset
 - `webpage`
   - canonical asset is the stored HTML snapshot
   - paragraph-like text blocks are extracted with simple HTML cleaning and splitting heuristics
@@ -142,7 +143,7 @@ Ingestion persists a canonical/derived asset set in GCS:
 - original uploads stay under `inkwise/uploads/...`
 - derived segment assets and manifests are stored under `inkwise/derived/{user_id}/{source_id}/...`
 
-For PDF-backed segments, ingestion writes page-window PDFs that can later be attached to Gemini generation calls and previewed in the UI.
+For PDF and DOCX sources, ingestion now persists page text in `inkwise_source_pages` and keeps a canonical PDF preview asset instead of writing per-segment page-window PDFs.
 
 ## 3. Segmentation
 
@@ -152,13 +153,9 @@ Segmentation is implemented in `backend/inkwise/services/segmentation_service.py
 
 Current segment types are:
 
-- `pdf_window`
-  - modality: `pdf`
-  - overlapping page windows over canonical PDFs
-  - intended for multimodal semantic recall
 - `text_chunk`
   - modality: `text`
-  - paragraph-grouped text chunks from PDF/DOCX extracted text
+  - paragraph-grouped text chunks from PDF/DOCX extracted or OCR text
   - intended for precise evidence excerpts and lexical search
 - `web_block`
   - modality: `web`
@@ -168,9 +165,14 @@ Current segment types are:
 
 Configured in `backend/inkwise/settings.py`:
 
-- `INKWISE_SEGMENT_PDF_WINDOW_PAGES` default `4`
-- `INKWISE_SEGMENT_PDF_WINDOW_OVERLAP_PAGES` default `1`
 - `INKWISE_SEGMENT_TEXT_CHUNK_CHARS` default `3000`
+
+OCR settings used during document normalization:
+
+- `INKWISE_OCR_ENABLED` default `true`
+- `INKWISE_OCR_LANGUAGES` default `eng`
+- `INKWISE_OCR_TIMEOUT_SECONDS` default `900`
+- `INKWISE_OCR_FORCE` default `false`
 
 ### Stored segment metadata
 
@@ -206,9 +208,10 @@ The service uses separate task types from settings:
 
 ### What gets embedded
 
-- `pdf_window` segments are embedded as PDF files from GCS using `embed_pdf_gcs_sync`
 - `text_chunk` and `web_block` segments are embedded from `text_content`
 - user retrieval queries are embedded from query text
+
+For PDF and DOCX sources, document retrieval is now text-only: OCR/extracted text is chunked and embedded, and the runtime no longer generates PDF file embeddings for those sources.
 
 ### Persistence
 
@@ -417,16 +420,16 @@ Prediction responses return:
 
 ## 8. Multimodal Evidence Attachment
 
-`backend/inkwise/services/multimodal_evidence.py` adds PDF evidence files directly to Gemini generation calls.
+`backend/inkwise/services/multimodal_evidence.py` adds non-document media evidence files directly to Gemini generation calls.
 
 Current behavior:
 
-- only PDF preview assets are attached
+- only image, audio, and video preview assets are attached
 - at most 100 files are attached
 - duplicate assets are skipped
 - the prompt is augmented with the evidence IDs corresponding to attached files
 
-This means the current pipeline is not purely text-in/text-out. For PDF-backed evidence, generation can inspect the actual page-window PDF assets.
+This means the current pipeline is text-first for document sources and multimodal only for non-document media.
 
 ## 9. Citations And Evidence UX
 
@@ -449,7 +452,7 @@ The evidence viewer in `components/inkwise/citation-bubbles.tsx`:
 - displays the excerpt and locator information
 - renders the preview in an iframe when available
 
-For PDF-backed evidence, this usually points to a derived page-window PDF stored in GCS.
+For PDF-backed evidence, this now usually points to the canonical source PDF or OCR-enhanced canonical PDF stored in GCS.
 
 ## 10. Persistence Model
 
@@ -518,7 +521,8 @@ These are current implementation facts, not necessarily bugs:
 - stored vector schema requires `1536` dimensions today
 - lexical search uses English `tsvector`/`tsquery`
 - webpage normalization is heuristic HTML cleanup, not a browser-rendered readability pipeline
-- PDF multimodal attachment is implemented; image/audio/video retrieval is not yet wired into the runtime
+- OCR currently uses OCRmyPDF + Tesseract with English configured by default
+- document retrieval is text-only; multimodal attachments are reserved for image/audio/video evidence
 - chat requires explicit citation markers in model output; writing tools and prediction do not return citation markers
 - retrieval uses one explicit query plan and one search pass per request
 - there is very little automated test coverage today; only chat-history prompt handling has targeted backend tests in `backend/tests/test_inkwise_chat_history.py`

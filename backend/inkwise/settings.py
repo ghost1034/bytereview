@@ -80,6 +80,13 @@ class InkwiseSettings:
     embedding_auto_truncate: bool
     embedding_enable_document_ocr: bool
     embedding_enable_audio_track_extraction: bool
+    ocr_enabled: bool
+    ocr_languages: str
+    ocr_timeout_seconds: int
+    ocr_force: bool
+    ocr_min_chars_per_page: int
+    ocr_empty_page_ratio_threshold: float
+    ocr_min_usable_page_ratio: float
     use_lexical_fusion: bool
     use_vector_rerank: bool
     vector_search_top_k: int
@@ -143,6 +150,13 @@ def get_inkwise_settings() -> InkwiseSettings:
         embedding_auto_truncate=_env_bool("INKWISE_EMBEDDING_AUTO_TRUNCATE", True),
         embedding_enable_document_ocr=_env_bool("INKWISE_EMBEDDING_ENABLE_DOCUMENT_OCR", True),
         embedding_enable_audio_track_extraction=_env_bool("INKWISE_EMBEDDING_ENABLE_AUDIO_TRACK_EXTRACTION", True),
+        ocr_enabled=_env_bool("INKWISE_OCR_ENABLED", True),
+        ocr_languages=os.getenv("INKWISE_OCR_LANGUAGES", "eng"),
+        ocr_timeout_seconds=max(30, _env_int("INKWISE_OCR_TIMEOUT_SECONDS", 900)),
+        ocr_force=_env_bool("INKWISE_OCR_FORCE", False),
+        ocr_min_chars_per_page=max(1, _env_int("INKWISE_OCR_MIN_CHARS_PER_PAGE", 80)),
+        ocr_empty_page_ratio_threshold=max(0.0, min(1.0, _env_float("INKWISE_OCR_EMPTY_PAGE_RATIO_THRESHOLD", 0.2))),
+        ocr_min_usable_page_ratio=max(0.0, min(1.0, _env_float("INKWISE_OCR_MIN_USABLE_PAGE_RATIO", 0.7))),
         use_lexical_fusion=_env_bool("INKWISE_USE_LEXICAL_FUSION", False),
         use_vector_rerank=_env_bool("INKWISE_USE_VECTOR_RERANK", False),
         vector_search_top_k=max(1, _env_int("INKWISE_VECTOR_SEARCH_TOP_K", 24)),

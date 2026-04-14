@@ -25,7 +25,7 @@ from inkwise.services.media_probe import MediaProbeError
 from inkwise.services.segmentation_service import InkwiseSegmentationService, SegmentDraft
 from inkwise.services.source_normalizer import InkwiseSourceNormalizer, SourceNormalizationError
 from inkwise.settings import get_inkwise_settings, is_valid_gcs_bucket_name, normalize_gcs_bucket_name
-from models.inkwise_models import InkwiseSource, InkwiseSourceIngestion, InkwiseSourceSegment, InkwiseSourceSegmentEmbedding
+from models.inkwise_models import InkwiseSource, InkwiseSourceIngestion, InkwiseSourcePage, InkwiseSourceSegment, InkwiseSourceSegmentEmbedding
 
 
 class IngestionError(RuntimeError):
@@ -150,6 +150,7 @@ class InkwiseIngestionService:
                         mime_type=normalized.canonical_mime_type,
                         output_dir=os.path.join(temp_dir, "media_chunks"),
                     )
+                ingestion.extraction_engine = str(normalized.metadata.get("extraction_engine") or ingestion.extraction_engine or "pymupdf")
                 ingestion.page_count = normalized.page_count or None
                 ingestion.provider_document_name = source.original_filename or source.title
                 provisional_usage = self._build_usage_measurement(normalized=normalized, embedded_media_tokens=None)
@@ -286,6 +287,7 @@ class InkwiseIngestionService:
     ) -> int:
         settings = get_inkwise_settings()
         segmentation = self.segmentation_service.build_segments(normalized, media_chunks=media_chunks)
+        self._persist_source_pages(db, source=source, normalized=normalized)
         db.query(InkwiseSourceSegmentEmbedding).filter(InkwiseSourceSegmentEmbedding.source_id == source.id).delete()
         db.query(InkwiseSourceSegment).filter(InkwiseSourceSegment.source_id == source.id).delete()
 
@@ -312,24 +314,7 @@ class InkwiseIngestionService:
                 created_at=datetime.utcnow(),
             )
 
-            if draft.segment_type == "pdf_window":
-                asset_object = self._upload_pdf_window_asset(
-                    source=source,
-                    ingestion=ingestion,
-                    draft=draft,
-                    canonical_pdf_path=normalized.canonical_local_path,
-                    bucket=derived_bucket,
-                )
-                segment.asset_bucket = derived_bucket
-                segment.asset_object = asset_object
-                segment.preview_bucket = derived_bucket
-                segment.preview_object = asset_object
-                embedding_result = self.embedding_service.embed_pdf_gcs_sync(
-                    gcs_uri=f"gs://{derived_bucket}/{asset_object}",
-                    output_dimensionality=settings.embedding_dimension,
-                    document_ocr=settings.embedding_enable_document_ocr,
-                )
-            elif draft.modality in {"image", "audio", "video"} and draft.asset_mime_type:
+            if draft.modality in {"image", "audio", "video"} and draft.asset_mime_type:
                 uses_original_asset = bool((draft.meta_json or {}).get("uses_original_asset"))
                 if uses_original_asset:
                     if not source.storage_bucket or not source.storage_object:
@@ -363,18 +348,6 @@ class InkwiseIngestionService:
                     segment.asset_object = source.storage_object
                     segment.preview_bucket = source.storage_bucket
                     segment.preview_object = source.storage_object
-                elif normalized.canonical_mime_type == "application/pdf" and draft.page_start is not None and draft.page_end is not None:
-                    asset_object = self._upload_pdf_window_asset(
-                        source=source,
-                        ingestion=ingestion,
-                        draft=draft,
-                        canonical_pdf_path=normalized.canonical_local_path,
-                        bucket=derived_bucket,
-                    )
-                    segment.asset_bucket = derived_bucket
-                    segment.asset_object = asset_object
-                    segment.preview_bucket = derived_bucket
-                    segment.preview_object = asset_object
                 elif ingestion.canonical_pdf_gcs_bucket and ingestion.canonical_pdf_gcs_object:
                     segment.preview_bucket = ingestion.canonical_pdf_gcs_bucket
                     segment.preview_object = ingestion.canonical_pdf_gcs_object
@@ -430,6 +403,21 @@ class InkwiseIngestionService:
         ingestion.preview_manifest_bucket = derived_bucket
         ingestion.preview_manifest_object = manifest_object
         return embedded_media_tokens
+
+    def _persist_source_pages(self, db: Session, *, source: InkwiseSource, normalized: Any) -> None:
+        db.query(InkwiseSourcePage).filter(InkwiseSourcePage.source_id == source.id).delete()
+        page_blocks = [block for block in normalized.text_blocks if block.page_number is not None]
+        for block in page_blocks:
+            text = str(block.text or "")
+            db.add(
+                InkwiseSourcePage(
+                    source_id=source.id,
+                    page_number=int(block.page_number),
+                    text=text,
+                    is_ocr=bool(getattr(block, "is_ocr", False) or bool((block.meta or {}).get("is_ocr"))),
+                    char_count=len(text),
+                )
+            )
 
     def _build_usage_measurement(
         self,

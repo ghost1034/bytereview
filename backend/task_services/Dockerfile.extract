@@ -7,6 +7,10 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
+    ghostscript \
+    qpdf \
+    tesseract-ocr \
+    tesseract-ocr-eng \
     libreoffice-writer \
     libreoffice-core \
     libreoffice-common \

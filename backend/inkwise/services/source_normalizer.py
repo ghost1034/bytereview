@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-import re
 import os
+import re
 from html import unescape
 from dataclasses import dataclass, field
 from typing import Any
 
+from inkwise.services.ocrmypdf_service import OCRmyPDFError, OCRmyPDFService
 from inkwise.services.pdf_extract import ExtractedPage, extract_pdf_pages_text
+from inkwise.settings import get_inkwise_settings
 from services.document_conversion_service import DOCX_MIME, get_document_conversion_service
 
 
@@ -36,6 +38,7 @@ class NormalizedTextBlock:
     order_index: int
     text: str
     page_number: int | None = None
+    is_ocr: bool = False
     meta: dict[str, Any] = field(default_factory=dict)
 
 
@@ -67,6 +70,9 @@ class NormalizedSource:
 
 
 class InkwiseSourceNormalizer:
+    def __init__(self) -> None:
+        self.ocr_service = OCRmyPDFService()
+
     def normalize_local_source(
         self,
         *,
@@ -99,13 +105,13 @@ class InkwiseSourceNormalizer:
         raise SourceNormalizationError(f"Unsupported source type for normalization: {detected_mime}")
 
     def _normalize_pdf(self, *, local_path: str, title: str) -> NormalizedSource:
-        pages = extract_pdf_pages_text(pdf_path=local_path)
+        pages, canonical_pdf_path, metadata = self._extract_pdf_pages_with_optional_ocr(local_path=local_path)
         blocks = self._pages_to_blocks(pages)
         assets = [
             NormalizedAsset(
                 kind="canonical_pdf",
                 mime_type=PDF_MIME,
-                local_path=local_path,
+                local_path=canonical_pdf_path,
                 page_start=1 if pages else None,
                 page_end=len(pages) if pages else None,
                 meta={"page_count": len(pages)},
@@ -116,13 +122,13 @@ class InkwiseSourceNormalizer:
             title=title,
             original_local_path=local_path,
             original_mime_type=PDF_MIME,
-            canonical_local_path=local_path,
+            canonical_local_path=canonical_pdf_path,
             canonical_mime_type=PDF_MIME,
             text_blocks=blocks,
             assets=assets,
             metadata={
                 "page_count": len(pages),
-                "normalization": "pdf_passthrough",
+                **metadata,
             },
         )
 
@@ -133,14 +139,14 @@ class InkwiseSourceNormalizer:
         except Exception as exc:
             raise SourceNormalizationError(f"DOCX conversion failed: {exc}") from exc
 
-        pages = extract_pdf_pages_text(pdf_path=canonical_pdf_path)
+        pages, resolved_canonical_pdf_path, metadata = self._extract_pdf_pages_with_optional_ocr(local_path=canonical_pdf_path)
         blocks = self._pages_to_blocks(pages)
         assets = [
             NormalizedAsset(kind="original_docx", mime_type=DOCX_MIME, local_path=local_path),
             NormalizedAsset(
                 kind="canonical_pdf",
                 mime_type=PDF_MIME,
-                local_path=canonical_pdf_path,
+                local_path=resolved_canonical_pdf_path,
                 page_start=1 if pages else None,
                 page_end=len(pages) if pages else None,
                 meta={"page_count": len(pages)},
@@ -151,12 +157,13 @@ class InkwiseSourceNormalizer:
             title=title,
             original_local_path=local_path,
             original_mime_type=DOCX_MIME,
-            canonical_local_path=canonical_pdf_path,
+            canonical_local_path=resolved_canonical_pdf_path,
             canonical_mime_type=PDF_MIME,
             text_blocks=blocks,
             assets=assets,
             metadata={
                 "page_count": len(pages),
+                **metadata,
                 "normalization": "docx_to_pdf",
             },
         )
@@ -230,10 +237,95 @@ class InkwiseSourceNormalizer:
                     order_index=idx,
                     text=page.text,
                     page_number=page.page_number,
-                    meta={"char_count": len(page.text)},
+                    is_ocr=bool(page.is_ocr),
+                    meta={"char_count": len(page.text), "is_ocr": bool(page.is_ocr)},
                 )
             )
         return blocks
+
+    def _extract_pdf_pages_with_optional_ocr(self, *, local_path: str) -> tuple[list[ExtractedPage], str, dict[str, Any]]:
+        primary_pages = extract_pdf_pages_text(pdf_path=local_path, is_ocr=False)
+        settings = get_inkwise_settings()
+        if not primary_pages:
+            return primary_pages, local_path, {"normalization": "pdf_passthrough", "extraction_engine": "pymupdf", "ocr_applied": False}
+
+        if not settings.ocr_enabled:
+            return primary_pages, local_path, self._build_pdf_text_metadata(primary_pages=primary_pages, final_pages=primary_pages, ocr_applied=False)
+
+        if not self._should_run_ocr(primary_pages=primary_pages, force_ocr=settings.ocr_force):
+            return primary_pages, local_path, self._build_pdf_text_metadata(primary_pages=primary_pages, final_pages=primary_pages, ocr_applied=False)
+
+        ocr_pdf_path = os.path.join(os.path.dirname(local_path), f"ocr_{os.path.basename(local_path)}")
+        try:
+            self.ocr_service.run_ocr(
+                input_pdf_path=local_path,
+                output_pdf_path=ocr_pdf_path,
+                languages=settings.ocr_languages,
+                timeout_seconds=settings.ocr_timeout_seconds,
+                force_ocr=settings.ocr_force,
+            )
+        except OCRmyPDFError as exc:
+            raise SourceNormalizationError(f"PDF OCR failed: {exc}") from exc
+
+        ocr_pages = extract_pdf_pages_text(pdf_path=ocr_pdf_path, is_ocr=True)
+        final_pages = self._merge_pdf_pages(primary_pages=primary_pages, ocr_pages=ocr_pages, force_ocr=settings.ocr_force)
+        return final_pages, ocr_pdf_path, self._build_pdf_text_metadata(primary_pages=primary_pages, final_pages=final_pages, ocr_applied=True)
+
+    def _should_run_ocr(self, *, primary_pages: list[ExtractedPage], force_ocr: bool) -> bool:
+        if force_ocr:
+            return True
+        settings = get_inkwise_settings()
+        total_pages = len(primary_pages)
+        if total_pages <= 0:
+            return False
+        usable_pages = sum(1 for page in primary_pages if self._page_has_usable_text(page.text))
+        empty_pages = sum(1 for page in primary_pages if not self._clean_page_text(page.text))
+        usable_ratio = usable_pages / total_pages
+        empty_ratio = empty_pages / total_pages
+        return usable_pages == 0 or empty_ratio >= settings.ocr_empty_page_ratio_threshold or usable_ratio < settings.ocr_min_usable_page_ratio
+
+    def _merge_pdf_pages(
+        self,
+        *,
+        primary_pages: list[ExtractedPage],
+        ocr_pages: list[ExtractedPage],
+        force_ocr: bool,
+    ) -> list[ExtractedPage]:
+        ocr_by_number = {page.page_number: page for page in ocr_pages}
+        out: list[ExtractedPage] = []
+        for primary in primary_pages:
+            ocr_page = ocr_by_number.get(primary.page_number)
+            primary_text = self._clean_page_text(primary.text)
+            ocr_text = self._clean_page_text(ocr_page.text if ocr_page is not None else "")
+            use_ocr = bool(ocr_text) and (force_ocr or not self._page_has_usable_text(primary_text))
+            selected_text = ocr_text if use_ocr else primary_text
+            out.append(ExtractedPage(page_number=primary.page_number, text=selected_text, is_ocr=use_ocr))
+        return out
+
+    def _build_pdf_text_metadata(
+        self,
+        *,
+        primary_pages: list[ExtractedPage],
+        final_pages: list[ExtractedPage],
+        ocr_applied: bool,
+    ) -> dict[str, Any]:
+        ocr_page_numbers = [page.page_number for page in final_pages if page.is_ocr]
+        return {
+            "normalization": "pdf_passthrough",
+            "extraction_engine": "ocrmypdf" if ocr_page_numbers else "pymupdf",
+            "ocr_applied": bool(ocr_applied),
+            "ocr_page_count": len(ocr_page_numbers),
+            "ocr_page_numbers": ocr_page_numbers,
+            "page_count": len(final_pages),
+            "usable_text_page_count": sum(1 for page in primary_pages if self._page_has_usable_text(page.text)),
+        }
+
+    def _page_has_usable_text(self, text: str | None) -> bool:
+        settings = get_inkwise_settings()
+        return len(self._clean_page_text(text)) >= int(settings.ocr_min_chars_per_page)
+
+    def _clean_page_text(self, text: str | None) -> str:
+        return re.sub(r"\s+", " ", (text or "")).strip()
 
     def _detect_mime_type(self, *, filename: str, content_type: str | None) -> str:
         clean_content_type = (content_type or "").strip().lower()

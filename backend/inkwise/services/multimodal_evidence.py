@@ -7,6 +7,15 @@ from typing import Any
 
 from inkwise.services.retrieval_types import EvidenceItem, evidence_preview_mime_type
 
+_ATTACHABLE_MIME_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "audio/mp3",
+    "audio/wav",
+    "video/mp4",
+    "video/mpeg",
+}
+
 
 @dataclass(frozen=True)
 class MultimodalEvidenceBundle:
@@ -32,7 +41,7 @@ def build_multimodal_contents(
         if len(attached_evidence_ids) >= max(1, int(max_files)):
             break
         mime_type = evidence_preview_mime_type(item)
-        if mime_type is None:
+        if mime_type is None or mime_type not in _ATTACHABLE_MIME_TYPES:
             continue
         bucket = str(item.preview_bucket or "").strip()
         object_name = str(item.preview_object or "").strip()
