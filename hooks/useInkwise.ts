@@ -118,10 +118,12 @@ export function useInkwiseSystemTemplate(systemTemplateId: string) {
   })
 }
 
-export function useInkwiseChatThreads(documentId?: string) {
+export function useInkwiseChatThreads(documentId?: string, options?: InkwiseQueryOptions) {
   return useQuery({
     queryKey: ['inkwise', 'chat-threads', documentId ?? 'all'],
     queryFn: () => apiClient.listInkwiseChatThreads(documentId),
+    refetchInterval: options?.refetchInterval,
+    refetchOnWindowFocus: options?.refetchOnWindowFocus,
   })
 }
 

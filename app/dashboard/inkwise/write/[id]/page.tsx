@@ -49,6 +49,7 @@ import {
   InkwiseChatMessage,
   InkwiseCitation,
   InkwiseCitationStyle,
+  InkwiseChatThreadsResponse,
   InkwiseDebugTimelineEntry,
   InkwiseDocumentRevision,
   InkwiseDriveExportResponse,
@@ -84,6 +85,8 @@ const PREDICTION_DEBOUNCE_MS = 1000
 const FOCUS_MODE_MUTE_STORAGE_KEY = 'cpaa_inkwise_focus_mode_muted_v1'
 const FOCUS_MODE_AUDIO_SRC = '/audio/inkwise-white-noise-loop.mp3'
 const INKWISE_CHAT_DEBUG_USER_ID = 'jbvogQmSz6WKNk1KL79bmK31Uk63'
+const INKWISE_THREAD_AUTO_NAME_POLL_INTERVAL_MS = 1500
+const INKWISE_THREAD_AUTO_NAME_POLL_TIMEOUT_MS = 15000
 
 type StreamState = {
   text: string
@@ -180,6 +183,10 @@ function buildDraftSelectionLabel(target: InkwiseEditorTarget | null): string | 
   return preview.length > 80 ? `${preview.slice(0, 77)}...` : preview
 }
 
+function hasInkwiseThreadTitle(title?: string | null): boolean {
+  return Boolean(title?.trim())
+}
+
 export default function InkwiseDocumentPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
@@ -188,6 +195,7 @@ export default function InkwiseDocumentPage() {
   const { toast } = useToast()
   const documentId = params.id
   const chatDebugEnabled = user?.uid === INKWISE_CHAT_DEBUG_USER_ID
+  const pendingAutoNameThreadsRef = useRef<Record<string, number>>({})
 
   const documentQuery = useInkwiseDocument(documentId)
   const sourcesQuery = useInkwiseSources(1, 100, {
@@ -204,7 +212,31 @@ export default function InkwiseDocumentPage() {
     },
     refetchOnWindowFocus: true,
   })
-  const threadsQuery = useInkwiseChatThreads(documentId)
+  const threadsQuery = useInkwiseChatThreads(documentId, {
+    refetchInterval: (query) => {
+      const pendingThreads = pendingAutoNameThreadsRef.current
+      const pendingEntries = Object.entries(pendingThreads)
+      if (!pendingEntries.length) return false
+
+      const now = Date.now()
+      const activeThreadIds = pendingEntries
+        .filter(([, startedAt]) => now - startedAt < INKWISE_THREAD_AUTO_NAME_POLL_TIMEOUT_MS)
+        .map(([threadId]) => threadId)
+
+      if (!activeThreadIds.length) return false
+
+      const data = query.state.data as InkwiseChatThreadsResponse | undefined
+      if (!data) return INKWISE_THREAD_AUTO_NAME_POLL_INTERVAL_MS
+
+      return activeThreadIds.some((threadId) => {
+        const thread = data.threads.find((item) => item.id === threadId)
+        if (!thread) return false
+        return !hasInkwiseThreadTitle(thread?.title)
+      })
+        ? INKWISE_THREAD_AUTO_NAME_POLL_INTERVAL_MS
+        : false
+    },
+  })
   const revisionsQuery = useInkwiseDocumentRevisions(documentId)
 
   const [title, setTitle] = useState('')
@@ -228,6 +260,7 @@ export default function InkwiseDocumentPage() {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [driveExportOpen, setDriveExportOpen] = useState(false)
   const [isDrivePickerOpen, setIsDrivePickerOpen] = useState(false)
+  const [pendingAutoNameThreads, setPendingAutoNameThreads] = useState<Record<string, number>>({})
   const [driveExportFolder, setDriveExportFolder] = useState<DriveFolderSelection | null>(null)
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
   const [chatInsertKey, setChatInsertKey] = useState<string | null>(null)
@@ -266,6 +299,19 @@ export default function InkwiseDocumentPage() {
     setPredictionState(null)
   }
 
+  const trackPendingAutoNameThread = useCallback((threadId?: string | null) => {
+    if (!threadId) return
+    const startedAt = Date.now()
+    pendingAutoNameThreadsRef.current = {
+      ...pendingAutoNameThreadsRef.current,
+      [threadId]: startedAt,
+    }
+    setPendingAutoNameThreads((current) => ({
+      ...current,
+      [threadId]: startedAt,
+    }))
+  }, [])
+
   const onCitationSheetOpenChange = useCallback((open: boolean) => {
     citationSheetOpenRef.current = open
   }, [])
@@ -288,6 +334,29 @@ export default function InkwiseDocumentPage() {
       setSelectedThreadId(firstThread)
     }
   }, [threadsQuery.data, selectedThreadId])
+
+  useEffect(() => {
+    const entries = Object.entries(pendingAutoNameThreads)
+    if (!entries.length) return
+
+    const now = Date.now()
+    const nextEntries = entries.filter(([threadId, startedAt]) => {
+      if (now - startedAt >= INKWISE_THREAD_AUTO_NAME_POLL_TIMEOUT_MS) {
+        return false
+      }
+      const thread = threadsQuery.data?.threads.find((item) => item.id === threadId)
+      if (threadsQuery.data && !thread) {
+        return false
+      }
+      return !hasInkwiseThreadTitle(thread?.title)
+    })
+
+    if (nextEntries.length === entries.length) return
+
+    const nextPending = Object.fromEntries(nextEntries)
+    pendingAutoNameThreadsRef.current = nextPending
+    setPendingAutoNameThreads(nextPending)
+  }, [pendingAutoNameThreads, threadsQuery.data?.threads])
 
   useEffect(() => {
     const firstRevisionId = revisionsQuery.data?.items[0]?.id
@@ -509,11 +578,16 @@ export default function InkwiseDocumentPage() {
   const sendChat = useMutation({
     mutationFn: async () => {
       let threadId = selectedThreadId
+      let shouldWaitForAutoTitle = false
       let streamErrorMessage: string | null = null
       if (!threadId) {
         const created = await apiClient.createInkwiseChatThread({ document_id: documentId, title: null })
         threadId = created.id
         setSelectedThreadId(created.id)
+        shouldWaitForAutoTitle = !hasInkwiseThreadTitle(created.title)
+      } else {
+        const existingThread = threadsQuery.data?.threads.find((thread) => thread.id === threadId)
+        shouldWaitForAutoTitle = !hasInkwiseThreadTitle(existingThread?.title)
       }
 
       setStreamState({ text: '' })
@@ -555,13 +629,16 @@ export default function InkwiseDocumentPage() {
       if (streamErrorMessage) {
         throw new Error(streamErrorMessage)
       }
-      return threadId
+      return { threadId, shouldWaitForAutoTitle }
     },
-    onSuccess: async (threadId) => {
+    onSuccess: async ({ threadId, shouldWaitForAutoTitle }) => {
       setChatInput('')
       setStreamState(null)
       if (threadId) {
         await queryClient.invalidateQueries({ queryKey: ['inkwise', 'chat-messages', threadId] })
+        if (shouldWaitForAutoTitle) {
+          trackPendingAutoNameThread(threadId)
+        }
       }
       await queryClient.invalidateQueries({ queryKey: ['inkwise', 'chat-threads', documentId] })
     },
@@ -573,6 +650,8 @@ export default function InkwiseDocumentPage() {
   const retryChat = useMutation({
     mutationFn: async ({ messageId, freshRetrieval }: { messageId: string; freshRetrieval: boolean }) => {
       if (!selectedThreadId) throw new Error('No chat thread selected')
+      const existingThread = threadsQuery.data?.threads.find((thread) => thread.id === selectedThreadId)
+      const shouldWaitForAutoTitle = !hasInkwiseThreadTitle(existingThread?.title)
       let streamErrorMessage: string | null = null
 
       setStreamState({ text: '' })
@@ -610,13 +689,17 @@ export default function InkwiseDocumentPage() {
       if (streamErrorMessage) {
         throw new Error(streamErrorMessage)
       }
-      return selectedThreadId
+      return { threadId: selectedThreadId, shouldWaitForAutoTitle }
     },
-    onSuccess: async (threadId) => {
+    onSuccess: async ({ threadId, shouldWaitForAutoTitle }) => {
       setStreamState(null)
       if (threadId) {
         await queryClient.invalidateQueries({ queryKey: ['inkwise', 'chat-messages', threadId] })
+        if (shouldWaitForAutoTitle) {
+          trackPendingAutoNameThread(threadId)
+        }
       }
+      await queryClient.invalidateQueries({ queryKey: ['inkwise', 'chat-threads', documentId] })
     },
     onError: (error: Error) => {
       toast({ title: 'Retry failed', description: error.message, variant: 'destructive' })
