@@ -509,6 +509,7 @@ export default function InkwiseDocumentPage() {
   const sendChat = useMutation({
     mutationFn: async () => {
       let threadId = selectedThreadId
+      let streamErrorMessage: string | null = null
       if (!threadId) {
         const created = await apiClient.createInkwiseChatThread({ document_id: documentId, title: null })
         threadId = created.id
@@ -528,6 +529,9 @@ export default function InkwiseDocumentPage() {
           if (event.event === 'token') {
             setStreamState((current) => ({ ...(current ?? { text: '' }), text: `${current?.text ?? ''}${event.data?.text ?? ''}` }))
           }
+          if (event.event === 'meta' && event.data?.error) {
+            streamErrorMessage = event.data?.message || 'Chat request failed'
+          }
           if (chatDebugEnabled && event.event === 'debug' && event.data?.stage && event.data?.label) {
             setStreamState((current) => ({
               ...(current ?? { text: '' }),
@@ -548,6 +552,9 @@ export default function InkwiseDocumentPage() {
           }
         }
       )
+      if (streamErrorMessage) {
+        throw new Error(streamErrorMessage)
+      }
       return threadId
     },
     onSuccess: async (threadId) => {
@@ -566,6 +573,7 @@ export default function InkwiseDocumentPage() {
   const retryChat = useMutation({
     mutationFn: async ({ messageId, freshRetrieval }: { messageId: string; freshRetrieval: boolean }) => {
       if (!selectedThreadId) throw new Error('No chat thread selected')
+      let streamErrorMessage: string | null = null
 
       setStreamState({ text: '' })
       await apiClient.streamInkwiseRetryChatMessage(
@@ -575,6 +583,9 @@ export default function InkwiseDocumentPage() {
         (event: InkwiseSseEvent) => {
           if (event.event === 'token') {
             setStreamState((current) => ({ ...(current ?? { text: '' }), text: `${current?.text ?? ''}${event.data?.text ?? ''}` }))
+          }
+          if (event.event === 'meta' && event.data?.error) {
+            streamErrorMessage = event.data?.message || 'Retry failed'
           }
           if (chatDebugEnabled && event.event === 'debug' && event.data?.stage && event.data?.label) {
             setStreamState((current) => ({
@@ -596,6 +607,9 @@ export default function InkwiseDocumentPage() {
           }
         }
       )
+      if (streamErrorMessage) {
+        throw new Error(streamErrorMessage)
+      }
       return selectedThreadId
     },
     onSuccess: async (threadId) => {

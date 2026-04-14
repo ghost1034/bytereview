@@ -47,6 +47,11 @@ document_source_service = InkwiseDocumentSourceService()
 retrieval_service = InkwiseRetrievalService()
 generation_attempt_service = InkwiseGenerationAttemptService()
 _STREAM_SSE_CHARS = 48
+_STREAM_HEADERS = {
+    "Cache-Control": "no-cache, no-transform",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+}
 
 
 def _sse(event: str, data: object) -> bytes:
@@ -482,10 +487,7 @@ async def stream_writing_tool_output(
     return StreamingResponse(
         gen(),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
+        headers=_STREAM_HEADERS,
     )
 
 
@@ -587,8 +589,5 @@ async def retry_writing_tool_output(
     return StreamingResponse(
         gen(),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
+        headers=_STREAM_HEADERS,
     )

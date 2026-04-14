@@ -61,6 +61,11 @@ generation_attempt_service = InkwiseGenerationAttemptService()
 user_support = InkwiseSourceService()
 _STREAM_SSE_CHARS = 48
 logger = logging.getLogger(__name__)
+_STREAM_HEADERS = {
+    "Cache-Control": "no-cache, no-transform",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+}
 
 
 def _now_iso() -> str:
@@ -1121,10 +1126,7 @@ async def stream_thread_message(
     return StreamingResponse(
         gen(),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
+        headers=_STREAM_HEADERS,
     )
 
 
@@ -1363,8 +1365,5 @@ async def retry_thread_message(
     return StreamingResponse(
         gen(),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
+        headers=_STREAM_HEADERS,
     )

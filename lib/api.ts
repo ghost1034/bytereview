@@ -1044,6 +1044,49 @@ export class ApiClient {
     return this.streamSse(`/api/inkwise/writing-tools/${attemptId}:retry`, data, onEvent, opts)
   }
 
+  private getStreamingBaseURL(): string {
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      return process.env.NEXT_PUBLIC_API_URL
+    }
+
+    if (this.baseURL) {
+      return this.baseURL
+    }
+
+    if (typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+      return 'http://localhost:8000'
+    }
+
+    return ''
+  }
+
+  private emitSseEvent(rawEvent: string, onEvent: (evt: InkwiseSseEvent) => void): void {
+    if (!rawEvent.trim()) return
+
+    let event = 'message'
+    const dataLines: string[] = []
+    for (const line of rawEvent.split('\n')) {
+      if (!line || line.startsWith(':')) continue
+      if (line.startsWith('event:')) {
+        event = line.slice(6).trim()
+        continue
+      }
+      if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).trimStart())
+      }
+    }
+
+    const dataStr = dataLines.join('\n')
+    let parsed: any = dataStr
+    try {
+      parsed = JSON.parse(dataStr)
+    } catch {
+      // keep string
+    }
+
+    onEvent({ event, data: parsed })
+  }
+
   private async streamSse(
     path: string,
     body: unknown,
@@ -1051,10 +1094,11 @@ export class ApiClient {
     opts?: { signal?: AbortSignal }
   ): Promise<void> {
     const token = await this.getAuthToken()
-    const response = await fetch(`${this.baseURL}${path}`, {
+    const response = await fetch(`${this.getStreamingBaseURL()}${path}`, {
       method: 'POST',
       signal: opts?.signal,
       headers: {
+        Accept: 'text/event-stream',
         'Content-Type': 'application/json',
         ...(token && { Authorization: `Bearer ${token}` }),
       },
@@ -1082,28 +1126,21 @@ export class ApiClient {
       const { value, done } = await reader.read()
       if (done) break
       buffer += decoder.decode(value, { stream: true })
+      buffer = buffer.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
 
       while (true) {
         const idx = buffer.indexOf('\n\n')
         if (idx === -1) break
         const raw = buffer.slice(0, idx)
         buffer = buffer.slice(idx + 2)
-
-        let event = 'message'
-        let dataStr = ''
-        for (const line of raw.split('\n')) {
-          if (line.startsWith('event:')) event = line.slice(6).trim()
-          if (line.startsWith('data:')) dataStr += line.slice(5).trim()
-        }
-
-        let parsed: any = dataStr
-        try {
-          parsed = JSON.parse(dataStr)
-        } catch {
-          // keep string
-        }
-        onEvent({ event, data: parsed })
+        this.emitSseEvent(raw, onEvent)
       }
+    }
+
+    buffer += decoder.decode()
+    buffer = buffer.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    if (buffer.trim()) {
+      this.emitSseEvent(buffer, onEvent)
     }
   }
 

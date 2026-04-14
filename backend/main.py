@@ -93,6 +93,22 @@ async def on_startup():
         LOG_LEVEL,
         INIT_DB_AT_STARTUP,
     )
+    try:
+        from inkwise.settings import get_inkwise_settings
+
+        inkwise_settings = get_inkwise_settings()
+        logger.info(
+            "Inkwise retrieval config: query_rewrite=%s lexical_fusion=%s vector_rerank=%s vector_top_k=%s lexical_top_k=%s rerank_top_k=%s rerank_model=%s",
+            inkwise_settings.query_rewrite_enabled,
+            inkwise_settings.use_lexical_fusion,
+            inkwise_settings.use_vector_rerank,
+            inkwise_settings.vector_search_top_k,
+            inkwise_settings.lexical_search_top_k,
+            inkwise_settings.rerank_top_k,
+            inkwise_settings.vector_rerank_model,
+        )
+    except Exception:
+        logger.exception("Failed to log Inkwise retrieval settings")
     if INIT_DB_AT_STARTUP:
         try:
             logger.info("Initializing database (INIT_DB_AT_STARTUP=true)...")
