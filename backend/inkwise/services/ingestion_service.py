@@ -348,6 +348,16 @@ class InkwiseIngestionService:
                     segment.asset_object = source.storage_object
                     segment.preview_bucket = source.storage_bucket
                     segment.preview_object = source.storage_object
+                elif normalized.canonical_mime_type == "application/pdf" and draft.page_start is not None and draft.page_end is not None:
+                    preview_object = self._upload_pdf_window_asset(
+                        source=source,
+                        ingestion=ingestion,
+                        draft=draft,
+                        canonical_pdf_path=normalized.canonical_local_path,
+                        bucket=derived_bucket,
+                    )
+                    segment.preview_bucket = derived_bucket
+                    segment.preview_object = preview_object
                 elif ingestion.canonical_pdf_gcs_bucket and ingestion.canonical_pdf_gcs_object:
                     segment.preview_bucket = ingestion.canonical_pdf_gcs_bucket
                     segment.preview_object = ingestion.canonical_pdf_gcs_object
@@ -382,6 +392,8 @@ class InkwiseIngestionService:
                     "time_end_ms": draft.time_end_ms,
                     "asset_bucket": segment.asset_bucket,
                     "asset_object": segment.asset_object,
+                    "preview_bucket": segment.preview_bucket,
+                    "preview_object": segment.preview_object,
                 }
             )
 

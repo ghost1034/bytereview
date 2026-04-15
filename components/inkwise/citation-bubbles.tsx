@@ -42,6 +42,7 @@ export function InkwiseCitationBubbles({
 
   const selected = items[selectedIndex] ?? null
   const previewKind = getPreviewKind(selected, source)
+  const resolvedPreviewUrl = buildCitationPreviewUrl(previewUrl, selected, source)
 
   useEffect(() => {
     if (!open || !selected?.source_id) return
@@ -187,8 +188,8 @@ export function InkwiseCitationBubbles({
                         <div className="mt-1 text-sm text-slate-700">{source?.original_filename || source?.source_url || selected.source_title || 'Reference'}</div>
                       </div>
                       <div className="flex gap-2">
-                        {previewUrl ? (
-                          <Button size="sm" variant="outline" onClick={() => window.open(previewUrl, '_blank', 'noopener,noreferrer')}>
+                        {resolvedPreviewUrl ? (
+                          <Button size="sm" variant="outline" onClick={() => window.open(resolvedPreviewUrl, '_blank', 'noopener,noreferrer')}>
                             <ExternalLink className="mr-2 h-4 w-4" />
                             Open snapshot
                           </Button>
@@ -207,27 +208,27 @@ export function InkwiseCitationBubbles({
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Loading preview...
                       </div>
-                    ) : previewUrl ? (
+                    ) : resolvedPreviewUrl ? (
                       previewKind === 'image' ? (
                         <img
                           alt={selected.source_title || 'Evidence preview'}
-                          src={previewUrl}
+                          src={resolvedPreviewUrl}
                           className="max-h-[28rem] w-full rounded-xl border bg-white object-contain"
                         />
                       ) : previewKind === 'audio' ? (
                         <div className="rounded-xl border bg-white p-6">
-                          <audio src={previewUrl} controls className="w-full" />
+                          <audio src={resolvedPreviewUrl} controls className="w-full" />
                         </div>
                       ) : previewKind === 'video' ? (
                         <video
-                          src={previewUrl}
+                          src={resolvedPreviewUrl}
                           controls
                           className="max-h-[28rem] w-full rounded-xl border bg-black"
                         />
                       ) : previewKind === 'pdf' ? (
                         <iframe
                           title={`Evidence preview ${selected.evidence_id || selectedIndex + 1}`}
-                          src={previewUrl}
+                          src={resolvedPreviewUrl}
                           className="h-[28rem] w-full rounded-xl border bg-white"
                         />
                       ) : (
@@ -312,6 +313,7 @@ function getPreviewKind(citation: InkwiseCitation | null, source: InkwiseSource 
   if (previewObject.endsWith('.mp4') || previewObject.endsWith('.mpeg') || previewObject.endsWith('.mpg')) return 'video'
 
   const locatorKind = citation?.locator_json?.kind
+  if (locatorKind === 'page_range') return 'pdf'
   if (locatorKind === 'image_asset') return 'image'
   if (locatorKind === 'audio_asset') return 'audio'
   if (locatorKind === 'video_asset') return 'video'
@@ -321,6 +323,45 @@ function getPreviewKind(citation: InkwiseCitation | null, source: InkwiseSource 
     if (sourceKind === 'video') return 'video'
   }
   return 'other'
+}
+
+function buildCitationPreviewUrl(url: string | null, citation: InkwiseCitation | null, source: InkwiseSource | null): string | null {
+  const normalizedUrl = (url || '').trim()
+  if (!normalizedUrl) return null
+  if (!shouldUseCanonicalPdfPageFragment(citation, source)) return normalizedUrl
+  const pageNumber = pageNumberForPreview(citation)
+  if (!pageNumber) return normalizedUrl
+  const [baseUrl, existingHash = ''] = normalizedUrl.split('#', 2)
+  const hashParts = existingHash
+    .split('&')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part) => !part.startsWith('page='))
+  hashParts.unshift(`page=${pageNumber}`)
+  return `${baseUrl}#${hashParts.join('&')}`
+}
+
+function shouldUseCanonicalPdfPageFragment(citation: InkwiseCitation | null, source: InkwiseSource | null): boolean {
+  if (!citation) return false
+  const previewKind = getPreviewKind(citation, source)
+  if (previewKind !== 'pdf') return false
+  const previewObject = String(citation.preview_object || '').toLowerCase()
+  if (!previewObject) return true
+  return !previewObject.includes('/segments/')
+}
+
+function pageNumberForPreview(citation: InkwiseCitation | null): number | null {
+  if (!citation) return null
+  const locator = citation.locator_json || {}
+  const pageStart = integerOrNull(locator.page_start)
+  if (pageStart) return pageStart
+  const pageNumber = integerOrNull(citation.page_number)
+  if (pageNumber) return pageNumber
+  return integerOrNull(locator.page_end)
+}
+
+function integerOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.trunc(value) : null
 }
 
 function formatTimeRangeLocator(locator: Record<string, any>): string | null {

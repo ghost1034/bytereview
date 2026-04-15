@@ -12,8 +12,9 @@ from inkwise.services.ingestion_service import InkwiseIngestionService
 from inkwise.services.multimodal_evidence import build_multimodal_contents
 from inkwise.services.pdf_extract import ExtractedPage
 from inkwise.services.retrieval_types import EvidenceItem
-from inkwise.services.segmentation_service import InkwiseSegmentationService
+from inkwise.services.segmentation_service import InkwiseSegmentationService, SegmentDraft, SegmentationResult
 from inkwise.services.source_normalizer import NormalizedSource, NormalizedTextBlock, InkwiseSourceNormalizer
+from models.inkwise_models import InkwiseSourceSegment
 
 
 class _DeleteQuery:
@@ -33,6 +34,46 @@ class _FakeDb:
 
     def add(self, obj: object) -> None:
         self.added.append(obj)
+
+    def flush(self) -> None:
+        for obj in self.added:
+            if getattr(obj, "id", None) is None:
+                setattr(obj, "id", uuid.uuid4())
+
+
+class _FakeBlob:
+    def __init__(self, uploads: list[dict[str, object]], *, bucket: str, object_name: str) -> None:
+        self.uploads = uploads
+        self.bucket = bucket
+        self.object_name = object_name
+
+    def upload_from_string(self, payload: str, content_type: str | None = None) -> None:
+        self.uploads.append(
+            {
+                "bucket": self.bucket,
+                "object_name": self.object_name,
+                "payload": payload,
+                "content_type": content_type,
+                "kind": "string",
+            }
+        )
+
+
+class _FakeBucket:
+    def __init__(self, uploads: list[dict[str, object]], *, bucket: str) -> None:
+        self.uploads = uploads
+        self.bucket = bucket
+
+    def blob(self, object_name: str) -> _FakeBlob:
+        return _FakeBlob(self.uploads, bucket=self.bucket, object_name=object_name)
+
+
+class _FakeStorageClient:
+    def __init__(self, uploads: list[dict[str, object]]) -> None:
+        self.uploads = uploads
+
+    def bucket(self, bucket_name: str) -> _FakeBucket:
+        return _FakeBucket(self.uploads, bucket=bucket_name)
 
 
 class InkwiseDocumentOCRTests(unittest.TestCase):
@@ -172,6 +213,83 @@ class InkwiseDocumentOCRTests(unittest.TestCase):
         self.assertFalse(db.added[0].is_ocr)
         self.assertEqual(db.added[1].page_number, 2)
         self.assertTrue(db.added[1].is_ocr)
+
+    def test_document_text_chunks_get_preview_only_pdf_windows(self) -> None:
+        service = InkwiseIngestionService()
+        db = _FakeDb()
+        uploads: list[dict[str, object]] = []
+        source = SimpleNamespace(
+            id=uuid.uuid4(),
+            user_id="user-123",
+            storage_bucket="uploads-bucket",
+            storage_object="inkwise/uploads/user-123/source/original/lease.pdf",
+        )
+        ingestion = SimpleNamespace(
+            id=uuid.uuid4(),
+            canonical_pdf_gcs_bucket="derived-bucket",
+            canonical_pdf_gcs_object="inkwise/derived/user-123/source/canonical/latest/canonical.pdf",
+            segment_count=None,
+            preview_manifest_bucket=None,
+            preview_manifest_object=None,
+        )
+        normalized = SimpleNamespace(
+            canonical_mime_type="application/pdf",
+            canonical_local_path="/tmp/canonical.pdf",
+            text_blocks=[],
+        )
+        segmentation = SegmentationResult(
+            segments=[
+                SegmentDraft(
+                    segment_type="text_chunk",
+                    modality="text",
+                    order_index=0,
+                    title="Lease pp.3-4",
+                    text_content="Lease text",
+                    char_count=10,
+                    token_count=3,
+                    page_start=3,
+                    page_end=4,
+                    locator_json={"kind": "page_range", "page_start": 3, "page_end": 4},
+                    meta_json={"segment_family": "text_chunk"},
+                    asset_local_path="/tmp/canonical.pdf",
+                    asset_mime_type="application/pdf",
+                )
+            ],
+            stats={"segment_count": 1},
+        )
+
+        with (
+            patch("inkwise.services.ingestion_service.get_inkwise_settings", return_value=SimpleNamespace(embedding_dimension=1536, embedding_model="gemini", embedding_document_task_type="RETRIEVAL_DOCUMENT")),
+            patch.object(service.segmentation_service, "build_segments", return_value=segmentation),
+            patch.object(service, "_persist_source_pages") as persist_pages,
+            patch.object(service, "_upload_pdf_window_asset", return_value="inkwise/derived/user-123/source/segments/ingestion/text_chunk/text_chunk_0000_p3-4.pdf") as upload_preview,
+            patch.object(service.embedding_service, "embed_document_text_sync", return_value=SimpleNamespace(values=[0.1, 0.2])),
+            patch.object(service.embedding_service, "embed_file_gcs_sync") as embed_file,
+            patch("inkwise.services.ingestion_service.storage_client", return_value=_FakeStorageClient(uploads)),
+        ):
+            embedded_media_tokens = service._persist_vector_artifacts(
+                db,
+                source=source,
+                ingestion=ingestion,
+                normalized=normalized,
+                derived_bucket="derived-bucket",
+                media_chunks=None,
+            )
+
+        persist_pages.assert_called_once_with(db, source=source, normalized=normalized)
+        upload_preview.assert_called_once()
+        embed_file.assert_not_called()
+        self.assertEqual(embedded_media_tokens, 0)
+        segment = next(obj for obj in db.added if isinstance(obj, InkwiseSourceSegment))
+        self.assertIsNone(segment.asset_bucket)
+        self.assertIsNone(segment.asset_object)
+        self.assertEqual(segment.preview_bucket, "derived-bucket")
+        self.assertEqual(segment.preview_object, "inkwise/derived/user-123/source/segments/ingestion/text_chunk/text_chunk_0000_p3-4.pdf")
+        self.assertEqual(ingestion.segment_count, 1)
+        self.assertEqual(ingestion.preview_manifest_bucket, "derived-bucket")
+        self.assertTrue(str(ingestion.preview_manifest_object).endswith("/manifest.json"))
+        self.assertEqual(len(uploads), 1)
+        self.assertIn('"preview_object": "inkwise/derived/user-123/source/segments/ingestion/text_chunk/text_chunk_0000_p3-4.pdf"', str(uploads[0]["payload"]))
 
 
 if __name__ == "__main__":

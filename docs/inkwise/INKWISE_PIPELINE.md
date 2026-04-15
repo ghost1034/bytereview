@@ -143,7 +143,7 @@ Ingestion persists a canonical/derived asset set in GCS:
 - original uploads stay under `inkwise/uploads/...`
 - derived segment assets and manifests are stored under `inkwise/derived/{user_id}/{source_id}/...`
 
-For PDF and DOCX sources, ingestion now persists page text in `inkwise_source_pages` and keeps a canonical PDF preview asset instead of writing per-segment page-window PDFs.
+For PDF and DOCX sources, ingestion now persists page text in `inkwise_source_pages`, keeps a canonical PDF preview asset, and also writes preview-only per-segment page-window PDFs for document evidence viewing.
 
 ## 3. Segmentation
 
@@ -212,6 +212,8 @@ The service uses separate task types from settings:
 - user retrieval queries are embedded from query text
 
 For PDF and DOCX sources, document retrieval is now text-only: OCR/extracted text is chunked and embedded, and the runtime no longer generates PDF file embeddings for those sources.
+
+Preview nuance: Inkwise still creates derived PDF window files for document `text_chunk` segments, but those assets are used only for evidence preview in the UI, not for embeddings or Gemini answer generation.
 
 ### Persistence
 
@@ -452,7 +454,7 @@ The evidence viewer in `components/inkwise/citation-bubbles.tsx`:
 - displays the excerpt and locator information
 - renders the preview in an iframe when available
 
-For PDF-backed evidence, this now usually points to the canonical source PDF or OCR-enhanced canonical PDF stored in GCS.
+For PDF-backed evidence, Inkwise prefers a derived preview-only page-window PDF so the citation viewer opens directly to the relevant section. Older ingestions or fallback cases may still use the canonical source PDF, in which case the frontend applies a page fragment to jump to the cited page.
 
 ## 10. Persistence Model
 
