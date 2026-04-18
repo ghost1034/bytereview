@@ -80,8 +80,8 @@ async def stripe_webhook(
             session = event['data']['object']
             billing_service.handle_checkout_completed(session)
             
-        elif event['type'] == 'customer.subscription.updated':
-            logger.info(f"Processing customer.subscription.updated: {event['data']['object']['id']}")
+        elif event['type'] in {'customer.subscription.created', 'customer.subscription.updated'}:
+            logger.info(f"Processing {event['type']}: {event['data']['object']['id']}")
             subscription = event['data']['object']
             billing_service.handle_subscription_updated(subscription)
             

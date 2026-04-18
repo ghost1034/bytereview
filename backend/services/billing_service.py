@@ -124,6 +124,25 @@ def _extract_period_from_subscription(sub: Any) -> Tuple[Optional[int], Optional
     return None, None
 
 
+def _extract_price_ids_from_subscription(sub: Any) -> List[str]:
+    """Extract all price ids attached to a subscription's items."""
+    items = getattr(sub, "items", None)
+    data = getattr(items, "data", None) if items is not None else None
+    if not data and isinstance(sub, dict):
+        data = ((sub.get("items") or {}).get("data")) or None
+
+    price_ids: List[str] = []
+    for item in data or []:
+        price = getattr(item, "price", None) if not isinstance(item, dict) else item.get("price")
+        if not price:
+            continue
+        price_id = getattr(price, "id", None) if not isinstance(price, dict) else price.get("id")
+        if price_id:
+            price_ids.append(str(price_id))
+
+    return price_ids
+
+
 # ---------------------------------------------------------------------
 # Service
 # ---------------------------------------------------------------------
@@ -131,6 +150,32 @@ def _extract_period_from_subscription(sub: Any) -> Tuple[Optional[int], Optional
 class BillingService:
     def __init__(self, db: Session):
         self.db = db
+
+    def _resolve_plan_code_from_subscription(self, sub: Any) -> Optional[str]:
+        """Map a Stripe subscription's item prices back to a local plan code."""
+        price_ids = set(_extract_price_ids_from_subscription(sub))
+        if not price_ids:
+            return None
+
+        plans = (
+            self.db.query(SubscriptionPlan)
+            .filter(SubscriptionPlan.is_active.is_(True))
+            .all()
+        )
+
+        best_plan_code: Optional[str] = None
+        best_score = 0
+        for plan in plans:
+            score = 0
+            if plan.stripe_price_recurring_id and plan.stripe_price_recurring_id in price_ids:
+                score += 2
+            if plan.stripe_price_metered_id and plan.stripe_price_metered_id in price_ids:
+                score += 1
+            if score > best_score:
+                best_plan_code = plan.code
+                best_score = score
+
+        return best_plan_code
 
     # ------------------------ Accounts & Plans ------------------------
 
@@ -439,6 +484,9 @@ class BillingService:
             logger.error(f"Subscription {getattr(sub, 'id', None)} missing period fields; payload={sub}")
             return
 
+        customer_id = session.get("customer")
+        if customer_id:
+            acct.stripe_customer_id = str(customer_id)
         acct.plan_code = plan_code
         acct.stripe_subscription_id = getattr(sub, "id", sub_id)
         acct.current_period_start = datetime.fromtimestamp(start_ts, tz=timezone.utc)
@@ -462,9 +510,11 @@ class BillingService:
         if not sub_id:
             return
 
+        customer_id = subscription_obj.get("customer")
         acct = self.db.query(BillingAccount).filter(BillingAccount.stripe_subscription_id == sub_id).first()
+        if not acct and customer_id:
+            acct = self.db.query(BillingAccount).filter(BillingAccount.stripe_customer_id == customer_id).first()
         if not acct:
-            # Could happen if created outside Checkout; ignore gracefully.
             logger.info(f"No BillingAccount for subscription {sub_id}; ignoring update.")
             return
 
@@ -491,7 +541,19 @@ class BillingService:
                     )
                 )
 
+        plan_code = self._resolve_plan_code_from_subscription(sub)
+        if plan_code:
+            acct.plan_code = plan_code
+        else:
+            logger.warning(f"Could not map Stripe subscription {sub_id} prices to a local plan code")
+
+        acct.stripe_subscription_id = sub_id
+        if customer_id:
+            acct.stripe_customer_id = str(customer_id)
+
         status = getattr(sub, "status", None)
+        if not status and isinstance(sub, dict):
+            status = sub.get("status")
         if not status and isinstance(subscription_obj, dict):
             status = subscription_obj.get("status")
         if status:
