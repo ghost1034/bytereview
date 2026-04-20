@@ -99,8 +99,12 @@ async def stripe_webhook(
         
         return {"status": "success"}
         
-    except Exception as e:
-        logger.error(f"Error processing Stripe webhook: {e}")
+    except Exception:
+        logger.exception(
+            "Error processing Stripe webhook event %s (%s)",
+            event.get("type"),
+            event.get("id"),
+        )
         raise HTTPException(status_code=500, detail="Error processing webhook")
 
 @router.post("/gmail-push")

@@ -63,6 +63,36 @@ def _coerce_uuid(value: Any) -> Optional[uuid.UUID]:
     return uuid.UUID(str(value))
 
 
+def _get_object_value(obj: Any, key: str, default: Any = None) -> Any:
+    """Read a field from dict-like or attribute-based webhook payload objects."""
+    if obj is None:
+        return default
+
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+
+    getter = getattr(obj, "get", None)
+    if callable(getter):
+        try:
+            return getter(key, default)
+        except TypeError:
+            try:
+                return getter(key)
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+    value = getattr(obj, key, None)
+    if value is not None:
+        return value
+
+    try:
+        return obj[key]
+    except Exception:
+        return default
+
+
 def _extract_period_from_subscription(sub: Any) -> Tuple[Optional[int], Optional[int]]:
     """
     Extract (current_period_start, current_period_end) from a Subscription object/dict.
@@ -461,17 +491,18 @@ class BillingService:
 
     # ------------------------ Webhook handlers ------------------------
 
-    def handle_checkout_completed(self, session: Dict[str, Any]) -> None:
+    def handle_checkout_completed(self, session: Any) -> None:
         """Handle `checkout.session.completed` (creates/activates subscription)."""
-        user_id = session.get("metadata", {}).get("user_id")
-        plan_code = session.get("metadata", {}).get("plan_code")
+        metadata = _get_object_value(session, "metadata", {})
+        user_id = _get_object_value(metadata, "user_id")
+        plan_code = _get_object_value(metadata, "plan_code")
         if not user_id or not plan_code:
             logger.error("checkout.session.completed missing user_id or plan_code in metadata")
             return
 
         acct = self.get_or_create_billing_account(user_id)
 
-        sub_id = session.get("subscription")
+        sub_id = _get_object_value(session, "subscription")
         if not sub_id:
             logger.warning("checkout.session.completed without subscription id; ignoring.")
             return
@@ -481,17 +512,17 @@ class BillingService:
 
         start_ts, end_ts = _extract_period_from_subscription(sub)
         if start_ts is None or end_ts is None:
-            logger.error(f"Subscription {getattr(sub, 'id', None)} missing period fields; payload={sub}")
+            logger.error(f"Subscription {_get_object_value(sub, 'id')} missing period fields; payload={sub}")
             return
 
-        customer_id = session.get("customer")
+        customer_id = _get_object_value(session, "customer")
         if customer_id:
             acct.stripe_customer_id = str(customer_id)
         acct.plan_code = plan_code
-        acct.stripe_subscription_id = getattr(sub, "id", sub_id)
+        acct.stripe_subscription_id = str(_get_object_value(sub, "id", sub_id) or sub_id)
         acct.current_period_start = datetime.fromtimestamp(start_ts, tz=timezone.utc)
         acct.current_period_end = datetime.fromtimestamp(end_ts, tz=timezone.utc)
-        acct.status = getattr(sub, "status", None) or "active"
+        acct.status = _get_object_value(sub, "status") or "active"
 
         # Ensure counter exists for the new period
         self.db.merge(
@@ -504,13 +535,13 @@ class BillingService:
         )
         self.db.commit()
 
-    def handle_subscription_updated(self, subscription_obj: Dict[str, Any]) -> None:
+    def handle_subscription_updated(self, subscription_obj: Any) -> None:
         """Handle `customer.subscription.updated` / `.created`."""
-        sub_id = subscription_obj.get("id")
+        sub_id = _get_object_value(subscription_obj, "id")
         if not sub_id:
             return
 
-        customer_id = subscription_obj.get("customer")
+        customer_id = _get_object_value(subscription_obj, "customer")
         acct = self.db.query(BillingAccount).filter(BillingAccount.stripe_subscription_id == sub_id).first()
         if not acct and customer_id:
             acct = self.db.query(BillingAccount).filter(BillingAccount.stripe_customer_id == customer_id).first()
@@ -551,19 +582,15 @@ class BillingService:
         if customer_id:
             acct.stripe_customer_id = str(customer_id)
 
-        status = getattr(sub, "status", None)
-        if not status and isinstance(sub, dict):
-            status = sub.get("status")
-        if not status and isinstance(subscription_obj, dict):
-            status = subscription_obj.get("status")
+        status = _get_object_value(sub, "status") or _get_object_value(subscription_obj, "status")
         if status:
             acct.status = status
 
         self.db.commit()
 
-    def handle_subscription_deleted(self, subscription_obj: Dict[str, Any]) -> None:
+    def handle_subscription_deleted(self, subscription_obj: Any) -> None:
         """Handle `customer.subscription.deleted`: downgrade to Free and set calendar period."""
-        sub_id = subscription_obj.get("id")
+        sub_id = _get_object_value(subscription_obj, "id")
         if not sub_id:
             return
 
