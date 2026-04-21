@@ -15,7 +15,8 @@ import {
   Zap,
   GraduationCap,
   Clock,
-  Bot
+  Bot,
+  Files
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -49,6 +50,7 @@ export function Sidebar({ className }: SidebarProps) {
     items: [
       { name: 'Dashboard', href: '/dashboard', icon: Home },
       { name: 'Jobs', href: '/dashboard/jobs', icon: Briefcase },
+      { name: 'Form Fill', href: '/dashboard/form-fill', icon: Files },
       { name: 'Templates', href: '/dashboard/templates', icon: FileText },
       { name: 'Integrations', href: '/dashboard/integrations', icon: Plug },
       { name: 'Automations', href: '/dashboard/automations', icon: Zap },

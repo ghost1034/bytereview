@@ -70,6 +70,21 @@ class CloudRunTaskService:
             dispatch_deadline_seconds=self.extract_dispatch_deadline_seconds,
         )
 
+    async def enqueue_form_fill_task(self, run_id: str, delay_seconds: int = 0) -> str:
+        """Enqueue a Form Fill run for background processing."""
+        task_data = {
+            "task_type": "process_form_fill_run",
+            "run_id": str(run_id) if run_id is not None else None,
+        }
+
+        return await self._create_cloud_task(
+            queue_name=self.queue_names["extract"],
+            service_url=f"{self.task_services['extract']}/execute",
+            task_data=task_data,
+            delay_seconds=delay_seconds,
+            dispatch_deadline_seconds=self.extract_dispatch_deadline_seconds,
+        )
+
     async def enqueue_zip_unpack_task(
         self, 
         source_file_id: str, 

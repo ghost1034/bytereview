@@ -5,6 +5,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, memo, useRef } from "react";
+import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -320,6 +321,7 @@ interface ResultsStepProps {
 }
 
 export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepProps) {
+  const router = useRouter()
   const { toast } = useToast();
   const { user } = useAuth();
   const { data: jobDetails } = useJobDetails(jobId, runId);
@@ -1079,6 +1081,22 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
                   </div>
 
                   <div className="flex gap-2 flex-shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        if (!selectedFileId || !runId) return
+                        const params = new URLSearchParams({
+                          job_id: jobId,
+                          run_id: runId,
+                          task_id: selectedFileId,
+                        })
+                        router.push(`/dashboard/form-fill?${params.toString()}`)
+                      }}
+                      disabled={!selectedFileId || !runId}
+                    >
+                      Use in Form Fill
+                    </Button>
                     <Button
                       size="sm"
                       variant={resultsView === 'selected' ? 'default' : 'outline'}

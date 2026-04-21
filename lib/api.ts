@@ -676,6 +676,98 @@ export class ApiClient {
   }
 
   // ===================================================================
+  // Form Fill endpoints
+  // ===================================================================
+
+  async listFormFillTemplates(): Promise<FormFillTemplateListResponse> {
+    return this.request('/api/form-fill/templates')
+  }
+
+  async deleteFormFillTemplate(templateId: string): Promise<{ message: string }> {
+    return this.request(`/api/form-fill/templates/${templateId}`, {
+      method: 'DELETE'
+    })
+  }
+
+  async getFormFillExtractionSourcePreview(params: {
+    jobId: string
+    runId: string
+    taskId: string
+  }): Promise<FormFillExtractionSourcePreview> {
+    const searchParams = new URLSearchParams({
+      job_id: params.jobId,
+      run_id: params.runId,
+      task_id: params.taskId,
+    })
+    return this.request(`/api/form-fill/extraction-source-preview?${searchParams.toString()}`)
+  }
+
+  async createFormFillRun(params: CreateFormFillRunParams): Promise<FormFillRunCreateResponse> {
+    const token = await this.getAuthToken()
+    const formData = new FormData()
+
+    if (params.sourceFile) formData.append('source_file', params.sourceFile)
+    if (params.targetFile) formData.append('target_file', params.targetFile)
+    if (params.templateId) formData.append('template_id', params.templateId)
+    if (params.outputFormat) formData.append('output_format', params.outputFormat)
+    if (params.saveTemplateName) formData.append('save_template_name', params.saveTemplateName)
+    if (params.saveTemplateDescription) formData.append('save_template_description', params.saveTemplateDescription)
+    if (params.sourceJobId) formData.append('source_job_id', params.sourceJobId)
+    if (params.sourceRunId) formData.append('source_run_id', params.sourceRunId)
+    if (params.sourceTaskId) formData.append('source_task_id', params.sourceTaskId)
+
+    const response = await fetch(`${this.baseURL}/api/form-fill/runs`, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      let body: any = null
+      let message = `HTTP ${response.status}`
+      try {
+        body = await response.json()
+        message = body?.detail || body?.message || message
+      } catch {
+        try {
+          const text = await response.text()
+          if (text) message = text
+        } catch {
+          // ignore
+        }
+      }
+      throw new ApiError(response.status, message, body)
+    }
+
+    return response.json()
+  }
+
+  async getFormFillRun(runId: string): Promise<FormFillRun> {
+    return this.request(`/api/form-fill/runs/${runId}`)
+  }
+
+  async downloadFormFillRun(runId: string): Promise<{ blob: Blob; filename: string }> {
+    const token = await this.getAuthToken()
+    const response = await fetch(`${this.baseURL}/api/form-fill/runs/${runId}/download`, {
+      method: 'GET',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Form Fill download failed' }))
+      throw new Error(error.detail || error.message || 'Form Fill download failed')
+    }
+
+    const blob = await response.blob()
+    const filename = response.headers.get('Content-Disposition')?.match(/filename=(.+)/)?.[1] || 'filled-document'
+    return { blob, filename: filename.replace(/"/g, '') }
+  }
+
+  // ===================================================================
   // CPE Tracker endpoints
   // ===================================================================
 
@@ -1271,6 +1363,73 @@ export type FieldConfig = {
   name: string
   data_type: string
   prompt: string
+}
+
+export interface FormFillTemplate {
+  id: string
+  name: string
+  description?: string | null
+  original_filename: string
+  file_type: string
+  file_size_bytes: number
+  created_at: string
+  updated_at: string
+}
+
+export interface FormFillTemplateListResponse {
+  templates: FormFillTemplate[]
+}
+
+export interface FormFillExtractionSourcePreview {
+  job_id: string
+  run_id: string
+  task_id: string
+  source_files: string[]
+  columns: string[]
+  rows: any[][]
+}
+
+export interface FormFillRun {
+  id: string
+  status: string
+  source_mode: string
+  source_filename?: string | null
+  source_file_type?: string | null
+  source_payload?: Record<string, any> | null
+  source_job_id?: string | null
+  source_run_id?: string | null
+  source_task_id?: string | null
+  target_mode: string
+  target_template_id?: string | null
+  target_filename: string
+  target_file_type: string
+  output_format: string
+  processing_strategy?: string | null
+  warnings: string[]
+  fill_plan?: Record<string, any> | null
+  result_filename?: string | null
+  result_file_type?: string | null
+  error_message?: string | null
+  created_at: string
+  updated_at: string
+  completed_at?: string | null
+}
+
+export interface FormFillRunCreateResponse {
+  run: FormFillRun
+  message: string
+}
+
+export interface CreateFormFillRunParams {
+  sourceFile?: File
+  targetFile?: File
+  templateId?: string
+  outputFormat?: 'pdf' | 'docx'
+  saveTemplateName?: string
+  saveTemplateDescription?: string
+  sourceJobId?: string
+  sourceRunId?: string
+  sourceTaskId?: string
 }
 
 // CPE Tracker types

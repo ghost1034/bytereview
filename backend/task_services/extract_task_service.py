@@ -15,6 +15,7 @@ backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
 
 from workers.worker import process_extraction_task
+from services.form_fill_service import form_fill_service
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,16 @@ async def execute_task(request: Request):
             result = await process_extraction_task(ctx, task_id, automation_run_id)
             
             logger.info(f"Extraction task {task_id} completed: {result}")
+            return {"success": True, "result": result}
+
+        elif task_type == "process_form_fill_run":
+            run_id = task_data.get("run_id")
+            if not run_id:
+                raise HTTPException(status_code=400, detail="run_id is required")
+
+            logger.info(f"Executing Form Fill run: {run_id}")
+            result = await form_fill_service.process_run(run_id)
+            logger.info(f"Form Fill run {run_id} completed: {result}")
             return {"success": True, "result": result}
         
         else:

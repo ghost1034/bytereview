@@ -31,6 +31,8 @@ class User(Base):
     
     # Relationships
     templates = relationship("Template", back_populates="user", cascade="all, delete-orphan")
+    form_fill_templates = relationship("FormFillTemplate", back_populates="user", cascade="all, delete-orphan")
+    form_fill_runs = relationship("FormFillRun", back_populates="user", cascade="all, delete-orphan")
     extraction_jobs = relationship("ExtractionJob", back_populates="user", cascade="all, delete-orphan")
     integration_accounts = relationship("IntegrationAccount", back_populates="user", cascade="all, delete-orphan")
     automations = relationship("Automation", back_populates="user", cascade="all, delete-orphan")
@@ -84,6 +86,63 @@ class Template(Base):
     __table_args__ = (
         {"schema": None}  # Ensure unique constraint on (user_id, name)
     )
+
+
+class FormFillTemplate(Base):
+    """Reusable target document template for Form Fill."""
+    __tablename__ = "form_fill_templates"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+    original_filename = Column(Text, nullable=False)
+    file_type = Column(String(100), nullable=False)
+    gcs_object_name = Column(Text, unique=True, nullable=False)
+    file_size_bytes = Column(BigInteger, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User", back_populates="form_fill_templates")
+    runs = relationship("FormFillRun", back_populates="target_template")
+
+
+class FormFillRun(Base):
+    """Single Form Fill request and its generated output."""
+    __tablename__ = "form_fill_runs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String(50), nullable=False, default="pending")
+    source_mode = Column(String(50), nullable=False)
+    source_filename = Column(Text)
+    source_file_type = Column(String(100))
+    source_gcs_object_name = Column(Text)
+    source_file_size_bytes = Column(BigInteger)
+    source_payload = Column(MutableDict.as_mutable(JSONB), nullable=True)
+    source_job_id = Column(UUID(as_uuid=True), ForeignKey("extraction_jobs.id", ondelete="SET NULL"), nullable=True)
+    source_run_id = Column(UUID(as_uuid=True), ForeignKey("job_runs.id", ondelete="SET NULL"), nullable=True)
+    source_task_id = Column(UUID(as_uuid=True), ForeignKey("extraction_tasks.id", ondelete="SET NULL"), nullable=True)
+    target_mode = Column(String(50), nullable=False)
+    target_template_id = Column(UUID(as_uuid=True), ForeignKey("form_fill_templates.id", ondelete="SET NULL"), nullable=True)
+    target_filename = Column(Text, nullable=False)
+    target_file_type = Column(String(100), nullable=False)
+    target_gcs_object_name = Column(Text, nullable=False)
+    target_file_size_bytes = Column(BigInteger, nullable=False)
+    output_format = Column(String(20), nullable=False)
+    processing_strategy = Column(String(50))
+    warnings = Column(JSONB, nullable=True)
+    fill_plan = Column(MutableDict.as_mutable(JSONB), nullable=True)
+    result_gcs_object_name = Column(Text)
+    result_filename = Column(Text)
+    result_file_type = Column(String(100))
+    error_message = Column(Text)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    completed_at = Column(TIMESTAMP(timezone=True))
+
+    user = relationship("User", back_populates="form_fill_runs")
+    target_template = relationship("FormFillTemplate", back_populates="runs")
 
 class TemplateField(Base):
     """Specific fields defined within a user's template"""

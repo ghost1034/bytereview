@@ -129,7 +129,7 @@ async def on_shutdown():
 # ---------- Routers (import after app/init so import errors are logged nicely) ----------
 from routes import (
     users, jobs, stripe_routes, templates,
-    data_types, integrations, automations, webhooks, admin, billing, contact, cpe
+    data_types, integrations, automations, webhooks, admin, billing, contact, cpe, form_fill
 )
 from inkwise.router import router as inkwise_router
 
@@ -145,6 +145,7 @@ app.include_router(automations.router)
 app.include_router(webhooks.router)
 app.include_router(admin.router)
 app.include_router(contact.router)
+app.include_router(form_fill.router, prefix="/api/form-fill", tags=["form-fill"])
 app.include_router(inkwise_router, prefix="/api/inkwise")
 
 # ---------- Dev entrypoint (Cloud Run ignores this; CMD in Dockerfile is used) ----------
