@@ -36,6 +36,21 @@ function mimeToExtension(mimeType?: string | null) {
   return mimeType || 'Unknown'
 }
 
+function formatStrategy(strategy?: string | null) {
+  switch (strategy) {
+    case 'fillable_pdf':
+      return 'Fillable PDF'
+    case 'pdf_overlay':
+      return 'PDF Overlay'
+    case 'docx_placeholders':
+      return 'DOCX Placeholder Replacement'
+    case 'docx_edit_in_place':
+      return 'DOCX Edited In Place'
+    default:
+      return strategy || 'Unknown'
+  }
+}
+
 export default function FormFillPage() {
   const searchParams = useSearchParams()
   const { user } = useAuth()
@@ -374,7 +389,7 @@ export default function FormFillPage() {
             </div>
             {currentRun?.processing_strategy && (
               <div className="text-sm">
-                <span className="font-medium">Strategy:</span> {currentRun.processing_strategy}
+                <span className="font-medium">Strategy:</span> {formatStrategy(currentRun.processing_strategy)}
               </div>
             )}
             {currentRun?.warnings?.length ? (

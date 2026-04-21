@@ -22,7 +22,6 @@ from openpyxl import load_workbook
 from sqlalchemy.orm import Session
 
 from core.database import db_config
-from inkwise.services.exporter import render_docx, render_pdf
 from models.db_models import (
     ExtractionJob,
     ExtractionResult,
@@ -47,6 +46,7 @@ logger = logging.getLogger(__name__)
 
 PDF_MIME = "application/pdf"
 DOCX_PLACEHOLDER_RE = re.compile(r"(\{\{[^{}]+\}\}|\[\[[^\[\]]+\]\]|<<[^<>]+>>)")
+DOCX_BLOCK_TEXT_LIMIT = 30000
 SUPPORTED_SOURCE_MIME_TYPES = {
     "application/pdf",
     DOCX_MIME,
@@ -675,13 +675,365 @@ class FormFillService:
         with open(output_path, "wb") as handle:
             writer.write(handle)
 
-    def _content_for_regeneration(self, payload: dict[str, Any]) -> tuple[str, list[str]]:
-        title = str(payload.get("title") or "Filled Document").strip() or "Filled Document"
-        content = str(payload.get("content") or "").strip()
-        warnings = [str(item) for item in (payload.get("warnings") or []) if str(item).strip()]
-        if not content:
-            raise ValueError("Gemini did not return document content")
-        return title, warnings
+    def _pdf_overlay_schema(self) -> types.Schema:
+        return types.Schema(
+            type="OBJECT",
+            properties={
+                "items": types.Schema(
+                    type="ARRAY",
+                    items=types.Schema(
+                        type="OBJECT",
+                        properties={
+                            "page_number": types.Schema(type="INTEGER", nullable=True),
+                            "anchor_text": types.Schema(type="STRING", nullable=True),
+                            "anchor_before": types.Schema(type="STRING", nullable=True),
+                            "anchor_after": types.Schema(type="STRING", nullable=True),
+                            "overlay_text": types.Schema(type="STRING"),
+                            "placement_hint": types.Schema(type="STRING", nullable=True),
+                            "cover_anchor": types.Schema(type="BOOLEAN", nullable=True),
+                            "font_size": types.Schema(type="NUMBER", nullable=True),
+                        },
+                        required=["page_number", "overlay_text"],
+                    ),
+                ),
+                "warnings": types.Schema(type="ARRAY", items=types.Schema(type="STRING")),
+            },
+            required=["items", "warnings"],
+        )
+
+    def _docx_edit_schema(self) -> types.Schema:
+        return types.Schema(
+            type="OBJECT",
+            properties={
+                "operations": types.Schema(
+                    type="ARRAY",
+                    items=types.Schema(
+                        type="OBJECT",
+                        properties={
+                            "action": types.Schema(type="STRING"),
+                            "block_id": types.Schema(type="STRING"),
+                            "find_text": types.Schema(type="STRING", nullable=True),
+                            "text": types.Schema(type="STRING", nullable=True),
+                        },
+                        required=["action", "block_id"],
+                    ),
+                ),
+                "warnings": types.Schema(type="ARRAY", items=types.Schema(type="STRING")),
+            },
+            required=["operations", "warnings"],
+        )
+
+    def _build_pdf_overlay_prompt(self, *, source_text: str, target_preview_text: str) -> str:
+        source_block = source_text.strip() or "The source is provided as attached document(s)."
+        target_block = target_preview_text.strip() or "No preview text was available from the target PDF."
+        return f"""You are filling the provided PDF by overlaying text onto the original pages.
+
+Source material summary:
+{source_block}
+
+Target PDF text preview:
+{target_block}
+
+Instructions:
+- Return overlay items only for content that should be added to the original PDF.
+- Use the original page numbers from the target PDF.
+- Prefer anchor_text that appears visibly in the PDF near where the overlay should go.
+- Use placement_hint values such as replace_anchor, right_of, below, or near_blank.
+- Set cover_anchor to true when replacing placeholder text, blanks, or underscores already present in the PDF.
+- overlay_text must be concise and ready to render.
+- Add ambiguities or missing values to warnings.
+"""
+
+    def _build_docx_edit_prompt(self, *, source_text: str, block_summary: str, target_preview_text: str) -> str:
+        source_block = source_text.strip() or "The source is provided as attached document(s)."
+        target_block = target_preview_text.strip() or "No preview text was available from the target DOCX."
+        return f"""You are editing the provided DOCX in place.
+
+Source material summary:
+{source_block}
+
+Target DOCX preview:
+{target_block}
+
+Editable blocks:
+{block_summary}
+
+Instructions:
+- Return only operations against the provided block_id values.
+- Prefer replace_text_in_block when a specific phrase inside a block should change.
+- Use replace_block_text when the entire block should be rewritten.
+- Use insert_after_block or insert_before_block for new paragraphs adjacent to an existing block.
+- Use append_to_block only for short additions to an existing block.
+- Keep operations minimal and deterministic.
+- Add any ambiguities or low-confidence choices to warnings.
+"""
+
+    def _page_texts_with_numbers(self, local_path: str, max_chars: int = 24000) -> str:
+        doc = fitz.open(local_path)
+        pages: list[str] = []
+        try:
+            for page_number, page in enumerate(doc, start=1):
+                text = (page.get_text("text") or "").strip()
+                pages.append(f"Page {page_number}:\n{text or '[no searchable text]'}")
+                combined = "\n\n".join(pages)
+                if len(combined) >= max_chars:
+                    return combined[:max_chars]
+        finally:
+            doc.close()
+        return "\n\n".join(pages)[:max_chars]
+
+    def _collect_docx_blocks(self, doc: Any) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        blocks: list[dict[str, Any]] = []
+        block_map: dict[str, Any] = {}
+
+        def add_block(block_id: str, paragraph: Any, location: str) -> None:
+            text = (paragraph.text or "").strip()
+            display_text = text if text else "[blank]"
+            block = {
+                "block_id": block_id,
+                "location": location,
+                "text": display_text,
+                "paragraph": paragraph,
+            }
+            blocks.append(block)
+            block_map[block_id] = paragraph
+
+        for paragraph_index, paragraph in enumerate(doc.paragraphs):
+            add_block(f"body.paragraph.{paragraph_index}", paragraph, f"body paragraph {paragraph_index}")
+
+        for table_index, table in enumerate(doc.tables):
+            for row_index, row in enumerate(table.rows):
+                for cell_index, cell in enumerate(row.cells):
+                    for paragraph_index, paragraph in enumerate(cell.paragraphs):
+                        add_block(
+                            f"table.{table_index}.row.{row_index}.cell.{cell_index}.paragraph.{paragraph_index}",
+                            paragraph,
+                            f"table {table_index} row {row_index} cell {cell_index} paragraph {paragraph_index}",
+                        )
+
+        for section_index, section in enumerate(doc.sections):
+            for paragraph_index, paragraph in enumerate(section.header.paragraphs):
+                add_block(
+                    f"header.section.{section_index}.paragraph.{paragraph_index}",
+                    paragraph,
+                    f"header section {section_index} paragraph {paragraph_index}",
+                )
+            for paragraph_index, paragraph in enumerate(section.footer.paragraphs):
+                add_block(
+                    f"footer.section.{section_index}.paragraph.{paragraph_index}",
+                    paragraph,
+                    f"footer section {section_index} paragraph {paragraph_index}",
+                )
+
+        return blocks, block_map
+
+    def _summarize_docx_blocks(self, blocks: list[dict[str, Any]]) -> str:
+        lines: list[str] = []
+        for block in blocks:
+            lines.append(f"{block['block_id']} | {block['location']} | {block['text']}")
+            combined = "\n".join(lines)
+            if len(combined) >= DOCX_BLOCK_TEXT_LIMIT:
+                return combined[:DOCX_BLOCK_TEXT_LIMIT]
+        return "\n".join(lines)[:DOCX_BLOCK_TEXT_LIMIT]
+
+    def _resolve_pdf_anchor_rect(self, page: fitz.Page, item: dict[str, Any]) -> fitz.Rect | None:
+        anchor_text = str(item.get("anchor_text") or "").strip()
+        anchor_before = str(item.get("anchor_before") or "").strip()
+        anchor_after = str(item.get("anchor_after") or "").strip()
+
+        if anchor_text:
+            matches = page.search_for(anchor_text)
+            if matches:
+                return matches[0]
+
+        before_rect = None
+        after_rect = None
+        if anchor_before:
+            before_matches = page.search_for(anchor_before)
+            if before_matches:
+                before_rect = before_matches[0]
+        if anchor_after:
+            after_matches = page.search_for(anchor_after)
+            if after_matches:
+                after_rect = after_matches[0]
+
+        if before_rect and after_rect:
+            x0 = min(before_rect.x1, after_rect.x0)
+            x1 = max(before_rect.x1, after_rect.x0)
+            y0 = min(before_rect.y0, after_rect.y0)
+            y1 = max(before_rect.y1, after_rect.y1)
+            return fitz.Rect(x0, y0, x1, y1)
+
+        return before_rect or after_rect
+
+    def _target_rect_from_anchor(
+        self,
+        page: fitz.Page,
+        anchor_rect: fitz.Rect | None,
+        item: dict[str, Any],
+        fallback_index: int,
+    ) -> fitz.Rect:
+        placement_hint = str(item.get("placement_hint") or "near_blank").strip().lower()
+        font_size = float(item.get("font_size") or 10.0)
+        margin = 24.0
+        page_rect = page.rect
+        line_height = max(font_size * 1.8, 18.0)
+
+        if anchor_rect is None:
+            y0 = margin + (fallback_index * (line_height + 6.0))
+            return fitz.Rect(margin, y0, page_rect.width - margin, y0 + line_height)
+
+        expanded = fitz.Rect(anchor_rect.x0 - 1.5, anchor_rect.y0 - 1.5, anchor_rect.x1 + 1.5, anchor_rect.y1 + 1.5)
+        if placement_hint == "replace_anchor":
+            return fitz.Rect(
+                max(margin, expanded.x0 - 4.0),
+                max(margin, expanded.y0 - 2.0),
+                min(page_rect.width - margin, max(expanded.x1 + 120.0, expanded.x0 + 180.0)),
+                min(page_rect.height - margin, expanded.y1 + 4.0),
+            )
+        if placement_hint == "below":
+            y0 = expanded.y1 + 4.0
+            return fitz.Rect(
+                max(margin, expanded.x0),
+                y0,
+                min(page_rect.width - margin, max(expanded.x1 + 140.0, expanded.x0 + 220.0)),
+                min(page_rect.height - margin, y0 + line_height + 8.0),
+            )
+
+        x0 = min(page_rect.width - margin - 10.0, expanded.x1 + 6.0)
+        x1 = min(page_rect.width - margin, max(x0 + 180.0, expanded.x1 + 220.0))
+        if x1 <= x0 + 30.0:
+            x0 = max(margin, expanded.x0)
+            x1 = min(page_rect.width - margin, max(expanded.x1 + 140.0, expanded.x0 + 220.0))
+            y0 = expanded.y1 + 4.0
+            return fitz.Rect(x0, y0, x1, min(page_rect.height - margin, y0 + line_height + 8.0))
+        return fitz.Rect(x0, max(margin, expanded.y0 - 2.0), x1, min(page_rect.height - margin, expanded.y1 + 4.0))
+
+    def _apply_pdf_overlay_plan(
+        self,
+        local_target_path: str,
+        overlay_items: list[dict[str, Any]],
+        output_path: str,
+    ) -> list[str]:
+        warnings: list[str] = []
+        doc = fitz.open(local_target_path)
+        try:
+            fallback_slots: dict[int, int] = {}
+            for item in overlay_items:
+                overlay_text = str(item.get("overlay_text") or "").strip()
+                if not overlay_text:
+                    continue
+
+                page_number = int(item.get("page_number") or 1)
+                if page_number < 1 or page_number > len(doc):
+                    warnings.append(f"Overlay item referenced missing page {page_number}.")
+                    continue
+
+                page = doc[page_number - 1]
+                anchor_rect = self._resolve_pdf_anchor_rect(page, item)
+                if anchor_rect is None:
+                    warnings.append(
+                        f"Could not locate anchor for overlay '{overlay_text[:40]}' on page {page_number}; placed it in a fallback position."
+                    )
+                fallback_index = fallback_slots.get(page_number, 0)
+                target_rect = self._target_rect_from_anchor(page, anchor_rect, item, fallback_index)
+                fallback_slots[page_number] = fallback_index + 1
+
+                placement_hint = str(item.get("placement_hint") or "near_blank").strip().lower()
+                cover_anchor = bool(item.get("cover_anchor")) or placement_hint == "replace_anchor"
+                if cover_anchor and anchor_rect is not None:
+                    page.draw_rect(
+                        fitz.Rect(anchor_rect.x0 - 1.5, anchor_rect.y0 - 1.5, anchor_rect.x1 + 1.5, anchor_rect.y1 + 1.5),
+                        color=(1, 1, 1),
+                        fill=(1, 1, 1),
+                        overlay=True,
+                    )
+
+                font_size = float(item.get("font_size") or 10.0)
+                page.insert_textbox(
+                    target_rect,
+                    overlay_text,
+                    fontsize=font_size,
+                    fontname="helv",
+                    color=(0, 0, 0),
+                    align=fitz.TEXT_ALIGN_LEFT,
+                    overlay=True,
+                )
+
+            doc.save(output_path)
+        finally:
+            doc.close()
+        return warnings
+
+    def _replace_text_in_docx_block(self, paragraph: Any, find_text: str, replacement_text: str) -> bool:
+        needle = (find_text or "").strip()
+        if not needle:
+            return False
+        for run in paragraph.runs:
+            if needle in run.text:
+                run.text = run.text.replace(needle, replacement_text, 1)
+                return True
+
+        full_text = paragraph.text or ""
+        if needle not in full_text:
+            return False
+
+        paragraph.text = full_text.replace(needle, replacement_text, 1)
+        return True
+
+    def _insert_paragraph_after(self, paragraph: Any, text: str) -> Any:
+        from docx.oxml import OxmlElement
+        from docx.text.paragraph import Paragraph
+
+        new_p = OxmlElement("w:p")
+        paragraph._p.addnext(new_p)
+        new_paragraph = Paragraph(new_p, paragraph._parent)
+        if getattr(paragraph, "style", None) is not None:
+            new_paragraph.style = paragraph.style
+        new_paragraph.text = text
+        return new_paragraph
+
+    def _apply_docx_edit_plan(
+        self,
+        local_target_path: str,
+        operations: list[dict[str, Any]],
+        output_path: str,
+    ) -> list[str]:
+        from docx import Document as DocxDocument
+
+        warnings: list[str] = []
+        doc = DocxDocument(local_target_path)
+        _blocks, block_map = self._collect_docx_blocks(doc)
+
+        for operation in operations:
+            action = str(operation.get("action") or "").strip()
+            block_id = str(operation.get("block_id") or "").strip()
+            text = str(operation.get("text") or "")
+            target = block_map.get(block_id)
+            if target is None:
+                warnings.append(f"Could not resolve DOCX block '{block_id}'.")
+                continue
+
+            if action == "replace_text_in_block":
+                find_text = str(operation.get("find_text") or "")
+                if not self._replace_text_in_docx_block(target, find_text, text):
+                    warnings.append(f"Could not find '{find_text}' inside DOCX block '{block_id}'.")
+            elif action == "replace_block_text":
+                target.text = text
+            elif action == "append_to_block":
+                existing = target.text or ""
+                target.text = f"{existing} {text}".strip() if existing else text
+            elif action == "insert_before_block":
+                inserted = target.insert_paragraph_before(text)
+                if getattr(target, "style", None) is not None:
+                    inserted.style = target.style
+            elif action == "insert_after_block":
+                self._insert_paragraph_after(target, text)
+            else:
+                warnings.append(f"Unsupported DOCX edit action '{action}'.")
+
+        doc.save(output_path)
+        return warnings
 
     def _build_mapping_prompt(
         self,
@@ -707,24 +1059,6 @@ Instructions:
 - Use null when the source does not clearly provide a value.
 - Return concise values suitable for direct insertion into the target document.
 - Add any important caveats to warnings.
-"""
-
-    def _build_regeneration_prompt(self, *, source_text: str, target_hint: str, target_preview_text: str) -> str:
-        source_block = source_text.strip() or "The source is provided as attached document(s)."
-        target_block = target_preview_text.strip() or "No preview text was available from the target document."
-        return f"""You are creating a filled {target_hint} based on the source material and the target document structure.
-
-Source material summary:
-{source_block}
-
-Target document preview:
-{target_block}
-
-Instructions:
-- Preserve the apparent section order and overall structure from the target preview when possible.
-- Produce complete filled document body text, not notes about how to fill it.
-- Use plain text with paragraph breaks.
-- If the target leaves something ambiguous, make the best reasonable choice and note it in warnings.
 """
 
     async def process_run(self, run_id: str) -> dict[str, Any]:
@@ -785,28 +1119,27 @@ Instructions:
                     final_filename = f"{Path(run.target_filename).stem}_filled.pdf"
                     final_mime_type = PDF_MIME
                 else:
-                    run.processing_strategy = "pdf_regenerate"
-                    target_preview_text = self._extract_pdf_text(target_local_path)
-                    document_payload = self._generate_json_response(
+                    run.processing_strategy = "pdf_overlay"
+                    target_preview_text = self._page_texts_with_numbers(target_local_path)
+                    overlay_payload = self._generate_json_response(
                         source_parts + target_parts + [
-                            self._build_regeneration_prompt(
+                            self._build_pdf_overlay_prompt(
                                 source_text=source_text,
-                                target_hint="PDF document",
                                 target_preview_text=target_preview_text,
                             )
                         ],
-                        self._document_schema(),
+                        self._pdf_overlay_schema(),
                     )
-                    title, payload_warnings = self._content_for_regeneration(document_payload)
-                    warnings.extend(payload_warnings)
-                    fill_plan = {"strategy": run.processing_strategy, **document_payload}
-                    rendered_pdf = render_pdf(title=title, content_html=None, content_json=document_payload.get("content"))
+                    overlay_items = [
+                        item for item in (overlay_payload.get("items") or []) if isinstance(item, dict) and str(item.get("overlay_text") or "").strip()
+                    ]
+                    warnings.extend([str(item) for item in (overlay_payload.get("warnings") or []) if str(item).strip()])
+                    fill_plan = {"strategy": run.processing_strategy, "items": overlay_items}
                     final_local_path = os.path.join(temp_dir, "filled.pdf")
-                    with open(final_local_path, "wb") as handle:
-                        handle.write(rendered_pdf)
+                    warnings.extend(self._apply_pdf_overlay_plan(target_local_path, overlay_items, final_local_path))
                     final_filename = f"{Path(run.target_filename).stem}_filled.pdf"
                     final_mime_type = PDF_MIME
-                    warnings.append("The target PDF was not fillable, so Form Fill generated a new PDF from the target structure.")
+                    warnings.append("The target PDF was not fillable, so Form Fill applied text overlays onto the original PDF.")
             elif run.target_file_type == DOCX_MIME:
                 preview_object = f"form-fill/{run.user_id}/runs/{run.id}/target-preview.pdf"
                 converter = get_document_conversion_service()
@@ -839,28 +1172,33 @@ Instructions:
                     final_filename = f"{Path(run.target_filename).stem}_filled.docx"
                     final_mime_type = DOCX_MIME
                 else:
-                    run.processing_strategy = "docx_regenerate"
+                    run.processing_strategy = "docx_edit_in_place"
                     target_preview_text = self._extract_docx_text(target_local_path)
-                    document_payload = self._generate_json_response(
+                    from docx import Document as DocxDocument
+
+                    target_doc = DocxDocument(target_local_path)
+                    docx_blocks, _block_map = self._collect_docx_blocks(target_doc)
+                    block_summary = self._summarize_docx_blocks(docx_blocks)
+                    edit_payload = self._generate_json_response(
                         source_parts + target_parts + [
-                            self._build_regeneration_prompt(
+                            self._build_docx_edit_prompt(
                                 source_text=source_text,
-                                target_hint="DOCX document",
+                                block_summary=block_summary,
                                 target_preview_text=target_preview_text,
                             )
                         ],
-                        self._document_schema(),
+                        self._docx_edit_schema(),
                     )
-                    title, payload_warnings = self._content_for_regeneration(document_payload)
-                    warnings.extend(payload_warnings)
-                    fill_plan = {"strategy": run.processing_strategy, **document_payload}
-                    rendered_docx = render_docx(title=title, content_html=None, content_json=document_payload.get("content"))
+                    operations = [
+                        item for item in (edit_payload.get("operations") or []) if isinstance(item, dict) and str(item.get("action") or "").strip()
+                    ]
+                    warnings.extend([str(item) for item in (edit_payload.get("warnings") or []) if str(item).strip()])
+                    fill_plan = {"strategy": run.processing_strategy, "operations": operations}
                     final_local_path = os.path.join(temp_dir, "filled.docx")
-                    with open(final_local_path, "wb") as handle:
-                        handle.write(rendered_docx)
+                    warnings.extend(self._apply_docx_edit_plan(target_local_path, operations, final_local_path))
                     final_filename = f"{Path(run.target_filename).stem}_filled.docx"
                     final_mime_type = DOCX_MIME
-                    warnings.append("The DOCX target had no placeholders, so Form Fill generated a new DOCX from the target structure.")
+                    warnings.append("The DOCX target had no placeholders, so Form Fill edited the original DOCX in place.")
 
                 if run.output_format == "pdf":
                     final_local_path = await converter.convert_docx_local_to_pdf_local(final_local_path, out_dir=temp_dir)
