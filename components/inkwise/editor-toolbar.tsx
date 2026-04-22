@@ -1,7 +1,7 @@
 'use client'
 
 import type { Editor } from '@tiptap/core'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Bold,
   Italic,
@@ -36,7 +36,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { addInkwiseComment, INKWISE_PAGE_BREAK_NODE } from '@/lib/inkwise-editor-extensions'
-import { insertManualReferenceNote } from '@/lib/inkwise-editor'
+import { insertManualReferenceNote, type InkwiseEditorTarget } from '@/lib/inkwise-editor'
 
 export function InkwiseEditorToolbar({
   editor,
@@ -57,6 +57,7 @@ export function InkwiseEditorToolbar({
   const [commentOpen, setCommentOpen] = useState(false)
   const [noteOpen, setNoteOpen] = useState(false)
   const [tableOpen, setTableOpen] = useState(false)
+  const tableTargetRef = useRef<InkwiseEditorTarget | null>(null)
 
   useEffect(() => {
     const rerender = () => setRenderTick((value) => value + 1)
@@ -87,10 +88,38 @@ export function InkwiseEditorToolbar({
     event.preventDefault()
   }
 
+  function captureTableTarget() {
+    const { from, to, empty } = editor.state.selection
+    tableTargetRef.current = {
+      from,
+      to,
+      text: empty ? '' : editor.state.doc.textBetween(from, to, '\n'),
+      hasSelection: !empty,
+    }
+  }
+
+  function handleTableOpenChange(open: boolean) {
+    if (open) {
+      captureTableTarget()
+    } else {
+      tableTargetRef.current = null
+    }
+    setTableOpen(open)
+  }
+
   function insertTable() {
     const rows = Math.max(1, Number.parseInt(tableRows, 10) || 3)
     const cols = Math.max(1, Number.parseInt(tableColumns, 10) || 3)
-    editor.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run()
+    const target = tableTargetRef.current
+    const chain = editor.chain().focus()
+    if (target) {
+      chain.setTextSelection({ from: target.from, to: target.to })
+      if (target.hasSelection) {
+        chain.deleteSelection()
+      }
+    }
+    chain.insertTable({ rows, cols, withHeaderRow: true }).run()
+    tableTargetRef.current = null
     setTableOpen(false)
   }
 
@@ -134,11 +163,21 @@ export function InkwiseEditorToolbar({
         </Tooltip>
       ))}
 
-      <Popover open={tableOpen} onOpenChange={setTableOpen}>
+      <Popover open={tableOpen} onOpenChange={handleTableOpenChange}>
         <Tooltip>
           <TooltipTrigger asChild>
             <PopoverTrigger asChild>
-              <Button type="button" size="sm" className="h-8 w-8 p-0" variant="outline" onMouseDown={preventEditorBlur} aria-label="Table">
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 w-8 p-0"
+                variant="outline"
+                onMouseDown={(event) => {
+                  preventEditorBlur(event)
+                  captureTableTarget()
+                }}
+                aria-label="Table"
+              >
                 <TableIcon className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
