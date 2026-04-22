@@ -129,7 +129,7 @@ export function InkwiseSourceImportPanel({
 
   return (
     <Card>
-        <CardHeader className={compact ? 'pb-3' : undefined}>
+        <CardHeader className={compact ? 'p-4' : undefined}>
           <CardTitle>{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
           {!allowRichMedia ? (

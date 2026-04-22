@@ -1566,7 +1566,7 @@ export default function InkwiseDocumentPage() {
 
               <TabsContent value="references" className="mt-0 min-h-0 flex-1 px-3 pb-3">
                 <ScrollArea className="h-full rounded-2xl bg-slate-50 p-3">
-                  <div className="space-y-5 p-1">
+                  <div className="space-y-5">
                     <InkwiseSourceImportPanel
                       compact
                       title="Add and bind references"
@@ -1661,7 +1661,7 @@ export default function InkwiseDocumentPage() {
 
               <TabsContent value="review" className="mt-0 min-h-0 flex-1 px-3 pb-3">
                 <ScrollArea className="h-full rounded-2xl bg-slate-50 p-3">
-                  <div className="space-y-5 p-1">
+                  <div className="space-y-5">
                     <div className="rounded-2xl border bg-white p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
