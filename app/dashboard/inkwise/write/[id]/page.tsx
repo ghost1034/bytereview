@@ -108,15 +108,6 @@ type PredictionState = {
   retrievalRunId?: string | null
 }
 
-type ImprovedDraftResult = {
-  markdown: string
-  contentWithCitations?: string | null
-  grounded: boolean
-  evidence: InkwiseCitation[]
-  attemptId?: string | null
-  retrievalRunId?: string | null
-}
-
 type PredictionContext = {
   beforeText: string
   afterText: string
@@ -735,107 +726,6 @@ export default function InkwiseDocumentPage() {
     },
   })
 
-  const runWritingTool = useMutation({
-    mutationFn: async (): Promise<ImprovedDraftResult> => {
-      const selection = contentHtml.trim()
-      if (!selection) throw new Error('Add some document content before using a writing tool')
-
-      let output = ''
-      let contentWithCitations: string | null = null
-      let grounded = false
-      let evidence: InkwiseCitation[] = []
-      let attemptId: string | null = null
-      let retrievalRunId: string | null = null
-      await apiClient.streamInkwiseWritingTool(
-        {
-          action: 'coherent',
-          document_id: documentId,
-          selection_text: selection,
-          surrounding_text: initPrompt,
-          instruction: 'Make this draft more coherent while preserving the original intent, structure, and grounded support.',
-        },
-        (event: InkwiseSseEvent) => {
-          if (event.event === 'token') {
-            output += event.data?.text ?? ''
-          }
-          if (event.event === 'meta') {
-            if (typeof event.data?.grounded === 'boolean') {
-              grounded = Boolean(event.data.grounded)
-            }
-            if (Array.isArray(event.data?.evidence)) {
-              evidence = event.data.evidence
-            }
-            if (event.data?.attempt_id) {
-              attemptId = String(event.data.attempt_id)
-            }
-            if (event.data?.retrieval_run_id) {
-              retrievalRunId = String(event.data.retrieval_run_id)
-            }
-          }
-          if (event.event === 'done') {
-            if (event.data?.attempt_id) {
-              attemptId = String(event.data.attempt_id)
-            }
-            if (event.data?.retrieval_run_id) {
-              retrievalRunId = String(event.data.retrieval_run_id)
-            }
-            if (event.data?.content_with_citations) {
-              contentWithCitations = String(event.data.content_with_citations)
-            }
-            if (Array.isArray(event.data?.citations) && event.data.citations.length) {
-              evidence = event.data.citations
-            }
-          }
-        }
-      )
-      return {
-        markdown: output,
-        contentWithCitations,
-        grounded,
-        evidence,
-        attemptId,
-        retrievalRunId,
-      }
-    },
-    onSuccess: async (result) => {
-      const markdown = result.markdown.trim()
-      if (!markdown) return
-
-      try {
-        clearPrediction()
-        if (editor) {
-          const applied = await replaceEditorDocumentWithMarkdown({
-            editor,
-            markdown,
-            citationAnchor: result.grounded && result.evidence.length
-                  ? {
-                      sourceKind: 'writing_tool',
-                      citations: result.evidence,
-                      citationStyle,
-                      attemptId: result.attemptId,
-                      retrievalRunId: result.retrievalRunId,
-                      contentWithCitations: result.contentWithCitations || markdown,
-                  }
-                : null,
-          })
-          if (!applied) return
-        } else {
-          const html = await markdownToSafeHtml(markdown)
-          if (!html) return
-          setContentJson(null)
-          setContentHtml(html)
-        }
-        toast({ title: 'Draft refreshed', description: 'The writing tool returned a revised version in the editor.' })
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'The AI response could not be rendered as Markdown.'
-        toast({ title: 'Could not render draft', description: message, variant: 'destructive' })
-      }
-    },
-    onError: (error: Error) => {
-      toast({ title: 'Writing tool failed', description: error.message, variant: 'destructive' })
-    },
-  })
-
   const handleExport = async (type: 'pdf' | 'docx') => {
     try {
       const result = await apiClient.exportInkwiseDocument(documentId, type)
@@ -1234,10 +1124,6 @@ export default function InkwiseDocumentPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5">
-              <Button variant="outline" size="sm" onClick={() => runWritingTool.mutate()} disabled={runWritingTool.isPending}>
-                {runWritingTool.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Wand2 className="mr-1.5 h-4 w-4" />}
-                Coherent draft
-              </Button>
               <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
                 <Settings2 className="mr-1.5 h-4 w-4" />
                 Settings
