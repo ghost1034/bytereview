@@ -22,8 +22,10 @@ from inkwise.services.embeddings import InkwiseEmbeddingError, InkwiseEmbeddingS
 from inkwise.services.gcs import storage_client
 from inkwise.services.media_chunker import InkwiseMediaChunker, MediaChunk, MediaChunkError
 from inkwise.services.media_probe import MediaProbeError
+from inkwise.services.reference_metadata_service import InkwiseReferenceMetadataService
 from inkwise.services.segmentation_service import InkwiseSegmentationService, SegmentDraft
 from inkwise.services.source_normalizer import InkwiseSourceNormalizer, SourceNormalizationError
+from inkwise.services.source_service import InkwiseSourceService
 from inkwise.settings import get_inkwise_settings, is_valid_gcs_bucket_name, normalize_gcs_bucket_name
 from models.inkwise_models import InkwiseSource, InkwiseSourceIngestion, InkwiseSourcePage, InkwiseSourceSegment, InkwiseSourceSegmentEmbedding
 
@@ -49,6 +51,8 @@ class InkwiseIngestionService:
         self.source_normalizer = InkwiseSourceNormalizer()
         self.segmentation_service = InkwiseSegmentationService()
         self.media_chunker = InkwiseMediaChunker()
+        self.reference_metadata_service = InkwiseReferenceMetadataService()
+        self.source_service = InkwiseSourceService()
 
     def enqueue_ingestion(self, db: Session, *, user_id: str, source_id: uuid.UUID) -> InkwiseSourceIngestion:
         source = self._get_source_for_user(db, user_id=user_id, source_id=source_id)
@@ -220,6 +224,11 @@ class InkwiseIngestionService:
                     db,
                     source=source,
                     ingestion=ingestion,
+                )
+                self._apply_reference_metadata_autofill(
+                    db,
+                    source=source,
+                    normalized=normalized,
                 )
 
                 ingestion.status = "completed"
@@ -430,6 +439,26 @@ class InkwiseIngestionService:
                     char_count=len(text),
                 )
             )
+
+    def _apply_reference_metadata_autofill(self, db: Session, *, source: InkwiseSource, normalized: Any) -> bool:
+        try:
+            suggestion = self.reference_metadata_service.extract_source_metadata(source=source, normalized=normalized)
+        except Exception as exc:
+            logger.warning("Inkwise metadata autofill failed for source %s: %s", source.id, exc)
+            return False
+
+        if suggestion.is_empty:
+            return False
+
+        changed = self.source_service.apply_ingestion_metadata_autofill(
+            db,
+            source=source,
+            suggested_title=suggestion.suggested_title,
+            bibliographic_metadata=suggestion.bibliographic_metadata,
+        )
+        if changed:
+            logger.info("Inkwise metadata autofill updated source %s during ingestion", source.id)
+        return changed
 
     def _build_usage_measurement(
         self,

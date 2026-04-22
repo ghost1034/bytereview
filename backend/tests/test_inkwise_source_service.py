@@ -193,6 +193,56 @@ class InkwiseSourceServiceTests(unittest.TestCase):
             with self.assertRaises(InkwisePlanRestrictionError):
                 service.import_drive_files(db, user_id="user-123", file_ids=["file-1"])
 
+    def test_ingestion_autofill_fills_blank_fields_only(self) -> None:
+        service = InkwiseSourceService()
+        source = SimpleNamespace(
+            id=uuid.uuid4(),
+            user_id="user-123",
+            title="lease.pdf",
+            original_filename="lease.pdf",
+            original_path="lease.pdf",
+            bibliographic_metadata={"year": "2024"},
+            updated_at=None,
+        )
+
+        with patch.object(service, "_refresh_linked_documents_for_source") as refresh:
+            changed = service.apply_ingestion_metadata_autofill(
+                SimpleNamespace(),
+                source=source,
+                suggested_title="Lease Agreement",
+                bibliographic_metadata={"authors": ["Jane Smith"], "year": "2025"},
+            )
+
+        self.assertTrue(changed)
+        self.assertEqual(source.title, "Lease Agreement")
+        self.assertEqual(source.bibliographic_metadata, {"year": "2024", "authors": ["Jane Smith"]})
+        self.assertIsNotNone(source.updated_at)
+        refresh.assert_called_once()
+
+    def test_ingestion_autofill_does_not_replace_non_placeholder_title(self) -> None:
+        service = InkwiseSourceService()
+        source = SimpleNamespace(
+            id=uuid.uuid4(),
+            user_id="user-123",
+            title="Custom Source Title",
+            original_filename="lease.pdf",
+            original_path="lease.pdf",
+            bibliographic_metadata=None,
+            updated_at=None,
+        )
+
+        with patch.object(service, "_refresh_linked_documents_for_source") as refresh:
+            changed = service.apply_ingestion_metadata_autofill(
+                SimpleNamespace(),
+                source=source,
+                suggested_title="Lease Agreement",
+                bibliographic_metadata=None,
+            )
+
+        self.assertFalse(changed)
+        self.assertEqual(source.title, "Custom Source Title")
+        refresh.assert_not_called()
+
 
 class InkwiseDispositionFilenameTests(unittest.TestCase):
     def test_moves_page_suffix_before_pdf_extension(self) -> None:

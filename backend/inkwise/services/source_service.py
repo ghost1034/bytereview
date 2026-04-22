@@ -9,6 +9,7 @@ import os
 import re
 import uuid
 import zipfile
+from typing import Any
 from html import escape, unescape
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -257,7 +258,7 @@ class InkwiseSourceService:
         changed = False
 
         if "title" in fields and body.title is not None:
-            next_title = body.title.strip() or source.title
+            next_title = self._normalize_title_candidate(body.title) or source.title
             changed = changed or next_title != source.title
             source.title = next_title
 
@@ -275,6 +276,34 @@ class InkwiseSourceService:
         db.commit()
         db.refresh(source)
         return source
+
+    def apply_ingestion_metadata_autofill(
+        self,
+        db: Session,
+        *,
+        source: InkwiseSource,
+        suggested_title: str | None,
+        bibliographic_metadata: dict[str, Any] | None,
+    ) -> bool:
+        changed = False
+        current_metadata = normalize_bibliographic_metadata(source.bibliographic_metadata)
+        incoming_metadata = normalize_bibliographic_metadata(bibliographic_metadata)
+        merged_metadata = self._merge_missing_bibliographic_metadata(current_metadata, incoming_metadata)
+        if merged_metadata != current_metadata:
+            source.bibliographic_metadata = merged_metadata or None
+            changed = True
+
+        clean_title = self._normalize_title_candidate(suggested_title)
+        if clean_title and self._should_replace_title_with_autofill(source=source, suggested_title=clean_title):
+            source.title = clean_title
+            changed = True
+
+        if not changed:
+            return False
+
+        source.updated_at = datetime.utcnow()
+        self._refresh_linked_documents_for_source(db, source=source)
+        return True
 
     def capture_webpage_snapshot(
         self,
@@ -757,6 +786,61 @@ class InkwiseSourceService:
                     created_at=datetime.utcnow(),
                 )
             )
+
+    def _merge_missing_bibliographic_metadata(self, current: dict[str, Any], incoming: dict[str, Any]) -> dict[str, Any]:
+        merged = dict(current)
+        for key, value in incoming.items():
+            if key in merged:
+                continue
+            merged[key] = value
+        return merged
+
+    def _should_replace_title_with_autofill(self, *, source: InkwiseSource, suggested_title: str) -> bool:
+        current_title = self._normalize_title_candidate(source.title)
+        next_title = self._normalize_title_candidate(suggested_title)
+        if not next_title:
+            return False
+        if not current_title:
+            return True
+        if current_title == next_title:
+            return False
+
+        current_lower = current_title.lower()
+        if current_lower in {
+            "untitled",
+            "untitled source",
+            "source",
+            "reference",
+            "webpage",
+            "webpage snapshot",
+            "document",
+            "file",
+        }:
+            return True
+
+        original_filename = self._normalize_title_candidate(source.original_filename)
+        original_path_name = self._normalize_title_candidate(os.path.basename(str(source.original_path or "")))
+        if current_lower == str(original_filename or "").lower():
+            return True
+        if current_lower == str(original_path_name or "").lower():
+            return True
+
+        current_root, current_ext = os.path.splitext(current_title)
+        if current_ext:
+            if self._title_identity(current_root) == self._title_identity(original_filename):
+                return True
+            if self._title_identity(current_root) == self._title_identity(original_path_name):
+                return True
+        return False
+
+    def _normalize_title_candidate(self, value: str | None) -> str | None:
+        clean = re.sub(r"\s+", " ", str(value or "").replace("\x00", " ")).strip()
+        return clean[:400] or None
+
+    def _title_identity(self, value: str | None) -> str:
+        clean = self._normalize_title_candidate(value) or ""
+        clean = clean.replace("_", " ").replace("-", " ")
+        return re.sub(r"\s+", " ", clean).strip().lower()
 
     def _require_bucket(self) -> str:
         gcs_service = GCSService()

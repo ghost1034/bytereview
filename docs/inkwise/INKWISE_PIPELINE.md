@@ -80,7 +80,7 @@ The source record lives in `inkwise_sources` and tracks storage location, conten
 For webpages, the backend:
 
 - fetches the URL with `requests`
-- stores the fetched HTML snapshot in GCS
+- renders the fetched page into a PDF snapshot and stores that PDF in GCS
 - creates an `InkwiseSource` with `type="webpage"`
 - queues the same ingestion pipeline used by uploaded files
 
@@ -125,8 +125,18 @@ Current behavior by source type:
   - the generated PDF then goes through the same PyMuPDF plus optional OCRmyPDF/Tesseract flow used for native PDFs
   - retrieval is text-first and uses the final extracted/OCR text, while preview continues to use the canonical PDF asset
 - `webpage`
-  - canonical asset is the stored HTML snapshot
-  - paragraph-like text blocks are extracted with simple HTML cleaning and splitting heuristics
+  - the current source-capture path stores a rendered PDF snapshot, not raw HTML
+  - ingestion treats the captured webpage like a PDF-backed source and extracts text from the rendered snapshot
+
+### Reference metadata autofill
+
+After normalization and before ingestion is marked completed, Inkwise now runs a best-effort Gemini metadata extraction step for PDF, DOCX, and webpage sources.
+
+- the extractor reads normalized text plus source context like filename and URL
+- it suggests a source title and bibliographic metadata used by Inkwise citation formatting
+- autofill uses a fill-blanks-only merge policy and does not overwrite existing source metadata
+- extraction failures are logged but do not fail ingestion
+- when metadata changes, linked document citations are refreshed through the existing citation refresh path
 
 Normalization output is a `NormalizedSource` with:
 

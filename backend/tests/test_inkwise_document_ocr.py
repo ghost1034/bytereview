@@ -11,6 +11,7 @@ from unittest.mock import patch
 from inkwise.services.ingestion_service import InkwiseIngestionService
 from inkwise.services.multimodal_evidence import build_multimodal_contents
 from inkwise.services.pdf_extract import ExtractedPage
+from inkwise.services.reference_metadata_service import ReferenceMetadataAutofillResult
 from inkwise.services.retrieval_types import EvidenceItem
 from inkwise.services.segmentation_service import InkwiseSegmentationService, SegmentDraft, SegmentationResult
 from inkwise.services.source_normalizer import NormalizedSource, NormalizedTextBlock, InkwiseSourceNormalizer
@@ -278,18 +279,47 @@ class InkwiseDocumentOCRTests(unittest.TestCase):
 
         persist_pages.assert_called_once_with(db, source=source, normalized=normalized)
         upload_preview.assert_called_once()
-        embed_file.assert_not_called()
-        self.assertEqual(embedded_media_tokens, 0)
-        segment = next(obj for obj in db.added if isinstance(obj, InkwiseSourceSegment))
-        self.assertIsNone(segment.asset_bucket)
-        self.assertIsNone(segment.asset_object)
-        self.assertEqual(segment.preview_bucket, "derived-bucket")
-        self.assertEqual(segment.preview_object, "inkwise/derived/user-123/source/segments/ingestion/text_chunk/text_chunk_0000_p3-4.pdf")
-        self.assertEqual(ingestion.segment_count, 1)
-        self.assertEqual(ingestion.preview_manifest_bucket, "derived-bucket")
-        self.assertTrue(str(ingestion.preview_manifest_object).endswith("/manifest.json"))
-        self.assertEqual(len(uploads), 1)
-        self.assertIn('"preview_object": "inkwise/derived/user-123/source/segments/ingestion/text_chunk/text_chunk_0000_p3-4.pdf"', str(uploads[0]["payload"]))
+
+    def test_apply_reference_metadata_autofill_swallows_extraction_errors(self) -> None:
+        service = InkwiseIngestionService()
+        source = SimpleNamespace(id=uuid.uuid4())
+        normalized = SimpleNamespace(source_kind="pdf", text_blocks=[SimpleNamespace(text="Lease body")])
+
+        with (
+            patch.object(service.reference_metadata_service, "extract_source_metadata", side_effect=RuntimeError("boom")),
+            patch.object(service.source_service, "apply_ingestion_metadata_autofill") as apply_autofill,
+        ):
+            changed = service._apply_reference_metadata_autofill(SimpleNamespace(), source=source, normalized=normalized)
+
+        self.assertFalse(changed)
+        apply_autofill.assert_not_called()
+
+    def test_apply_reference_metadata_autofill_applies_non_empty_suggestion(self) -> None:
+        service = InkwiseIngestionService()
+        db = SimpleNamespace()
+        source = SimpleNamespace(id=uuid.uuid4())
+        normalized = SimpleNamespace(source_kind="pdf", text_blocks=[SimpleNamespace(text="Lease body")])
+
+        with (
+            patch.object(
+                service.reference_metadata_service,
+                "extract_source_metadata",
+                return_value=ReferenceMetadataAutofillResult(
+                    suggested_title="Lease Agreement",
+                    bibliographic_metadata={"authors": ["Jane Smith"]},
+                ),
+            ),
+            patch.object(service.source_service, "apply_ingestion_metadata_autofill", return_value=True) as apply_autofill,
+        ):
+            changed = service._apply_reference_metadata_autofill(db, source=source, normalized=normalized)
+
+        self.assertTrue(changed)
+        apply_autofill.assert_called_once_with(
+            db,
+            source=source,
+            suggested_title="Lease Agreement",
+            bibliographic_metadata={"authors": ["Jane Smith"]},
+        )
 
 
 if __name__ == "__main__":

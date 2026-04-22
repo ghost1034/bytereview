@@ -72,6 +72,9 @@ class InkwiseSettings:
     uploads_bucket: str | None
     derived_bucket: str | None
     gemini_model: str
+    reference_metadata_autofill_enabled: bool
+    reference_metadata_model: str
+    reference_metadata_max_text_chars: int
     embedding_model: str
     embedding_location: str
     embedding_dimension: int
@@ -143,6 +146,9 @@ def get_inkwise_settings() -> InkwiseSettings:
         uploads_bucket=normalize_gcs_bucket_name(os.getenv("GCS_BUCKET_NAME")),
         derived_bucket=normalize_gcs_bucket_name(os.getenv("INKWISE_DERIVED_BUCKET") or os.getenv("GCS_BUCKET_NAME")),
         gemini_model=default_model,
+        reference_metadata_autofill_enabled=_env_bool("INKWISE_REFERENCE_METADATA_AUTOFILL_ENABLED", True),
+        reference_metadata_model=os.getenv("INKWISE_REFERENCE_METADATA_MODEL", default_model),
+        reference_metadata_max_text_chars=max(1000, _env_int("INKWISE_REFERENCE_METADATA_MAX_TEXT_CHARS", 12000)),
         embedding_model=os.getenv("INKWISE_EMBEDDING_MODEL", "gemini-embedding-2-preview"),
         embedding_location=_normalize_env_text(os.getenv("INKWISE_EMBEDDING_LOCATION", "us-central1")) or "us-central1",
         embedding_dimension=min(3072, max(128, _env_int("INKWISE_EMBEDDING_DIMENSION", 1536))),

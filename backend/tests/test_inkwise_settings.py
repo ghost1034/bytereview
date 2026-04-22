@@ -9,6 +9,27 @@ from inkwise.settings import get_inkwise_settings
 
 
 class InkwiseSettingsTests(TestCase):
+    def test_reference_metadata_autofill_defaults_on(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            settings = get_inkwise_settings()
+
+        self.assertTrue(settings.reference_metadata_autofill_enabled)
+        self.assertEqual(settings.reference_metadata_max_text_chars, 12000)
+
+    def test_reference_metadata_autofill_respects_env(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "INKWISE_REFERENCE_METADATA_AUTOFILL_ENABLED": "false",
+                "INKWISE_REFERENCE_METADATA_MAX_TEXT_CHARS": "4000",
+            },
+            clear=True,
+        ):
+            settings = get_inkwise_settings()
+
+        self.assertFalse(settings.reference_metadata_autofill_enabled)
+        self.assertEqual(settings.reference_metadata_max_text_chars, 4000)
+
     def test_lexical_fusion_defaults_off(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
             settings = get_inkwise_settings()
