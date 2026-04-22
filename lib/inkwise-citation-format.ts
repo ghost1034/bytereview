@@ -6,6 +6,7 @@ export const INKWISE_CITATION_STYLE_OPTIONS: Array<{ value: InkwiseCitationStyle
   { value: 'mla', label: 'MLA' },
   { value: 'chicago', label: 'Chicago' },
   { value: 'bluebook', label: 'Bluebook' },
+  { value: 'none', label: 'No Citation Needed' },
 ]
 
 export function normalizeInkwiseCitationStyle(value?: string | null): InkwiseCitationStyle {
@@ -14,18 +15,25 @@ export function normalizeInkwiseCitationStyle(value?: string | null): InkwiseCit
     case 'mla':
     case 'chicago':
     case 'bluebook':
+    case 'none':
       return value!.trim().toLowerCase() as InkwiseCitationStyle
     default:
       return 'default'
   }
 }
 
+export function citationStyleRequiresVisibleReferences(style?: string | null): boolean {
+  return normalizeInkwiseCitationStyle(style) !== 'none'
+}
+
 export function formatInlineCitationText(citations: InkwiseCitation[], style?: string | null): string {
+  if (!citationStyleRequiresVisibleReferences(style)) return ''
   const items = dedupeCitations(citations).map((citation) => formatInlineItem(citation, style)).filter(Boolean)
   return items.length ? ` (${items.join('; ')})` : ''
 }
 
 export function formatNoteCitationText(citations: InkwiseCitation[], style?: string | null): string {
+  if (!citationStyleRequiresVisibleReferences(style)) return ''
   const normalizedStyle = normalizeInkwiseCitationStyle(style)
   const items = dedupeCitations(citations).map((citation) => formatNoteItem(citation, normalizedStyle)).filter(Boolean)
   return normalizedStyle === 'default' ? items.join('; ') : items.join(' ')

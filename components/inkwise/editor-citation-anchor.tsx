@@ -9,40 +9,44 @@ import {
   InkwiseCitationAnchorNode,
   type InkwiseCitationAnchorAttrs,
 } from '@/lib/inkwise-citation-anchor'
+import { citationStyleRequiresVisibleReferences } from '@/lib/inkwise-citation-format'
 import { convertCitationAnchorReference } from '@/lib/inkwise-editor'
 
 function InkwiseCitationAnchorView({ node, editor, getPos }: NodeViewProps) {
   const attrs = (node.attrs || {}) as Partial<InkwiseCitationAnchorAttrs>
   const citations = Array.isArray(attrs.citations) ? attrs.citations : []
+  const citationStyle = typeof attrs.citationStyle === 'string' ? attrs.citationStyle : 'default'
 
   if (!hasInkwiseCitations(citations)) {
     return <NodeViewWrapper as="span" className="hidden" contentEditable={false} />
   }
 
-  const referenceActions = [
-    { id: 'inline', label: 'Inline Citation' },
-    { id: 'footnote', label: 'Footnote Reference' },
-    { id: 'endnote', label: 'Endnote Reference' },
-  ].map((action) => ({
-    ...action,
-    onClick: () => {
-      const position = typeof getPos === 'function' ? getPos() : null
-      if (typeof position !== 'number') {
-        throw new Error('Could not locate the citation bubble in the editor.')
-      }
-      const converted = convertCitationAnchorReference({
-        editor,
-        from: position,
-        to: position + node.nodeSize,
-        citations,
-        mode: action.id as 'inline' | 'footnote' | 'endnote',
-        citationStyle: typeof attrs.citationStyle === 'string' ? attrs.citationStyle : 'default',
-      })
-      if (!converted) {
-        throw new Error('Could not convert this reference.')
-      }
-    },
-  }))
+  const referenceActions = citationStyleRequiresVisibleReferences(citationStyle)
+    ? [
+        { id: 'inline', label: 'Inline Citation' },
+        { id: 'footnote', label: 'Footnote Reference' },
+        { id: 'endnote', label: 'Endnote Reference' },
+      ].map((action) => ({
+        ...action,
+        onClick: () => {
+          const position = typeof getPos === 'function' ? getPos() : null
+          if (typeof position !== 'number') {
+            throw new Error('Could not locate the citation bubble in the editor.')
+          }
+          const converted = convertCitationAnchorReference({
+            editor,
+            from: position,
+            to: position + node.nodeSize,
+            citations,
+            mode: action.id as 'inline' | 'footnote' | 'endnote',
+            citationStyle,
+          })
+          if (!converted) {
+            throw new Error('Could not convert this reference.')
+          }
+        },
+      }))
+    : undefined
 
   return (
     <NodeViewWrapper as="span" className="mx-1 inline-flex align-middle" contentEditable={false}>

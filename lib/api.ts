@@ -1491,7 +1491,7 @@ export interface InkwiseEvidenceLocator {
   [key: string]: any
 }
 
-export type InkwiseCitationStyle = 'default' | 'apa' | 'mla' | 'chicago' | 'bluebook'
+export type InkwiseCitationStyle = 'default' | 'apa' | 'mla' | 'chicago' | 'bluebook' | 'none'
 
 export interface InkwiseBibliographicMetadata {
   citation_type?: 'book' | 'article' | 'case' | 'statute' | 'webpage' | 'report' | 'other' | null

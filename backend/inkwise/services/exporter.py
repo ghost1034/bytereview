@@ -8,7 +8,7 @@ import json
 import re
 from typing import Any
 
-from inkwise.services.citation_styles import format_inline_citation, format_note_citation, normalize_citation_style
+from inkwise.services.citation_styles import citation_style_requires_reference_text, format_inline_citation, format_note_citation, normalize_citation_style
 
 
 class ExportError(RuntimeError):
@@ -57,7 +57,10 @@ def _content_json_to_text(content_json: Any) -> str:
         if node_type == "inkwiseInlineCitation":
             attrs = node.get("attrs") or {}
             citations = attrs.get("citations") if isinstance(attrs.get("citations"), list) else []
-            label = str(attrs.get("label") or "").strip() or format_inline_citation(citations, attrs.get("citationStyle")).strip()
+            citation_style = normalize_citation_style(attrs.get("citationStyle"))
+            label = str(attrs.get("label") or "").strip()
+            if not label and citation_style_requires_reference_text(citation_style):
+                label = format_inline_citation(citations, citation_style).strip()
             return label
         if node_type == "inkwiseNoteRef":
             attrs = node.get("attrs") or {}
@@ -71,7 +74,11 @@ def _content_json_to_text(content_json: Any) -> str:
             note_number = attrs.get("noteNumber", "")
             note_kind = attrs.get("noteKind", "footnote")
             citations = attrs.get("citations") if isinstance(attrs.get("citations"), list) else []
-            inner_text = format_note_citation(citations, normalize_citation_style(attrs.get("citationStyle"))) if citations else "".join(render_node(child) for child in content)
+            citation_style = normalize_citation_style(attrs.get("citationStyle"))
+            if citations and citation_style_requires_reference_text(citation_style):
+                inner_text = format_note_citation(citations, citation_style)
+            else:
+                inner_text = "".join(render_node(child) for child in content)
             inner_text = _normalize_block_text(inner_text)
             if note_kind == "footnote":
                 return f"[^{note_number}]: {inner_text}"

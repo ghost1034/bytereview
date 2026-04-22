@@ -5,7 +5,13 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from inkwise.services.citation_styles import escape_html_text, format_inline_citation, format_note_citation, normalize_citation_style
+from inkwise.services.citation_styles import (
+    citation_style_requires_reference_text,
+    escape_html_text,
+    format_inline_citation,
+    format_note_citation,
+    normalize_citation_style,
+)
 
 
 INKWISE_CITATION_ANCHOR_NODE = "inkwiseCitationAnchor"
@@ -44,12 +50,12 @@ def refresh_document_citations(
                 attrs["citationStyle"] = normalized_style
                 changed = True
 
-            if node_type == INKWISE_INLINE_CITATION_NODE and refreshed_citations:
+            if node_type == INKWISE_INLINE_CITATION_NODE and refreshed_citations and citation_style_requires_reference_text(normalized_style):
                 label = format_inline_citation(refreshed_citations, normalized_style).strip()
                 if attrs.get("label") != label:
                     attrs["label"] = label
                     changed = True
-            elif node_type == INKWISE_NOTE_DEFINITION_NODE and refreshed_citations:
+            elif node_type == INKWISE_NOTE_DEFINITION_NODE and refreshed_citations and citation_style_requires_reference_text(normalized_style):
                 text_value = format_note_citation(refreshed_citations, normalized_style)
                 next_content = [{"type": "text", "text": text_value}] if text_value else []
                 if node.get("content") != next_content:

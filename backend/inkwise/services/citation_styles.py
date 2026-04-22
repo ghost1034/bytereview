@@ -11,18 +11,24 @@ CITATION_STYLE_APA = "apa"
 CITATION_STYLE_MLA = "mla"
 CITATION_STYLE_CHICAGO = "chicago"
 CITATION_STYLE_BLUEBOOK = "bluebook"
+CITATION_STYLE_NONE = "none"
 CITATION_STYLE_VALUES = {
     CITATION_STYLE_DEFAULT,
     CITATION_STYLE_APA,
     CITATION_STYLE_MLA,
     CITATION_STYLE_CHICAGO,
     CITATION_STYLE_BLUEBOOK,
+    CITATION_STYLE_NONE,
 }
 
 
 def normalize_citation_style(value: str | None) -> str:
     candidate = str(value or "").strip().lower()
     return candidate if candidate in CITATION_STYLE_VALUES else CITATION_STYLE_DEFAULT
+
+
+def citation_style_requires_reference_text(style: str | None) -> bool:
+    return normalize_citation_style(style) != CITATION_STYLE_NONE
 
 
 def normalize_bibliographic_metadata(value: Any) -> dict[str, Any]:
@@ -42,11 +48,15 @@ def normalize_bibliographic_metadata(value: Any) -> dict[str, Any]:
 
 
 def format_inline_citation(citations: list[dict[str, Any]], style: str | None) -> str:
+    if not citation_style_requires_reference_text(style):
+        return ""
     items = [item for item in (_format_inline_item(citation, style) for citation in _dedupe_citations(citations)) if item]
     return f" ({'; '.join(items)})" if items else ""
 
 
 def format_note_citation(citations: list[dict[str, Any]], style: str | None) -> str:
+    if not citation_style_requires_reference_text(style):
+        return ""
     normalized_style = normalize_citation_style(style)
     items = [item for item in (_format_note_item(citation, normalized_style) for citation in _dedupe_citations(citations)) if item]
     if normalized_style == CITATION_STYLE_DEFAULT:

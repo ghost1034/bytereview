@@ -2006,7 +2006,7 @@ export default function InkwiseDocumentPage() {
                 </SelectContent>
               </Select>
               <div className="text-xs text-slate-500">
-                Changing the style automatically reformats semantic inline citations, footnotes, and endnotes in this document.
+                Choose how Inkwise formats converted references. `No Citation Needed` keeps evidence bubbles available while disabling new inline citations, footnotes, and endnotes.
               </div>
             </div>
           </div>
