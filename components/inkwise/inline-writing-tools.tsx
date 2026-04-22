@@ -65,6 +65,7 @@ export function InlineWritingTools({
   const [instruction, setInstruction] = useState('Improve clarity, keep meaning.')
   const [inserting, setInserting] = useState<null | 'replace' | 'after' | 'insert'>(null)
   const [sourceChecked, setSourceChecked] = useState<Record<string, boolean>>({})
+  const [sourceSearch, setSourceSearch] = useState('')
   const [groundingState, setGroundingState] = useState<GroundingState | null>(null)
   const [attemptId, setAttemptId] = useState<string | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
@@ -78,6 +79,10 @@ export function InlineWritingTools({
     return items
   }, [boundSources])
   const readySources = useMemo(() => sortedBoundSources.filter((item) => item.grounded_chat_ready), [sortedBoundSources])
+  const filteredBoundSources = useMemo(
+    () => sortedBoundSources.filter((item) => matchesBoundSourceSearch(item, sourceSearch)),
+    [sortedBoundSources, sourceSearch],
+  )
   const selectedSourceIds = useMemo(
     () => readySources.filter((item) => sourceChecked[item.source.id] ?? true).map((item) => item.source.id),
     [readySources, sourceChecked],
@@ -414,26 +419,38 @@ export function InlineWritingTools({
           </div>
 
           {sortedBoundSources.length ? (
-            <div className="mt-3 grid max-h-36 gap-2 overflow-auto">
-              {sortedBoundSources.map((item) => (
-                <label
-                  key={item.binding_id}
-                  onMouseDown={preventEditorBlur}
-                  className={`flex items-center gap-3 text-sm ${item.grounded_chat_ready ? 'text-slate-700' : 'text-slate-400'}`}
-                >
-                  <Checkbox
-                    checked={sourceChecked[item.source.id] ?? item.grounded_chat_ready}
-                    disabled={!item.grounded_chat_ready || busy}
+            <>
+              <Input
+                value={sourceSearch}
+                onChange={(event) => setSourceSearch(event.target.value)}
+                placeholder="Search attached sources"
+                className="mt-3 bg-white"
+                onMouseDown={preventEditorBlur}
+              />
+              <div className="mt-3 grid max-h-36 gap-2 overflow-auto">
+                {filteredBoundSources.map((item) => (
+                  <label
+                    key={item.binding_id}
                     onMouseDown={preventEditorBlur}
-                    onCheckedChange={(checked) => {
-                      setSourceChecked((prev) => ({ ...prev, [item.source.id]: Boolean(checked) }))
-                    }}
-                  />
-                  <span>{item.source.title}</span>
-                  {!item.grounded_chat_ready ? <span className="text-xs">({item.grounded_chat_reason || 'Not ready'})</span> : null}
-                </label>
-              ))}
-            </div>
+                    className={`flex items-center gap-3 text-sm ${item.grounded_chat_ready ? 'text-slate-700' : 'text-slate-400'}`}
+                  >
+                    <Checkbox
+                      checked={sourceChecked[item.source.id] ?? item.grounded_chat_ready}
+                      disabled={!item.grounded_chat_ready || busy}
+                      onMouseDown={preventEditorBlur}
+                      onCheckedChange={(checked) => {
+                        setSourceChecked((prev) => ({ ...prev, [item.source.id]: Boolean(checked) }))
+                      }}
+                    />
+                    <span>{item.source.title}</span>
+                    {!item.grounded_chat_ready ? <span className="text-xs">({item.grounded_chat_reason || 'Not ready'})</span> : null}
+                  </label>
+                ))}
+                {!filteredBoundSources.length ? (
+                  <div className="text-sm text-slate-500">No attached sources match that search.</div>
+                ) : null}
+              </div>
+            </>
           ) : null}
         </div>
 
@@ -553,4 +570,20 @@ export function InlineWritingTools({
       </FloatingMenu>
     </>
   )
+}
+
+function matchesBoundSourceSearch(source: InkwiseBoundSource, query: string): boolean {
+  const normalizedQuery = query.trim().toLowerCase()
+  if (!normalizedQuery) return true
+
+  return [
+    source.source.title,
+    source.source.original_path,
+    source.source.source_url,
+    source.source.original_filename,
+    source.source.status,
+    source.grounded_chat_reason,
+  ]
+    .filter(Boolean)
+    .some((value) => value!.toLowerCase().includes(normalizedQuery))
 }

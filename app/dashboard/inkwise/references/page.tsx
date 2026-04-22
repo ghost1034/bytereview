@@ -10,16 +10,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { useInkwiseSourceIngestions, useInkwiseSources } from '@/hooks/useInkwise'
 import { apiClient, InkwiseBibliographicMetadata, InkwiseSource, InkwiseSourceIngestion } from '@/lib/api'
 import { INKWISE_SOURCE_POLL_INTERVAL_MS, isInkwiseIngestionActiveStatus, isInkwiseSourceActiveStatus } from '@/lib/inkwise-source-status'
+import { compareNaturalText } from '@/lib/utils'
 
 export default function InkwiseReferencesPage() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const [sourceSearch, setSourceSearch] = useState('')
   const sources = useInkwiseSources(1, 50, {
     refetchInterval: (query) => {
       const data = query.state.data as { items?: Array<{ status?: string | null }> } | undefined
@@ -45,6 +48,11 @@ export default function InkwiseReferencesPage() {
   }, [ingestions.data])
   const [editingSource, setEditingSource] = useState<InkwiseSource | null>(null)
   const [metadataForm, setMetadataForm] = useState<MetadataFormState>(emptyMetadataForm())
+  const filteredSources = useMemo(() => {
+    const items = [...(sources.data?.items ?? [])]
+    items.sort((left, right) => compareNaturalText(left.title, right.title))
+    return items.filter((source) => matchesSourceSearch(source, sourceSearch))
+  }, [sources.data?.items, sourceSearch])
 
   const refreshSources = async () => {
     await queryClient.invalidateQueries({ queryKey: ['inkwise', 'sources'] })
@@ -152,6 +160,20 @@ export default function InkwiseReferencesPage() {
       </div>
 
       <div className="grid gap-4">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>Source Library</CardTitle>
+            <CardDescription>Search your loaded Inkwise references and scroll through the library without stretching the page.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Input
+              value={sourceSearch}
+              onChange={(event) => setSourceSearch(event.target.value)}
+              placeholder="Search references by title, path, URL, filename, or status"
+            />
+          </CardContent>
+        </Card>
+
         {sources.isLoading ? (
           <Card>
             <CardContent className="flex items-center gap-3 p-6 text-sm text-slate-500">
@@ -160,61 +182,73 @@ export default function InkwiseReferencesPage() {
             </CardContent>
           </Card>
         ) : sources.data?.items.length ? (
-          sources.data.items.map((source) => {
-            const latestIngestion = latestIngestionBySourceId.get(source.id)
+          <ScrollArea className="max-h-[calc(100vh-var(--header-height)-21rem)] rounded-3xl border bg-white p-1">
+            <div className="space-y-4 p-3">
+              {filteredSources.length ? (
+                filteredSources.map((source) => {
+                  const latestIngestion = latestIngestionBySourceId.get(source.id)
 
-            return (
-              <Card key={source.id}>
-                <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="font-semibold text-slate-900">{source.title}</h2>
-                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
-                        {sourceTypeLabel(source.type, source.content_type)}
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-                        {source.status}
-                      </span>
-                    </div>
-                    <p className="text-sm text-slate-500">
-                      {source.original_path || source.source_url || source.original_filename || source.content_type} • {Math.max(1, Math.round(source.size_bytes / 1024))} KB
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                      <span>Updated {new Date(source.updated_at).toLocaleString()}</span>
-                      <span>•</span>
-                      <span>{referenceStatusLabel(source.status)}</span>
-                      {latestIngestion ? (
-                        <>
-                          <span>•</span>
-                          <span>{formatReferenceUsage(latestIngestion)}</span>
-                        </>
-                      ) : null}
-                    </div>
-                    {source.failure_detail ? <p className="text-sm text-rose-600">{source.failure_detail}</p> : null}
-                  </div>
+                  return (
+                    <Card key={source.id}>
+                      <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="font-semibold text-slate-900">{source.title}</h2>
+                            <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
+                              {sourceTypeLabel(source.type, source.content_type)}
+                            </span>
+                            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+                              {source.status}
+                            </span>
+                          </div>
+                          <p className="text-sm text-slate-500">
+                            {source.original_path || source.source_url || source.original_filename || source.content_type} • {Math.max(1, Math.round(source.size_bytes / 1024))} KB
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                            <span>Updated {new Date(source.updated_at).toLocaleString()}</span>
+                            <span>•</span>
+                            <span>{referenceStatusLabel(source.status)}</span>
+                            {latestIngestion ? (
+                              <>
+                                <span>•</span>
+                                <span>{formatReferenceUsage(latestIngestion)}</span>
+                              </>
+                            ) : null}
+                          </div>
+                          {source.failure_detail ? <p className="text-sm text-rose-600">{source.failure_detail}</p> : null}
+                        </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={() => previewSource.mutate({ source, latestIngestion })}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      Preview
-                    </Button>
-                    <Button variant="outline" onClick={() => ingestSource.mutate(source.id)}>
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Re-ingest
-                    </Button>
-                    <Button variant="outline" onClick={() => openMetadataEditor(source)}>
-                      <BookOpenText className="mr-2 h-4 w-4" />
-                      Metadata
-                    </Button>
-                    <Button variant="outline" onClick={() => deleteSource.mutate(source.id)}>
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Remove
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" onClick={() => previewSource.mutate({ source, latestIngestion })}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Preview
+                          </Button>
+                          <Button variant="outline" onClick={() => ingestSource.mutate(source.id)}>
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Re-ingest
+                          </Button>
+                          <Button variant="outline" onClick={() => openMetadataEditor(source)}>
+                            <BookOpenText className="mr-2 h-4 w-4" />
+                            Metadata
+                          </Button>
+                          <Button variant="outline" onClick={() => deleteSource.mutate(source.id)}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Remove
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })
+              ) : (
+                <Card>
+                  <CardContent className="p-10 text-center text-sm text-slate-500">
+                    No references match that search.
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </ScrollArea>
         ) : (
           <Card>
             <CardContent className="p-10 text-center text-sm text-slate-500">
@@ -453,4 +487,20 @@ function formatReferenceUsage(ingestion: InkwiseSourceIngestion): string {
     return `${usagePages.toLocaleString()} ${usagePages === 1 ? 'page' : 'pages'} billed`
   }
   return 'Usage pending'
+}
+
+function matchesSourceSearch(source: InkwiseSource, query: string): boolean {
+  const normalizedQuery = query.trim().toLowerCase()
+  if (!normalizedQuery) return true
+
+  return [
+    source.title,
+    source.original_path,
+    source.source_url,
+    source.original_filename,
+    source.status,
+    sourceTypeLabel(source.type, source.content_type),
+  ]
+    .filter(Boolean)
+    .some((value) => value!.toLowerCase().includes(normalizedQuery))
 }

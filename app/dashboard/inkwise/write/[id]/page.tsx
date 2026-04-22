@@ -46,6 +46,7 @@ import {
 import {
   ApiError,
   apiClient,
+  InkwiseBoundSource,
   InkwiseChatMessage,
   InkwiseCitation,
   InkwiseCitationStyle,
@@ -55,6 +56,7 @@ import {
   InkwiseDriveExportResponse,
   InkwisePredictionRequest,
   InkwisePredictionResponse,
+  InkwiseSource,
   InkwiseSseEvent,
 } from '@/lib/api'
 import { diffParagraphs } from '@/lib/inkwise-diff'
@@ -187,6 +189,19 @@ function hasInkwiseThreadTitle(title?: string | null): boolean {
   return Boolean(title?.trim())
 }
 
+function matchesInkwiseSourceSearch(source: Pick<InkwiseSource, 'title' | 'original_path' | 'source_url' | 'original_filename' | 'status'>, query: string): boolean {
+  const normalizedQuery = query.trim().toLowerCase()
+  if (!normalizedQuery) return true
+
+  return [source.title, source.original_path, source.source_url, source.original_filename, source.status]
+    .filter(Boolean)
+    .some((value) => value!.toLowerCase().includes(normalizedQuery))
+}
+
+function matchesBoundSourceSearch(source: Pick<InkwiseBoundSource['source'], 'title' | 'original_path' | 'source_url' | 'original_filename' | 'status'>, query: string): boolean {
+  return matchesInkwiseSourceSearch(source, query)
+}
+
 export default function InkwiseDocumentPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
@@ -256,6 +271,8 @@ export default function InkwiseDocumentPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [sidebarTab, setSidebarTab] = useState<'chat' | 'references' | 'review'>('chat')
   const [chatSourceChecked, setChatSourceChecked] = useState<Record<string, boolean>>({})
+  const [chatSourceSearch, setChatSourceSearch] = useState('')
+  const [referenceSearch, setReferenceSearch] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [driveExportOpen, setDriveExportOpen] = useState(false)
@@ -452,6 +469,18 @@ export default function InkwiseDocumentPage() {
       .sort((left, right) => compareNaturalText(left.title, right.title))
   }, [sourcesQuery.data?.items, boundSources])
   const readyChatSources = useMemo(() => boundSources.filter((item) => item.grounded_chat_ready), [boundSources])
+  const filteredBoundSources = useMemo(
+    () => boundSources.filter((item) => matchesBoundSourceSearch(item.source, referenceSearch)),
+    [boundSources, referenceSearch],
+  )
+  const filteredAvailableSources = useMemo(
+    () => availableSources.filter((source) => matchesInkwiseSourceSearch(source, referenceSearch)),
+    [availableSources, referenceSearch],
+  )
+  const filteredChatSources = useMemo(
+    () => boundSources.filter((item) => matchesBoundSourceSearch(item.source, chatSourceSearch)),
+    [boundSources, chatSourceSearch],
+  )
   const selectedChatSourceIds = useMemo(
     () => readyChatSources.filter((item) => chatSourceChecked[item.source.id] ?? true).map((item) => item.source.id),
     [readyChatSources, chatSourceChecked]
@@ -1262,8 +1291,13 @@ export default function InkwiseDocumentPage() {
           </div>
       </section>
 
-      <div className={cn('flex min-h-[72vh] flex-col gap-4 xl:flex-row', focusModeEnabled && 'relative z-10 min-h-0 flex-1')}>
-        <section className={cn('min-w-0 flex-1 rounded-3xl border bg-white shadow-sm', focusModeEnabled && 'flex min-h-0 flex-col border-transparent bg-transparent shadow-none')}>
+      <div
+        className={cn(
+          'flex min-h-[72vh] flex-col gap-4 xl:h-[max(42rem,calc(100vh-var(--header-height)-16rem))] xl:max-h-[max(42rem,calc(100vh-var(--header-height)-16rem))] xl:min-h-0 xl:flex-row',
+          focusModeEnabled && 'relative z-10 min-h-0 flex-1 xl:h-auto xl:max-h-none',
+        )}
+      >
+        <section className={cn('min-w-0 flex-1 rounded-3xl border bg-white shadow-sm xl:flex xl:min-h-0 xl:flex-col', focusModeEnabled && 'flex min-h-0 flex-col border-transparent bg-transparent shadow-none')}>
           <div className={cn('flex items-center justify-between border-b px-5 py-4', focusModeEnabled && 'hidden')}>
               <div>
                 <div className="text-sm font-semibold text-slate-900">Write</div>
@@ -1271,7 +1305,12 @@ export default function InkwiseDocumentPage() {
               </div>
           </div>
 
-          <div className={cn('space-y-4 px-4 py-4 sm:px-5', focusModeEnabled && 'mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-5 px-0 py-4 sm:px-0')}>
+          <div
+            className={cn(
+              'flex flex-col gap-4 px-4 py-4 sm:px-5 xl:min-h-0 xl:flex-1',
+              focusModeEnabled && 'mx-auto flex min-h-0 w-full max-w-5xl flex-1 gap-5 px-0 py-4 sm:px-0',
+            )}
+          >
 
             <InlineWritingTools
               editor={editor}
@@ -1335,7 +1374,7 @@ export default function InkwiseDocumentPage() {
                 }
               }}
               focusMode={focusModeEnabled}
-              className={cn('min-h-[65vh] border-0 shadow-none', focusModeEnabled && 'min-h-0 flex-1')}
+              className={cn('max-h-[75vh] min-h-[65vh] border-0 shadow-none xl:min-h-0 xl:flex-1 xl:max-h-none', focusModeEnabled && 'min-h-0 max-h-none flex-1')}
             />
 
             <div className={cn('rounded-2xl px-4 py-3 text-xs', focusModeEnabled ? 'hidden' : 'bg-slate-50 text-slate-500')}>
@@ -1357,7 +1396,7 @@ export default function InkwiseDocumentPage() {
 
         <aside
             className={cn(
-              'rounded-3xl border bg-white shadow-sm transition-all duration-200 xl:sticky xl:top-28 xl:self-start',
+              'flex max-h-[70vh] min-h-0 flex-col overflow-hidden rounded-3xl border bg-white shadow-sm transition-all duration-200 xl:sticky xl:top-28 xl:h-full xl:max-h-full xl:self-start',
               sidebarOpen ? 'w-full xl:w-[25rem]' : 'w-full xl:w-[5.5rem]',
               focusModeEnabled && 'hidden'
             )}
@@ -1379,7 +1418,7 @@ export default function InkwiseDocumentPage() {
             </div>
 
             {sidebarOpen ? (
-              <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as 'chat' | 'references' | 'review')} className="flex h-full min-h-[32rem] flex-col">
+              <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as 'chat' | 'references' | 'review')} className="flex h-full min-h-0 flex-1 flex-col">
               <div className="border-b px-3 py-3">
                 <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-slate-100">
                   <TabsTrigger value="chat" className="rounded-xl">
@@ -1591,8 +1630,17 @@ export default function InkwiseDocumentPage() {
                       </div>
 
                       {boundSources.length ? (
+                        <Input
+                          value={chatSourceSearch}
+                          onChange={(event) => setChatSourceSearch(event.target.value)}
+                          placeholder="Search chat references"
+                          className="mt-3 bg-white"
+                        />
+                      ) : null}
+
+                      {boundSources.length ? (
                         <div className="mt-3 grid max-h-40 gap-2 overflow-auto">
-                          {boundSources.map((item) => (
+                          {filteredChatSources.map((item) => (
                             <label
                               key={item.binding_id}
                               className={cn('flex items-center gap-3 text-sm', item.grounded_chat_ready ? 'text-slate-700' : 'text-slate-400')}
@@ -1608,6 +1656,9 @@ export default function InkwiseDocumentPage() {
                               {!item.grounded_chat_ready ? <span className="text-xs">({item.grounded_chat_reason || 'Not ready'})</span> : null}
                             </label>
                           ))}
+                          {!filteredChatSources.length ? (
+                            <div className="text-sm text-slate-500">No bound references match that search.</div>
+                          ) : null}
                         </div>
                       ) : null}
                     </div>
@@ -1645,10 +1696,23 @@ export default function InkwiseDocumentPage() {
                     />
 
                     <div>
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Document references</div>
+                        <div className="text-xs text-slate-500">{filteredBoundSources.length + filteredAvailableSources.length} shown</div>
+                      </div>
+                      <Input
+                        value={referenceSearch}
+                        onChange={(event) => setReferenceSearch(event.target.value)}
+                        placeholder="Search references"
+                        className="bg-white"
+                      />
+                    </div>
+
+                    <div>
                       <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Bound to this document</div>
-                      <div className="space-y-3">
-                        {boundSources.length ? (
-                          boundSources.map((binding) => (
+                      <div className="max-h-64 space-y-3 overflow-auto pr-1">
+                        {filteredBoundSources.length ? (
+                          filteredBoundSources.map((binding) => (
                             <div key={binding.binding_id} className="rounded-2xl border bg-white p-4">
                               <div className="flex items-start justify-between gap-3">
                                 <div>
@@ -1665,6 +1729,10 @@ export default function InkwiseDocumentPage() {
                               </div>
                             </div>
                           ))
+                        ) : boundSources.length ? (
+                          <div className="rounded-2xl border border-dashed bg-white p-4 text-sm text-slate-500">
+                            No bound references match that search.
+                          </div>
                         ) : (
                           <div className="rounded-2xl border border-dashed bg-white p-4 text-sm text-slate-500">
                             No sources are bound yet.
@@ -1675,9 +1743,9 @@ export default function InkwiseDocumentPage() {
 
                     <div>
                       <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Available library sources</div>
-                      <div className="space-y-3">
-                        {availableSources.length ? (
-                          availableSources.map((source) => (
+                      <div className="max-h-64 space-y-3 overflow-auto pr-1">
+                        {filteredAvailableSources.length ? (
+                          filteredAvailableSources.map((source) => (
                             <div key={source.id} className="rounded-2xl border bg-white p-4">
                               <div className="flex items-start justify-between gap-3">
                                 <div>
@@ -1693,6 +1761,10 @@ export default function InkwiseDocumentPage() {
                               </div>
                             </div>
                           ))
+                        ) : availableSources.length ? (
+                          <div className="rounded-2xl border border-dashed bg-white p-4 text-sm text-slate-500">
+                            No library references match that search.
+                          </div>
                         ) : (
                           <div className="rounded-2xl border border-dashed bg-white p-4 text-sm text-slate-500">
                             Everything in your source library is already bound to this document.
