@@ -1269,7 +1269,7 @@ export default function InkwiseDocumentPage() {
 
         <aside
             className={cn(
-              'rounded-3xl border bg-white shadow-sm transition-all duration-200 xl:sticky xl:top-28 xl:self-start',
+              'rounded-3xl border bg-white shadow-sm transition-all duration-200 xl:sticky xl:top-28 xl:flex xl:h-[calc(100vh-8rem)] xl:flex-col xl:self-start xl:overflow-hidden',
               sidebarOpen ? 'w-full xl:w-[25rem]' : 'w-full xl:w-[5.5rem]',
               focusModeEnabled && 'hidden'
             )}
@@ -1291,7 +1291,7 @@ export default function InkwiseDocumentPage() {
             </div>
 
             {sidebarOpen ? (
-              <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as 'chat' | 'references' | 'review')} className="flex h-full min-h-[32rem] flex-col">
+              <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as 'chat' | 'references' | 'review')} className="flex min-h-[32rem] flex-col xl:min-h-0 xl:flex-1">
               <div className="border-b px-3 py-3">
                 <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-slate-100">
                   <TabsTrigger value="chat" className="rounded-xl">
@@ -1310,7 +1310,7 @@ export default function InkwiseDocumentPage() {
               </div>
 
               <TabsContent value="chat" className="mt-0 flex min-h-0 flex-1 flex-col px-3 pb-3">
-                <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-2xl bg-slate-50 p-3">
+                <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-2xl bg-slate-50 p-3">
                   <div className="max-h-28 overflow-y-auto rounded-2xl border bg-white">
                     <div className="flex flex-wrap gap-2 p-3 pr-4">
                       {(threadsQuery.data?.threads ?? []).map((thread) => (
@@ -1554,8 +1554,8 @@ export default function InkwiseDocumentPage() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="references" className="mt-0 min-h-0 flex-1 px-3 pb-3">
-                <ScrollArea className="h-full rounded-2xl bg-slate-50 p-3">
+              <TabsContent value="references" className="mt-0 flex min-h-0 flex-1 flex-col px-3 pb-3">
+                <ScrollArea className="min-h-0 flex-1 rounded-2xl bg-slate-50 p-3">
                   <div className="space-y-5">
                     <InkwiseSourceImportPanel
                       compact
@@ -1649,8 +1649,8 @@ export default function InkwiseDocumentPage() {
                 </ScrollArea>
               </TabsContent>
 
-              <TabsContent value="review" className="mt-0 min-h-0 flex-1 px-3 pb-3">
-                <ScrollArea className="h-full rounded-2xl bg-slate-50 p-3">
+              <TabsContent value="review" className="mt-0 flex min-h-0 flex-1 flex-col px-3 pb-3">
+                <ScrollArea className="min-h-0 flex-1 rounded-2xl bg-slate-50 p-3">
                   <div className="space-y-5">
                     <div className="rounded-2xl border bg-white p-4">
                       <div className="flex items-start justify-between gap-3">
