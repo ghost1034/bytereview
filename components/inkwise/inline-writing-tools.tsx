@@ -16,7 +16,7 @@ import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
 import { compareNaturalText } from '@/lib/utils'
 
 type ToolAction = Exclude<InkwiseWritingAction, 'other'> | 'custom'
-const DEFAULT_CUSTOM_INSTRUCTION = 'Improve clarity, keep meaning.'
+const DEFAULT_CUSTOM_INSTRUCTION = ''
 
 const TOOL_CONFIG: Record<Exclude<ToolAction, 'custom'>, { label: string; instruction: string }> = {
   coherent: {
