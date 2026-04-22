@@ -115,6 +115,7 @@ class InkwiseSettings:
     query_rewrite_timeout_seconds: float
     max_bound_sources: int
     max_upload_mb: int
+    video_max_upload_mb: int
     media_tokens_per_page: int
     cloud_tasks_project: str | None
     cloud_tasks_location: str | None
@@ -189,6 +190,7 @@ def get_inkwise_settings() -> InkwiseSettings:
         query_rewrite_timeout_seconds=_env_float("INKWISE_QUERY_REWRITE_TIMEOUT_SECONDS", 15.0),
         max_bound_sources=_env_int("INKWISE_MAX_BOUND_SOURCES", 100),
         max_upload_mb=_env_int("INKWISE_MAX_UPLOAD_MB", 100),
+        video_max_upload_mb=max(1, _env_int("INKWISE_MAX_VIDEO_UPLOAD_MB", 1000)),
         media_tokens_per_page=max(1, _env_int("INKWISE_MEDIA_TOKENS_PER_PAGE", 750)),
         cloud_tasks_project=_normalize_env_text(os.getenv("CLOUD_TASKS_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT_ID")),
         cloud_tasks_location=_normalize_env_text(os.getenv("CLOUD_TASKS_LOCATION") or os.getenv("CLOUD_RUN_REGION")),

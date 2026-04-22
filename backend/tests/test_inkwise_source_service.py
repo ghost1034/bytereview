@@ -5,7 +5,7 @@ import uuid
 import zipfile
 from io import BytesIO
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from inkwise.schemas import InkwiseWebpageCaptureRequest
 from inkwise.services.gcs import _normalize_disposition_filename
@@ -27,6 +27,17 @@ class _FakeBucket:
     def blob(self, object_name: str) -> _FakeBlob:
         self.object_name = object_name
         return self._blob
+
+
+class _ExistingBlob:
+    def __init__(self, *, size: int) -> None:
+        self.size = size
+
+    def exists(self) -> bool:
+        return True
+
+    def reload(self) -> None:
+        pass
 
 
 class _FakeStorageClient:
@@ -72,6 +83,53 @@ class _QueryStub:
 
 
 class InkwiseSourceServiceTests(unittest.TestCase):
+    def test_validate_upload_request_allows_video_up_to_video_limit(self) -> None:
+        service = InkwiseSourceService()
+        request = SimpleNamespace(
+            original_filename="walkthrough.mp4",
+            content_type="video/mp4",
+            size_bytes=1000 * 1024 * 1024,
+        )
+
+        with patch.dict(
+            "os.environ",
+            {"INKWISE_MAX_UPLOAD_MB": "100", "INKWISE_MAX_VIDEO_UPLOAD_MB": "1000"},
+            clear=False,
+        ):
+            service._validate_upload_request(request)
+
+    def test_validate_upload_request_rejects_video_over_video_limit(self) -> None:
+        service = InkwiseSourceService()
+        request = SimpleNamespace(
+            original_filename="walkthrough.mp4",
+            content_type="video/mp4",
+            size_bytes=(1000 * 1024 * 1024) + 1,
+        )
+
+        with patch.dict(
+            "os.environ",
+            {"INKWISE_MAX_UPLOAD_MB": "100", "INKWISE_MAX_VIDEO_UPLOAD_MB": "1000"},
+            clear=False,
+        ):
+            with self.assertRaisesRegex(ValueError, "1000MB"):
+                service._validate_upload_request(request)
+
+    def test_validate_upload_request_keeps_non_video_limit(self) -> None:
+        service = InkwiseSourceService()
+        request = SimpleNamespace(
+            original_filename="brief.pdf",
+            content_type="application/pdf",
+            size_bytes=(100 * 1024 * 1024) + 1,
+        )
+
+        with patch.dict(
+            "os.environ",
+            {"INKWISE_MAX_UPLOAD_MB": "100", "INKWISE_MAX_VIDEO_UPLOAD_MB": "1000"},
+            clear=False,
+        ):
+            with self.assertRaisesRegex(ValueError, "100MB"):
+                service._validate_upload_request(request)
+
     def test_validate_webpage_url_adds_https_for_bare_domains(self) -> None:
         service = InkwiseSourceService()
 
@@ -192,6 +250,96 @@ class InkwiseSourceServiceTests(unittest.TestCase):
         ):
             with self.assertRaises(InkwisePlanRestrictionError):
                 service.import_drive_files(db, user_id="user-123", file_ids=["file-1"])
+
+    def test_import_drive_rejects_video_over_limit_before_download(self) -> None:
+        service = InkwiseSourceService()
+        db = _FakeDb()
+        download_drive_file = Mock(return_value=b"video-bytes")
+        google_service = SimpleNamespace(
+            has_drive_access=lambda *_args, **_kwargs: True,
+            get_drive_file_metadata=lambda *_args, **_kwargs: {
+                "name": "walkthrough.mp4",
+                "mimeType": "video/mp4",
+                "size": str((1000 * 1024 * 1024) + 1),
+            },
+            download_drive_file=download_drive_file,
+        )
+
+        with (
+            patch.dict(
+                "os.environ",
+                {"INKWISE_MAX_UPLOAD_MB": "100", "INKWISE_MAX_VIDEO_UPLOAD_MB": "1000"},
+                clear=False,
+            ),
+            patch("inkwise.services.source_service.GoogleService", return_value=google_service),
+            patch.object(service, "_get_plan_code", return_value="pro"),
+        ):
+            with self.assertRaisesRegex(ValueError, "1000MB"):
+                service.import_drive_files(db, user_id="user-123", file_ids=["file-1"])
+
+        download_drive_file.assert_not_called()
+
+    def test_complete_upload_rejects_video_when_blob_exceeds_limit(self) -> None:
+        service = InkwiseSourceService()
+        source = SimpleNamespace(
+            storage_bucket="inkwise-test-bucket",
+            storage_object="inkwise/uploads/user/source/original/walkthrough.mp4",
+            original_filename="walkthrough.mp4",
+            content_type="video/mp4",
+            size_bytes=0,
+            status="uploading",
+            failure_code=None,
+            failure_detail=None,
+            updated_at=None,
+            checksum_sha256=None,
+        )
+        db = SimpleNamespace(commit=Mock(), refresh=Mock())
+        blob = _ExistingBlob(size=(1000 * 1024 * 1024) + 1)
+
+        with (
+            patch.dict(
+                "os.environ",
+                {"INKWISE_MAX_UPLOAD_MB": "100", "INKWISE_MAX_VIDEO_UPLOAD_MB": "1000"},
+                clear=False,
+            ),
+            patch.object(service, "get_source_or_404", return_value=source),
+            patch("inkwise.services.source_service.storage_client", return_value=_FakeStorageClient(blob)),
+        ):
+            with self.assertRaisesRegex(ValueError, "1000MB"):
+                service.complete_upload(
+                    db,
+                    user_id="user-123",
+                    source_id=uuid.uuid4(),
+                    checksum_sha256=None,
+                )
+
+        self.assertEqual(source.status, "failed")
+        self.assertEqual(source.failure_code, "upload_rejected")
+        self.assertIn("1000MB", str(source.failure_detail))
+
+    def test_import_archive_rejects_oversized_video_entry(self) -> None:
+        service = InkwiseSourceService()
+        db = _FakeDb()
+        archive_buffer = BytesIO()
+        with zipfile.ZipFile(archive_buffer, "w") as archive:
+            archive.writestr("walkthrough.mp4", b"v" * (2 * 1024 * 1024))
+
+        with patch.dict(
+            "os.environ",
+            {"INKWISE_MAX_UPLOAD_MB": "100", "INKWISE_MAX_VIDEO_UPLOAD_MB": "1"},
+            clear=False,
+        ):
+            with self.assertRaisesRegex(ValueError, "1MB"):
+                service._import_archive_bytes(
+                    db,
+                    user_id="user-123",
+                    archive_filename="bundle.zip",
+                    archive_bytes=archive_buffer.getvalue(),
+                    plan_code="pro",
+                    external_source=None,
+                    external_id=None,
+                    external_meta=None,
+                )
 
     def test_ingestion_autofill_fills_blank_fields_only(self) -> None:
         service = InkwiseSourceService()

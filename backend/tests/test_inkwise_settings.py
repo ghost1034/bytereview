@@ -54,9 +54,32 @@ class InkwiseSettingsTests(TestCase):
 
         self.assertFalse(settings.use_vector_rerank)
 
+    def test_video_upload_limit_defaults_to_1000mb(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            settings = get_inkwise_settings()
+
+        self.assertEqual(settings.max_upload_mb, 100)
+        self.assertEqual(settings.video_max_upload_mb, 1000)
+
+    def test_video_upload_limit_respects_env(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "INKWISE_MAX_UPLOAD_MB": "125",
+                "INKWISE_MAX_VIDEO_UPLOAD_MB": "1500",
+            },
+            clear=True,
+        ):
+            settings = get_inkwise_settings()
+
+        self.assertEqual(settings.max_upload_mb, 125)
+        self.assertEqual(settings.video_max_upload_mb, 1500)
+
     def test_deploy_script_defaults_match_backend_setting(self) -> None:
         script_path = Path(__file__).resolve().parents[2] / "scripts" / "deploy-inkwise.sh"
         script = script_path.read_text(encoding="utf-8")
 
+        self.assertIn('INKWISE_MAX_UPLOAD_MB="${INKWISE_MAX_UPLOAD_MB:-100}"', script)
+        self.assertIn('INKWISE_MAX_VIDEO_UPLOAD_MB="${INKWISE_MAX_VIDEO_UPLOAD_MB:-1000}"', script)
         self.assertIn('INKWISE_USE_LEXICAL_FUSION="${INKWISE_USE_LEXICAL_FUSION:-false}"', script)
         self.assertIn('INKWISE_USE_VECTOR_RERANK="${INKWISE_USE_VECTOR_RERANK:-false}"', script)

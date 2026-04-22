@@ -318,6 +318,11 @@ class InkwiseSourceService:
             clean_url,
             preferred_title=(body.title or "").strip() or None,
         )
+        self._assert_size_within_limit(
+            size_bytes=len(pdf_bytes),
+            upload_kind="pdf",
+            subject="Webpage snapshot",
+        )
         filename = self._sanitize_filename(self._webpage_filename(clean_url, resolved_title, extension=".pdf"), default_extension=".pdf")
 
         now = datetime.utcnow()
@@ -378,6 +383,16 @@ class InkwiseSourceService:
             filename=str(source.original_filename or ""),
             content_type=str(source.content_type or ""),
         )
+        try:
+            self._assert_size_within_limit(
+                size_bytes=int(source.size_bytes or 0),
+                upload_kind=upload_kind,
+            )
+        except (ValueError, InkwisePlanRestrictionError) as exc:
+            self._mark_source_failed(source, code="upload_rejected", message=str(exc))
+            db.commit()
+            raise
+
         if upload_kind == "zip":
             try:
                 imported = self._import_archive_blob(db, source=source, blob=blob)
@@ -419,6 +434,12 @@ class InkwiseSourceService:
                 filename=filename,
                 plan_code=plan_code,
             )
+            metadata_size = self._coerce_size_bytes(metadata.get("size"))
+            if metadata_size is not None:
+                self._assert_size_within_limit(
+                    size_bytes=metadata_size,
+                    upload_kind=upload_kind,
+                )
             content = google_service.download_drive_file(db, user_id, file_id)
             if content is None:
                 raise ValueError(f"Could not download Drive file {filename}")
@@ -547,6 +568,10 @@ class InkwiseSourceService:
             plan_code=plan_code,
         )
         if upload_kind == "zip":
+            self._assert_size_within_limit(
+                size_bytes=len(content),
+                upload_kind=upload_kind,
+            )
             return self._import_archive_bytes(
                 db,
                 user_id=user_id,
@@ -591,6 +616,10 @@ class InkwiseSourceService:
             upload_kind=upload_kind,
             filename=filename,
             plan_code=plan_code,
+        )
+        self._assert_size_within_limit(
+            size_bytes=len(content),
+            upload_kind=upload_kind,
         )
         bucket = self._require_bucket()
         clean_filename = self._sanitize_filename(
@@ -655,6 +684,10 @@ class InkwiseSourceService:
                         upload_kind=upload_kind,
                         filename=entry_name,
                         plan_code=plan_code,
+                    )
+                    self._assert_size_within_limit(
+                        size_bytes=max(0, int(info.file_size)),
+                        upload_kind=upload_kind,
                     )
 
                     imported.append(
@@ -859,14 +892,13 @@ class InkwiseSourceService:
         if int(body.size_bytes) <= 0:
             raise ValueError("size_bytes must be greater than zero")
 
-        settings = get_inkwise_settings()
-        max_upload_bytes = max(1, settings.max_upload_mb) * 1024 * 1024
-        if int(body.size_bytes) > max_upload_bytes:
-            raise ValueError(f"File too large. Maximum size is {settings.max_upload_mb}MB")
-
         upload_kind = self._detect_upload_kind(filename=filename, content_type=content_type)
         if upload_kind is None:
             raise ValueError("Only PDF, DOCX, image, audio, video, and ZIP uploads are currently supported")
+        self._assert_size_within_limit(
+            size_bytes=int(body.size_bytes),
+            upload_kind=upload_kind,
+        )
 
     def _mark_source_failed(self, source: InkwiseSource, *, code: str, message: str) -> None:
         source.status = "failed"
@@ -952,6 +984,32 @@ class InkwiseSourceService:
 
     def _default_extension_for_kind(self, upload_kind: str | None) -> str:
         return _UPLOAD_KIND_TO_EXTENSION.get(upload_kind or "", ".pdf")
+
+    def _max_upload_mb_for_kind(self, upload_kind: str | None) -> int:
+        settings = get_inkwise_settings()
+        if upload_kind in {"video_mp4", "video_mpeg"}:
+            return max(1, settings.video_max_upload_mb)
+        return max(1, settings.max_upload_mb)
+
+    def _assert_size_within_limit(
+        self,
+        *,
+        size_bytes: int,
+        upload_kind: str | None,
+        subject: str = "File",
+    ) -> None:
+        max_upload_mb = self._max_upload_mb_for_kind(upload_kind)
+        max_upload_bytes = max_upload_mb * 1024 * 1024
+        if int(size_bytes) > max_upload_bytes:
+            raise ValueError(f"{subject} too large. Maximum size is {max_upload_mb}MB")
+
+    def _coerce_size_bytes(self, value: Any) -> int | None:
+        if value is None:
+            return None
+        try:
+            return max(0, int(value))
+        except Exception:
+            return None
 
     def _is_ignored_archive_member(self, value: str) -> bool:
         normalized = (value or "").replace("\\", "/").strip()
