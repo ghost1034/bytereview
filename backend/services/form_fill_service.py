@@ -577,7 +577,7 @@ class FormFillService:
                 response_mime_type="application/json",
                 response_schema=schema,
                 temperature=0.1,
-                max_output_tokens=8192,
+                max_output_tokens=65536,
             ),
         )
         return self._parse_response_payload(response)
