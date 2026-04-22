@@ -11,6 +11,7 @@ import re
 import shutil
 import tempfile
 import uuid
+from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -100,6 +101,7 @@ class FormFillService:
             description=template.description,
             original_filename=template.original_filename,
             file_type=template.file_type,
+            allow_docx_table_expansion=bool(template.allow_docx_table_expansion),
             file_size_bytes=int(template.file_size_bytes or 0),
             created_at=template.created_at,
             updated_at=template.updated_at,
@@ -123,6 +125,7 @@ class FormFillService:
             target_template_id=str(run.target_template_id) if run.target_template_id else None,
             target_filename=run.target_filename,
             target_file_type=run.target_file_type,
+            allow_docx_table_expansion=bool(run.allow_docx_table_expansion),
             output_format=run.output_format,
             processing_strategy=run.processing_strategy,
             warnings=warnings,
@@ -254,6 +257,7 @@ class FormFillService:
         target_file: Any = None,
         template_id: Optional[str] = None,
         output_format: Optional[str] = None,
+        allow_docx_table_expansion: Optional[bool] = None,
         save_template_name: Optional[str] = None,
         save_template_description: Optional[str] = None,
         source_job_id: Optional[str] = None,
@@ -275,6 +279,7 @@ class FormFillService:
                 target_mode="upload" if target_file else "template",
                 target_filename="pending",
                 target_file_type="application/octet-stream",
+                allow_docx_table_expansion=False,
                 target_gcs_object_name="pending",
                 target_file_size_bytes=0,
                 output_format="pending",
@@ -330,6 +335,7 @@ class FormFillService:
                 run.target_file_type = target_mime
                 run.target_gcs_object_name = target_object_name
                 run.target_file_size_bytes = len(target_bytes)
+                run.allow_docx_table_expansion = bool(allow_docx_table_expansion) if target_mime == DOCX_MIME else False
 
                 if save_template_name and save_template_name.strip():
                     template = FormFillTemplate(
@@ -338,6 +344,7 @@ class FormFillService:
                         description=(save_template_description or "").strip() or None,
                         original_filename=target_filename,
                         file_type=target_mime,
+                        allow_docx_table_expansion=run.allow_docx_table_expansion,
                         gcs_object_name=f"form-fill/{user_id}/templates/{uuid.uuid4()}/target{_safe_ext(target_filename, '.bin')}",
                         file_size_bytes=len(target_bytes),
                     )
@@ -357,6 +364,13 @@ class FormFillService:
                 run.target_file_type = template.file_type
                 run.target_gcs_object_name = template.gcs_object_name
                 run.target_file_size_bytes = template.file_size_bytes
+                if template.file_type == DOCX_MIME:
+                    if allow_docx_table_expansion is None:
+                        run.allow_docx_table_expansion = bool(template.allow_docx_table_expansion)
+                    else:
+                        run.allow_docx_table_expansion = bool(allow_docx_table_expansion)
+                else:
+                    run.allow_docx_table_expansion = False
 
             normalized_output_format = _normalize_output_format(output_format)
             target_default_format = "docx" if run.target_file_type == DOCX_MIME else "pdf"
@@ -711,11 +725,15 @@ class FormFillService:
                         type="OBJECT",
                         properties={
                             "action": types.Schema(type="STRING"),
-                            "block_id": types.Schema(type="STRING"),
+                            "block_id": types.Schema(type="STRING", nullable=True),
+                            "table_id": types.Schema(type="STRING", nullable=True),
                             "find_text": types.Schema(type="STRING", nullable=True),
                             "text": types.Schema(type="STRING", nullable=True),
+                            "row_index": types.Schema(type="INTEGER", nullable=True),
+                            "column_index": types.Schema(type="INTEGER", nullable=True),
+                            "cells": types.Schema(type="ARRAY", items=types.Schema(type="STRING"), nullable=True),
                         },
-                        required=["action", "block_id"],
+                        required=["action"],
                     ),
                 ),
                 "warnings": types.Schema(type="ARRAY", items=types.Schema(type="STRING")),
@@ -744,9 +762,33 @@ Instructions:
 - Add ambiguities or missing values to warnings.
 """
 
-    def _build_docx_edit_prompt(self, *, source_text: str, block_summary: str, target_preview_text: str) -> str:
+    def _build_docx_edit_prompt(
+        self,
+        *,
+        source_text: str,
+        block_summary: str,
+        table_summary: str,
+        target_preview_text: str,
+        allow_table_expansion: bool,
+        restrict_to_table_expansion: bool = False,
+    ) -> str:
         source_block = source_text.strip() or "The source is provided as attached document(s)."
         target_block = target_preview_text.strip() or "No preview text was available from the target DOCX."
+        block_section = block_summary.strip() or "No editable paragraph blocks were found."
+        table_section = table_summary.strip() or "No editable tables were found."
+        table_instruction = (
+            "You may use insert_table_row_after or insert_table_column_after when the existing table needs more space.\n"
+            "- For insert_table_row_after, provide table_id, row_index, and cells with one value per existing column.\n"
+            "- For insert_table_column_after, provide table_id, column_index, and cells with one value per existing row.\n"
+            "- Prefer adding rows or columns only when the source clearly contains more data than the current table can hold."
+            if allow_table_expansion
+            else "Do not add rows or columns to any table. If more space is needed, explain that in warnings."
+        )
+        scope_instruction = (
+            "Return only table expansion operations. Do not use paragraph edit actions in this pass."
+            if restrict_to_table_expansion
+            else "Return only operations against the provided block_id and table_id values."
+        )
         return f"""You are editing the provided DOCX in place.
 
 Source material summary:
@@ -756,14 +798,18 @@ Target DOCX preview:
 {target_block}
 
 Editable blocks:
-{block_summary}
+{block_section}
+
+Editable tables:
+{table_section}
 
 Instructions:
-- Return only operations against the provided block_id values.
+- {scope_instruction}
 - Prefer replace_text_in_block when a specific phrase inside a block should change.
 - Use replace_block_text when the entire block should be rewritten.
 - Use insert_after_block or insert_before_block for new paragraphs adjacent to an existing block.
 - Use append_to_block only for short additions to an existing block.
+- {table_instruction}
 - Keep operations minimal and deterministic.
 - Add any ambiguities or low-confidence choices to warnings.
 """
@@ -827,10 +873,46 @@ Instructions:
 
         return blocks, block_map
 
+    def _collect_docx_tables(self, doc: Any) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        tables: list[dict[str, Any]] = []
+        table_map: dict[str, Any] = {}
+
+        for table_index, table in enumerate(doc.tables):
+            table_id = f"table.{table_index}"
+            row_count = len(table.rows)
+            column_count = max((len(row.cells) for row in table.rows), default=0)
+            preview_rows: list[str] = []
+            for row_index, row in enumerate(table.rows[:8]):
+                values = [cell.text.strip() for cell in row.cells[:8]]
+                rendered = " | ".join(value if value else "[blank]" for value in values)
+                preview_rows.append(f"row {row_index}: {rendered or '[blank]'}")
+            table_info = {
+                "table_id": table_id,
+                "rows": row_count,
+                "columns": column_count,
+                "preview_rows": preview_rows,
+                "table": table,
+            }
+            tables.append(table_info)
+            table_map[table_id] = table
+
+        return tables, table_map
+
     def _summarize_docx_blocks(self, blocks: list[dict[str, Any]]) -> str:
         lines: list[str] = []
         for block in blocks:
             lines.append(f"{block['block_id']} | {block['location']} | {block['text']}")
+            combined = "\n".join(lines)
+            if len(combined) >= DOCX_BLOCK_TEXT_LIMIT:
+                return combined[:DOCX_BLOCK_TEXT_LIMIT]
+        return "\n".join(lines)[:DOCX_BLOCK_TEXT_LIMIT]
+
+    def _summarize_docx_tables(self, tables: list[dict[str, Any]]) -> str:
+        lines: list[str] = []
+        for table in tables:
+            lines.append(f"{table['table_id']} | rows={table['rows']} | columns={table['columns']}")
+            for preview_row in table.get("preview_rows") or []:
+                lines.append(f"  {preview_row}")
             combined = "\n".join(lines)
             if len(combined) >= DOCX_BLOCK_TEXT_LIMIT:
                 return combined[:DOCX_BLOCK_TEXT_LIMIT]
@@ -993,22 +1075,103 @@ Instructions:
         new_paragraph.text = text
         return new_paragraph
 
+    def _clear_docx_cell(self, cell: Any) -> None:
+        for paragraph in cell.paragraphs:
+            for run in paragraph.runs:
+                run.text = ""
+            if not paragraph.runs:
+                paragraph.text = ""
+
+    def _insert_table_row_after(self, table: Any, row_index: int, values: list[str]) -> list[str]:
+        warnings: list[str] = []
+        if row_index < 0 or row_index >= len(table.rows):
+            return [f"Could not insert table row after index {row_index}; the row does not exist."]
+
+        template_row = table.rows[row_index]
+        new_tr = deepcopy(template_row._tr)
+        template_row._tr.addnext(new_tr)
+
+        inserted_row = table.rows[row_index + 1]
+        for cell in inserted_row.cells:
+            self._clear_docx_cell(cell)
+
+        if len(values) > len(inserted_row.cells):
+            warnings.append(
+                f"Inserted row after {row_index} received {len(values)} values, but the table only has {len(inserted_row.cells)} columns."
+            )
+
+        for cell_index, cell in enumerate(inserted_row.cells):
+            cell.text = values[cell_index] if cell_index < len(values) else ""
+        return warnings
+
+    def _insert_table_column_after(self, table: Any, column_index: int, values: list[str]) -> list[str]:
+        warnings: list[str] = []
+        if not table.rows:
+            return ["Could not insert a table column because the table has no rows."]
+        if column_index < 0 or column_index >= len(table.rows[0].cells):
+            return [f"Could not insert table column after index {column_index}; the column does not exist."]
+
+        if len(values) > len(table.rows):
+            warnings.append(
+                f"Inserted column after {column_index} received {len(values)} values, but the table only has {len(table.rows)} rows."
+            )
+
+        for row in table.rows:
+            template_cell = row.cells[column_index]
+            new_tc = deepcopy(template_cell._tc)
+            template_cell._tc.addnext(new_tc)
+
+        for row_index, row in enumerate(table.rows):
+            inserted_cell = row.cells[column_index + 1]
+            self._clear_docx_cell(inserted_cell)
+            inserted_cell.text = values[row_index] if row_index < len(values) else ""
+
+        return warnings
+
     def _apply_docx_edit_plan(
         self,
         local_target_path: str,
         operations: list[dict[str, Any]],
         output_path: str,
+        allow_table_expansion: bool = False,
     ) -> list[str]:
         from docx import Document as DocxDocument
 
         warnings: list[str] = []
         doc = DocxDocument(local_target_path)
         _blocks, block_map = self._collect_docx_blocks(doc)
+        _tables, table_map = self._collect_docx_tables(doc)
 
         for operation in operations:
             action = str(operation.get("action") or "").strip()
             block_id = str(operation.get("block_id") or "").strip()
             text = str(operation.get("text") or "")
+            if action in {"insert_table_row_after", "insert_table_column_after"}:
+                if not allow_table_expansion:
+                    warnings.append(f"Ignored DOCX table expansion action '{action}' because it was not permitted for this run.")
+                    continue
+                table_id = str(operation.get("table_id") or "").strip()
+                table = table_map.get(table_id)
+                if table is None:
+                    warnings.append(f"Could not resolve DOCX table '{table_id}'.")
+                    continue
+
+                cells = operation.get("cells") or []
+                values = [str(item) for item in cells if item is not None]
+                if action == "insert_table_row_after":
+                    row_index = operation.get("row_index")
+                    if not isinstance(row_index, int):
+                        warnings.append(f"DOCX table row insertion for '{table_id}' is missing a valid row_index.")
+                        continue
+                    warnings.extend(self._insert_table_row_after(table, row_index, values))
+                else:
+                    column_index = operation.get("column_index")
+                    if not isinstance(column_index, int):
+                        warnings.append(f"DOCX table column insertion for '{table_id}' is missing a valid column_index.")
+                        continue
+                    warnings.extend(self._insert_table_column_after(table, column_index, values))
+                continue
+
             target = block_map.get(block_id)
             if target is None:
                 warnings.append(f"Could not resolve DOCX block '{block_id}'.")
@@ -1165,12 +1328,61 @@ Instructions:
                         if isinstance(item, dict) and item.get("name")
                     }
                     warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
-                    fill_plan = {"strategy": run.processing_strategy, "replacements": replacements}
+                    fill_plan = {
+                        "strategy": run.processing_strategy,
+                        "replacements": replacements,
+                        "allow_docx_table_expansion": bool(run.allow_docx_table_expansion),
+                    }
                     output_docx_path = os.path.join(temp_dir, "filled.docx")
                     self._apply_docx_placeholders(target_local_path, replacements, output_docx_path)
                     final_local_path = output_docx_path
                     final_filename = f"{Path(run.target_filename).stem}_filled.docx"
                     final_mime_type = DOCX_MIME
+
+                    if run.allow_docx_table_expansion:
+                        from docx import Document as DocxDocument
+
+                        placeholder_doc = DocxDocument(output_docx_path)
+                        docx_blocks, _block_map = self._collect_docx_blocks(placeholder_doc)
+                        docx_tables, _table_map = self._collect_docx_tables(placeholder_doc)
+                        table_operations: list[dict[str, Any]] = []
+                        if docx_tables:
+                            edit_payload = self._generate_json_response(
+                                source_parts + target_parts + [
+                                    self._build_docx_edit_prompt(
+                                        source_text=source_text,
+                                        block_summary=self._summarize_docx_blocks(docx_blocks),
+                                        table_summary=self._summarize_docx_tables(docx_tables),
+                                        target_preview_text=self._extract_docx_text(output_docx_path),
+                                        allow_table_expansion=True,
+                                        restrict_to_table_expansion=True,
+                                    )
+                                ],
+                                self._docx_edit_schema(),
+                            )
+                            operations = [
+                                item
+                                for item in (edit_payload.get("operations") or [])
+                                if isinstance(item, dict) and str(item.get("action") or "").strip()
+                            ]
+                            table_operations = [
+                                item
+                                for item in operations
+                                if str(item.get("action") or "").strip() in {"insert_table_row_after", "insert_table_column_after"}
+                            ]
+                            warnings.extend([str(item) for item in (edit_payload.get("warnings") or []) if str(item).strip()])
+
+                        fill_plan["table_operations"] = table_operations
+                        expanded_docx_path = os.path.join(temp_dir, "filled-expanded.docx")
+                        warnings.extend(
+                            self._apply_docx_edit_plan(
+                                output_docx_path,
+                                table_operations,
+                                expanded_docx_path,
+                                allow_table_expansion=True,
+                            )
+                        )
+                        final_local_path = expanded_docx_path
                 else:
                     run.processing_strategy = "docx_edit_in_place"
                     target_preview_text = self._extract_docx_text(target_local_path)
@@ -1178,13 +1390,17 @@ Instructions:
 
                     target_doc = DocxDocument(target_local_path)
                     docx_blocks, _block_map = self._collect_docx_blocks(target_doc)
+                    docx_tables, _table_map = self._collect_docx_tables(target_doc)
                     block_summary = self._summarize_docx_blocks(docx_blocks)
+                    table_summary = self._summarize_docx_tables(docx_tables)
                     edit_payload = self._generate_json_response(
                         source_parts + target_parts + [
                             self._build_docx_edit_prompt(
                                 source_text=source_text,
                                 block_summary=block_summary,
+                                table_summary=table_summary,
                                 target_preview_text=target_preview_text,
+                                allow_table_expansion=bool(run.allow_docx_table_expansion),
                             )
                         ],
                         self._docx_edit_schema(),
@@ -1193,9 +1409,20 @@ Instructions:
                         item for item in (edit_payload.get("operations") or []) if isinstance(item, dict) and str(item.get("action") or "").strip()
                     ]
                     warnings.extend([str(item) for item in (edit_payload.get("warnings") or []) if str(item).strip()])
-                    fill_plan = {"strategy": run.processing_strategy, "operations": operations}
+                    fill_plan = {
+                        "strategy": run.processing_strategy,
+                        "operations": operations,
+                        "allow_docx_table_expansion": bool(run.allow_docx_table_expansion),
+                    }
                     final_local_path = os.path.join(temp_dir, "filled.docx")
-                    warnings.extend(self._apply_docx_edit_plan(target_local_path, operations, final_local_path))
+                    warnings.extend(
+                        self._apply_docx_edit_plan(
+                            target_local_path,
+                            operations,
+                            final_local_path,
+                            allow_table_expansion=bool(run.allow_docx_table_expansion),
+                        )
+                    )
                     final_filename = f"{Path(run.target_filename).stem}_filled.docx"
                     final_mime_type = DOCX_MIME
                     warnings.append("The DOCX target had no placeholders, so Form Fill edited the original DOCX in place.")

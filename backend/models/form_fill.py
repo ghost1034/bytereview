@@ -14,6 +14,7 @@ class FormFillTemplateResponse(BaseModel):
     description: Optional[str] = None
     original_filename: str
     file_type: str
+    allow_docx_table_expansion: bool = False
     file_size_bytes: int
     created_at: datetime
     updated_at: datetime
@@ -37,6 +38,7 @@ class FormFillRunResponse(BaseModel):
     target_template_id: Optional[str] = None
     target_filename: str
     target_file_type: str
+    allow_docx_table_expansion: bool = False
     output_format: str
     processing_strategy: Optional[str] = None
     warnings: list[str] = Field(default_factory=list)

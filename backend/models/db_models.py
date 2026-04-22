@@ -11,7 +11,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.sql import func
+from sqlalchemy.sql import expression, func
 import uuid
 
 Base = declarative_base()
@@ -98,6 +98,7 @@ class FormFillTemplate(Base):
     description = Column(Text)
     original_filename = Column(Text, nullable=False)
     file_type = Column(String(100), nullable=False)
+    allow_docx_table_expansion = Column(Boolean, nullable=False, default=False, server_default=expression.false())
     gcs_object_name = Column(Text, unique=True, nullable=False)
     file_size_bytes = Column(BigInteger, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
@@ -127,6 +128,7 @@ class FormFillRun(Base):
     target_template_id = Column(UUID(as_uuid=True), ForeignKey("form_fill_templates.id", ondelete="SET NULL"), nullable=True)
     target_filename = Column(Text, nullable=False)
     target_file_type = Column(String(100), nullable=False)
+    allow_docx_table_expansion = Column(Boolean, nullable=False, default=False, server_default=expression.false())
     target_gcs_object_name = Column(Text, nullable=False)
     target_file_size_bytes = Column(BigInteger, nullable=False)
     output_format = Column(String(20), nullable=False)

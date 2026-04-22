@@ -710,6 +710,9 @@ export class ApiClient {
     if (params.targetFile) formData.append('target_file', params.targetFile)
     if (params.templateId) formData.append('template_id', params.templateId)
     if (params.outputFormat) formData.append('output_format', params.outputFormat)
+    if (params.allowDocxTableExpansion !== undefined) {
+      formData.append('allow_docx_table_expansion', params.allowDocxTableExpansion ? 'true' : 'false')
+    }
     if (params.saveTemplateName) formData.append('save_template_name', params.saveTemplateName)
     if (params.saveTemplateDescription) formData.append('save_template_description', params.saveTemplateDescription)
     if (params.sourceJobId) formData.append('source_job_id', params.sourceJobId)
@@ -1371,6 +1374,7 @@ export interface FormFillTemplate {
   description?: string | null
   original_filename: string
   file_type: string
+  allow_docx_table_expansion: boolean
   file_size_bytes: number
   created_at: string
   updated_at: string
@@ -1403,6 +1407,7 @@ export interface FormFillRun {
   target_template_id?: string | null
   target_filename: string
   target_file_type: string
+  allow_docx_table_expansion: boolean
   output_format: string
   processing_strategy?: string | null
   warnings: string[]
@@ -1425,6 +1430,7 @@ export interface CreateFormFillRunParams {
   targetFile?: File
   templateId?: string
   outputFormat?: 'pdf' | 'docx'
+  allowDocxTableExpansion?: boolean
   saveTemplateName?: string
   saveTemplateDescription?: string
   sourceJobId?: string

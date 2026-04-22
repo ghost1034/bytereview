@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -16,6 +17,8 @@ import {
   type FormFillTemplate,
 } from '@/lib/api'
 import { useToast } from '@/hooks/use-toast'
+
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
@@ -30,7 +33,7 @@ function downloadBlob(blob: Blob, filename: string) {
 
 function mimeToExtension(mimeType?: string | null) {
   if (mimeType === 'application/pdf') return 'PDF'
-  if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'DOCX'
+  if (mimeType === DOCX_MIME) return 'DOCX'
   if (mimeType === 'text/csv') return 'CSV'
   if (mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') return 'XLSX'
   return mimeType || 'Unknown'
@@ -69,6 +72,7 @@ export default function FormFillPage() {
   const [saveAsTemplate, setSaveAsTemplate] = useState(false)
   const [templateName, setTemplateName] = useState('')
   const [templateDescription, setTemplateDescription] = useState('')
+  const [allowDocxTableExpansion, setAllowDocxTableExpansion] = useState(false)
   const [outputFormat, setOutputFormat] = useState<'pdf' | 'docx'>('pdf')
   const [creating, setCreating] = useState(false)
   const [downloading, setDownloading] = useState(false)
@@ -111,12 +115,22 @@ export default function FormFillPage() {
   }, [targetMode, targetFile, selectedTemplate])
 
   useEffect(() => {
-    if (targetMimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    if (targetMimeType === DOCX_MIME) {
       setOutputFormat((current) => (current === 'pdf' || current === 'docx' ? current : 'docx'))
       return
     }
     setOutputFormat('pdf')
   }, [targetMimeType])
+
+  useEffect(() => {
+    if (targetMode === 'template' && selectedTemplate?.file_type === DOCX_MIME) {
+      setAllowDocxTableExpansion(Boolean(selectedTemplate.allow_docx_table_expansion))
+      return
+    }
+    if (targetMimeType !== DOCX_MIME) {
+      setAllowDocxTableExpansion(false)
+    }
+  }, [selectedTemplate, targetMimeType, targetMode])
 
   const canSubmit = useMemo(() => {
     const sourceReady = sourceMode === 'upload' ? !!sourceFile : !!extractionPreview
@@ -134,6 +148,7 @@ export default function FormFillPage() {
         targetFile: targetMode === 'upload' ? targetFile || undefined : undefined,
         templateId: targetMode === 'template' ? selectedTemplateId : undefined,
         outputFormat,
+        allowDocxTableExpansion: targetMimeType === DOCX_MIME ? allowDocxTableExpansion : undefined,
         saveTemplateName: targetMode === 'upload' && saveAsTemplate ? templateName.trim() : undefined,
         saveTemplateDescription: targetMode === 'upload' && saveAsTemplate ? templateDescription.trim() : undefined,
         sourceJobId: sourceMode === 'extraction' ? sourceJobId : undefined,
@@ -340,6 +355,25 @@ export default function FormFillPage() {
               )}
             </div>
           )}
+
+          {targetMimeType === DOCX_MIME && (
+            <div className="flex items-start gap-3 rounded-md border p-4">
+              <Checkbox
+                id="allow-docx-table-expansion"
+                checked={allowDocxTableExpansion}
+                onCheckedChange={(checked) => setAllowDocxTableExpansion(checked === true)}
+              />
+              <div className="space-y-1">
+                <Label htmlFor="allow-docx-table-expansion" className="text-sm font-medium">
+                  Allow AI to add new rows or columns in the form
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Use this when a DOCX table may need to grow to fit the extracted data.
+                  {targetMode === 'upload' && saveAsTemplate ? ' This setting will be saved on the template.' : ''}
+                </p>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -357,7 +391,7 @@ export default function FormFillPage() {
               value={outputFormat}
               onChange={(event) => setOutputFormat(event.target.value as 'pdf' | 'docx')}
             >
-              {targetMimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ? (
+              {targetMimeType === DOCX_MIME ? (
                 <>
                   <option value="docx">DOCX</option>
                   <option value="pdf">PDF</option>

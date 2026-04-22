@@ -2572,6 +2572,8 @@ export interface components {
             template_id?: string | null;
             /** Output Format */
             output_format?: string | null;
+            /** Allow Docx Table Expansion */
+            allow_docx_table_expansion?: boolean | null;
             /** Save Template Name */
             save_template_name?: string | null;
             /** Save Template Description */
@@ -2918,6 +2920,11 @@ export interface components {
             target_filename: string;
             /** Target File Type */
             target_file_type: string;
+            /**
+             * Allow Docx Table Expansion
+             * @default false
+             */
+            allow_docx_table_expansion: boolean;
             /** Output Format */
             output_format: string;
             /** Processing Strategy */
@@ -2964,6 +2971,11 @@ export interface components {
             original_filename: string;
             /** File Type */
             file_type: string;
+            /**
+             * Allow Docx Table Expansion
+             * @default false
+             */
+            allow_docx_table_expansion: boolean;
             /** File Size Bytes */
             file_size_bytes: number;
             /**
