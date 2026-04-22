@@ -473,11 +473,23 @@ class FormFillService:
                 parts.append(text)
         for table in doc.tables:
             for row in table.rows:
-                row_text = " | ".join(cell.text.strip() for cell in row.cells if cell.text.strip())
+                row_text = " | ".join(cell.text.strip() for cell in self._docx_row_cells(row) if cell.text.strip())
                 if row_text:
                     parts.append(row_text)
         joined = "\n\n".join(parts)
         return joined[:max_chars]
+
+    def _docx_row_cells(self, row: Any) -> list[Any]:
+        from docx.table import _Cell
+
+        return [_Cell(tc, row.table) for tc in row._tr.tc_lst]
+
+    def _docx_table_has_merged_cells(self, table: Any) -> bool:
+        for row in table.rows:
+            for cell in self._docx_row_cells(row):
+                if cell.grid_span > 1 or cell._tc.vMerge is not None:
+                    return True
+        return False
 
     def _extract_docx_placeholders(self, local_path: str) -> list[str]:
         from docx import Document as DocxDocument
@@ -494,7 +506,7 @@ class FormFillService:
             collect(paragraph.text)
         for table in doc.tables:
             for row in table.rows:
-                for cell in row.cells:
+                for cell in self._docx_row_cells(row):
                     collect(cell.text)
         for section in doc.sections:
             for paragraph in section.header.paragraphs:
@@ -657,7 +669,7 @@ class FormFillService:
             self._replace_text_in_paragraph(paragraph, replacements)
         for table in doc.tables:
             for row in table.rows:
-                for cell in row.cells:
+                for cell in self._docx_row_cells(row):
                     for paragraph in cell.paragraphs:
                         self._replace_text_in_paragraph(paragraph, replacements)
         for section in doc.sections:
@@ -849,7 +861,7 @@ Instructions:
 
         for table_index, table in enumerate(doc.tables):
             for row_index, row in enumerate(table.rows):
-                for cell_index, cell in enumerate(row.cells):
+                for cell_index, cell in enumerate(self._docx_row_cells(row)):
                     for paragraph_index, paragraph in enumerate(cell.paragraphs):
                         add_block(
                             f"table.{table_index}.row.{row_index}.cell.{cell_index}.paragraph.{paragraph_index}",
@@ -880,10 +892,10 @@ Instructions:
         for table_index, table in enumerate(doc.tables):
             table_id = f"table.{table_index}"
             row_count = len(table.rows)
-            column_count = max((len(row.cells) for row in table.rows), default=0)
+            column_count = max((len(self._docx_row_cells(row)) for row in table.rows), default=0)
             preview_rows: list[str] = []
             for row_index, row in enumerate(table.rows[:8]):
-                values = [cell.text.strip() for cell in row.cells[:8]]
+                values = [cell.text.strip() for cell in self._docx_row_cells(row)[:8]]
                 rendered = " | ".join(value if value else "[blank]" for value in values)
                 preview_rows.append(f"row {row_index}: {rendered or '[blank]'}")
             table_info = {
@@ -1092,15 +1104,16 @@ Instructions:
         template_row._tr.addnext(new_tr)
 
         inserted_row = table.rows[row_index + 1]
-        for cell in inserted_row.cells:
+        logical_cells = self._docx_row_cells(inserted_row)
+        for cell in logical_cells:
             self._clear_docx_cell(cell)
 
-        if len(values) > len(inserted_row.cells):
+        if len(values) > len(logical_cells):
             warnings.append(
-                f"Inserted row after {row_index} received {len(values)} values, but the table only has {len(inserted_row.cells)} columns."
+                f"Inserted row after {row_index} received {len(values)} values, but the table only has {len(logical_cells)} columns."
             )
 
-        for cell_index, cell in enumerate(inserted_row.cells):
+        for cell_index, cell in enumerate(logical_cells):
             cell.text = values[cell_index] if cell_index < len(values) else ""
         return warnings
 
@@ -1108,6 +1121,8 @@ Instructions:
         warnings: list[str] = []
         if not table.rows:
             return ["Could not insert a table column because the table has no rows."]
+        if self._docx_table_has_merged_cells(table):
+            return ["Could not insert a table column because the table contains merged cells."]
         if column_index < 0 or column_index >= len(table.rows[0].cells):
             return [f"Could not insert table column after index {column_index}; the column does not exist."]
 
