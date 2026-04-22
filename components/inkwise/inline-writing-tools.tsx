@@ -12,9 +12,11 @@ import { Label } from '@/components/ui/label'
 import { apiClient, InkwiseBoundSource, InkwiseCitationStyle, InkwiseCitation, InkwiseSseEvent, InkwiseWritingAction } from '@/lib/api'
 import { getInkwiseEditorTarget, type InkwiseEditorTarget, insertMarkdownIntoEditor } from '@/lib/inkwise-editor'
 import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
-import { compareNaturalText } from '@/lib/utils'
+import { cn, compareNaturalText } from '@/lib/utils'
 
 type ToolAction = Exclude<InkwiseWritingAction, 'other'> | 'custom'
+
+const PRESET_ACTIONS: Exclude<ToolAction, 'custom'>[] = ['coherent', 'concise', 'detailed', 'humanize']
 
 const TOOL_CONFIG: Record<Exclude<ToolAction, 'custom'>, { label: string; instruction: string }> = {
   coherent: {
@@ -326,10 +328,18 @@ export function InlineWritingTools({
             <div className="flex flex-wrap gap-2">
               {hasSelection ? (
                 <>
-                  <Button size="sm" onMouseDown={preventEditorBlur} onClick={() => run('coherent')} disabled={busy}>Coherent</Button>
-                  <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => run('concise')} disabled={busy}>Concise</Button>
-                  <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => run('detailed')} disabled={busy}>Detailed</Button>
-                  <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => run('humanize')} disabled={busy}>Humanize</Button>
+                  {PRESET_ACTIONS.map((action) => (
+                    <Button
+                      key={action}
+                      size="sm"
+                      variant={action === 'coherent' ? 'default' : 'outline'}
+                      onMouseDown={preventEditorBlur}
+                      onClick={() => run(action)}
+                      disabled={busy}
+                    >
+                      {TOOL_CONFIG[action].label}
+                    </Button>
+                  ))}
                   <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => setCustomOpen((value) => !value)} disabled={busy}>Custom</Button>
                 </>
               ) : (
@@ -342,6 +352,31 @@ export function InlineWritingTools({
       </div>
 
       <div className="mt-3 flex-1 space-y-3 overflow-y-auto pr-1">
+        {hasSelection ? (
+          <div className="rounded-xl border bg-slate-50 p-3">
+            <div className="text-sm font-medium text-slate-900">Preset prompts</div>
+            <div className="mt-2 space-y-2">
+              {PRESET_ACTIONS.map((action) => {
+                const config = TOOL_CONFIG[action]
+                const selected = lastAction === action
+
+                return (
+                  <div
+                    key={action}
+                    className={cn(
+                      'rounded-lg border bg-white px-3 py-2',
+                      selected ? 'border-emerald-300 bg-emerald-50/70' : 'border-slate-200'
+                    )}
+                  >
+                    <div className="text-xs font-medium uppercase tracking-wide text-slate-700">{config.label}</div>
+                    <div className="mt-1 text-sm text-slate-600">{config.instruction}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ) : null}
+
         <div className="rounded-xl border bg-slate-50 p-3">
           <div className="flex items-start justify-between gap-3">
             <div>
