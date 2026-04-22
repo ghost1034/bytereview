@@ -173,14 +173,16 @@ export function InkwiseSourceImportPanel({
           </Button>
         </div>
 
-        <div className="flex flex-col gap-2 md:flex-row">
+        <div className="flex min-w-0 flex-col gap-2 md:flex-row">
           <Input
             value={webpageUrl}
             onChange={(event) => setWebpageUrl(event.target.value)}
             placeholder="example.com/reference"
+            className="min-w-0 flex-1"
           />
           <Button
             variant="outline"
+            className="shrink-0"
             onClick={() => captureWebpage.mutate(normalizeWebpageUrlInput(webpageUrl))}
             disabled={captureWebpage.isPending || !webpageUrl.trim() || isBusy}
           >

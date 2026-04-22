@@ -1554,10 +1554,10 @@ export default function InkwiseDocumentPage() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="references" className="mt-0 min-h-0 flex-1 px-3 pb-3">
-                <div className="flex h-full min-h-0 flex-col">
-                  <ScrollArea className="min-h-0 flex-1 rounded-2xl bg-slate-50 p-3">
-                    <div className="space-y-5">
+              <TabsContent value="references" className="mt-0 min-h-0 min-w-0 flex-1 px-3 pb-3">
+                <div className="flex h-full min-h-0 min-w-0 flex-col">
+                  <ScrollArea className="min-h-0 min-w-0 flex-1 rounded-2xl bg-slate-50 p-3">
+                    <div className="min-w-0 space-y-5">
                       <InkwiseSourceImportPanel
                         compact
                         title="Add and bind references"
@@ -1589,14 +1589,14 @@ export default function InkwiseDocumentPage() {
                             filteredBoundSources.map((binding) => (
                               <div key={binding.binding_id} className="rounded-2xl border bg-white p-4">
                                 <div className="flex items-start justify-between gap-3">
-                                  <div>
-                                    <div className="font-medium text-slate-900">{binding.source.title}</div>
-                                    <div className="mt-1 text-xs text-slate-500">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="truncate font-medium text-slate-900">{binding.source.title}</div>
+                                    <div className="mt-1 break-words text-xs text-slate-500">
                                       {binding.source.original_path ? `${binding.source.original_path} • ` : ''}
                                       {binding.grounded_chat_ready ? 'Ready for grounding' : binding.grounded_chat_reason || 'Not ready yet'}
                                     </div>
                                   </div>
-                                  <Button variant="outline" size="sm" onClick={() => unbindSources.mutate([binding.source.id])}>
+                                  <Button variant="outline" size="sm" className="shrink-0" onClick={() => unbindSources.mutate([binding.source.id])}>
                                     <Unplug className="mr-2 h-4 w-4" />
                                     Unbind
                                   </Button>
@@ -1622,14 +1622,14 @@ export default function InkwiseDocumentPage() {
                             filteredAvailableSources.map((source) => (
                               <div key={source.id} className="rounded-2xl border bg-white p-4">
                                 <div className="flex items-start justify-between gap-3">
-                                  <div>
-                                    <div className="font-medium text-slate-900">{source.title}</div>
-                                    <div className="mt-1 text-xs text-slate-500">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="truncate font-medium text-slate-900">{source.title}</div>
+                                    <div className="mt-1 break-words text-xs text-slate-500">
                                       {source.original_path ? `${source.original_path} • ` : ''}
                                       {source.status} • {new Date(source.updated_at).toLocaleString()}
                                     </div>
                                   </div>
-                                  <Button size="sm" onClick={() => bindSources.mutate([source.id])}>
+                                  <Button size="sm" className="shrink-0" onClick={() => bindSources.mutate([source.id])}>
                                     Bind
                                   </Button>
                                 </div>
