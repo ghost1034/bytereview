@@ -1194,7 +1194,7 @@ export default function InkwiseDocumentPage() {
           <div
             className={cn(
               'flex flex-col gap-4 px-4 py-4 sm:px-5 xl:min-h-0 xl:flex-1',
-              focusModeEnabled && 'mx-auto flex min-h-0 w-full max-w-5xl flex-1 gap-5 px-0 py-4 sm:px-0',
+              focusModeEnabled && 'mx-auto flex min-h-0 w-full max-w-7xl flex-1 gap-5 px-0 py-4 sm:px-0',
             )}
           >
 

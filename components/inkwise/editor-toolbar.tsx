@@ -138,7 +138,7 @@ export function InkwiseEditorToolbar({
   return (
     <div
       className={focusMode
-        ? 'flex flex-wrap items-center gap-2 rounded-t-xl border-b border-white/20 bg-white/35 p-3 backdrop-blur-xl'
+        ? 'flex flex-wrap items-center gap-2 rounded-t-xl border-b border-white/30 bg-white/70 p-3 backdrop-blur-xl'
         : 'flex flex-wrap items-center gap-2 rounded-t-xl border-b bg-slate-50 p-3'}
     >
       {items.map((item) => (
