@@ -11,7 +11,7 @@ import { InkwiseSourceImportPanel } from '@/components/inkwise/source-import-pan
 import { InlineWritingTools } from '@/components/inkwise/inline-writing-tools'
 import { InkwiseChatDebugSheet } from '@/components/inkwise/chat-debug-sheet'
 import { InkwiseCitationBubbles } from '@/components/inkwise/citation-bubbles'
-import { RainBackground } from '@/components/inkwise/rain-background'
+import { FocusBackground } from '@/components/inkwise/focus-background'
 import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
 import { GoogleDriveFolderPicker } from '@/components/integrations/GoogleDriveFolderPicker'
 import { Button } from '@/components/ui/button'
@@ -1065,10 +1065,7 @@ export default function InkwiseDocumentPage() {
     >
       <div className={cn('absolute inset-0 pointer-events-none', !focusModeEnabled && 'hidden')}>
           <div className="inkwise-focus-backdrop pointer-events-none absolute inset-0" />
-          <RainBackground
-            active={focusModeEnabled}
-            lightning={false}
-          />
+          <FocusBackground />
       </div>
       <div className={cn('sticky top-0 z-20 flex items-center justify-between gap-3 py-2', !focusModeEnabled && 'hidden')}>
             <div className="min-w-0 rounded-full border border-white/15 bg-slate-950/25 px-4 py-3 text-white shadow-lg backdrop-blur-xl">
