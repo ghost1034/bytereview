@@ -1174,13 +1174,8 @@ export default function InkwiseDocumentPage() {
           </div>
       </section>
 
-      <div
-        className={cn(
-          'flex min-h-[72vh] flex-col gap-4 xl:h-[max(42rem,calc(100vh-var(--header-height)-16rem))] xl:max-h-[max(42rem,calc(100vh-var(--header-height)-16rem))] xl:min-h-0 xl:flex-row',
-          focusModeEnabled && 'relative z-10 min-h-0 flex-1 xl:h-auto xl:max-h-none',
-        )}
-      >
-        <section className={cn('min-w-0 flex-1 rounded-3xl border bg-white shadow-sm xl:flex xl:min-h-0 xl:flex-col', focusModeEnabled && 'flex min-h-0 flex-col border-transparent bg-transparent shadow-none')}>
+      <div className={cn('flex min-h-[72vh] flex-col gap-4 xl:flex-row', focusModeEnabled && 'relative z-10 min-h-0 flex-1')}>
+        <section className={cn('min-w-0 flex-1 rounded-3xl border bg-white shadow-sm', focusModeEnabled && 'flex min-h-0 flex-col border-transparent bg-transparent shadow-none')}>
           <div className={cn('flex items-center justify-between border-b px-5 py-4', focusModeEnabled && 'hidden')}>
               <div>
                 <div className="text-sm font-semibold text-slate-900">Write</div>
@@ -1188,12 +1183,7 @@ export default function InkwiseDocumentPage() {
               </div>
           </div>
 
-          <div
-            className={cn(
-              'flex flex-col gap-4 px-4 py-4 sm:px-5 xl:min-h-0 xl:flex-1',
-              focusModeEnabled && 'mx-auto flex min-h-0 w-full max-w-7xl flex-1 gap-5 px-0 py-4 sm:px-0',
-            )}
-          >
+          <div className={cn('space-y-4 px-4 py-4 sm:px-5', focusModeEnabled && 'mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-5 px-0 py-4 sm:px-0')}>
 
             <InlineWritingTools
               editor={editor}
@@ -1257,7 +1247,7 @@ export default function InkwiseDocumentPage() {
                 }
               }}
               focusMode={focusModeEnabled}
-              className={cn('max-h-[75vh] min-h-[65vh] border-0 shadow-none xl:min-h-0 xl:flex-1 xl:max-h-none', focusModeEnabled && 'min-h-0 max-h-none flex-1')}
+              className={cn('max-h-[75vh] min-h-[65vh] border-0 shadow-none', focusModeEnabled && 'min-h-0 max-h-none flex-1')}
             />
 
             <div className={cn('rounded-2xl px-4 py-3 text-xs', focusModeEnabled ? 'hidden' : 'bg-slate-50 text-slate-500')}>
@@ -1279,7 +1269,7 @@ export default function InkwiseDocumentPage() {
 
         <aside
             className={cn(
-              'flex max-h-[70vh] min-h-0 flex-col overflow-hidden rounded-3xl border bg-white shadow-sm transition-all duration-200 xl:sticky xl:top-28 xl:h-full xl:max-h-full xl:self-start',
+              'rounded-3xl border bg-white shadow-sm transition-all duration-200 xl:sticky xl:top-28 xl:self-start',
               sidebarOpen ? 'w-full xl:w-[25rem]' : 'w-full xl:w-[5.5rem]',
               focusModeEnabled && 'hidden'
             )}
@@ -1301,7 +1291,7 @@ export default function InkwiseDocumentPage() {
             </div>
 
             {sidebarOpen ? (
-              <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as 'chat' | 'references' | 'review')} className="flex h-full min-h-0 flex-1 flex-col">
+              <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as 'chat' | 'references' | 'review')} className="flex h-full min-h-[32rem] flex-col">
               <div className="border-b px-3 py-3">
                 <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-slate-100">
                   <TabsTrigger value="chat" className="rounded-xl">
@@ -1593,7 +1583,7 @@ export default function InkwiseDocumentPage() {
 
                     <div>
                       <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Bound to this document</div>
-                      <div className="max-h-64 space-y-3 overflow-auto pr-1">
+                      <div className="space-y-3">
                         {filteredBoundSources.length ? (
                           filteredBoundSources.map((binding) => (
                             <div key={binding.binding_id} className="rounded-2xl border bg-white p-4">
@@ -1626,7 +1616,7 @@ export default function InkwiseDocumentPage() {
 
                     <div>
                       <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Available library sources</div>
-                      <div className="max-h-64 space-y-3 overflow-auto pr-1">
+                      <div className="space-y-3">
                         {filteredAvailableSources.length ? (
                           filteredAvailableSources.map((source) => (
                             <div key={source.id} className="rounded-2xl border bg-white p-4">
