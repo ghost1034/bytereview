@@ -1309,8 +1309,8 @@ export default function InkwiseDocumentPage() {
                 </TabsList>
               </div>
 
-              <TabsContent value="chat" className="mt-0 flex min-h-0 flex-1 flex-col px-3 pb-3">
-                <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-2xl bg-slate-50 p-3">
+              <TabsContent value="chat" className="mt-0 min-h-0 flex-1 px-3 pb-3">
+                <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden rounded-2xl bg-slate-50 p-3">
                   <div className="max-h-28 overflow-y-auto rounded-2xl border bg-white">
                     <div className="flex flex-wrap gap-2 p-3 pr-4">
                       {(threadsQuery.data?.threads ?? []).map((thread) => (
@@ -1554,204 +1554,208 @@ export default function InkwiseDocumentPage() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="references" className="mt-0 flex min-h-0 flex-1 flex-col px-3 pb-3">
-                <ScrollArea className="min-h-0 flex-1 rounded-2xl bg-slate-50 p-3">
-                  <div className="space-y-5">
-                    <InkwiseSourceImportPanel
-                      compact
-                      title="Add and bind references"
-                      description="Import new references without leaving the write workspace. New references are bound to this document automatically."
-                      onImported={async (sources) => {
-                        if (!sources.length) return
-                        await bindSources.mutateAsync(sources.map((source) => source.id))
-                        await queryClient.invalidateQueries({ queryKey: ['inkwise', 'document-sources', documentId] })
-                      }}
-                    />
-
-                    <div>
-                      <div className="mb-2 flex items-center justify-between gap-3">
-                        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Document references</div>
-                        <div className="text-xs text-slate-500">{filteredBoundSources.length + filteredAvailableSources.length} shown</div>
-                      </div>
-                      <Input
-                        value={referenceSearch}
-                        onChange={(event) => setReferenceSearch(event.target.value)}
-                        placeholder="Search references"
-                        className="bg-white"
+              <TabsContent value="references" className="mt-0 min-h-0 flex-1 px-3 pb-3">
+                <div className="flex h-full min-h-0 flex-col">
+                  <ScrollArea className="min-h-0 flex-1 rounded-2xl bg-slate-50 p-3">
+                    <div className="space-y-5">
+                      <InkwiseSourceImportPanel
+                        compact
+                        title="Add and bind references"
+                        description="Import new references without leaving the write workspace. New references are bound to this document automatically."
+                        onImported={async (sources) => {
+                          if (!sources.length) return
+                          await bindSources.mutateAsync(sources.map((source) => source.id))
+                          await queryClient.invalidateQueries({ queryKey: ['inkwise', 'document-sources', documentId] })
+                        }}
                       />
-                    </div>
 
-                    <div>
-                      <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Bound to this document</div>
-                      <div className="space-y-3">
-                        {filteredBoundSources.length ? (
-                          filteredBoundSources.map((binding) => (
-                            <div key={binding.binding_id} className="rounded-2xl border bg-white p-4">
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <div className="font-medium text-slate-900">{binding.source.title}</div>
-                                  <div className="mt-1 text-xs text-slate-500">
-                                    {binding.source.original_path ? `${binding.source.original_path} • ` : ''}
-                                    {binding.grounded_chat_ready ? 'Ready for grounding' : binding.grounded_chat_reason || 'Not ready yet'}
-                                  </div>
-                                </div>
-                                <Button variant="outline" size="sm" onClick={() => unbindSources.mutate([binding.source.id])}>
-                                  <Unplug className="mr-2 h-4 w-4" />
-                                  Unbind
-                                </Button>
-                              </div>
-                            </div>
-                          ))
-                        ) : boundSources.length ? (
-                          <div className="rounded-2xl border border-dashed bg-white p-4 text-sm text-slate-500">
-                            No bound references match that search.
-                          </div>
-                        ) : (
-                          <div className="rounded-2xl border border-dashed bg-white p-4 text-sm text-slate-500">
-                            No sources are bound yet.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Available library sources</div>
-                      <div className="space-y-3">
-                        {filteredAvailableSources.length ? (
-                          filteredAvailableSources.map((source) => (
-                            <div key={source.id} className="rounded-2xl border bg-white p-4">
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <div className="font-medium text-slate-900">{source.title}</div>
-                                  <div className="mt-1 text-xs text-slate-500">
-                                    {source.original_path ? `${source.original_path} • ` : ''}
-                                    {source.status} • {new Date(source.updated_at).toLocaleString()}
-                                  </div>
-                                </div>
-                                <Button size="sm" onClick={() => bindSources.mutate([source.id])}>
-                                  Bind
-                                </Button>
-                              </div>
-                            </div>
-                          ))
-                        ) : availableSources.length ? (
-                          <div className="rounded-2xl border border-dashed bg-white p-4 text-sm text-slate-500">
-                            No library references match that search.
-                          </div>
-                        ) : (
-                          <div className="rounded-2xl border border-dashed bg-white p-4 text-sm text-slate-500">
-                            Everything in your source library is already bound to this document.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </ScrollArea>
-              </TabsContent>
-
-              <TabsContent value="review" className="mt-0 flex min-h-0 flex-1 flex-col px-3 pb-3">
-                <ScrollArea className="min-h-0 flex-1 rounded-2xl bg-slate-50 p-3">
-                  <div className="space-y-5">
-                    <div className="rounded-2xl border bg-white p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-medium text-slate-900">Tracked changes</div>
-                          <div className="mt-1 text-xs text-slate-500">
-                            {trackChangesEnabled ? 'New edits are being marked.' : 'Turn on track changes in the editor toolbar to mark edits.'}
-                          </div>
+                      <div>
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Document references</div>
+                          <div className="text-xs text-slate-500">{filteredBoundSources.length + filteredAvailableSources.length} shown</div>
                         </div>
-                        <div className="text-xs text-slate-500">{pendingChangeCount} pending</div>
+                        <Input
+                          value={referenceSearch}
+                          onChange={(event) => setReferenceSearch(event.target.value)}
+                          placeholder="Search references"
+                          className="bg-white"
+                        />
                       </div>
 
-                      {reviewState.changes.length ? (
-                        <>
-                          <div className="mt-3 flex gap-2">
-                            <Button size="sm" variant="outline" onClick={handleRejectAllChanges}>
-                              Reject all
-                            </Button>
-                            <Button size="sm" onClick={handleAcceptAllChanges}>
-                              Accept all
-                            </Button>
-                          </div>
-                          <div className="mt-4 space-y-3">
-                            {reviewState.changes.map((change) => (
-                              <div key={change.id} className="rounded-2xl border bg-slate-50 p-3">
+                      <div>
+                        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Bound to this document</div>
+                        <div className="space-y-3">
+                          {filteredBoundSources.length ? (
+                            filteredBoundSources.map((binding) => (
+                              <div key={binding.binding_id} className="rounded-2xl border bg-white p-4">
                                 <div className="flex items-start justify-between gap-3">
                                   <div>
-                                    <div className="text-sm font-medium text-slate-900">{change.kind === 'deletion' ? 'Deletion' : 'Insertion'}</div>
-                                    <div className="mt-1 text-xs text-slate-500">{change.createdAt ? new Date(change.createdAt).toLocaleString() : 'Pending review'}</div>
+                                    <div className="font-medium text-slate-900">{binding.source.title}</div>
+                                    <div className="mt-1 text-xs text-slate-500">
+                                      {binding.source.original_path ? `${binding.source.original_path} • ` : ''}
+                                      {binding.grounded_chat_ready ? 'Ready for grounding' : binding.grounded_chat_reason || 'Not ready yet'}
+                                    </div>
                                   </div>
-                                  <Button size="sm" variant="outline" onClick={() => focusEditorRange(change.from, change.to)}>
-                                    Jump to change
+                                  <Button variant="outline" size="sm" onClick={() => unbindSources.mutate([binding.source.id])}>
+                                    <Unplug className="mr-2 h-4 w-4" />
+                                    Unbind
                                   </Button>
                                 </div>
-                                <div className="mt-3 rounded-xl border bg-white px-3 py-2 text-sm text-slate-700">{change.text || 'No text captured.'}</div>
-                                <div className="mt-3 flex gap-2">
-                                  <Button size="sm" variant="outline" onClick={() => handleRejectChange(change.id)}>
-                                    Reject
+                              </div>
+                            ))
+                          ) : boundSources.length ? (
+                            <div className="rounded-2xl border border-dashed bg-white p-4 text-sm text-slate-500">
+                              No bound references match that search.
+                            </div>
+                          ) : (
+                            <div className="rounded-2xl border border-dashed bg-white p-4 text-sm text-slate-500">
+                              No sources are bound yet.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Available library sources</div>
+                        <div className="space-y-3">
+                          {filteredAvailableSources.length ? (
+                            filteredAvailableSources.map((source) => (
+                              <div key={source.id} className="rounded-2xl border bg-white p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <div className="font-medium text-slate-900">{source.title}</div>
+                                    <div className="mt-1 text-xs text-slate-500">
+                                      {source.original_path ? `${source.original_path} • ` : ''}
+                                      {source.status} • {new Date(source.updated_at).toLocaleString()}
+                                    </div>
+                                  </div>
+                                  <Button size="sm" onClick={() => bindSources.mutate([source.id])}>
+                                    Bind
                                   </Button>
-                                  <Button size="sm" onClick={() => handleAcceptChange(change.id)}>
-                                    Accept
+                                </div>
+                              </div>
+                            ))
+                          ) : availableSources.length ? (
+                            <div className="rounded-2xl border border-dashed bg-white p-4 text-sm text-slate-500">
+                              No library references match that search.
+                            </div>
+                          ) : (
+                            <div className="rounded-2xl border border-dashed bg-white p-4 text-sm text-slate-500">
+                              Everything in your source library is already bound to this document.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </ScrollArea>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="review" className="mt-0 min-h-0 flex-1 px-3 pb-3">
+                <div className="flex h-full min-h-0 flex-col">
+                  <ScrollArea className="min-h-0 flex-1 rounded-2xl bg-slate-50 p-3">
+                    <div className="space-y-5">
+                      <div className="rounded-2xl border bg-white p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-medium text-slate-900">Tracked changes</div>
+                            <div className="mt-1 text-xs text-slate-500">
+                              {trackChangesEnabled ? 'New edits are being marked.' : 'Turn on track changes in the editor toolbar to mark edits.'}
+                            </div>
+                          </div>
+                          <div className="text-xs text-slate-500">{pendingChangeCount} pending</div>
+                        </div>
+
+                        {reviewState.changes.length ? (
+                          <>
+                            <div className="mt-3 flex gap-2">
+                              <Button size="sm" variant="outline" onClick={handleRejectAllChanges}>
+                                Reject all
+                              </Button>
+                              <Button size="sm" onClick={handleAcceptAllChanges}>
+                                Accept all
+                              </Button>
+                            </div>
+                            <div className="mt-4 space-y-3">
+                              {reviewState.changes.map((change) => (
+                                <div key={change.id} className="rounded-2xl border bg-slate-50 p-3">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <div className="text-sm font-medium text-slate-900">{change.kind === 'deletion' ? 'Deletion' : 'Insertion'}</div>
+                                      <div className="mt-1 text-xs text-slate-500">{change.createdAt ? new Date(change.createdAt).toLocaleString() : 'Pending review'}</div>
+                                    </div>
+                                    <Button size="sm" variant="outline" onClick={() => focusEditorRange(change.from, change.to)}>
+                                      Jump to change
+                                    </Button>
+                                  </div>
+                                  <div className="mt-3 rounded-xl border bg-white px-3 py-2 text-sm text-slate-700">{change.text || 'No text captured.'}</div>
+                                  <div className="mt-3 flex gap-2">
+                                    <Button size="sm" variant="outline" onClick={() => handleRejectChange(change.id)}>
+                                      Reject
+                                    </Button>
+                                    <Button size="sm" onClick={() => handleAcceptChange(change.id)}>
+                                      Accept
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="mt-3 rounded-2xl border border-dashed bg-slate-50 p-4 text-sm text-slate-500">
+                            No tracked changes yet.
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="rounded-2xl border bg-white p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-medium text-slate-900">Comments</div>
+                            <div className="mt-1 text-xs text-slate-500">Select text in the editor and use the Comment action in the toolbar.</div>
+                          </div>
+                          <div className="text-xs text-slate-500">{pendingCommentCount} open</div>
+                        </div>
+
+                        {reviewState.comments.length ? (
+                          <div className="mt-4 space-y-3">
+                            {reviewState.comments.map((comment) => (
+                              <div key={comment.id} className={cn('rounded-2xl border p-3', comment.resolved ? 'bg-slate-50' : 'bg-amber-50/50')}>
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <div className="text-sm font-medium text-slate-900">{comment.resolved ? 'Resolved comment' : 'Open comment'}</div>
+                                    <div className="mt-1 text-xs text-slate-500">{comment.createdAt ? new Date(comment.createdAt).toLocaleString() : 'Just added'}</div>
+                                  </div>
+                                  <Button size="sm" variant="outline" onClick={() => focusEditorRange(comment.from, comment.to)}>
+                                    Jump to text
+                                  </Button>
+                                </div>
+                                <div className="mt-3 rounded-xl border bg-white px-3 py-2 text-sm text-slate-700">{comment.body}</div>
+                                <div className="mt-2 text-xs text-slate-500">Quoted text: {comment.quote || 'No quoted text available.'}</div>
+                                <div className="mt-3 flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleCommentResolvedChange(comment.id, !comment.resolved)}
+                                  >
+                                    {comment.resolved ? 'Reopen' : 'Resolve'}
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => handleCommentDelete(comment.id)}>
+                                    Delete
                                   </Button>
                                 </div>
                               </div>
                             ))}
                           </div>
-                        </>
-                      ) : (
-                        <div className="mt-3 rounded-2xl border border-dashed bg-slate-50 p-4 text-sm text-slate-500">
-                          No tracked changes yet.
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="rounded-2xl border bg-white p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-medium text-slate-900">Comments</div>
-                          <div className="mt-1 text-xs text-slate-500">Select text in the editor and use the Comment action in the toolbar.</div>
-                        </div>
-                        <div className="text-xs text-slate-500">{pendingCommentCount} open</div>
+                        ) : (
+                          <div className="mt-3 rounded-2xl border border-dashed bg-slate-50 p-4 text-sm text-slate-500">
+                            No comments yet.
+                          </div>
+                        )}
                       </div>
-
-                      {reviewState.comments.length ? (
-                        <div className="mt-4 space-y-3">
-                          {reviewState.comments.map((comment) => (
-                            <div key={comment.id} className={cn('rounded-2xl border p-3', comment.resolved ? 'bg-slate-50' : 'bg-amber-50/50')}>
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <div className="text-sm font-medium text-slate-900">{comment.resolved ? 'Resolved comment' : 'Open comment'}</div>
-                                  <div className="mt-1 text-xs text-slate-500">{comment.createdAt ? new Date(comment.createdAt).toLocaleString() : 'Just added'}</div>
-                                </div>
-                                <Button size="sm" variant="outline" onClick={() => focusEditorRange(comment.from, comment.to)}>
-                                  Jump to text
-                                </Button>
-                              </div>
-                              <div className="mt-3 rounded-xl border bg-white px-3 py-2 text-sm text-slate-700">{comment.body}</div>
-                              <div className="mt-2 text-xs text-slate-500">Quoted text: {comment.quote || 'No quoted text available.'}</div>
-                              <div className="mt-3 flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleCommentResolvedChange(comment.id, !comment.resolved)}
-                                >
-                                  {comment.resolved ? 'Reopen' : 'Resolve'}
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => handleCommentDelete(comment.id)}>
-                                  Delete
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="mt-3 rounded-2xl border border-dashed bg-slate-50 p-4 text-sm text-slate-500">
-                          No comments yet.
-                        </div>
-                      )}
                     </div>
-                  </div>
-                </ScrollArea>
+                  </ScrollArea>
+                </div>
               </TabsContent>
             </Tabs>
           ) : (
