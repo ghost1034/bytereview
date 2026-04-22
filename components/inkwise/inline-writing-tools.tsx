@@ -352,7 +352,7 @@ export function InlineWritingTools({
           )}
         </div>
         <div>
-          {busy ? <Button size="sm" variant="outline" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={stop} aria-label="Stop"><Square className="h-4 w-4" /></Button> : outputMd || error ? <Button size="sm" variant="outline" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={closePanel} aria-label="Close"><X className="h-4 w-4" /></Button> : null}
+          {busy ? <Button size="sm" variant="outline" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={stop} aria-label="Stop"><Square className="h-4 w-4 fill-red-500 text-red-500" /></Button> : outputMd || error ? <Button size="sm" variant="outline" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={closePanel} aria-label="Close"><X className="h-4 w-4" /></Button> : null}
         </div>
       </div>
 
