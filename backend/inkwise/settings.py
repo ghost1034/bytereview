@@ -104,6 +104,7 @@ class InkwiseSettings:
     grounded_chat_history_enabled: bool
     grounded_chat_max_history_messages: int
     grounded_chat_max_history_chars: int
+    prediction_timeout_seconds: float
     query_rewrite_model: str
     query_rewrite_enabled: bool
     query_rewrite_max_history_messages: int
@@ -174,6 +175,7 @@ def get_inkwise_settings() -> InkwiseSettings:
         grounded_chat_history_enabled=_env_bool("INKWISE_GROUNDED_CHAT_HISTORY_ENABLED", True),
         grounded_chat_max_history_messages=_env_int("INKWISE_GROUNDED_CHAT_MAX_HISTORY_MESSAGES", 6),
         grounded_chat_max_history_chars=_env_int("INKWISE_GROUNDED_CHAT_MAX_HISTORY_CHARS", 3500),
+        prediction_timeout_seconds=max(5.0, _env_float("INKWISE_PREDICTION_TIMEOUT_SECONDS", 60.0)),
         query_rewrite_model=os.getenv("INKWISE_QUERY_REWRITE_MODEL", default_model),
         query_rewrite_enabled=_env_bool("INKWISE_QUERY_REWRITE_ENABLED", True),
         query_rewrite_max_history_messages=_env_int("INKWISE_QUERY_REWRITE_MAX_HISTORY_MESSAGES", 12),

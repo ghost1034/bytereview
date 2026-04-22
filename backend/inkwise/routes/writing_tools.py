@@ -77,6 +77,11 @@ def _validate_writing_tool_request(body: InkwiseWritingToolRequest) -> None:
         raise HTTPException(status_code=400, detail="Instruction is required")
 
 
+async def _raise_if_prediction_disconnected(request: Request) -> None:
+    if await request.is_disconnected():
+        raise asyncio.CancelledError
+
+
 async def _stream_writing_tool_attempt(
     *,
     db: Session,
@@ -264,6 +269,7 @@ async def _stream_writing_tool_attempt(
 async def create_prediction(
     document_id: uuid.UUID,
     body: InkwisePredictionRequest,
+    request: Request,
     token_data: dict = Depends(verify_firebase_token),
     db: Session = Depends(get_db),
 ) -> InkwisePredictionResponse:
@@ -298,44 +304,49 @@ async def create_prediction(
     retrieval_run_id: uuid.UUID | None = None
     evidence: list[Any] = []
     multimodal_attached_evidence_ids: list[str] = []
-    if ready_bound_sources:
-        try:
-            retrieval_run, evidence = retrieval_service.run_retrieval(
-                db,
-                user_id=token_data["uid"],
-                document_id=document_id,
-                thread_id=None,
-                query=build_grounded_prediction_retrieval_query(body=body, document=document),
-                bound_sources=ready_bound_sources,
-                draft_selection_text=(body.current_block_text or body.before_text[-3000:]).strip() or None,
-                max_evidence=8,
-                max_total_chars=12000,
-            )
-            retrieval_run_id = cast(uuid.UUID, retrieval_run.id)
-            if evidence:
-                grounded = True
-                prompt = build_grounded_prediction_prompt(
-                    body=body,
-                    document=document,
-                    evidence_pack=build_evidence_pack(evidence),
-                )
-        except Exception:
-            logger.warning(
-                "Inkwise prediction retrieval failed; falling back to ungrounded prediction",
-                extra={"document_id": str(document_id), "attempt_id": str(attempt.id)},
-                exc_info=True,
-            )
-            retrieval_run_id = None
-            evidence = []
-            grounded = False
-
+    generation_started = False
     try:
+        await _raise_if_prediction_disconnected(request)
+        if ready_bound_sources:
+            try:
+                retrieval_run, evidence = retrieval_service.run_retrieval(
+                    db,
+                    user_id=token_data["uid"],
+                    document_id=document_id,
+                    thread_id=None,
+                    query=build_grounded_prediction_retrieval_query(body=body, document=document),
+                    bound_sources=ready_bound_sources,
+                    draft_selection_text=(body.current_block_text or body.before_text[-3000:]).strip() or None,
+                    max_evidence=8,
+                    max_total_chars=12000,
+                )
+                retrieval_run_id = cast(uuid.UUID, retrieval_run.id)
+                if evidence:
+                    grounded = True
+                    prompt = build_grounded_prediction_prompt(
+                        body=body,
+                        document=document,
+                        evidence_pack=build_evidence_pack(evidence),
+                    )
+            except Exception:
+                logger.warning(
+                    "Inkwise prediction retrieval failed; falling back to ungrounded prediction",
+                    extra={"document_id": str(document_id), "attempt_id": str(attempt.id)},
+                    exc_info=True,
+                )
+                retrieval_run_id = None
+                evidence = []
+                grounded = False
+
+        await _raise_if_prediction_disconnected(request)
         multimodal_bundle = build_multimodal_contents(
             prompt=prompt,
             evidence=evidence,
             max_files=100,
         )
         multimodal_attached_evidence_ids = list(multimodal_bundle.attached_evidence_ids)
+        await _raise_if_prediction_disconnected(request)
+        generation_started = True
         if multimodal_bundle.has_attachments:
             result = await generate_content(
                 model=settings.gemini_model,
@@ -344,7 +355,7 @@ async def create_prediction(
                     "temperature": 0.2,
                     "max_output_tokens": 65536,
                 },
-                timeout_seconds=20,
+                timeout_seconds=settings.prediction_timeout_seconds,
             )
         else:
             result = await generate_text(
@@ -352,8 +363,27 @@ async def create_prediction(
                 prompt=prompt,
                 temperature=0.2,
                 max_output_tokens=65536,
-                timeout_seconds=20,
+                timeout_seconds=settings.prediction_timeout_seconds,
             )
+        await _raise_if_prediction_disconnected(request)
+    except asyncio.CancelledError:
+        generation_attempt_service.fail_attempt(
+            db,
+            attempt_id=cast(uuid.UUID, attempt.id),
+            message="cancelled",
+            retrieval_run_id=retrieval_run_id,
+            meta_json={"generation_started": generation_started},
+        )
+        logger.info(
+            "Inkwise prediction cancelled",
+            extra={
+                "document_id": str(document_id),
+                "attempt_id": str(attempt.id),
+                "retrieval_run_id": str(retrieval_run_id) if retrieval_run_id is not None else None,
+                "generation_started": generation_started,
+            },
+        )
+        raise HTTPException(status_code=499, detail="Prediction request cancelled")
     except GeminiError as exc:
         generation_attempt_service.fail_attempt(db, attempt_id=cast(uuid.UUID, attempt.id), message=str(exc), retrieval_run_id=retrieval_run_id)
         raise HTTPException(status_code=502, detail=f"Prediction provider error: {exc}") from exc
@@ -371,6 +401,7 @@ async def create_prediction(
                 "reason": normalized_prediction.reason,
             },
         )
+    await _raise_if_prediction_disconnected(request)
     generation_attempt_service.complete_attempt(
         db,
         attempt_id=cast(uuid.UUID, attempt.id),
