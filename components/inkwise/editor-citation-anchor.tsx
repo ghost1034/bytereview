@@ -20,7 +20,7 @@ function InkwiseCitationAnchorView({ node, editor, getPos }: NodeViewProps) {
   }
 
   const referenceActions = [
-    { id: 'inline', label: 'Inline Citation', variant: 'default' as const },
+    { id: 'inline', label: 'Inline Citation' },
     { id: 'footnote', label: 'Footnote Reference' },
     { id: 'endnote', label: 'Endnote Reference' },
   ].map((action) => ({

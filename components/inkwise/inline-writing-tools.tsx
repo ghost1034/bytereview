@@ -337,7 +337,7 @@ export function InlineWritingTools({
                     <Button
                       key={action}
                       size="sm"
-                      variant={action === 'coherent' ? 'default' : 'outline'}
+                      variant={lastAction === action ? 'default' : 'outline'}
                       onMouseDown={preventEditorBlur}
                       onClick={() => run(action)}
                       disabled={busy}
