@@ -9,14 +9,14 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { apiClient, InkwiseBoundSource, InkwiseCitationStyle, InkwiseCitation, InkwiseSseEvent, InkwiseWritingAction } from '@/lib/api'
 import { getInkwiseEditorTarget, type InkwiseEditorTarget, insertMarkdownIntoEditor } from '@/lib/inkwise-editor'
 import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
-import { cn, compareNaturalText } from '@/lib/utils'
+import { compareNaturalText } from '@/lib/utils'
 
 type ToolAction = Exclude<InkwiseWritingAction, 'other'> | 'custom'
-
-const PRESET_ACTIONS: Exclude<ToolAction, 'custom'>[] = ['coherent', 'concise', 'detailed', 'humanize']
+const DEFAULT_CUSTOM_INSTRUCTION = 'Improve clarity, keep meaning.'
 
 const TOOL_CONFIG: Record<Exclude<ToolAction, 'custom'>, { label: string; instruction: string }> = {
   coherent: {
@@ -35,6 +35,10 @@ const TOOL_CONFIG: Record<Exclude<ToolAction, 'custom'>, { label: string; instru
     label: 'Humanize',
     instruction: 'Make this sound more natural and human while preserving the underlying meaning.',
   },
+}
+
+function isPresetInstruction(value: string): boolean {
+  return Object.values(TOOL_CONFIG).some((config) => config.instruction === value)
 }
 
 type GroundingState = {
@@ -60,9 +64,9 @@ export function InlineWritingTools({
   const [error, setError] = useState<string | null>(null)
   const [outputMd, setOutputMd] = useState('')
   const [outputWithCitations, setOutputWithCitations] = useState<string | null>(null)
+  const [draftAction, setDraftAction] = useState<ToolAction | null>(null)
   const [lastAction, setLastAction] = useState<ToolAction | null>(null)
-  const [customOpen, setCustomOpen] = useState(false)
-  const [instruction, setInstruction] = useState('Improve clarity, keep meaning.')
+  const [instruction, setInstruction] = useState(DEFAULT_CUSTOM_INSTRUCTION)
   const [inserting, setInserting] = useState<null | 'replace' | 'after' | 'insert'>(null)
   const [sourceChecked, setSourceChecked] = useState<Record<string, boolean>>({})
   const [sourceSearch, setSourceSearch] = useState('')
@@ -101,12 +105,8 @@ export function InlineWritingTools({
     if (!editor) return
     const onSelection = () => {
       if (!busy) {
-        setError(null)
-        setOutputMd('')
-        setOutputWithCitations(null)
-        setLastAction(null)
-        setGroundingState(null)
-        setAttemptId(null)
+        clearRunState()
+        setDraftAction(null)
         setPanelOpen(false)
         rangeRef.current = null
       }
@@ -129,27 +129,54 @@ export function InlineWritingTools({
     event.preventDefault()
   }
 
+  function clearRunState() {
+    setError(null)
+    setOutputMd('')
+    setOutputWithCitations(null)
+    setLastAction(null)
+    setGroundingState(null)
+    setAttemptId(null)
+  }
+
   function openPanel() {
     const target = activeTarget()
     if (!target) return
     setPanelOpen(true)
-    setCustomOpen(!target.hasSelection)
+    if (target.hasSelection) {
+      setDraftAction(null)
+    } else {
+      setDraftAction('custom')
+      if (draftAction !== 'custom' && isPresetInstruction(instruction)) setInstruction(DEFAULT_CUSTOM_INSTRUCTION)
+    }
     rangeRef.current = target
   }
 
-  async function run(action: ToolAction, customInstruction?: string) {
+  function prepareAction(action: ToolAction) {
+    const target = activeTarget()
+    if (!target || busy) return
+
+    clearRunState()
+    setPanelOpen(true)
+    setDraftAction(action)
+    rangeRef.current = target
+
+    if (action === 'custom') {
+      setInstruction(draftAction === 'custom' || !isPresetInstruction(instruction) ? instruction : DEFAULT_CUSTOM_INSTRUCTION)
+      return
+    }
+
+    setInstruction(TOOL_CONFIG[action].instruction)
+  }
+
+  async function run(action: ToolAction, resolvedInstruction: string) {
     if (!editor) return
     const selection = selectionTarget(editor)
     if (!selection) return
     if (!selection.hasSelection && action !== 'custom') return
 
-    setError(null)
+    clearRunState()
     setBusy(true)
-    setOutputMd('')
-    setOutputWithCitations(null)
     setLastAction(action)
-    setGroundingState(null)
-    setAttemptId(null)
     setPanelOpen(true)
     rangeRef.current = selection
 
@@ -158,10 +185,6 @@ export function InlineWritingTools({
     abortRef.current = controller
 
     try {
-      const resolvedInstruction =
-        action === 'custom'
-          ? (customInstruction ?? instruction).trim()
-          : TOOL_CONFIG[action].instruction
       await apiClient.streamInkwiseWritingTool(
         {
           action: action === 'custom' ? 'other' : action,
@@ -215,6 +238,15 @@ export function InlineWritingTools({
     }
   }
 
+  async function submitDraft() {
+    if (!draftAction) return
+
+    const resolvedInstruction = instruction.trim()
+    if (!resolvedInstruction) return
+
+    await run(draftAction, resolvedInstruction)
+  }
+
   async function insert(mode: 'replace' | 'after' | 'insert') {
     if (!editor || !rangeRef.current) return
     const markdown = (outputMd || '').trim()
@@ -249,13 +281,8 @@ export function InlineWritingTools({
   }
 
   function closePanel() {
-    setError(null)
-    setOutputMd('')
-    setOutputWithCitations(null)
-    setLastAction(null)
-    setGroundingState(null)
-    setAttemptId(null)
-    setCustomOpen(false)
+    clearRunState()
+    setDraftAction(null)
     setPanelOpen(false)
     rangeRef.current = null
   }
@@ -333,19 +360,11 @@ export function InlineWritingTools({
             <div className="flex flex-wrap gap-2">
               {hasSelection ? (
                 <>
-                  {PRESET_ACTIONS.map((action) => (
-                    <Button
-                      key={action}
-                      size="sm"
-                      variant={lastAction === action ? 'default' : 'outline'}
-                      onMouseDown={preventEditorBlur}
-                      onClick={() => run(action)}
-                      disabled={busy}
-                    >
-                      {TOOL_CONFIG[action].label}
-                    </Button>
-                  ))}
-                  <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => setCustomOpen((value) => !value)} disabled={busy}>Custom</Button>
+                  <Button size="sm" variant={draftAction === 'coherent' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('coherent')} disabled={busy}>Coherent</Button>
+                  <Button size="sm" variant={draftAction === 'concise' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('concise')} disabled={busy}>Concise</Button>
+                  <Button size="sm" variant={draftAction === 'detailed' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('detailed')} disabled={busy}>Detailed</Button>
+                  <Button size="sm" variant={draftAction === 'humanize' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('humanize')} disabled={busy}>Humanize</Button>
+                  <Button size="sm" variant={draftAction === 'custom' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('custom')} disabled={busy}>Custom</Button>
                 </>
               ) : (
             <div className="text-sm font-medium text-slate-900">Write with AI</div>
@@ -357,31 +376,6 @@ export function InlineWritingTools({
       </div>
 
       <div className="mt-3 flex-1 space-y-3 overflow-y-auto pr-1">
-        {hasSelection ? (
-          <div className="rounded-xl border bg-slate-50 p-3">
-            <div className="text-sm font-medium text-slate-900">Preset prompts</div>
-            <div className="mt-2 space-y-2">
-              {PRESET_ACTIONS.map((action) => {
-                const config = TOOL_CONFIG[action]
-                const selected = lastAction === action
-
-                return (
-                  <div
-                    key={action}
-                    className={cn(
-                      'rounded-lg border bg-white px-3 py-2',
-                      selected ? 'border-emerald-300 bg-emerald-50/70' : 'border-slate-200'
-                    )}
-                  >
-                    <div className="text-xs font-medium uppercase tracking-wide text-slate-700">{config.label}</div>
-                    <div className="mt-1 text-sm text-slate-600">{config.instruction}</div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        ) : null}
-
         <div className="rounded-xl border bg-slate-50 p-3">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -454,15 +448,30 @@ export function InlineWritingTools({
           ) : null}
         </div>
 
-        {(customOpen || !hasSelection) ? (
+        {draftAction ? (
           <div className="space-y-2">
-            <Label htmlFor="inkwise-custom-tool">Instruction</Label>
-            <Input id="inkwise-custom-tool" value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder={hasSelection ? 'e.g. rewrite in a persuasive tone' : 'e.g. draft a concise transition sentence'} />
-            <div className="flex justify-end">
-              <Button size="sm" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={() => run('custom', instruction)} disabled={busy || !instruction.trim()} aria-label="Run">
-                <Play className="h-4 w-4" />
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <Label htmlFor="inkwise-tool-prompt">Prompt</Label>
+                <div className="mt-1 text-xs text-slate-500">Review and edit this instruction before sending it to Inkwise.</div>
+              </div>
+              <Button size="sm" onMouseDown={preventEditorBlur} onClick={() => submitDraft()} disabled={busy || !instruction.trim()}>
+                <Play className="mr-1.5 h-4 w-4" />
+                Send
               </Button>
             </div>
+            <Textarea
+              id="inkwise-tool-prompt"
+              value={instruction}
+              onChange={(event) => setInstruction(event.target.value)}
+              placeholder={hasSelection ? 'e.g. rewrite in a persuasive tone' : 'e.g. draft a concise transition sentence'}
+              className="min-h-[108px] bg-white"
+              onMouseDown={preventEditorBlur}
+            />
+          </div>
+        ) : hasSelection ? (
+          <div className="rounded-xl border border-dashed bg-slate-50 p-3 text-sm text-slate-600">
+            Choose a tool to preview its prompt, then edit and send when ready.
           </div>
         ) : null}
 
