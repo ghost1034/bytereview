@@ -1891,9 +1891,7 @@ export interface InkwiseRetryRequest {
 }
 
 export interface InkwisePredictionRequest {
-  before_text: string
-  after_text?: string | null
-  current_block_text?: string | null
+  current_block_prefix_text: string
 }
 
 export interface InkwisePredictionResponse {

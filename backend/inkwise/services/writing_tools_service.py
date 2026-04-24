@@ -143,9 +143,7 @@ def build_grounded_writing_tool_prompt(
 
 
 def build_prediction_prompt(*, body: InkwisePredictionRequest, document: InkwiseDocument) -> str:
-    before_text = body.before_text.strip()
-    after_text = (body.after_text or "").strip()
-    current_block = (body.current_block_text or "").strip()
+    current_block_prefix = body.current_block_prefix_text.strip()
 
     parts: list[str] = []
     parts.append("You are Inkwise Autocomplete.")
@@ -167,36 +165,20 @@ def build_prediction_prompt(*, body: InkwisePredictionRequest, document: Inkwise
         parts.append(f"Document guidance: {document.init_prompt}")
 
     parts.append(f"Document title: {document.title}")
-    if current_block:
-        parts.append("")
-        parts.append("Current cursor block context:")
-        parts.append(current_block)
-
     parts.append("")
-    parts.append("Text before cursor:")
-    parts.append(before_text)
-    if after_text:
-        parts.append("")
-        parts.append("Text after cursor:")
-        parts.append(after_text)
+    parts.append("Current block text before cursor:")
+    parts.append(current_block_prefix)
 
     return "\n".join(parts).strip() + "\n"
 
 
 def build_grounded_prediction_retrieval_query(*, body: InkwisePredictionRequest, document: InkwiseDocument) -> str:
     parts: list[str] = []
-    before_text = body.before_text.strip()
-    after_text = (body.after_text or "").strip()
-    current_block = (body.current_block_text or "").strip()
+    current_block_prefix = body.current_block_prefix_text.strip()
 
     if document.init_prompt:
         parts.append(document.init_prompt.strip())
-    if current_block:
-        parts.append(current_block)
-    if before_text:
-        parts.append(before_text[-3000:])
-    if after_text:
-        parts.append(after_text[:1000])
+    parts.append(current_block_prefix)
 
     return "\n\n".join(part for part in parts if part).strip()
 
@@ -207,9 +189,7 @@ def build_grounded_prediction_prompt(
     document: InkwiseDocument,
     evidence_pack: str,
 ) -> str:
-    before_text = body.before_text.strip()
-    after_text = (body.after_text or "").strip()
-    current_block = (body.current_block_text or "").strip()
+    current_block_prefix = body.current_block_prefix_text.strip()
 
     parts: list[str] = []
     parts.append("You are Inkwise Autocomplete.")
@@ -235,18 +215,9 @@ def build_grounded_prediction_prompt(
         parts.append(f"Document guidance: {document.init_prompt}")
 
     parts.append(f"Document title: {document.title}")
-    if current_block:
-        parts.append("")
-        parts.append("Current cursor block context:")
-        parts.append(current_block)
-
     parts.append("")
-    parts.append("Text before cursor:")
-    parts.append(before_text)
-    if after_text:
-        parts.append("")
-        parts.append("Text after cursor:")
-        parts.append(after_text)
+    parts.append("Current block text before cursor:")
+    parts.append(current_block_prefix)
 
     parts.append("")
     parts.append("Grounded evidence:")
@@ -263,17 +234,13 @@ def normalize_prediction_result(*, raw_text: str, body: InkwisePredictionRequest
     if not lines:
         return NormalizedPredictionResult(text="", reason="empty_response")
 
-    suggestion = lines[0][:240].rstrip()
+    suggestion = lines[0].rstrip()
     if not suggestion:
         return NormalizedPredictionResult(text="", reason="empty_first_line")
 
-    before_tail = body.before_text[-200:].strip()
-    if before_tail and suggestion.strip() == before_tail:
-        return NormalizedPredictionResult(text="", reason="duplicate_before_context")
-
-    after_head = (body.after_text or "")[:200].strip()
-    if after_head and suggestion.strip() == after_head:
-        return NormalizedPredictionResult(text="", reason="duplicate_after_context")
+    current_block_prefix_tail = body.current_block_prefix_text[-200:].strip()
+    if current_block_prefix_tail and suggestion.strip() == current_block_prefix_tail:
+        return NormalizedPredictionResult(text="", reason="duplicate_current_block_prefix")
 
     return NormalizedPredictionResult(text=suggestion, reason=None)
 

@@ -3540,12 +3540,8 @@ export interface components {
         };
         /** InkwisePredictionRequest */
         InkwisePredictionRequest: {
-            /** Before Text */
-            before_text: string;
-            /** After Text */
-            after_text?: string | null;
-            /** Current Block Text */
-            current_block_text?: string | null;
+            /** Current Block Prefix Text */
+            current_block_prefix_text: string;
         };
         /** InkwisePredictionResponse */
         InkwisePredictionResponse: {

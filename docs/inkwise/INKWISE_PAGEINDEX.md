@@ -325,7 +325,7 @@ The inline tools UI is implemented in `components/inkwise/inline-writing-tools.t
 
 Current behavior:
 
-- Uses preceding text, following text, current block text, document language, and `init_prompt`
+- Uses only the current block text before the cursor, plus document language and `init_prompt`
 - Does not use any references or retrieval
 - Renders ghost text in TipTap and accepts it with Tab
 

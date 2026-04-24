@@ -290,9 +290,7 @@ async def create_prediction(
         kind="prediction",
         document_id=document_id,
         request_json={
-            "before_text_len": len(body.before_text),
-            "after_text_len": len(body.after_text or ""),
-            "current_block_text": body.current_block_text,
+            "current_block_prefix_text_len": len(body.current_block_prefix_text),
             "source_ids": [str(source_id) for source_id, _title in ready_bound_sources],
         },
         provider="vertex_ai",
@@ -305,6 +303,8 @@ async def create_prediction(
     evidence: list[Any] = []
     multimodal_attached_evidence_ids: list[str] = []
     generation_started = False
+    suggestion_text = ""
+    parsed_prediction = None
     try:
         await _raise_if_prediction_disconnected(request)
         if ready_bound_sources:
@@ -316,7 +316,7 @@ async def create_prediction(
                     thread_id=None,
                     query=build_grounded_prediction_retrieval_query(body=body, document=document),
                     bound_sources=ready_bound_sources,
-                    draft_selection_text=(body.current_block_text or body.before_text[-3000:]).strip() or None,
+                    draft_selection_text=body.current_block_prefix_text.strip() or None,
                     max_evidence=8,
                     max_total_chars=12000,
                 )
@@ -366,6 +366,38 @@ async def create_prediction(
                 timeout_seconds=settings.prediction_timeout_seconds,
             )
         await _raise_if_prediction_disconnected(request)
+        normalized_prediction = normalize_prediction_result(raw_text=result.text, body=body)
+        parsed_prediction = parse_citation_text(text=normalized_prediction.text, evidence=evidence)
+        suggestion_text = parsed_prediction.plain_text
+        if not suggestion_text:
+            logger.info(
+                "Inkwise prediction returned no suggestion after normalization",
+                extra={
+                    "document_id": str(document_id),
+                    "attempt_id": str(attempt.id),
+                    "grounded": grounded,
+                    "reason": normalized_prediction.reason,
+                },
+            )
+        await _raise_if_prediction_disconnected(request)
+        generation_attempt_service.complete_attempt(
+            db,
+            attempt_id=cast(uuid.UUID, attempt.id),
+            response_text=suggestion_text,
+            citations_json={
+                "evidence": [evidence_item_to_payload(item) for item in evidence],
+                "citations": parsed_prediction.citations,
+                "segments": parsed_prediction.segments,
+                "content_with_citations": parsed_prediction.content_with_citations,
+            },
+            retrieval_run_id=retrieval_run_id,
+            meta_json={
+                "grounded": grounded,
+                "evidence_count": len(evidence),
+                "multimodal_evidence_ids": multimodal_attached_evidence_ids,
+                "normalization_reason": normalized_prediction.reason,
+            },
+        )
     except asyncio.CancelledError:
         generation_attempt_service.fail_attempt(
             db,
@@ -385,41 +417,36 @@ async def create_prediction(
         )
         raise HTTPException(status_code=499, detail="Prediction request cancelled")
     except GeminiError as exc:
-        generation_attempt_service.fail_attempt(db, attempt_id=cast(uuid.UUID, attempt.id), message=str(exc), retrieval_run_id=retrieval_run_id)
+        generation_attempt_service.fail_attempt(
+            db,
+            attempt_id=cast(uuid.UUID, attempt.id),
+            message=str(exc),
+            retrieval_run_id=retrieval_run_id,
+            meta_json={"generation_started": generation_started},
+        )
         raise HTTPException(status_code=502, detail=f"Prediction provider error: {exc}") from exc
-
-    normalized_prediction = normalize_prediction_result(raw_text=result.text, body=body)
-    parsed_prediction = parse_citation_text(text=normalized_prediction.text, evidence=evidence)
-    suggestion_text = parsed_prediction.plain_text
-    if not suggestion_text:
-        logger.info(
-            "Inkwise prediction returned no suggestion after normalization",
+    except Exception as exc:
+        generation_attempt_service.fail_attempt(
+            db,
+            attempt_id=cast(uuid.UUID, attempt.id),
+            message=str(exc),
+            retrieval_run_id=retrieval_run_id,
+            meta_json={"generation_started": generation_started},
+        )
+        logger.exception(
+            "Inkwise prediction failed",
             extra={
                 "document_id": str(document_id),
                 "attempt_id": str(attempt.id),
-                "grounded": grounded,
-                "reason": normalized_prediction.reason,
+                "retrieval_run_id": str(retrieval_run_id) if retrieval_run_id is not None else None,
+                "generation_started": generation_started,
             },
         )
-    await _raise_if_prediction_disconnected(request)
-    generation_attempt_service.complete_attempt(
-        db,
-        attempt_id=cast(uuid.UUID, attempt.id),
-        response_text=suggestion_text,
-        citations_json={
-            "evidence": [evidence_item_to_payload(item) for item in evidence],
-            "citations": parsed_prediction.citations,
-            "segments": parsed_prediction.segments,
-            "content_with_citations": parsed_prediction.content_with_citations,
-        },
-        retrieval_run_id=retrieval_run_id,
-        meta_json={
-            "grounded": grounded,
-            "evidence_count": len(evidence),
-            "multimodal_evidence_ids": multimodal_attached_evidence_ids,
-            "normalization_reason": normalized_prediction.reason,
-        },
-    )
+        raise HTTPException(status_code=500, detail="Failed to create prediction") from exc
+
+    if parsed_prediction is None:
+        raise HTTPException(status_code=500, detail="Failed to create prediction")
+
     return InkwisePredictionResponse(
         suggestion_text=suggestion_text,
         content_with_citations=parsed_prediction.content_with_citations,

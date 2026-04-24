@@ -583,8 +583,7 @@ The result remains an evidence-backed rewrite.
 
 The current prediction path is ungrounded. After this migration, the retrieval service will be capable of supporting grounded predictive writing by using:
 
-- preceding text
-- optional current block text
+- current block text before the cursor
 - bound references
 
 That feature is defined later, but this retrieval design is built to support it.

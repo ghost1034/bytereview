@@ -529,9 +529,7 @@ class InkwiseWritingToolRequest(BaseModel):
 
 
 class InkwisePredictionRequest(BaseModel):
-    before_text: str = Field(min_length=1, max_length=12000)
-    after_text: str | None = Field(default=None, max_length=4000)
-    current_block_text: str | None = Field(default=None, max_length=4000)
+    current_block_prefix_text: str = Field(min_length=1, max_length=4000)
 
 
 class InkwisePredictionResponse(BaseModel):

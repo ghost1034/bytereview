@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import time
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from google.genai import types
 
-from inkwise.services.vertex_ai import VertexAIError, generate_content_stream, generate_text_stream
+from inkwise.services.vertex_ai import VertexAIError, generate_content, generate_content_stream, generate_text_stream
 
 
 class _FakeAsyncClient:
@@ -32,6 +33,21 @@ class _FakeAsyncClient:
 
 
 class VertexAIStreamingTests(unittest.IsolatedAsyncioTestCase):
+    async def test_generate_content_times_out(self) -> None:
+        def _slow_generate_content_sync(**_kwargs):
+            time.sleep(0.05)
+            return SimpleNamespace(text="Late", finish_reason=None, raw={})
+
+        with patch("inkwise.services.vertex_ai.generate_content_sync", side_effect=_slow_generate_content_sync):
+            with self.assertRaises(VertexAIError) as ctx:
+                await generate_content(
+                    model="gemini-test",
+                    contents=[{"role": "user", "parts": [{"text": "Slow request"}]}],
+                    timeout_seconds=0.01,
+                )
+
+        self.assertIn("timed out", str(ctx.exception))
+
     async def test_generate_content_stream_yields_text_chunks(self) -> None:
         fake_client = _FakeAsyncClient(
             responses=[

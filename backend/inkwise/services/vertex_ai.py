@@ -258,7 +258,12 @@ async def generate_content(
         project_id=project_id,
         location=location,
     )
-    return await asyncio.wait_for(task, timeout=timeout_seconds)
+    try:
+        return await asyncio.wait_for(task, timeout=timeout_seconds)
+    except TimeoutError as exc:
+        raise VertexAIError("Vertex AI request timed out") from exc
+    except asyncio.CancelledError:
+        raise
 
 
 async def generate_content_stream(

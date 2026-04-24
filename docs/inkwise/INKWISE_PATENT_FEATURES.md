@@ -119,9 +119,7 @@ Predictive writing should use both the draft context and the bound references, n
 
 Current predictions use:
 
-- preceding text
-- following text
-- current block text
+- current block text before the cursor
 - document language
 - initial document prompt
 
@@ -139,9 +137,7 @@ When the user pauses in the editor with a collapsed caret, Inkwise should:
 
 ### Retrieval inputs for prediction
 
-- preceding text
-- current block text
-- optional following text
+- current block text before the cursor
 - document `init_prompt`
 - document language
 - bound source IDs

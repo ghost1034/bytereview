@@ -80,9 +80,7 @@ import { markdownToSafeHtml } from '@/lib/inkwise-markdown'
 import { INKWISE_SOURCE_POLL_INTERVAL_MS, isInkwiseSourceActiveStatus } from '@/lib/inkwise-source-status'
 import { cn, compareNaturalText } from '@/lib/utils'
 
-const MAX_PREDICTION_BEFORE_TEXT = 12000
-const MAX_PREDICTION_AFTER_TEXT = 4000
-const MAX_PREDICTION_BLOCK_TEXT = 4000
+const MAX_PREDICTION_BLOCK_PREFIX_TEXT = 4000
 const PREDICTION_DEBOUNCE_MS = 1000
 const FOCUS_MODE_MUTE_STORAGE_KEY = 'cpaa_inkwise_focus_mode_muted_v1'
 const FOCUS_MODE_AUDIO_SRC = '/audio/inkwise-white-noise-loop.mp3'
@@ -109,10 +107,7 @@ type PredictionState = {
 }
 
 type PredictionContext = {
-  beforeText: string
-  afterText: string
   beforeCursorInBlock: string
-  afterCursorInBlock: string
 }
 
 type ChatInsertMode = 'insert' | 'replace' | 'append'
@@ -990,9 +985,7 @@ export default function InkwiseDocumentPage() {
     }
 
     const context = getPredictionContext(editor)
-    const beforeText = context.beforeText
-
-    if (!beforeText.trim()) {
+    if (!context.beforeCursorInBlock.trim()) {
       setPredictionLoading(false)
       setPredictionState(null)
       return
@@ -2053,40 +2046,17 @@ function getPredictionContext(editor: TiptapEditor): PredictionContext {
   const { state } = editor
   const { from } = state.selection
   const blockStart = state.selection.$from.start()
-  const blockEnd = state.selection.$from.end()
   const beforeCursorInBlock = state.doc.textBetween(blockStart, from, '\n', '\n')
-  const afterCursorInBlock = state.doc.textBetween(from, blockEnd, '\n', '\n')
 
   return {
-    beforeText: state.doc.textBetween(0, from, '\n', '\n'),
-    afterText: state.doc.textBetween(from, state.doc.content.size, '\n', '\n'),
     beforeCursorInBlock,
-    afterCursorInBlock,
   }
 }
 
 function buildPredictionRequest(context: PredictionContext): InkwisePredictionRequest {
   return {
-    before_text: context.beforeText.slice(-MAX_PREDICTION_BEFORE_TEXT),
-    after_text: context.afterText.slice(0, MAX_PREDICTION_AFTER_TEXT) || undefined,
-    current_block_text:
-      truncateAroundCursor(context.beforeCursorInBlock, context.afterCursorInBlock, MAX_PREDICTION_BLOCK_TEXT) || undefined,
+    current_block_prefix_text: context.beforeCursorInBlock.slice(-MAX_PREDICTION_BLOCK_PREFIX_TEXT),
   }
-}
-
-function truncateAroundCursor(beforeCursor: string, afterCursor: string, maxChars: number): string {
-  const safeMaxChars = Math.max(1, maxChars)
-  const fullText = `${beforeCursor}${afterCursor}`
-  if (fullText.length <= safeMaxChars) return fullText
-
-  const initialHeadBudget = Math.min(beforeCursor.length, Math.ceil(safeMaxChars / 2))
-  const initialTailBudget = Math.min(afterCursor.length, safeMaxChars - initialHeadBudget)
-  const remainingBudget = Math.max(0, safeMaxChars - initialHeadBudget - initialTailBudget)
-  const extraHeadBudget = Math.min(beforeCursor.length - initialHeadBudget, remainingBudget)
-  const finalHeadBudget = initialHeadBudget + extraHeadBudget
-  const finalTailBudget = Math.min(afterCursor.length, safeMaxChars - finalHeadBudget)
-
-  return `${beforeCursor.slice(-finalHeadBudget)}${afterCursor.slice(0, finalTailBudget)}`
 }
 
 function isAbortError(error: unknown): boolean {

@@ -320,7 +320,7 @@ This plan turns `docs/INKWISE_GEMINI_EMBEDDING_2.md` into an execution sequence.
 
 These are not required for the initial migration, but the new architecture should make them easier:
 
-- grounded predictive writing using preceding text + references
+- grounded predictive writing using current block prefix text + references
 - citation bubbles with previewable evidence
 - multimodal source previews in the editor/chat UX
 - webpage ingestion

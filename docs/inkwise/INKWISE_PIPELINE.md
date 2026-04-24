@@ -417,7 +417,7 @@ Main route: `POST /api/inkwise/documents/{document_id}/predictions`
 Behavior:
 
 - predictions always start from a short autocomplete prompt
-- if ready bound sources exist, Inkwise runs retrieval with current block text plus nearby draft context
+- if ready bound sources exist, Inkwise runs retrieval with the current block text before the cursor plus document guidance
 - if evidence is found, the prediction prompt becomes grounded
 - up to 100 evidence files may be attached multimodally
 - the raw result is normalized down to a short insertion string
