@@ -47,6 +47,20 @@ class PredictionPromptTests(unittest.TestCase):
         self.assertNotIn("Text before cursor:", grounded_prompt)
         self.assertNotIn("Text after cursor:", grounded_prompt)
 
+    def test_prediction_prompt_allows_multiple_sentences_and_targets_current_block(self) -> None:
+        body = InkwisePredictionRequest(current_block_prefix_text="The lease renews unless")
+        document = SimpleNamespace(title="Lease Summary", language="English", init_prompt="Keep it concise")
+
+        prompt = build_prediction_prompt(body=body, document=document)
+        grounded_prompt = build_grounded_prediction_prompt(body=body, document=document, evidence_pack="[E01] Renewal clause")
+
+        self.assertIn("Extend only the current block text shown below.", prompt)
+        self.assertIn("Continue the current block text before cursor naturally from the cursor position.", prompt)
+        self.assertIn("The completion may be several sentences when that is the natural continuation", prompt)
+        self.assertIn("Extend only the current block text shown below.", grounded_prompt)
+        self.assertIn("Continue the current block text before cursor naturally from the cursor position.", grounded_prompt)
+        self.assertIn("The completion may be several sentences when that is the natural continuation", grounded_prompt)
+
 
 if __name__ == "__main__":
     unittest.main()
