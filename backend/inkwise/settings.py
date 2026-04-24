@@ -34,6 +34,16 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
+def _env_choice(name: str, default: str, allowed: set[str]) -> str:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    value = raw.strip().upper()
+    if value in allowed:
+        return value
+    return default
+
+
 def _normalize_env_text(raw: str | None, *, strip_trailing_slash: bool = False) -> str | None:
     value = (raw or "").strip().strip('"').strip("'")
     while value.endswith("\\"):
@@ -108,6 +118,7 @@ class InkwiseSettings:
     grounded_chat_max_history_messages: int
     grounded_chat_max_history_chars: int
     prediction_timeout_seconds: float
+    prediction_thinking_level: str
     query_rewrite_model: str
     query_rewrite_enabled: bool
     query_rewrite_max_history_messages: int
@@ -183,6 +194,11 @@ def get_inkwise_settings() -> InkwiseSettings:
         grounded_chat_max_history_messages=_env_int("INKWISE_GROUNDED_CHAT_MAX_HISTORY_MESSAGES", 6),
         grounded_chat_max_history_chars=_env_int("INKWISE_GROUNDED_CHAT_MAX_HISTORY_CHARS", 3500),
         prediction_timeout_seconds=max(5.0, _env_float("INKWISE_PREDICTION_TIMEOUT_SECONDS", 60.0)),
+        prediction_thinking_level=_env_choice(
+            "INKWISE_PREDICTION_THINKING_LEVEL",
+            "MINIMAL",
+            {"MINIMAL", "LOW", "MEDIUM", "HIGH"},
+        ),
         query_rewrite_model=os.getenv("INKWISE_QUERY_REWRITE_MODEL", default_model),
         query_rewrite_enabled=_env_bool("INKWISE_QUERY_REWRITE_ENABLED", True),
         query_rewrite_max_history_messages=_env_int("INKWISE_QUERY_REWRITE_MAX_HISTORY_MESSAGES", 12),

@@ -35,7 +35,7 @@ class PredictionRouteCancellationTests(unittest.IsolatedAsyncioTestCase):
 
         with patch(
             "inkwise.routes.writing_tools.get_inkwise_settings",
-            return_value=SimpleNamespace(gemini_model="gemini-test", prediction_timeout_seconds=60.0),
+            return_value=SimpleNamespace(gemini_model="gemini-test", prediction_timeout_seconds=60.0, prediction_thinking_level="MINIMAL"),
         ):
             with patch("inkwise.routes.writing_tools.document_service.get_document_or_404", return_value=SimpleNamespace(title="Lease Memo", language="English", init_prompt=None)):
                 with patch("inkwise.routes.writing_tools.document_source_service.list_ready_bound_sources", return_value=[(uuid.uuid4(), "Lease.pdf")]):
@@ -73,7 +73,7 @@ class PredictionRouteCancellationTests(unittest.IsolatedAsyncioTestCase):
 
         with patch(
             "inkwise.routes.writing_tools.get_inkwise_settings",
-            return_value=SimpleNamespace(gemini_model="gemini-test", prediction_timeout_seconds=60.0),
+            return_value=SimpleNamespace(gemini_model="gemini-test", prediction_timeout_seconds=60.0, prediction_thinking_level="MINIMAL"),
         ):
             with patch("inkwise.routes.writing_tools.document_service.get_document_or_404", return_value=SimpleNamespace(title="Lease Memo", language="English", init_prompt=None)):
                 with patch("inkwise.routes.writing_tools.document_source_service.list_ready_bound_sources", return_value=[(source_id, "Lease.pdf")]):
@@ -115,7 +115,7 @@ class PredictionRouteCancellationTests(unittest.IsolatedAsyncioTestCase):
 
         with patch(
             "inkwise.routes.writing_tools.get_inkwise_settings",
-            return_value=SimpleNamespace(gemini_model="gemini-test", prediction_timeout_seconds=60.0),
+            return_value=SimpleNamespace(gemini_model="gemini-test", prediction_timeout_seconds=60.0, prediction_thinking_level="MINIMAL"),
         ):
             with patch("inkwise.routes.writing_tools.document_service.get_document_or_404", return_value=SimpleNamespace(title="Lease Memo", language="English", init_prompt=None)):
                 with patch("inkwise.routes.writing_tools.document_source_service.list_ready_bound_sources", return_value=[]):
@@ -154,7 +154,7 @@ class PredictionRouteCancellationTests(unittest.IsolatedAsyncioTestCase):
 
         with patch(
             "inkwise.routes.writing_tools.get_inkwise_settings",
-            return_value=SimpleNamespace(gemini_model="gemini-test", prediction_timeout_seconds=60.0),
+            return_value=SimpleNamespace(gemini_model="gemini-test", prediction_timeout_seconds=60.0, prediction_thinking_level="MINIMAL"),
         ):
             with patch("inkwise.routes.writing_tools.document_service.get_document_or_404", return_value=SimpleNamespace(title="Lease Memo", language="English", init_prompt=None)):
                 with patch("inkwise.routes.writing_tools.document_source_service.list_ready_bound_sources", return_value=[]):
@@ -194,7 +194,7 @@ class PredictionRouteCancellationTests(unittest.IsolatedAsyncioTestCase):
 
         with patch(
             "inkwise.routes.writing_tools.get_inkwise_settings",
-            return_value=SimpleNamespace(gemini_model="gemini-test", prediction_timeout_seconds=60.0),
+            return_value=SimpleNamespace(gemini_model="gemini-test", prediction_timeout_seconds=60.0, prediction_thinking_level="MINIMAL"),
         ):
             with patch("inkwise.routes.writing_tools.document_service.get_document_or_404", return_value=SimpleNamespace(title="Lease Memo", language="English", init_prompt=None)):
                 with patch("inkwise.routes.writing_tools.document_source_service.list_ready_bound_sources", return_value=[]):

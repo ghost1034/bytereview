@@ -47,6 +47,7 @@ async def generate_text(
     prompt: str,
     temperature: float = 0.2,
     max_output_tokens: int | None = None,
+    generation_config: dict[str, Any] | None = None,
     timeout_seconds: float = 120,
 ) -> GeminiResult:
     if api_key:
@@ -56,6 +57,7 @@ async def generate_text(
         prompt=prompt,
         temperature=temperature,
         max_output_tokens=max_output_tokens,
+        generation_config=generation_config,
         timeout_seconds=timeout_seconds,
     )
 
@@ -86,6 +88,7 @@ async def generate_text_stream(
     prompt: str,
     temperature: float = 0.2,
     max_output_tokens: int | None = None,
+    generation_config: dict[str, Any] | None = None,
     timeout_seconds: float = 120,
 ):
     if api_key:
@@ -95,6 +98,7 @@ async def generate_text_stream(
         prompt=prompt,
         temperature=temperature,
         max_output_tokens=max_output_tokens,
+        generation_config=generation_config,
         timeout_seconds=timeout_seconds,
     ):
         yield chunk

@@ -305,6 +305,11 @@ async def create_prediction(
     generation_started = False
     suggestion_text = ""
     parsed_prediction = None
+    prediction_generation_config = {
+        "temperature": 0.2,
+        "max_output_tokens": 65536,
+        "thinking_config": {"thinking_level": settings.prediction_thinking_level},
+    }
     try:
         await _raise_if_prediction_disconnected(request)
         if ready_bound_sources:
@@ -351,10 +356,7 @@ async def create_prediction(
             result = await generate_content(
                 model=settings.gemini_model,
                 contents=multimodal_bundle.contents,
-                generation_config={
-                    "temperature": 0.2,
-                    "max_output_tokens": 65536,
-                },
+                generation_config=prediction_generation_config,
                 timeout_seconds=settings.prediction_timeout_seconds,
             )
         else:
@@ -363,6 +365,7 @@ async def create_prediction(
                 prompt=prompt,
                 temperature=0.2,
                 max_output_tokens=65536,
+                generation_config={"thinking_config": {"thinking_level": settings.prediction_thinking_level}},
                 timeout_seconds=settings.prediction_timeout_seconds,
             )
         await _raise_if_prediction_disconnected(request)

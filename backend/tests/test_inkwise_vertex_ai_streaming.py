@@ -63,7 +63,11 @@ class VertexAIStreamingTests(unittest.IsolatedAsyncioTestCase):
                     async for chunk in generate_content_stream(
                         model="gemini-test",
                         contents=[{"role": "user", "parts": [{"text": "Say hello"}]}],
-                        generation_config={"temperature": 0.3, "max_output_tokens": 32},
+                        generation_config={
+                            "temperature": 0.3,
+                            "max_output_tokens": 32,
+                            "thinking_config": {"thinking_level": "MINIMAL"},
+                        },
                         timeout_seconds=1,
                     )
                 ]
@@ -75,6 +79,10 @@ class VertexAIStreamingTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsInstance(fake_client.calls[0]["config"], types.GenerateContentConfig)
         self.assertEqual(fake_client.calls[0]["config"].temperature, 0.3)
         self.assertEqual(fake_client.calls[0]["config"].max_output_tokens, 32)
+        self.assertEqual(
+            fake_client.calls[0]["config"].http_options.extra_body,
+            {"generationConfig": {"thinkingConfig": {"thinkingLevel": "MINIMAL"}}},
+        )
 
     async def test_generate_text_stream_builds_prompt_contents(self) -> None:
         fake_client = _FakeAsyncClient(responses=[SimpleNamespace(text="Next clause", candidates=[])])
@@ -88,6 +96,7 @@ class VertexAIStreamingTests(unittest.IsolatedAsyncioTestCase):
                         prompt="Continue this sentence",
                         temperature=0.1,
                         max_output_tokens=12,
+                        generation_config={"thinking_config": {"thinking_level": "LOW"}},
                         timeout_seconds=1,
                     )
                 ]
@@ -99,6 +108,10 @@ class VertexAIStreamingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(contents[0].parts[0].text, "Continue this sentence")
         self.assertEqual(fake_client.calls[0]["config"].temperature, 0.1)
         self.assertEqual(fake_client.calls[0]["config"].max_output_tokens, 12)
+        self.assertEqual(
+            fake_client.calls[0]["config"].http_options.extra_body,
+            {"generationConfig": {"thinkingConfig": {"thinkingLevel": "LOW"}}},
+        )
 
     async def test_generate_content_stream_times_out(self) -> None:
         fake_client = _FakeAsyncClient(responses=[("sleep", 0.05), SimpleNamespace(text="Late", candidates=[])])

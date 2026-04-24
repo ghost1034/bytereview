@@ -40,6 +40,17 @@ class VertexAITextChunk:
     raw: Any
 
 
+def _merge_dicts(base: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in extra.items():
+        existing = merged.get(key)
+        if isinstance(existing, dict) and isinstance(value, dict):
+            merged[key] = _merge_dicts(existing, value)
+        else:
+            merged[key] = value
+    return merged
+
+
 def _require_project_id(project_id: str | None) -> str:
     if project_id:
         return project_id
@@ -133,6 +144,64 @@ def _build_config(generation_config: dict[str, Any] | None) -> types.GenerateCon
         kwargs["response_mime_type"] = cfg["response_mime_type"]
     elif "responseMimeType" in cfg:
         kwargs["response_mime_type"] = cfg["responseMimeType"]
+
+    http_options = cfg.get("http_options")
+    if http_options is None:
+        http_options = cfg.get("httpOptions")
+    if isinstance(http_options, types.HttpOptions):
+        resolved_http_options = http_options.model_copy(deep=True)
+    elif isinstance(http_options, dict):
+        resolved_http_options = types.HttpOptions.model_validate(http_options)
+    else:
+        resolved_http_options = None
+
+    thinking_config = cfg.get("thinking_config")
+    if thinking_config is None:
+        thinking_config = cfg.get("thinkingConfig")
+    if isinstance(thinking_config, types.ThinkingConfig):
+        kwargs["thinking_config"] = thinking_config
+    elif isinstance(thinking_config, dict):
+        thinking_kwargs: dict[str, Any] = {}
+        extra_body: dict[str, Any] = {}
+        if "include_thoughts" in thinking_config:
+            thinking_kwargs["include_thoughts"] = bool(thinking_config["include_thoughts"])
+        elif "includeThoughts" in thinking_config:
+            thinking_kwargs["include_thoughts"] = bool(thinking_config["includeThoughts"])
+
+        if "thinking_budget" in thinking_config:
+            thinking_kwargs["thinking_budget"] = int(thinking_config["thinking_budget"])
+        elif "thinkingBudget" in thinking_config:
+            thinking_kwargs["thinking_budget"] = int(thinking_config["thinkingBudget"])
+
+        if "thinking_level" in thinking_config:
+            extra_body = _merge_dicts(
+                extra_body,
+                {"generationConfig": {"thinkingConfig": {"thinkingLevel": thinking_config["thinking_level"]}}},
+            )
+        elif "thinkingLevel" in thinking_config:
+            extra_body = _merge_dicts(
+                extra_body,
+                {"generationConfig": {"thinkingConfig": {"thinkingLevel": thinking_config["thinkingLevel"]}}},
+            )
+
+        if thinking_kwargs:
+            kwargs["thinking_config"] = types.ThinkingConfig(**thinking_kwargs)
+        if extra_body:
+            existing_extra_body = (
+                dict(resolved_http_options.extra_body)
+                if resolved_http_options is not None and isinstance(resolved_http_options.extra_body, dict)
+                else {}
+            )
+            if resolved_http_options is None:
+                resolved_http_options = types.HttpOptions(extra_body=extra_body)
+            else:
+                resolved_http_options = resolved_http_options.model_copy(
+                    update={"extra_body": _merge_dicts(existing_extra_body, extra_body)},
+                    deep=True,
+                )
+
+    if resolved_http_options is not None:
+        kwargs["http_options"] = resolved_http_options
 
     return types.GenerateContentConfig(**kwargs) if kwargs else None
 
@@ -315,16 +384,18 @@ def generate_text_sync(
     prompt: str,
     temperature: float = 0.2,
     max_output_tokens: int | None = None,
+    generation_config: dict[str, Any] | None = None,
     project_id: str | None = None,
     location: str | None = None,
 ) -> VertexAITextResult:
-    generation_config: dict[str, Any] = {"temperature": float(temperature)}
+    resolved_generation_config: dict[str, Any] = dict(generation_config or {})
+    resolved_generation_config.setdefault("temperature", float(temperature))
     if max_output_tokens is not None:
-        generation_config["max_output_tokens"] = int(max_output_tokens)
+        resolved_generation_config.setdefault("max_output_tokens", int(max_output_tokens))
     return generate_content_sync(
         model=model,
         contents=[{"role": "user", "parts": [{"text": prompt}]}],
-        generation_config=generation_config,
+        generation_config=resolved_generation_config,
         project_id=project_id,
         location=location,
     )
@@ -336,17 +407,19 @@ async def generate_text(
     prompt: str,
     temperature: float = 0.2,
     max_output_tokens: int | None = None,
+    generation_config: dict[str, Any] | None = None,
     timeout_seconds: float = 120,
     project_id: str | None = None,
     location: str | None = None,
 ) -> VertexAITextResult:
+    resolved_generation_config: dict[str, Any] = dict(generation_config or {})
+    resolved_generation_config.setdefault("temperature", float(temperature))
+    if max_output_tokens is not None:
+        resolved_generation_config.setdefault("max_output_tokens", int(max_output_tokens))
     return await generate_content(
         model=model,
         contents=[{"role": "user", "parts": [{"text": prompt}]}],
-        generation_config={
-            "temperature": float(temperature),
-            **({"max_output_tokens": int(max_output_tokens)} if max_output_tokens is not None else {}),
-        },
+        generation_config=resolved_generation_config,
         timeout_seconds=timeout_seconds,
         project_id=project_id,
         location=location,
@@ -359,17 +432,19 @@ async def generate_text_stream(
     prompt: str,
     temperature: float = 0.2,
     max_output_tokens: int | None = None,
+    generation_config: dict[str, Any] | None = None,
     timeout_seconds: float = 120,
     project_id: str | None = None,
     location: str | None = None,
 ) -> AsyncGenerator[VertexAITextChunk, None]:
+    resolved_generation_config: dict[str, Any] = dict(generation_config or {})
+    resolved_generation_config.setdefault("temperature", float(temperature))
+    if max_output_tokens is not None:
+        resolved_generation_config.setdefault("max_output_tokens", int(max_output_tokens))
     async for chunk in generate_content_stream(
         model=model,
         contents=[{"role": "user", "parts": [{"text": prompt}]}],
-        generation_config={
-            "temperature": float(temperature),
-            **({"max_output_tokens": int(max_output_tokens)} if max_output_tokens is not None else {}),
-        },
+        generation_config=resolved_generation_config,
         timeout_seconds=timeout_seconds,
         project_id=project_id,
         location=location,
