@@ -37,7 +37,7 @@ const faqs = [
   },
   {
     question: "What products are included in CPAAutomation?",
-    answer: "CPAAutomation includes Universal Document Analysis (extraction & automations), Inkwise (AI writing with grounded citations), a free CPE Tracker, and upcoming products: Chrona (time tracking), AI agents for accounting/finance/legal (powered by OpenClaw), an AI Analysis Suite, and an AI Productivity Suite.",
+    answer: "CPAAutomation includes Universal Document Analysis (extraction & automations), Inkwise (AI writing with grounded citations), a free CPE Tracker, and upcoming products: Chrona (time tracking), AI agents for accounting/finance/legal, an AI Analysis Suite, and an AI Productivity Suite.",
   },
 ];
 

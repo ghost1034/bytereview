@@ -144,16 +144,6 @@ export default function ProductSuite() {
             );
           })}
         </motion.div>
-
-        <motion.p
-          className="text-center text-sm text-gray-500 mt-10"
-          variants={fadeInUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={viewportOnce}
-        >
-          AI agent products powered by OpenClaw, an open-source AI agent framework.
-        </motion.p>
       </div>
     </section>
   );

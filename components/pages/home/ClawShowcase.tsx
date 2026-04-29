@@ -51,7 +51,7 @@ export default function ClawShowcase() {
             </motion.ul>
 
             <motion.p className="text-sm text-gray-500" variants={staggerChild}>
-              Powered by OpenClaw, an open-source AI agent framework. One-click setup.
+              One-click setup.
             </motion.p>
           </motion.div>
 
