@@ -52,20 +52,14 @@ const products = [
     href: "#claw-showcase",
   },
   {
-    name: "AI Analysis Suite",
-    description: "Reconciliation, flux analysis, amortization, and distribution waterfalls.",
+    name: "AI Analysis & Productivity Suites",
+    description: "Reconciliation, flux analysis, project management, month-end checklists, and more.",
     icon: BarChart3,
     iconBg: "bg-gradient-to-br from-red-100 to-red-50",
     iconText: "text-red-600",
-    status: "Coming Soon" as const,
-    href: "#roadmap",
-  },
-  {
-    name: "AI Productivity Suite",
-    description: "Project management, month-end checklists, presentations, and expense reimbursement.",
-    icon: FolderKanban,
-    iconBg: "bg-gradient-to-br from-teal-100 to-teal-50",
-    iconText: "text-teal-600",
+    secondaryIcon: FolderKanban,
+    secondaryIconBg: "bg-gradient-to-br from-teal-100 to-teal-50",
+    secondaryIconText: "text-teal-600",
     status: "Coming Soon" as const,
     href: "#roadmap",
   },
@@ -100,6 +94,7 @@ export default function ProductSuite() {
         >
           {products.map((product) => {
             const Icon = product.icon;
+            const SecondaryIcon = "secondaryIcon" in product ? product.secondaryIcon : null;
             const card = (
               <motion.div
                 key={product.name}
@@ -117,8 +112,15 @@ export default function ProductSuite() {
                     Available
                   </span>
                 )}
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${product.iconBg}`}>
-                  <Icon className={`w-6 h-6 ${product.iconText}`} />
+                <div className="flex items-center gap-2 mb-4">
+                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${product.iconBg}`}>
+                    <Icon className={`w-6 h-6 ${product.iconText}`} />
+                  </div>
+                  {SecondaryIcon && (
+                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${product.secondaryIconBg}`}>
+                      <SecondaryIcon className={`w-6 h-6 ${product.secondaryIconText}`} />
+                    </div>
+                  )}
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
                   {product.name}
