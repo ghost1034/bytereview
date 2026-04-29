@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Home,
   Briefcase,
   FileText,
@@ -32,6 +33,7 @@ interface NavItem {
 }
 
 interface NavGroup {
+  key: string
   label: string
   items: NavItem[]
 }
@@ -42,15 +44,19 @@ interface SidebarProps {
 
 export function Sidebar({ className }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    uda: true,
+    products: true,
+  })
   const pathname = usePathname()
   const { signOut } = useAuth()
 
   const udaGroup: NavGroup = {
-    label: 'Universal Document Analysis',
+    key: 'uda',
+    label: 'Universal Document Analysis (UDA)',
     items: [
       { name: 'Dashboard', href: '/dashboard', icon: Home },
       { name: 'Jobs', href: '/dashboard/jobs', icon: Briefcase },
-      { name: 'Form Fill', href: '/dashboard/form-fill', icon: Files },
       { name: 'Templates', href: '/dashboard/templates', icon: FileText },
       { name: 'Integrations', href: '/dashboard/integrations', icon: Plug },
       { name: 'Automations', href: '/dashboard/automations', icon: Zap },
@@ -59,15 +65,24 @@ export function Sidebar({ className }: SidebarProps) {
     ],
   }
 
-  const productLinks: NavItem[] = [
-    { name: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
-    { name: 'Chrona', href: '/#chrona-showcase', icon: Clock, badge: 'Soon', badgeColor: 'bg-gray-100 text-gray-500' },
-    { name: 'Claw Series', href: '/#claw-showcase', icon: Bot, badge: 'Soon', badgeColor: 'bg-gray-100 text-gray-500' },
-  ]
+  const productsGroup: NavGroup = {
+    key: 'products',
+    label: 'Products',
+    items: [
+      { name: 'Form Fill', href: '/dashboard/form-fill', icon: Files },
+      { name: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
+      { name: 'Chrona', href: '/#chrona-showcase', icon: Clock, badge: 'Soon', badgeColor: 'bg-gray-100 text-gray-500' },
+      { name: 'Claw Series', href: '/#claw-showcase', icon: Bot, badge: 'Soon', badgeColor: 'bg-gray-100 text-gray-500' },
+    ],
+  }
 
   const isCurrent = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard'
     return pathname.startsWith(href)
+  }
+
+  const toggleSection = (key: string) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
   const renderItem = (item: NavItem) => {
@@ -99,6 +114,35 @@ export function Sidebar({ className }: SidebarProps) {
     )
   }
 
+  const renderGroup = (group: NavGroup) => {
+    const isOpen = openSections[group.key]
+    return (
+      <div key={group.key}>
+        {!collapsed && (
+          <button
+            type="button"
+            onClick={() => toggleSection(group.key)}
+            className="w-full flex items-center justify-between px-3 pt-1 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 transition-colors"
+            aria-expanded={isOpen}
+          >
+            <span>{group.label}</span>
+            <ChevronDown
+              className={cn(
+                "w-3 h-3 transition-transform",
+                !isOpen && "-rotate-90"
+              )}
+            />
+          </button>
+        )}
+        {(collapsed || isOpen) && (
+          <div className="space-y-1">
+            {group.items.map(renderItem)}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className={cn(
       "dashboard-sidebar-shell flex flex-col border-r border-gray-200 bg-white transition-all duration-300",
@@ -127,24 +171,12 @@ export function Sidebar({ className }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {/* UDA group */}
-        {!collapsed && (
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 pb-1">
-            Universal Document Analysis (UDA)
-          </p>
-        )}
-        {udaGroup.items.map(renderItem)}
+        {renderGroup(udaGroup)}
 
         {/* Divider */}
         <div className={cn("border-t border-gray-200", collapsed ? "my-2" : "my-3")} />
 
-        {/* Product links */}
-        {!collapsed && (
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 pt-1 pb-1">
-            Products
-          </p>
-        )}
-        {productLinks.map(renderItem)}
+        {renderGroup(productsGroup)}
       </nav>
 
       {/* Footer */}

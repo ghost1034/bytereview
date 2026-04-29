@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Menu, X, LogOut, User, ChevronDown, FileText, PenTool, Clock, Bot, BarChart3, FolderKanban } from "lucide-react";
+import { Menu, X, LogOut, User, ChevronDown, FileText, PenTool, Clock, Bot, BarChart3, FolderKanban, Files } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthModal from "@/components/auth/AuthModal";
 
@@ -15,6 +15,12 @@ const productLinks = [
     href: "/#extraction-features",
     description: "AI extraction & automations",
     icon: FileText,
+  },
+  {
+    label: "Form Fill",
+    href: "/#form-fill-showcase",
+    description: "AI form filling from your documents",
+    icon: Files,
   },
   {
     label: "Inkwise",

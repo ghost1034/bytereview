@@ -36,6 +36,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/dashboard/form-fill" className="text-gray-400 hover:text-white transition-colors">
+                  Form Fill
+                </Link>
+              </li>
+              <li>
                 <Link href="/dashboard/inkwise" className="text-gray-400 hover:text-white transition-colors">
                   Inkwise
                 </Link>

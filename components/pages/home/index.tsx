@@ -13,6 +13,7 @@ import ProductSuite from "./ProductSuite";
 // Below the fold — lazy load
 const ExtractionFeatures = dynamic(() => import("./ExtractionFeatures"));
 const AutomationFlow = dynamic(() => import("./AutomationFlow"));
+const FormFillShowcase = dynamic(() => import("./FormFillShowcase"));
 const InkwiseShowcase = dynamic(() => import("./InkwiseShowcase"));
 const ChronaShowcase = dynamic(() => import("./ChronaShowcase"));
 const ClawShowcase = dynamic(() => import("./ClawShowcase"));
@@ -41,6 +42,7 @@ export default function Home() {
       <ProductSuite />
       <ExtractionFeatures onGetStarted={handleGetStarted} />
       <AutomationFlow onGetStarted={handleGetStarted} />
+      <FormFillShowcase />
       <InkwiseShowcase />
       <ChronaShowcase />
       <ClawShowcase />

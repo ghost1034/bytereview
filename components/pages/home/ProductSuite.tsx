@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { FileText, PenTool, Clock, Bot, BarChart3, FolderKanban } from "lucide-react";
+import { FileText, PenTool, Clock, Bot, BarChart3, FolderKanban, Files } from "lucide-react";
 import { fadeInUp, staggerContainerSlow, staggerChild, hoverLift, viewportOnce } from "@/lib/animations";
 
 const products = [
@@ -14,6 +14,15 @@ const products = [
     iconText: "text-blue-600",
     status: "Available" as const,
     href: "#extraction-features",
+  },
+  {
+    name: "Form Fill",
+    description: "Auto-fill PDFs and Word documents from extraction results, uploaded sources, or saved templates.",
+    icon: Files,
+    iconBg: "bg-gradient-to-br from-indigo-100 to-indigo-50",
+    iconText: "text-indigo-600",
+    status: "Available" as const,
+    href: "#form-fill-showcase",
   },
   {
     name: "Inkwise",
