@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { apiClient, InkwiseBoundSource, InkwiseCitationStyle, InkwiseCitation, InkwiseSseEvent, InkwiseWritingAction } from '@/lib/api'
 import { getInkwiseEditorTarget, type InkwiseEditorTarget, insertMarkdownIntoEditor } from '@/lib/inkwise-editor'
+import { clearWritingSelectionHighlight, setWritingSelectionHighlight } from '@/components/inkwise/editor-writing-selection'
 import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
 import { compareNaturalText } from '@/lib/utils'
 
@@ -104,6 +105,7 @@ export function InlineWritingTools({
   useEffect(() => {
     if (!editor) return
     const onSelection = () => {
+      clearWritingSelectionHighlight(editor)
       if (!busy) {
         clearRunState()
         setDraftAction(null)
@@ -116,6 +118,12 @@ export function InlineWritingTools({
       editor.off('selectionUpdate', onSelection)
     }
   }, [editor, busy])
+
+  useEffect(() => {
+    return () => {
+      clearWritingSelectionHighlight(editor)
+    }
+  }, [editor])
 
   function selectionTarget(currentEditor: Editor): InkwiseEditorTarget | null {
     return getInkwiseEditorTarget(currentEditor)
@@ -149,6 +157,11 @@ export function InlineWritingTools({
       if (draftAction !== 'custom' && isPresetInstruction(instruction)) setInstruction(DEFAULT_CUSTOM_INSTRUCTION)
     }
     rangeRef.current = target
+    if (target.hasSelection) {
+      setWritingSelectionHighlight(editor, target)
+    } else {
+      clearWritingSelectionHighlight(editor)
+    }
   }
 
   function prepareAction(action: ToolAction) {
@@ -159,6 +172,7 @@ export function InlineWritingTools({
     setPanelOpen(true)
     setDraftAction(action)
     rangeRef.current = target
+    if (target.hasSelection) setWritingSelectionHighlight(editor, target)
 
     if (action === 'custom') {
       setInstruction(draftAction === 'custom' || !isPresetInstruction(instruction) ? instruction : DEFAULT_CUSTOM_INSTRUCTION)
@@ -179,6 +193,7 @@ export function InlineWritingTools({
     setLastAction(action)
     setPanelOpen(true)
     rangeRef.current = selection
+    if (selection.hasSelection) setWritingSelectionHighlight(editor, selection)
 
     abortRef.current?.abort()
     const controller = new AbortController()
@@ -254,7 +269,7 @@ export function InlineWritingTools({
 
     setInserting(mode)
     try {
-      await insertMarkdownIntoEditor({
+      const inserted = await insertMarkdownIntoEditor({
         editor,
         markdown,
         mode,
@@ -270,6 +285,7 @@ export function InlineWritingTools({
             }
           : null,
       })
+      if (inserted) clearWritingSelectionHighlight(editor)
     } finally {
       setInserting(null)
     }
@@ -285,6 +301,7 @@ export function InlineWritingTools({
     setDraftAction(null)
     setPanelOpen(false)
     rangeRef.current = null
+    clearWritingSelectionHighlight(editor)
   }
 
   function shouldShowBubbleWritingTools(currentEditor: Editor | null): boolean {
@@ -366,7 +383,8 @@ export function InlineWritingTools({
   if (!editor) return null
 
   const currentTarget = activeTarget()
-  const hasSelection = Boolean(currentTarget?.hasSelection)
+  const visibleTarget = panelOpen && rangeRef.current ? rangeRef.current : currentTarget
+  const hasSelection = Boolean(visibleTarget?.hasSelection)
 
   const panel = (
     <div className="flex max-h-[min(80vh,42rem)] w-[min(32rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-2xl border bg-white/95 p-3 shadow-2xl backdrop-blur">

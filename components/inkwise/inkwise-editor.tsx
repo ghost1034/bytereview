@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { InkwiseCitationAnchorEditorNode } from '@/components/inkwise/editor-citation-anchor'
 import { InkwiseNoteRefEditorNode } from '@/components/inkwise/editor-note-ref'
 import { createPredictionExtension, refreshPredictionDecorations } from '@/components/inkwise/editor-prediction'
+import { createWritingSelectionHighlightExtension } from '@/components/inkwise/editor-writing-selection'
 import { InkwiseEditorToolbar } from '@/components/inkwise/editor-toolbar'
 import {
   createTrackChangesExtension,
@@ -107,6 +108,7 @@ export function InkwiseEditor({
       }),
     [],
   )
+  const writingSelectionHighlightExtension = useMemo(() => createWritingSelectionHighlightExtension(), [])
   const trackChangesExtension = useMemo(() => createTrackChangesExtension(() => trackChangesEnabledRef.current), [])
 
   const editor = useEditor({
@@ -116,6 +118,7 @@ export function InkwiseEditor({
       InkwiseCitationAnchorEditorNode,
       InkwiseNoteRefEditorNode,
       predictionExtension,
+      writingSelectionHighlightExtension,
       trackChangesExtension,
     ],
     content: incoming,

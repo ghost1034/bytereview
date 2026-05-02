@@ -158,6 +158,13 @@ body {
     color: hsl(var(--muted-foreground));
   }
 
+  .inkwise-writing-selection-highlight {
+    border-radius: 0.25rem;
+    background-color: rgba(16, 185, 129, 0.22);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+
   .inkwise-focus-backdrop {
     background: #0f172a;
   }
