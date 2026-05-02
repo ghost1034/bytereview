@@ -170,7 +170,7 @@ export function InlineWritingTools({
 
   async function run(action: ToolAction, resolvedInstruction: string) {
     if (!editor) return
-    const selection = selectionTarget(editor)
+    const selection = rangeRef.current ?? selectionTarget(editor)
     if (!selection) return
     if (!selection.hasSelection && action !== 'custom') return
 
@@ -285,6 +285,20 @@ export function InlineWritingTools({
     setDraftAction(null)
     setPanelOpen(false)
     rangeRef.current = null
+  }
+
+  function shouldShowBubbleWritingTools(currentEditor: Editor | null): boolean {
+    if (!currentEditor) return false
+    return Boolean(selectionTarget(currentEditor)?.hasSelection || (panelOpen && rangeRef.current?.hasSelection))
+  }
+
+  function shouldShowFloatingWritingTools(currentEditor: Editor | null): boolean {
+    if (!currentEditor) return false
+    const currentTarget = selectionTarget(currentEditor)
+    return Boolean(
+      (currentEditor.isFocused && currentTarget && !currentTarget.hasSelection) ||
+        (panelOpen && rangeRef.current && !rangeRef.current.hasSelection),
+    )
   }
 
   async function retryAttempt() {
@@ -419,7 +433,6 @@ export function InlineWritingTools({
                 onChange={(event) => setSourceSearch(event.target.value)}
                 placeholder="Search attached sources"
                 className="mt-3 bg-white"
-                onMouseDown={preventEditorBlur}
               />
               <div className="mt-3 grid max-h-36 gap-2 overflow-auto">
                 {filteredBoundSources.map((item) => (
@@ -466,7 +479,6 @@ export function InlineWritingTools({
               onChange={(event) => setInstruction(event.target.value)}
               placeholder={hasSelection ? 'e.g. rewrite in a persuasive tone' : 'e.g. draft a concise transition sentence'}
               className="min-h-[108px] bg-white"
-              onMouseDown={preventEditorBlur}
             />
           </div>
         ) : hasSelection ? (
@@ -540,7 +552,7 @@ export function InlineWritingTools({
     <>
       <BubbleMenu
         editor={editor}
-        shouldShow={({ editor }) => Boolean(editor && selectionTarget(editor)?.hasSelection)}
+        shouldShow={({ editor }) => shouldShowBubbleWritingTools(editor)}
         tippyOptions={{
           duration: 120,
           maxWidth: 560,
@@ -560,7 +572,7 @@ export function InlineWritingTools({
 
       <FloatingMenu
         editor={editor}
-        shouldShow={({ editor }) => Boolean(editor?.isFocused && selectionTarget(editor) && !selectionTarget(editor)?.hasSelection)}
+        shouldShow={({ editor }) => shouldShowFloatingWritingTools(editor)}
         tippyOptions={{
           duration: 120,
           maxWidth: 560,
