@@ -474,7 +474,7 @@ export function InlineWritingTools({
                 value={sourceSearch}
                 onChange={(event) => setSourceSearch(event.target.value)}
                 placeholder="Search attached sources"
-                className="mt-3 bg-white"
+                className="mt-3 bg-white focus-visible:ring-inset focus-visible:ring-offset-0"
               />
               <div className="mt-3 grid max-h-36 gap-2 overflow-auto">
                 {filteredBoundSources.map((item) => (
@@ -520,7 +520,7 @@ export function InlineWritingTools({
               value={instruction}
               onChange={(event) => setInstruction(event.target.value)}
               placeholder={hasSelection ? 'e.g. rewrite in a persuasive tone' : 'e.g. draft a concise transition sentence'}
-              className="min-h-[108px] bg-white"
+              className="min-h-[108px] bg-white focus-visible:ring-inset focus-visible:ring-offset-0"
             />
           </div>
         ) : hasSelection ? (
