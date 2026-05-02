@@ -1303,8 +1303,8 @@ export default function InkwiseDocumentPage() {
               </div>
 
               <TabsContent value="chat" className="mt-0 min-h-0 flex-1 px-3 pb-3">
-                <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden rounded-2xl bg-slate-50 p-3">
-                  <div className="max-h-28 overflow-y-auto rounded-2xl border bg-white">
+                <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto rounded-2xl bg-slate-50 p-3">
+                  <div className="max-h-28 shrink-0 overflow-y-auto rounded-2xl border bg-white">
                     <div className="flex flex-wrap gap-2 p-3 pr-4">
                       {(threadsQuery.data?.threads ?? []).map((thread) => (
                         <div key={thread.id} className="group relative">
@@ -1337,7 +1337,7 @@ export default function InkwiseDocumentPage() {
                     </div>
                   </div>
 
-                  <ScrollArea className="min-h-0 flex-1 rounded-2xl border bg-white">
+                  <ScrollArea className="min-h-[30rem] flex-1 rounded-2xl border bg-white xl:min-h-[34rem]">
                     <div className="space-y-3 p-4">
                       {renderedMessages.map((message) => (
                         <div key={message.id} className={`rounded-2xl p-3 text-sm ${message.role === 'assistant' ? 'border bg-white' : 'bg-slate-900 text-white'}`}>
@@ -1456,6 +1456,12 @@ export default function InkwiseDocumentPage() {
                       placeholder="Ask a grounded question about this draft or your bound sources..."
                       className="min-h-[110px] bg-white"
                     />
+                    <div className="flex justify-end">
+                      <Button onClick={() => sendChat.mutate()} disabled={sendChat.isPending || !chatInput.trim() || !selectedChatSourceIds.length}>
+                        {sendChat.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                        Send grounded chat
+                      </Button>
+                    </div>
                     {activeDraftSelection ? (
                       <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs text-emerald-800">
                         Draft selection attached for context{draftSelectionLabel ? `: ${draftSelectionLabel}` : '.'}
@@ -1537,12 +1543,6 @@ export default function InkwiseDocumentPage() {
                         Select at least one ready reference before sending grounded chat.
                       </div>
                     ) : null}
-                    <div className="flex justify-end">
-                      <Button onClick={() => sendChat.mutate()} disabled={sendChat.isPending || !chatInput.trim() || !selectedChatSourceIds.length}>
-                        {sendChat.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                        Send grounded chat
-                      </Button>
-                    </div>
                   </div>
                 </div>
               </TabsContent>
