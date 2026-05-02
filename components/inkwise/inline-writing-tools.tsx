@@ -2,7 +2,7 @@
 
 import type { Editor } from '@tiptap/core'
 import { BubbleMenu, FloatingMenu } from '@tiptap/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Copy, Play, RefreshCw, Square, Wand2, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -296,13 +296,34 @@ export function InlineWritingTools({
     abortRef.current = null
   }
 
-  function closePanel() {
-    clearRunState()
+  const closePanel = useCallback(() => {
+    abortRef.current?.abort()
+    abortRef.current = null
+    setBusy(false)
+    setError(null)
+    setOutputMd('')
+    setOutputWithCitations(null)
+    setLastAction(null)
+    setGroundingState(null)
+    setAttemptId(null)
     setDraftAction(null)
     setPanelOpen(false)
     rangeRef.current = null
     clearWritingSelectionHighlight(editor)
-  }
+  }, [editor])
+
+  useEffect(() => {
+    if (!panelOpen) return
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      closePanel()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [panelOpen, closePanel])
 
   function shouldShowBubbleWritingTools(currentEditor: Editor | null): boolean {
     if (!currentEditor) return false
@@ -388,22 +409,25 @@ export function InlineWritingTools({
 
   const panel = (
     <div className="flex max-h-[min(80vh,42rem)] w-[min(32rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-2xl border bg-white/95 p-3 shadow-2xl backdrop-blur">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap gap-2">
-              {hasSelection ? (
-                <>
-                  <Button size="sm" variant={draftAction === 'coherent' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('coherent')} disabled={busy}>Coherent</Button>
-                  <Button size="sm" variant={draftAction === 'concise' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('concise')} disabled={busy}>Concise</Button>
-                  <Button size="sm" variant={draftAction === 'detailed' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('detailed')} disabled={busy}>Detailed</Button>
-                  <Button size="sm" variant={draftAction === 'humanize' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('humanize')} disabled={busy}>Humanize</Button>
-                  <Button size="sm" variant={draftAction === 'custom' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('custom')} disabled={busy}>Custom</Button>
-                </>
-              ) : (
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          {hasSelection ? (
+            <>
+              <Button size="sm" variant={draftAction === 'coherent' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('coherent')} disabled={busy}>Coherent</Button>
+              <Button size="sm" variant={draftAction === 'concise' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('concise')} disabled={busy}>Concise</Button>
+              <Button size="sm" variant={draftAction === 'detailed' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('detailed')} disabled={busy}>Detailed</Button>
+              <Button size="sm" variant={draftAction === 'humanize' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('humanize')} disabled={busy}>Humanize</Button>
+              <Button size="sm" variant={draftAction === 'custom' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('custom')} disabled={busy}>Custom</Button>
+            </>
+          ) : (
             <div className="text-sm font-medium text-slate-900">Write with AI</div>
           )}
         </div>
-        <div>
-          {busy ? <Button size="sm" variant="outline" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={stop} aria-label="Stop"><Square className="h-4 w-4 fill-red-500 text-red-500" /></Button> : outputMd || error ? <Button size="sm" variant="outline" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={closePanel} aria-label="Close"><X className="h-4 w-4" /></Button> : null}
+        <div className="flex items-center gap-2">
+          {busy ? <Button size="sm" variant="outline" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={stop} aria-label="Stop"><Square className="h-4 w-4 fill-red-500 text-red-500" /></Button> : null}
+          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={closePanel} aria-label="Close Write with AI">
+            <X className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
