@@ -651,11 +651,13 @@ export const INKWISE_EDITOR_EXTENSIONS = [
   InkwiseDeletionMark,
 ]
 
-export function addInkwiseComment(editor: Editor | null, body: string): boolean {
+export function addInkwiseComment(editor: Editor | null, body: string, target?: { from: number; to: number }): boolean {
   const value = body.trim()
   if (!editor || !value) return false
-  const { from, to, empty } = editor.state.selection
-  if (empty || from >= to) return false
+  const selection = editor.state.selection
+  const from = clampSelectionPos(editor.state.doc, target?.from ?? selection.from)
+  const to = clampSelectionPos(editor.state.doc, target?.to ?? selection.to)
+  if (from >= to || !editor.state.doc.textBetween(from, to, '\n').trim()) return false
   const markType = editor.state.schema.marks[INKWISE_COMMENT_MARK]
   if (!markType) return false
 

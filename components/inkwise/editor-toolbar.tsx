@@ -58,6 +58,7 @@ export function InkwiseEditorToolbar({
   const [noteOpen, setNoteOpen] = useState(false)
   const [tableOpen, setTableOpen] = useState(false)
   const tableTargetRef = useRef<InkwiseEditorTarget | null>(null)
+  const commentTargetRef = useRef<InkwiseEditorTarget | null>(null)
 
   useEffect(() => {
     const rerender = () => setRenderTick((value) => value + 1)
@@ -70,6 +71,7 @@ export function InkwiseEditorToolbar({
   }, [editor])
 
   const hasSelection = !editor.state.selection.empty && Boolean(editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, '\n').trim())
+  const hasCommentTarget = hasSelection || Boolean(commentTargetRef.current?.hasSelection)
   const insideTable = editor.isActive('table')
 
   const items: { icon: LucideIcon; tooltip: string; run: () => boolean; active: boolean; canRun: boolean }[] = [
@@ -107,6 +109,28 @@ export function InkwiseEditorToolbar({
     setTableOpen(open)
   }
 
+  function captureCommentTarget(): InkwiseEditorTarget | null {
+    const { from, to, empty } = editor.state.selection
+    const text = empty ? '' : editor.state.doc.textBetween(from, to, '\n')
+    if (empty || !text.trim()) {
+      commentTargetRef.current = null
+      return null
+    }
+
+    const target = { from, to, text, hasSelection: true }
+    commentTargetRef.current = target
+    return target
+  }
+
+  function handleCommentOpenChange(open: boolean) {
+    if (open) {
+      captureCommentTarget()
+    } else {
+      commentTargetRef.current = null
+    }
+    setCommentOpen(open)
+  }
+
   function insertTable() {
     const rows = Math.max(1, Number.parseInt(tableRows, 10) || 3)
     const cols = Math.max(1, Number.parseInt(tableColumns, 10) || 3)
@@ -124,7 +148,10 @@ export function InkwiseEditorToolbar({
   }
 
   function insertComment() {
-    if (!addInkwiseComment(editor, commentText)) return
+    const target = commentTargetRef.current ?? captureCommentTarget()
+    if (!target?.hasSelection) return
+    if (!addInkwiseComment(editor, commentText, target)) return
+    commentTargetRef.current = null
     setCommentText('')
     setCommentOpen(false)
   }
@@ -281,11 +308,22 @@ export function InkwiseEditorToolbar({
         </PopoverContent>
       </Popover>
 
-      <Popover open={commentOpen} onOpenChange={setCommentOpen}>
+      <Popover open={commentOpen} onOpenChange={handleCommentOpenChange}>
         <Tooltip>
           <TooltipTrigger asChild>
             <PopoverTrigger asChild>
-              <Button type="button" size="sm" className="h-8 w-8 p-0" variant="outline" onMouseDown={preventEditorBlur} disabled={!hasSelection} aria-label="Comment">
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 w-8 p-0"
+                variant="outline"
+                onMouseDown={(event) => {
+                  preventEditorBlur(event)
+                  captureCommentTarget()
+                }}
+                disabled={!hasSelection}
+                aria-label="Comment"
+              >
                 <MessageSquare className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
@@ -303,7 +341,7 @@ export function InkwiseEditorToolbar({
             placeholder="Describe the revision or follow-up..."
             className="min-h-[110px]"
           />
-          <Button type="button" size="sm" onMouseDown={preventEditorBlur} onClick={insertComment} disabled={!commentText.trim() || !hasSelection}>
+          <Button type="button" size="sm" onMouseDown={preventEditorBlur} onClick={insertComment} disabled={!commentText.trim() || !hasCommentTarget}>
             Save comment
           </Button>
         </PopoverContent>
