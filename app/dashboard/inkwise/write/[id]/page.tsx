@@ -1262,7 +1262,7 @@ export default function InkwiseDocumentPage() {
 
         <aside
             className={cn(
-              'rounded-3xl border bg-white shadow-sm transition-all duration-200 xl:sticky xl:top-28 xl:flex xl:h-[calc(100vh-8rem)] xl:flex-col xl:self-start xl:overflow-hidden',
+              'rounded-3xl border bg-white shadow-sm transition-all duration-200 xl:sticky xl:top-20 xl:flex xl:h-[calc(100vh-6rem)] xl:flex-col xl:self-start xl:overflow-hidden',
               sidebarOpen ? 'w-full xl:w-[25rem]' : 'w-full xl:w-[5.5rem]',
               focusModeEnabled && 'hidden'
             )}
