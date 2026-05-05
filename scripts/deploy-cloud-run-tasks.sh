@@ -137,26 +137,26 @@ build_and_push_task_image "maintenance" "Dockerfile.maintenance"
 # Deploy task services
 echo -e "${BLUE}=== Deploying Task Services ===${NC}"
 
-# # Deploy Extract Task Service
-# echo -e "${BLUE}=== Deploying Extract Task Service ===${NC}"
-# deploy_service \
-#     "task-extract" \
-#     "task-extract" \
-#     "8080" \
-#     "3Gi" \
-#     "2" \
-#     "0" \
-#     "5" \
-#     "1" \
-#     "3600" \
-#     "false" \
-#     "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-#      --vpc-connector=$VPC_CONNECTOR \
-#      --vpc-egress=private-ranges-only \
-#      --service-account=$SERVICE_ACCOUNT \
-#      --no-cpu-throttling \
-#      --set-secrets=DATABASE_URL=DATABASE_URL:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-#      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
+# Deploy Extract Task Service
+echo -e "${BLUE}=== Deploying Extract Task Service ===${NC}"
+deploy_service \
+    "task-extract" \
+    "task-extract" \
+    "8080" \
+    "3Gi" \
+    "2" \
+    "0" \
+    "5" \
+    "1" \
+    "3600" \
+    "false" \
+    "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
+     --vpc-connector=$VPC_CONNECTOR \
+     --vpc-egress=private-ranges-only \
+     --service-account=$SERVICE_ACCOUNT \
+     --no-cpu-throttling \
+     --set-secrets=DATABASE_URL=DATABASE_URL:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
 
 # Deploy I/O Task Service
 echo -e "${BLUE}=== Deploying I/O Task Service ===${NC}"
