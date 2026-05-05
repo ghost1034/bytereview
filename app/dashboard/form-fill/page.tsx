@@ -39,6 +39,15 @@ function mimeToExtension(mimeType?: string | null) {
   return mimeType || 'Unknown'
 }
 
+function isTabularSourceFile(file: File) {
+  const name = file.name.toLowerCase()
+  return file.type === 'text/csv'
+    || file.type === 'application/vnd.ms-excel'
+    || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    || name.endsWith('.csv')
+    || name.endsWith('.xlsx')
+}
+
 function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
   const units = ['B', 'KB', 'MB', 'GB']
@@ -82,6 +91,7 @@ export default function FormFillPage() {
   const [templateDescription, setTemplateDescription] = useState('')
   const [allowDocxTableExpansion, setAllowDocxTableExpansion] = useState(false)
   const [outputFormat, setOutputFormat] = useState<'pdf' | 'docx'>('pdf')
+  const [repeatMode, setRepeatMode] = useState<'single' | 'source_rows'>('single')
   const [creating, setCreating] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [currentRunId, setCurrentRunId] = useState<string | null>(null)
@@ -107,7 +117,7 @@ export default function FormFillPage() {
     refetchInterval: (query) => {
       const run = query.state.data as FormFillRun | undefined
       if (!run) return 2500
-      return run.status === 'completed' || run.status === 'failed' ? false : 2500
+      return run.status === 'completed' || run.status === 'completed_with_errors' || run.status === 'failed' ? false : 2500
     },
   })
 
@@ -121,6 +131,17 @@ export default function FormFillPage() {
     if (targetMode === 'upload' && targetFile) return targetFile.type || ''
     return selectedTemplate?.file_type || ''
   }, [targetMode, targetFile, selectedTemplate])
+
+  const repeatModeSupported = useMemo(() => {
+    if (sourceMode === 'extraction') return Boolean(extractionPreview?.rows.length)
+    return sourceFiles.length === 1 && isTabularSourceFile(sourceFiles[0])
+  }, [extractionPreview, sourceFiles, sourceMode])
+
+  useEffect(() => {
+    if (repeatMode === 'source_rows' && !repeatModeSupported) {
+      setRepeatMode('single')
+    }
+  }, [repeatMode, repeatModeSupported])
 
   useEffect(() => {
     if (targetMimeType === DOCX_MIME) {
@@ -144,8 +165,9 @@ export default function FormFillPage() {
     const sourceReady = sourceMode === 'upload' ? sourceFiles.length > 0 : !!extractionPreview
     const targetReady = targetMode === 'upload' ? !!targetFile : !!selectedTemplateId
     const templateReady = !saveAsTemplate || templateName.trim().length > 0
-    return sourceReady && targetReady && templateReady && !creating
-  }, [creating, extractionPreview, saveAsTemplate, selectedTemplateId, sourceFiles, sourceMode, targetFile, targetMode, templateName])
+    const repeatReady = repeatMode === 'single' || repeatModeSupported
+    return sourceReady && targetReady && templateReady && repeatReady && !creating
+  }, [creating, extractionPreview, repeatMode, repeatModeSupported, saveAsTemplate, selectedTemplateId, sourceFiles, sourceMode, targetFile, targetMode, templateName])
 
   const handleCreate = async () => {
     if (!canSubmit) return
@@ -156,6 +178,7 @@ export default function FormFillPage() {
         targetFile: targetMode === 'upload' ? targetFile || undefined : undefined,
         templateId: targetMode === 'template' ? selectedTemplateId : undefined,
         outputFormat,
+        repeatMode,
         allowDocxTableExpansion: targetMimeType === DOCX_MIME ? allowDocxTableExpansion : undefined,
         saveTemplateName: targetMode === 'upload' && saveAsTemplate ? templateName.trim() : undefined,
         saveTemplateDescription: targetMode === 'upload' && saveAsTemplate ? templateDescription.trim() : undefined,
@@ -431,6 +454,33 @@ export default function FormFillPage() {
             </select>
           </div>
 
+          <div className="space-y-2">
+            <Label>Fill mode</Label>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant={repeatMode === 'single' ? 'default' : 'outline'}
+                onClick={() => setRepeatMode('single')}
+              >
+                Fill once
+              </Button>
+              <Button
+                type="button"
+                variant={repeatMode === 'source_rows' ? 'default' : 'outline'}
+                disabled={!repeatModeSupported}
+                onClick={() => setRepeatMode('source_rows')}
+              >
+                Fill once per row
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Row mode uses one CSV/XLSX file or extraction-result rows and downloads a ZIP of filled documents.
+            </p>
+            {!repeatModeSupported && sourceMode === 'upload' && sourceFiles.length > 0 && (
+              <p className="text-sm text-amber-700">Row mode currently requires exactly one CSV or XLSX source file.</p>
+            )}
+          </div>
+
           <Button onClick={handleCreate} disabled={!canSubmit}>
             {creating ? 'Starting…' : 'Run Form Fill'}
           </Button>
@@ -450,6 +500,12 @@ export default function FormFillPage() {
             <div className="text-sm">
               <span className="font-medium">Status:</span> {currentRun?.status || 'pending'}
             </div>
+            {currentRun && currentRun.repeat_mode === 'source_rows' && (
+              <div className="text-sm">
+                <span className="font-medium">Progress:</span> {currentRun.completed_outputs} of {currentRun.total_outputs} completed
+                {currentRun.failed_outputs > 0 ? `, ${currentRun.failed_outputs} failed` : ''}
+              </div>
+            )}
             {currentRun?.processing_strategy && (
               <div className="text-sm">
                 <span className="font-medium">Strategy:</span> {formatStrategy(currentRun.processing_strategy)}
@@ -470,9 +526,9 @@ export default function FormFillPage() {
                 {currentRun.error_message}
               </div>
             )}
-            {currentRun?.status === 'completed' && (
+            {(currentRun?.status === 'completed' || currentRun?.status === 'completed_with_errors') && (
               <Button onClick={handleDownload} disabled={downloading}>
-                {downloading ? 'Downloading…' : `Download ${currentRun.result_filename || 'Result'}`}
+                {downloading ? 'Downloading…' : `Download ${currentRun.repeat_mode === 'source_rows' ? 'ZIP' : currentRun.result_filename || 'Result'}`}
               </Button>
             )}
           </CardContent>

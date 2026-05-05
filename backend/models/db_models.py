@@ -132,6 +132,11 @@ class FormFillRun(Base):
     target_gcs_object_name = Column(Text, nullable=False)
     target_file_size_bytes = Column(BigInteger, nullable=False)
     output_format = Column(String(20), nullable=False)
+    repeat_mode = Column(String(50), nullable=False, default="single", server_default="single")
+    total_outputs = Column(Integer, nullable=False, default=1, server_default="1")
+    completed_outputs = Column(Integer, nullable=False, default=0, server_default="0")
+    failed_outputs = Column(Integer, nullable=False, default=0, server_default="0")
+    source_record_config = Column(MutableDict.as_mutable(JSONB), nullable=True)
     processing_strategy = Column(String(50))
     warnings = Column(JSONB, nullable=True)
     fill_plan = Column(MutableDict.as_mutable(JSONB), nullable=True)
@@ -151,6 +156,12 @@ class FormFillRun(Base):
         cascade="all, delete-orphan",
         order_by="FormFillSourceFile.display_order",
     )
+    outputs = relationship(
+        "FormFillOutput",
+        back_populates="run",
+        cascade="all, delete-orphan",
+        order_by="FormFillOutput.record_index",
+    )
 
 
 class FormFillSourceFile(Base):
@@ -168,6 +179,29 @@ class FormFillSourceFile(Base):
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
     run = relationship("FormFillRun", back_populates="source_files")
+
+
+class FormFillOutput(Base):
+    """Single generated document within a Form Fill run."""
+    __tablename__ = "form_fill_outputs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_id = Column(UUID(as_uuid=True), ForeignKey("form_fill_runs.id", ondelete="CASCADE"), nullable=False)
+    record_index = Column(Integer, nullable=False)
+    record_label = Column(Text, nullable=False)
+    record_payload = Column(MutableDict.as_mutable(JSONB), nullable=True)
+    status = Column(String(50), nullable=False, default="pending", server_default="pending")
+    warnings = Column(JSONB, nullable=True)
+    fill_plan = Column(MutableDict.as_mutable(JSONB), nullable=True)
+    result_gcs_object_name = Column(Text)
+    result_filename = Column(Text)
+    result_file_type = Column(String(100))
+    error_message = Column(Text)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    completed_at = Column(TIMESTAMP(timezone=True))
+
+    run = relationship("FormFillRun", back_populates="outputs")
 
 class TemplateField(Base):
     """Specific fields defined within a user's template"""

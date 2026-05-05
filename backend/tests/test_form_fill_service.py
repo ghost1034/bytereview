@@ -299,6 +299,31 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Source file 1: legacy.csv", source_text)
         self.assertIn("| Owner | Jane |", source_text)
 
+    def test_load_csv_records_uses_header_row_and_name_label(self) -> None:
+        csv_path = self._create_csv("Participant Name,Email\nJane Doe,jane@example.com\nJohn Smith,john@example.com\n")
+
+        records = self.service._load_csv_records(csv_path)
+
+        self.assertEqual(len(records), 2)
+        self.assertEqual(records[0]["record_index"], 0)
+        self.assertEqual(records[0]["record_label"], "Jane Doe")
+        self.assertEqual(records[0]["record_payload"]["Email"], "jane@example.com")
+        self.assertEqual(records[1]["record_label"], "John Smith")
+
+    def test_record_source_text_scopes_prompt_to_one_record(self) -> None:
+        source_text = self.service._record_source_text(
+            {
+                "record_payload": {
+                    "Participant Name": "Jane Doe",
+                    "Email": "jane@example.com",
+                }
+            }
+        )
+
+        self.assertIn("single source record only", source_text)
+        self.assertIn("Participant Name: Jane Doe", source_text)
+        self.assertIn("Email: jane@example.com", source_text)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -710,6 +710,7 @@ export class ApiClient {
     if (params.targetFile) formData.append('target_file', params.targetFile)
     if (params.templateId) formData.append('template_id', params.templateId)
     if (params.outputFormat) formData.append('output_format', params.outputFormat)
+    if (params.repeatMode) formData.append('repeat_mode', params.repeatMode)
     if (params.allowDocxTableExpansion !== undefined) {
       formData.append('allow_docx_table_expansion', params.allowDocxTableExpansion ? 'true' : 'false')
     }
@@ -1410,9 +1411,14 @@ export interface FormFillRun {
   target_file_type: string
   allow_docx_table_expansion: boolean
   output_format: string
+  repeat_mode: 'single' | 'source_rows' | string
+  total_outputs: number
+  completed_outputs: number
+  failed_outputs: number
   processing_strategy?: string | null
   warnings: string[]
   fill_plan?: Record<string, any> | null
+  outputs: FormFillOutput[]
   result_filename?: string | null
   result_file_type?: string | null
   error_message?: string | null
@@ -1429,6 +1435,21 @@ export interface FormFillSourceFile {
   display_order: number
 }
 
+export interface FormFillOutput {
+  id: string
+  record_index: number
+  record_label: string
+  status: string
+  warnings: string[]
+  fill_plan?: Record<string, any> | null
+  result_filename?: string | null
+  result_file_type?: string | null
+  error_message?: string | null
+  created_at: string
+  updated_at: string
+  completed_at?: string | null
+}
+
 export interface FormFillRunCreateResponse {
   run: FormFillRun
   message: string
@@ -1439,6 +1460,7 @@ export interface CreateFormFillRunParams {
   targetFile?: File
   templateId?: string
   outputFormat?: 'pdf' | 'docx'
+  repeatMode?: 'single' | 'source_rows'
   allowDocxTableExpansion?: boolean
   saveTemplateName?: string
   saveTemplateDescription?: string

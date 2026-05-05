@@ -2572,6 +2572,8 @@ export interface components {
             template_id?: string | null;
             /** Output Format */
             output_format?: string | null;
+            /** Repeat Mode */
+            repeat_mode?: string | null;
             /** Allow Docx Table Expansion */
             allow_docx_table_expansion?: boolean | null;
             /** Save Template Name */
@@ -2890,6 +2892,41 @@ export interface components {
             /** Message */
             message: string;
         };
+        /** FormFillOutputResponse */
+        FormFillOutputResponse: {
+            /** Id */
+            id: string;
+            /** Record Index */
+            record_index: number;
+            /** Record Label */
+            record_label: string;
+            /** Status */
+            status: string;
+            /** Warnings */
+            warnings?: string[];
+            /** Fill Plan */
+            fill_plan?: {
+                [key: string]: unknown;
+            } | null;
+            /** Result Filename */
+            result_filename?: string | null;
+            /** Result File Type */
+            result_file_type?: string | null;
+            /** Error Message */
+            error_message?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Completed At */
+            completed_at?: string | null;
+        };
         /** FormFillRunResponse */
         FormFillRunResponse: {
             /** Id */
@@ -2929,6 +2966,26 @@ export interface components {
             allow_docx_table_expansion: boolean;
             /** Output Format */
             output_format: string;
+            /**
+             * Repeat Mode
+             * @default single
+             */
+            repeat_mode: string;
+            /**
+             * Total Outputs
+             * @default 1
+             */
+            total_outputs: number;
+            /**
+             * Completed Outputs
+             * @default 0
+             */
+            completed_outputs: number;
+            /**
+             * Failed Outputs
+             * @default 0
+             */
+            failed_outputs: number;
             /** Processing Strategy */
             processing_strategy?: string | null;
             /** Warnings */
@@ -2937,6 +2994,8 @@ export interface components {
             fill_plan?: {
                 [key: string]: unknown;
             } | null;
+            /** Outputs */
+            outputs?: components["schemas"]["FormFillOutputResponse"][];
             /** Result Filename */
             result_filename?: string | null;
             /** Result File Type */

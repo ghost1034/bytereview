@@ -11,6 +11,7 @@ import re
 import shutil
 import tempfile
 import uuid
+import zipfile
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,6 +28,7 @@ from models.db_models import (
     ExtractionJob,
     ExtractionResult,
     ExtractionTask,
+    FormFillOutput,
     FormFillRun,
     FormFillSourceFile,
     FormFillTemplate,
@@ -56,9 +58,17 @@ SUPPORTED_SOURCE_MIME_TYPES = {
     "application/vnd.ms-excel",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
+TABULAR_SOURCE_MIME_TYPES = {
+    "text/csv",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
 SUPPORTED_TARGET_MIME_TYPES = {PDF_MIME, DOCX_MIME}
 DEFAULT_MAX_SOURCE_FILES = 10
 DEFAULT_MAX_TOTAL_SOURCE_BYTES = 100 * 1024 * 1024
+REPEAT_MODE_SINGLE = "single"
+REPEAT_MODE_SOURCE_ROWS = "source_rows"
+REPEAT_LABEL_COLUMNS = ("participant", "participant name", "name", "full name", "client", "customer", "employee")
 
 
 def _guess_mime_type(filename: str, fallback: str = "application/octet-stream") -> str:
@@ -78,6 +88,18 @@ def _normalize_output_format(value: Optional[str]) -> Optional[str]:
     return lowered or None
 
 
+def _normalize_repeat_mode(value: Optional[str]) -> str:
+    lowered = (value or REPEAT_MODE_SINGLE).strip().lower()
+    if lowered in {"source_rows", "rows", "repeat"}:
+        return REPEAT_MODE_SOURCE_ROWS
+    return REPEAT_MODE_SINGLE
+
+
+def _safe_filename_part(value: str, fallback: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", (value or "").strip()).strip("._-")
+    return (cleaned or fallback)[:80]
+
+
 class FormFillService:
     def __init__(self) -> None:
         self.storage_service = get_storage_service()
@@ -85,6 +107,7 @@ class FormFillService:
         self.max_sheet_chars = int(os.getenv("FORM_FILL_MAX_SHEET_CHARS", "30000"))
         self.max_source_files = int(os.getenv("FORM_FILL_MAX_SOURCE_FILES", str(DEFAULT_MAX_SOURCE_FILES)))
         self.max_total_source_bytes = int(os.getenv("FORM_FILL_MAX_TOTAL_SOURCE_BYTES", str(DEFAULT_MAX_TOTAL_SOURCE_BYTES)))
+        self.max_repeat_records = int(os.getenv("FORM_FILL_MAX_REPEAT_RECORDS", "100"))
 
         project = os.getenv("GOOGLE_CLOUD_PROJECT_ID")
         location = os.getenv("GOOGLE_CLOUD_LOCATION", "global")
@@ -142,9 +165,30 @@ class FormFillService:
             target_file_type=run.target_file_type,
             allow_docx_table_expansion=bool(run.allow_docx_table_expansion),
             output_format=run.output_format,
+            repeat_mode=run.repeat_mode or REPEAT_MODE_SINGLE,
+            total_outputs=int(run.total_outputs or 1),
+            completed_outputs=int(run.completed_outputs or 0),
+            failed_outputs=int(run.failed_outputs or 0),
             processing_strategy=run.processing_strategy,
             warnings=warnings,
             fill_plan=fill_plan,
+            outputs=[
+                {
+                    "id": str(output.id),
+                    "record_index": int(output.record_index or 0),
+                    "record_label": output.record_label,
+                    "status": output.status,
+                    "warnings": output.warnings if isinstance(output.warnings, list) else [],
+                    "fill_plan": output.fill_plan if isinstance(output.fill_plan, dict) else None,
+                    "result_filename": output.result_filename,
+                    "result_file_type": output.result_file_type,
+                    "error_message": output.error_message,
+                    "created_at": output.created_at,
+                    "updated_at": output.updated_at,
+                    "completed_at": output.completed_at,
+                }
+                for output in (run.outputs or [])
+            ],
             result_filename=run.result_filename,
             result_file_type=run.result_file_type,
             error_message=run.error_message,
@@ -272,6 +316,7 @@ class FormFillService:
         target_file: Any = None,
         template_id: Optional[str] = None,
         output_format: Optional[str] = None,
+        repeat_mode: Optional[str] = None,
         allow_docx_table_expansion: Optional[bool] = None,
         save_template_name: Optional[str] = None,
         save_template_description: Optional[str] = None,
@@ -283,10 +328,13 @@ class FormFillService:
         try:
             uploaded_source_files = [item for item in (source_files or []) if item is not None]
             source_from_extraction = bool(source_job_id and source_run_id and source_task_id)
+            normalized_repeat_mode = _normalize_repeat_mode(repeat_mode)
             if bool(uploaded_source_files) == source_from_extraction:
                 raise ValueError("Provide either source files or an extraction result source")
             if len(uploaded_source_files) > self.max_source_files:
                 raise ValueError(f"Form Fill supports up to {self.max_source_files} source files per run")
+            if normalized_repeat_mode == REPEAT_MODE_SOURCE_ROWS and uploaded_source_files and len(uploaded_source_files) != 1:
+                raise ValueError("Repeat mode currently supports one CSV or XLSX source file")
             if bool(target_file) == bool(template_id):
                 raise ValueError("Provide either a target file or a saved template")
 
@@ -301,6 +349,10 @@ class FormFillService:
                 target_gcs_object_name="pending",
                 target_file_size_bytes=0,
                 output_format="pending",
+                repeat_mode=normalized_repeat_mode,
+                total_outputs=0 if normalized_repeat_mode == REPEAT_MODE_SOURCE_ROWS else 1,
+                completed_outputs=0,
+                failed_outputs=0,
             )
             db.add(run)
             db.flush()
@@ -318,6 +370,8 @@ class FormFillService:
                     source_mime = (source_file.content_type or _guess_mime_type(source_filename)).lower()
                     if source_mime not in SUPPORTED_SOURCE_MIME_TYPES:
                         raise ValueError(f"Unsupported source file type: {source_filename}")
+                    if normalized_repeat_mode == REPEAT_MODE_SOURCE_ROWS and source_mime not in TABULAR_SOURCE_MIME_TYPES:
+                        raise ValueError("Repeat mode requires a CSV or XLSX source file")
 
                     total_source_bytes += len(source_bytes)
                     if total_source_bytes > self.max_total_source_bytes:
@@ -458,7 +512,7 @@ class FormFillService:
             ).first()
             if not run:
                 raise ValueError("Form Fill run not found")
-            if run.status != "completed" or not run.result_gcs_object_name or not run.result_filename:
+            if run.status not in {"completed", "completed_with_errors"} or not run.result_gcs_object_name or not run.result_filename:
                 raise ValueError("Form Fill output is not ready")
             db.expunge(run)
             return run
@@ -600,6 +654,95 @@ class FormFillService:
         finally:
             workbook.close()
         return "\n\n".join(parts)[: self.max_sheet_chars]
+
+    def _record_label(self, payload: dict[str, Any], index: int) -> str:
+        lowered = {str(key).strip().lower(): value for key, value in payload.items()}
+        for column in REPEAT_LABEL_COLUMNS:
+            value = lowered.get(column)
+            if value is not None and str(value).strip():
+                return str(value).strip()
+        for value in payload.values():
+            if value is not None and str(value).strip():
+                return str(value).strip()
+        return f"row {index + 1}"
+
+    def _records_from_rows(self, columns: list[Any], rows: list[Any]) -> list[dict[str, Any]]:
+        safe_columns = [str(column).strip() or f"Column {index + 1}" for index, column in enumerate(columns)]
+        records: list[dict[str, Any]] = []
+        for row in rows:
+            if not isinstance(row, (list, tuple)):
+                continue
+            payload = {
+                column: row[column_index] if column_index < len(row) else None
+                for column_index, column in enumerate(safe_columns)
+            }
+            if not any(value is not None and str(value).strip() for value in payload.values()):
+                continue
+            records.append(
+                {
+                    "record_index": len(records),
+                    "record_label": self._record_label(payload, len(records)),
+                    "record_payload": payload,
+                }
+            )
+            if len(records) >= self.max_repeat_records:
+                break
+        return records
+
+    def _load_csv_records(self, local_path: str) -> list[dict[str, Any]]:
+        with open(local_path, "r", encoding="utf-8-sig", newline="") as handle:
+            reader = csv.reader(handle)
+            rows = list(reader)
+        if len(rows) < 2:
+            return []
+        return self._records_from_rows([str(item) for item in rows[0]], rows[1:])
+
+    def _load_xlsx_records(self, local_path: str) -> list[dict[str, Any]]:
+        workbook = load_workbook(local_path, read_only=True, data_only=True)
+        try:
+            for worksheet in workbook.worksheets:
+                rows = list(worksheet.iter_rows(values_only=True, max_row=self.max_repeat_records + 1))
+                if len(rows) >= 2:
+                    records = self._records_from_rows(list(rows[0]), [list(row) for row in rows[1:]])
+                    if records:
+                        return records
+        finally:
+            workbook.close()
+        return []
+
+    async def _extract_repeat_records(self, run: FormFillRun) -> list[dict[str, Any]]:
+        if isinstance(run.source_payload, dict) and run.source_payload.get("kind") == "extraction_result":
+            return self._records_from_rows(list(run.source_payload.get("columns") or []), list(run.source_payload.get("rows") or []))
+
+        uploaded_source_files = list(run.source_files or [])
+        if len(uploaded_source_files) != 1:
+            raise ValueError("Repeat mode currently supports one CSV or XLSX source file")
+
+        source_file = uploaded_source_files[0]
+        if source_file.file_type not in TABULAR_SOURCE_MIME_TYPES:
+            raise ValueError("Repeat mode requires a CSV or XLSX source file")
+
+        with tempfile.TemporaryDirectory(prefix="form_fill_records_") as temp_dir:
+            local_path = os.path.join(temp_dir, f"source{_safe_ext(source_file.original_filename, '.bin')}")
+            await self._download_to_local(source_file.gcs_object_name, local_path)
+            if source_file.file_type in {"text/csv", "application/vnd.ms-excel"}:
+                return self._load_csv_records(local_path)
+            if source_file.file_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                return self._load_xlsx_records(local_path)
+        return []
+
+    def _record_source_text(self, record: dict[str, Any]) -> str:
+        payload = record.get("record_payload") if isinstance(record.get("record_payload"), dict) else {}
+        lines = ["Fill the target using this single source record only:"]
+        for key, value in payload.items():
+            lines.append(f"- {key}: {'' if value is None else value}")
+        return "\n".join(lines)
+
+    def _filled_filename(self, target_filename: str, suffix: str, extension: str) -> str:
+        stem = _safe_filename_part(Path(target_filename).stem, "filled")
+        safe_suffix = _safe_filename_part(suffix, "") if suffix else ""
+        name = f"{stem}_{safe_suffix}_filled" if safe_suffix else f"{stem}_filled"
+        return f"{name}.{extension}"
 
     def _ensure_client(self) -> None:
         if not self.client:
@@ -1323,6 +1466,217 @@ Instructions:
 - Add any important caveats to warnings.
 """
 
+    async def _generate_filled_document(
+        self,
+        *,
+        run: FormFillRun,
+        temp_dir: str,
+        target_local_path: str,
+        source_parts: list[Any],
+        source_text: str,
+        filename_suffix: str = "",
+    ) -> dict[str, Any]:
+        target_parts: list[Any] = []
+        warnings: list[str] = []
+        fill_plan: dict[str, Any] = {}
+
+        if run.target_file_type == PDF_MIME:
+            pdf_fields = self._extract_pdf_form_fields(target_local_path)
+            target_parts.append(self._part_from_uri(self.storage_service.construct_gcs_uri_for_object(run.target_gcs_object_name), PDF_MIME))
+            if pdf_fields:
+                processing_strategy = "fillable_pdf"
+                mapping_payload = self._generate_json_response(
+                    source_parts + target_parts + [
+                        self._build_mapping_prompt(
+                            source_text=source_text,
+                            mapping_items=pdf_fields,
+                            mapping_label="Fillable PDF field names",
+                            target_hint="fillable PDF form",
+                        )
+                    ],
+                    self._field_mapping_schema(),
+                )
+                field_values = {
+                    str(item.get("name")): "" if item.get("value") is None else str(item.get("value"))
+                    for item in mapping_payload.get("items") or []
+                    if isinstance(item, dict) and item.get("name")
+                }
+                warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
+                fill_plan = {"strategy": processing_strategy, "field_values": field_values}
+                output_pdf_path = os.path.join(temp_dir, f"filled-{uuid.uuid4()}.pdf")
+                self._apply_fillable_pdf(target_local_path, field_values, output_pdf_path)
+                return {
+                    "local_path": output_pdf_path,
+                    "filename": self._filled_filename(run.target_filename, filename_suffix, "pdf"),
+                    "mime_type": PDF_MIME,
+                    "strategy": processing_strategy,
+                    "warnings": warnings,
+                    "fill_plan": fill_plan,
+                }
+
+            processing_strategy = "pdf_overlay"
+            target_preview_text = self._page_texts_with_numbers(target_local_path)
+            overlay_payload = self._generate_json_response(
+                source_parts + target_parts + [
+                    self._build_pdf_overlay_prompt(
+                        source_text=source_text,
+                        target_preview_text=target_preview_text,
+                    )
+                ],
+                self._pdf_overlay_schema(),
+            )
+            overlay_items = [
+                item for item in (overlay_payload.get("items") or []) if isinstance(item, dict) and str(item.get("overlay_text") or "").strip()
+            ]
+            warnings.extend([str(item) for item in (overlay_payload.get("warnings") or []) if str(item).strip()])
+            fill_plan = {"strategy": processing_strategy, "items": overlay_items}
+            final_local_path = os.path.join(temp_dir, f"filled-{uuid.uuid4()}.pdf")
+            warnings.extend(self._apply_pdf_overlay_plan(target_local_path, overlay_items, final_local_path))
+            warnings.append("The target PDF was not fillable, so Form Fill applied text overlays onto the original PDF.")
+            return {
+                "local_path": final_local_path,
+                "filename": self._filled_filename(run.target_filename, filename_suffix, "pdf"),
+                "mime_type": PDF_MIME,
+                "strategy": processing_strategy,
+                "warnings": warnings,
+                "fill_plan": fill_plan,
+            }
+
+        if run.target_file_type == DOCX_MIME:
+            converter = get_document_conversion_service()
+            preview_object = f"form-fill/{run.user_id}/runs/{run.id}/target-preview.pdf"
+            await converter.convert_docx_gcs_to_pdf_gcs(self.storage_service, run.target_gcs_object_name, preview_object)
+            target_parts.append(self._part_from_uri(self.storage_service.construct_gcs_uri_for_object(preview_object), PDF_MIME))
+            placeholders = self._extract_docx_placeholders(target_local_path)
+            if placeholders:
+                processing_strategy = "docx_placeholders"
+                mapping_payload = self._generate_json_response(
+                    source_parts + target_parts + [
+                        self._build_mapping_prompt(
+                            source_text=source_text,
+                            mapping_items=placeholders,
+                            mapping_label="DOCX placeholders",
+                            target_hint="DOCX template",
+                        )
+                    ],
+                    self._field_mapping_schema(),
+                )
+                replacements = {
+                    str(item.get("name")): "" if item.get("value") is None else str(item.get("value"))
+                    for item in mapping_payload.get("items") or []
+                    if isinstance(item, dict) and item.get("name")
+                }
+                warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
+                fill_plan = {
+                    "strategy": processing_strategy,
+                    "replacements": replacements,
+                    "allow_docx_table_expansion": bool(run.allow_docx_table_expansion),
+                }
+                output_docx_path = os.path.join(temp_dir, f"filled-{uuid.uuid4()}.docx")
+                self._apply_docx_placeholders(target_local_path, replacements, output_docx_path)
+                final_local_path = output_docx_path
+
+                if run.allow_docx_table_expansion:
+                    from docx import Document as DocxDocument
+
+                    placeholder_doc = DocxDocument(output_docx_path)
+                    docx_blocks, _block_map = self._collect_docx_blocks(placeholder_doc)
+                    docx_tables, _table_map = self._collect_docx_tables(placeholder_doc)
+                    table_operations: list[dict[str, Any]] = []
+                    if docx_tables:
+                        edit_payload = self._generate_json_response(
+                            source_parts + target_parts + [
+                                self._build_docx_edit_prompt(
+                                    source_text=source_text,
+                                    block_summary=self._summarize_docx_blocks(docx_blocks),
+                                    table_summary=self._summarize_docx_tables(docx_tables),
+                                    target_preview_text=self._extract_docx_text(output_docx_path),
+                                    allow_table_expansion=True,
+                                    restrict_to_table_expansion=True,
+                                )
+                            ],
+                            self._docx_edit_schema(),
+                        )
+                        operations = [
+                            item
+                            for item in (edit_payload.get("operations") or [])
+                            if isinstance(item, dict) and str(item.get("action") or "").strip()
+                        ]
+                        table_operations = [
+                            item
+                            for item in operations
+                            if str(item.get("action") or "").strip() in {"insert_table_row_after", "insert_table_column_after"}
+                        ]
+                        warnings.extend([str(item) for item in (edit_payload.get("warnings") or []) if str(item).strip()])
+
+                    fill_plan["table_operations"] = table_operations
+                    expanded_docx_path = os.path.join(temp_dir, f"filled-expanded-{uuid.uuid4()}.docx")
+                    warnings.extend(
+                        self._apply_docx_edit_plan(
+                            output_docx_path,
+                            table_operations,
+                            expanded_docx_path,
+                            allow_table_expansion=True,
+                        )
+                    )
+                    final_local_path = expanded_docx_path
+            else:
+                processing_strategy = "docx_edit_in_place"
+                target_preview_text = self._extract_docx_text(target_local_path)
+                from docx import Document as DocxDocument
+
+                target_doc = DocxDocument(target_local_path)
+                docx_blocks, _block_map = self._collect_docx_blocks(target_doc)
+                docx_tables, _table_map = self._collect_docx_tables(target_doc)
+                edit_payload = self._generate_json_response(
+                    source_parts + target_parts + [
+                        self._build_docx_edit_prompt(
+                            source_text=source_text,
+                            block_summary=self._summarize_docx_blocks(docx_blocks),
+                            table_summary=self._summarize_docx_tables(docx_tables),
+                            target_preview_text=target_preview_text,
+                            allow_table_expansion=bool(run.allow_docx_table_expansion),
+                        )
+                    ],
+                    self._docx_edit_schema(),
+                )
+                operations = [
+                    item for item in (edit_payload.get("operations") or []) if isinstance(item, dict) and str(item.get("action") or "").strip()
+                ]
+                warnings.extend([str(item) for item in (edit_payload.get("warnings") or []) if str(item).strip()])
+                fill_plan = {
+                    "strategy": processing_strategy,
+                    "operations": operations,
+                    "allow_docx_table_expansion": bool(run.allow_docx_table_expansion),
+                }
+                final_local_path = os.path.join(temp_dir, f"filled-{uuid.uuid4()}.docx")
+                warnings.extend(
+                    self._apply_docx_edit_plan(
+                        target_local_path,
+                        operations,
+                        final_local_path,
+                        allow_table_expansion=bool(run.allow_docx_table_expansion),
+                    )
+                )
+                warnings.append("The DOCX target had no placeholders, so Form Fill edited the original DOCX in place.")
+
+            final_extension = "docx"
+            final_mime_type = DOCX_MIME
+            if run.output_format == "pdf":
+                final_local_path = await converter.convert_docx_local_to_pdf_local(final_local_path, out_dir=temp_dir)
+                final_extension = "pdf"
+                final_mime_type = PDF_MIME
+            return {
+                "local_path": final_local_path,
+                "filename": self._filled_filename(run.target_filename, filename_suffix, final_extension),
+                "mime_type": final_mime_type,
+                "strategy": processing_strategy,
+                "warnings": warnings,
+                "fill_plan": fill_plan,
+            }
+
+        raise ValueError("Unsupported target file type")
+
     async def process_run(self, run_id: str) -> dict[str, Any]:
         db = self._get_session()
         temp_dir = tempfile.mkdtemp(prefix="form_fill_run_")
@@ -1337,214 +1691,138 @@ Instructions:
             run.error_message = None
             db.commit()
 
-            source_parts: list[Any] = []
-            source_text_sections: list[str] = []
-            source_parts, source_text = await self._build_source_context(
-                run=run,
-                source_parts=source_parts,
-                source_text_sections=source_text_sections,
-            )
-
             target_local_path = os.path.join(temp_dir, f"target{_safe_ext(run.target_filename, '.bin')}")
             await self._download_to_local(run.target_gcs_object_name, target_local_path)
+            if (run.repeat_mode or REPEAT_MODE_SINGLE) != REPEAT_MODE_SOURCE_ROWS:
+                source_parts: list[Any] = []
+                source_text_sections: list[str] = []
+                source_parts, source_text = await self._build_source_context(
+                    run=run,
+                    source_parts=source_parts,
+                    source_text_sections=source_text_sections,
+                )
+                generated = await self._generate_filled_document(
+                    run=run,
+                    temp_dir=temp_dir,
+                    target_local_path=target_local_path,
+                    source_parts=source_parts,
+                    source_text=source_text,
+                )
+                result_object_name = f"form-fill/{run.user_id}/runs/{run.id}/result{_safe_ext(generated['filename'], '.bin')}"
+                await self.storage_service.upload_file(generated["local_path"], result_object_name)
 
-            target_parts: list[Any] = []
-            warnings: list[str] = []
-            fill_plan: dict[str, Any] = {}
+                run.status = "completed"
+                run.processing_strategy = generated["strategy"]
+                run.result_gcs_object_name = result_object_name
+                run.result_filename = generated["filename"]
+                run.result_file_type = generated["mime_type"]
+                run.fill_plan = generated["fill_plan"]
+                run.warnings = generated["warnings"]
+                run.total_outputs = 1
+                run.completed_outputs = 1
+                run.failed_outputs = 0
+                run.completed_at = datetime.now(timezone.utc)
+                db.commit()
+                return {"success": True, "run_id": str(run.id), "strategy": run.processing_strategy}
 
-            if run.target_file_type == PDF_MIME:
-                pdf_fields = self._extract_pdf_form_fields(target_local_path)
-                target_parts.append(self._part_from_uri(self.storage_service.construct_gcs_uri_for_object(run.target_gcs_object_name), PDF_MIME))
-                if pdf_fields:
-                    run.processing_strategy = "fillable_pdf"
-                    mapping_payload = self._generate_json_response(
-                        source_parts + target_parts + [
-                            self._build_mapping_prompt(
-                                source_text=source_text,
-                                mapping_items=pdf_fields,
-                                mapping_label="Fillable PDF field names",
-                                target_hint="fillable PDF form",
-                            )
-                        ],
-                        self._field_mapping_schema(),
+            records = await self._extract_repeat_records(run)
+            if not records:
+                raise ValueError("Repeat mode could not find any source rows to fill")
+
+            run.total_outputs = len(records)
+            run.completed_outputs = 0
+            run.failed_outputs = 0
+            run.outputs.clear()
+            db.flush()
+            outputs = []
+            for record in records:
+                output = FormFillOutput(
+                    run_id=run.id,
+                    record_index=int(record["record_index"]),
+                    record_label=str(record["record_label"]),
+                    record_payload=record["record_payload"],
+                    status="pending",
+                )
+                db.add(output)
+                outputs.append(output)
+            db.commit()
+
+            completed_files: list[tuple[str, str]] = []
+            aggregate_warnings: list[str] = []
+            last_strategy: str | None = None
+            for output in outputs:
+                output_id = output.id
+                output_label = output.record_label
+                try:
+                    output.status = "in_progress"
+                    db.commit()
+                    generated = await self._generate_filled_document(
+                        run=run,
+                        temp_dir=temp_dir,
+                        target_local_path=target_local_path,
+                        source_parts=[],
+                        source_text=self._record_source_text(
+                            {
+                                "record_payload": output.record_payload or {},
+                            }
+                        ),
+                        filename_suffix=f"{output.record_index + 1:03d}_{output.record_label}",
                     )
-                    field_values = {
-                        str(item.get("name")): "" if item.get("value") is None else str(item.get("value"))
-                        for item in mapping_payload.get("items") or []
-                        if isinstance(item, dict) and item.get("name")
-                    }
-                    warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
-                    fill_plan = {"strategy": run.processing_strategy, "field_values": field_values}
-                    output_pdf_path = os.path.join(temp_dir, "filled.pdf")
-                    self._apply_fillable_pdf(target_local_path, field_values, output_pdf_path)
-                    final_local_path = output_pdf_path
-                    final_filename = f"{Path(run.target_filename).stem}_filled.pdf"
-                    final_mime_type = PDF_MIME
-                else:
-                    run.processing_strategy = "pdf_overlay"
-                    target_preview_text = self._page_texts_with_numbers(target_local_path)
-                    overlay_payload = self._generate_json_response(
-                        source_parts + target_parts + [
-                            self._build_pdf_overlay_prompt(
-                                source_text=source_text,
-                                target_preview_text=target_preview_text,
-                            )
-                        ],
-                        self._pdf_overlay_schema(),
+                    result_object_name = (
+                        f"form-fill/{run.user_id}/runs/{run.id}/outputs/"
+                        f"{output.record_index + 1:03d}-{uuid.uuid4()}{_safe_ext(generated['filename'], '.bin')}"
                     )
-                    overlay_items = [
-                        item for item in (overlay_payload.get("items") or []) if isinstance(item, dict) and str(item.get("overlay_text") or "").strip()
-                    ]
-                    warnings.extend([str(item) for item in (overlay_payload.get("warnings") or []) if str(item).strip()])
-                    fill_plan = {"strategy": run.processing_strategy, "items": overlay_items}
-                    final_local_path = os.path.join(temp_dir, "filled.pdf")
-                    warnings.extend(self._apply_pdf_overlay_plan(target_local_path, overlay_items, final_local_path))
-                    final_filename = f"{Path(run.target_filename).stem}_filled.pdf"
-                    final_mime_type = PDF_MIME
-                    warnings.append("The target PDF was not fillable, so Form Fill applied text overlays onto the original PDF.")
-            elif run.target_file_type == DOCX_MIME:
-                preview_object = f"form-fill/{run.user_id}/runs/{run.id}/target-preview.pdf"
-                converter = get_document_conversion_service()
-                await converter.convert_docx_gcs_to_pdf_gcs(self.storage_service, run.target_gcs_object_name, preview_object)
-                target_parts.append(self._part_from_uri(self.storage_service.construct_gcs_uri_for_object(preview_object), PDF_MIME))
-                placeholders = self._extract_docx_placeholders(target_local_path)
-                if placeholders:
-                    run.processing_strategy = "docx_placeholders"
-                    mapping_payload = self._generate_json_response(
-                        source_parts + target_parts + [
-                            self._build_mapping_prompt(
-                                source_text=source_text,
-                                mapping_items=placeholders,
-                                mapping_label="DOCX placeholders",
-                                target_hint="DOCX template",
-                            )
-                        ],
-                        self._field_mapping_schema(),
-                    )
-                    replacements = {
-                        str(item.get("name")): "" if item.get("value") is None else str(item.get("value"))
-                        for item in mapping_payload.get("items") or []
-                        if isinstance(item, dict) and item.get("name")
-                    }
-                    warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
-                    fill_plan = {
-                        "strategy": run.processing_strategy,
-                        "replacements": replacements,
-                        "allow_docx_table_expansion": bool(run.allow_docx_table_expansion),
-                    }
-                    output_docx_path = os.path.join(temp_dir, "filled.docx")
-                    self._apply_docx_placeholders(target_local_path, replacements, output_docx_path)
-                    final_local_path = output_docx_path
-                    final_filename = f"{Path(run.target_filename).stem}_filled.docx"
-                    final_mime_type = DOCX_MIME
+                    await self.storage_service.upload_file(generated["local_path"], result_object_name)
+                    output.status = "completed"
+                    output.result_gcs_object_name = result_object_name
+                    output.result_filename = generated["filename"]
+                    output.result_file_type = generated["mime_type"]
+                    output.fill_plan = generated["fill_plan"]
+                    output.warnings = generated["warnings"]
+                    output.completed_at = datetime.now(timezone.utc)
+                    run.completed_outputs = int(run.completed_outputs or 0) + 1
+                    last_strategy = generated["strategy"]
+                    aggregate_warnings.extend(f"{output.record_label}: {warning}" for warning in generated["warnings"])
+                    completed_files.append((generated["local_path"], generated["filename"]))
+                except Exception as output_exc:
+                    logger.exception("Form Fill output %s failed", output_id)
+                    db.rollback()
+                    output = db.query(FormFillOutput).filter(FormFillOutput.id == output_id).first()
+                    run = db.query(FormFillRun).filter(FormFillRun.id == uuid.UUID(str(run_id))).first()
+                    if output and run:
+                        output.status = "failed"
+                        output.error_message = str(output_exc)
+                        output.completed_at = datetime.now(timezone.utc)
+                        run.failed_outputs = int(run.failed_outputs or 0) + 1
+                        aggregate_warnings.append(f"{output_label}: {output.error_message}")
+                db.commit()
 
-                    if run.allow_docx_table_expansion:
-                        from docx import Document as DocxDocument
+            if not completed_files:
+                raise ValueError("Repeat mode failed to generate any output documents")
 
-                        placeholder_doc = DocxDocument(output_docx_path)
-                        docx_blocks, _block_map = self._collect_docx_blocks(placeholder_doc)
-                        docx_tables, _table_map = self._collect_docx_tables(placeholder_doc)
-                        table_operations: list[dict[str, Any]] = []
-                        if docx_tables:
-                            edit_payload = self._generate_json_response(
-                                source_parts + target_parts + [
-                                    self._build_docx_edit_prompt(
-                                        source_text=source_text,
-                                        block_summary=self._summarize_docx_blocks(docx_blocks),
-                                        table_summary=self._summarize_docx_tables(docx_tables),
-                                        target_preview_text=self._extract_docx_text(output_docx_path),
-                                        allow_table_expansion=True,
-                                        restrict_to_table_expansion=True,
-                                    )
-                                ],
-                                self._docx_edit_schema(),
-                            )
-                            operations = [
-                                item
-                                for item in (edit_payload.get("operations") or [])
-                                if isinstance(item, dict) and str(item.get("action") or "").strip()
-                            ]
-                            table_operations = [
-                                item
-                                for item in operations
-                                if str(item.get("action") or "").strip() in {"insert_table_row_after", "insert_table_column_after"}
-                            ]
-                            warnings.extend([str(item) for item in (edit_payload.get("warnings") or []) if str(item).strip()])
+            zip_filename = self._filled_filename(run.target_filename, "batch", "zip")
+            zip_local_path = os.path.join(temp_dir, zip_filename)
+            used_names: set[str] = set()
+            with zipfile.ZipFile(zip_local_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+                for local_path, filename in completed_files:
+                    archive_name = filename
+                    if archive_name in used_names:
+                        archive_name = f"{Path(filename).stem}_{len(used_names) + 1}{Path(filename).suffix}"
+                    used_names.add(archive_name)
+                    archive.write(local_path, arcname=archive_name)
 
-                        fill_plan["table_operations"] = table_operations
-                        expanded_docx_path = os.path.join(temp_dir, "filled-expanded.docx")
-                        warnings.extend(
-                            self._apply_docx_edit_plan(
-                                output_docx_path,
-                                table_operations,
-                                expanded_docx_path,
-                                allow_table_expansion=True,
-                            )
-                        )
-                        final_local_path = expanded_docx_path
-                else:
-                    run.processing_strategy = "docx_edit_in_place"
-                    target_preview_text = self._extract_docx_text(target_local_path)
-                    from docx import Document as DocxDocument
-
-                    target_doc = DocxDocument(target_local_path)
-                    docx_blocks, _block_map = self._collect_docx_blocks(target_doc)
-                    docx_tables, _table_map = self._collect_docx_tables(target_doc)
-                    block_summary = self._summarize_docx_blocks(docx_blocks)
-                    table_summary = self._summarize_docx_tables(docx_tables)
-                    edit_payload = self._generate_json_response(
-                        source_parts + target_parts + [
-                            self._build_docx_edit_prompt(
-                                source_text=source_text,
-                                block_summary=block_summary,
-                                table_summary=table_summary,
-                                target_preview_text=target_preview_text,
-                                allow_table_expansion=bool(run.allow_docx_table_expansion),
-                            )
-                        ],
-                        self._docx_edit_schema(),
-                    )
-                    operations = [
-                        item for item in (edit_payload.get("operations") or []) if isinstance(item, dict) and str(item.get("action") or "").strip()
-                    ]
-                    warnings.extend([str(item) for item in (edit_payload.get("warnings") or []) if str(item).strip()])
-                    fill_plan = {
-                        "strategy": run.processing_strategy,
-                        "operations": operations,
-                        "allow_docx_table_expansion": bool(run.allow_docx_table_expansion),
-                    }
-                    final_local_path = os.path.join(temp_dir, "filled.docx")
-                    warnings.extend(
-                        self._apply_docx_edit_plan(
-                            target_local_path,
-                            operations,
-                            final_local_path,
-                            allow_table_expansion=bool(run.allow_docx_table_expansion),
-                        )
-                    )
-                    final_filename = f"{Path(run.target_filename).stem}_filled.docx"
-                    final_mime_type = DOCX_MIME
-                    warnings.append("The DOCX target had no placeholders, so Form Fill edited the original DOCX in place.")
-
-                if run.output_format == "pdf":
-                    final_local_path = await converter.convert_docx_local_to_pdf_local(final_local_path, out_dir=temp_dir)
-                    final_filename = f"{Path(run.target_filename).stem}_filled.pdf"
-                    final_mime_type = PDF_MIME
-            else:
-                raise ValueError("Unsupported target file type")
-
-            result_object_name = f"form-fill/{run.user_id}/runs/{run.id}/result{_safe_ext(final_filename, '.bin')}"
-            await self.storage_service.upload_file(final_local_path, result_object_name)
-
-            run.status = "completed"
+            result_object_name = f"form-fill/{run.user_id}/runs/{run.id}/result.zip"
+            await self.storage_service.upload_file(zip_local_path, result_object_name)
+            run.status = "completed" if int(run.failed_outputs or 0) == 0 else "completed_with_errors"
+            run.processing_strategy = last_strategy
             run.result_gcs_object_name = result_object_name
-            run.result_filename = final_filename
-            run.result_file_type = final_mime_type
-            run.fill_plan = fill_plan
-            run.warnings = warnings
+            run.result_filename = zip_filename
+            run.result_file_type = "application/zip"
+            run.fill_plan = {"strategy": "repeat_source_rows", "records": len(records)}
+            run.warnings = aggregate_warnings
             run.completed_at = datetime.now(timezone.utc)
             db.commit()
-            return {"success": True, "run_id": str(run.id), "strategy": run.processing_strategy}
+            return {"success": True, "run_id": str(run.id), "outputs": len(completed_files), "failed_outputs": int(run.failed_outputs or 0)}
         except Exception as exc:
             logger.exception("Form Fill run %s failed", run_id)
             try:

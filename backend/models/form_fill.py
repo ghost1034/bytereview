@@ -32,6 +32,21 @@ class FormFillSourceFileResponse(BaseModel):
     display_order: int
 
 
+class FormFillOutputResponse(BaseModel):
+    id: str
+    record_index: int
+    record_label: str
+    status: str
+    warnings: list[str] = Field(default_factory=list)
+    fill_plan: Optional[dict[str, Any]] = None
+    result_filename: Optional[str] = None
+    result_file_type: Optional[str] = None
+    error_message: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    completed_at: Optional[datetime] = None
+
+
 class FormFillRunResponse(BaseModel):
     id: str
     status: str
@@ -49,9 +64,14 @@ class FormFillRunResponse(BaseModel):
     target_file_type: str
     allow_docx_table_expansion: bool = False
     output_format: str
+    repeat_mode: str = "single"
+    total_outputs: int = 1
+    completed_outputs: int = 0
+    failed_outputs: int = 0
     processing_strategy: Optional[str] = None
     warnings: list[str] = Field(default_factory=list)
     fill_plan: Optional[dict[str, Any]] = None
+    outputs: list[FormFillOutputResponse] = Field(default_factory=list)
     result_filename: Optional[str] = None
     result_file_type: Optional[str] = None
     error_message: Optional[str] = None
