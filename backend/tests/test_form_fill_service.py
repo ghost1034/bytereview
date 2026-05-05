@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
 import unittest
+from types import SimpleNamespace
 
 from docx import Document
 
@@ -211,6 +213,91 @@ class FormFillServiceDocxEditPlanTests(unittest.TestCase):
         document = Document(output_path)
         table = document.tables[0]
         self.assertEqual(len(self.service._docx_row_cells(table.rows[1])), 2)
+
+
+class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self) -> None:
+        self.service = FormFillService()
+
+    def _create_csv(self, content: str) -> str:
+        handle = tempfile.NamedTemporaryFile(suffix=".csv", delete=False, mode="w", encoding="utf-8")
+        try:
+            handle.write(content)
+        finally:
+            handle.close()
+        self.addCleanup(lambda: os.path.exists(handle.name) and os.unlink(handle.name))
+        return handle.name
+
+    async def test_build_source_context_labels_multiple_uploaded_csv_sources(self) -> None:
+        first_path = self._create_csv("Name,Amount\nChecking,100\n")
+        second_path = self._create_csv("Name,Amount\nSavings,250\n")
+
+        async def fake_download(object_name: str, local_path: str) -> None:
+            shutil.copyfile({"first": first_path, "second": second_path}[object_name], local_path)
+
+        self.service._download_to_local = fake_download
+        run = SimpleNamespace(
+            id="run-id",
+            user_id="user-id",
+            source_payload=None,
+            source_files=[
+                SimpleNamespace(
+                    id="source-1",
+                    original_filename="first.csv",
+                    file_type="text/csv",
+                    gcs_object_name="first",
+                    display_order=0,
+                ),
+                SimpleNamespace(
+                    id="source-2",
+                    original_filename="second.csv",
+                    file_type="text/csv",
+                    gcs_object_name="second",
+                    display_order=1,
+                ),
+            ],
+            source_gcs_object_name=None,
+            source_file_type=None,
+        )
+
+        source_parts, source_text = await self.service._build_source_context(
+            run=run,
+            source_parts=[],
+            source_text_sections=[],
+        )
+
+        self.assertEqual(source_parts, [])
+        self.assertIn("Source file 1: first.csv", source_text)
+        self.assertIn("| Checking | 100 |", source_text)
+        self.assertIn("Source file 2: second.csv", source_text)
+        self.assertIn("| Savings | 250 |", source_text)
+
+    async def test_build_source_context_supports_legacy_single_source_upload(self) -> None:
+        csv_path = self._create_csv("Field,Value\nOwner,Jane\n")
+
+        async def fake_download(object_name: str, local_path: str) -> None:
+            self.assertEqual(object_name, "legacy-object")
+            shutil.copyfile(csv_path, local_path)
+
+        self.service._download_to_local = fake_download
+        run = SimpleNamespace(
+            id="run-id",
+            user_id="user-id",
+            source_payload=None,
+            source_files=[],
+            source_gcs_object_name="legacy-object",
+            source_file_type="text/csv",
+            source_filename="legacy.csv",
+        )
+
+        _source_parts, source_text = await self.service._build_source_context(
+            run=run,
+            source_parts=[],
+            source_text_sections=[],
+        )
+
+        self.assertIn("Source file 1: legacy.csv", source_text)
+        self.assertIn("| Owner | Jane |", source_text)
 
 
 if __name__ == "__main__":

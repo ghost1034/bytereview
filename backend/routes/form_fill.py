@@ -60,7 +60,7 @@ async def get_extraction_source_preview(
 
 @router.post("/runs", response_model=FormFillRunCreateResponse)
 async def create_form_fill_run(
-    source_file: UploadFile | None = File(default=None),
+    source_files: list[UploadFile] | None = File(default=None),
     target_file: UploadFile | None = File(default=None),
     template_id: str | None = Form(default=None),
     output_format: str | None = Form(default=None),
@@ -75,7 +75,7 @@ async def create_form_fill_run(
     try:
         run = await form_fill_service.create_run(
             user_id=user_id,
-            source_file=source_file,
+            source_files=source_files,
             target_file=target_file,
             template_id=template_id,
             output_format=output_format,

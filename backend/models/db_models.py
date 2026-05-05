@@ -145,6 +145,29 @@ class FormFillRun(Base):
 
     user = relationship("User", back_populates="form_fill_runs")
     target_template = relationship("FormFillTemplate", back_populates="runs")
+    source_files = relationship(
+        "FormFillSourceFile",
+        back_populates="run",
+        cascade="all, delete-orphan",
+        order_by="FormFillSourceFile.display_order",
+    )
+
+
+class FormFillSourceFile(Base):
+    """Uploaded source file attached to a Form Fill run."""
+    __tablename__ = "form_fill_source_files"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_id = Column(UUID(as_uuid=True), ForeignKey("form_fill_runs.id", ondelete="CASCADE"), nullable=False)
+    original_filename = Column(Text, nullable=False)
+    file_type = Column(String(100), nullable=False)
+    gcs_object_name = Column(Text, unique=True, nullable=False)
+    file_size_bytes = Column(BigInteger, nullable=False)
+    display_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    run = relationship("FormFillRun", back_populates="source_files")
 
 class TemplateField(Base):
     """Specific fields defined within a user's template"""

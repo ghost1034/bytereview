@@ -24,12 +24,21 @@ class FormFillTemplateListResponse(BaseModel):
     templates: list[FormFillTemplateResponse] = Field(default_factory=list)
 
 
+class FormFillSourceFileResponse(BaseModel):
+    id: str
+    original_filename: str
+    file_type: str
+    file_size_bytes: int
+    display_order: int
+
+
 class FormFillRunResponse(BaseModel):
     id: str
     status: str
     source_mode: str
     source_filename: Optional[str] = None
     source_file_type: Optional[str] = None
+    source_files: list[FormFillSourceFileResponse] = Field(default_factory=list)
     source_payload: Optional[dict[str, Any]] = None
     source_job_id: Optional[str] = None
     source_run_id: Optional[str] = None

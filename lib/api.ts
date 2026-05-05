@@ -706,7 +706,7 @@ export class ApiClient {
     const token = await this.getAuthToken()
     const formData = new FormData()
 
-    if (params.sourceFile) formData.append('source_file', params.sourceFile)
+    params.sourceFiles?.forEach((file) => formData.append('source_files', file))
     if (params.targetFile) formData.append('target_file', params.targetFile)
     if (params.templateId) formData.append('template_id', params.templateId)
     if (params.outputFormat) formData.append('output_format', params.outputFormat)
@@ -1399,6 +1399,7 @@ export interface FormFillRun {
   source_mode: string
   source_filename?: string | null
   source_file_type?: string | null
+  source_files: FormFillSourceFile[]
   source_payload?: Record<string, any> | null
   source_job_id?: string | null
   source_run_id?: string | null
@@ -1420,13 +1421,21 @@ export interface FormFillRun {
   completed_at?: string | null
 }
 
+export interface FormFillSourceFile {
+  id: string
+  original_filename: string
+  file_type: string
+  file_size_bytes: number
+  display_order: number
+}
+
 export interface FormFillRunCreateResponse {
   run: FormFillRun
   message: string
 }
 
 export interface CreateFormFillRunParams {
-  sourceFile?: File
+  sourceFiles?: File[]
   targetFile?: File
   templateId?: string
   outputFormat?: 'pdf' | 'docx'

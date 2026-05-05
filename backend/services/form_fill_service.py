@@ -28,6 +28,7 @@ from models.db_models import (
     ExtractionResult,
     ExtractionTask,
     FormFillRun,
+    FormFillSourceFile,
     FormFillTemplate,
     JobRun,
     SourceFile,
@@ -56,6 +57,8 @@ SUPPORTED_SOURCE_MIME_TYPES = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
 SUPPORTED_TARGET_MIME_TYPES = {PDF_MIME, DOCX_MIME}
+DEFAULT_MAX_SOURCE_FILES = 10
+DEFAULT_MAX_TOTAL_SOURCE_BYTES = 100 * 1024 * 1024
 
 
 def _guess_mime_type(filename: str, fallback: str = "application/octet-stream") -> str:
@@ -80,6 +83,8 @@ class FormFillService:
         self.storage_service = get_storage_service()
         self.max_spreadsheet_rows = int(os.getenv("FORM_FILL_MAX_SPREADSHEET_ROWS", "200"))
         self.max_sheet_chars = int(os.getenv("FORM_FILL_MAX_SHEET_CHARS", "30000"))
+        self.max_source_files = int(os.getenv("FORM_FILL_MAX_SOURCE_FILES", str(DEFAULT_MAX_SOURCE_FILES)))
+        self.max_total_source_bytes = int(os.getenv("FORM_FILL_MAX_TOTAL_SOURCE_BYTES", str(DEFAULT_MAX_TOTAL_SOURCE_BYTES)))
 
         project = os.getenv("GOOGLE_CLOUD_PROJECT_ID")
         location = os.getenv("GOOGLE_CLOUD_LOCATION", "global")
@@ -117,6 +122,16 @@ class FormFillService:
             source_mode=run.source_mode,
             source_filename=run.source_filename,
             source_file_type=run.source_file_type,
+            source_files=[
+                {
+                    "id": str(source_file.id),
+                    "original_filename": source_file.original_filename,
+                    "file_type": source_file.file_type,
+                    "file_size_bytes": int(source_file.file_size_bytes or 0),
+                    "display_order": int(source_file.display_order or 0),
+                }
+                for source_file in (run.source_files or [])
+            ],
             source_payload=source_payload,
             source_job_id=str(run.source_job_id) if run.source_job_id else None,
             source_run_id=str(run.source_run_id) if run.source_run_id else None,
@@ -253,7 +268,7 @@ class FormFillService:
         self,
         *,
         user_id: str,
-        source_file: Any = None,
+        source_files: Optional[list[Any]] = None,
         target_file: Any = None,
         template_id: Optional[str] = None,
         output_format: Optional[str] = None,
@@ -266,16 +281,19 @@ class FormFillService:
     ) -> FormFillRunResponse:
         db = self._get_session()
         try:
+            uploaded_source_files = [item for item in (source_files or []) if item is not None]
             source_from_extraction = bool(source_job_id and source_run_id and source_task_id)
-            if bool(source_file) == source_from_extraction:
-                raise ValueError("Provide either a source file or an extraction result source")
+            if bool(uploaded_source_files) == source_from_extraction:
+                raise ValueError("Provide either source files or an extraction result source")
+            if len(uploaded_source_files) > self.max_source_files:
+                raise ValueError(f"Form Fill supports up to {self.max_source_files} source files per run")
             if bool(target_file) == bool(template_id):
                 raise ValueError("Provide either a target file or a saved template")
 
             run = FormFillRun(
                 user_id=user_id,
                 status="pending",
-                source_mode="upload" if source_file else "extraction_result",
+                source_mode="upload" if uploaded_source_files else "extraction_result",
                 target_mode="upload" if target_file else "template",
                 target_filename="pending",
                 target_file_type="application/octet-stream",
@@ -287,22 +305,46 @@ class FormFillService:
             db.add(run)
             db.flush()
 
-            if source_file:
-                source_bytes = await source_file.read()
-                if not source_bytes:
-                    raise ValueError("Source file is empty")
+            if uploaded_source_files:
+                total_source_bytes = 0
+                source_filenames: list[str] = []
+                source_mime_types: list[str] = []
+                for index, source_file in enumerate(uploaded_source_files):
+                    source_bytes = await source_file.read()
+                    if not source_bytes:
+                        raise ValueError("Source file is empty")
 
-                source_filename = source_file.filename or "source"
-                source_mime = (source_file.content_type or _guess_mime_type(source_filename)).lower()
-                if source_mime not in SUPPORTED_SOURCE_MIME_TYPES:
-                    raise ValueError("Unsupported source file type")
+                    source_filename = source_file.filename or f"source-{index + 1}"
+                    source_mime = (source_file.content_type or _guess_mime_type(source_filename)).lower()
+                    if source_mime not in SUPPORTED_SOURCE_MIME_TYPES:
+                        raise ValueError(f"Unsupported source file type: {source_filename}")
 
-                source_object_name = f"form-fill/{user_id}/runs/{run.id}/source{_safe_ext(source_filename, '.bin')}"
-                await self._upload_bytes(source_object_name, source_bytes)
-                run.source_filename = source_filename
-                run.source_file_type = source_mime
-                run.source_gcs_object_name = source_object_name
-                run.source_file_size_bytes = len(source_bytes)
+                    total_source_bytes += len(source_bytes)
+                    if total_source_bytes > self.max_total_source_bytes:
+                        max_mb = self.max_total_source_bytes // (1024 * 1024)
+                        raise ValueError(f"Form Fill source files must be {max_mb} MB or less in total")
+
+                    source_object_name = (
+                        f"form-fill/{user_id}/runs/{run.id}/sources/{index + 1}-{uuid.uuid4()}"
+                        f"{_safe_ext(source_filename, '.bin')}"
+                    )
+                    await self._upload_bytes(source_object_name, source_bytes)
+                    db.add(
+                        FormFillSourceFile(
+                            run_id=run.id,
+                            original_filename=source_filename,
+                            file_type=source_mime,
+                            gcs_object_name=source_object_name,
+                            file_size_bytes=len(source_bytes),
+                            display_order=index,
+                        )
+                    )
+                    source_filenames.append(source_filename)
+                    source_mime_types.append(source_mime)
+
+                run.source_filename = source_filenames[0] if len(source_filenames) == 1 else f"{len(source_filenames)} source files"
+                run.source_file_type = source_mime_types[0] if len(set(source_mime_types)) == 1 else "multiple"
+                run.source_file_size_bytes = total_source_bytes
             else:
                 payload = self._load_extraction_source_payload(
                     db,
@@ -608,6 +650,46 @@ class FormFillService:
         )
         return self._parse_response_payload(response)
 
+    async def _append_uploaded_source_context(
+        self,
+        *,
+        run: FormFillRun,
+        filename: str,
+        mime_type: str,
+        object_name: str,
+        source_key: str,
+        display_order: int,
+        source_parts: list[Any],
+        source_text_sections: list[str],
+    ) -> None:
+        label = f"Source file {display_order + 1}: {filename}"
+        normalized_mime = mime_type.lower()
+        if normalized_mime in {PDF_MIME, DOCX_MIME}:
+            source_object_name = object_name
+            part_mime = normalized_mime
+            if normalized_mime == DOCX_MIME:
+                preview_object = f"form-fill/{run.user_id}/runs/{run.id}/source-previews/{source_key}.pdf"
+                converter = get_document_conversion_service()
+                await converter.convert_docx_gcs_to_pdf_gcs(self.storage_service, source_object_name, preview_object)
+                source_object_name = preview_object
+                part_mime = PDF_MIME
+                source_text_sections.append(f"{label} (DOCX converted to PDF for Gemini input).")
+            else:
+                source_text_sections.append(f"{label} (PDF attached).")
+            source_parts.append(self._part_from_uri(self.storage_service.construct_gcs_uri_for_object(source_object_name), part_mime))
+            return
+
+        with tempfile.TemporaryDirectory(prefix="form_fill_source_") as temp_dir:
+            local_path = os.path.join(temp_dir, f"source-{source_key}{_safe_ext(filename, '.bin')}")
+            await self._download_to_local(object_name, local_path)
+            if normalized_mime in {"text/csv", "application/vnd.ms-excel"}:
+                rendered = self._load_csv_text(local_path)
+            elif normalized_mime == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                rendered = self._load_xlsx_text(local_path)
+            else:
+                raise ValueError("Unsupported source file type")
+        source_text_sections.append(f"{label}\n{rendered}".strip())
+
     async def _build_source_context(
         self,
         *,
@@ -623,32 +705,34 @@ class FormFillService:
             source_text_sections.append(self._markdown_table(columns, rows, self.max_spreadsheet_rows))
             return source_parts, "\n\n".join(item for item in source_text_sections if item)
 
+        uploaded_source_files = list(run.source_files or [])
+        if uploaded_source_files:
+            for index, source_file in enumerate(uploaded_source_files):
+                await self._append_uploaded_source_context(
+                    run=run,
+                    filename=source_file.original_filename,
+                    mime_type=source_file.file_type,
+                    object_name=source_file.gcs_object_name,
+                    source_key=str(source_file.id),
+                    display_order=int(source_file.display_order if source_file.display_order is not None else index),
+                    source_parts=source_parts,
+                    source_text_sections=source_text_sections,
+                )
+            return source_parts, "\n\n".join(item for item in source_text_sections if item)
+
         if not run.source_gcs_object_name or not run.source_file_type:
             raise ValueError("Form Fill source is missing")
 
-        mime_type = run.source_file_type.lower()
-        if mime_type in {PDF_MIME, DOCX_MIME}:
-            source_object_name = run.source_gcs_object_name
-            part_mime = mime_type
-            if mime_type == DOCX_MIME:
-                preview_object = f"form-fill/{run.user_id}/runs/{run.id}/source-preview.pdf"
-                converter = get_document_conversion_service()
-                await converter.convert_docx_gcs_to_pdf_gcs(self.storage_service, source_object_name, preview_object)
-                source_object_name = preview_object
-                part_mime = PDF_MIME
-                source_text_sections.append("The original source file was a DOCX converted to PDF for Gemini input.")
-            source_parts.append(self._part_from_uri(self.storage_service.construct_gcs_uri_for_object(source_object_name), part_mime))
-            return source_parts, "\n\n".join(item for item in source_text_sections if item)
-
-        with tempfile.TemporaryDirectory(prefix="form_fill_source_") as temp_dir:
-            local_path = os.path.join(temp_dir, f"source{_safe_ext(run.source_filename or '', '.bin')}")
-            await self._download_to_local(run.source_gcs_object_name, local_path)
-            if mime_type in {"text/csv", "application/vnd.ms-excel"}:
-                source_text_sections.append(self._load_csv_text(local_path))
-            elif mime_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-                source_text_sections.append(self._load_xlsx_text(local_path))
-            else:
-                raise ValueError("Unsupported source file type")
+        await self._append_uploaded_source_context(
+            run=run,
+            filename=run.source_filename or "source",
+            mime_type=run.source_file_type,
+            object_name=run.source_gcs_object_name,
+            source_key="legacy-source",
+            display_order=0,
+            source_parts=source_parts,
+            source_text_sections=source_text_sections,
+        )
         return source_parts, "\n\n".join(item for item in source_text_sections if item)
 
     def _replace_text_in_paragraph(self, paragraph: Any, replacements: dict[str, str]) -> None:

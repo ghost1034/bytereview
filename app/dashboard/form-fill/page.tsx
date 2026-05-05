@@ -39,6 +39,14 @@ function mimeToExtension(mimeType?: string | null) {
   return mimeType || 'Unknown'
 }
 
+function formatBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB']
+  const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  const value = bytes / Math.pow(1024, exponent)
+  return `${value >= 10 || exponent === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[exponent]}`
+}
+
 function formatStrategy(strategy?: string | null) {
   switch (strategy) {
     case 'fillable_pdf':
@@ -66,7 +74,7 @@ export default function FormFillPage() {
 
   const [sourceMode, setSourceMode] = useState<'upload' | 'extraction'>(hasExtractionSource ? 'extraction' : 'upload')
   const [targetMode, setTargetMode] = useState<'upload' | 'template'>('upload')
-  const [sourceFile, setSourceFile] = useState<File | null>(null)
+  const [sourceFiles, setSourceFiles] = useState<File[]>([])
   const [targetFile, setTargetFile] = useState<File | null>(null)
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [saveAsTemplate, setSaveAsTemplate] = useState(false)
@@ -133,18 +141,18 @@ export default function FormFillPage() {
   }, [selectedTemplate, targetMimeType, targetMode])
 
   const canSubmit = useMemo(() => {
-    const sourceReady = sourceMode === 'upload' ? !!sourceFile : !!extractionPreview
+    const sourceReady = sourceMode === 'upload' ? sourceFiles.length > 0 : !!extractionPreview
     const targetReady = targetMode === 'upload' ? !!targetFile : !!selectedTemplateId
     const templateReady = !saveAsTemplate || templateName.trim().length > 0
     return sourceReady && targetReady && templateReady && !creating
-  }, [creating, extractionPreview, saveAsTemplate, selectedTemplateId, sourceFile, sourceMode, targetFile, targetMode, templateName])
+  }, [creating, extractionPreview, saveAsTemplate, selectedTemplateId, sourceFiles, sourceMode, targetFile, targetMode, templateName])
 
   const handleCreate = async () => {
     if (!canSubmit) return
     setCreating(true)
     try {
       const response = await apiClient.createFormFillRun({
-        sourceFile: sourceMode === 'upload' ? sourceFile || undefined : undefined,
+        sourceFiles: sourceMode === 'upload' ? sourceFiles : undefined,
         targetFile: targetMode === 'upload' ? targetFile || undefined : undefined,
         templateId: targetMode === 'template' ? selectedTemplateId : undefined,
         outputFormat,
@@ -213,21 +221,42 @@ export default function FormFillPage() {
                 Extraction Results
               </Button>
               <Button variant={sourceMode === 'upload' ? 'default' : 'outline'} onClick={() => setSourceMode('upload')}>
-                Upload File
+                Upload Files
               </Button>
             </div>
           )}
 
           {sourceMode === 'upload' ? (
             <div className="space-y-2">
-              <Label htmlFor="source-file">Source file</Label>
+              <Label htmlFor="source-files">Source files</Label>
               <Input
-                id="source-file"
+                id="source-files"
                 type="file"
+                multiple
                 accept=".csv,.xlsx,.pdf,.docx"
-                onChange={(event) => setSourceFile(event.target.files?.[0] || null)}
+                onChange={(event) => setSourceFiles(Array.from(event.target.files || []))}
               />
-              <p className="text-sm text-muted-foreground">Supported: CSV, XLSX, PDF, DOCX.</p>
+              <p className="text-sm text-muted-foreground">Supported: CSV, XLSX, PDF, DOCX. Up to 10 source files, 100 MB total.</p>
+              {sourceFiles.length > 0 && (
+                <div className="rounded-md border divide-y">
+                  {sourceFiles.map((file, index) => (
+                    <div key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{file.name}</div>
+                        <div className="text-muted-foreground">{mimeToExtension(file.type)} · {formatBytes(file.size)}</div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSourceFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div className="rounded-lg border p-4 space-y-3 bg-slate-50">

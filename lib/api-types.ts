@@ -2564,8 +2564,8 @@ export interface components {
         };
         /** Body_create_form_fill_run_api_form_fill_runs_post */
         Body_create_form_fill_run_api_form_fill_runs_post: {
-            /** Source File */
-            source_file?: string | null;
+            /** Source Files */
+            source_files?: string[] | null;
             /** Target File */
             target_file?: string | null;
             /** Template Id */
@@ -2902,6 +2902,8 @@ export interface components {
             source_filename?: string | null;
             /** Source File Type */
             source_file_type?: string | null;
+            /** Source Files */
+            source_files?: components["schemas"]["FormFillSourceFileResponse"][];
             /** Source Payload */
             source_payload?: {
                 [key: string]: unknown;
@@ -2953,6 +2955,19 @@ export interface components {
             updated_at: string;
             /** Completed At */
             completed_at?: string | null;
+        };
+        /** FormFillSourceFileResponse */
+        FormFillSourceFileResponse: {
+            /** Id */
+            id: string;
+            /** Original Filename */
+            original_filename: string;
+            /** File Type */
+            file_type: string;
+            /** File Size Bytes */
+            file_size_bytes: number;
+            /** Display Order */
+            display_order: number;
         };
         /** FormFillTemplateListResponse */
         FormFillTemplateListResponse: {
