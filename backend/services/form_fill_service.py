@@ -44,6 +44,7 @@ from models.form_fill import (
 from services.cloud_run_task_service import cloud_run_task_service
 from services.document_conversion_service import DOCX_MIME, get_document_conversion_service
 from services.gcs_service import get_storage_service
+from services.page_counting_service import page_counting_service
 
 
 logger = logging.getLogger(__name__)
@@ -131,6 +132,7 @@ class FormFillService:
             file_type=template.file_type,
             allow_docx_table_expansion=bool(template.allow_docx_table_expansion),
             file_size_bytes=int(template.file_size_bytes or 0),
+            page_count=template.page_count,
             created_at=template.created_at,
             updated_at=template.updated_at,
         )
@@ -163,12 +165,15 @@ class FormFillService:
             target_template_id=str(run.target_template_id) if run.target_template_id else None,
             target_filename=run.target_filename,
             target_file_type=run.target_file_type,
+            target_page_count=run.target_page_count,
             allow_docx_table_expansion=bool(run.allow_docx_table_expansion),
             output_format=run.output_format,
             repeat_mode=run.repeat_mode or REPEAT_MODE_SINGLE,
             total_outputs=int(run.total_outputs or 1),
             completed_outputs=int(run.completed_outputs or 0),
             failed_outputs=int(run.failed_outputs or 0),
+            usage_basis=run.usage_basis,
+            usage_pages=run.usage_pages,
             processing_strategy=run.processing_strategy,
             warnings=warnings,
             fill_plan=fill_plan,
@@ -308,6 +313,116 @@ class FormFillService:
             raise RuntimeError("Form Fill requires Google Cloud Storage")
         await self.storage_service.download_file(object_name, local_path)
 
+    async def _count_target_pages_from_local_path(
+        self,
+        *,
+        local_path: str,
+        filename: str,
+        mime_type: str,
+        temp_dir: str,
+    ) -> int:
+        normalized_mime = (mime_type or "").lower()
+        if normalized_mime == PDF_MIME:
+            page_count = page_counting_service.count_pages_from_file_path(local_path, filename)
+        elif normalized_mime == DOCX_MIME:
+            converter = get_document_conversion_service()
+            pdf_path = await converter.convert_docx_local_to_pdf_local(local_path, out_dir=temp_dir)
+            page_count = page_counting_service.count_pages_from_file_path(pdf_path, f"{Path(filename).stem}.pdf")
+        else:
+            raise ValueError("Target file must be a PDF or DOCX")
+
+        if page_count is None or page_count <= 0:
+            raise ValueError("Could not determine target page count")
+        return int(page_count)
+
+    async def _count_target_pages_from_bytes(self, *, content: bytes, filename: str, mime_type: str) -> int:
+        normalized_mime = (mime_type or "").lower()
+        if normalized_mime == PDF_MIME:
+            page_count = page_counting_service.count_pages_from_content(content, filename)
+            if page_count is None or page_count <= 0:
+                raise ValueError("Could not determine target page count")
+            return int(page_count)
+
+        with tempfile.TemporaryDirectory(prefix="form_fill_target_pages_") as temp_dir:
+            local_path = os.path.join(temp_dir, f"target{_safe_ext(filename, '.bin')}")
+            with open(local_path, "wb") as handle:
+                handle.write(content)
+            return await self._count_target_pages_from_local_path(
+                local_path=local_path,
+                filename=filename,
+                mime_type=normalized_mime,
+                temp_dir=temp_dir,
+            )
+
+    async def _ensure_run_target_page_count(self, db: Session, run: FormFillRun, target_local_path: str, temp_dir: str) -> int:
+        page_count = int(run.target_page_count or 0)
+        if page_count > 0:
+            return page_count
+
+        if run.target_template_id:
+            template = db.query(FormFillTemplate).filter(FormFillTemplate.id == run.target_template_id).first()
+            template_page_count = int(template.page_count or 0) if template else 0
+            if template_page_count > 0:
+                run.target_page_count = template_page_count
+                db.commit()
+                return template_page_count
+
+        page_count = await self._count_target_pages_from_local_path(
+            local_path=target_local_path,
+            filename=run.target_filename,
+            mime_type=run.target_file_type,
+            temp_dir=temp_dir,
+        )
+        run.target_page_count = page_count
+        if run.target_template_id:
+            template = db.query(FormFillTemplate).filter(FormFillTemplate.id == run.target_template_id).first()
+            if template and not template.page_count:
+                template.page_count = page_count
+        db.commit()
+        return page_count
+
+    def _check_usage_limit_or_raise(self, db: Session, *, user_id: str, page_count: int) -> None:
+        if page_count <= 0:
+            return
+
+        from services.billing_service import get_billing_service
+
+        billing_service = get_billing_service(db)
+        if billing_service.check_page_limit(user_id, page_count):
+            return
+
+        billing_info = billing_service.get_billing_info(user_id)
+        plan_name = billing_info.get("plan_display_name") or "current"
+        pages_used = int(billing_info.get("pages_used") or 0)
+        pages_included = int(billing_info.get("pages_included") or 0)
+        pages_remaining = max(0, pages_included - pages_used)
+        raise ValueError(
+            f"Cannot start Form Fill: processing {page_count} target pages would exceed your {plan_name} plan limit. "
+            f"You have {pages_remaining} pages remaining out of {pages_included}. "
+            "Please upgrade your plan or reduce the number of target pages."
+        )
+
+    def _record_usage_for_run(self, db: Session, run: FormFillRun) -> None:
+        usage_pages = int(run.usage_pages or 0)
+        if usage_pages <= 0:
+            return
+
+        from services.billing_service import PlanLimitExceeded, get_billing_service
+
+        try:
+            event_id = get_billing_service(db).record_usage(
+                user_id=run.user_id,
+                pages=usage_pages,
+                source="form_fill_run",
+                form_fill_run_id=str(run.id),
+                notes=f"Form Fill run for target {run.target_filename}",
+            )
+            logger.info("Recorded %s Form Fill usage pages for run %s (event %s)", usage_pages, run.id, event_id)
+        except PlanLimitExceeded:
+            raise
+        except Exception as exc:
+            logger.error("Failed to record Form Fill usage for run %s: %s", run.id, exc)
+
     async def create_run(
         self,
         *,
@@ -423,6 +538,11 @@ class FormFillService:
                 target_mime = (target_file.content_type or _guess_mime_type(target_filename)).lower()
                 if target_mime not in SUPPORTED_TARGET_MIME_TYPES:
                     raise ValueError("Target file must be a PDF or DOCX")
+                target_page_count = await self._count_target_pages_from_bytes(
+                    content=target_bytes,
+                    filename=target_filename,
+                    mime_type=target_mime,
+                )
 
                 target_object_name = f"form-fill/{user_id}/runs/{run.id}/target{_safe_ext(target_filename, '.bin')}"
                 await self._upload_bytes(target_object_name, target_bytes)
@@ -431,6 +551,7 @@ class FormFillService:
                 run.target_file_type = target_mime
                 run.target_gcs_object_name = target_object_name
                 run.target_file_size_bytes = len(target_bytes)
+                run.target_page_count = target_page_count
                 run.allow_docx_table_expansion = bool(allow_docx_table_expansion) if target_mime == DOCX_MIME else False
 
                 if save_template_name and save_template_name.strip():
@@ -443,6 +564,7 @@ class FormFillService:
                         allow_docx_table_expansion=run.allow_docx_table_expansion,
                         gcs_object_name=f"form-fill/{user_id}/templates/{uuid.uuid4()}/target{_safe_ext(target_filename, '.bin')}",
                         file_size_bytes=len(target_bytes),
+                        page_count=target_page_count,
                     )
                     await self._upload_bytes(template.gcs_object_name, target_bytes)
                     db.add(template)
@@ -460,6 +582,7 @@ class FormFillService:
                 run.target_file_type = template.file_type
                 run.target_gcs_object_name = template.gcs_object_name
                 run.target_file_size_bytes = template.file_size_bytes
+                run.target_page_count = template.page_count
                 if template.file_type == DOCX_MIME:
                     if allow_docx_table_expansion is None:
                         run.allow_docx_table_expansion = bool(template.allow_docx_table_expansion)
@@ -1684,7 +1807,8 @@ Instructions:
             run = db.query(FormFillRun).filter(FormFillRun.id == uuid.UUID(str(run_id))).first()
             if not run:
                 raise ValueError("Form Fill run not found")
-            if run.status == "completed" and run.result_gcs_object_name:
+            if run.status in {"completed", "completed_with_errors"} and run.result_gcs_object_name:
+                self._record_usage_for_run(db, run)
                 return {"success": True, "run_id": str(run.id), "skipped": True}
 
             run.status = "in_progress"
@@ -1693,7 +1817,9 @@ Instructions:
 
             target_local_path = os.path.join(temp_dir, f"target{_safe_ext(run.target_filename, '.bin')}")
             await self._download_to_local(run.target_gcs_object_name, target_local_path)
+            target_page_count = await self._ensure_run_target_page_count(db, run, target_local_path, temp_dir)
             if (run.repeat_mode or REPEAT_MODE_SINGLE) != REPEAT_MODE_SOURCE_ROWS:
+                self._check_usage_limit_or_raise(db, user_id=run.user_id, page_count=target_page_count)
                 source_parts: list[Any] = []
                 source_text_sections: list[str] = []
                 source_parts, source_text = await self._build_source_context(
@@ -1721,13 +1847,17 @@ Instructions:
                 run.total_outputs = 1
                 run.completed_outputs = 1
                 run.failed_outputs = 0
+                run.usage_basis = "target_pages_per_output"
+                run.usage_pages = target_page_count
                 run.completed_at = datetime.now(timezone.utc)
                 db.commit()
+                self._record_usage_for_run(db, run)
                 return {"success": True, "run_id": str(run.id), "strategy": run.processing_strategy}
 
             records = await self._extract_repeat_records(run)
             if not records:
                 raise ValueError("Repeat mode could not find any source rows to fill")
+            self._check_usage_limit_or_raise(db, user_id=run.user_id, page_count=target_page_count * len(records))
 
             run.total_outputs = len(records)
             run.completed_outputs = 0
@@ -1820,8 +1950,11 @@ Instructions:
             run.result_file_type = "application/zip"
             run.fill_plan = {"strategy": "repeat_source_rows", "records": len(records)}
             run.warnings = aggregate_warnings
+            run.usage_basis = "target_pages_per_output"
+            run.usage_pages = target_page_count * int(run.completed_outputs or 0)
             run.completed_at = datetime.now(timezone.utc)
             db.commit()
+            self._record_usage_for_run(db, run)
             return {"success": True, "run_id": str(run.id), "outputs": len(completed_files), "failed_outputs": int(run.failed_outputs or 0)}
         except Exception as exc:
             logger.exception("Form Fill run %s failed", run_id)

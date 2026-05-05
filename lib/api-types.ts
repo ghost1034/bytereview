@@ -2959,6 +2959,8 @@ export interface components {
             target_filename: string;
             /** Target File Type */
             target_file_type: string;
+            /** Target Page Count */
+            target_page_count?: number | null;
             /**
              * Allow Docx Table Expansion
              * @default false
@@ -2986,6 +2988,10 @@ export interface components {
              * @default 0
              */
             failed_outputs: number;
+            /** Usage Basis */
+            usage_basis?: string | null;
+            /** Usage Pages */
+            usage_pages?: number | null;
             /** Processing Strategy */
             processing_strategy?: string | null;
             /** Warnings */
@@ -3052,6 +3058,8 @@ export interface components {
             allow_docx_table_expansion: boolean;
             /** File Size Bytes */
             file_size_bytes: number;
+            /** Page Count */
+            page_count?: number | null;
             /**
              * Created At
              * Format: date-time

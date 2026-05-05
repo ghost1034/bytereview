@@ -201,6 +201,25 @@ class BillingServiceSubscriptionSyncTests(unittest.TestCase):
         db.merge.assert_called_once()
         db.commit.assert_called_once()
 
+    def test_record_usage_skips_duplicate_form_fill_run(self) -> None:
+        existing_event = SimpleNamespace(id="22222222-2222-2222-2222-222222222222")
+        duplicate_query = MagicMock()
+        duplicate_query.filter.return_value.first.return_value = existing_event
+        db = MagicMock()
+        db.query.return_value.filter.return_value = duplicate_query
+
+        service = BillingService(db)
+        event_id = service.record_usage(
+            user_id="user-id",
+            pages=5,
+            source="form_fill_run",
+            form_fill_run_id="11111111-1111-1111-1111-111111111111",
+        )
+
+        self.assertEqual(event_id, "22222222-2222-2222-2222-222222222222")
+        db.add.assert_not_called()
+        db.commit.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

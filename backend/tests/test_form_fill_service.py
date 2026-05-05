@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 import tempfile
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from docx import Document
+from PyPDF2 import PdfWriter
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from services.form_fill_service import FormFillService
 
@@ -323,6 +328,66 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("single source record only", source_text)
         self.assertIn("Participant Name: Jane Doe", source_text)
         self.assertIn("Email: jane@example.com", source_text)
+
+
+class FormFillServiceUsageTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self) -> None:
+        self.service = FormFillService()
+
+    def _pdf_bytes(self, pages: int) -> bytes:
+        handle = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        handle.close()
+        self.addCleanup(lambda: os.path.exists(handle.name) and os.unlink(handle.name))
+        writer = PdfWriter()
+        for _ in range(pages):
+            writer.add_blank_page(width=72, height=72)
+        with open(handle.name, "wb") as output:
+            writer.write(output)
+        with open(handle.name, "rb") as source:
+            return source.read()
+
+    async def test_count_target_pages_from_pdf_bytes(self) -> None:
+        page_count = await self.service._count_target_pages_from_bytes(
+            content=self._pdf_bytes(3),
+            filename="target.pdf",
+            mime_type="application/pdf",
+        )
+
+        self.assertEqual(page_count, 3)
+
+    def test_check_usage_limit_raises_with_clear_message(self) -> None:
+        billing_service = MagicMock()
+        billing_service.check_page_limit.return_value = False
+        billing_service.get_billing_info.return_value = {
+            "plan_display_name": "Free",
+            "pages_used": 8,
+            "pages_included": 10,
+        }
+
+        with patch("services.billing_service.get_billing_service", return_value=billing_service):
+            with self.assertRaisesRegex(ValueError, "processing 3 target pages"):
+                self.service._check_usage_limit_or_raise(MagicMock(), user_id="user-id", page_count=3)
+
+    def test_record_usage_for_run_uses_form_fill_run_source(self) -> None:
+        billing_service = MagicMock()
+        billing_service.record_usage.return_value = "event-id"
+        run = SimpleNamespace(
+            id="11111111-1111-1111-1111-111111111111",
+            user_id="user-id",
+            usage_pages=4,
+            target_filename="target.pdf",
+        )
+
+        with patch("services.billing_service.get_billing_service", return_value=billing_service):
+            self.service._record_usage_for_run(MagicMock(), run)
+
+        billing_service.record_usage.assert_called_once_with(
+            user_id="user-id",
+            pages=4,
+            source="form_fill_run",
+            form_fill_run_id="11111111-1111-1111-1111-111111111111",
+            notes="Form Fill run for target target.pdf",
+        )
 
 
 if __name__ == "__main__":

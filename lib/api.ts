@@ -1377,6 +1377,7 @@ export interface FormFillTemplate {
   file_type: string
   allow_docx_table_expansion: boolean
   file_size_bytes: number
+  page_count?: number | null
   created_at: string
   updated_at: string
 }
@@ -1409,12 +1410,15 @@ export interface FormFillRun {
   target_template_id?: string | null
   target_filename: string
   target_file_type: string
+  target_page_count?: number | null
   allow_docx_table_expansion: boolean
   output_format: string
   repeat_mode: 'single' | 'source_rows' | string
   total_outputs: number
   completed_outputs: number
   failed_outputs: number
+  usage_basis?: string | null
+  usage_pages?: number | null
   processing_strategy?: string | null
   warnings: string[]
   fill_plan?: Record<string, any> | null

@@ -16,6 +16,7 @@ class FormFillTemplateResponse(BaseModel):
     file_type: str
     allow_docx_table_expansion: bool = False
     file_size_bytes: int
+    page_count: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
@@ -62,12 +63,15 @@ class FormFillRunResponse(BaseModel):
     target_template_id: Optional[str] = None
     target_filename: str
     target_file_type: str
+    target_page_count: Optional[int] = None
     allow_docx_table_expansion: bool = False
     output_format: str
     repeat_mode: str = "single"
     total_outputs: int = 1
     completed_outputs: int = 0
     failed_outputs: int = 0
+    usage_basis: Optional[str] = None
+    usage_pages: Optional[int] = None
     processing_strategy: Optional[str] = None
     warnings: list[str] = Field(default_factory=list)
     fill_plan: Optional[dict[str, Any]] = None
