@@ -462,7 +462,7 @@ export default function FormFillPage() {
                 variant={repeatMode === 'single' ? 'default' : 'outline'}
                 onClick={() => setRepeatMode('single')}
               >
-                Fill once
+                Fill once (default)
               </Button>
               <Button
                 type="button"
@@ -470,11 +470,11 @@ export default function FormFillPage() {
                 disabled={!repeatModeSupported}
                 onClick={() => setRepeatMode('source_rows')}
               >
-                Fill once per row
+                Fill once per row (special)
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              Row mode uses one CSV/XLSX file or extraction-result rows and downloads a ZIP of filled documents.
+              "Fill once per row" fills the form once for each row and downloads a ZIP of filled documents.
             </p>
             {!repeatModeSupported && sourceMode === 'upload' && sourceFiles.length > 0 && (
               <p className="text-sm text-amber-700">Row mode currently requires exactly one CSV or XLSX source file.</p>
