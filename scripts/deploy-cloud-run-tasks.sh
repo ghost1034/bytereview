@@ -129,7 +129,7 @@ echo ""
 # Build task service images
 echo -e "${BLUE}=== Building Task Service Images ===${NC}"
 
-# build_and_push_task_image "extract" "Dockerfile.extract"
+build_and_push_task_image "extract" "Dockerfile.extract"
 build_and_push_task_image "io" "Dockerfile.io" 
 build_and_push_task_image "automation" "Dockerfile.automation"
 build_and_push_task_image "maintenance" "Dockerfile.maintenance"
