@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc g++ libpq-dev \
     ffmpeg \
     ghostscript qpdf tesseract-ocr tesseract-ocr-eng \
-    libreoffice-writer libreoffice-core libreoffice-common \
+    libreoffice-writer libreoffice-impress libreoffice-calc libreoffice-core libreoffice-common \
     fonts-dejavu-core fonts-liberation \
  && rm -rf /var/lib/apt/lists/*
 

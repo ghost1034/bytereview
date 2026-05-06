@@ -18,6 +18,18 @@ export class ApiError extends Error {
   }
 }
 
+function inferUploadContentType(file: File): string {
+  if (file.type) return file.type
+  const name = file.name.toLowerCase()
+  if (name.endsWith('.pdf')) return 'application/pdf'
+  if (name.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  if (name.endsWith('.pptx')) return 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+  if (name.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  if (name.endsWith('.zip')) return 'application/zip'
+  if (name.endsWith('.csv')) return 'text/csv'
+  return 'application/octet-stream'
+}
+
 export class ApiClient {
   private baseURL: string
 
@@ -258,7 +270,7 @@ export class ApiClient {
             filename: file.name,
             path: filePath,
             size: file.size,
-            type: file.type || 'application/octet-stream',
+            type: inferUploadContentType(file),
           }
         })
       })
@@ -303,7 +315,7 @@ export class ApiClient {
         xhr.addEventListener('error', () => reject(new Error('Network error during upload')))
         xhr.open('PUT', initiated.upload_url)
         // Must match content_type used when signing the URL
-        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream')
+        xhr.setRequestHeader('Content-Type', inferUploadContentType(file))
         xhr.send(file)
       })
 
@@ -534,7 +546,7 @@ export class ApiClient {
     })
   }
 
-  async importGmailAttachments(jobId: string, attachments: Array<{ messageId: string; attachmentId: string; filename: string }>): Promise<{ success: boolean; import_job_id: string; message: string; attachment_count: number }> {
+  async importGmailAttachments(jobId: string, attachments: Array<{ messageId: string; attachmentId: string; filename: string; mimeType?: string }>): Promise<{ success: boolean; import_job_id: string; message: string; attachment_count: number }> {
     return this.request(`/api/jobs/${jobId}/files:gmail`, {
       method: 'POST',
       body: JSON.stringify({ attachments })

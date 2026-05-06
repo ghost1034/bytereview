@@ -12,6 +12,8 @@ RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     tesseract-ocr-eng \
     libreoffice-writer \
+    libreoffice-impress \
+    libreoffice-calc \
     libreoffice-core \
     libreoffice-common \
     fonts-dejavu-core \

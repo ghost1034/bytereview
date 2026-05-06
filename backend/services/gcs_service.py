@@ -426,12 +426,16 @@ class GCSService:
 
     def _get_content_type(self, filename: str) -> str:
         """Get content type based on file extension"""
-        if filename.lower().endswith('.pdf'):
-            return 'application/pdf'
-        elif filename.lower().endswith('.zip'):
-            return 'application/zip'
-        else:
-            return 'application/octet-stream'
+        try:
+            from services.document_conversion_service import normalize_source_mime_type
+            return normalize_source_mime_type(filename, None)
+        except Exception:
+            if filename.lower().endswith('.pdf'):
+                return 'application/pdf'
+            elif filename.lower().endswith('.zip'):
+                return 'application/zip'
+            else:
+                return 'application/octet-stream'
 
 def normalize_path(path: str) -> str:
     """

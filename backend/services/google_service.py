@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from models.db_models import IntegrationAccount
 from services.encryption_service import encryption_service
+from services.document_conversion_service import normalize_source_mime_type
 
 try:
     from googleapiclient.discovery import build
@@ -753,7 +754,7 @@ class GoogleService:
                     message_id = attachment.get('messageId')
                     attachment_id = attachment.get('attachmentId')
                     filename = attachment.get('filename', 'unknown')
-                    mime_type = attachment.get('mimeType', 'application/octet-stream')
+                    mime_type = normalize_source_mime_type(filename, attachment.get('mimeType', 'application/octet-stream'))
                     
                     if not message_id or not attachment_id:
                         logger.error(f"Missing messageId or attachmentId for attachment {filename}")
@@ -1236,7 +1237,7 @@ class GoogleService:
             
             filename = file_metadata['name']
             file_size = int(file_metadata.get('size', 0))
-            mime_type = file_metadata.get('mimeType', 'application/octet-stream')
+            mime_type = normalize_source_mime_type(filename, file_metadata.get('mimeType', 'application/octet-stream'))
             
             logger.info(f"Importing Drive file: {filename} ({file_size} bytes)")
             

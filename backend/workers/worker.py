@@ -192,41 +192,80 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
         if not hasattr(storage_service, 'construct_gcs_uri_for_object'):
             raise Exception("GCS is not available in this environment; Vertex AI extraction requires GCS URIs.")
 
-        # Build files_data with GCS URIs; convert DOCX to PDF when necessary
+        # Build files_data with GCS URIs; normalize Office inputs for Gemini when necessary.
         files_data = []
-        from services.document_conversion_service import get_document_conversion_service, DOCX_MIME
+        processed_source_files = []
+        from services.document_conversion_service import (
+            get_document_conversion_service,
+            DOCX_MIME,
+            PPTX_MIME,
+            XLSX_MIME,
+            normalize_source_mime_type,
+        )
+        from services.spreadsheet_extraction_service import spreadsheet_extraction_service
         conv = get_document_conversion_service()
 
         for source_file in source_files:
             filename = source_file.original_filename
-            mime_type = (source_file.file_type or '').lower()
+            mime_type = normalize_source_mime_type(filename, source_file.file_type)
 
-            # Determine if conversion is required (DOCX)
-            needs_docx_conv = mime_type == DOCX_MIME or (filename and filename.lower().endswith('.docx'))
-
-            if needs_docx_conv:
+            if mime_type in (DOCX_MIME, PPTX_MIME):
                 try:
-                    # Build destination object name under conversions/
                     job_run_id = str(task.job_run_id)
                     dest_object = f"jobs/{job_run_id}/conversions/{source_file.id}.pdf"
-                    # Convert: download docx, convert locally, upload pdf
-                    await conv.convert_docx_gcs_to_pdf_gcs(
-                        storage_service,
-                        source_file.gcs_object_name,
-                        dest_object,
-                    )
+                    if mime_type == DOCX_MIME:
+                        await conv.convert_docx_gcs_to_pdf_gcs(
+                            storage_service,
+                            source_file.gcs_object_name,
+                            dest_object,
+                        )
+                    else:
+                        await conv.convert_pptx_gcs_to_pdf_gcs(
+                            storage_service,
+                            source_file.gcs_object_name,
+                            dest_object,
+                        )
                     # Use the converted PDF gs:// URI
                     gcs_uri = storage_service.construct_gcs_uri_for_object(dest_object)
+                    stem = os.path.splitext(filename or "converted")[0]
                     files_data.append({
-                        'filename': (filename[:-5] + '.pdf') if filename and filename.lower().endswith('.docx') else (filename + '.pdf' if filename else 'converted.pdf'),
+                        'filename': f"{stem}.pdf",
                         'uri': gcs_uri,
                         'mime_type': 'application/pdf',
                     })
-                    logger.info(f"Converted DOCX to PDF for {filename} -> {dest_object}")
+                    processed_source_files.append(source_file)
+                    logger.info(f"Converted Office document to PDF for {filename} -> {dest_object}")
                 except Exception as e:
-                    logger.error(f"DOCX conversion failed for {filename}: {e}")
-                    # Mark this file as failed in document results later by leaving it out; AI will only see valid inputs.
+                    logger.error(f"Office conversion failed for {filename}: {e}")
                     continue
+            elif mime_type == XLSX_MIME:
+                temp_dir = tempfile.mkdtemp(prefix="xlsx_extract_")
+                try:
+                    local_xlsx = os.path.join(temp_dir, filename or "input.xlsx")
+                    await storage_service.download_file(source_file.gcs_object_name, local_xlsx)
+                    rendered_text = spreadsheet_extraction_service.render_xlsx_local_to_text(local_xlsx, filename=filename)
+                    if not rendered_text.strip():
+                        raise ValueError("Rendered XLSX text is empty")
+                    job_run_id = str(task.job_run_id)
+                    dest_object = f"jobs/{job_run_id}/conversions/{source_file.id}.txt"
+                    await storage_service.upload_file_content(rendered_text.encode("utf-8"), dest_object)
+                    gcs_uri = storage_service.construct_gcs_uri_for_object(dest_object)
+                    stem = os.path.splitext(filename or "spreadsheet")[0]
+                    files_data.append({
+                        'filename': f"{stem}.txt",
+                        'uri': gcs_uri,
+                        'mime_type': 'text/plain',
+                    })
+                    processed_source_files.append(source_file)
+                    logger.info(f"Rendered XLSX to text for {filename} -> {dest_object}")
+                except Exception as e:
+                    logger.error(f"XLSX rendering failed for {filename}: {e}")
+                    continue
+                finally:
+                    try:
+                        shutil.rmtree(temp_dir)
+                    except Exception:
+                        logger.warning(f"Failed to cleanup temp dir {temp_dir}")
             else:
                 # No conversion needed; use the original GCS URI
                 try:
@@ -239,6 +278,7 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
                     'uri': gcs_uri,
                     'mime_type': mime_type or 'application/pdf',
                 })
+                processed_source_files.append(source_file)
 
         logger.info(f"Processing {len(files_data)} files with AI via Vertex using GCS URIs")
         logger.info(f"Using processing mode: {task.processing_mode}")
@@ -252,7 +292,7 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
             field_configs,
             data_types_map,
             system_prompt_text,
-            processed_files=source_files,  # Pass source files for metadata
+            processed_files=processed_source_files,  # Pass source files for metadata
             processing_mode=task.processing_mode  # Pass processing mode for routing
         )
         
@@ -494,9 +534,9 @@ async def unpack_zip_file_task(ctx: Dict[str, Any], source_file_id: str, automat
                     file_size = os.path.getsize(file_path)
                     
                     # Determine MIME type
-                    mime_type, _ = mimetypes.guess_type(file)
-                    if not mime_type:
-                        mime_type = "application/octet-stream"
+                    from services.document_conversion_service import normalize_source_mime_type
+                    guessed_mime_type, _ = mimetypes.guess_type(file)
+                    mime_type = normalize_source_mime_type(file, guessed_mime_type)
                     
                     # Count pages in the extracted file
                     from services.page_counting_service import page_counting_service
@@ -1175,10 +1215,9 @@ async def _handle_zip_file(
                 extracted_filename = os.path.basename(file_info.filename)
                 
                 # Determine MIME type
-                if extracted_filename.lower().endswith('.pdf'):
-                    mime_type = 'application/pdf'
-                else:
-                    mime_type = 'application/octet-stream'
+                from services.document_conversion_service import normalize_source_mime_type
+                guessed_mime_type, _ = mimetypes.guess_type(extracted_filename)
+                mime_type = normalize_source_mime_type(extracted_filename, guessed_mime_type)
                 
                 # Create source file record for extracted file
                 extracted_source_file = SourceFile(

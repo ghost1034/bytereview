@@ -28,6 +28,7 @@ from core.database import db_config
 from services.gcs_service import get_storage_service
 from services.gcs_service import normalize_path
 from services.page_counting_service import page_counting_service
+from services.document_conversion_service import normalize_source_mime_type
 from core.constants import MAX_DIRECT_UPLOAD_BYTES
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
@@ -1314,7 +1315,7 @@ class JobService:
                     original_filename=file_info.filename,
                     original_path=normalized_path,
                     gcs_object_name=gcs_object_name,
-                    file_type=file_info.type,
+                    file_type=normalize_source_mime_type(file_info.filename, file_info.type),
                     file_size_bytes=file_info.size,
                     status=FileStatus.UPLOADING.value
                 )
@@ -1323,7 +1324,7 @@ class JobService:
                 # Generate pre-signed upload URL
                 upload_url = await self.storage_service.generate_presigned_put_url(
                     gcs_object_name,
-                    content_type=file_info.type or "application/octet-stream",
+                    content_type=normalize_source_mime_type(file_info.filename, file_info.type),
                 )
                 
                 upload_responses.append(FileUploadResponse(
@@ -1726,7 +1727,7 @@ class JobService:
                 await storage_service.upload_file_content(file_content, gcs_object_name)
                 
                 # Determine file type
-                content_type = file.content_type or "application/octet-stream"
+                content_type = normalize_source_mime_type(file.filename, file.content_type)
                 
                 # Count pages in the file
                 from services.page_counting_service import page_counting_service
@@ -1830,7 +1831,7 @@ class JobService:
                 file_extension = os.path.splitext(filename)[1]
                 gcs_object_name = f"jobs/{job_id}/runs/{target_run.id}/{uuid.uuid4()}{file_extension}"
 
-                content_type = file_info.type or "application/octet-stream"
+                content_type = normalize_source_mime_type(filename, file_info.type)
 
                 source_file = SourceFile(
                     job_run_id=target_run.id,

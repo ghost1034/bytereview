@@ -462,7 +462,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                               <li>• <code>invoice has:attachment</code> - Message contains "invoice"</li>
                               <li>• <code>subject:invoice has:attachment</code> - Subject contains "invoice"</li>
                               <li>• <code>filename:invoice</code> - Attachment name contains "invoice"</li>
-                              <li>• <code>has:attachment filename:pdf</code> - PDF attachments only</li>
+                              <li>• <code>has:attachment (filename:pdf OR filename:docx OR filename:pptx OR filename:xlsx)</code> - Supported document attachments</li>
                               <li>• <code>newer_than:7d in:inbox -in:spam</code> - Last 7 days, in Inbox, not in Spam</li>
                             </ul>
                           </div>
@@ -481,10 +481,10 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setGmailQuery("has:attachment filename:pdf")}
+                      onClick={() => setGmailQuery("has:attachment (filename:pdf OR filename:docx OR filename:pptx OR filename:xlsx)")}
                       className="text-xs"
                     >
-                      PDF Files
+                      Supported Files
                     </Button>
                     <Button
                       type="button"
@@ -537,7 +537,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                 <p className="text-sm text-gray-600">
                   Use email filter syntax to filter which emails trigger this automation.
                   <br />
-                  Example: has:attachment subject:invoice filename:pdf
+                  Example: has:attachment subject:invoice (filename:pdf OR filename:docx OR filename:pptx OR filename:xlsx)
                   <br />
                   <span className="text-xs text-gray-500">
                     Note: Sender filtering is automatic based on your account email

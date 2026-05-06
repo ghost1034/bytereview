@@ -55,7 +55,12 @@ export function GmailPicker({
   onAttachmentsSelected,
   jobId,
   multiSelect = true,
-  mimeTypes = ['application/pdf'],
+  mimeTypes = [
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ],
   className
 }: GmailPickerProps) {
   const { status, connect, isConnecting } = useGoogleIntegration();
@@ -141,7 +146,8 @@ export function GmailPicker({
         const attachmentData = selected.map(att => ({
           messageId: att.messageId,
           attachmentId: att.attachmentId,
-          filename: att.filename
+          filename: att.filename,
+          mimeType: att.mimeType
         }));
         
         const result = await apiClient.importGmailAttachments(jobId, attachmentData);
@@ -266,12 +272,12 @@ export function GmailPicker({
             variant="outline"
             size="sm"
             onClick={() => {
-              const query = 'has:attachment filename:pdf';
+              const query = 'has:attachment (filename:pdf OR filename:docx OR filename:pptx OR filename:xlsx)';
               setSearchInput(query);
               handleSearch(query);
             }}
           >
-            PDF files
+            Supported files
           </Button>
           <Button
             variant="outline"

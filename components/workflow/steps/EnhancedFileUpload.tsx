@@ -78,6 +78,15 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
   const folderInputRef = useRef<HTMLInputElement>(null)
   const eventSourceRef = useRef<EventSource | null>(null)
   const connectionAttemptedRef = useRef<boolean>(false)
+  const acceptedExtensions = '.pdf,.docx,.pptx,.xlsx,.zip'
+  const driveMimeTypes = [
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/zip',
+    'application/x-zip-compressed'
+  ]
   const pendingFilesRef = useRef<Set<string>>(new Set())
   const expectedFilesRef = useRef<Set<string>>(new Set())
   const receivedFilesRef = useRef<Set<string>>(new Set())
@@ -507,10 +516,11 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
           return false
         }
         
-        const isPdf = file.name.toLowerCase().endsWith('.pdf')
+        const name = file.name.toLowerCase()
+        const isSupportedDocument = ['.pdf', '.docx', '.pptx', '.xlsx', '.zip'].some((ext) => name.endsWith(ext))
         const hasName = file.name && file.name.trim() !== ''
-        const isLenientValid = hasName && (file.size > 0 || isPdf)
-        console.log(`Lenient check for "${file.name}": isPdf=${isPdf}, hasName=${hasName}, valid=${isLenientValid}`)
+        const isLenientValid = hasName && (file.size > 0 || isSupportedDocument)
+        console.log(`Lenient check for "${file.name}": isSupportedDocument=${isSupportedDocument}, hasName=${hasName}, valid=${isLenientValid}`)
         return isLenientValid
       })
       
@@ -878,6 +888,12 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
       return <Archive className="w-5 h-5 text-orange-500" />
     } else if (filename.toLowerCase().endsWith('.pdf')) {
       return <FileText className="w-5 h-5 text-red-500" />
+    } else if (filename.toLowerCase().endsWith('.docx')) {
+      return <FileText className="w-5 h-5 text-blue-500" />
+    } else if (filename.toLowerCase().endsWith('.pptx')) {
+      return <FileText className="w-5 h-5 text-orange-500" />
+    } else if (filename.toLowerCase().endsWith('.xlsx')) {
+      return <FileText className="w-5 h-5 text-green-600" />
     } else if ((file.original_path || '').includes('/')) {
       return <Folder className="w-5 h-5 text-blue-500" />
     } else {
@@ -1034,7 +1050,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
               Drop files here or click to browse
             </p>
             <p className="text-sm text-gray-500 mb-4">
-              Supports PDFs, ZIP files, and folders
+              Supports PDF, DOCX, PPTX, XLSX, ZIP files, and folders
             </p>
             
             <div className="flex gap-2 justify-center">
@@ -1069,7 +1085,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
             ref={fileInputRef}
             type="file"
             multiple
-            accept=".pdf,.zip"
+            accept={acceptedExtensions}
             className="hidden"
             onChange={(e) => e.target.files && handleFileSelect(e.target.files)}
           />
@@ -1096,12 +1112,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
             onFilesSelected={handleDriveFiles}
             jobId={jobId}
             multiSelect
-            mimeTypes={[
-              'application/pdf',
-              'application/zip',
-              'application/x-zip-compressed'
-              // Note: Removed 'application/vnd.google-apps.folder' for OAuth compliance
-            ]}
+            mimeTypes={driveMimeTypes}
           />
         </TabsContent>
 
