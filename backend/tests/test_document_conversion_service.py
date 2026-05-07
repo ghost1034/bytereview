@@ -106,6 +106,65 @@ class SpreadsheetExtractionServiceTests(unittest.TestCase):
         self.assertIn("R2: Cash | 125", rendered)
         self.assertIn("[formula: =SUM(B2:B2)]", rendered)
 
+    def test_renders_read_only_sheet_when_dimensions_are_unsized(self) -> None:
+        class Cell:
+            def __init__(self, value):
+                self.value = value
+
+        class Worksheet:
+            title = "Unsized Sheet"
+            max_row = None
+            max_column = None
+
+            def __init__(self, rows):
+                self._rows = rows
+
+            def calculate_dimension(self, *args, **kwargs):
+                raise ValueError("Worksheet is unsized")
+
+            def iter_rows(self, **kwargs):
+                return iter(self._rows)
+
+        class WorkbookStub:
+            def __init__(self, worksheet):
+                self.worksheets = [worksheet]
+                self._worksheet = worksheet
+
+            def __getitem__(self, title):
+                return self._worksheet
+
+            def close(self):
+                pass
+
+        value_ws = Worksheet([
+            [Cell("Date"), Cell("What")],
+            [Cell("2026-03-29"), Cell("Taipei")],
+        ])
+        formula_ws = Worksheet([
+            [Cell("Date"), Cell("What")],
+            [Cell("2026-03-29"), Cell("Taipei")],
+        ])
+
+        with patch(
+            "services.spreadsheet_extraction_service.load_workbook",
+            side_effect=[WorkbookStub(value_ws), WorkbookStub(formula_ws)],
+        ):
+            service = SpreadsheetExtractionService()
+            rendered = service.render_xlsx_local_to_text("/tmp/unsized.xlsx", filename="unsized.xlsx")
+
+        self.assertIn("dimension=unknown", rendered)
+        self.assertIn("rendered_rows=2", rendered)
+        self.assertIn("R1: Date | What", rendered)
+        self.assertIn("R2: 2026-03-29 | Taipei", rendered)
+
+    def test_empty_workbook_raises_clear_error(self) -> None:
+        workbook = Workbook()
+        with tempfile.NamedTemporaryFile(suffix=".xlsx") as handle:
+            workbook.save(handle.name)
+            service = SpreadsheetExtractionService()
+            with self.assertRaisesRegex(ValueError, "no readable non-empty rows"):
+                service.render_xlsx_local_to_text(handle.name, filename="empty.xlsx")
+
 
 class InkwiseSourceNormalizerTests(unittest.TestCase):
     def test_wraps_missing_soffice_error_for_docx_sources(self) -> None:
