@@ -412,8 +412,8 @@ export default function FieldConfigurationStep({
               )}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+            <div className="text-center py-8 text-foreground-muted">
+              <FileText className="w-12 h-12 mx-auto mb-4 text-foreground-subtle" aria-hidden />
               <p className="text-lg font-medium mb-2">No files uploaded</p>
               <p className="text-sm">
                 You can still configure extraction fields.
@@ -437,17 +437,17 @@ export default function FieldConfigurationStep({
             className="grid grid-cols-1 md:grid-cols-2 gap-4"
             disabled={readOnly}
           >
-            {/* Custom Configuration Option */}
-            <div className="flex items-center space-x-2 border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+            {/* Custom configuration option */}
+            <div className="flex items-center space-x-2 border border-border rounded-lg p-4 hover:bg-surface-muted transition-colors">
               <RadioGroupItem value="custom" id="custom" />
               <Label htmlFor="custom" className="flex-1 cursor-pointer">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Wrench className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 bg-primary-soft rounded-lg flex items-center justify-center text-primary-soft-foreground">
+                    <Wrench className="w-5 h-5" aria-hidden />
                   </div>
                   <div>
-                    <h3 className="font-medium">Custom Configuration</h3>
-                    <p className="text-sm text-gray-600">
+                    <h3 className="font-medium text-foreground">Custom configuration</h3>
+                    <p className="text-sm text-foreground-muted">
                       Define fields from scratch
                     </p>
                   </div>
@@ -455,8 +455,8 @@ export default function FieldConfigurationStep({
               </Label>
             </div>
 
-            {/* Template Configuration Option */}
-            <div className="flex items-center space-x-2 border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+            {/* Template configuration option */}
+            <div className="flex items-center space-x-2 border border-border rounded-lg p-4 hover:bg-surface-muted transition-colors">
               <RadioGroupItem
                 value="template"
                 id="template"
@@ -464,12 +464,12 @@ export default function FieldConfigurationStep({
               />
               <Label htmlFor="template" className="flex-1 cursor-pointer">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <Bookmark className="w-5 h-5 text-purple-600" />
+                  <div className="w-10 h-10 bg-primary-soft rounded-lg flex items-center justify-center text-primary-soft-foreground">
+                    <Bookmark className="w-5 h-5" aria-hidden />
                   </div>
                   <div>
-                    <h3 className="font-medium">Use Template</h3>
-                    <p className="text-sm text-gray-600">
+                    <h3 className="font-medium text-foreground">Use template</h3>
+                    <p className="text-sm text-foreground-muted">
                       {allTemplates.length > 0
                         ? `Choose from ${allTemplates.length} saved templates`
                         : "No templates available"}
@@ -498,9 +498,9 @@ export default function FieldConfigurationStep({
                       <SelectItem key={template.id} value={template.id}>
                         <div className="flex items-center gap-2">
                           {template.is_public ? (
-                            <Globe className="w-3 h-3 text-blue-500" />
+                            <Globe className="w-3 h-3 text-info" aria-hidden />
                           ) : (
-                            <Lock className="w-3 h-3 text-gray-500" />
+                            <Lock className="w-3 h-3 text-foreground-muted" aria-hidden />
                           )}
                           <span>{template.name}</span>
                           <Badge variant="outline" className="ml-2">
@@ -514,8 +514,8 @@ export default function FieldConfigurationStep({
               </div>
 
               {selectedTemplate && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-sm text-blue-800">
+                <div className="bg-primary-soft border border-primary/15 rounded-lg p-3">
+                  <p className="text-sm text-primary-soft-foreground">
                     <strong>Note:</strong> Template fields will be loaded below.
                     You can customize them before starting the extraction.
                   </p>
@@ -595,8 +595,8 @@ export default function FieldConfigurationStep({
               })}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              <Settings className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+            <div className="text-center py-8 text-foreground-muted">
+              <Settings className="w-12 h-12 mx-auto mb-4 text-foreground-subtle" aria-hidden />
               <p className="text-lg font-medium mb-2">No processing modes to configure</p>
               <p className="text-sm">
                 Processing modes will appear here when you upload files.
@@ -628,13 +628,13 @@ export default function FieldConfigurationStep({
               disabled={readOnly}
               rows={3}
             />
-            <p className="text-xs text-gray-500 mt-1">This description will be included in the AI prompt to guide extraction.</p>
+            <p className="text-xs text-foreground-muted mt-1">This description will be included in the AI prompt to guide extraction.</p>
           </div>
           {dataTypesLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="flex items-center gap-3">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
-                <span className="text-sm text-gray-600">Loading field configuration...</span>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <span className="text-sm text-foreground-muted">Loading field configuration...</span>
               </div>
             </div>
           ) : (
@@ -647,10 +647,10 @@ export default function FieldConfigurationStep({
                 readOnly={readOnly}
               />
               {showAutomationTip && (
-                <div className="mt-4 rounded-md border border-blue-200 bg-blue-50 p-3 text-blue-800">
+                <div className="mt-4 rounded-md border border-primary/15 bg-primary-soft p-3 text-primary-soft-foreground">
                   <p className="text-sm">
                     Fields are configured for this run. You can now use this job in{' '}
-                    <Link href="/dashboard/automations" className="font-medium text-blue-700 underline">
+                    <Link href="/dashboard/automations" className="font-medium underline">
                       Automations
                     </Link>{' '}
                     to run extractions automatically.

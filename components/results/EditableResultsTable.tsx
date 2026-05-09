@@ -283,21 +283,29 @@ export function EditableResultsTable({
   }
 
   if (isLoading) {
-    return <div className="p-4 text-sm text-muted-foreground">Loading results…</div>
+    return <div className="p-4 text-sm text-foreground-muted" role="status" aria-live="polite">Loading results…</div>
   }
 
   if (error) {
-    return <div className="p-4 text-sm text-red-600">Error loading results: {(error as any).message}</div>
+    return <div className="p-4 text-sm text-destructive" role="alert">Error loading results: {(error as any).message}</div>
   }
 
   const canEdit = !readOnly
   const hasUnkeyedRows = displayRows.some((r) => !r.rowId)
 
   return (
-    <div className="h-full flex flex-col">
+    <div
+      className="h-full flex flex-col"
+      role="region"
+      aria-label="Extraction results"
+    >
       <div className="flex items-center justify-between gap-3 p-2">
-        <div className="text-sm text-muted-foreground">
-          {displayRows.length} rows
+        <div
+          className="text-sm text-foreground-muted tabular-nums"
+          role="status"
+          aria-live="polite"
+        >
+          {displayRows.length} {displayRows.length === 1 ? 'row' : 'rows'}
         </div>
         <Dialog open={addOpen} onOpenChange={(open) => {
           setAddOpen(open)
@@ -318,9 +326,9 @@ export function EditableResultsTable({
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Attach to</Label>
+                <Label htmlFor="attach-to-task">Attach to</Label>
                 <Select value={attachToTaskId} onValueChange={setAttachToTaskId}>
-                  <SelectTrigger>
+                  <SelectTrigger id="attach-to-task">
                     <SelectValue placeholder="Unattached (manual)" />
                   </SelectTrigger>
                   <SelectContent>
@@ -336,17 +344,21 @@ export function EditableResultsTable({
 
               <ScrollArea className="h-[50vh] pr-4">
                 <div className="space-y-3">
-                  {inputColumns.map((col) => (
-                    <div key={col} className="grid grid-cols-3 items-center gap-3">
-                      <Label className="text-sm text-muted-foreground">{col}</Label>
-                      <div className="col-span-2">
-                        <Input
-                          value={newRowValues[col] ?? ''}
-                          onChange={(e) => setNewRowValues((prev) => ({ ...prev, [col]: e.target.value }))}
-                        />
+                  {inputColumns.map((col) => {
+                    const inputId = `add-row-${col}`
+                    return (
+                      <div key={col} className="grid grid-cols-3 items-center gap-3">
+                        <Label htmlFor={inputId} className="text-sm text-foreground-muted">{col}</Label>
+                        <div className="col-span-2">
+                          <Input
+                            id={inputId}
+                            value={newRowValues[col] ?? ''}
+                            onChange={(e) => setNewRowValues((prev) => ({ ...prev, [col]: e.target.value }))}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
                 <ScrollBar orientation="vertical" />
               </ScrollArea>
@@ -376,7 +388,7 @@ export function EditableResultsTable({
       </div>
 
       {hasUnkeyedRows && (
-        <div className="px-2 pb-2 text-xs text-muted-foreground">
+        <div className="px-2 pb-2 text-xs text-foreground-muted">
           Some rows are missing stable IDs, so editing is temporarily disabled for them. Refresh if this persists.
         </div>
       )}
@@ -387,24 +399,29 @@ export function EditableResultsTable({
             <TableHeader>
               <TableRow>
                 {unifiedColumns.map((col) => (
-                  <TableHead key={col} className="whitespace-nowrap bg-gray-50 font-semibold">
+                  <TableHead
+                    key={col}
+                    className="whitespace-nowrap bg-surface-muted text-xs font-medium uppercase tracking-wide text-foreground-muted"
+                  >
                     {col}
                   </TableHead>
                 ))}
-                <TableHead className="whitespace-nowrap bg-gray-50 font-semibold">Actions</TableHead>
+                <TableHead className="whitespace-nowrap bg-surface-muted text-xs font-medium uppercase tracking-wide text-foreground-muted">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {displayRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={unifiedColumns.length + 1} className="text-sm text-muted-foreground">
+                  <TableCell colSpan={unifiedColumns.length + 1} className="text-sm text-foreground-muted">
                     No results yet.
                   </TableCell>
                 </TableRow>
               ) : (
-                displayRows.map((row) => (
+                displayRows.map((row, rowIndex) => (
                   <TableRow key={`${row.taskId}:${row.rowKey}`}>
-                    <TableCell className="whitespace-nowrap">
+                    <TableCell className="whitespace-nowrap text-foreground">
                       {(row.sourceFiles?.length ? row.sourceFiles.join(', ') : '(manual)')}
                     </TableCell>
                     {unifiedColumns
@@ -412,18 +429,32 @@ export function EditableResultsTable({
                       .map((col) => {
                         const isEditing = editing?.rowId === row.rowId && editing?.col === col
                         const value = row.values[col]
-                         return (
-                            <TableCell
-                              key={`${row.rowKey}:${col}`}
-                              className={canEdit ? 'whitespace-nowrap cursor-text' : 'whitespace-nowrap'}
-                              onDoubleClick={() => {
-                              if (!canEdit || !row.rowId) return
-                              startEdit(row.rowId, col, value)
-                              }}
-                            >
+                        const cellEditable = canEdit && !!row.rowId
+                        return (
+                          <TableCell
+                            key={`${row.rowKey}:${col}`}
+                            tabIndex={cellEditable && !isEditing ? 0 : -1}
+                            className={
+                              cellEditable
+                                ? 'whitespace-nowrap cursor-text outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset'
+                                : 'whitespace-nowrap'
+                            }
+                            onDoubleClick={() => {
+                              if (!cellEditable) return
+                              startEdit(row.rowId!, col, value)
+                            }}
+                            onKeyDown={(event) => {
+                              if (!cellEditable || isEditing) return
+                              if (event.key === 'Enter' || event.key === 'F2') {
+                                event.preventDefault()
+                                startEdit(row.rowId!, col, value)
+                              }
+                            }}
+                          >
                             {isEditing ? (
                               <Input
                                 autoFocus
+                                aria-label={`Edit ${col} for row ${rowIndex + 1}`}
                                 value={draft}
                                 onChange={(e) => setDraft(e.target.value)}
                                 onBlur={() => commitEdit(row, col)}
@@ -438,7 +469,7 @@ export function EditableResultsTable({
                                 }}
                               />
                             ) : (
-                              <span className={row.rowSource === 'manual' ? 'text-foreground' : 'text-foreground'}>
+                              <span className="text-foreground">
                                 {formatCellValue(value)}
                               </span>
                             )}
@@ -446,9 +477,10 @@ export function EditableResultsTable({
                         )
                       })}
                     <TableCell className="whitespace-nowrap">
-                  <Button
+                      <Button
                         variant="outline"
                         size="sm"
+                        aria-label={`Delete row ${rowIndex + 1}`}
                         disabled={!canEdit || deleteRow.isPending || !row.rowId}
                         onClick={() => setDeleteTarget(row)}
                       >
@@ -475,7 +507,7 @@ export function EditableResultsTable({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
                 const t = deleteTarget
                 setDeleteTarget(null)

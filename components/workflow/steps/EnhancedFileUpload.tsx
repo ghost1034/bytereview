@@ -44,6 +44,7 @@ import { useToast } from '@/hooks/use-toast'
 import { apiClient, type JobFileInfo, type FileStatus, type JobFileAllRunsInfo } from '@/lib/api'
 import { GoogleDrivePicker } from '@/components/integrations/GoogleDrivePicker'
 import { IntegrationPrompt } from '@/components/integrations/IntegrationBanner'
+import { cn } from '@/lib/utils'
 
 interface EnhancedFileUploadProps {
   jobId: string
@@ -880,24 +881,24 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
     return fileList as FileList
   }
 
-  // Get file icon based on type
+  // Get file icon based on type. Uses semantic tones so dark-mode adapts cleanly.
   const getFileIcon = (file: JobFileInfo) => {
     const filename = file.original_filename || ''
-    
+
     if (filename.toLowerCase().endsWith('.zip')) {
-      return <Archive className="w-5 h-5 text-orange-500" />
+      return <Archive className="w-5 h-5 text-warning" aria-hidden />
     } else if (filename.toLowerCase().endsWith('.pdf')) {
-      return <FileText className="w-5 h-5 text-red-500" />
+      return <FileText className="w-5 h-5 text-destructive" aria-hidden />
     } else if (filename.toLowerCase().endsWith('.docx')) {
-      return <FileText className="w-5 h-5 text-blue-500" />
+      return <FileText className="w-5 h-5 text-info" aria-hidden />
     } else if (filename.toLowerCase().endsWith('.pptx')) {
-      return <FileText className="w-5 h-5 text-orange-500" />
+      return <FileText className="w-5 h-5 text-warning" aria-hidden />
     } else if (filename.toLowerCase().endsWith('.xlsx')) {
-      return <FileText className="w-5 h-5 text-green-600" />
+      return <FileText className="w-5 h-5 text-success" aria-hidden />
     } else if ((file.original_path || '').includes('/')) {
-      return <Folder className="w-5 h-5 text-blue-500" />
+      return <Folder className="w-5 h-5 text-info" aria-hidden />
     } else {
-      return <File className="w-5 h-5 text-gray-500" />
+      return <File className="w-5 h-5 text-foreground-muted" aria-hidden />
     }
   }
 
@@ -906,33 +907,33 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
   const getStatusBadge = (status: FileStatus) => {
     switch (status) {
       case 'uploaded':
-        return <Badge variant="secondary" className="bg-green-100 text-green-800">
-          <CheckCircle className="w-3 h-3 mr-1" />
+        return <Badge variant="outline" className="bg-success-soft text-success border-success/20">
+          <CheckCircle className="w-3 h-3 mr-1" aria-hidden />
           Uploaded
         </Badge>
       case 'unpacked':
-        return <Badge variant="secondary" className="bg-green-100 text-green-800">
-          <CheckCircle className="w-3 h-3 mr-1" />
+        return <Badge variant="outline" className="bg-success-soft text-success border-success/20">
+          <CheckCircle className="w-3 h-3 mr-1" aria-hidden />
           Unpacked
         </Badge>
       case 'importing':
-        return <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+        return <Badge variant="outline" className="bg-info-soft text-info border-info/20">
+          <Loader2 className="w-3 h-3 mr-1 animate-spin" aria-hidden />
           Importing
         </Badge>
       case 'unpacking':
-        return <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+        return <Badge variant="outline" className="bg-info-soft text-info border-info/20">
+          <Loader2 className="w-3 h-3 mr-1 animate-spin" aria-hidden />
           Unpacking
         </Badge>
       case 'uploading':
-        return <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+        return <Badge variant="outline" className="bg-info-soft text-info border-info/20">
+          <Loader2 className="w-3 h-3 mr-1 animate-spin" aria-hidden />
           Uploading
         </Badge>
       case 'failed':
         return <Badge variant="destructive">
-          <AlertCircle className="w-3 h-3 mr-1" />
+          <AlertCircle className="w-3 h-3 mr-1" aria-hidden />
           Failed
         </Badge>
       default:
@@ -1034,50 +1035,74 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
           {/* Upload Area */}
           <Card data-tour="upload-files">
         <CardContent className="pt-6">
-          {/* Drag & Drop Zone */}
+          {/* Drag & drop zone */}
           <div
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-              dragOver 
-                ? 'border-blue-500 bg-blue-50' 
-                : 'border-gray-300 hover:border-gray-400'
-            }`}
+            role="button"
+            tabIndex={readOnly ? -1 : 0}
+            aria-disabled={readOnly || undefined}
+            aria-label="Drop files here or activate to browse"
+            className={cn(
+              'rounded-lg border-2 border-dashed p-8 text-center transition-colors',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              dragOver
+                ? 'border-primary bg-primary-soft'
+                : 'border-border hover:border-border-strong',
+              readOnly && 'cursor-not-allowed opacity-60',
+            )}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
+            onKeyDown={(event) => {
+              if (readOnly) return
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                fileInputRef.current?.click()
+              }
+            }}
           >
-            <Upload className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-            <p className="text-lg font-medium text-gray-900 mb-2">
+            <Upload
+              className="mx-auto mb-4 h-12 w-12 text-foreground-subtle"
+              aria-hidden
+            />
+            <p className="mb-2 text-lg font-medium text-foreground">
               Drop files here or click to browse
             </p>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="mb-4 text-sm text-foreground-muted">
               Supports PDF, DOCX, PPTX, XLSX, ZIP files, and folders
             </p>
-            
-            <div className="flex gap-2 justify-center">
+
+            <div className="flex justify-center gap-2">
               <Button
                 variant="outline"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  fileInputRef.current?.click()
+                }}
                 disabled={uploading || readOnly}
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Files
+                <Plus className="w-4 h-4 mr-2" aria-hidden />
+                Add files
               </Button>
-              
+
               <Button
                 variant="outline"
-                onClick={() => {
-                  console.log('Folder button clicked')
-                  console.log('Browser:', navigator.userAgent)
+                onClick={(event) => {
+                  event.stopPropagation()
                   if (folderInputRef.current) {
                     folderInputRef.current.click()
                   }
                 }}
                 disabled={uploading || readOnly}
               >
-                <Folder className="w-4 h-4 mr-2" />
-                Add Folder
+                <Folder className="w-4 h-4 mr-2" aria-hidden />
+                Add folder
               </Button>
             </div>
+          </div>
+
+          {/* Polite live region for screen-reader-driven progress announcements */}
+          <div role="status" aria-live="polite" className="sr-only">
+            {uploading ? 'Uploading files…' : ''}
           </div>
 
           {/* Hidden file inputs */}
@@ -1156,11 +1181,11 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
                         </p>
                       </div>
                       {file.original_path && file.original_path !== file.original_filename && (
-                        <p className="text-sm text-gray-500 truncate" title={file.original_path}>
+                        <p className="text-sm text-foreground-muted truncate" title={file.original_path}>
                           {file.original_path}
                         </p>
                       )}
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-foreground-subtle">
                         {file.file_size_bytes ? formatFileSize(file.file_size_bytes) : 'Unknown size'}
                       </p>
                     </div>
@@ -1172,41 +1197,41 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
                     {isDownloadable(file) && (
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() => handleDownloadFile(file)}
                         disabled={downloadingAll || downloadingFileId === file.id}
-                        className="p-1 h-8 w-8 text-blue-600 hover:text-blue-800"
+                        aria-label={`Download ${file.original_filename || 'file'}`}
+                        className="size-8 text-foreground-muted hover:text-foreground"
                         title="Download file"
                       >
                         {downloadingFileId === file.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
                         ) : (
-                          <Download className="w-4 h-4" />
+                          <Download className="w-4 h-4" aria-hidden />
                         )}
                       </Button>
                     )}
-                     
-                    {/* Delete button - only show for uploaded/unpacked files, when not readOnly,
-                        and not readOnly */}
+
+                    {/* Delete button — only when uploaded/unpacked and not readOnly */}
                     {(file.status === 'uploaded' || file.status === 'unpacked') &&
                      !readOnly &&
                      (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setDeleteFileTarget({
-                              id: file.id,
-                              runId: file.job_run_id,
-                              label: file.original_path || file.original_filename || 'this file',
-                            })
-                          }
-                          className="p-1 h-8 w-8 text-red-500 hover:text-red-700"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() =>
+                          setDeleteFileTarget({
+                            id: file.id,
+                            runId: file.job_run_id,
+                            label: file.original_path || file.original_filename || 'this file',
+                          })
+                        }
+                        aria-label={`Remove ${file.original_filename || 'file'}`}
+                        className="size-8 text-destructive/80 hover:text-destructive"
+                        title="Remove file"
+                      >
+                        <X className="w-4 h-4" aria-hidden />
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -1216,37 +1241,39 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
         </Card>
       )}
 
-      {/* Progress Summary */}
+      {/* Progress summary */}
       {importingFiles.length > 0 && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-blue-800">
-              <Cloud className="w-4 h-4" />
-              <span className="font-medium">
-                Importing file(s)...
-              </span>
-            </div>
-            <p className="text-sm text-blue-600 mt-1">
-              Please wait while we import your files from Google Drive/Gmail.
-            </p>
-          </CardContent>
-        </Card>
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-lg border border-primary/15 bg-primary-soft p-4"
+        >
+          <div className="flex items-center gap-2 text-primary-soft-foreground">
+            <Cloud className="w-4 h-4" aria-hidden />
+            <span className="font-medium">Importing file(s)…</span>
+          </div>
+          <p className="mt-1 text-sm text-primary-soft-foreground/80">
+            Please wait while we import your files from Google Drive/Gmail.
+          </p>
+        </div>
       )}
 
       {unpackingFiles.length > 0 && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-blue-800">
-              <Clock className="w-4 h-4" />
-              <span className="font-medium">
-                Unpacking {unpackingFiles.length} ZIP file(s)...
-              </span>
-            </div>
-            <p className="text-sm text-blue-600 mt-1">
-              Please wait while we unpack your ZIP files.
-            </p>
-          </CardContent>
-        </Card>
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-lg border border-primary/15 bg-primary-soft p-4"
+        >
+          <div className="flex items-center gap-2 text-primary-soft-foreground">
+            <Clock className="w-4 h-4" aria-hidden />
+            <span className="font-medium">
+              Unpacking {unpackingFiles.length} ZIP file(s)…
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-primary-soft-foreground/80">
+            Please wait while we unpack your ZIP files.
+          </p>
+        </div>
       )}
 
       {/* Navigation - Hidden when hideFooter is true */}
@@ -1307,7 +1334,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
                 const t = deleteFileTarget
                 setDeleteFileTarget(null)

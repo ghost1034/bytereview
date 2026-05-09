@@ -34,6 +34,10 @@ import { apiClient } from "@/lib/api";
 import { GoogleDriveFolderPicker } from "@/components/integrations/GoogleDriveFolderPicker";
 import { useExportRefs } from "@/hooks/useExportRefs";
 import { EditableResultsTable } from "@/components/results/EditableResultsTable";
+import { Section } from "@/components/ui/section";
+import { StatCard } from "@/components/ui/stat-card";
+import { cn } from "@/lib/utils";
+import { downloadBlob } from "@/lib/utils/download-blob";
 
 // Type definitions for file tree structure
 type JobResult = {
@@ -229,7 +233,11 @@ const FileTreeNode = memo(
   ({ node, selectedPath, selectedFileId, onSelect, level }: FileTreeNodeProps) => {
     const [expanded, setExpanded] = useState(true);
     const isSelected = node.type === 'file' ? (selectedFileId === node.id) : (selectedPath === node.path);
-    const paddingLeft = `${level * 12}px`;
+    // Indent driven by --indent CSS variable on the tree container (default 0.75rem),
+    // multiplied by depth. Replaces the prior `${level * 12}px` magic.
+    const indentStyle: React.CSSProperties = {
+      paddingInlineStart: `calc(var(--indent, 0.75rem) * ${level})`,
+    };
 
     const renderChildren = (children: TreeNode[]) => (
       <div>
@@ -249,22 +257,37 @@ const FileTreeNode = memo(
     if (node.type === "file") {
       const isCombined = node.result.processing_mode === "combined";
       const IconComponent = isCombined ? Files : FileText;
-      const iconColor = isCombined ? "text-purple-500" : "text-blue-500";
+      const iconColor = isCombined ? "text-info" : "text-foreground-muted";
+      const handleSelect = () => onSelect(node.id, node.path);
 
       return (
         <div
-          className={`flex items-center py-1 px-2 rounded cursor-pointer ${
-            isSelected ? "bg-blue-100 text-blue-900" : "hover:bg-gray-100"
-          }`}
-          style={{ paddingLeft }}
-          onClick={() => onSelect(node.type === 'file' ? node.id : '', node.path)}
+          role="treeitem"
+          aria-selected={isSelected}
+          tabIndex={0}
+          className={cn(
+            "flex items-center py-1 px-2 rounded cursor-pointer outline-none",
+            "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+            isSelected
+              ? "bg-primary-soft text-primary-soft-foreground"
+              : "hover:bg-surface-muted",
+          )}
+          style={indentStyle}
+          onClick={handleSelect}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              handleSelect();
+            }
+          }}
         >
           <IconComponent
-            className={`w-4 h-4 ${iconColor} mr-2 flex-shrink-0`}
+            className={cn("w-4 h-4 mr-2 flex-shrink-0", iconColor)}
+            aria-hidden
           />
-          <span className="text-sm truncate">{node.name}</span>
+          <span className="text-sm truncate text-foreground">{node.name}</span>
           {isCombined && (
-            <span className="ml-1 text-xs text-purple-600 bg-purple-100 px-1 rounded">
+            <span className="ml-1 rounded bg-primary-soft px-1 text-xs text-primary-soft-foreground tabular-nums">
               {node.result.source_files.length}
             </span>
           )}
@@ -275,40 +298,55 @@ const FileTreeNode = memo(
     // Render set header as a divider-style row
     if (node.isSetHeader) {
       return (
-        <div className="my-2" style={{ paddingLeft }}>
+        <div className="my-2" style={indentStyle}>
           <div className="flex items-center gap-2">
-            <div className="h-px bg-muted-foreground/30 flex-1" />
-            <span className="text-xs text-muted-foreground uppercase tracking-wide">{node.name}</span>
-            <div className="h-px bg-muted-foreground/30 flex-1" />
+            <div className="h-px bg-border flex-1" />
+            <span className="text-xs uppercase tracking-wide text-foreground-subtle">
+              {node.name}
+            </span>
+            <div className="h-px bg-border flex-1" />
           </div>
-          <div className="mt-2">
-            {renderChildren(node.children)}
-          </div>
+          <div className="mt-2">{renderChildren(node.children)}</div>
         </div>
       );
     }
 
     return (
-      <div>
+      <div role="treeitem" aria-expanded={expanded}>
         <div
-          className="flex items-center py-1 px-2 rounded cursor-pointer hover:bg-gray-100"
-          style={{ paddingLeft }}
+          tabIndex={0}
+          role="button"
+          aria-label={`${expanded ? 'Collapse' : 'Expand'} folder ${node.name}`}
+          className={cn(
+            "flex items-center py-1 px-2 rounded cursor-pointer outline-none",
+            "hover:bg-surface-muted",
+            "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+          )}
+          style={indentStyle}
           onClick={() => setExpanded(!expanded)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              setExpanded((value) => !value);
+            } else if (event.key === 'ArrowRight') {
+              event.preventDefault();
+              setExpanded(true);
+            } else if (event.key === 'ArrowLeft') {
+              event.preventDefault();
+              setExpanded(false);
+            }
+          }}
         >
           {expanded ? (
-            <ChevronDown className="w-4 h-4 text-gray-500 mr-2 flex-shrink-0" />
+            <ChevronDown className="w-4 h-4 text-foreground-subtle mr-2 flex-shrink-0" aria-hidden />
           ) : (
-            <ChevronRight className="w-4 h-4 text-gray-500 mr-2 flex-shrink-0" />
+            <ChevronRight className="w-4 h-4 text-foreground-subtle mr-2 flex-shrink-0" aria-hidden />
           )}
-          <Folder className="w-4 h-4 text-amber-500 mr-2 flex-shrink-0" />
-          <span className="text-sm font-medium">{node.name}</span>
+          <Folder className="w-4 h-4 text-warning mr-2 flex-shrink-0" aria-hidden />
+          <span className="text-sm font-medium text-foreground">{node.name}</span>
         </div>
 
-        {expanded && (
-          <div>
-            {renderChildren(node.children)}
-          </div>
-        )}
+        {expanded && <div role="group">{renderChildren(node.children)}</div>}
       </div>
     );
   }
@@ -485,11 +523,11 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
                   <div className="flex flex-col gap-2">
                     <span>Results exported to {data.destination} as {data.file_type.toUpperCase()}</span>
                     {data.file_link && (
-                      <a 
-                        href={data.file_link} 
-                        target="_blank" 
+                      <a
+                        href={data.file_link}
+                        target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+                        className="text-primary underline flex items-center gap-1 hover:opacity-80"
                       >
                         <ExternalLink className="w-3 h-3" />
                         View in {data.destination}
@@ -670,16 +708,7 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
       
       // Use the API client export method with runId
       const { blob, filename } = await apiClient.exportJobCSV(jobId, runId);
-
-      // Download the file
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      downloadBlob(blob, filename);
 
       toast({
         title: "Export successful",
@@ -704,16 +733,7 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
       
       // Use the API client export method with runId to preserve backend filename
       const { blob, filename } = await apiClient.exportJobExcel(jobId, runId);
-
-      // Download the file
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      downloadBlob(blob, filename);
 
       toast({
         title: "Export successful",
@@ -751,11 +771,8 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
       const pad = (n: number) => n.toString().padStart(2, '0');
       const filename = `${safeJob}_${ts.getUTCFullYear()}${pad(ts.getUTCMonth() + 1)}${pad(ts.getUTCDate())}_${pad(ts.getUTCHours())}${pad(ts.getUTCMinutes())}${pad(ts.getUTCSeconds())}Z.json`;
 
-      downloadFile(
-        jsonData,
-        filename,
-        "application/json"
-      );
+      const blob = new Blob([jsonData], { type: "application/json" });
+      downloadBlob(blob, filename);
 
       toast({
         title: "Export successful",
@@ -772,26 +789,9 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
     }
   };
 
-
-  const downloadFile = (
-    content: string,
-    filename: string,
-    mimeType: string
-  ) => {
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
   const formatValue = (value: any) => {
     if (value === null || value === undefined) {
-      return <span className="text-gray-400 italic">Not found</span>;
+      return <span className="text-foreground-subtle italic">Not found</span>;
     }
     if (typeof value === "boolean") {
       return value ? "Yes" : "No";
@@ -821,331 +821,337 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
 
   return (
     <div className="space-y-6">
-      {/* Results Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CheckCircle className="w-5 h-5 text-green-500" />
-            Extraction Complete
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div className="space-y-1">
-              <div className="text-2xl font-bold text-blue-600">
-                {results?.results?.length || 0}
-              </div>
-              <div className="text-sm text-muted-foreground">Total Results</div>
-            </div>
-            <div className="space-y-1">
-              <div className="text-2xl font-bold text-green-600">
-                {getSuccessRate()}%
-              </div>
-              <div className="text-sm text-muted-foreground">Success Rate</div>
-            </div>
-            <div className="space-y-1">
-              <div className="text-2xl font-bold text-purple-600">
-                {jobDetails?.job_fields?.length || 0}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Fields Extracted
-              </div>
-            </div>
-            <div className="space-y-1">
-              <div className="text-2xl font-bold text-orange-600">
-                {uniqueFilesCount}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Files Processed
-              </div>
+      {/* Results summary */}
+      <Section
+        variant="card"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <CheckCircle className="size-5 text-success" aria-hidden />
+            Extraction complete
+          </span>
+        }
+      >
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard label="Total results" value={results?.results?.length || 0} />
+          <StatCard label="Success rate" value={`${getSuccessRate()}%`} />
+          <StatCard
+            label="Fields extracted"
+            value={jobDetails?.job_fields?.length || 0}
+          />
+          <StatCard label="Files processed" value={uniqueFilesCount} />
+        </div>
+      </Section>
+
+      {/* Export options */}
+      <Section
+        variant="card"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <Download className="size-5 text-foreground-muted" aria-hidden />
+            Export results
+          </span>
+        }
+      >
+        <div className="space-y-4">
+          {/* Local download options */}
+          <div>
+            <h4 className="text-sm font-medium text-foreground-muted mb-2">
+              Download to computer
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={handleExportCSV}
+                variant="outline"
+                disabled={exportLoading === 'csv' || !results?.results?.length}
+                aria-label="Export results as CSV"
+              >
+                {exportLoading === 'csv' ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" aria-hidden />
+                ) : (
+                  <FileSpreadsheet className="w-4 h-4 mr-2" aria-hidden />
+                )}
+                Export CSV
+              </Button>
+              <Button
+                onClick={handleExportExcel}
+                variant="outline"
+                disabled={exportLoading === 'excel' || !results?.results?.length}
+                aria-label="Export results as Excel"
+              >
+                {exportLoading === 'excel' ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" aria-hidden />
+                ) : (
+                  <FileSpreadsheet className="w-4 h-4 mr-2" aria-hidden />
+                )}
+                Export Excel
+              </Button>
+              <Button
+                onClick={handleExportJSON}
+                variant="outline"
+                disabled={exportLoading === 'json' || !results?.results?.length}
+                aria-label="Export results as JSON"
+              >
+                {exportLoading === 'json' ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" aria-hidden />
+                ) : (
+                  <FileText className="w-4 h-4 mr-2" aria-hidden />
+                )}
+                Export JSON
+              </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Export Options */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Download className="w-5 h-5" />
-            Export Results
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* Local Download Options */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Download to Computer</h4>
-              <div className="flex gap-2">
-                <Button 
-                  onClick={handleExportCSV} 
-                  variant="outline"
-                  disabled={exportLoading === 'csv' || !results?.results?.length}
-                >
-                  {exportLoading === 'csv' ? (
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+          {/* Google Drive export options */}
+          <div>
+            <h4 className="text-sm font-medium text-foreground-muted mb-2">
+              Export to Google Drive
+            </h4>
+            {googleStatus?.connected ? (
+              <div className="space-y-4">
+                {!(csvUrl && xlsxUrl) && (
+                  <div>
+                    <GoogleDriveFolderPicker
+                      onFolderSelected={(folder) => setSelectedExportFolder(folder)}
+                      selectedFolder={selectedExportFolder}
+                      showCard={false}
+                      buttonText="Select export folder"
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    onClick={handleExportToGoogleDriveCSV}
+                    variant="outline"
+                    disabled={exportLoading === 'gdrive-csv' || !results?.results?.length}
+                  >
+                    {exportLoading === 'gdrive-csv' ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" aria-hidden />
+                    ) : (
+                      <Cloud className="w-4 h-4 mr-2" aria-hidden />
+                    )}
+                    {csvUrl ? 'Update CSV in Drive' : 'Export CSV to Drive'}
+                  </Button>
+                  {refsLoading ? (
+                    <span className="ml-1 text-xs text-foreground-muted">Checking Drive links…</span>
                   ) : (
-                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    csvUrl && (
+                      <a
+                        href={csvUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-sm text-primary underline"
+                      >
+                        <ExternalLink className="w-3 h-3" aria-hidden />
+                        View CSV in Drive
+                      </a>
+                    )
                   )}
-                  Export CSV
-                </Button>
-                <Button 
-                  onClick={handleExportExcel} 
-                  variant="outline"
-                  disabled={exportLoading === 'excel' || !results?.results?.length}
-                >
-                  {exportLoading === 'excel' ? (
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  <Button
+                    onClick={handleExportToGoogleDriveExcel}
+                    variant="outline"
+                    disabled={exportLoading === 'gdrive-excel' || !results?.results?.length}
+                  >
+                    {exportLoading === 'gdrive-excel' ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" aria-hidden />
+                    ) : (
+                      <Cloud className="w-4 h-4 mr-2" aria-hidden />
+                    )}
+                    {xlsxUrl ? 'Update Excel in Drive' : 'Export Excel to Drive'}
+                  </Button>
+                  {refsLoading ? (
+                    <span className="ml-1 text-xs text-foreground-muted">Checking Drive links…</span>
                   ) : (
-                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    xlsxUrl && (
+                      <a
+                        href={xlsxUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-sm text-primary underline"
+                      >
+                        <ExternalLink className="w-3 h-3" aria-hidden />
+                        View Excel in Drive
+                      </a>
+                    )
                   )}
-                  Export Excel
-                </Button>
-                <Button 
-                  onClick={handleExportJSON} 
-                  variant="outline"
-                  disabled={exportLoading === 'json' || !results?.results?.length}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 rounded-lg border border-primary/15 bg-primary-soft p-3">
+                <Cloud
+                  className="size-5 text-primary-soft-foreground"
+                  aria-hidden
+                />
+                <div className="flex-1">
+                  <p className="text-sm text-primary-soft-foreground">
+                    Connect your Google account to export directly to Google
+                    Drive.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => connectGoogle('drive')}
+                  size="sm"
+                  disabled={isConnecting}
                 >
-                  {exportLoading === 'json' ? (
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <FileText className="w-4 h-4 mr-2" />
-                  )}
-                  Export JSON
+                  {isConnecting ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" aria-hidden />
+                  ) : null}
+                  Connect Google Drive
                 </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </Section>
+
+      {/* Results display */}
+      <Section
+        variant="card"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <BarChart3 className="size-5 text-foreground-muted" aria-hidden />
+            Extraction results ({results?.results?.length || 0} results)
+          </span>
+        }
+      >
+        {results?.results && results.results.length > 0 ? (
+          <div className="flex h-[600px] gap-6">
+            {/* File-tree sidebar */}
+            <div className="w-64 flex-shrink-0">
+              <h3 className="mb-3 flex items-center text-sm font-medium text-foreground">
+                <Folder className="mr-2 size-4 text-foreground-muted" aria-hidden />
+                Files ({uniqueFilesCount})
+              </h3>
+
+              <div
+                className="h-[548px] overflow-y-auto rounded-lg border border-border p-2 [--indent:0.75rem]"
+                role="tree"
+                aria-label="Result files"
+              >
+                {fileTree.length > 0 ? (
+                  fileTree.map((node, index) => (
+                    <FileTreeNode
+                      key={`${node.path}-${index}`}
+                      node={node}
+                      selectedPath={selectedPath}
+                      selectedFileId={selectedFileId}
+                      onSelect={(fileId, path) => {
+                        setSelectedFileId(fileId);
+                        setSelectedPath(path);
+                        setResultsView('selected');
+                      }}
+                      level={0}
+                    />
+                  ))
+                ) : (
+                  <div className="py-4 text-center text-sm text-foreground-muted">
+                    No files to display
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Google Drive Export Options */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Export to Google Drive</h4>
-              {googleStatus?.connected ? (
-                <div className="space-y-4">
-                  {/* Folder Selection */}
-                  {!(csvUrl && xlsxUrl) && (
-                    <div>
-                      <GoogleDriveFolderPicker
-                        onFolderSelected={(folder) => setSelectedExportFolder(folder)}
-                        selectedFolder={selectedExportFolder}
-                        showCard={false}
-                        buttonText="Select Export Folder"
-                      />
-                    </div>
+            {/* Main content area */}
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div className="mb-3 flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  {resultsView === 'selected' && selectedFileNode ? (
+                    <>
+                      <h3 className="truncate text-sm font-medium text-foreground">
+                        {selectedFileNode.name}
+                      </h3>
+                      <div className="mt-1 truncate text-xs text-foreground-muted">
+                        {selectedFileNode.result.source_files?.length
+                          ? selectedFileNode.result.source_files.join(', ')
+                          : '(manual)'}
+                      </div>
+                      <Badge variant="secondary" className="mt-2">
+                        {selectedFileNode.result.processing_mode}
+                      </Badge>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="text-sm font-medium text-foreground">All rows</h3>
+                      <div className="mt-1 text-xs text-foreground-muted">
+                        Across all tasks in this run
+                      </div>
+                    </>
                   )}
-                  
-                  {/* Export Buttons */}
-                  <div className="flex gap-2 items-center flex-wrap">
-                    <Button 
-                      onClick={handleExportToGoogleDriveCSV} 
-                      variant="outline"
-                      disabled={exportLoading === 'gdrive-csv' || !results?.results?.length}
-                    >
-                      {exportLoading === 'gdrive-csv' ? (
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Cloud className="w-4 h-4 mr-2" />
-                      )}
-                      {csvUrl ? 'Update CSV in Drive' : 'Export CSV to Drive'}
-                    </Button>
-                    {refsLoading ? (
-                      <span className="text-xs text-muted-foreground ml-1">Checking Drive links…</span>
-                    ) : (
-                      csvUrl && (
-                        <a
-                          href={csvUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          View CSV in Drive
-                        </a>
-                      )
-                    )}
-                    <Button 
-                      onClick={handleExportToGoogleDriveExcel} 
-                      variant="outline"
-                      disabled={exportLoading === 'gdrive-excel' || !results?.results?.length}
-                    >
-                      {exportLoading === 'gdrive-excel' ? (
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Cloud className="w-4 h-4 mr-2" />
-                      )}
-                      {xlsxUrl ? 'Update Excel in Drive' : 'Export Excel to Drive'}
-                    </Button>
-                    {refsLoading ? (
-                      <span className="text-xs text-muted-foreground ml-1">Checking Drive links…</span>
-                    ) : (
-                      xlsxUrl && (
-                        <a
-                          href={xlsxUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          View Excel in Drive
-                        </a>
-                      )
-                    )}
-                  </div>
                 </div>
-              ) : (
-                <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <Cloud className="w-5 h-5 text-blue-600" />
-                  <div className="flex-1">
-                    <p className="text-sm text-blue-800">
-                      Connect your Google account to export directly to Google Drive
-                    </p>
-                  </div>
-                  <Button 
-                    onClick={() => connectGoogle('drive')} 
+
+                <div className="flex flex-shrink-0 gap-2">
+                  <Button
                     size="sm"
-                    disabled={isConnecting}
+                    variant="outline"
+                    data-tour="use-in-form-fill-button"
+                    onClick={() => {
+                      if (!selectedFileId || !runId) return
+                      const params = new URLSearchParams({
+                        job_id: jobId,
+                        run_id: runId,
+                        task_id: selectedFileId,
+                      })
+                      router.push(`/dashboard/form-fill?${params.toString()}`)
+                    }}
+                    disabled={!selectedFileId || !runId}
                   >
-                    {isConnecting ? (
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    ) : null}
-                    Connect Google Drive
+                    Use in Form Fill
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={resultsView === 'selected' ? 'default' : 'outline'}
+                    onClick={() => setResultsView('selected')}
+                    disabled={!selectedFileId}
+                  >
+                    Selected file
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={resultsView === 'all' ? 'default' : 'outline'}
+                    onClick={() => setResultsView('all')}
+                  >
+                    All rows
                   </Button>
                 </div>
-              )}
+              </div>
+
+              <div className="min-h-0 flex-1">
+                {resultsView === 'selected' ? (
+                  selectedFileId ? (
+                    <EditableResultsTable
+                      jobId={jobId}
+                      runId={runId}
+                      filterTaskId={selectedFileId}
+                      defaultAttachToTaskId={selectedFileId}
+                    />
+                  ) : (
+                    <div className="py-8 text-center text-sm text-foreground-muted">
+                      Select a file to view results.
+                    </div>
+                  )
+                ) : (
+                  <EditableResultsTable jobId={jobId} runId={runId} defaultAttachToTaskId={null} />
+                )}
+              </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Results Display */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5" />
-            Extraction Results ({results?.results?.length || 0} results)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {results?.results && results.results.length > 0 ? (
-            <div className="flex gap-6 h-[600px]">
-              {/* Sidebar with file tree */}
-              <div className="w-64 flex-shrink-0">
-                <h3 className="font-medium text-gray-900 mb-3 flex items-center">
-                  <Folder className="w-4 h-4 mr-2" />
-                  Files ({uniqueFilesCount})
-                </h3>
-
-                <div className="h-[548px] overflow-y-auto border rounded-lg p-2">
-                  {fileTree.length > 0 ? (
-                    fileTree.map((node, index) => (
-                      <FileTreeNode
-                        key={`${node.path}-${index}`}
-                        node={node}
-                        selectedPath={selectedPath}
-                        selectedFileId={selectedFileId}
-                        onSelect={(fileId, path) => {
-                          setSelectedFileId(fileId);
-                          setSelectedPath(path);
-                          setResultsView('selected');
-                        }}
-                        level={0}
-                      />
-                    ))
-                  ) : (
-                    <div className="text-center py-4 text-gray-500 text-sm">No files to display</div>
-                  )}
-                </div>
-              </div>
-
-              {/* Main content area */}
-              <div className="flex-1 min-w-0 flex flex-col">
-                <div className="flex items-start justify-between gap-4 mb-3">
-                  <div className="min-w-0">
-                    {resultsView === 'selected' && selectedFileNode ? (
-                      <>
-                        <h3 className="font-medium text-gray-900 truncate">{selectedFileNode.name}</h3>
-                        <div className="text-sm text-gray-500 mt-1 truncate">
-                          {selectedFileNode.result.source_files?.length
-                            ? selectedFileNode.result.source_files.join(', ')
-                            : '(manual)'}
-                        </div>
-                        <Badge variant="secondary" className="mt-2">
-                          {selectedFileNode.result.processing_mode}
-                        </Badge>
-                      </>
-                    ) : (
-                      <>
-                        <h3 className="font-medium text-gray-900">All rows</h3>
-                        <div className="text-sm text-gray-500 mt-1">Across all tasks in this run</div>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2 flex-shrink-0">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      data-tour="use-in-form-fill-button"
-                      onClick={() => {
-                        if (!selectedFileId || !runId) return
-                        const params = new URLSearchParams({
-                          job_id: jobId,
-                          run_id: runId,
-                          task_id: selectedFileId,
-                        })
-                        router.push(`/dashboard/form-fill?${params.toString()}`)
-                      }}
-                      disabled={!selectedFileId || !runId}
-                    >
-                      Use in Form Fill
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={resultsView === 'selected' ? 'default' : 'outline'}
-                      onClick={() => setResultsView('selected')}
-                      disabled={!selectedFileId}
-                    >
-                      Selected file
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={resultsView === 'all' ? 'default' : 'outline'}
-                      onClick={() => setResultsView('all')}
-                    >
-                      All rows
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex-1 min-h-0">
-                  {resultsView === 'selected' ? (
-                    selectedFileId ? (
-                      <EditableResultsTable
-                        jobId={jobId}
-                        runId={runId}
-                        filterTaskId={selectedFileId}
-                        defaultAttachToTaskId={selectedFileId}
-                      />
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">Select a file to view results.</div>
-                    )
-                  ) : (
-                    <EditableResultsTable jobId={jobId} runId={runId} defaultAttachToTaskId={null} />
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Results Found</h3>
-              <p className="text-gray-500">
-                The extraction job completed but no data was extracted. This might be due to the documents not containing
-                the requested information.
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        ) : (
+          <div className="py-8 text-center">
+            <AlertCircle
+              className="mx-auto mb-4 size-12 text-foreground-subtle"
+              aria-hidden
+            />
+            <h3 className="mb-2 text-base font-medium text-foreground">
+              No results found
+            </h3>
+            <p className="text-sm text-foreground-muted">
+              The extraction job completed but no data was extracted. This
+              might be due to the documents not containing the requested
+              information.
+            </p>
+          </div>
+        )}
+      </Section>
 
       {/* Actions */}
       <div className="flex justify-end">

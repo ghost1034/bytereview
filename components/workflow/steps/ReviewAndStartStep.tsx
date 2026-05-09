@@ -4,19 +4,23 @@
  */
 'use client'
 
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { 
-  ArrowLeft, 
-  Play, 
-  FileText, 
+import {
+  ArrowLeft,
   Clock,
-  Loader2
+  FileText,
+  Loader2,
+  Play,
 } from 'lucide-react'
+
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Section } from '@/components/ui/section'
+import { Separator } from '@/components/ui/separator'
+import { StatCard } from '@/components/ui/stat-card'
 import { useToast } from '@/hooks/use-toast'
 import { JobWorkflowState } from '@/lib/api'
+
+const ESTIMATED_MINUTES_PER_FILE = 0.5
 
 interface ReviewAndStartStepProps {
   workflowState: JobWorkflowState
@@ -27,200 +31,195 @@ interface ReviewAndStartStepProps {
   isLatestSelected?: boolean
 }
 
-export default function ReviewAndStartStep({ 
-  workflowState, 
-  onJobStarted, 
-  onBack, 
+function formatFileSize(bytes: number): string {
+  if (!bytes || bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+export default function ReviewAndStartStep({
+  workflowState,
+  onJobStarted,
+  onBack,
   isLoading,
   readOnly = false,
-  isLatestSelected = true
+  isLatestSelected = true,
 }: ReviewAndStartStepProps) {
   const { toast } = useToast()
-  
+
   const handleStartJob = async () => {
     if (!workflowState.jobId) {
       toast({
-        title: "Error",
-        description: "No job ID found. Please go back and upload files again.",
-        variant: "destructive"
+        title: 'Error',
+        description: 'No job ID found. Please go back and upload files again.',
+        variant: 'destructive',
       })
       return
     }
-
-    // Just call the parent handler - the review page will handle the actual submission
     onJobStarted(undefined, workflowState.templateId)
   }
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
-
-  const totalFileSize = workflowState.files.reduce((sum, file) => sum + (file.size_bytes || 0), 0)
-  const estimatedTime = Math.max(1, Math.ceil(workflowState.files.length * 0.5)) // Rough estimate
+  const totalFileSize = workflowState.files.reduce(
+    (sum, file) => sum + (file.size_bytes || 0),
+    0,
+  )
+  const estimatedTime = Math.max(
+    1,
+    Math.ceil(workflowState.files.length * ESTIMATED_MINUTES_PER_FILE),
+  )
 
   return (
     <div className="space-y-6">
-      {/* File Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5" />
-            Files to Process
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold text-blue-600">
-                  {workflowState.files.length}
-                </div>
-                <div className="text-sm text-muted-foreground">Files</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-green-600">
-                  {formatFileSize(totalFileSize)}
-                </div>
-                <div className="text-sm text-muted-foreground">Total Size</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-purple-600">
-                  {workflowState.fields.length}
-                </div>
-                <div className="text-sm text-muted-foreground">Fields</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-orange-600">
-                  ~{estimatedTime}
-                </div>
-                <div className="text-sm text-muted-foreground">Min Est.</div>
-              </div>
-            </div>
+      {/* File summary */}
+      <Section
+        variant="card"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <FileText className="size-4 text-foreground-muted" aria-hidden />
+            Files to process
+          </span>
+        }
+      >
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <StatCard label="Files" value={workflowState.files.length} />
+            <StatCard label="Total size" value={formatFileSize(totalFileSize)} />
+            <StatCard label="Fields" value={workflowState.fields.length} />
+            <StatCard
+              label="Time est."
+              value={`~${estimatedTime}`}
+              hint="minutes"
+            />
+          </div>
 
-            <Separator />
+          <Separator />
 
-            <div className="space-y-2">
-              <h4 className="font-medium">File List:</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-                {workflowState.files.map((file, index) => (
-                  <div key={index} className="flex items-center gap-2 text-sm">
-                    <FileText className="w-4 h-4 text-gray-400" />
-                    <span className="truncate">{file.original_filename}</span>
-                    <Badge variant="outline" className="text-xs">
-                      {formatFileSize(file.size_bytes || 0)}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium text-foreground">File list</h4>
+            <div className="grid max-h-32 grid-cols-1 gap-1.5 overflow-y-auto md:grid-cols-2">
+              {workflowState.files.map((file, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-2 text-sm"
+                >
+                  <FileText
+                    className="size-4 text-foreground-subtle"
+                    aria-hidden
+                  />
+                  <span className="truncate text-foreground">
+                    {file.original_filename}
+                  </span>
+                  <Badge variant="outline" className="text-xs tabular-nums">
+                    {formatFileSize(file.size_bytes || 0)}
+                  </Badge>
+                </div>
+              ))}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </Section>
 
-      {/* Field Configuration Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Field Configuration</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {workflowState.fields.map((field, index) => (
-              <div key={index} className="border rounded-lg p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium">{field.field_name}</span>
-                  <Badge variant="secondary">{field.data_type_id}</Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {field.ai_prompt}
-                </p>
+      {/* Field configuration summary */}
+      <Section variant="card" title="Field configuration">
+        <div className="space-y-2">
+          {workflowState.fields.map((field, index) => (
+            <div
+              key={index}
+              className="rounded-lg border border-border bg-surface-raised p-3"
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-medium text-foreground">
+                  {field.field_name}
+                </span>
+                <Badge variant="secondary">{field.data_type_id}</Badge>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <p className="text-sm text-foreground-muted">
+                {field.ai_prompt}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Section>
 
-      {/* Processing Configuration */}
+      {/* Processing configuration */}
       {isLatestSelected && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Processing Configuration</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Processing Mode per Folder */}
-              <div>
-                <h4 className="font-medium mb-2">Processing Mode by Folder:</h4>
-                <div className="space-y-2">
-                  {workflowState.taskDefinitions.map((task, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <span className="text-sm">
-                        {task.path === '/' ? 'Root Folder' : task.path} ({task.file_count || 0} files)
-                      </span>
-                      <Badge variant="secondary">
-                        {task.mode === 'individual' ? 'Individual' : 'Combined'}
-                      </Badge>
-                    </div>
-                  ))}
+        <Section variant="card" title="Processing configuration">
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium text-foreground">
+              Processing mode by folder
+            </h4>
+            <div className="space-y-2">
+              {workflowState.taskDefinitions.map((task, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between text-sm"
+                >
+                  <span className="text-foreground-muted">
+                    {task.path === '/' ? 'Root folder' : task.path} (
+                    {task.file_count || 0} files)
+                  </span>
+                  <Badge variant="secondary">
+                    {task.mode === 'individual' ? 'Individual' : 'Combined'}
+                  </Badge>
                 </div>
-              </div>
+              ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </Section>
       )}
 
-      {/* Estimated Processing Time */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <Clock className="w-5 h-5 text-blue-600" />
-            <div>
-              <p className="font-medium text-blue-900">
-                Estimated Processing Time: {estimatedTime} minutes
-              </p>
-              <p className="text-sm text-blue-700">
-                You'll be able to monitor progress in real-time on the next step
-              </p>
-            </div>
+      {/* Estimated time callout */}
+      <div className="rounded-lg border border-primary/15 bg-primary-soft p-4">
+        <div className="flex items-center gap-3">
+          <Clock
+            className="size-5 text-primary-soft-foreground"
+            aria-hidden
+          />
+          <div>
+            <p className="text-sm font-medium text-primary-soft-foreground">
+              Estimated processing time: {estimatedTime} minutes
+            </p>
+            <p className="text-xs text-primary-soft-foreground/80">
+              You&apos;ll be able to monitor progress in real-time on the next
+              step.
+            </p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Navigation */}
       <div className="flex justify-between">
         <Button variant="outline" onClick={onBack} disabled={isLoading}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
+          <ArrowLeft className="mr-1.5 size-4" aria-hidden />
           Back
         </Button>
-        
-        <Button 
-          onClick={handleStartJob} 
+
+        <Button
+          onClick={handleStartJob}
           disabled={isLoading || readOnly}
           size="lg"
           data-tour="start-processing-button"
         >
           {readOnly ? (
             <>
-              <Play className="w-4 h-4 mr-2" />
-              View Only
+              <Play className="mr-1.5 size-4" aria-hidden />
+              View only
             </>
           ) : isLoading ? (
             <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Starting Job...
+              <Loader2 className="mr-1.5 size-4 animate-spin" aria-hidden />
+              Starting job…
             </>
           ) : (
             <>
-              <Play className="w-4 h-4 mr-2" />
-              Start Processing
+              <Play className="mr-1.5 size-4" aria-hidden />
+              Start processing
             </>
           )}
         </Button>
       </div>
-
     </div>
   )
 }

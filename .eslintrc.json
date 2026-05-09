@@ -25,12 +25,7 @@
       "excludedFiles": [
         "app/dashboard/inkwise/**/*.{ts,tsx}",
         "components/pages/inkwise/**/*.{ts,tsx}",
-        "components/inkwise/**/*.{ts,tsx}",
-        "components/workflow/steps/EnhancedFileUpload.tsx",
-        "components/workflow/steps/ProcessingStep.tsx",
-        "components/workflow/steps/ResultsStep.tsx",
-        "components/workflow/steps/ReviewAndStartStep.tsx",
-        "components/results/EditableResultsTable.tsx"
+        "components/inkwise/**/*.{ts,tsx}"
       ],
       "rules": {
         "no-restricted-syntax": [

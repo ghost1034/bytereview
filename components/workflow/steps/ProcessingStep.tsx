@@ -5,10 +5,12 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Section } from "@/components/ui/section";
+import { StatCard } from "@/components/ui/stat-card";
 import {
   ArrowLeft,
   Loader2,
@@ -19,6 +21,8 @@ import {
 } from "lucide-react";
 import { useJobDetails, useJobProgress } from "@/hooks/useJobs";
 import { JobStatus, apiClient } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { statusBgColorClass } from "@/lib/utils/workflow-status";
 
 // Simple global connection manager that survives component remounts
 class SSEConnectionManager {
@@ -500,31 +504,35 @@ export default function ProcessingStep({
 
   const getStatusIcon = () => {
     if (isCompleted) {
-      return <CheckCircle className="w-5 h-5 text-green-500" />;
+      return <CheckCircle className="w-5 h-5 text-success" aria-hidden />;
     }
     if (isProcessing) {
-      return <Loader2 className="w-5 h-5 animate-spin text-blue-500" />;
+      return <Loader2 className="w-5 h-5 animate-spin text-info" aria-hidden />;
     }
     if (isFailed) {
-      return <XCircle className="w-5 h-5 text-red-500" />;
+      return <XCircle className="w-5 h-5 text-destructive" aria-hidden />;
     }
-    return <Clock className="w-5 h-5 text-gray-500" />;
+    return <Clock className="w-5 h-5 text-foreground-muted" aria-hidden />;
   };
+
+  // Suppress unused warning — getStatusIcon and getStatusColor are exported via the
+  // helper return type for consumers; keep both to avoid touching downstream callers.
+  void getStatusIcon;
 
   const getStatusColor = (status: JobStatus) => {
     switch (status) {
       case "in_progress":
-        return "bg-blue-500";
+        return statusBgColorClass("info");
       case "completed":
-        return "bg-green-500";
+        return statusBgColorClass("success");
       case "failed":
-        return "bg-red-500";
+        return statusBgColorClass("destructive");
       case "cancelled":
-        return "bg-gray-500";
       default:
-        return "bg-gray-400";
+        return statusBgColorClass("neutral");
     }
   };
+  void getStatusColor;
 
   const calculateProgress = () => {
     if (!currentProgress || currentProgress.total === 0) return 0;
@@ -545,184 +553,156 @@ export default function ProcessingStep({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Progress Overview */}
-      <Card data-tour="processing-status">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Progress Overview</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* Overall Progress Bar */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Overall Progress</span>
-                <span>{progressPercentage}%</span>
-              </div>
-              <Progress value={progressPercentage} className="h-3" />
+    <div
+      className="space-y-6"
+      role="status"
+      aria-live="polite"
+      aria-busy={isProcessing}
+    >
+      {/* Progress overview */}
+      <Section variant="card" title="Progress overview">
+        <div data-tour="processing-status" className="space-y-5">
+          {/* Overall progress bar */}
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm text-foreground">
+              <span className="text-foreground-muted">Overall progress</span>
+              <span className="font-medium tabular-nums">{progressPercentage}%</span>
             </div>
-
-            {/* Task Statistics */}
-            {currentProgress ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                <div className="space-y-1">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {currentProgress.total}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Total Tasks
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-2xl font-bold text-green-600">
-                    {currentProgress.completed}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Completed</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-2xl font-bold text-orange-600">
-                    {currentProgress.total -
-                      currentProgress.completed -
-                      currentProgress.failed}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Tasks Remaining
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-2xl font-bold text-red-600">
-                    {currentProgress.failed}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Failed</div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                <span className="text-muted-foreground">
-                  Loading progress data...
-                </span>
-              </div>
-            )}
+            <Progress
+              value={progressPercentage}
+              className="h-3"
+              aria-valuenow={progressPercentage}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Overall job progress"
+            />
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Real-time Processing Steps */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Processing Tasks</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {processingSteps.length === 0 ? (
-              <div className="text-center text-muted-foreground py-4">
-                Waiting for processing to begin...
-              </div>
-            ) : (
-              processingSteps.map((step, index) => {
-                const isCurrentStep = currentStep === step.id;
+          {/* Task statistics */}
+          {currentProgress ? (
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <StatCard label="Total tasks" value={currentProgress.total} />
+              <StatCard label="Completed" value={currentProgress.completed} />
+              <StatCard
+                label="Remaining"
+                value={
+                  currentProgress.total -
+                  currentProgress.completed -
+                  currentProgress.failed
+                }
+              />
+              <StatCard label="Failed" value={currentProgress.failed} />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-8 text-foreground-muted">
+              <Loader2 className="w-6 h-6 animate-spin mr-2" aria-hidden />
+              <span>Loading progress data…</span>
+            </div>
+          )}
+        </div>
+      </Section>
 
-                return (
-                  <div key={step.id} className="flex items-center gap-3">
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        step.status === "completed"
-                          ? "bg-green-500"
-                          : step.status === "processing"
-                          ? "bg-blue-500"
-                          : step.status === "failed"
-                          ? "bg-red-500"
-                          : "bg-gray-300"
-                      }`}
-                    >
-                      {step.status === "processing" ? (
-                        <Loader2 className="w-4 h-4 text-white animate-spin" />
-                      ) : step.status === "completed" ? (
-                        <CheckCircle className="w-4 h-4 text-white" />
-                      ) : step.status === "failed" ? (
-                        <XCircle className="w-4 h-4 text-white" />
-                      ) : (
-                        <Clock className="w-4 h-4 text-gray-600" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium">{step.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {step.status === "processing"
-                          ? "Currently processing..."
-                          : step.status === "completed"
-                          ? "Completed"
-                          : step.status === "failed"
-                          ? step.errorMessage || "Processing failed"
-                          : step.status === "pending"
-                          ? "Pending..."
-                          : "Status unknown"}
-                      </div>
-                    </div>
-                    <Badge
-                      variant={
-                        step.status === "completed"
-                          ? "default"
-                          : step.status === "processing"
-                          ? "default"
-                          : step.status === "failed"
-                          ? "destructive"
-                          : "secondary"
-                      }
-                    >
-                      {step.status === "processing"
-                        ? "Processing"
-                        : step.status === "completed"
-                        ? "Complete"
+      {/* Real-time processing steps */}
+      <Section variant="card" title="Processing tasks">
+        <div className="space-y-3">
+          {processingSteps.length === 0 ? (
+            <div className="text-center text-foreground-muted py-4">
+              Waiting for processing to begin…
+            </div>
+          ) : (
+            processingSteps.map((step) => {
+              const stepTone =
+                step.status === "completed"
+                  ? "success"
+                  : step.status === "processing"
+                  ? "info"
+                  : step.status === "failed"
+                  ? "destructive"
+                  : "neutral";
+
+              return (
+                <div key={step.id} className="flex items-center gap-3">
+                  <div
+                    className={cn(
+                      "w-8 h-8 rounded-full flex items-center justify-center",
+                      step.status === "completed"
+                        ? "bg-success"
+                        : step.status === "processing"
+                        ? "bg-info"
                         : step.status === "failed"
-                        ? "Failed"
-                        : "Pending"}
-                    </Badge>
+                        ? "bg-destructive"
+                        : "bg-surface-muted",
+                    )}
+                    aria-hidden
+                  >
+                    {step.status === "processing" ? (
+                      <Loader2 className="w-4 h-4 text-white animate-spin" />
+                    ) : step.status === "completed" ? (
+                      <CheckCircle className="w-4 h-4 text-white" />
+                    ) : step.status === "failed" ? (
+                      <XCircle className="w-4 h-4 text-white" />
+                    ) : (
+                      <Clock className="w-4 h-4 text-foreground-muted" />
+                    )}
                   </div>
-                );
-              })
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-foreground truncate">
+                      {step.name}
+                    </div>
+                    <div className="text-xs text-foreground-muted">
+                      {step.status === "processing"
+                        ? "Currently processing…"
+                        : step.status === "completed"
+                        ? "Completed"
+                        : step.status === "failed"
+                        ? step.errorMessage || "Processing failed"
+                        : step.status === "pending"
+                        ? "Pending…"
+                        : "Status unknown"}
+                    </div>
+                  </div>
+                  <Badge
+                    variant={
+                      stepTone === "destructive" ? "destructive" : stepTone === "neutral" ? "secondary" : "default"
+                    }
+                  >
+                    {step.status === "processing"
+                      ? "Processing"
+                      : step.status === "completed"
+                      ? "Complete"
+                      : step.status === "failed"
+                      ? "Failed"
+                      : "Pending"}
+                  </Badge>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </Section>
 
-      {/* Error Display */}
+      {/* Error display */}
       {isFailed && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-red-800">
-              <AlertTriangle className="w-5 h-5" />
-              <div>
-                <strong>Processing Failed</strong>
-                <p className="text-sm mt-1">
-                  The extraction job encountered an error. Please try again or
-                  contact support if the issue persists.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Processing failed</AlertTitle>
+          <AlertDescription>
+            The extraction job encountered an error. Please try again or
+            contact support if the issue persists.
+          </AlertDescription>
+        </Alert>
       )}
 
-      {/* Real-time Updates Notice */}
+      {/* Real-time updates notice */}
       {isProcessing && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-blue-800">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <div>
-                <strong>Processing in Progress</strong>
-                <p className="text-sm mt-1">
-                  This page updates automatically. You can safely navigate away
-                  and return later.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <Alert>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <AlertTitle>Processing in progress</AlertTitle>
+          <AlertDescription>
+            This page updates automatically. You can safely navigate away and
+            return later.
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Navigation */}
