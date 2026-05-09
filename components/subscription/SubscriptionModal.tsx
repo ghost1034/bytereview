@@ -1,165 +1,204 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { CreditCard, Check, Loader2 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useSubscriptionPlans, useCreateCheckoutSession } from "@/hooks/useBilling";
+import { Check, CreditCard, Loader2 } from 'lucide-react'
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { useAuth } from '@/contexts/AuthContext'
+import {
+  useCreateCheckoutSession,
+  useSubscriptionPlans,
+} from '@/hooks/useBilling'
+import { cn } from '@/lib/utils'
 
 interface SubscriptionModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen: boolean
+  onClose: () => void
 }
 
-export default function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
-  const { user } = useAuth();
-  const { data: plans, isLoading } = useSubscriptionPlans();
-  const createCheckoutSession = useCreateCheckoutSession();
+export default function SubscriptionModal({
+  isOpen,
+  onClose,
+}: SubscriptionModalProps) {
+  const { user } = useAuth()
+  const { data: plans, isLoading } = useSubscriptionPlans()
+  const createCheckoutSession = useCreateCheckoutSession()
 
   const getPlanPrice = (planCode: string) => {
     switch (planCode) {
-      case 'basic': return '$9.99';
-      case 'pro': return '$49.99';
-      default: return 'Free';
+      case 'basic':
+        return '$9.99'
+      case 'pro':
+        return '$49.99'
+      default:
+        return 'Free'
     }
-  };
+  }
 
-  const getPlanFeatures = (planCode: string, pagesIncluded: number, automationsLimit: number) => {
+  const getPlanFeatures = (
+    planCode: string,
+    pagesIncluded: number,
+    automationsLimit: number,
+  ) => {
     const baseFeatures = [
       `${pagesIncluded === 999999 ? 'Unlimited' : pagesIncluded} pages per month`,
       `Up to ${automationsLimit} automations`,
       'Custom extraction templates',
-      'Export to CSV, Excel, Google Sheets'
-    ];
-
+      'Export to CSV, Excel, Google Sheets',
+    ]
     if (planCode === 'basic') {
-      return [
-        ...baseFeatures,
-        'Email support',
-        'Standard processing speed'
-      ];
-    } else if (planCode === 'pro') {
+      return [...baseFeatures, 'Email support', 'Standard processing speed']
+    }
+    if (planCode === 'pro') {
       return [
         ...baseFeatures,
         'Priority support',
         'Fast processing speed',
         'API access',
-        'Advanced integrations'
-      ];
+        'Advanced integrations',
+      ]
     }
-
-    return baseFeatures;
-  };
+    return baseFeatures
+  }
 
   const handleSelectPlan = (planCode: string) => {
     if (!user) {
-      onClose();
-      return;
+      onClose()
+      return
     }
-
     createCheckoutSession.mutate({
       plan_code: planCode,
       success_url: `${window.location.origin}/dashboard?success=true`,
-      cancel_url: `${window.location.origin}/pricing`
-    });
-  };
+      cancel_url: `${window.location.origin}/pricing`,
+    })
+  }
 
   if (isLoading) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-center text-xl font-bold">
-              Choose Your Plan
+            <DialogTitle className="text-center text-xl font-semibold">
+              Choose your plan
             </DialogTitle>
           </DialogHeader>
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-            <span className="ml-2 text-gray-600">Loading plans...</span>
+          <div className="flex items-center justify-center gap-2 py-10 text-sm text-foreground-muted">
+            <Loader2 className="size-4 animate-spin text-primary" aria-hidden />
+            Loading plans…
           </div>
         </DialogContent>
       </Dialog>
-    );
+    )
   }
 
-  // Filter to only paid plans (basic and pro)
-  const paidPlans = plans?.filter(plan => plan.code !== 'free') || [];
+  const paidPlans = plans?.filter((plan) => plan.code !== 'free') || []
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-center text-xl font-bold">
-            Choose Your Plan
+          <DialogTitle className="text-center text-xl font-semibold">
+            Choose your plan
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid md:grid-cols-2 gap-6 py-4">
-          {paidPlans.map((plan, index) => (
-            <div 
-              key={plan.code}
-              className={`border rounded-lg p-6 ${
-                plan.code === 'pro' ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200'
-              }`}
-            >
-              {plan.code === 'pro' && (
-                <div className="bg-blue-500 text-white text-xs font-semibold px-3 py-1 rounded-full text-center mb-4">
-                  MOST POPULAR
+        <div className="grid gap-6 py-4 md:grid-cols-2">
+          {paidPlans.map((plan) => {
+            const isPro = plan.code === 'pro'
+            return (
+              <div
+                key={plan.code}
+                className={cn(
+                  'rounded-lg border p-6 shadow-xs',
+                  isPro
+                    ? 'border-primary ring-2 ring-primary/15 bg-surface-raised'
+                    : 'border-border bg-surface-raised',
+                )}
+              >
+                {isPro && (
+                  <div className="mb-4 rounded-full bg-primary px-3 py-1 text-center text-xs font-semibold text-primary-foreground">
+                    MOST POPULAR
+                  </div>
+                )}
+
+                <div className="mb-2 text-center">
+                  <h3 className="mb-2 text-lg font-semibold text-foreground">
+                    {plan.display_name}
+                  </h3>
+                  <div className="text-3xl font-semibold tabular-nums text-foreground">
+                    {getPlanPrice(plan.code)}
+                  </div>
+                  <div className="text-sm text-foreground-muted">per month</div>
                 </div>
-              )}
-              
-              <div className="text-center mb-2">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{plan.display_name}</h3>
-                <div className="text-3xl font-bold text-gray-900">{getPlanPrice(plan.code)}</div>
-                <div className="text-gray-600 text-sm">per month</div>
-              </div>
-              <div className="text-center mb-6 text-sm text-gray-600">
-                {plan.overage_cents > 0 
-                  ? (
-                    <>Overage: {(plan.overage_cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} per page</>
+                <div className="mb-5 text-center text-sm text-foreground-muted">
+                  {plan.overage_cents > 0 ? (
+                    <>
+                      Overage:{' '}
+                      {(plan.overage_cents / 100).toLocaleString('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                      })}{' '}
+                      per page
+                    </>
                   ) : (
                     <>No overage allowed</>
                   )}
-              </div>
+                </div>
 
-              <div className="space-y-3 mb-6">
-                {getPlanFeatures(plan.code, plan.pages_included, plan.automations_limit).map((feature, featureIndex) => (
-                  <div key={featureIndex} className="flex items-center text-sm">
-                    <Check className="w-4 h-4 text-green-500 mr-3 flex-shrink-0" />
-                    <span className="text-gray-600">{feature}</span>
-                  </div>
-                ))}
-              </div>
+                <div className="mb-6 space-y-2.5">
+                  {getPlanFeatures(
+                    plan.code,
+                    plan.pages_included,
+                    plan.automations_limit,
+                  ).map((feature, featureIndex) => (
+                    <div
+                      key={featureIndex}
+                      className="flex items-center gap-2.5 text-sm"
+                    >
+                      <Check
+                        className="size-4 flex-shrink-0 text-success"
+                        aria-hidden
+                      />
+                      <span className="text-foreground-muted">{feature}</span>
+                    </div>
+                  ))}
+                </div>
 
-              <Button 
-                onClick={() => handleSelectPlan(plan.code)}
-                disabled={createCheckoutSession.isPending}
-                className={`w-full ${
-                  plan.code === 'pro'
-                    ? 'lido-green hover:lido-green-dark text-white' 
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
-                }`}
-              >
-                {createCheckoutSession.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="w-4 h-4 mr-2" />
-                    Get Started
-                  </>
-                )}
-              </Button>
-            </div>
-          ))}
+                <Button
+                  onClick={() => handleSelectPlan(plan.code)}
+                  disabled={createCheckoutSession.isPending}
+                  variant={isPro ? 'default' : 'outline'}
+                  className="w-full"
+                >
+                  {createCheckoutSession.isPending ? (
+                    <>
+                      <Loader2
+                        className="mr-1.5 size-4 animate-spin"
+                        aria-hidden
+                      />
+                      Loading…
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="mr-1.5 size-4" aria-hidden />
+                      Get started
+                    </>
+                  )}
+                </Button>
+              </div>
+            )
+          })}
         </div>
 
-        <div className="text-center pt-4 border-t">
-          <p className="text-sm text-gray-600">
+        <div className="border-t border-border pt-4 text-center">
+          <p className="text-xs text-foreground-muted">
             All plans include automatic billing • Cancel anytime
           </p>
         </div>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

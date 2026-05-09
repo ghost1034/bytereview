@@ -101,13 +101,16 @@ module.exports = {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        // Marketing back-compat aliases — point to primary so the old
-        // .lido-blue / .lido-green CSS classes can be retired without
-        // touching out-of-scope marketing pages.
-        "lido-blue": "hsl(var(--primary))",
-        "lido-blue-dark": "hsl(var(--primary))",
-        "lido-green": "hsl(var(--success))",
-        "lido-green-dark": "hsl(var(--success))",
+        // Marketing hero decorative tokens (used by components/marketing/marketing-hero.tsx).
+        // Same dark visual in both modes — gradient defines the hero, not the page theme.
+        "marketing-hero": {
+          from: "hsl(var(--marketing-hero-from))",
+          to: "hsl(var(--marketing-hero-to))",
+          foreground: "hsl(var(--marketing-hero-text))",
+          "foreground-muted": "hsl(var(--marketing-hero-text-muted))",
+          accent: "hsl(var(--marketing-hero-accent))",
+          border: "hsl(var(--marketing-hero-border))",
+        },
       },
       boxShadow: {
         xs: "var(--shadow-xs)",

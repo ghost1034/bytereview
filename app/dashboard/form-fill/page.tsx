@@ -3,20 +3,30 @@
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PageHeader } from '@/components/ui/page-header'
+import { Section } from '@/components/ui/section'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   apiClient,
   type FormFillExtractionSourcePreview,
   type FormFillRun,
-  type FormFillTemplate,
 } from '@/lib/api'
 import { useToast } from '@/hooks/use-toast'
+import { cn } from '@/lib/utils'
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 const TERMINAL_RUN_STATUSES = new Set(['completed', 'completed_with_errors', 'failed'])
@@ -288,27 +298,32 @@ export default function FormFillPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Form Fill</h1>
-        <p className="text-muted-foreground">
-          Upload supporting information and a PDF or DOCX target, or send one selected extraction result directly into Form Fill.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        title="Form Fill"
+        description="Drop in supporting information and a PDF or DOCX target — the AI fills it out for you."
+      />
 
-      <Card data-tour="form-fill-source">
-        <CardHeader>
-          <CardTitle>Source</CardTitle>
-          <CardDescription>The information used to fill the target document.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <Section
+        variant="card"
+        title="Source"
+        description="The information used to fill the target document."
+        contentClassName=""
+      >
+        <div data-tour="form-fill-source" className="space-y-4">
           {hasExtractionSource && (
-            <div className="flex gap-2">
-              <Button variant={sourceMode === 'extraction' ? 'default' : 'outline'} onClick={() => setSourceMode('extraction')}>
-                Extraction Results
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={sourceMode === 'extraction' ? 'default' : 'outline'}
+                onClick={() => setSourceMode('extraction')}
+              >
+                Extraction results
               </Button>
-              <Button variant={sourceMode === 'upload' ? 'default' : 'outline'} onClick={() => setSourceMode('upload')}>
-                Upload Files
+              <Button
+                variant={sourceMode === 'upload' ? 'default' : 'outline'}
+                onClick={() => setSourceMode('upload')}
+              >
+                Upload files
               </Button>
             </div>
           )}
@@ -323,14 +338,21 @@ export default function FormFillPage() {
                 accept=".csv,.xlsx,.pdf,.docx"
                 onChange={(event) => setSourceFiles(Array.from(event.target.files || []))}
               />
-              <p className="text-sm text-muted-foreground">Supported: CSV, XLSX, PDF, DOCX. Up to 10 source files, 100 MB total.</p>
+              <p className="text-xs text-foreground-muted">
+                Supported: CSV, XLSX, PDF, DOCX. Up to 10 source files, 100 MB total.
+              </p>
               {sourceFiles.length > 0 && (
-                <div className="rounded-md border divide-y">
+                <div className="rounded-md border border-border bg-surface-raised divide-y divide-border">
                   {sourceFiles.map((file, index) => (
-                    <div key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                    <div
+                      key={`${file.name}-${file.lastModified}-${index}`}
+                      className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                    >
                       <div className="min-w-0">
-                        <div className="font-medium truncate">{file.name}</div>
-                        <div className="text-muted-foreground">{mimeToExtension(file.type)} · {formatBytes(file.size)}</div>
+                        <div className="font-medium truncate text-foreground">{file.name}</div>
+                        <div className="text-xs text-foreground-muted">
+                          {mimeToExtension(file.type)} · {formatBytes(file.size)}
+                        </div>
                       </div>
                       <Button
                         type="button"
@@ -346,30 +368,42 @@ export default function FormFillPage() {
               )}
             </div>
           ) : (
-            <div className="rounded-lg border p-4 space-y-3 bg-slate-50">
-              <div className="font-medium">Selected extraction result</div>
-              <div className="text-sm text-muted-foreground">
-                Job run `{sourceRunId}` task `{sourceTaskId}`
+            <div className="rounded-lg border border-border bg-surface-muted p-4 space-y-3">
+              <div className="text-sm font-medium text-foreground">Selected extraction result</div>
+              <div className="text-xs text-foreground-muted">
+                Job run <code className="font-mono">{sourceRunId}</code> task{' '}
+                <code className="font-mono">{sourceTaskId}</code>
               </div>
               {extractionPreview ? (
                 <>
-                  <div className="text-sm">
-                    Source files: {extractionPreview.source_files.length ? extractionPreview.source_files.join(', ') : '(manual rows)'}
+                  <div className="text-sm text-foreground">
+                    Source files:{' '}
+                    {extractionPreview.source_files.length
+                      ? extractionPreview.source_files.join(', ')
+                      : '(manual rows)'}
                   </div>
-                  <div className="overflow-x-auto rounded border bg-white">
+                  <div className="overflow-x-auto rounded-md border border-border bg-surface-raised">
                     <table className="min-w-full text-sm">
-                      <thead className="bg-muted/50">
+                      <thead className="bg-surface-muted">
                         <tr>
                           {extractionPreview.columns.map((column) => (
-                            <th key={column} className="text-left px-3 py-2 font-medium">{column}</th>
+                            <th
+                              key={column}
+                              className="text-left px-3 py-2 font-medium text-foreground-muted"
+                            >
+                              {column}
+                            </th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {extractionPreview.rows.slice(0, 5).map((row, rowIndex) => (
-                          <tr key={rowIndex} className="border-t">
+                          <tr key={rowIndex} className="border-t border-border">
                             {extractionPreview.columns.map((column, columnIndex) => (
-                              <td key={`${column}-${rowIndex}`} className="px-3 py-2 align-top">
+                              <td
+                                key={`${column}-${rowIndex}`}
+                                className="px-3 py-2 align-top text-foreground"
+                              >
                                 {String(row[columnIndex] ?? '')}
                               </td>
                             ))}
@@ -379,29 +413,37 @@ export default function FormFillPage() {
                     </table>
                   </div>
                   {extractionPreview.rows.length > 5 && (
-                    <p className="text-xs text-muted-foreground">Showing first 5 rows of {extractionPreview.rows.length}.</p>
+                    <p className="text-xs text-foreground-subtle">
+                      Showing first 5 rows of {extractionPreview.rows.length}.
+                    </p>
                   )}
                 </>
               ) : (
-                <div className="text-sm text-muted-foreground">Loading extraction preview…</div>
+                <div className="text-sm text-foreground-muted">Loading extraction preview…</div>
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </Section>
 
-      <Card data-tour="form-fill-target">
-        <CardHeader>
-          <CardTitle>Target</CardTitle>
-          <CardDescription>The PDF or DOCX to fill.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Button variant={targetMode === 'upload' ? 'default' : 'outline'} onClick={() => setTargetMode('upload')}>
-              Upload Target
+      <Section
+        variant="card"
+        title="Target"
+        description="The PDF or DOCX to fill."
+      >
+        <div data-tour="form-fill-target" className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={targetMode === 'upload' ? 'default' : 'outline'}
+              onClick={() => setTargetMode('upload')}
+            >
+              Upload target
             </Button>
-            <Button variant={targetMode === 'template' ? 'default' : 'outline'} onClick={() => setTargetMode('template')}>
-              Saved Template
+            <Button
+              variant={targetMode === 'template' ? 'default' : 'outline'}
+              onClick={() => setTargetMode('template')}
+            >
+              Saved template
             </Button>
           </div>
 
@@ -417,11 +459,10 @@ export default function FormFillPage() {
                 />
               </div>
 
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
+              <label className="flex items-center gap-2 text-sm text-foreground">
+                <Checkbox
                   checked={saveAsTemplate}
-                  onChange={(event) => setSaveAsTemplate(event.target.checked)}
+                  onCheckedChange={(checked) => setSaveAsTemplate(checked === true)}
                 />
                 Save this target as a reusable Form Fill template
               </label>
@@ -430,7 +471,11 @@ export default function FormFillPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="template-name">Template name</Label>
-                    <Input id="template-name" value={templateName} onChange={(event) => setTemplateName(event.target.value)} />
+                    <Input
+                      id="template-name"
+                      value={templateName}
+                      onChange={(event) => setTemplateName(event.target.value)}
+                    />
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="template-description">Template description</Label>
@@ -447,33 +492,37 @@ export default function FormFillPage() {
           ) : (
             <div className="space-y-2">
               <Label htmlFor="template-select">Saved target template</Label>
-              <select
-                id="template-select"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={selectedTemplateId}
-                onChange={(event) => setSelectedTemplateId(event.target.value)}
+              <Select
+                value={selectedTemplateId || undefined}
+                onValueChange={(value) => setSelectedTemplateId(value)}
               >
-                <option value="">Select a template</option>
-                {templates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name} ({mimeToExtension(template.file_type)})
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="template-select">
+                  <SelectValue placeholder="Select a template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name} ({mimeToExtension(template.file_type)})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {selectedTemplate && (
-                <div className="text-sm text-muted-foreground">
+                <p className="text-xs text-foreground-muted">
                   {selectedTemplate.original_filename}
-                  {selectedTemplate.description ? ` - ${selectedTemplate.description}` : ''}
-                </div>
+                  {selectedTemplate.description ? ` — ${selectedTemplate.description}` : ''}
+                </p>
               )}
               {targetMode === 'template' && templates.length === 0 && (
-                <p className="text-sm text-muted-foreground">No saved templates yet. Upload a target and save it as a template first.</p>
+                <p className="text-xs text-foreground-muted">
+                  No saved templates yet. Upload a target and save it as a template first.
+                </p>
               )}
             </div>
           )}
 
           {targetMimeType === DOCX_MIME && (
-            <div className="flex items-start gap-3 rounded-md border p-4">
+            <div className="flex items-start gap-3 rounded-md border border-border bg-surface p-4">
               <Checkbox
                 id="allow-docx-table-expansion"
                 checked={allowDocxTableExpansion}
@@ -483,39 +532,42 @@ export default function FormFillPage() {
                 <Label htmlFor="allow-docx-table-expansion" className="text-sm font-medium">
                   Allow AI to add new rows or columns in the form
                 </Label>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-foreground-muted">
                   Use this when a DOCX table may need to grow to fit the extracted data.
                   {targetMode === 'upload' && saveAsTemplate ? ' This setting will be saved on the template.' : ''}
                 </p>
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </Section>
 
-      <Card data-tour="form-fill-run">
-        <CardHeader>
-          <CardTitle>Output</CardTitle>
-          <CardDescription>Output format follows the target by default.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-col gap-2">
+      <Section
+        variant="card"
+        title="Output"
+        description="Output format follows the target by default."
+      >
+        <div data-tour="form-fill-run" className="space-y-5">
+          <div className="space-y-2">
             <Label htmlFor="output-format">Output format</Label>
-            <select
-              id="output-format"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm max-w-xs"
+            <Select
               value={outputFormat}
-              onChange={(event) => setOutputFormat(event.target.value as 'pdf' | 'docx')}
+              onValueChange={(value) => setOutputFormat(value as 'pdf' | 'docx')}
             >
-              {targetMimeType === DOCX_MIME ? (
-                <>
-                  <option value="docx">DOCX</option>
-                  <option value="pdf">PDF</option>
-                </>
-              ) : (
-                <option value="pdf">PDF</option>
-              )}
-            </select>
+              <SelectTrigger id="output-format" className="max-w-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {targetMimeType === DOCX_MIME ? (
+                  <>
+                    <SelectItem value="docx">DOCX</SelectItem>
+                    <SelectItem value="pdf">PDF</SelectItem>
+                  </>
+                ) : (
+                  <SelectItem value="pdf">PDF</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -537,97 +589,126 @@ export default function FormFillPage() {
                 Fill once per row (special)
               </Button>
             </div>
-            <p className="text-sm text-muted-foreground">
-              "Fill once per row" fills the form once for each row and downloads a ZIP of filled documents.
+            <p className="text-xs text-foreground-muted">
+              &ldquo;Fill once per row&rdquo; fills the form once for each row and downloads a ZIP of filled documents.
             </p>
             {!repeatModeSupported && sourceMode === 'upload' && sourceFiles.length > 0 && (
-              <p className="text-sm text-amber-700">Row mode currently requires exactly one CSV or XLSX source file.</p>
+              <p className="text-xs text-warning">
+                Row mode currently requires exactly one CSV or XLSX source file.
+              </p>
             )}
           </div>
 
           <Button onClick={handleCreate} disabled={!canSubmit}>
             {creating ? 'Starting…' : 'Run Form Fill'}
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </Section>
 
       {recentRuns.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Form Fill Runs</CardTitle>
-            <CardDescription>Persisted runs stay available after you leave this page.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="rounded-md border divide-y">
-              {recentRuns.map((run) => {
-                const isSelected = run.id === currentRunId
-                const isDownloadReady = run.status === 'completed' || run.status === 'completed_with_errors'
-                return (
-                  <div key={run.id} className="flex flex-col gap-3 px-3 py-3 text-sm md:flex-row md:items-center md:justify-between">
-                    <button
+        <Section
+          variant="card"
+          title="Recent Form Fill runs"
+          description="Persisted runs stay available after you leave this page."
+        >
+          <div className="rounded-md border border-border bg-surface-raised divide-y divide-border">
+            {recentRuns.map((run) => {
+              const isSelected = run.id === currentRunId
+              const isDownloadReady =
+                run.status === 'completed' || run.status === 'completed_with_errors'
+              return (
+                <div
+                  key={run.id}
+                  className={cn(
+                    'flex flex-col gap-3 px-3 py-3 text-sm md:flex-row md:items-center md:justify-between',
+                    isSelected && 'bg-primary-soft/40',
+                  )}
+                >
+                  <button
+                    type="button"
+                    aria-label={`Select form-fill run ${run.target_filename}`}
+                    className="min-w-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+                    onClick={() => selectRun(run.id)}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium truncate text-foreground">
+                        {run.target_filename}
+                      </span>
+                      {isSelected && (
+                        <span className="rounded-full bg-primary-soft px-2 py-0.5 text-xs text-primary-soft-foreground">
+                          Selected
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 text-xs text-foreground-muted">
+                      {formatStatus(run.status)} · {formatDateTime(run.created_at)}
+                      {run.repeat_mode === 'source_rows'
+                        ? ` · ${run.completed_outputs}/${run.total_outputs} completed`
+                        : ''}
+                    </div>
+                  </button>
+                  <div className="flex shrink-0 gap-2">
+                    <Button
                       type="button"
-                      className="min-w-0 text-left"
+                      variant={isSelected ? 'default' : 'outline'}
+                      size="sm"
                       onClick={() => selectRun(run.id)}
                     >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium truncate">{run.target_filename}</span>
-                        {isSelected && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">Selected</span>}
-                      </div>
-                      <div className="mt-1 text-muted-foreground">
-                        {formatStatus(run.status)} · {formatDateTime(run.created_at)}
-                        {run.repeat_mode === 'source_rows' ? ` · ${run.completed_outputs}/${run.total_outputs} completed` : ''}
-                      </div>
-                    </button>
-                    <div className="flex shrink-0 gap-2">
-                      <Button type="button" variant={isSelected ? 'default' : 'outline'} size="sm" onClick={() => selectRun(run.id)}>
-                        View
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={!isDownloadReady || downloadingRunId === run.id}
-                        onClick={() => handleDownload(run.id)}
-                      >
-                        {downloadingRunId === run.id ? 'Downloading…' : 'Download'}
-                      </Button>
-                    </div>
+                      View
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!isDownloadReady || downloadingRunId === run.id}
+                      onClick={() => handleDownload(run.id)}
+                    >
+                      {downloadingRunId === run.id ? 'Downloading…' : 'Download'}
+                    </Button>
                   </div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                </div>
+              )
+            })}
+          </div>
+        </Section>
       )}
 
       {(currentRun || currentRunId) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Run Status</CardTitle>
-            <CardDescription>Background processing status for the current Form Fill run.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="text-sm">
-              <span className="font-medium">Run ID:</span> {currentRun?.id || currentRunId}
+        <Section
+          variant="card"
+          title="Run status"
+          description="Background processing status for the current Form Fill run."
+        >
+          <div className="space-y-3 text-sm">
+            <div>
+              <span className="font-medium text-foreground">Run ID:</span>{' '}
+              <span className="text-foreground-muted">{currentRun?.id || currentRunId}</span>
             </div>
-            <div className="text-sm">
-              <span className="font-medium">Status:</span> {currentRun?.status || 'pending'}
+            <div>
+              <span className="font-medium text-foreground">Status:</span>{' '}
+              <span className="text-foreground-muted">{currentRun?.status || 'pending'}</span>
             </div>
             {currentRun && currentRun.repeat_mode === 'source_rows' && (
-              <div className="text-sm">
-                <span className="font-medium">Progress:</span> {currentRun.completed_outputs} of {currentRun.total_outputs} completed
-                {currentRun.failed_outputs > 0 ? `, ${currentRun.failed_outputs} failed` : ''}
+              <div>
+                <span className="font-medium text-foreground">Progress:</span>{' '}
+                <span className="text-foreground-muted">
+                  {currentRun.completed_outputs} of {currentRun.total_outputs} completed
+                  {currentRun.failed_outputs > 0 ? `, ${currentRun.failed_outputs} failed` : ''}
+                </span>
               </div>
             )}
             {currentRun?.processing_strategy && (
-              <div className="text-sm">
-                <span className="font-medium">Strategy:</span> {formatStrategy(currentRun.processing_strategy)}
+              <div>
+                <span className="font-medium text-foreground">Strategy:</span>{' '}
+                <span className="text-foreground-muted">
+                  {formatStrategy(currentRun.processing_strategy)}
+                </span>
               </div>
             )}
             {currentRun?.warnings?.length ? (
               <div className="space-y-1">
-                <div className="font-medium text-sm">Warnings</div>
-                <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+                <div className="font-medium text-foreground text-sm">Warnings</div>
+                <ul className="list-disc pl-5 space-y-1 text-foreground-muted">
                   {currentRun.warnings.map((warning, index) => (
                     <li key={`${warning}-${index}`}>{warning}</li>
                   ))}
@@ -635,17 +716,27 @@ export default function FormFillPage() {
               </div>
             ) : null}
             {currentRun?.error_message && (
-              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                {currentRun.error_message}
-              </div>
+              <Alert variant="destructive">
+                <AlertDescription>{currentRun.error_message}</AlertDescription>
+              </Alert>
             )}
-            {(currentRun?.status === 'completed' || currentRun?.status === 'completed_with_errors') && (
-              <Button onClick={() => handleDownload(currentRun.id)} disabled={downloadingRunId === currentRun.id}>
-                {downloadingRunId === currentRun.id ? 'Downloading…' : `Download ${currentRun.repeat_mode === 'source_rows' ? 'ZIP' : currentRun.result_filename || 'Result'}`}
+            {(currentRun?.status === 'completed' ||
+              currentRun?.status === 'completed_with_errors') && (
+              <Button
+                onClick={() => handleDownload(currentRun.id)}
+                disabled={downloadingRunId === currentRun.id}
+              >
+                {downloadingRunId === currentRun.id
+                  ? 'Downloading…'
+                  : `Download ${
+                      currentRun.repeat_mode === 'source_rows'
+                        ? 'ZIP'
+                        : currentRun.result_filename || 'Result'
+                    }`}
               </Button>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </Section>
       )}
     </div>
   )

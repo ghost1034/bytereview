@@ -1,237 +1,255 @@
 'use client'
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { CreditCard, Calendar, Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { useBillingAccount, useCreatePortalSession, useSubscriptionPlans } from "@/hooks/useBilling";
-import SubscriptionModal from "./SubscriptionModal";
+import { useState } from 'react'
+import { Calendar, CreditCard, Loader2 } from 'lucide-react'
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Section } from '@/components/ui/section'
+import {
+  useBillingAccount,
+  useCreatePortalSession,
+  useSubscriptionPlans,
+} from '@/hooks/useBilling'
+import { useToast } from '@/hooks/use-toast'
+import SubscriptionModal from './SubscriptionModal'
 
 export default function SubscriptionManager() {
-  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
-  const [isCancelling, setIsCancelling] = useState(false);
-  const { toast } = useToast();
-  
-  const { data: billingAccount, isLoading, error } = useBillingAccount();
-  const { data: plans } = useSubscriptionPlans();
-  const createPortalSession = useCreatePortalSession();
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false)
+  const [isCancelling, setIsCancelling] = useState(false)
+  const { toast } = useToast()
 
-  const handleManageSubscription = () => {
-    if (!billingAccount?.stripe_customer_id) {
-      toast({
-        title: "No subscription found",
-        description: "You don't have an active subscription to manage.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    createPortalSession.mutate({
-      return_url: window.location.href
-    });
-  };
+  const { data: billingAccount, isLoading, error } = useBillingAccount()
+  const { data: plans } = useSubscriptionPlans()
+  const createPortalSession = useCreatePortalSession()
 
   const handleCancelSubscription = async () => {
-    setIsCancelling(true);
+    setIsCancelling(true)
     try {
-      // Use the portal session for cancellation
-      createPortalSession.mutate({
-        return_url: window.location.href
-      });
-    } catch (error) {
+      createPortalSession.mutate({ return_url: window.location.href })
+    } catch {
       toast({
-        title: "Error",
-        description: "Failed to open subscription management. Please try again.",
-        variant: "destructive",
-      });
+        title: 'Error',
+        description:
+          'Failed to open subscription management. Please try again.',
+        variant: 'destructive',
+      })
     } finally {
-      setIsCancelling(false);
+      setIsCancelling(false)
     }
-  };
+  }
 
-  const getStatusColor = (status: string) => {
+  const getStatusVariant = (status: string) => {
     switch (status) {
-      case 'active': return 'default';
-      case 'past_due': return 'destructive';
-      case 'canceled': return 'secondary';
-      default: return 'secondary';
+      case 'active':
+        return 'default'
+      case 'past_due':
+        return 'destructive'
+      default:
+        return 'secondary'
     }
-  };
+  }
 
   const getPlanPrice = (planCode: string) => {
-    const plan = plans?.find(p => p.code === planCode);
-    if (!plan?.stripe_price_recurring_id) return null;
-    
+    const plan = plans?.find((p) => p.code === planCode)
+    if (!plan?.stripe_price_recurring_id) return null
     switch (planCode) {
-      case 'basic': return '$9.99';
-      case 'pro': return '$49.99';
-      default: return null;
+      case 'basic':
+        return '$9.99'
+      case 'pro':
+        return '$49.99'
+      default:
+        return null
     }
-  };
+  }
 
   if (isLoading) {
     return (
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <CreditCard className="w-5 h-5" />
-            <span>Subscription</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-2">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <p className="text-gray-600">Loading subscription details...</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
+      <Section
+        variant="card"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <CreditCard className="size-4 text-foreground-muted" aria-hidden />
+            Subscription
+          </span>
+        }
+      >
+        <div className="flex items-center gap-2 text-sm text-foreground-muted">
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+          Loading subscription details…
+        </div>
+      </Section>
+    )
   }
 
   if (error || !billingAccount) {
     return (
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <CreditCard className="w-5 h-5" />
-            <span>Subscription</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-600">Unable to load subscription details</p>
-        </CardContent>
-      </Card>
-    );
+      <Section
+        variant="card"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <CreditCard className="size-4 text-foreground-muted" aria-hidden />
+            Subscription
+          </span>
+        }
+      >
+        <p className="text-sm text-foreground-muted">
+          Unable to load subscription details
+        </p>
+      </Section>
+    )
   }
 
-  if (billingAccount.plan_code === "free") {
+  if (billingAccount.plan_code === 'free') {
     return (
       <>
-        <Card>
-          <CardHeader>
-            <CardTitle>Subscription</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-6">
-              <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 mb-2">No Active Subscription</p>
-              <p className="text-sm text-gray-500 mb-6">
-                You're currently on the free plan ({billingAccount.pages_included} pages/month). Upgrade to unlock advanced features.
+        <Section variant="card" title="Subscription">
+          <div className="flex flex-col items-center gap-3 py-4 text-center">
+            <span
+              className="flex size-12 items-center justify-center rounded-full bg-surface-muted ring-1 ring-border"
+              aria-hidden
+            >
+              <CreditCard className="size-5 text-foreground-muted" />
+            </span>
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">
+                No active subscription
               </p>
-              
-              <Button 
-                onClick={() => setIsSubscriptionModalOpen(true)}
-                className="lido-green hover:lido-green-dark text-white"
-              >
-                Upgrade Plan
-              </Button>
+              <p className="text-xs text-foreground-muted">
+                You&apos;re on the free plan ({billingAccount.pages_included}{' '}
+                pages/month). Upgrade to unlock advanced features.
+              </p>
             </div>
-          </CardContent>
-        </Card>
+            <Button onClick={() => setIsSubscriptionModalOpen(true)}>
+              Upgrade plan
+            </Button>
+          </div>
+        </Section>
 
-        <SubscriptionModal 
-          isOpen={isSubscriptionModalOpen} 
-          onClose={() => setIsSubscriptionModalOpen(false)} 
+        <SubscriptionModal
+          isOpen={isSubscriptionModalOpen}
+          onClose={() => setIsSubscriptionModalOpen(false)}
         />
       </>
-    );
+    )
   }
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <CreditCard className="w-5 h-5" />
-            <span>Active Subscription</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <Section
+        variant="card"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <CreditCard className="size-4 text-foreground-muted" aria-hidden />
+            Active subscription
+          </span>
+        }
+      >
+        <div className="space-y-3.5">
           <div className="flex items-center justify-between">
-            <span className="text-gray-700">Status</span>
-            <Badge variant={getStatusColor(billingAccount.status)}>
-              {billingAccount.status === 'active' ? 'Active' : 
-               billingAccount.status === 'incomplete' ? 'Payment Pending' : 
-               billingAccount.status}
+            <span className="text-sm text-foreground-muted">Status</span>
+            <Badge variant={getStatusVariant(billingAccount.status)}>
+              {billingAccount.status === 'active'
+                ? 'Active'
+                : billingAccount.status === 'incomplete'
+                  ? 'Payment Pending'
+                  : billingAccount.status}
             </Badge>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <span className="text-gray-700">Plan</span>
-            <span className="font-medium">{billingAccount.plan_display_name}</span>
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-gray-700">Page Limit</span>
-            <span className="font-medium">
-              {billingAccount.pages_included === 999999 ? 'Unlimited' : billingAccount.pages_included} pages/month
+            <span className="text-sm text-foreground-muted">Plan</span>
+            <span className="text-sm font-medium text-foreground">
+              {billingAccount.plan_display_name}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-foreground-muted">Page limit</span>
+            <span className="text-sm font-medium tabular-nums text-foreground">
+              {billingAccount.pages_included === 999999
+                ? 'Unlimited'
+                : `${billingAccount.pages_included} pages/mo`}
             </span>
           </div>
 
           {getPlanPrice(billingAccount.plan_code) && (
             <div className="flex items-center justify-between">
-              <span className="text-gray-700">Price</span>
-              <span className="font-medium">
+              <span className="text-sm text-foreground-muted">Price</span>
+              <span className="text-sm font-medium text-foreground">
                 {getPlanPrice(billingAccount.plan_code)}/month
               </span>
             </div>
           )}
-          
+
           <div className="flex items-center justify-between">
-            <span className="text-gray-700">Next billing</span>
-            <div className="flex items-center space-x-1">
-              <Calendar className="w-4 h-4 text-gray-400" />
-              <span className="text-sm">
-                {billingAccount.current_period_end ? 
-                  new Date(billingAccount.current_period_end).toLocaleDateString() : 
-                  'Not available'
-                }
-              </span>
-            </div>
+            <span className="text-sm text-foreground-muted">Next billing</span>
+            <span className="inline-flex items-center gap-1 text-sm text-foreground">
+              <Calendar
+                className="size-3.5 text-foreground-subtle"
+                aria-hidden
+              />
+              {billingAccount.current_period_end
+                ? new Date(
+                    billingAccount.current_period_end,
+                  ).toLocaleDateString()
+                : 'Not available'}
+            </span>
           </div>
 
-          {billingAccount.stripe_subscription_id && billingAccount.status === 'active' && (
-            <div className="pt-4 border-t">
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className="w-full text-red-600 border-red-200 hover:bg-red-50"
-                    disabled={isCancelling}
-                  >
-                    {isCancelling ? "Cancelling..." : "Cancel Subscription"}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Cancel Subscription</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to cancel your subscription? You'll lose access to premium features at the end of your current billing period.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
-                    <AlertDialogAction 
-                      onClick={handleCancelSubscription}
-                      className="bg-red-600 hover:bg-red-700"
+          {billingAccount.stripe_subscription_id &&
+            billingAccount.status === 'active' && (
+              <div className="border-t border-border pt-4">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full border-destructive/30 text-destructive hover:bg-destructive-soft hover:text-destructive"
+                      disabled={isCancelling}
                     >
-                      Yes, Cancel
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                      {isCancelling ? 'Cancelling…' : 'Cancel subscription'}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Cancel subscription</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to cancel your subscription?
+                        You&apos;ll lose access to premium features at the end
+                        of your current billing period.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Keep subscription</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleCancelSubscription}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Yes, cancel
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
+        </div>
+      </Section>
 
-      <SubscriptionModal 
-        isOpen={isSubscriptionModalOpen} 
-        onClose={() => setIsSubscriptionModalOpen(false)} 
+      <SubscriptionModal
+        isOpen={isSubscriptionModalOpen}
+        onClose={() => setIsSubscriptionModalOpen(false)}
       />
     </>
-  );
+  )
 }

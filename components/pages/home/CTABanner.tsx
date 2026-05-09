@@ -1,72 +1,97 @@
 'use client'
 
-import { motion } from "framer-motion";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Check, ArrowRight } from "lucide-react";
-import { fadeInUp, staggerContainer, staggerChild, viewportOnce } from "@/lib/animations";
+import Link from 'next/link'
+import { motion } from 'framer-motion'
+import { ArrowRight, Check } from 'lucide-react'
+
+import { Button } from '@/components/ui/button'
+import {
+  staggerChild,
+  staggerContainer,
+  viewportOnce,
+} from '@/lib/animations'
 
 interface CTABannerProps {
-  onGetStarted: () => void;
+  onGetStarted: () => void
 }
 
 export default function CTABanner({ onGetStarted }: CTABannerProps) {
   return (
-    <section className="relative py-24 bg-gradient-to-br from-green-600 via-blue-600 to-blue-700 text-white overflow-hidden">
-      {/* Background accents */}
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-white/5 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-white/5 rounded-full blur-[80px] pointer-events-none" />
-
-      <motion.div
-        className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
-        variants={staggerContainer}
-        initial="hidden"
-        whileInView="visible"
-        viewport={viewportOnce}
-      >
-        <motion.h2 className="text-4xl md:text-5xl font-bold mb-4" variants={staggerChild}>
-          Ready to transform your workflow?
-        </motion.h2>
-        <motion.p className="text-xl text-white/85 mb-10 max-w-2xl mx-auto" variants={staggerChild}>
-          Join accounting firms, legal teams, and investment funds already saving hundreds of hours with CPAAutomation.
-        </motion.p>
-
-        <motion.div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8" variants={staggerChild}>
-          <Button
-            onClick={onGetStarted}
-            className="btn-shimmer bg-white text-green-700 hover:bg-gray-100 px-8 py-3 text-lg font-semibold"
-          >
-            Get Started Free
-            <ArrowRight className="w-5 h-5 ml-2" />
-          </Button>
-          <Link href="/demo">
-            <Button
-              variant="ghost"
-              className="border border-white/30 text-white hover:bg-white/10 hover:text-white px-8 py-3 text-lg"
-            >
-              See a Demo
-            </Button>
-          </Link>
-        </motion.div>
-
+    <section className="py-16 sm:py-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <motion.div
-          className="flex flex-wrap items-center justify-center gap-6 text-sm text-white/75"
-          variants={staggerChild}
+          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-marketing-hero-from to-marketing-hero-to px-6 py-16 text-center text-marketing-hero-foreground shadow-md sm:px-12 sm:py-20"
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportOnce}
         >
-          <div className="flex items-center space-x-1.5">
-            <Check className="w-4 h-4 text-green-300" />
-            <span>No credit card required</span>
-          </div>
-          <div className="flex items-center space-x-1.5">
-            <Check className="w-4 h-4 text-green-300" />
-            <span>100 free pages/month</span>
-          </div>
-          <div className="flex items-center space-x-1.5">
-            <Check className="w-4 h-4 text-green-300" />
-            <span>Setup in under 10 minutes</span>
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -top-32 right-0 size-[420px] rounded-full bg-marketing-hero-accent/15 blur-3xl"
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -bottom-40 left-0 size-[320px] rounded-full bg-marketing-hero-accent/10 blur-3xl"
+          />
+
+          <div className="relative mx-auto max-w-3xl space-y-6">
+            <motion.h2
+              className="text-balance text-4xl font-semibold tracking-tight sm:text-5xl"
+              variants={staggerChild}
+            >
+              Ready to transform your workflow?
+            </motion.h2>
+            <motion.p
+              className="mx-auto max-w-2xl text-balance text-lg text-marketing-hero-foreground-muted"
+              variants={staggerChild}
+            >
+              Join accounting firms, legal teams, and investment funds already
+              saving hundreds of hours with CPAAutomation.
+            </motion.p>
+
+            <motion.div
+              className="flex flex-col items-center justify-center gap-3 sm:flex-row"
+              variants={staggerChild}
+            >
+              <Button
+                onClick={onGetStarted}
+                size="lg"
+                className="btn-shimmer w-full bg-marketing-hero-foreground px-8 font-semibold text-marketing-hero-from hover:bg-marketing-hero-foreground/90 sm:w-auto"
+              >
+                Get started free
+                <ArrowRight className="ml-2 size-5" aria-hidden />
+              </Button>
+              <Button
+                asChild
+                variant="ghost"
+                size="lg"
+                className="w-full border border-marketing-hero-border bg-transparent px-8 text-marketing-hero-foreground hover:bg-marketing-hero-foreground/10 hover:text-marketing-hero-foreground sm:w-auto"
+              >
+                <Link href="/demo">See a demo</Link>
+              </Button>
+            </motion.div>
+
+            <motion.div
+              className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-marketing-hero-foreground-muted"
+              variants={staggerChild}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Check className="size-4 text-success" aria-hidden />
+                No credit card required
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Check className="size-4 text-success" aria-hidden />
+                100 free pages/month
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Check className="size-4 text-success" aria-hidden />
+                Setup in under 10 minutes
+              </span>
+            </motion.div>
           </div>
         </motion.div>
-      </motion.div>
+      </div>
     </section>
-  );
+  )
 }

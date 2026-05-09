@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { IconTile } from '@/components/ui/icon-tile';
 import { useToast } from '@/hooks/use-toast';
 import { useCreateTemplate } from '@/hooks/useExtraction';
 import { Globe, Lock, FileText, Plus } from 'lucide-react';
@@ -67,9 +67,7 @@ export default function TemplatePreviewModal({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-              <FileText className="w-5 h-5 text-purple-600" />
-            </div>
+            <IconTile icon={FileText} tone="brand" size="md" />
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <span>{template.name}</span>
@@ -91,7 +89,7 @@ export default function TemplatePreviewModal({
                 </Badge>
               </div>
               {template.description && (
-                <p className="text-sm text-gray-600 mt-1">{template.description}</p>
+                <p className="text-sm text-foreground-muted mt-1">{template.description}</p>
               )}
             </div>
             {template.is_public && (
@@ -112,12 +110,12 @@ export default function TemplatePreviewModal({
           {/* Template Info */}
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="font-medium text-gray-700">Fields:</span>
-              <span className="ml-2">{template.fields.length}</span>
+              <span className="font-medium text-foreground-muted">Fields:</span>
+              <span className="ml-2 tabular-nums text-foreground">{template.fields.length}</span>
             </div>
             <div>
-              <span className="font-medium text-gray-700">Created:</span>
-              <span className="ml-2">{new Date(template.created_at).toLocaleDateString()}</span>
+              <span className="font-medium text-foreground-muted">Created:</span>
+              <span className="ml-2 text-foreground">{new Date(template.created_at).toLocaleDateString()}</span>
             </div>
           </div>
 
@@ -126,39 +124,37 @@ export default function TemplatePreviewModal({
             <h3 className="text-lg font-semibold">Fields Configuration</h3>
             
             {template.fields.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <div className="text-center py-8 text-foreground-subtle">
+                <FileText className="w-12 h-12 mx-auto mb-4 text-foreground-subtle/50" />
                 <p>No fields configured in this template</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {template.fields.map((field, index) => (
-                  <Card key={index} className="border-l-4 border-l-purple-500">
-                    <CardContent className="p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Field Name</label>
-                          <p className="mt-1 text-sm bg-gray-50 p-2 rounded border">
-                            {field.name || <span className="text-gray-400">Not specified</span>}
-                          </p>
-                        </div>
-                        
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Data Type</label>
-                          <p className="mt-1 text-sm bg-gray-50 p-2 rounded border">
-                            {field.data_type}
-                          </p>
-                        </div>
-                        
-                        <div className="md:col-span-1">
-                          <label className="text-sm font-medium text-gray-700">AI Prompt</label>
-                          <p className="mt-1 text-sm bg-gray-50 p-2 rounded border min-h-[2.5rem] whitespace-pre-wrap break-words">
-                            {field.prompt || <span className="text-gray-400">Not specified</span>}
-                          </p>
-                        </div>
+                  <div key={index} className="rounded-lg border border-border bg-surface-raised border-l-4 border-l-primary p-4 shadow-xs">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-foreground-muted">Field name</label>
+                        <p className="mt-1 text-sm bg-surface-muted p-2 rounded border border-border text-foreground">
+                          {field.name || <span className="text-foreground-subtle">Not specified</span>}
+                        </p>
                       </div>
-                    </CardContent>
-                  </Card>
+
+                      <div>
+                        <label className="text-sm font-medium text-foreground-muted">Data type</label>
+                        <p className="mt-1 text-sm bg-surface-muted p-2 rounded border border-border text-foreground">
+                          {field.data_type}
+                        </p>
+                      </div>
+
+                      <div className="md:col-span-1">
+                        <label className="text-sm font-medium text-foreground-muted">AI prompt</label>
+                        <p className="mt-1 text-sm bg-surface-muted p-2 rounded border border-border min-h-[2.5rem] whitespace-pre-wrap break-words text-foreground">
+                          {field.prompt || <span className="text-foreground-subtle">Not specified</span>}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -166,13 +162,13 @@ export default function TemplatePreviewModal({
 
           {/* Usage Note */}
           {template.is_public && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-primary-soft border border-primary/15 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <Globe className="w-5 h-5 text-blue-600 mt-0.5" />
+                <Globe className="w-5 h-5 text-primary-soft-foreground mt-0.5" />
                 <div>
-                  <h4 className="font-medium text-blue-900">Public Template</h4>
-                  <p className="text-sm text-blue-800 mt-1">
-                    This template is available to all users. You can use it as a starting point 
+                  <h4 className="font-medium text-primary-soft-foreground">Public template</h4>
+                  <p className="text-sm text-primary-soft-foreground/80 mt-1">
+                    This template is available to all users. You can use it as a starting point
                     for your extraction jobs and customize the fields as needed.
                   </p>
                 </div>

@@ -1,221 +1,239 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import { Plus, Settings, Play, Pause, Trash2, Eye, Calendar, Clock } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
-import { useAutomations, useToggleAutomation, useDeleteAutomation } from "@/hooks/useAutomations"
-import { AutomationModal } from "./AutomationModal"
-import { AutomationRunsModal } from "./AutomationRunsModal"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-import { formatDistanceToNow } from "date-fns"
+import { useState } from 'react'
+import {
+  Calendar,
+  Clock,
+  Eye,
+  Pause,
+  Play,
+  Plus,
+  Settings,
+  Trash2,
+  Zap,
+} from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
+import { LoadingState } from '@/components/ui/loading-state'
+import { Section } from '@/components/ui/section'
+import {
+  useAutomations,
+  useDeleteAutomation,
+  useToggleAutomation,
+} from '@/hooks/useAutomations'
+import { AutomationModal } from './AutomationModal'
+import { AutomationRunsModal } from './AutomationRunsModal'
 
 export function AutomationList() {
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [runsModalOpen, setRunsModalOpen] = useState(false)
-  const [selectedAutomationId, setSelectedAutomationId] = useState<string | null>(null)
+  const [selectedAutomationId, setSelectedAutomationId] = useState<
+    string | null
+  >(null)
 
   const { data: automations, isLoading, error } = useAutomations()
   const toggleAutomation = useToggleAutomation()
   const deleteAutomation = useDeleteAutomation()
 
-  const handleEdit = (automationId: string) => {
-    setSelectedAutomationId(automationId)
+  const handleEdit = (id: string) => {
+    setSelectedAutomationId(id)
     setEditModalOpen(true)
   }
-
-  const handleViewRuns = (automationId: string) => {
-    setSelectedAutomationId(automationId)
+  const handleViewRuns = (id: string) => {
+    setSelectedAutomationId(id)
     setRunsModalOpen(true)
   }
-
-  const handleToggle = (automationId: string) => {
-    toggleAutomation.mutate(automationId)
-  }
-
-  const handleDelete = (automationId: string) => {
-    deleteAutomation.mutate(automationId)
-  }
-
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-4 w-96 mt-2" />
-          </div>
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <div className="grid gap-4">
-          {[1, 2, 3].map((i) => (
-            <Card key={i}>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2">
-                    <Skeleton className="h-6 w-48" />
-                    <Skeleton className="h-4 w-32" />
-                  </div>
-                  <Skeleton className="h-6 w-16" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-red-600">Failed to load automations. Please try again.</p>
-      </div>
-    )
-  }
+  const handleToggle = (id: string) => toggleAutomation.mutate(id)
+  const handleDelete = (id: string) => deleteAutomation.mutate(id)
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Automations</h1>
-          <p className="text-gray-600 mt-2">
-            Automated workflows that trigger when you receive emails with attachments
-          </p>
-        </div>
-        <Button onClick={() => setCreateModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Automation
+    <Section
+      variant="card"
+      title="Your automations"
+      description="Workflows that fire when matching documents arrive."
+      action={
+        <Button
+          onClick={() => setCreateModalOpen(true)}
+          size="sm"
+          disabled={isLoading}
+        >
+          <Plus className="mr-1.5 size-4" aria-hidden />
+          New automation
         </Button>
-      </div>
-
-      {!automations || automations.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-12">
-            <Settings className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Automations Yet</h3>
-            <p className="text-gray-600 mb-4">
-              Create automated workflows that trigger when you receive emails with attachments
-            </p>
+      }
+    >
+      {isLoading ? (
+        <LoadingState variant="list" rows={3} label="Loading automations" />
+      ) : error ? (
+        <ErrorState
+          title="Failed to load automations"
+          description="There was an issue loading your automations. Please try again."
+        />
+      ) : !automations || automations.length === 0 ? (
+        <EmptyState
+          icon={Zap}
+          title="No automations yet"
+          description="Create automated workflows that trigger when emails arrive at document@cpaautomation.ai."
+          action={
             <Button onClick={() => setCreateModalOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Your First Automation
+              <Plus className="mr-1.5 size-4" aria-hidden />
+              Create your first automation
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       ) : (
-        <div className="grid gap-4">
+        <div className="space-y-3">
           {automations.map((automation) => (
-            <Card key={automation.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                    <CardTitle className="flex items-center gap-2">
+            <div
+              key={automation.id}
+              className="rounded-lg border border-border bg-surface-raised p-4 shadow-xs transition-colors hover:border-border-strong"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-sm font-semibold text-foreground">
                       {automation.name}
-                      <Badge variant={automation.is_enabled ? "default" : "secondary"}>
-                        {automation.is_enabled ? "Enabled" : "Disabled"}
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription>
-                      Gmail trigger: {automation.trigger_config.query}
-                    </CardDescription>
+                    </h3>
+                    <Badge
+                      variant={
+                        automation.is_enabled ? 'default' : 'secondary'
+                      }
+                    >
+                      {automation.is_enabled ? 'Enabled' : 'Disabled'}
+                    </Badge>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleViewRuns(automation.id)}
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEdit(automation.id)}
-                    >
-                      <Settings className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleToggle(automation.id)}
-                      disabled={toggleAutomation.isPending}
-                    >
-                      {automation.is_enabled ? (
-                        <Pause className="w-4 h-4" />
-                      ) : (
-                        <Play className="w-4 h-4" />
-                      )}
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Automation</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete "{automation.name}"? This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDelete(automation.id)}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
+                  <p className="truncate text-xs text-foreground-muted">
+                    Gmail trigger:{' '}
+                    <span className="font-mono">
+                      {automation.trigger_config.query}
+                    </span>
+                  </p>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-4 text-sm text-gray-600">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      Created {formatDistanceToNow(new Date(automation.created_at), { addSuffix: true })}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      Updated {formatDistanceToNow(new Date(automation.updated_at), { addSuffix: true })}
-                    </div>
-                  </div>
-                  
-                  {automation.dest_type && (
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">
-                        Export to {automation.dest_type === 'gdrive' ? 'Google Drive' : 'Gmail'}
-                      </Badge>
-                      {automation.export_config?.folder_id && (
-                        <span className="text-sm text-gray-600">
-                          Folder: {automation.export_config.folder_id}
-                        </span>
-                      )}
-                      {automation.export_config?.to_email && (
-                        <span className="text-sm text-gray-600">
-                          Email: {automation.export_config.to_email}
-                        </span>
-                      )}
-                    </div>
+                <div className="flex items-center gap-0.5">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="View runs"
+                    className="size-8"
+                    onClick={() => handleViewRuns(automation.id)}
+                  >
+                    <Eye className="size-4" aria-hidden />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Edit automation"
+                    className="size-8"
+                    onClick={() => handleEdit(automation.id)}
+                  >
+                    <Settings className="size-4" aria-hidden />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={
+                      automation.is_enabled
+                        ? 'Disable automation'
+                        : 'Enable automation'
+                    }
+                    className="size-8"
+                    onClick={() => handleToggle(automation.id)}
+                    disabled={toggleAutomation.isPending}
+                  >
+                    {automation.is_enabled ? (
+                      <Pause className="size-4" aria-hidden />
+                    ) : (
+                      <Play className="size-4" aria-hidden />
+                    )}
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Delete automation"
+                        className="size-8 text-destructive/80 hover:text-destructive"
+                      >
+                        <Trash2 className="size-4" aria-hidden />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete automation</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete &ldquo;
+                          {automation.name}&rdquo;? This action cannot be
+                          undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(automation.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-foreground-muted">
+                <span className="inline-flex items-center gap-1">
+                  <Calendar className="size-3.5" aria-hidden />
+                  Created{' '}
+                  {formatDistanceToNow(new Date(automation.created_at), {
+                    addSuffix: true,
+                  })}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Clock className="size-3.5" aria-hidden />
+                  Updated{' '}
+                  {formatDistanceToNow(new Date(automation.updated_at), {
+                    addSuffix: true,
+                  })}
+                </span>
+              </div>
+
+              {automation.dest_type && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Badge variant="outline">
+                    Export to{' '}
+                    {automation.dest_type === 'gdrive'
+                      ? 'Google Drive'
+                      : 'Gmail'}
+                  </Badge>
+                  {automation.export_config?.folder_id && (
+                    <span className="text-xs text-foreground-muted">
+                      Folder: {automation.export_config.folder_id}
+                    </span>
+                  )}
+                  {automation.export_config?.to_email && (
+                    <span className="text-xs text-foreground-muted">
+                      Email: {automation.export_config.to_email}
+                    </span>
                   )}
                 </div>
-              </CardContent>
-            </Card>
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -239,6 +257,6 @@ export function AutomationList() {
           />
         </>
       )}
-    </div>
+    </Section>
   )
 }

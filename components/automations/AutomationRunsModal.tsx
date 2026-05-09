@@ -30,30 +30,30 @@ export function AutomationRunsModal({ automationId, open, onOpenChange }: Automa
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle className="w-4 h-4 text-green-600" />
+        return <CheckCircle className="w-4 h-4 text-success" aria-hidden />
       case 'failed':
-        return <XCircle className="w-4 h-4 text-red-600" />
+        return <XCircle className="w-4 h-4 text-destructive" aria-hidden />
       case 'running':
-        return <Play className="w-4 h-4 text-blue-600" />
+        return <Play className="w-4 h-4 text-info" aria-hidden />
       case 'pending':
-        return <Clock className="w-4 h-4 text-yellow-600" />
+        return <Clock className="w-4 h-4 text-warning" aria-hidden />
       default:
-        return <AlertCircle className="w-4 h-4 text-gray-600" />
+        return <AlertCircle className="w-4 h-4 text-foreground-muted" aria-hidden />
     }
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'bg-green-100 text-green-800'
+        return 'bg-success-soft text-success border-success/20'
       case 'failed':
-        return 'bg-red-100 text-red-800'
+        return 'bg-destructive-soft text-destructive border-destructive/20'
       case 'running':
-        return 'bg-blue-100 text-blue-800'
+        return 'bg-info-soft text-info border-info/20'
       case 'pending':
-        return 'bg-yellow-100 text-yellow-800'
+        return 'bg-warning-soft text-warning border-warning/20'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-surface-muted text-foreground-muted border-border'
     }
   }
 
@@ -108,10 +108,10 @@ export function AutomationRunsModal({ automationId, open, onOpenChange }: Automa
             </div>
           ) : !runs || runs.length === 0 ? (
             <div className="text-center py-12">
-              <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No runs yet</h3>
-              <p className="text-gray-600">
-                This automation hasn't been triggered yet. It will run automatically when matching emails are received.
+              <Clock className="w-12 h-12 text-foreground-subtle mx-auto mb-4" aria-hidden />
+              <h3 className="text-lg font-semibold mb-2 text-foreground">No runs yet</h3>
+              <p className="text-foreground-muted">
+                This automation hasn&apos;t been triggered yet. It will run automatically when matching emails are received.
               </p>
             </div>
           ) : (
@@ -131,32 +131,32 @@ export function AutomationRunsModal({ automationId, open, onOpenChange }: Automa
                           </Badge>
                         </div>
                         
-                        <div className="text-sm text-gray-600 space-y-1">
+                        <div className="text-sm text-foreground-muted space-y-1">
                           <div>
-                            <strong>Triggered:</strong> {format(new Date(run.triggered_at), 'PPp')}
+                            <strong className="text-foreground">Triggered:</strong> {format(new Date(run.triggered_at), 'PPp')}
                             {' '}({formatDistanceToNow(new Date(run.triggered_at), { addSuffix: true })})
                           </div>
-                          
+
                           {run.completed_at && (
                             <div>
-                              <strong>Completed:</strong> {format(new Date(run.completed_at), 'PPp')}
+                              <strong className="text-foreground">Completed:</strong> {format(new Date(run.completed_at), 'PPp')}
                               {getDuration(run) && (
-                                <span className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">
+                                <span className="ml-2 text-xs bg-surface-muted text-foreground px-2 py-1 rounded">
                                   Duration: {getDuration(run)}
                                 </span>
                               )}
                             </div>
                           )}
-                          
+
                           {run.error_message && (
-                            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-800 text-xs">
+                            <div className="mt-2 p-2 bg-destructive-soft border border-destructive/20 rounded text-destructive text-xs">
                               <strong>Error:</strong> {run.error_message}
                             </div>
                           )}
                         </div>
                       </div>
-                      
-                      <div className="text-right text-sm text-gray-500">
+
+                      <div className="text-right text-sm text-foreground-subtle">
                         <div>Run: {run.job_run_id?.slice?.(0, 8) ?? 'unknown'}</div>
                       </div>
                     </div>
@@ -168,8 +168,8 @@ export function AutomationRunsModal({ automationId, open, onOpenChange }: Automa
         </ScrollArea>
 
         {runs && runs.length > 0 && (
-          <div className="border-t pt-4">
-            <div className="flex justify-between text-sm text-gray-600">
+          <div className="border-t border-border pt-4">
+            <div className="flex justify-between text-sm text-foreground-muted">
               <span>Total runs: {runs.length}</span>
               <div className="flex gap-4">
                 <span>Completed: {runs.filter(r => r.status === 'completed').length}</span>

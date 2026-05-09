@@ -419,7 +419,6 @@ export default function PhoneVerificationForm({
                   type="button"
                   onClick={handleRefreshUser}
                   disabled={isSendingEmailVerification || isRefreshingUser}
-                  className="lido-blue hover:lido-blue-dark text-white"
                 >
                   {isRefreshingUser ? 'Checking...' : 'I Have Verified My Email'}
                 </Button>
@@ -445,7 +444,7 @@ export default function PhoneVerificationForm({
             </p>
           </div>
         ) : (
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+          <div className="rounded-lg border border-border bg-surface-muted p-4 text-sm text-foreground-muted">
             We will send a 6-digit sign-in code to {displayedPhoneNumber}.
           </div>
         )}
@@ -453,7 +452,7 @@ export default function PhoneVerificationForm({
         <Button
           type="submit"
           disabled={needsEmailVerification || isSendingCode || isVerifyingCode}
-          className="w-full lido-blue hover:lido-blue-dark text-white"
+          className="w-full"
         >
           {isSendingCode ? (
             <span className="inline-flex items-center gap-2">
@@ -489,7 +488,7 @@ export default function PhoneVerificationForm({
             </p>
           </div>
 
-          <Button type="submit" disabled={isSendingCode || isVerifyingCode} className="w-full lido-blue hover:lido-blue-dark text-white">
+          <Button type="submit" disabled={isSendingCode || isVerifyingCode} className="w-full">
             {isVerifyingCode ? (
               <span className="inline-flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />

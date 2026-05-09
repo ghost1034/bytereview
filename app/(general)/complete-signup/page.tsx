@@ -39,15 +39,15 @@ function CompleteSignupContent() {
 
   if (loading || !user || isPhoneMfaExempt || !requiresMfaEnrollment) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
-        <p className="text-sm text-gray-600">Preparing your account...</p>
+      <div className="flex min-h-screen items-center justify-center bg-surface px-4 py-12">
+        <p className="text-sm text-foreground-muted">Preparing your account…</p>
       </div>
     )
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
-      <Card className="w-full max-w-lg border-gray-200 shadow-sm">
+    <div className="flex min-h-screen items-center justify-center bg-surface px-4 py-12">
+      <Card className="w-full max-w-lg border-border shadow-sm">
         <CardHeader className="space-y-2 text-center">
           <CardTitle className="text-2xl">Secure your sign-in</CardTitle>
           <CardDescription>
@@ -68,8 +68,8 @@ function CompleteSignupContent() {
 
 function CompleteSignupFallback() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
-      <p className="text-sm text-gray-600">Preparing your account...</p>
+    <div className="flex min-h-screen items-center justify-center bg-surface px-4 py-12">
+      <p className="text-sm text-foreground-muted">Preparing your account…</p>
     </div>
   )
 }

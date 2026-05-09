@@ -342,17 +342,17 @@ export function GoogleDriveFolderPicker({
   const content = (
     <div className="space-y-4">
       {selectedFolder && (
-        <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
-          <Folder className="w-5 h-5 text-green-600" />
+        <div className="flex items-center gap-3 p-3 bg-success-soft rounded-lg border border-success/20">
+          <Folder className="w-5 h-5 text-success" aria-hidden />
           <div className="flex-1">
-            <p className="text-sm font-medium text-green-800">
-              Export Destination: {selectedFolder.name}
+            <p className="text-sm font-medium text-success">
+              Export destination: {selectedFolder.name}
             </p>
-            <p className="text-xs text-green-600">
+            <p className="text-xs text-success/80">
               Files will be saved to this Google Drive folder
             </p>
           </div>
-          <Badge variant="secondary" className="bg-green-100 text-green-800">
+          <Badge variant="outline" className="bg-success-soft text-success border-success/20">
             Selected
           </Badge>
         </div>

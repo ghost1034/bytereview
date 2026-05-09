@@ -357,61 +357,81 @@ export default function CpeTrackerPage() {
                     <Skeleton className="h-16 w-full" />
                   </>
                 ) : sheetsData?.sheets.length === 0 ? (
-                  <p className="text-center text-sm text-gray-500 py-8">
-                    No CPE sheets yet. Click "New" to create one.
+                  <p className="text-center text-sm text-foreground-muted py-8">
+                    No CPE sheets yet. Click &ldquo;New&rdquo; to create one.
                   </p>
                 ) : (
-                  sheetsData?.sheets.map((sheet) => (
-                    <div
-                      key={sheet.job_id}
-                      className={cn(
-                        'group flex items-center justify-between rounded-lg border p-3 cursor-pointer transition-colors',
-                        selectedJobId === sheet.job_id
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'hover:bg-gray-50'
-                      )}
-                      onClick={() => {
-                        router.replace(`/dashboard/cpe-tracker?job_id=${sheet.job_id}`)
-                        setActiveRunId(sheet.latest_run_id || undefined)
-                      }}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{sheet.name}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {sheet.state_name && (
-                            <span className="text-xs text-gray-500">{sheet.state_name}</span>
-                          )}
+                  sheetsData?.sheets.map((sheet) => {
+                    const isSelected = selectedJobId === sheet.job_id
+                    return (
+                      <div
+                        key={sheet.job_id}
+                        role="button"
+                        tabIndex={0}
+                        aria-current={isSelected ? 'true' : undefined}
+                        aria-label={`Open ${sheet.name}`}
+                        className={cn(
+                          'group flex items-center justify-between rounded-lg border p-3 cursor-pointer transition-colors',
+                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                          isSelected
+                            ? 'border-primary bg-primary-soft'
+                            : 'border-border hover:bg-surface-muted'
+                        )}
+                        onClick={() => {
+                          router.replace(`/dashboard/cpe-tracker?job_id=${sheet.job_id}`)
+                          setActiveRunId(sheet.latest_run_id || undefined)
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            router.replace(`/dashboard/cpe-tracker?job_id=${sheet.job_id}`)
+                            setActiveRunId(sheet.latest_run_id || undefined)
+                          }
+                        }}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className={cn(
+                            'font-medium truncate',
+                            isSelected ? 'text-primary-soft-foreground' : 'text-foreground',
+                          )}>{sheet.name}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            {sheet.state_name && (
+                              <span className="text-xs text-foreground-muted">{sheet.state_name}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Rename sheet"
+                            className="h-8 w-8"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setRenameTarget({ jobId: sheet.job_id, currentName: sheet.name })
+                              setRenameSheetName(sheet.name)
+                              setRenameDialogOpen(true)
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Delete sheet"
+                            className="h-8 w-8 text-destructive/80 hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setJobToDelete(sheet.job_id)
+                              setDeleteDialogOpen(true)
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setRenameTarget({ jobId: sheet.job_id, currentName: sheet.name })
-                            setRenameSheetName(sheet.name)
-                            setRenameDialogOpen(true)
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setJobToDelete(sheet.job_id)
-                            setDeleteDialogOpen(true)
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))
+                    )
+                  })
                 )}
               </div>
             </ScrollArea>
@@ -423,7 +443,7 @@ export default function CpeTrackerPage() {
         {/* Right Panel: Sheet Workspace */}
         <ResizablePanel defaultSize={75}>
           {!selectedJobId ? (
-            <div className="flex h-full items-center justify-center text-gray-500">
+            <div className="flex h-full items-center justify-center text-foreground-muted">
               Select a CPE sheet or create a new one to get started
             </div>
           ) : (
@@ -431,9 +451,9 @@ export default function CpeTrackerPage() {
               {/* Upload Panel */}
               <ResizablePanel defaultSize={40} minSize={30}>
                 <div className="flex h-full flex-col">
-                  <div className="border-b p-4">
-                    <h3 className="font-semibold">Upload Certificates</h3>
-                    <p className="text-sm text-gray-500">
+                  <div className="border-b border-border p-4">
+                    <h3 className="text-sm font-semibold text-foreground">Upload certificates</h3>
+                    <p className="text-xs text-foreground-muted mt-0.5">
                       Upload CPE certificates to extract data from
                     </p>
                   </div>
@@ -476,10 +496,10 @@ export default function CpeTrackerPage() {
               {/* Results Panel */}
               <ResizablePanel defaultSize={60}>
                 <div className="flex h-full flex-col">
-                  <div className="border-b p-4 flex items-center justify-between">
+                  <div className="border-b border-border p-4 flex items-center justify-between">
                     <div>
-                      <h3 className="font-semibold">Results</h3>
-                      <p className="text-sm text-gray-500">
+                      <h3 className="text-sm font-semibold text-foreground">Results</h3>
+                      <p className="text-xs text-foreground-muted mt-0.5">
                         Extracted CPE data from your certificates
                       </p>
                     </div>
@@ -522,7 +542,7 @@ export default function CpeTrackerPage() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteSheet}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteSheet.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

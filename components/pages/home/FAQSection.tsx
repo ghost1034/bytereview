@@ -1,62 +1,68 @@
 'use client'
 
-import { motion } from "framer-motion";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { fadeInUp, viewportOnce } from "@/lib/animations";
+import Link from 'next/link'
+import { motion } from 'framer-motion'
+
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { FaqAccordion } from '@/components/marketing/faq-accordion'
+import { fadeInUp, viewportOnce } from '@/lib/animations'
 
 interface FAQSectionProps {
-  onGetStarted: () => void;
+  onGetStarted: () => void
 }
 
-const faqs = [
+const FAQS = [
   {
-    question: "How accurate is the AI extraction?",
-    answer: "Our AI achieves 99%+ accuracy on structured documents like invoices and financial statements. For complex documents, accuracy typically ranges from 95-99%. You can always review and edit results before export.",
+    q: 'How accurate is the AI extraction?',
+    a: 'Our AI achieves 99%+ accuracy on structured documents like invoices and financial statements. For complex documents, accuracy typically ranges from 95-99%. You can always review and edit results before export.',
   },
   {
-    question: "What file types are supported?",
-    answer: "We support PDF, DOCX, XLSX, PPTX, TXT, CSV, and most image formats (PNG, JPG, TIFF). We can also process scanned documents and handle multi-page files with complex layouts.",
+    q: 'What file types are supported?',
+    a: 'We support PDF, DOCX, XLSX, PPTX, TXT, CSV, and most image formats (PNG, JPG, TIFF). We can also process scanned documents and handle multi-page files with complex layouts.',
   },
   {
-    question: "How does email automation work?",
-    answer: "Simply forward emails with PDF attachments to document@cpaautomation.ai. Our system matches your sender email to your account, applies your automation filters, and processes documents using your configured templates. Results are automatically exported to your chosen destination.",
+    q: 'How does email automation work?',
+    a: 'Simply forward emails with PDF attachments to document@cpaautomation.ai. Our system matches your sender email to your account, applies your automation filters, and processes documents using your configured templates. Results are automatically exported to your chosen destination.',
   },
   {
-    question: "Can I customize the extraction fields?",
-    answer: "Absolutely! You can create custom fields with your own prompts, data types, and formatting rules. Add accounting codes, classification rules, or any business-specific logic. Templates can be saved and reused across projects.",
+    q: 'Can I customize the extraction fields?',
+    a: 'Absolutely! You can create custom fields with your own prompts, data types, and formatting rules. Add accounting codes, classification rules, or any business-specific logic. Templates can be saved and reused across projects.',
   },
   {
-    question: "Is there a learning curve?",
-    answer: "CPAAutomation is designed for professionals who don't have time for complex training. Most users are extracting data within 10 minutes of signing up. Our CPA-designed interface follows familiar workflows.",
+    q: 'Is there a learning curve?',
+    a: "CPAAutomation is designed for professionals who don't have time for complex training. Most users are extracting data within 10 minutes of signing up. Our CPA-designed interface follows familiar workflows.",
   },
   {
-    question: "What about data security and privacy?",
-    answer: "Your data is encrypted in transit and at rest, hosted only in US data centers, and automatically deleted after processing. We never use your documents to train AI models. Our platform meets the security standards required by CPA firms and legal practices.",
+    q: 'What about data security and privacy?',
+    a: 'Your data is encrypted in transit and at rest, hosted only in US data centers, and automatically deleted after processing. We never use your documents to train AI models. Our platform meets the security standards required by CPA firms and legal practices.',
   },
   {
-    question: "What products are included in CPAAutomation?",
-    answer: "CPAAutomation includes Universal Document Analysis (extraction & automations), Inkwise (AI writing with grounded citations), a free CPE Tracker, and upcoming products: Chrona (time tracking), AI agents for accounting/finance/legal, an AI Analysis Suite, and an AI Productivity Suite.",
+    q: 'What products are included in CPAAutomation?',
+    a: 'CPAAutomation includes Universal Document Analysis (extraction & automations), Inkwise (AI writing with grounded citations), a free CPE Tracker, and upcoming products: Chrona (time tracking), AI agents for accounting/finance/legal, an AI Analysis Suite, and an AI Productivity Suite.',
   },
-];
+]
 
 export default function FAQSection({ onGetStarted }: FAQSectionProps) {
   return (
-    <section className="py-24 bg-white">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="bg-background py-24">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         <motion.div
-          className="text-center mb-12"
+          className="mb-12 text-center"
           variants={fadeInUp}
           initial="hidden"
           whileInView="visible"
           viewport={viewportOnce}
         >
-          <span className="inline-block text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-full mb-4">
+          <Badge variant="secondary" className="mb-4 rounded-full">
             FAQ
-          </span>
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">Frequently Asked Questions</h2>
-          <p className="text-lg text-gray-600">Everything you need to know about CPAAutomation</p>
+          </Badge>
+          <h2 className="text-balance text-4xl font-semibold tracking-tight text-foreground">
+            Frequently asked questions
+          </h2>
+          <p className="mt-3 text-lg text-foreground-muted">
+            Everything you need to know about CPAAutomation
+          </p>
         </motion.div>
 
         <motion.div
@@ -65,42 +71,32 @@ export default function FAQSection({ onGetStarted }: FAQSectionProps) {
           whileInView="visible"
           viewport={viewportOnce}
         >
-          <Accordion type="single" collapsible className="w-full space-y-2">
-            {faqs.map((faq, i) => (
-              <AccordionItem
-                key={i}
-                value={`faq-${i}`}
-                className="bg-gray-50 rounded-xl border border-gray-200 px-5 data-[state=open]:bg-white data-[state=open]:shadow-sm transition-colors"
-              >
-                <AccordionTrigger className="text-left text-base font-semibold text-gray-900 hover:no-underline py-4">
-                  {faq.question}
-                </AccordionTrigger>
-                <AccordionContent className="text-gray-600 pb-4 leading-relaxed">
-                  {faq.answer}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+          <FaqAccordion items={FAQS} />
         </motion.div>
 
         <motion.div
-          className="text-center mt-12"
+          className="mt-12 text-center"
           variants={fadeInUp}
           initial="hidden"
           whileInView="visible"
           viewport={viewportOnce}
         >
-          <p className="text-gray-600 mb-6">Still have questions? We&apos;re here to help.</p>
-          <div className="flex justify-center gap-4">
-            <Link href="/contact">
-              <Button variant="outline" className="border-gray-300">Contact Support</Button>
-            </Link>
-            <Button onClick={onGetStarted} className="bg-lido-green hover:bg-lido-green-dark text-white">
-              Start Free Plan →
+          <p className="mb-6 text-foreground-muted">
+            Still have questions? We&apos;re here to help.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Button asChild variant="outline">
+              <Link href="/contact">Contact support</Link>
+            </Button>
+            <Button
+              onClick={onGetStarted}
+              className="bg-success text-success-foreground hover:bg-success/90"
+            >
+              Start free plan →
             </Button>
           </div>
         </motion.div>
       </div>
     </section>
-  );
+  )
 }

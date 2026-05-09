@@ -49,10 +49,10 @@ export default function TemplateLibrary({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          My Template Library
+        <h3 className="text-lg font-semibold text-foreground mb-2">
+          My template library
         </h3>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-foreground-muted">
           Manage your saved extraction templates
         </p>
       </div>
@@ -67,20 +67,21 @@ export default function TemplateLibrary({
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">
+                    <h3 className="font-semibold text-foreground mb-1">
                       {template.name}
                     </h3>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-foreground-muted">
                       {template.description || "No description"}
                     </p>
                   </div>
                   <div className="flex items-center space-x-1">
                     {template.is_public && (
-                      <Star className="w-4 h-4 text-yellow-500" />
+                      <Star className="w-4 h-4 text-warning" />
                     )}
                     <Button
                       variant="ghost"
                       size="sm"
+                      aria-label="Delete template"
                       onClick={() => handleDeleteTemplate(template.id)}
                       disabled={deleteTemplateMutation.isPending}
                     >
@@ -89,7 +90,7 @@ export default function TemplateLibrary({
                   </div>
                 </div>
 
-                <div className="space-y-2 text-xs text-gray-500 mb-3">
+                <div className="space-y-1 text-xs text-foreground-subtle mb-3">
                   <p>Fields: {template.fields?.length || 0}</p>
                   <p>
                     Created:{" "}
@@ -105,7 +106,7 @@ export default function TemplateLibrary({
                     onClick={() => onTemplateSelect(template.id)}
                   >
                     <Edit className="w-4 h-4 mr-1" />
-                    Use Template
+                    Use template
                   </Button>
                 </div>
               </CardContent>
@@ -113,9 +114,9 @@ export default function TemplateLibrary({
           ))
         ) : (
           <div className="col-span-full text-center py-8">
-            <p className="text-gray-500">
+            <p className="text-foreground-muted">
               No templates created yet. Save your first template from the
-              Extract Data tab!
+              Extract Data tab.
             </p>
           </div>
         )}

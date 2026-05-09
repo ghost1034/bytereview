@@ -198,8 +198,8 @@ export default function TemplateModal({ isOpen, onClose, template, defaultTempla
               {dataTypesLoading ? (
                 <div className="flex min-h-[320px] items-center justify-center">
                   <div className="text-center">
-                    <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-purple-600"></div>
-                    <p className="text-gray-600">Loading field configuration...</p>
+                    <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
+                    <p className="text-foreground-muted">Loading field configuration...</p>
                   </div>
                 </div>
               ) : (

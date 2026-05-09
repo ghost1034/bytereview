@@ -1,39 +1,51 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Code, FileText, Zap, Database, Shield } from "lucide-react";
-import Link from "next/link";
+import Link from 'next/link'
+import { Database, FileText, Shield, Zap } from 'lucide-react'
 
-export default function Documentation() {
-  const apiEndpoints = [
-    {
-      method: "POST",
-      endpoint: "/api/jobs/initiate",
-      description: "Create a new job and request signed upload URLs",
-      params: ["files[]", "name"]
-    },
-    {
-      method: "GET",
-      endpoint: "/api/templates",
-      description: "List available templates",
-      params: []
-    },
-    {
-      method: "POST",
-      endpoint: "/api/jobs/{job_id}/files:initiate",
-      description: "Initiate uploads for an existing job run",
-      params: ["run_id", "files[]"]
-    },
-    {
-      method: "POST",
-      endpoint: "/api/jobs/{job_id}/start",
-      description: "Submit a configured job run for processing",
-      params: ["run_id", "fields", "task_definitions"]
-    }
-  ];
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { CodeBlock } from '@/components/marketing/code-block'
+import { FeatureCard } from '@/components/marketing/feature-card'
+import { IconTile } from '@/components/ui/icon-tile'
+import { MarketingHero } from '@/components/marketing/marketing-hero'
+import { Section } from '@/components/ui/section'
 
-  const codeExample = `
-// Initialize Financial Extract API
+const API_ENDPOINTS = [
+  {
+    method: 'POST',
+    endpoint: '/api/jobs/initiate',
+    description: 'Create a new job and request signed upload URLs',
+    params: ['files[]', 'name'],
+  },
+  {
+    method: 'GET',
+    endpoint: '/api/templates',
+    description: 'List available templates',
+    params: [],
+  },
+  {
+    method: 'POST',
+    endpoint: '/api/jobs/{job_id}/files:initiate',
+    description: 'Initiate uploads for an existing job run',
+    params: ['run_id', 'files[]'],
+  },
+  {
+    method: 'POST',
+    endpoint: '/api/jobs/{job_id}/start',
+    description: 'Submit a configured job run for processing',
+    params: ['run_id', 'fields', 'task_definitions'],
+  },
+]
+
+const CODE_EXAMPLE = `// Initialize Financial Extract API
 const fe = new FinancialExtract({
   apiKey: 'your_api_key',
   environment: 'production'
@@ -51,239 +63,289 @@ const result = await fe.extract({
 
 // Get results in preferred format
 const data = await result.export('excel');
-console.log(data);
-`;
+console.log(data);`
 
+const FILTER_EXAMPLES = [
+  { query: 'has:attachment', description: 'Process any email with attachments' },
+  {
+    query: 'subject:invoice has:attachment',
+    description: 'Process emails with "invoice" in subject and attachments',
+  },
+  { query: 'filename:pdf', description: 'Process emails with PDF file attachments' },
+]
+
+export default function Documentation() {
   return (
-    <div className="min-h-screen py-20">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Hero Section */}
-        <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold text-gray-900 mb-6">Documentation</h1>
-          <p className="text-xl text-gray-600">
-            Complete guide to integrating CPAAutomation into your workflow
-          </p>
-        </div>
+    <>
+      <MarketingHero
+        backdrop="plain"
+        width="narrow"
+        title="Documentation"
+        description="Complete guide to integrating CPAAutomation into your workflow."
+      />
 
-        {/* Quick Start */}
-        <section className="mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Quick Start Guide</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
-                  <FileText className="w-6 h-6 text-blue-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">1. Upload Document</h3>
-                <p className="text-gray-600">
-                  Send PDF or image files to our extraction API endpoint with your authentication token.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="bg-green-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
-                  <Zap className="w-6 h-6 text-green-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">2. Configure Rules</h3>
-                <p className="text-gray-600">
-                  Use pre-built templates or create custom extraction rules for your specific document types.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="bg-purple-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
-                  <Database className="w-6 h-6 text-purple-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">3. Get Results</h3>
-                <p className="text-gray-600">
-                  Receive structured data in JSON, Excel, or CSV format ready for your applications.
-                </p>
-              </CardContent>
-            </Card>
+      <section className="bg-background py-12 sm:py-16">
+        <div className="mx-auto max-w-6xl space-y-16 px-4 sm:px-6 lg:px-8">
+          {/* Quick Start */}
+          <div>
+            <h2 className="mb-8 text-balance text-3xl font-semibold tracking-tight text-foreground">
+              Quick start guide
+            </h2>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              <FeatureCard
+                icon={FileText}
+                tone="brand"
+                title="1. Upload document"
+                description="Send PDF or image files to our extraction API endpoint with your authentication token."
+              />
+              <FeatureCard
+                icon={Zap}
+                tone="success"
+                title="2. Configure rules"
+                description="Use pre-built templates or create custom extraction rules for your specific document types."
+              />
+              <FeatureCard
+                icon={Database}
+                tone="info"
+                title="3. Get results"
+                description="Receive structured data in JSON, Excel, or CSV format ready for your applications."
+              />
+            </div>
           </div>
-        </section>
 
-        {/* API Reference */}
-        <section className="mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">API Reference</h2>
-          <Card>
-            <CardContent className="p-8">
-              <div className="mb-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">Base URL</h3>
-                <div className="bg-gray-100 p-4 rounded-lg font-mono text-sm">
-                  https://api.financialextract.com/v1
-                </div>
-              </div>
-
+          {/* API Reference */}
+          <div>
+            <h2 className="mb-8 text-balance text-3xl font-semibold tracking-tight text-foreground">
+              API reference
+            </h2>
+            <Section variant="card">
               <div className="space-y-6">
-                <h3 className="text-xl font-semibold text-gray-900">Endpoints</h3>
-                {apiEndpoints.map((endpoint, index) => (
-                  <div key={index} className="border-l-4 border-blue-500 pl-6 py-4">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <Badge variant={endpoint.method === "GET" ? "secondary" : "default"}>
-                        {endpoint.method}
-                      </Badge>
-                      <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
-                        {endpoint.endpoint}
-                      </code>
-                    </div>
-                    <p className="text-gray-600 mb-2">{endpoint.description}</p>
-                    <div className="text-sm text-gray-500">
-                      Parameters: {endpoint.params.join(", ")}
-                    </div>
+                <div>
+                  <h3 className="mb-3 text-lg font-semibold text-foreground">
+                    Base URL
+                  </h3>
+                  <CodeBlock copyable={false}>
+                    https://api.financialextract.com/v1
+                  </CodeBlock>
+                </div>
+
+                <div>
+                  <h3 className="mb-3 text-lg font-semibold text-foreground">
+                    Endpoints
+                  </h3>
+                  <div className="overflow-x-auto rounded-lg border border-border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-surface-muted">
+                          <TableHead className="w-24">Method</TableHead>
+                          <TableHead>Endpoint</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Parameters</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {API_ENDPOINTS.map((endpoint) => (
+                          <TableRow key={endpoint.endpoint}>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  endpoint.method === 'GET'
+                                    ? 'secondary'
+                                    : 'default'
+                                }
+                              >
+                                {endpoint.method}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {endpoint.endpoint}
+                            </TableCell>
+                            <TableCell className="text-sm text-foreground-muted">
+                              {endpoint.description}
+                            </TableCell>
+                            <TableCell className="text-xs text-foreground-subtle">
+                              {endpoint.params.join(', ') || '—'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* Code Example */}
-        <section className="mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Code Example</h2>
-          <Card>
-            <CardContent className="p-0">
-              <div className="bg-gray-900 text-green-400 p-6 rounded-t-lg">
-                <div className="flex items-center space-x-2 mb-4">
-                  <Code className="w-5 h-5" />
-                  <span className="font-medium">JavaScript SDK</span>
                 </div>
-                <pre className="text-sm overflow-x-auto">
-                  <code>{codeExample}</code>
-                </pre>
               </div>
-              <div className="p-6 bg-gray-50">
-                <p className="text-gray-600">
-                  This example shows how to extract data from a document using our JavaScript SDK.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+            </Section>
+          </div>
 
-        {/* Email Automations */}
-        <section className="mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Email Automations</h2>
-          <Card>
-            <CardContent className="p-8">
+          {/* Code Example */}
+          <div>
+            <h2 className="mb-8 text-balance text-3xl font-semibold tracking-tight text-foreground">
+              Code example
+            </h2>
+            <CodeBlock language="JavaScript" title="JavaScript SDK">
+              {CODE_EXAMPLE}
+            </CodeBlock>
+            <p className="mt-3 text-sm text-foreground-muted">
+              This example shows how to extract data from a document using our
+              JavaScript SDK.
+            </p>
+          </div>
+
+          {/* Email Automations */}
+          <div>
+            <h2 className="mb-8 text-balance text-3xl font-semibold tracking-tight text-foreground">
+              Email automations
+            </h2>
+            <Section variant="card">
               <div className="space-y-6">
-                <p className="text-gray-600">
-                  Set up automated workflows to process documents sent via email without manual intervention.
+                <p className="text-foreground-muted">
+                  Set up automated workflows to process documents sent via
+                  email without manual intervention.
                 </p>
-                
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                  <h4 className="font-semibold text-blue-900 mb-2">📧 Email Address for Automations</h4>
-                  <p className="text-blue-800 font-mono text-xl mb-2">document@cpaautomation.ai</p>
-                  <p className="text-sm text-blue-700">
-                    Send or forward emails with PDF attachments to this address to trigger your automations.
+
+                <div className="rounded-lg border border-primary/15 bg-primary-soft p-6">
+                  <h4 className="mb-2 font-semibold text-primary-soft-foreground">
+                    Email address for automations
+                  </h4>
+                  <p className="mb-2 font-mono text-xl text-primary-soft-foreground">
+                    document@cpaautomation.ai
+                  </p>
+                  <p className="text-sm text-primary-soft-foreground/80">
+                    Send or forward emails with PDF attachments to this address
+                    to trigger your automations.
                   </p>
                 </div>
-                
+
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">How It Works</h3>
-                  <ol className="list-decimal pl-6 space-y-2 text-gray-600">
-                    <li><strong>Send Email:</strong> Send or forward emails with PDF attachments to document@cpaautomation.ai</li>
-                    <li><strong>Account Matching:</strong> System matches your sender email to your account</li>
-                    <li><strong>Filter Matching:</strong> Emails are checked against your automation filters</li>
-                    <li><strong>Processing:</strong> Matching attachments are automatically processed using your extraction template</li>
-                    <li><strong>Export:</strong> Results are exported to your configured destination (Google Drive, etc.)</li>
+                  <h3 className="mb-4 text-xl font-semibold text-foreground">
+                    How it works
+                  </h3>
+                  <ol className="list-decimal space-y-2 pl-6 text-foreground-muted">
+                    <li>
+                      <strong className="text-foreground">Send email:</strong>{' '}
+                      Send or forward emails with PDF attachments to
+                      document@cpaautomation.ai
+                    </li>
+                    <li>
+                      <strong className="text-foreground">
+                        Account matching:
+                      </strong>{' '}
+                      System matches your sender email to your account
+                    </li>
+                    <li>
+                      <strong className="text-foreground">
+                        Filter matching:
+                      </strong>{' '}
+                      Emails are checked against your automation filters
+                    </li>
+                    <li>
+                      <strong className="text-foreground">Processing:</strong>{' '}
+                      Matching attachments are automatically processed using
+                      your extraction template
+                    </li>
+                    <li>
+                      <strong className="text-foreground">Export:</strong>{' '}
+                      Results are exported to your configured destination
+                      (Google Drive, etc.)
+                    </li>
                   </ol>
                 </div>
-                
+
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">Email Filter Examples</h3>
-                  <div className="space-y-3">
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <code className="text-sm font-mono">has:attachment</code>
-                      <p className="text-xs text-gray-600 mt-1">Process any email with attachments</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <code className="text-sm font-mono">subject:invoice has:attachment</code>
-                      <p className="text-xs text-gray-600 mt-1">Process emails with "invoice" in subject and attachments</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <code className="text-sm font-mono">filename:pdf</code>
-                      <p className="text-xs text-gray-600 mt-1">Process emails with PDF file attachments</p>
-                    </div>
+                  <h3 className="mb-4 text-xl font-semibold text-foreground">
+                    Email filter examples
+                  </h3>
+                  <div className="space-y-2">
+                    {FILTER_EXAMPLES.map((ex) => (
+                      <CodeBlock
+                        key={ex.query}
+                        copyable={false}
+                        title={ex.description}
+                      >
+                        {ex.query}
+                      </CodeBlock>
+                    ))}
                   </div>
                 </div>
-                
+
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">Requirements</h3>
-                  <ul className="list-disc pl-6 space-y-2 text-gray-600">
-                    <li>Send from the same email address as your account email</li>
+                  <h3 className="mb-4 text-xl font-semibold text-foreground">
+                    Requirements
+                  </h3>
+                  <ul className="list-disc space-y-2 pl-6 text-foreground-muted">
+                    <li>Send from the same email address as your account</li>
                     <li>Include PDF attachments for processing</li>
                     <li>Email content should match your automation filters</li>
-                    <li>Have an active automation configured with appropriate filters</li>
+                    <li>
+                      Have an active automation configured with appropriate
+                      filters
+                    </li>
                   </ul>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </section>
+            </Section>
+          </div>
 
-        {/* Authentication */}
-        <section className="mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Authentication</h2>
-          <Card>
-            <CardContent className="p-8">
-              <div className="flex items-start space-x-4 mb-6">
-                <div className="bg-orange-100 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Shield className="w-6 h-6 text-orange-600" />
+          {/* Authentication */}
+          <div>
+            <h2 className="mb-8 text-balance text-3xl font-semibold tracking-tight text-foreground">
+              Authentication
+            </h2>
+            <Section variant="card">
+              <div className="space-y-5">
+                <div className="flex items-start gap-4">
+                  <IconTile icon={Shield} tone="warning" size="lg" />
+                  <div>
+                    <h3 className="mb-2 text-lg font-semibold text-foreground">
+                      API key authentication
+                    </h3>
+                    <p className="text-foreground-muted">
+                      All API requests require authentication using your API
+                      key in the Authorization header.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">API Key Authentication</h3>
-                  <p className="text-gray-600 mb-4">
-                    All API requests require authentication using your API key in the Authorization header.
-                  </p>
-                </div>
-              </div>
 
-              <div className="bg-gray-100 p-4 rounded-lg font-mono text-sm mb-4">
-                Authorization: Bearer your_api_key_here
-              </div>
+                <CodeBlock copyable={false}>
+                  Authorization: Bearer your_api_key_here
+                </CodeBlock>
 
-              <div className="space-y-4">
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Getting Your API Key</h4>
-                  <ol className="list-decimal list-inside space-y-2 text-gray-600">
+                  <h4 className="mb-2 font-semibold text-foreground">
+                    Getting your API key
+                  </h4>
+                  <ol className="list-decimal space-y-2 pl-6 text-foreground-muted">
                     <li>Log into your CPAAutomation dashboard</li>
                     <li>Navigate to Settings → API Keys</li>
-                    <li>Click "Generate New Key"</li>
+                    <li>Click &ldquo;Generate New Key&rdquo;</li>
                     <li>Copy and securely store your key</li>
                   </ol>
                 </div>
 
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <p className="text-yellow-800 text-sm">
-                    <strong>Security Note:</strong> Keep your API keys secure and never expose them in client-side code.
-                    Use environment variables or secure key management systems.
-                  </p>
-                </div>
+                <Alert>
+                  <AlertDescription>
+                    <strong>Security note:</strong> Keep your API keys secure
+                    and never expose them in client-side code. Use environment
+                    variables or secure key management systems.
+                  </AlertDescription>
+                </Alert>
               </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* Support Section */}
-        <section className="text-center bg-gray-50 rounded-lg p-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Need Integration Help?</h2>
-          <p className="text-lg text-gray-600 mb-6">
-            Our technical team can help you integrate CPAAutomation into your existing workflow
-          </p>
-          <div className="flex justify-center">
-            <Link href="/contact">
-              <Button className="lido-green hover:lido-green-dark text-white">
-                Contact Technical Support
-              </Button>
-            </Link>
+            </Section>
           </div>
-        </section>
-      </div>
-    </div>
-  );
+
+          <Section
+            variant="card"
+            className="bg-surface-muted text-center"
+            title="Need integration help?"
+            description="Our technical team can help you integrate CPAAutomation into your existing workflow."
+          >
+            <div className="flex justify-center">
+              <Button asChild>
+                <Link href="/contact">Contact technical support</Link>
+              </Button>
+            </div>
+          </Section>
+        </div>
+      </section>
+    </>
+  )
 }

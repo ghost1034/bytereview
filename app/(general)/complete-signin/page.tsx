@@ -38,16 +38,16 @@ function CompleteSigninContent() {
 
   if (loading || (user && !pendingMfaChallenge)) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
-        <p className="text-sm text-gray-600">Preparing your sign-in...</p>
+      <div className="flex min-h-screen items-center justify-center bg-surface px-4 py-12">
+        <p className="text-sm text-foreground-muted">Preparing your sign-in…</p>
       </div>
     )
   }
 
   if (!pendingMfaChallenge) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
-        <Card className="w-full max-w-lg border-gray-200 shadow-sm">
+      <div className="flex min-h-screen items-center justify-center bg-surface px-4 py-12">
+        <Card className="w-full max-w-lg border-border shadow-sm">
           <CardHeader className="space-y-2 text-center">
             <CardTitle className="text-2xl">Sign in again</CardTitle>
             <CardDescription>
@@ -60,8 +60,8 @@ function CompleteSigninContent() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
-      <Card className="w-full max-w-lg border-gray-200 shadow-sm">
+    <div className="flex min-h-screen items-center justify-center bg-surface px-4 py-12">
+      <Card className="w-full max-w-lg border-border shadow-sm">
         <CardHeader className="space-y-2 text-center">
           <CardTitle className="text-2xl">Enter your sign-in code</CardTitle>
           <CardDescription>
@@ -78,8 +78,8 @@ function CompleteSigninContent() {
 
 function CompleteSigninFallback() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
-      <p className="text-sm text-gray-600">Preparing your sign-in...</p>
+    <div className="flex min-h-screen items-center justify-center bg-surface px-4 py-12">
+      <p className="text-sm text-foreground-muted">Preparing your sign-in…</p>
     </div>
   )
 }

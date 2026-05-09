@@ -290,12 +290,12 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Setup Requirement Tip */}
-          <div className="p-3 bg-blue-50 rounded-md border border-blue-200 text-blue-800">
+          <div className="p-3 bg-primary-soft rounded-md border border-primary/15 text-primary-soft-foreground">
             <div className="flex items-start gap-2">
-              <Info className="w-4 h-4 mt-0.5 text-blue-600" />
+              <Info className="w-4 h-4 mt-0.5 text-primary-soft-foreground" />
               <div className="text-sm">
-                <p className="mb-1 font-medium text-blue-900">How to set up an automation:</p>
-                <ol className="list-decimal pl-5 space-y-0.5 text-blue-800">
+                <p className="mb-1 font-medium">How to set up an automation:</p>
+                <ol className="list-decimal pl-5 space-y-0.5">
                   <li>Create an extraction job.</li>
                   <li>Configure fields for the job.</li>
                   <li>Select the job here, choose a trigger, and set an optional export destination.</li>
@@ -313,7 +313,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                 {...register("name")}
               />
               {errors.name && (
-                <p className="text-sm text-red-600">{errors.name.message}</p>
+                <p className="text-sm text-destructive">{errors.name.message}</p>
               )}
             </div>
 
@@ -342,7 +342,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                 )}
               />
               {errors.trigger_type && (
-                <p className="text-sm text-red-600">{errors.trigger_type.message}</p>
+                <p className="text-sm text-destructive">{errors.trigger_type.message}</p>
               )}
             </div>
 
@@ -393,11 +393,11 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                 }}
               />
               {errors.job_id && (
-                <p className="text-sm text-red-600">{errors.job_id.message}</p>
+                <p className="text-sm text-destructive">{errors.job_id.message}</p>
               )}
               {jobs && jobs.jobs.some(job => !job.has_configured_fields) && (
-                <p className="text-sm text-gray-600">
-                  <span className="text-amber-600">Note:</span> Jobs without configured fields are disabled. 
+                <p className="text-sm text-foreground-muted">
+                  <span className="text-warning">Note:</span> Jobs without configured fields are disabled.
                   Complete the field configuration step for those jobs to use them in automations.
                 </p>
               )}
@@ -418,15 +418,15 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
           {/* Gmail Configuration - Only show when Gmail is selected */}
           {effectiveTriggerType === "gmail" && (
             <div className="space-y-4">
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="p-4 bg-primary-soft rounded-lg border border-primary/15">
                 <div className="flex items-start gap-3">
-                  <Mail className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <Mail className="w-5 h-5 text-primary-soft-foreground mt-0.5" />
                   <div>
-                    <h4 className="font-medium text-blue-900">How Email Automations Work</h4>
-                    <p className="text-sm text-blue-700 mt-1">
+                    <h4 className="font-medium text-primary-soft-foreground">How email automations work</h4>
+                    <p className="text-sm text-primary-soft-foreground/85 mt-1">
                       Send or forward emails with attachments to <strong>document@cpaautomation.ai</strong>
                     </p>
-                    <p className="text-sm text-blue-600 mt-2">
+                    <p className="text-sm text-primary-soft-foreground/75 mt-2">
                       The system will match your sender email to your account and trigger automations based on your filters below.
                     </p>
                   </div>
@@ -439,7 +439,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                   <TooltipProvider delayDuration={0} skipDelayDuration={0}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <HelpCircle className="w-4 h-4 text-gray-400" />
+                        <HelpCircle className="w-4 h-4 text-foreground-subtle" />
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="max-w-xs space-y-2">
@@ -532,14 +532,14 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                   {...register("gmail_query")}
                 />
                 {errors.gmail_query && (
-                  <p className="text-sm text-red-600">{errors.gmail_query.message}</p>
+                  <p className="text-sm text-destructive">{errors.gmail_query.message}</p>
                 )}
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-foreground-muted">
                   Use email filter syntax to filter which emails trigger this automation.
                   <br />
                   Example: has:attachment subject:invoice (filename:pdf OR filename:docx OR filename:pptx OR filename:xlsx)
                   <br />
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-foreground-subtle">
                     Note: Sender filtering is automatic based on your account email
                   </span>
                 </p>
@@ -573,7 +573,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                   <SelectItem value="combined">Combined Processing - Process all files in a folder together</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-foreground-muted">
                 Choose how folders should be processed
               </p>
             </div>
@@ -616,15 +616,15 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                   )
                 }}
               />
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-foreground-muted">
                 Choose where to automatically export the extraction results
               </p>
             </div>
 
             {/* Google Drive Export Configuration */}
             {effectiveDestType === "gdrive" && (
-              <div className="space-y-4 p-4 bg-blue-50 rounded-lg border">
-                <h4 className="font-medium text-blue-900">Google Drive Export Settings</h4>
+              <div className="space-y-4 p-4 bg-primary-soft rounded-lg border border-primary/15">
+                <h4 className="font-medium text-primary-soft-foreground">Google Drive export settings</h4>
                 
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -636,7 +636,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                       buttonText={selectedGDriveFolder ? selectedGDriveFolder.name : "Select Destination Folder"}
                       onPickerStateChange={setIsPickerOpen}
                     />
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-foreground-muted">
                       Choose the Google Drive folder where results will be saved. If no folder is selected, files will be saved to My Drive.
                     </p>
                   </div>
@@ -655,7 +655,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                         <SelectItem value="xlsx">Excel (.xlsx)</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-foreground-muted">
                       Choose the format for exported files
                     </p>
                   </div>
@@ -665,8 +665,8 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
 
             {/* Gmail Export Configuration */}
             {effectiveDestType === "gmail" && (
-              <div className="space-y-4 p-4 bg-red-50 rounded-lg border">
-                <h4 className="font-medium text-red-900">Email Export Settings</h4>
+              <div className="space-y-4 p-4 bg-destructive-soft rounded-lg border border-destructive/20">
+                <h4 className="font-medium text-destructive">Email export settings</h4>
                 
                 <div className="space-y-2">
                   <Label htmlFor="to_email">Email Address</Label>
@@ -677,9 +677,9 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
                     {...register("to_email")}
                   />
                   {errors.to_email && (
-                    <p className="text-sm text-red-600">{errors.to_email.message}</p>
+                    <p className="text-sm text-destructive">{errors.to_email.message}</p>
                   )}
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-foreground-muted">
                     Email address where results will be sent
                   </p>
                 </div>

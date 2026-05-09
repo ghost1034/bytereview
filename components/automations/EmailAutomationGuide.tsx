@@ -1,135 +1,161 @@
 /**
  * Email Automation Guide Component
- * Explains how the new email-based automation system works
+ * Explains how the email-based automation system works
  */
-'use client';
+'use client'
 
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Mail, ArrowRight, FileText, Download, CheckCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle, Mail } from 'lucide-react'
+
+import { Badge } from '@/components/ui/badge'
+import { Section } from '@/components/ui/section'
+import { cn } from '@/lib/utils'
 
 interface EmailAutomationGuideProps {
-  className?: string;
+  className?: string
 }
+
+interface GuideStep {
+  number: number
+  title: string
+  description: React.ReactNode
+  tone?: 'brand' | 'success'
+}
+
+const STEPS: GuideStep[] = [
+  {
+    number: 1,
+    title: 'Send email with attachments',
+    description: (
+      <>
+        Send or forward emails with PDF attachments to{' '}
+        <Badge variant="secondary" className="font-mono">
+          document@cpaautomation.ai
+        </Badge>
+      </>
+    ),
+    tone: 'brand',
+  },
+  {
+    number: 2,
+    title: 'Automatic matching',
+    description:
+      'System matches your sender email to your account and applies your automation filters.',
+    tone: 'brand',
+  },
+  {
+    number: 3,
+    title: 'Document processing',
+    description:
+      'Attachments are automatically processed using your configured extraction template.',
+    tone: 'brand',
+  },
+  {
+    number: 4,
+    title: 'Results delivered',
+    description:
+      'Extracted data is automatically exported to your configured destination (Google Drive, etc.).',
+    tone: 'success',
+  },
+]
+
+const FILTER_EXAMPLES: Array<{ query: string; description: string }> = [
+  { query: 'has:attachment', description: 'Process any email with attachments' },
+  {
+    query: 'subject:invoice has:attachment',
+    description: 'Process emails with "invoice" in subject and attachments',
+  },
+  { query: 'filename:pdf', description: 'Process emails with PDF attachments' },
+]
 
 export function EmailAutomationGuide({ className }: EmailAutomationGuideProps) {
   return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Mail className="h-5 w-5" />
-          How Email Automations Work
-        </CardTitle>
-        <CardDescription>
-          Send emails with attachments to trigger automated document processing
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Step-by-step process */}
-        <div className="space-y-4">
-          <div className="flex items-start gap-4">
-            <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 rounded-full text-sm font-medium">
-              1
-            </div>
-            <div className="flex-1">
-              <h4 className="font-medium text-gray-900">Send Email with Attachments</h4>
-              <div className="text-sm text-gray-600 mt-1">
-                <span>Send or forward emails with PDF attachments to </span>
-                <Badge variant="secondary" className="font-mono">
-                  document@cpaautomation.ai
-                </Badge>
+    <Section
+      variant="card"
+      title={
+        <span className="inline-flex items-center gap-2">
+          <Mail className="size-4 text-foreground-muted" aria-hidden />
+          How email automations work
+        </span>
+      }
+      description="Send emails with attachments to trigger automated document processing."
+      className={className}
+    >
+      <div className="space-y-6">
+        <ol className="space-y-3">
+          {STEPS.map((step, idx) => (
+            <li key={step.number} className="space-y-3">
+              <div className="flex items-start gap-3">
+                <span
+                  className={cn(
+                    'mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+                    step.tone === 'success'
+                      ? 'bg-success-soft text-success'
+                      : 'bg-primary-soft text-primary-soft-foreground',
+                  )}
+                  aria-hidden
+                >
+                  {step.number}
+                </span>
+                <div className="min-w-0 flex-1 space-y-1">
+                  <h4 className="text-sm font-medium text-foreground">
+                    {step.title}
+                  </h4>
+                  <div className="text-xs text-foreground-muted">
+                    {step.description}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+              {idx < STEPS.length - 1 && (
+                <div className="flex justify-center">
+                  <ArrowRight
+                    className="size-3.5 rotate-90 text-foreground-subtle"
+                    aria-hidden
+                  />
+                </div>
+              )}
+            </li>
+          ))}
+        </ol>
 
-          <div className="flex items-center justify-center">
-            <ArrowRight className="w-4 h-4 text-gray-400" />
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 rounded-full text-sm font-medium">
-              2
-            </div>
-            <div className="flex-1">
-              <h4 className="font-medium text-gray-900">Automatic Matching</h4>
-              <div className="text-sm text-gray-600 mt-1">
-                System matches your sender email to your account and applies your automation filters
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-center">
-            <ArrowRight className="w-4 h-4 text-gray-400" />
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 rounded-full text-sm font-medium">
-              3
-            </div>
-            <div className="flex-1">
-              <h4 className="font-medium text-gray-900">Document Processing</h4>
-              <div className="text-sm text-gray-600 mt-1">
-                Attachments are automatically processed using your configured extraction template
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-center">
-            <ArrowRight className="w-4 h-4 text-gray-400" />
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="flex items-center justify-center w-8 h-8 bg-green-100 text-green-600 rounded-full text-sm font-medium">
-              4
-            </div>
-            <div className="flex-1">
-              <h4 className="font-medium text-gray-900">Results Delivered</h4>
-              <div className="text-sm text-gray-600 mt-1">
-                Extracted data is automatically exported to your configured destination (Google Drive, etc.)
-              </div>
-            </div>
-          </div>
+        <div className="space-y-3 border-t border-border pt-5">
+          <h4 className="text-sm font-medium text-foreground">
+            Email requirements
+          </h4>
+          <ul className="space-y-1.5">
+            <li className="flex items-center gap-2 text-xs text-foreground-muted">
+              <CheckCircle className="size-3.5 text-success" aria-hidden />
+              Send from the same email address as your account
+            </li>
+            <li className="flex items-center gap-2 text-xs text-foreground-muted">
+              <CheckCircle className="size-3.5 text-success" aria-hidden />
+              Include PDF attachments for processing
+            </li>
+            <li className="flex items-center gap-2 text-xs text-foreground-muted">
+              <CheckCircle className="size-3.5 text-success" aria-hidden />
+              Email content should match your automation filters
+            </li>
+          </ul>
         </div>
 
-        {/* Email requirements */}
-        <div className="border-t pt-6">
-          <h4 className="font-medium text-gray-900 mb-3">Email Requirements</h4>
+        <div className="space-y-2 border-t border-border pt-5">
+          <h4 className="text-sm font-medium text-foreground">
+            Example filter queries
+          </h4>
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <CheckCircle className="w-4 h-4 text-green-600" />
-              <span>Send from the same email address as your account email</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <CheckCircle className="w-4 h-4 text-green-600" />
-              <span>Include PDF attachments for processing</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <CheckCircle className="w-4 h-4 text-green-600" />
-              <span>Email content should match your automation filters</span>
-            </div>
+            {FILTER_EXAMPLES.map((ex) => (
+              <div
+                key={ex.query}
+                className="rounded-md border border-border bg-surface-muted p-2.5"
+              >
+                <code className="text-xs text-foreground">{ex.query}</code>
+                <p className="mt-1 text-[11px] text-foreground-subtle">
+                  {ex.description}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
-
-        {/* Example filters */}
-        <div className="border-t pt-6">
-          <h4 className="font-medium text-gray-900 mb-3">Example Filter Queries</h4>
-          <div className="space-y-2">
-            <div className="bg-gray-50 rounded p-3">
-              <code className="text-sm text-gray-800">has:attachment</code>
-              <div className="text-xs text-gray-600 mt-1">Process any email with attachments</div>
-            </div>
-            <div className="bg-gray-50 rounded p-3">
-              <code className="text-sm text-gray-800">subject:invoice has:attachment</code>
-              <div className="text-xs text-gray-600 mt-1">Process emails with "invoice" in subject and attachments</div>
-            </div>
-            <div className="bg-gray-50 rounded p-3">
-              <code className="text-sm text-gray-800">filename:pdf</code>
-              <div className="text-xs text-gray-600 mt-1">Process emails with PDF file attachments</div>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+      </div>
+    </Section>
+  )
 }

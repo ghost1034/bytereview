@@ -238,7 +238,7 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
                       </div>
                     </div>
 
-                    <Button type="submit" disabled={isLoading} className="w-full lido-blue hover:lido-blue-dark text-white">
+                    <Button type="submit" disabled={isLoading} className="w-full">
                       {isLoading ? "Signing In..." : "Sign In"}
                     </Button>
                   </form>
@@ -334,7 +334,7 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
                       </div>
                     </div>
 
-                    <Button type="submit" disabled={isLoading} className="w-full lido-blue hover:lido-blue-dark text-white">
+                    <Button type="submit" disabled={isLoading} className="w-full">
                       {isLoading ? "Creating Account..." : "Create Account"}
                     </Button>
                   </form>

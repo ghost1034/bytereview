@@ -82,6 +82,14 @@ body {
     --sidebar-border: 220 14% 90%;
     --sidebar-ring: 222 84% 50%;
 
+    /* Marketing hero (decorative dark gradient — same in both modes) */
+    --marketing-hero-from: 222 47% 11%;
+    --marketing-hero-to: 222 60% 18%;
+    --marketing-hero-text: 210 40% 98%;
+    --marketing-hero-text-muted: 215 20% 78%;
+    --marketing-hero-accent: 222 90% 70%;
+    --marketing-hero-border: 215 25% 30%;
+
     /* Shadows (token-driven, soft and layered) */
     --shadow-xs: 0 1px 1px 0 rgb(15 23 42 / 0.04);
     --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.05), 0 1px 3px 0 rgb(15 23 42 / 0.04);
@@ -155,6 +163,14 @@ body {
     --sidebar-border: 220 14% 18%;
     --sidebar-ring: 222 90% 62%;
 
+    /* Marketing hero (slightly deeper in dark mode) */
+    --marketing-hero-from: 222 30% 7%;
+    --marketing-hero-to: 222 30% 12%;
+    --marketing-hero-text: 210 40% 98%;
+    --marketing-hero-text-muted: 215 20% 78%;
+    --marketing-hero-accent: 222 90% 70%;
+    --marketing-hero-border: 215 25% 22%;
+
     /* Shadows (deeper on dark) */
     --shadow-xs: 0 1px 1px 0 rgb(0 0 0 / 0.30);
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.36), 0 1px 3px 0 rgb(0 0 0 / 0.30);
@@ -196,20 +212,6 @@ body {
     );
     background-size: 200% 100%;
     animation: shimmer 3s ease-in-out infinite;
-  }
-
-  /* Brand button background utilities (used as bare class names on buttons) */
-  .lido-blue {
-    background-color: #2563EB;
-  }
-  .lido-blue-dark {
-    background-color: #1D4ED8;
-  }
-  .lido-green {
-    background-color: #16A34A;
-  }
-  .lido-green-dark {
-    background-color: #15803D;
   }
 
   .ProseMirror h1 {

@@ -70,13 +70,13 @@ const SubscribeForm = ({ plan }: { plan: any }) => {
         </CardHeader>
         <CardContent>
           <div className="text-center mb-6">
-            <div className="text-3xl font-bold text-gray-900">{plan.price}</div>
-            <div className="text-gray-600">per month</div>
+            <div className="text-3xl font-semibold tabular-nums text-foreground">{plan.price}</div>
+            <div className="text-foreground-muted">per month</div>
           </div>
           <div className="space-y-2 mb-6">
             {plan.features.map((feature: string, index: number) => (
-              <div key={index} className="flex items-center text-sm text-gray-600">
-                <Check className="w-4 h-4 text-green-500 mr-2" />
+              <div key={index} className="flex items-center text-sm text-foreground-muted">
+                <Check className="w-4 h-4 text-success mr-2" aria-hidden />
                 {feature}
               </div>
             ))}
@@ -86,15 +86,15 @@ const SubscribeForm = ({ plan }: { plan: any }) => {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <PaymentElement />
-        <Button 
-          type="submit" 
-          disabled={!stripe || isLoading} 
-          className="w-full lido-green hover:lido-green-dark text-white"
+        <Button
+          type="submit"
+          disabled={!stripe || isLoading}
+          className="w-full"
         >
           {isLoading ? (
             <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Processing...
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden />
+              Processing…
             </>
           ) : (
             `Subscribe to ${plan.name}`
@@ -192,10 +192,10 @@ export default function Subscribe() {
 
   if (isLoading || !plan) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-surface">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
-          <p className="text-gray-600">Setting up your subscription...</p>
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" aria-hidden />
+          <p className="text-foreground-muted">Setting up your subscription…</p>
         </div>
       </div>
     );
@@ -203,11 +203,11 @@ export default function Subscribe() {
 
   if (!clientSecret) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-surface">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">Unable to load payment form. Please try again.</p>
+          <p className="text-foreground-muted mb-4">Unable to load payment form. Please try again.</p>
           <Button onClick={() => window.history.back()} variant="outline">
-            Go Back
+            Go back
           </Button>
         </div>
       </div>
@@ -215,11 +215,11 @@ export default function Subscribe() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-md mx-auto">
+    <div className="min-h-screen bg-surface py-12">
+      <div className="max-w-md mx-auto px-4">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Complete Your Subscription</h1>
-          <p className="text-gray-600 mt-2">You're one step away from unlocking powerful PDF extraction</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Complete your subscription</h1>
+          <p className="text-foreground-muted mt-2">You&apos;re one step away from unlocking powerful PDF extraction.</p>
         </div>
 
         <Elements 

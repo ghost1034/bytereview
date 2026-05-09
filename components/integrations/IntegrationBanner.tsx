@@ -3,7 +3,7 @@
  * and providing quick access to connect/disconnect
  */
 import React from 'react';
-import { AlertCircle, CheckCircle, Settings, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -53,7 +53,7 @@ export function IntegrationBanner({
 
   if (!isConnected) {
     variant = 'default';
-    icon = <AlertCircle className="h-4 w-4 text-blue-500" />;
+    icon = <AlertCircle className="h-4 w-4 text-info" />;
     title = 'Connect Google Services';
     description = 'Connect your Google account to import files from Drive and Gmail attachments.';
     actions = (
@@ -95,7 +95,7 @@ export function IntegrationBanner({
     if (compact) {
       return (
         <div className={cn("flex items-center gap-2 text-sm text-muted-foreground", className)}>
-          <CheckCircle className="h-4 w-4 text-green-500" />
+          <CheckCircle className="h-4 w-4 text-success" />
           <span>Google connected</span>
           <Badge variant="secondary" className="text-xs">
             {status?.scopes?.length || 0} service{(status?.scopes?.length || 0) !== 1 ? 's' : ''}
@@ -128,7 +128,7 @@ export function IntegrationBanner({
   if (compact && isConnected && !hasExpiredToken) {
     return (
       <div className={cn("flex items-center gap-2 text-sm text-muted-foreground", className)}>
-        <CheckCircle className="h-4 w-4 text-green-500" />
+        <CheckCircle className="h-4 w-4 text-success" />
         <span>Google connected</span>
         <Badge variant="secondary" className="text-xs">
           {status?.scopes.length || 0} service{(status?.scopes.length || 0) !== 1 ? 's' : ''}

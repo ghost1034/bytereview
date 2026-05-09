@@ -1,313 +1,244 @@
-"use client";
+'use client'
 
-import { Card, CardContent } from "@/components/ui/card";
-import { Shield, Lock, Trash2, MapPin, FileText, Mail } from "lucide-react";
-import { Button } from '@/components/ui/button';
-import { useCookieConsent } from '@/hooks/useCookieConsent';
+import { Lock, Mail, MapPin, Shield, Trash2 } from 'lucide-react'
+
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { FeatureCard } from '@/components/marketing/feature-card'
+import { MarketingHero } from '@/components/marketing/marketing-hero'
+import { Prose } from '@/components/marketing/prose'
+import { Section } from '@/components/ui/section'
+import { useCookieConsent } from '@/hooks/useCookieConsent'
+
+const SECURITY_PILLARS = [
+  {
+    icon: Trash2,
+    tone: 'destructive' as const,
+    title: 'Immediate file deletion',
+    description:
+      'If you choose not to keep your files stored for later use, they are permanently deleted from our servers immediately after processing is complete.',
+  },
+  {
+    icon: MapPin,
+    tone: 'brand' as const,
+    title: 'US-only hosting',
+    description:
+      'All our servers are located exclusively in the United States, ensuring your data remains within US jurisdiction and subject to US privacy laws.',
+  },
+  {
+    icon: Lock,
+    tone: 'info' as const,
+    title: 'AES-256 encryption',
+    description:
+      'All data is encrypted using industry-standard AES-256 encryption both in transit and at rest, providing military-grade security for your documents.',
+  },
+  {
+    icon: Shield,
+    tone: 'success' as const,
+    title: 'Access controls',
+    description:
+      'Strict access controls limit data access to authorized personnel only, with comprehensive audit logs of all system access and activities.',
+  },
+]
 
 export default function Privacy() {
-  const { openPreferences } = useCookieConsent();
+  const { openPreferences } = useCookieConsent()
+
   return (
-    <div className="min-h-screen py-20">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Hero Section */}
-        <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold text-gray-900 mb-6">Privacy Policy</h1>
-          <p className="text-xl text-gray-600">
-            How we protect and handle your data at CPAAutomation
-          </p>
-          <p className="text-sm text-gray-500 mt-4">
-            Last updated: August 2025
-          </p>
-          <div className="mt-6">
-            <Button variant="outline" onClick={openPreferences}>
-              Manage Cookie Preferences
-            </Button>
-          </div>
-        </div>
+    <>
+      <MarketingHero
+        backdrop="plain"
+        width="narrow"
+        eyebrow={<Badge variant="secondary">Last updated: August 2025</Badge>}
+        title="Privacy policy"
+        description="How we protect and handle your data at CPAAutomation."
+        ctas={
+          <Button variant="outline" onClick={openPreferences}>
+            Manage cookie preferences
+          </Button>
+        }
+      />
 
-        {/* Overview */}
-        <section className="mb-12">
-          <Card className="bg-blue-50 border-blue-200">
-            <CardContent className="p-8">
-              <div className="flex items-start space-x-4">
-                <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Shield className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 mb-4">Our Commitment to Privacy</h2>
-                  <p className="text-gray-700 mb-4">
-                    At CPAAutomation, we understand that your documents contain sensitive financial and legal information. 
-                    We are committed to protecting your privacy and maintaining the highest standards of data security.
-                  </p>
-                  <p className="text-gray-700">
-                    This privacy policy explains how we collect, use, and protect your information when you use our document extraction services.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* Data Collection */}
-        <section className="mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Information We Collect</h2>
-          
-          <div className="space-y-6">
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Document Data</h3>
-                <ul className="space-y-2 text-gray-600">
-                  <li>• Files you upload for processing (opt-out option provided)</li>
-                  <li>• Extracted data and results from your documents</li>
-                  <li>• Custom extraction rules and templates you create</li>
-                  <li>• Processing metadata (file size, type, processing time)</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Information</h3>
-                <ul className="space-y-2 text-gray-600">
-                  <li>• Name, email address, and company information</li>
-                  <li>• Subscription plan and billing information</li>
-                  <li>• Usage statistics and feature preferences</li>
-                  <li>• Support communication and feedback</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Technical Data</h3>
-                <ul className="space-y-2 text-gray-600">
-                  <li>• IP address and browser information</li>
-                  <li>• Device type and operating system</li>
-                  <li>• API usage logs and error reports</li>
-                  <li>• Performance and analytics data</li>
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-
-        {/* Data Security */}
-        <section className="mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">How We Protect Your Data</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="bg-red-100 w-10 h-10 rounded-lg flex items-center justify-center">
-                    <Trash2 className="w-5 h-5 text-red-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900">Immediate File Deletion</h3>
-                </div>
-                <p className="text-gray-600">
-                  If you choose not to keep your files stored for later use, they are permanently deleted from our servers immediately after processing is complete.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="bg-blue-100 w-10 h-10 rounded-lg flex items-center justify-center">
-                    <MapPin className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900">US-Only Hosting</h3>
-                </div>
-                <p className="text-gray-600">
-                  All our servers are located exclusively in the United States, ensuring your data remains within 
-                  US jurisdiction and subject to US privacy laws.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="bg-purple-100 w-10 h-10 rounded-lg flex items-center justify-center">
-                    <Lock className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900">AES-256 Encryption</h3>
-                </div>
-                <p className="text-gray-600">
-                  All data is encrypted using industry-standard AES-256 encryption both in transit and at rest, 
-                  providing military-grade security for your documents.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="bg-green-100 w-10 h-10 rounded-lg flex items-center justify-center">
-                    <Shield className="w-5 h-5 text-green-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900">Access Controls</h3>
-                </div>
-                <p className="text-gray-600">
-                  Strict access controls limit data access to authorized personnel only, with comprehensive 
-                  audit logs of all system access and activities.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-
-        {/* Data Use */}
-        <section className="mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">How We Use Your Information</h2>
-          
-          <Card>
-            <CardContent className="p-8">
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Service Provision</h3>
-                  <p className="text-gray-600">
-                    We use your data solely to provide document extraction services, including processing your files, 
-                    delivering results, and maintaining your account.
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Service Improvement</h3>
-                  <p className="text-gray-600">
-                    Anonymous, aggregated usage data helps us improve our AI models and service quality. 
-                    No personally identifiable information is used for this purpose.
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Customer Support</h3>
-                  <p className="text-gray-600">
-                    We may access your account information to provide technical support, resolve issues, 
-                    and respond to your inquiries.
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Legal Compliance</h3>
-                  <p className="text-gray-600">
-                    We may process data as required by law, regulation, or legal process, but will notify you 
-                    when legally permitted to do so.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* Data Sharing */}
-        <section className="mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Data Sharing and Third Parties</h2>
-          
-          <Card className="bg-red-50 border-red-200">
-            <CardContent className="p-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">We Do Not Sell Your Data</h3>
-              <p className="text-gray-700 mb-6">
-                CPAAutomation does not sell, rent, or trade your personal information or document data to third parties 
-                for marketing or any other commercial purposes.
+      <section className="bg-background py-16">
+        <div className="mx-auto max-w-4xl space-y-12 px-4 sm:px-6 lg:px-8">
+          <Section
+            variant="card"
+            className="bg-primary-soft/40 border-primary/15"
+          >
+            <Prose narrow={false}>
+              <h2>Our commitment to privacy</h2>
+              <p>
+                At CPAAutomation, we understand that your documents contain
+                sensitive financial and legal information. We are committed to
+                protecting your privacy and maintaining the highest standards of
+                data security.
               </p>
-              
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Limited Third-Party Services</h4>
-                  <p className="text-gray-600">
-                    We may use trusted third-party services for specific functions such as payment processing, 
-                    email delivery, and hosting infrastructure. These providers are contractually bound to protect your data.
-                  </p>
-                </div>
+              <p>
+                This privacy policy explains how we collect, use, and protect
+                your information when you use our document extraction services.
+              </p>
+            </Prose>
+          </Section>
 
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Business Transfers</h4>
-                  <p className="text-gray-600">
-                    In the event of a merger, acquisition, or sale of assets, your information may be transferred 
-                    as part of the business transaction, subject to the same privacy protections.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+          <Section title="Information we collect">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <FeatureCard
+                tone="brand"
+                title="Document data"
+                bullets={[
+                  'Files you upload for processing (opt-out option provided)',
+                  'Extracted data and results from your documents',
+                  'Custom extraction rules and templates',
+                  'Processing metadata',
+                ]}
+              />
+              <FeatureCard
+                tone="success"
+                title="Account information"
+                bullets={[
+                  'Name, email, and company information',
+                  'Subscription plan and billing information',
+                  'Usage statistics and feature preferences',
+                  'Support communication and feedback',
+                ]}
+              />
+              <FeatureCard
+                tone="info"
+                title="Technical data"
+                bullets={[
+                  'IP address and browser information',
+                  'Device type and operating system',
+                  'API usage logs and error reports',
+                  'Performance and analytics data',
+                ]}
+              />
+            </div>
+          </Section>
 
-        {/* Your Rights */}
-        <section className="mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Your Rights and Choices</h2>
-          
-          <div className="space-y-4">
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Access and Portability</h3>
-                <p className="text-gray-600">
-                  You have the right to access your account data and export your extraction templates and results 
-                  in a portable format at any time.
-                </p>
-              </CardContent>
-            </Card>
+          <Section title="How we protect your data">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {SECURITY_PILLARS.map((pillar) => (
+                <FeatureCard
+                  key={pillar.title}
+                  icon={pillar.icon}
+                  tone={pillar.tone}
+                  title={pillar.title}
+                  description={pillar.description}
+                />
+              ))}
+            </div>
+          </Section>
 
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Correction and Updates</h3>
-                <p className="text-gray-600">
-                  You can update your account information, preferences, and settings through your dashboard 
-                  or by contacting our support team.
-                </p>
-              </CardContent>
-            </Card>
+          <Section variant="card" title="How we use your information">
+            <Prose narrow={false}>
+              <h3>Service provision</h3>
+              <p>
+                We use your data solely to provide document extraction
+                services, including processing your files, delivering results,
+                and maintaining your account.
+              </p>
+              <h3>Service improvement</h3>
+              <p>
+                Anonymous, aggregated usage data helps us improve our AI models
+                and service quality. No personally identifiable information is
+                used for this purpose.
+              </p>
+              <h3>Customer support</h3>
+              <p>
+                We may access your account information to provide technical
+                support, resolve issues, and respond to your inquiries.
+              </p>
+              <h3>Legal compliance</h3>
+              <p>
+                We may process data as required by law, regulation, or legal
+                process, but will notify you when legally permitted to do so.
+              </p>
+            </Prose>
+          </Section>
 
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Account Deletion</h3>
-                <p className="text-gray-600">
-                  You may delete your account at any time. Upon deletion, all your data will be permanently 
-                  removed from our systems within 30 days.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
+          <Section
+            variant="card"
+            className="border-destructive/30 bg-destructive-soft/40"
+            title="Data sharing & third parties"
+          >
+            <Prose narrow={false}>
+              <h3>We do not sell your data</h3>
+              <p>
+                CPAAutomation does not sell, rent, or trade your personal
+                information or document data to third parties for marketing or
+                any other commercial purposes.
+              </p>
+              <h4>Limited third-party services</h4>
+              <p>
+                We may use trusted third-party services for specific functions
+                such as payment processing, email delivery, and hosting
+                infrastructure. These providers are contractually bound to
+                protect your data.
+              </p>
+              <h4>Business transfers</h4>
+              <p>
+                In the event of a merger, acquisition, or sale of assets, your
+                information may be transferred as part of the business
+                transaction, subject to the same privacy protections.
+              </p>
+            </Prose>
+          </Section>
 
-        {/* Contact */}
-        <section className="mb-12">
-          <Card className="bg-gray-50">
-            <CardContent className="p-8">
-              <div className="flex items-start space-x-4">
-                <div className="bg-gray-100 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Mail className="w-6 h-6 text-gray-600" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 mb-4">Questions About Your Privacy?</h2>
-                  <p className="text-gray-600 mb-4">
-                    If you have questions about this privacy policy or how we handle your data, please contact us:
-                  </p>
-                  <div className="space-y-2 text-gray-600">
-                    <p>Email: privacy@CPAAutomation.ai</p>
+          <Section title="Your rights and choices">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <FeatureCard
+                tone="brand"
+                title="Access and portability"
+                description="You have the right to access your account data and export your extraction templates and results in a portable format at any time."
+              />
+              <FeatureCard
+                tone="info"
+                title="Correction and updates"
+                description="You can update your account information, preferences, and settings through your dashboard or by contacting our support team."
+              />
+              <FeatureCard
+                tone="warning"
+                title="Account deletion"
+                description="You may delete your account at any time. Upon deletion, all your data will be permanently removed from our systems within 30 days."
+              />
+            </div>
+          </Section>
+
+          <Section variant="card" className="bg-surface-muted">
+            <div className="flex items-start gap-4">
+              <FeatureCard
+                icon={Mail}
+                tone="brand"
+                title="Questions about your privacy?"
+                description={
+                  <>
+                    <p>
+                      If you have questions about this privacy policy or how we
+                      handle your data, please contact us:
+                    </p>
+                    <p className="mt-2">Email: privacy@CPAAutomation.ai</p>
                     <p>Address: United States (US-based support team)</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+                  </>
+                }
+                className="border-0 bg-transparent shadow-none"
+              />
+            </div>
+          </Section>
 
-        {/* Updates */}
-        <section className="text-center">
-          <Card>
-            <CardContent className="p-8">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Policy Updates</h2>
-              <p className="text-gray-600">
-                We may update this privacy policy from time to time. We will notify you of any material changes 
-                by email and by posting the updated policy on our website. Your continued use of CPAAutomation 
-                after such changes constitutes acceptance of the updated policy.
+          <Section variant="card">
+            <Prose narrow={false}>
+              <h2>Policy updates</h2>
+              <p>
+                We may update this privacy policy from time to time. We will
+                notify you of any material changes by email and by posting the
+                updated policy on our website. Your continued use of
+                CPAAutomation after such changes constitutes acceptance of the
+                updated policy.
               </p>
-            </CardContent>
-          </Card>
-        </section>
-      </div>
-    </div>
-  );
+            </Prose>
+          </Section>
+        </div>
+      </section>
+    </>
+  )
 }

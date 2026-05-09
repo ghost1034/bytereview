@@ -1,9 +1,17 @@
-"use client";
+'use client'
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { useState } from 'react'
+import {
+  Edit,
+  Eye,
+  FileText,
+  Globe,
+  Loader2,
+  Lock,
+  Plus,
+  Trash2,
+} from 'lucide-react'
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,271 +21,284 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
+import { IconTile } from '@/components/ui/icon-tile'
+import { LoadingState } from '@/components/ui/loading-state'
+import { PageHeader } from '@/components/ui/page-header'
+import { Section } from '@/components/ui/section'
 import {
-  FileText,
-  Plus,
-  Loader2,
-  Edit,
-  Trash2,
-  Globe,
-  Lock,
-  Eye,
-} from "lucide-react";
-import {
-  useTemplates,
-  usePublicTemplates,
   useDeleteTemplate,
-} from "@/hooks/useExtraction";
-import { useToast } from "@/hooks/use-toast";
-import { useDataTypes } from "@/hooks/useDataTypes";
-import TemplateModal from "@/components/templates/TemplateModal";
-import TemplatePreviewModal from "@/components/templates/TemplatePreviewModal";
+  usePublicTemplates,
+  useTemplates,
+} from '@/hooks/useExtraction'
+import { useDataTypes } from '@/hooks/useDataTypes'
+import { useToast } from '@/hooks/use-toast'
+import TemplateModal from '@/components/templates/TemplateModal'
+import TemplatePreviewModal from '@/components/templates/TemplatePreviewModal'
+import { cn } from '@/lib/utils'
 
 export default function TemplatesPage() {
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<any>(null);
-  const [activeTemplateType, setActiveTemplateType] = useState<'extraction' | 'cpe'>('extraction');
-  const [previewModalOpen, setPreviewModalOpen] = useState(false);
-  const [previewTemplate, setPreviewTemplate] = useState<any>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [templateToDelete, setTemplateToDelete] = useState<{id: string, name: string} | null>(null);
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingTemplate, setEditingTemplate] = useState<any>(null)
+  const [activeTemplateType, setActiveTemplateType] = useState<
+    'extraction' | 'cpe'
+  >('extraction')
+  const [previewModalOpen, setPreviewModalOpen] = useState(false)
+  const [previewTemplate, setPreviewTemplate] = useState<any>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [templateToDelete, setTemplateToDelete] = useState<{
+    id: string
+    name: string
+  } | null>(null)
 
-  const { data: templatesData, isLoading: templatesLoading } = useTemplates();
+  const { data: templatesData, isLoading: templatesLoading } = useTemplates()
   const { data: publicTemplatesData, isLoading: publicLoading } =
-    usePublicTemplates();
-  const { data: dataTypesData, isLoading: dataTypesLoading } = useDataTypes();
-  const dataTypes = (dataTypesData as any) || [];
-  const deleteTemplateMutation = useDeleteTemplate();
-  const { toast } = useToast();
+    usePublicTemplates()
+  const { data: dataTypesData, isLoading: dataTypesLoading } = useDataTypes()
+  const dataTypes = (dataTypesData as any) || []
+  const deleteTemplateMutation = useDeleteTemplate()
+  const { toast } = useToast()
 
-  const allUserTemplates = (templatesData as any)?.templates || [];
-  const allPublicTemplates = (publicTemplatesData as any)?.templates || [];
-  const loading = templatesLoading || publicLoading;
+  const allUserTemplates = (templatesData as any)?.templates || []
+  const allPublicTemplates = (publicTemplatesData as any)?.templates || []
+  const loading = templatesLoading || publicLoading
 
   const getTemplateType = (template: any): 'extraction' | 'cpe' => {
-    const raw = template?.template_type;
-    return raw === 'cpe' ? 'cpe' : 'extraction';
-  };
+    return template?.template_type === 'cpe' ? 'cpe' : 'extraction'
+  }
 
-  const userTemplates = allUserTemplates.filter((t: any) => getTemplateType(t) === activeTemplateType);
-  const publicTemplates = allPublicTemplates.filter((t: any) => getTemplateType(t) === activeTemplateType);
+  const userTemplates = allUserTemplates.filter(
+    (t: any) => getTemplateType(t) === activeTemplateType,
+  )
+  const publicTemplates = allPublicTemplates.filter(
+    (t: any) => getTemplateType(t) === activeTemplateType,
+  )
 
   const handleEditTemplate = (template: any) => {
-    setEditingTemplate(template);
-    setModalOpen(true);
-  };
+    setEditingTemplate(template)
+    setModalOpen(true)
+  }
 
   const handleCreateTemplate = () => {
-    setEditingTemplate(null);
-    setModalOpen(true);
-  };
+    setEditingTemplate(null)
+    setModalOpen(true)
+  }
 
-  const handleDeleteTemplate = (
-    templateId: string,
-    templateName: string
-  ) => {
-    setTemplateToDelete({ id: templateId, name: templateName });
-    setDeleteDialogOpen(true);
-  };
+  const handleDeleteTemplate = (id: string, name: string) => {
+    setTemplateToDelete({ id, name })
+    setDeleteDialogOpen(true)
+  }
 
   const confirmDeleteTemplate = async () => {
-    if (!templateToDelete) return;
-
+    if (!templateToDelete) return
     try {
-      await deleteTemplateMutation.mutateAsync(templateToDelete.id);
+      await deleteTemplateMutation.mutateAsync(templateToDelete.id)
       toast({
-        title: "Template Deleted",
-        description: "Template deleted successfully!",
-      });
+        title: 'Template deleted',
+        description: 'Template deleted successfully.',
+      })
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete template",
-        variant: "destructive",
-      });
+        title: 'Error',
+        description: error?.message || 'Failed to delete template',
+        variant: 'destructive',
+      })
     } finally {
-      setDeleteDialogOpen(false);
-      setTemplateToDelete(null);
+      setDeleteDialogOpen(false)
+      setTemplateToDelete(null)
     }
-  };
+  }
 
   const handlePreviewTemplate = (template: any) => {
-    setPreviewTemplate(template);
-    setPreviewModalOpen(true);
-  };
+    setPreviewTemplate(template)
+    setPreviewModalOpen(true)
+  }
 
   const renderTemplateCard = (template: any, isPublic = false) => (
-    <Card key={template.id} className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-            <FileText className="w-5 h-5 text-purple-600" />
-          </div>
-          <div className="flex items-center space-x-2">
-            <Badge variant="secondary">
-              {getTemplateType(template) === 'cpe' ? 'CPE' : 'Extraction'}
-            </Badge>
-            <Badge variant={isPublic ? "default" : "outline"}>
-              {isPublic ? (
-                <Globe className="w-3 h-3 mr-1" />
-              ) : (
-                <Lock className="w-3 h-3 mr-1" />
-              )}
-              {isPublic ? "Public" : "Private"}
-            </Badge>
-            <Badge variant="outline">
-              {template.fields?.length || 0} fields
-            </Badge>
-          </div>
-        </div>
-
-        <h3 className="font-medium text-gray-900 mb-1">
-          {template.name || "Untitled Template"}
-        </h3>
-
-        {template.description && (
-          <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-            {template.description}
-          </p>
-        )}
-
-        <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-          <span>
-            Created {new Date(template.created_at).toLocaleDateString()}
-          </span>
-        </div>
-
-        <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePreviewTemplate(template)}
+    <div
+      key={template.id}
+      className={cn(
+        'flex flex-col gap-3 rounded-lg border border-border bg-surface-raised p-4 shadow-xs transition-colors',
+        'hover:border-border-strong',
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <IconTile icon={FileText} tone="brand" size="md" />
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <Badge variant="secondary">
+            {getTemplateType(template) === 'cpe' ? 'CPE' : 'Extraction'}
+          </Badge>
+          <Badge
+            variant={isPublic ? 'default' : 'outline'}
+            className="gap-1"
           >
-            <Eye className="w-4 h-4 mr-1" />
-            View
-          </Button>
-          {!isPublic && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleEditTemplate(template)}
-              >
-                <Edit className="w-4 h-4 mr-1" />
-                Edit
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDeleteTemplate(template.id, template.name)}
-                disabled={deleteTemplateMutation.isPending}
-              >
-                <Trash2 className="w-4 h-4 mr-1" />
-                Delete
-              </Button>
-            </>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Templates</h1>
-          <p className="text-gray-600 mt-1">
-            Browse and manage your templates
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="inline-flex rounded-lg border bg-white p-1">
-            <Button
-              type="button"
-              variant={activeTemplateType === 'extraction' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveTemplateType('extraction')}
-            >
-              Extraction
-            </Button>
-            <Button
-              type="button"
-              variant={activeTemplateType === 'cpe' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveTemplateType('cpe')}
-            >
-              CPE
-            </Button>
-          </div>
-
-          <Button onClick={handleCreateTemplate}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Template
-          </Button>
+            {isPublic ? (
+              <Globe className="size-3" aria-hidden />
+            ) : (
+              <Lock className="size-3" aria-hidden />
+            )}
+            {isPublic ? 'Public' : 'Private'}
+          </Badge>
+          <Badge variant="outline" className="tabular-nums">
+            {template.fields?.length || 0} fields
+          </Badge>
         </div>
       </div>
 
-      {/* Public Templates Section */}
-      {publicTemplates.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Globe className="w-5 h-5 mr-2" />
-              Public Templates ({publicTemplates.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {publicTemplates.map((template: any) =>
-                renderTemplateCard(template, true)
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <div className="space-y-1">
+        <h3 className="text-sm font-semibold text-foreground">
+          {template.name || 'Untitled template'}
+        </h3>
+        {template.description && (
+          <p className="line-clamp-2 text-xs text-foreground-muted">
+            {template.description}
+          </p>
+        )}
+      </div>
 
-      {/* User Templates Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Lock className="w-5 h-5 mr-2" />
-            My Templates ({userTemplates.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-8">
-              <Loader2 className="w-8 h-8 text-gray-400 mx-auto mb-4 animate-spin" />
-              <p className="text-gray-600">Loading templates...</p>
-            </div>
-          ) : userTemplates.length === 0 ? (
-            <div className="text-center py-8">
-              <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No personal templates yet
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Create your first template to reuse field configurations across
-                jobs.
-              </p>
-              <Button onClick={handleCreateTemplate}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Template
+      <p className="text-[11px] text-foreground-subtle">
+        Created {new Date(template.created_at).toLocaleDateString()}
+      </p>
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handlePreviewTemplate(template)}
+        >
+          <Eye className="mr-1 size-3.5" aria-hidden />
+          View
+        </Button>
+        {!isPublic && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleEditTemplate(template)}
+            >
+              <Edit className="mr-1 size-3.5" aria-hidden />
+              Edit
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                handleDeleteTemplate(template.id, template.name)
+              }
+              disabled={deleteTemplateMutation.isPending}
+            >
+              <Trash2 className="mr-1 size-3.5" aria-hidden />
+              Delete
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="space-y-8">
+      <PageHeader
+        title="Templates"
+        description="Browse and manage your saved field configurations."
+        actions={
+          <div className="flex items-center gap-2">
+            <div
+              role="tablist"
+              aria-label="Template type"
+              className="inline-flex rounded-md border border-border bg-surface-raised p-1"
+            >
+              <Button
+                type="button"
+                role="tab"
+                aria-selected={activeTemplateType === 'extraction'}
+                variant={
+                  activeTemplateType === 'extraction' ? 'default' : 'ghost'
+                }
+                size="sm"
+                onClick={() => setActiveTemplateType('extraction')}
+              >
+                Extraction
+              </Button>
+              <Button
+                type="button"
+                role="tab"
+                aria-selected={activeTemplateType === 'cpe'}
+                variant={activeTemplateType === 'cpe' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveTemplateType('cpe')}
+              >
+                CPE
               </Button>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {userTemplates.map((template: any) =>
-                renderTemplateCard(template, false)
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Template Modal */}
+            <Button onClick={handleCreateTemplate}>
+              <Plus className="mr-1.5 size-4" aria-hidden />
+              New template
+            </Button>
+          </div>
+        }
+      />
+
+      {publicTemplates.length > 0 && (
+        <Section
+          variant="card"
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Globe className="size-4 text-foreground-muted" aria-hidden />
+              Public templates ({publicTemplates.length})
+            </span>
+          }
+          description="Curated templates the team has shared with everyone."
+        >
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {publicTemplates.map((template: any) =>
+              renderTemplateCard(template, true),
+            )}
+          </div>
+        </Section>
+      )}
+
+      <Section
+        variant="card"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <Lock className="size-4 text-foreground-muted" aria-hidden />
+            My templates ({userTemplates.length})
+          </span>
+        }
+        description="Templates only you can see."
+      >
+        {loading ? (
+          <LoadingState
+            variant="card-grid"
+            rows={3}
+            label="Loading templates"
+          />
+        ) : userTemplates.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title="No personal templates yet"
+            description="Create your first template to reuse field configurations across jobs."
+            action={
+              <Button onClick={handleCreateTemplate}>
+                <Plus className="mr-1.5 size-4" aria-hidden />
+                Create your first template
+              </Button>
+            }
+          />
+        ) : (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {userTemplates.map((template: any) =>
+              renderTemplateCard(template, false),
+            )}
+          </div>
+        )}
+      </Section>
+
       <TemplateModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -287,41 +308,43 @@ export default function TemplatesPage() {
         dataTypesLoading={dataTypesLoading}
       />
 
-      {/* Template Preview Modal */}
       <TemplatePreviewModal
         isOpen={previewModalOpen}
         onClose={() => setPreviewModalOpen(false)}
         template={previewTemplate}
       />
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Template</AlertDialogTitle>
+            <AlertDialogTitle>Delete template</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{templateToDelete?.name}"? This action cannot be undone.
+              Are you sure you want to delete &ldquo;{templateToDelete?.name}
+              &rdquo;? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDeleteTemplate}
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={deleteTemplateMutation.isPending}
             >
               {deleteTemplateMutation.isPending ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Deleting...
+                  <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+                  Deleting…
                 </>
               ) : (
-                "Delete Template"
+                'Delete template'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  );
+  )
 }

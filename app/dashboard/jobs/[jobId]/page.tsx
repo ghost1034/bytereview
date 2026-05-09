@@ -37,10 +37,10 @@ export default function JobRedirectPage() {
 
   // Show loading while redirecting
   return (
-    <div className="flex items-center justify-center min-h-[400px]">
-      <div className="flex items-center gap-3 text-gray-600">
-        <Loader2 className="w-5 h-5 animate-spin" />
-        <span>Redirecting to job...</span>
+    <div className="flex items-center justify-center min-h-[400px]" role="status" aria-live="polite">
+      <div className="flex items-center gap-3 text-foreground-muted">
+        <Loader2 className="w-5 h-5 animate-spin" aria-hidden />
+        <span>Redirecting to job…</span>
       </div>
     </div>
   );

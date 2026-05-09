@@ -93,18 +93,18 @@ function GoogleCallbackContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-surface py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4">
             {status === 'processing' && (
-              <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+              <Loader2 className="h-8 w-8 text-primary animate-spin" aria-hidden />
             )}
             {status === 'success' && (
-              <CheckCircle className="h-8 w-8 text-green-500" />
+              <CheckCircle className="h-8 w-8 text-success" aria-hidden />
             )}
             {status === 'error' && (
-              <AlertCircle className="h-8 w-8 text-red-500" />
+              <AlertCircle className="h-8 w-8 text-destructive" aria-hidden />
             )}
           </div>
           
@@ -125,17 +125,17 @@ function GoogleCallbackContent() {
         <CardContent>
           {status === 'processing' && (
             <div className="space-y-3">
-              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                <span>Exchanging authorization code...</span>
+              <div className="flex items-center gap-2 text-sm text-foreground-muted">
+                <span className="size-2 rounded-full bg-primary animate-pulse" aria-hidden />
+                <span>Exchanging authorization code…</span>
               </div>
-              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
-                <span>Storing encrypted credentials...</span>
+              <div className="flex items-center gap-2 text-sm text-foreground-muted">
+                <span className="size-2 rounded-full bg-foreground-subtle/40" aria-hidden />
+                <span>Storing encrypted credentials…</span>
               </div>
-              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
-                <span>Finalizing connection...</span>
+              <div className="flex items-center gap-2 text-sm text-foreground-muted">
+                <span className="size-2 rounded-full bg-foreground-subtle/40" aria-hidden />
+                <span>Finalizing connection…</span>
               </div>
             </div>
           )}
@@ -175,13 +175,13 @@ function GoogleCallbackContent() {
 // Loading component for Suspense fallback
 function CallbackLoading() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-surface py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4">
-            <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+            <Loader2 className="h-8 w-8 text-primary animate-spin" aria-hidden />
           </div>
-          <CardTitle className="text-xl">Loading...</CardTitle>
+          <CardTitle className="text-xl">Loading…</CardTitle>
           <CardDescription>
             Please wait while we process your Google OAuth callback.
           </CardDescription>

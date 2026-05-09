@@ -1,139 +1,147 @@
-import Link from "next/link";
-import { FaLinkedin } from "react-icons/fa";
+import Link from 'next/link'
+import { FaLinkedin } from 'react-icons/fa'
+
+interface FooterLinkProps {
+  href: string
+  children: React.ReactNode
+}
+
+function FooterLink({ href, children }: FooterLinkProps) {
+  return (
+    <Link
+      href={href}
+      className="text-marketing-hero-foreground-muted transition-colors hover:text-marketing-hero-foreground"
+    >
+      {children}
+    </Link>
+  )
+}
+
+function ComingSoonItem({ label }: { label: string }) {
+  return (
+    <span className="text-marketing-hero-foreground-muted/70">
+      {label}{' '}
+      <span className="text-xs text-marketing-hero-foreground-muted/50">
+        (Soon)
+      </span>
+    </span>
+  )
+}
 
 export default function Footer() {
   return (
-    <footer className="bg-gray-900 text-white py-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
-          {/* Brand */}
+    <footer className="bg-gradient-to-b from-marketing-hero-from to-marketing-hero-to py-16 text-marketing-hero-foreground">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-2 gap-8 md:grid-cols-5">
           <div className="col-span-2 md:col-span-1">
             <div className="mb-4">
-              <span className="text-xl font-bold">CPAAutomation</span>
+              <span className="text-xl font-semibold tracking-tight">
+                CPAAutomation
+              </span>
             </div>
-            <p className="text-gray-400 text-sm mb-4">
+            <p className="mb-4 text-sm text-marketing-hero-foreground-muted">
               The AI platform for accounting, finance, and legal professionals.
             </p>
-            <div className="flex space-x-4">
+            <div className="flex gap-4">
               <a
                 href="https://www.linkedin.com/company/cpa-automation-inc"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-gray-400 hover:text-white transition-colors"
+                aria-label="CPAAutomation on LinkedIn"
+                className="text-marketing-hero-foreground-muted transition-colors hover:text-marketing-hero-foreground"
               >
-                <FaLinkedin className="w-5 h-5" />
+                <FaLinkedin className="size-5" aria-hidden />
               </a>
             </div>
           </div>
 
-          {/* Products */}
           <div>
-            <h4 className="font-semibold text-white mb-4 text-sm">Products</h4>
+            <h4 className="mb-4 text-sm font-semibold text-marketing-hero-foreground">
+              Products
+            </h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/features" className="text-gray-400 hover:text-white transition-colors">
-                  Document Analysis
-                </Link>
+                <FooterLink href="/features">Document Analysis</FooterLink>
               </li>
               <li>
-                <Link href="/dashboard/form-fill" className="text-gray-400 hover:text-white transition-colors">
-                  Form Fill
-                </Link>
+                <FooterLink href="/dashboard/form-fill">Form Fill</FooterLink>
               </li>
               <li>
-                <Link href="/dashboard/inkwise" className="text-gray-400 hover:text-white transition-colors">
-                  Inkwise
-                </Link>
+                <FooterLink href="/dashboard/inkwise">Inkwise</FooterLink>
               </li>
               <li>
-                <span className="text-gray-500">
-                  Chrona <span className="text-xs text-gray-600">(Soon)</span>
-                </span>
+                <ComingSoonItem label="Chrona" />
               </li>
               <li>
-                <span className="text-gray-500">
-                  Claw Series <span className="text-xs text-gray-600">(Soon)</span>
-                </span>
+                <ComingSoonItem label="Claw Series" />
               </li>
               <li>
-                <span className="text-gray-500">
-                  AI Analysis Suite <span className="text-xs text-gray-600">(Soon)</span>
-                </span>
+                <ComingSoonItem label="AI Analysis Suite" />
               </li>
               <li>
-                <span className="text-gray-500">
-                  AI Productivity Suite <span className="text-xs text-gray-600">(Soon)</span>
-                </span>
+                <ComingSoonItem label="AI Productivity Suite" />
               </li>
               <li>
-                <Link href="/dashboard/cpe-tracker" className="text-gray-400 hover:text-white transition-colors">
+                <FooterLink href="/dashboard/cpe-tracker">
                   CPE Tracker
-                </Link>
+                </FooterLink>
               </li>
             </ul>
           </div>
 
-          {/* Resources */}
           <div>
-            <h4 className="font-semibold text-white mb-4 text-sm">Resources</h4>
+            <h4 className="mb-4 text-sm font-semibold text-marketing-hero-foreground">
+              Resources
+            </h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/demo" className="text-gray-400 hover:text-white transition-colors">
-                  Demo
-                </Link>
+                <FooterLink href="/demo">Demo</FooterLink>
               </li>
               <li>
-                <Link href="/pricing" className="text-gray-400 hover:text-white transition-colors">
-                  Pricing
-                </Link>
+                <FooterLink href="/pricing">Pricing</FooterLink>
               </li>
               <li>
-                <Link href="/case-study/LFO" className="text-gray-400 hover:text-white transition-colors">
-                  Case Study
-                </Link>
+                <FooterLink href="/case-study/LFO">Case study</FooterLink>
               </li>
             </ul>
           </div>
 
-          {/* Company */}
           <div>
-            <h4 className="font-semibold text-white mb-4 text-sm">Company</h4>
+            <h4 className="mb-4 text-sm font-semibold text-marketing-hero-foreground">
+              Company
+            </h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/about" className="text-gray-400 hover:text-white transition-colors">
-                  About
-                </Link>
+                <FooterLink href="/about">About</FooterLink>
               </li>
               <li>
-                <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
-                  Contact
-                </Link>
+                <FooterLink href="/contact">Contact</FooterLink>
               </li>
             </ul>
           </div>
 
-          {/* Legal */}
           <div>
-            <h4 className="font-semibold text-white mb-4 text-sm">Legal</h4>
+            <h4 className="mb-4 text-sm font-semibold text-marketing-hero-foreground">
+              Legal
+            </h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/privacy" className="text-gray-400 hover:text-white transition-colors">
-                  Privacy Policy
-                </Link>
+                <FooterLink href="/privacy">Privacy policy</FooterLink>
               </li>
               <li>
-                <Link href="/terms" className="text-gray-400 hover:text-white transition-colors">
-                  Terms of Service
-                </Link>
+                <FooterLink href="/terms">Terms of service</FooterLink>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="border-t border-gray-800 mt-12 pt-8 text-center">
-          <p className="text-gray-500 text-sm">&copy; 2026 CPA Automation, Inc. All rights reserved.</p>
+        <div className="mt-12 border-t border-marketing-hero-border pt-8 text-center">
+          <p className="text-sm text-marketing-hero-foreground-muted/70">
+            &copy; {new Date().getFullYear()} CPA Automation, Inc. All rights
+            reserved.
+          </p>
         </div>
       </div>
     </footer>
-  );
+  )
 }
