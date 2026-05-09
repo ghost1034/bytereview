@@ -245,6 +245,7 @@ class SSEManager:
                             {
                                 "id": str(task.id),
                                 "status": task.status,
+                                "error_message": task.error_message,
                                 "display_name": display_name,
                                 "file_count": len(source_files),
                             }
@@ -275,8 +276,8 @@ class SSEManager:
                 except asyncio.QueueEmpty:
                     pass
 
-                if str(latest_run.status) == "completed":
-                    yield {"type": "job_already_completed"}
+                if str(latest_run.status) in ("completed", "partially_completed", "failed", "cancelled"):
+                    yield {"type": "job_already_completed", "status": str(latest_run.status)}
                     return
 
             # Live event streaming loop
@@ -404,8 +405,11 @@ class SSEManager:
             },
         )
 
-    async def send_job_completed(self, job_id: str) -> None:
-        await self.send_job_event(job_id, {"type": "job_completed", "timestamp": _epoch_ms()})
+    async def send_job_completed(self, job_id: str, status: str | None = None) -> None:
+        event: Dict[str, Any] = {"type": "job_completed", "timestamp": _epoch_ms()}
+        if status is not None:
+            event["status"] = status
+        await self.send_job_event(job_id, event)
 
     async def send_workflow_progress(self, job_id: str, progress_data: dict) -> None:
         await self.send_job_event(job_id, {"type": "workflow_progress", "progress": progress_data})

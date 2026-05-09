@@ -66,9 +66,9 @@ export function useJobDetails(jobId: string | undefined, runId?: string) {
     queryKey: ['job', jobId, runId],
     queryFn: () => apiClient.getJobDetails(jobId!, runId),
     enabled: !!jobId,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Poll every 2 seconds if job is processing
-      return data?.status === 'processing' ? 2000 : false
+      return query.state.data?.status === 'in_progress' ? 2000 : false
     },
   })
 }
@@ -132,9 +132,9 @@ export function useJobProgress(jobId: string | undefined) {
     queryKey: ['job-progress', jobId],
     queryFn: () => apiClient.getJobProgress(jobId!),
     enabled: !!jobId,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Poll every 1 second if job is processing
-      return data?.status === 'processing' ? 1000 : false
+      return query.state.data?.status === 'in_progress' ? 1000 : false
     },
   })
 }

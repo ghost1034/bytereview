@@ -19,6 +19,17 @@ from services.form_fill_service import form_fill_service
 
 logger = logging.getLogger(__name__)
 
+
+def _header_int(request: Request, name: str) -> int | None:
+    value = request.headers.get(name)
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        logger.warning("Invalid Cloud Tasks header %s=%r", name, value)
+        return None
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
@@ -55,7 +66,11 @@ async def execute_task(request: Request):
             
             # Create context dict (similar to ARQ context)
             ctx = {
-                "automation_run_id": automation_run_id
+                "automation_run_id": automation_run_id,
+                "task_retry_count": _header_int(request, "X-CloudTasks-TaskRetryCount"),
+                "task_execution_count": _header_int(request, "X-CloudTasks-TaskExecutionCount"),
+                "task_queue_name": request.headers.get("X-CloudTasks-QueueName"),
+                "task_name": request.headers.get("X-CloudTasks-TaskName"),
             }
             
             # Execute the task

@@ -188,6 +188,7 @@ class TaskInfo(BaseModel):
     """Information about a single extraction task"""
     id: str = Field(..., description="Task identifier")
     status: str = Field(..., description="Task status")
+    error_message: Optional[str] = Field(None, description="Last task error message, if any")
 
 class JobProgressResponse(BaseModel):
     """Job progress information"""

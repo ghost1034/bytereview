@@ -107,12 +107,14 @@ export default function ProcessingStep({
       id: string;
       name: string;
       status: "pending" | "processing" | "completed" | "failed";
+      errorMessage?: string | null;
     }>
   >([]);
   const [currentStep, setCurrentStep] = useState<string | null>(null);
 
   // Simple local state for immediate completion updates
   const [jobCompleted, setJobCompleted] = useState(false);
+  const [jobFailed, setJobFailed] = useState(false);
   const [sseIntentionallyClosed, setSseIntentionallyClosed] = useState(false);
 
   // Track if we've already restored processing steps to prevent re-restoration
@@ -121,7 +123,7 @@ export default function ProcessingStep({
   // Simplified status derivation - single source of truth
   const isCompleted = jobDetails?.status === "completed" || jobCompleted;
   const isProcessing = jobDetails?.status === "in_progress" && !isCompleted;
-  const isFailed = jobDetails?.status === "failed";
+  const isFailed = jobDetails?.status === "failed" || jobFailed;
 
   console.log(
     `Job status check: status=${jobDetails?.status}, isCompleted=${isCompleted}, isProcessing=${isProcessing}`
@@ -156,6 +158,7 @@ export default function ProcessingStep({
         restoredSteps.push({
           id: task.id,
           name: task.display_name || `Task ${task.id}`,
+          errorMessage: task.error_message,
           status: task.status as
             | "pending"
             | "processing"
@@ -179,6 +182,9 @@ export default function ProcessingStep({
     if (fullStateData.status === "completed") {
       console.log("Job completed according to full state");
       setJobCompleted(true);
+    } else if (fullStateData.status === "failed") {
+      console.log("Job failed according to full state");
+      setJobFailed(true);
     }
   };
 
@@ -257,6 +263,7 @@ export default function ProcessingStep({
                       ? {
                           ...step,
                           status: "processing",
+                          errorMessage: null,
                           startTime: Date.now(),
                         }
                       : step
@@ -268,6 +275,7 @@ export default function ProcessingStep({
                     id: data.task_id,
                     name: data.display_name || `Processing Task ${prev.length + 1}`,
                     status: "processing",
+                    errorMessage: null,
                     startTime: Date.now(),
                   },
                 ];
@@ -288,7 +296,7 @@ export default function ProcessingStep({
               setProcessingSteps((prev) => {
                 const updated = prev.map((step) =>
                   step.id === data.task_id
-                    ? { ...step, status: "completed" }
+                    ? { ...step, status: "completed" as const, errorMessage: null }
                     : step
                 );
 
@@ -303,6 +311,7 @@ export default function ProcessingStep({
                     id: data.task_id,
                     name: `Task ${data.task_id}`,
                     status: "completed",
+                    errorMessage: null,
                   });
                 }
 
@@ -326,7 +335,7 @@ export default function ProcessingStep({
               setProcessingSteps((prev) => {
                 const updated = prev.map((step) =>
                   step.id === data.task_id
-                    ? { ...step, status: "failed" }
+                    ? { ...step, status: "failed" as const, errorMessage: data.error }
                     : step
                 );
 
@@ -340,6 +349,7 @@ export default function ProcessingStep({
                     id: data.task_id,
                     name: `Task ${data.task_id}`,
                     status: "failed",
+                    errorMessage: data.error,
                   });
                 }
 
@@ -348,11 +358,15 @@ export default function ProcessingStep({
               break;
 
             case "job_completed":
-              console.log("Job completed");
+              console.log("Job completed", data.status);
               setCurrentStep(null);
 
-              // Mark job as completed immediately for UI updates
-              setJobCompleted(true);
+              if (data.status === "failed") {
+                setJobFailed(true);
+              } else {
+                // Treat completed and partially_completed runs as ready for results.
+                setJobCompleted(true);
+              }
               setSseIntentionallyClosed(true);
 
               // Gracefully close SSE connection
@@ -372,8 +386,12 @@ export default function ProcessingStep({
               break;
 
             case "job_already_completed":
-              console.log("Job already completed, closing SSE connection");
-              setJobCompleted(true);
+              console.log("Job already completed, closing SSE connection", data.status);
+              if (data.status === "failed") {
+                setJobFailed(true);
+              } else {
+                setJobCompleted(true);
+              }
               setSseIntentionallyClosed(true);
 
               // Gracefully close connection since job is already done
@@ -511,7 +529,7 @@ export default function ProcessingStep({
   const calculateProgress = () => {
     if (!currentProgress || currentProgress.total === 0) return 0;
     return Math.round(
-      (currentProgress.completed / currentProgress.total) * 100
+      ((currentProgress.completed + currentProgress.failed) / currentProgress.total) * 100
     );
   };
 
@@ -638,7 +656,7 @@ export default function ProcessingStep({
                           : step.status === "completed"
                           ? "Completed"
                           : step.status === "failed"
-                          ? "Processing failed"
+                          ? step.errorMessage || "Processing failed"
                           : step.status === "pending"
                           ? "Pending..."
                           : "Status unknown"}

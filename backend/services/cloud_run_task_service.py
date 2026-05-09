@@ -6,8 +6,10 @@ import os
 import json
 import logging
 from typing import Dict, Any, Optional, List
+from google.api_core.exceptions import NotFound
 from google.cloud import tasks_v2
 from google.protobuf import timestamp_pb2
+from google.protobuf import field_mask_pb2
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 
@@ -48,6 +50,24 @@ class CloudRunTaskService:
             self.extract_dispatch_deadline_seconds = int(os.getenv("TASK_EXTRACT_DISPATCH_DEADLINE_SECONDS", "1800"))
         except Exception:
             self.extract_dispatch_deadline_seconds = 1800
+
+        self.extract_retry_config = self._build_extract_retry_config()
+
+    def _env_int(self, name: str, default: int) -> int:
+        try:
+            return int(os.getenv(name, str(default)))
+        except (TypeError, ValueError):
+            return default
+
+    def _build_extract_retry_config(self) -> Dict[str, Any]:
+        max_attempts = max(1, self._env_int("TASK_EXTRACT_MAX_ATTEMPTS", 3))
+        return {
+            "max_attempts": max_attempts,
+            "max_retry_duration": f"{max(0, self._env_int('TASK_EXTRACT_MAX_RETRY_DURATION_SECONDS', 900))}s",
+            "min_backoff": f"{max(1, self._env_int('TASK_EXTRACT_MIN_BACKOFF_SECONDS', 10))}s",
+            "max_backoff": f"{max(1, self._env_int('TASK_EXTRACT_MAX_BACKOFF_SECONDS', 300))}s",
+            "max_doublings": max(0, self._env_int("TASK_EXTRACT_MAX_DOUBLINGS", 5)),
+        }
 
     async def enqueue_extraction_task(
         self, 
@@ -266,31 +286,34 @@ class CloudRunTaskService:
             queue_ids = ["extract-tasks", "io-tasks", "automation-tasks", "maintenance-tasks"]
             
             for queue_id in queue_ids:
-                try:
-                    # Full queue name for checking existence
-                    full_queue_name = f"{location_path}/queues/{queue_id}"
-                    
-                    # Check if queue exists
-                    self.tasks_client.get_queue(name=full_queue_name)
-                    logger.info(f"Queue {queue_id} already exists")
-                except:
-                    # Create queue
-                    queue = {
-                        "name": f"{location_path}/queues/{queue_id}",
-                        "rate_limits": {
-                            "max_dispatches_per_second": 10.0,
-                            "max_burst_size": 100,
-                            "max_concurrent_dispatches": 5
-                        },
-                        "retry_config": {
-                            "max_attempts": 3,
-                            "max_retry_duration": "300s",
-                            "min_backoff": "1s",
-                            "max_backoff": "60s",
-                            "max_doublings": 5
-                        }
+                queue = {
+                    "name": f"{location_path}/queues/{queue_id}",
+                    "rate_limits": {
+                        "max_dispatches_per_second": 10.0,
+                        "max_burst_size": 100,
+                        "max_concurrent_dispatches": 5
+                    },
+                    "retry_config": self.extract_retry_config if queue_id == "extract-tasks" else {
+                        "max_attempts": 3,
+                        "max_retry_duration": "300s",
+                        "min_backoff": "1s",
+                        "max_backoff": "60s",
+                        "max_doublings": 5
                     }
-                    
+                }
+                # Full queue name for checking existence
+                full_queue_name = f"{location_path}/queues/{queue_id}"
+
+                try:
+                    self.tasks_client.get_queue(name=full_queue_name)
+                    update_request = tasks_v2.UpdateQueueRequest(
+                        queue=queue,
+                        update_mask=field_mask_pb2.FieldMask(paths=["rate_limits", "retry_config"])
+                    )
+                    self.tasks_client.update_queue(request=update_request)
+                    logger.info(f"Queue {queue_id} already exists; updated rate and retry config")
+                except NotFound:
+                    # Create queue
                     request = tasks_v2.CreateQueueRequest(
                         parent=location_path,
                         queue=queue

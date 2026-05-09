@@ -834,13 +834,20 @@ class JobService:
             # Check if job run is complete and send SSE events
             job_run = db.query(JobRun).filter(JobRun.id == run_id).first()
             if job_run and job_run.tasks_completed + job_run.tasks_failed >= job_run.tasks_total:
-                final_status = 'completed' if job_run.tasks_failed == 0 else 'partially_completed'
+                if job_run.tasks_failed == 0:
+                    final_status = 'completed'
+                elif job_run.tasks_completed == 0:
+                    final_status = 'failed'
+                else:
+                    final_status = 'partially_completed'
+
+                completed_at = datetime.utcnow()
                 db.execute(
                     update(JobRun)
                     .where(JobRun.id == run_id)
                     .values(
                         status=final_status,
-                        completed_at=datetime.utcnow() if final_status == 'completed' else None
+                        completed_at=completed_at
                     )
                 )
                 
@@ -864,7 +871,7 @@ class JobService:
                 # Send job completion SSE event
                 try:
                     from services.sse_service import sse_manager
-                    await sse_manager.send_job_completed(str(job_run.job_id))
+                    await sse_manager.send_job_completed(str(job_run.job_id), status=final_status)
                     logger.info(f"Job run {run_id} completed - sent SSE event")
                 except Exception as e:
                     logger.warning(f"Failed to send job_run_completed SSE event: {e}")
@@ -877,6 +884,17 @@ class JobService:
                         # Then complete automation runs (this will be handled by export completion)
                     except Exception as e:
                         logger.error(f"Failed to handle automation completion for job run {run_id}: {e}")
+                elif final_status == 'failed' and automation_run_id:
+                    try:
+                        from services.automation_service import automation_service
+                        await automation_service.update_automation_run_status(
+                            db,
+                            automation_run_id,
+                            'failed',
+                            'All extraction tasks failed'
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to mark automation run failed for job run {run_id}: {e}")
 
             db.commit()
             
@@ -1665,7 +1683,7 @@ class JobService:
             
             # Create task info list
             task_info_list = [
-                TaskInfo(id=str(task.id), status=task.status)
+                TaskInfo(id=str(task.id), status=task.status, error_message=task.error_message)
                 for task in tasks
             ]
             

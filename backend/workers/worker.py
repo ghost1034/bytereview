@@ -90,6 +90,31 @@ def _advisory_unlock(db: Session, task_id: str) -> None:
         # Ignore unlock errors; lock is released when the session/connection closes.
         return
 
+
+def _ctx_int(ctx: Dict[str, Any], key: str) -> int | None:
+    value = ctx.get(key)
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_task_max_attempts() -> int:
+    try:
+        return max(1, int(os.getenv("TASK_EXTRACT_MAX_ATTEMPTS", "3")))
+    except (TypeError, ValueError):
+        return 3
+
+
+def _is_final_extraction_attempt(ctx: Dict[str, Any]) -> bool:
+    retry_count = _ctx_int(ctx, "task_retry_count")
+    if retry_count is None:
+        # Direct/non-Cloud-Tasks invocations should fail terminally instead of looping forever.
+        return True
+    return retry_count >= _extract_task_max_attempts() - 1
+
 # Redis configuration removed - using Cloud Run Tasks instead
 
 async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_run_id: str = None) -> Dict[str, Any]:
@@ -120,6 +145,9 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
             if existing is not None:
                 logger.info(f"Task {task_id} already completed with existing results; skipping retry")
                 return {"success": True, "task_id": task_id, "skipped": True}
+        if task.status == "failed":
+            logger.info(f"Task {task_id} already failed terminally; skipping duplicate delivery")
+            return {"success": False, "task_id": task_id, "skipped": True, "terminal": True}
         
         # Get associated source files (natural order by original_path then id)
         source_files_query = db.query(SourceFile).join(
@@ -372,6 +400,7 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
         
         # Update task status
         task.status = "completed"
+        task.error_message = None
         task.processed_at = datetime.now(timezone.utc)
         
         # Persist results and task status before emitting any SSE or recording usage
@@ -412,7 +441,8 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
         return {"success": True, "task_id": task_id}
         
     except Exception as e:
-        logger.error(f"Error processing extraction task {task_id}: {e}")
+        error_message = str(e)
+        logger.error(f"Error processing extraction task {task_id}: {error_message}")
 
         # If we couldn't get the advisory lock, do not mark the task as failed.
         if isinstance(e, TaskLockedError):
@@ -421,39 +451,70 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
             except Exception:
                 pass
             raise
-        
+
+        try:
+            db.rollback()
+        except Exception:
+            pass
+         
         # Update task status to failed only if task exists
         if 'task' in locals() and task is not None:
-            task.status = "failed"
-            task.error_message = str(e)
-            
+            try:
+                task = db.query(ExtractionTask).filter(ExtractionTask.id == task_uuid).first()
+            except Exception:
+                task = None
+
+        if 'task' in locals() and task is not None:
+            if task.status == "completed":
+                logger.info(f"Task {task_id} completed despite exception path; skipping failure update")
+                return {"success": True, "task_id": task_id, "skipped": True}
+
+            final_attempt = _is_final_extraction_attempt(ctx)
+            task.error_message = error_message
+             
             # Get parent job ID for SSE events
             job_run = db.query(JobRun).filter(JobRun.id == task.job_run_id).first()
             parent_job_id = str(job_run.job_id) if job_run else "unknown"
-            
-            # Increment run-level task failure counter
+
+            if not final_attempt:
+                retry_count = _ctx_int(ctx, "task_retry_count")
+                task.status = "pending"
+                db.commit()
+                logger.info(
+                    "Stored retryable extraction error for task %s (retry_count=%s, max_attempts=%s)",
+                    task_id,
+                    retry_count,
+                    _extract_task_max_attempts(),
+                )
+                raise
+
+            task.status = "failed"
+            task.processed_at = datetime.now(timezone.utc)
+            db.commit()
+
+            # Increment run-level task failure counter only after the task is terminal.
             try:
                 from services.job_service import JobService
                 job_service = JobService()
                 automation_run_id = ctx.get('automation_run_id')
                 await job_service.increment_task_completion(task.job_run_id, success=False, automation_run_id=automation_run_id)
                 logger.info(f"Incremented task failure counter for job run {task.job_run_id}")
-            except Exception as e:
-                logger.error(f"Failed to increment task failure counter: {e}")
-            
-            db.commit()
-            
+            except Exception as increment_error:
+                logger.error(f"Failed to increment task failure counter: {increment_error}")
+             
             # Send SSE event for task failed
             try:
                 from services.sse_service import sse_manager
-                await sse_manager.send_task_failed(parent_job_id, task_id, str(e))
-            except Exception as e:
-                logger.warning(f"Failed to send task_failed SSE event: {e}")
+                await sse_manager.send_task_failed(parent_job_id, task_id, error_message)
+            except Exception as sse_error:
+                logger.warning(f"Failed to send task_failed SSE event: {sse_error}")
+
+            return {"success": False, "task_id": task_id, "error": error_message, "terminal": True}
         else:
             logger.warning(f"Task {task_id} not found in database - likely stale queue item")
-        
+         
         # Don't re-raise for missing tasks to avoid infinite retries
-        if "not found" in str(e):
+        if "not found" in error_message:
             logger.info(f"Skipping missing task {task_id} to prevent retries")
             return {"success": False, "task_id": task_id, "error": "Task not found"}
         

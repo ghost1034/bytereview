@@ -655,6 +655,15 @@ gcloud pubsub subscriptions create $SUB \
 for Q in extract-tasks io-tasks automation-tasks maintenance-tasks; do 
   gcloud tasks queues create $Q --location=$REGION --project=$PROJECT_ID || true
 done
+
+gcloud tasks queues update extract-tasks \
+  --location=$REGION \
+  --project=$PROJECT_ID \
+  --max-attempts=3 \
+  --min-backoff=10s \
+  --max-backoff=300s \
+  --max-retry-duration=900s \
+  --max-doublings=5
 ```
 - Cloud Scheduler jobs (call maintenance task service)
 ```

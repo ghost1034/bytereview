@@ -4759,6 +4759,11 @@ export interface components {
              * @description Task status
              */
             status: string;
+            /**
+             * Error Message
+             * @description Last task error message, if any
+             */
+            error_message?: string | null;
         };
         /** TemplateCreateRequest */
         TemplateCreateRequest: {
