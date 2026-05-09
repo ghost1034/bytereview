@@ -107,7 +107,7 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
           variants={staggerContainer}
           initial="hidden"
           animate="visible"
-          className="grid w-full grid-cols-1 gap-3 sm:grid-cols-3"
+          className="contents"
         >
           <motion.div variants={staggerChild}>
             <MetricCard
