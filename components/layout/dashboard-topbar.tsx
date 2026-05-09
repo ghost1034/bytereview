@@ -4,7 +4,6 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Bell,
   LifeBuoy,
   LogOut,
   Search,
@@ -13,7 +12,6 @@ import {
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -89,15 +87,6 @@ export function DashboardTopbar({
           <span className="text-[11px]">⌘</span>K
         </kbd>
       </button>
-
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Notifications"
-        className="size-9 text-foreground-muted hover:text-foreground"
-      >
-        <Bell className="size-4" aria-hidden />
-      </Button>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
