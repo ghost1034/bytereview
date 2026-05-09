@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
   Bot,
@@ -149,19 +150,28 @@ export function AppSidebar() {
     >
       <SidebarHeader className="border-b border-sidebar-border px-3 py-3">
         <Link
-          href="/dashboard"
-          className="flex items-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring rounded-md"
+          href="/"
+          aria-label="CPAAutomation home"
+          className="flex items-center outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring rounded-md"
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <span className="text-sm font-semibold">CA</span>
-          </span>
-          <span className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-semibold leading-tight text-foreground">
-              CPAAutomation
-            </span>
-            <span className="text-[11px] leading-tight text-foreground-subtle">
-              AI Document Suite
-            </span>
+          {/* Expanded: full wordmark logo */}
+          <Image
+            src="/logo.png"
+            alt="CPAAutomation"
+            width={240}
+            height={80}
+            priority
+            className="h-9 w-auto group-data-[collapsible=icon]:hidden"
+          />
+          {/* Collapsed: cropped to the leftmost mark so it fits the icon rail */}
+          <span className="hidden size-8 shrink-0 overflow-hidden rounded-md group-data-[collapsible=icon]:flex">
+            <Image
+              src="/logo.png"
+              alt=""
+              width={240}
+              height={80}
+              className="h-8 w-auto max-w-none object-cover object-left"
+            />
           </span>
         </Link>
       </SidebarHeader>

@@ -7,7 +7,6 @@ import {
   LifeBuoy,
   LogOut,
   Search,
-  Settings as SettingsIcon,
   User as UserIcon,
 } from 'lucide-react'
 
@@ -117,12 +116,6 @@ export function DashboardTopbar({
             <Link href="/dashboard/settings" className="cursor-pointer">
               <UserIcon className="mr-2 size-4" />
               Account
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/dashboard/settings" className="cursor-pointer">
-              <SettingsIcon className="mr-2 size-4" />
-              Settings
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
