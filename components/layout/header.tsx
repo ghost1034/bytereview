@@ -205,7 +205,7 @@ export default function Header() {
               {/* Products mega-menu */}
               <div
                 ref={productsRef}
-                className="relative"
+                className="relative flex items-center"
                 onMouseEnter={() => setIsProductsOpen(true)}
                 onMouseLeave={() => setIsProductsOpen(false)}
               >
