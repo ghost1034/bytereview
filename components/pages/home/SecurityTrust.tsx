@@ -23,19 +23,19 @@ const BADGES = [
   },
   {
     icon: MapPinCheck,
-    tone: 'success' as const,
+    tone: 'brand' as const,
     label: 'US-only hosting',
     detail: 'Google Cloud US regions with SOC 2 compliance',
   },
   {
     icon: Lock,
-    tone: 'info' as const,
+    tone: 'brand' as const,
     label: 'AES-256 at rest',
     detail: 'Military-grade encryption for stored data',
   },
   {
     icon: Ban,
-    tone: 'warning' as const,
+    tone: 'brand' as const,
     label: 'Zero data training',
     detail: 'Your documents never train AI models',
   },

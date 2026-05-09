@@ -56,7 +56,7 @@ const FEATURES = [
   },
   {
     icon: Settings,
-    tone: 'warning' as const,
+    tone: 'brand' as const,
     title: 'Custom Extraction',
     description:
       'Create custom columns with self-defined formats and prompts. Classify data and add details like G/L codes.',
@@ -182,7 +182,7 @@ export default function ExtractionFeatures({
             variants={staggerChild}
             className="flex items-start gap-4 rounded-xl border border-border bg-surface-raised p-5 shadow-xs"
           >
-            <IconTile icon={CloudUpload} tone="success" size="md" />
+            <IconTile icon={CloudUpload} tone="brand" size="md" />
             <div>
               <h4 className="mb-1 font-semibold text-foreground">
                 Import from anywhere

@@ -15,7 +15,7 @@ import {
 const MILESTONES = [
   {
     icon: BarChart3,
-    tone: 'destructive' as const,
+    tone: 'brand' as const,
     title: 'AI Analysis Suite',
     description:
       'Automated reconciliation, flux analysis, amortization schedules, and distribution waterfalls.',

@@ -37,7 +37,7 @@ const STEPS = [
   {
     number: 3,
     icon: FolderOutput,
-    tone: 'success' as const,
+    tone: 'brand' as const,
     title: 'Results auto-exported to Google Drive',
     description: 'CSV and Excel files delivered exactly where you need them.',
   },
