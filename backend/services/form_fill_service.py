@@ -626,6 +626,35 @@ class FormFillService:
         finally:
             db.close()
 
+    def list_runs(
+        self,
+        user_id: str,
+        *,
+        limit: int = 25,
+        offset: int = 0,
+        status: Optional[str] = None,
+    ) -> dict[str, Any]:
+        db = self._get_session()
+        try:
+            query = db.query(FormFillRun).filter(FormFillRun.user_id == user_id)
+            if status:
+                query = query.filter(FormFillRun.status == status)
+
+            total = query.count()
+            runs = query.order_by(
+                FormFillRun.updated_at.desc(),
+                FormFillRun.created_at.desc(),
+            ).offset(offset).limit(limit).all()
+
+            return {
+                "runs": [self._serialize_run(run) for run in runs],
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+            }
+        finally:
+            db.close()
+
     def get_run_result_metadata(self, user_id: str, run_id: str) -> FormFillRun:
         db = self._get_session()
         try:

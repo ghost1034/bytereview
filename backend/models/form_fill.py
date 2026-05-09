@@ -89,6 +89,13 @@ class FormFillRunCreateResponse(BaseModel):
     message: str
 
 
+class FormFillRunListResponse(BaseModel):
+    runs: list[FormFillRunResponse] = Field(default_factory=list)
+    total: int = 0
+    limit: int = 25
+    offset: int = 0
+
+
 class FormFillExtractionSourcePreviewResponse(BaseModel):
     job_id: str
     run_id: str

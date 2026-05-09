@@ -13,6 +13,7 @@ from dependencies.auth import get_current_user_id
 from models.form_fill import (
     FormFillExtractionSourcePreviewResponse,
     FormFillRunCreateResponse,
+    FormFillRunListResponse,
     FormFillRunResponse,
     FormFillTemplateListResponse,
 )
@@ -93,6 +94,19 @@ async def create_form_fill_run(
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to create Form Fill run: {str(exc)}")
+
+
+@router.get("/runs", response_model=FormFillRunListResponse)
+async def list_form_fill_runs(
+    user_id: str = Depends(get_current_user_id),
+    limit: int = Query(default=25, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    status: str | None = Query(default=None),
+):
+    try:
+        return form_fill_service.list_runs(user_id, limit=limit, offset=offset, status=status)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to load Form Fill runs: {str(exc)}")
 
 
 @router.get("/runs/{run_id}", response_model=FormFillRunResponse)

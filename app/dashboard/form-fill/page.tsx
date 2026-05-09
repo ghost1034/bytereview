@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -19,6 +19,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+const TERMINAL_RUN_STATUSES = new Set(['completed', 'completed_with_errors', 'failed'])
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
@@ -71,7 +72,23 @@ function formatStrategy(strategy?: string | null) {
   }
 }
 
+function isTerminalRunStatus(status?: string | null) {
+  return status ? TERMINAL_RUN_STATUSES.has(status) : false
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return 'Not completed'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
+}
+
+function formatStatus(status?: string | null) {
+  return (status || 'pending').replace(/_/g, ' ')
+}
+
 export default function FormFillPage() {
+  const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const { user } = useAuth()
   const { toast } = useToast()
@@ -80,6 +97,9 @@ export default function FormFillPage() {
   const sourceRunId = searchParams.get('run_id') || ''
   const sourceTaskId = searchParams.get('task_id') || ''
   const hasExtractionSource = Boolean(sourceJobId && sourceRunId && sourceTaskId)
+  const runIdParam = hasExtractionSource
+    ? searchParams.get('form_fill_run_id') || ''
+    : searchParams.get('run_id') || searchParams.get('form_fill_run_id') || ''
 
   const [sourceMode, setSourceMode] = useState<'upload' | 'extraction'>(hasExtractionSource ? 'extraction' : 'upload')
   const [targetMode, setTargetMode] = useState<'upload' | 'template'>('upload')
@@ -93,8 +113,8 @@ export default function FormFillPage() {
   const [outputFormat, setOutputFormat] = useState<'pdf' | 'docx'>('pdf')
   const [repeatMode, setRepeatMode] = useState<'single' | 'source_rows'>('single')
   const [creating, setCreating] = useState(false)
-  const [downloading, setDownloading] = useState(false)
-  const [currentRunId, setCurrentRunId] = useState<string | null>(null)
+  const [downloadingRunId, setDownloadingRunId] = useState<string | null>(null)
+  const [currentRunId, setCurrentRunId] = useState<string | null>(runIdParam || null)
 
   const { data: templatesData, refetch: refetchTemplates } = useQuery({
     queryKey: ['form-fill-templates'],
@@ -121,11 +141,42 @@ export default function FormFillPage() {
     },
   })
 
+  const { data: runsData, refetch: refetchRuns } = useQuery({
+    queryKey: ['form-fill-runs'],
+    queryFn: () => apiClient.listFormFillRuns({ limit: 10, offset: 0 }),
+    enabled: !!user,
+    refetchInterval: (query) => {
+      const data = query.state.data
+      return data?.runs?.some((run) => !isTerminalRunStatus(run.status)) ? 2500 : false
+    },
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+  })
+
   const templates = templatesData?.templates || []
   const selectedTemplate = useMemo(
     () => templates.find((item) => item.id === selectedTemplateId) || null,
     [templates, selectedTemplateId]
   )
+
+  const recentRuns = runsData?.runs || []
+
+  const selectRun = (runId: string, options?: { replace?: boolean }) => {
+    setCurrentRunId(runId)
+    const params = new URLSearchParams(searchParams.toString())
+    if (hasExtractionSource) {
+      params.set('form_fill_run_id', runId)
+    } else {
+      params.set('run_id', runId)
+      params.delete('form_fill_run_id')
+    }
+    const url = `${pathname}?${params.toString()}`
+    if (options?.replace) {
+      router.replace(url)
+    } else {
+      router.push(url)
+    }
+  }
 
   const targetMimeType = useMemo(() => {
     if (targetMode === 'upload' && targetFile) return targetFile.type || ''
@@ -136,6 +187,18 @@ export default function FormFillPage() {
     if (sourceMode === 'extraction') return Boolean(extractionPreview?.rows.length)
     return sourceFiles.length === 1 && isTabularSourceFile(sourceFiles[0])
   }, [extractionPreview, sourceFiles, sourceMode])
+
+  useEffect(() => {
+    setCurrentRunId(runIdParam || null)
+  }, [runIdParam])
+
+  useEffect(() => {
+    if (runIdParam || currentRunId || hasExtractionSource) return
+    const activeRun = recentRuns.find((run) => !isTerminalRunStatus(run.status))
+    if (activeRun) {
+      selectRun(activeRun.id, { replace: true })
+    }
+  }, [currentRunId, hasExtractionSource, recentRuns, runIdParam])
 
   useEffect(() => {
     if (repeatMode === 'source_rows' && !repeatModeSupported) {
@@ -187,7 +250,8 @@ export default function FormFillPage() {
         sourceTaskId: sourceMode === 'extraction' ? sourceTaskId : undefined,
       })
 
-      setCurrentRunId(response.run.id)
+      selectRun(response.run.id, { replace: true })
+      refetchRuns()
       if (saveAsTemplate && targetMode === 'upload') {
         refetchTemplates()
       }
@@ -206,11 +270,11 @@ export default function FormFillPage() {
     }
   }
 
-  const handleDownload = async () => {
-    if (!currentRunId) return
-    setDownloading(true)
+  const handleDownload = async (runId?: string | null) => {
+    if (!runId) return
+    setDownloadingRunId(runId)
     try {
-      const { blob, filename } = await apiClient.downloadFormFillRun(currentRunId)
+      const { blob, filename } = await apiClient.downloadFormFillRun(runId)
       downloadBlob(blob, filename)
     } catch (error) {
       toast({
@@ -219,7 +283,7 @@ export default function FormFillPage() {
         variant: 'destructive',
       })
     } finally {
-      setDownloading(false)
+      setDownloadingRunId(null)
     }
   }
 
@@ -487,6 +551,55 @@ export default function FormFillPage() {
         </CardContent>
       </Card>
 
+      {recentRuns.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Form Fill Runs</CardTitle>
+            <CardDescription>Persisted runs stay available after you leave this page.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="rounded-md border divide-y">
+              {recentRuns.map((run) => {
+                const isSelected = run.id === currentRunId
+                const isDownloadReady = run.status === 'completed' || run.status === 'completed_with_errors'
+                return (
+                  <div key={run.id} className="flex flex-col gap-3 px-3 py-3 text-sm md:flex-row md:items-center md:justify-between">
+                    <button
+                      type="button"
+                      className="min-w-0 text-left"
+                      onClick={() => selectRun(run.id)}
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium truncate">{run.target_filename}</span>
+                        {isSelected && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">Selected</span>}
+                      </div>
+                      <div className="mt-1 text-muted-foreground">
+                        {formatStatus(run.status)} · {formatDateTime(run.created_at)}
+                        {run.repeat_mode === 'source_rows' ? ` · ${run.completed_outputs}/${run.total_outputs} completed` : ''}
+                      </div>
+                    </button>
+                    <div className="flex shrink-0 gap-2">
+                      <Button type="button" variant={isSelected ? 'default' : 'outline'} size="sm" onClick={() => selectRun(run.id)}>
+                        View
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={!isDownloadReady || downloadingRunId === run.id}
+                        onClick={() => handleDownload(run.id)}
+                      >
+                        {downloadingRunId === run.id ? 'Downloading…' : 'Download'}
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {(currentRun || currentRunId) && (
         <Card>
           <CardHeader>
@@ -527,8 +640,8 @@ export default function FormFillPage() {
               </div>
             )}
             {(currentRun?.status === 'completed' || currentRun?.status === 'completed_with_errors') && (
-              <Button onClick={handleDownload} disabled={downloading}>
-                {downloading ? 'Downloading…' : `Download ${currentRun.repeat_mode === 'source_rows' ? 'ZIP' : currentRun.result_filename || 'Result'}`}
+              <Button onClick={() => handleDownload(currentRun.id)} disabled={downloadingRunId === currentRun.id}>
+                {downloadingRunId === currentRun.id ? 'Downloading…' : `Download ${currentRun.repeat_mode === 'source_rows' ? 'ZIP' : currentRun.result_filename || 'Result'}`}
               </Button>
             )}
           </CardContent>

@@ -760,6 +760,15 @@ export class ApiClient {
     return response.json()
   }
 
+  async listFormFillRuns(params?: { limit?: number; offset?: number; status?: string }): Promise<FormFillRunListResponse> {
+    const searchParams = new URLSearchParams()
+    if (params?.limit !== undefined) searchParams.append('limit', String(params.limit))
+    if (params?.offset !== undefined) searchParams.append('offset', String(params.offset))
+    if (params?.status) searchParams.append('status', params.status)
+    const query = searchParams.toString()
+    return this.request(`/api/form-fill/runs${query ? `?${query}` : ''}`)
+  }
+
   async getFormFillRun(runId: string): Promise<FormFillRun> {
     return this.request(`/api/form-fill/runs/${runId}`)
   }
@@ -1469,6 +1478,13 @@ export interface FormFillOutput {
 export interface FormFillRunCreateResponse {
   run: FormFillRun
   message: string
+}
+
+export interface FormFillRunListResponse {
+  runs: FormFillRun[]
+  total: number
+  limit: number
+  offset: number
 }
 
 export interface CreateFormFillRunParams {
