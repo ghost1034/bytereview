@@ -147,7 +147,7 @@ export default function Pricing() {
         description="All plans are available month-to-month and you can cancel at any time."
       />
 
-      <section className="bg-background py-16 sm:py-20">
+      <section className="bg-background pb-16 pt-8 sm:pb-20 sm:pt-10">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 py-12 text-foreground-muted">

@@ -94,14 +94,18 @@ export default function Demo() {
           </motion.div>
 
           <motion.div
-            className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
+            className="flex flex-wrap justify-center gap-6"
             variants={staggerContainer}
             initial="hidden"
             whileInView="visible"
             viewport={viewportOnce}
           >
             {ANALYSIS_VIDEOS.map((v) => (
-              <motion.div key={v.title} variants={staggerChild}>
+              <motion.div
+                key={v.title}
+                variants={staggerChild}
+                className="w-full md:w-[calc(50%-0.75rem)] lg:w-[calc(33.333%-1rem)]"
+              >
                 <VideoCard
                   src={v.src}
                   title={v.title}
@@ -142,14 +146,18 @@ export default function Demo() {
           </motion.div>
 
           <motion.div
-            className="grid grid-cols-1 gap-6 md:grid-cols-2"
+            className="flex flex-wrap justify-center gap-6"
             variants={staggerContainer}
             initial="hidden"
             whileInView="visible"
             viewport={viewportOnce}
           >
             {UPCOMING_VIDEOS.map((v) => (
-              <motion.div key={v.title} variants={staggerChild}>
+              <motion.div
+                key={v.title}
+                variants={staggerChild}
+                className="w-full md:w-[calc(50%-0.75rem)]"
+              >
                 <VideoCard
                   src={v.src}
                   title={v.title}

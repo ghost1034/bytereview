@@ -42,7 +42,7 @@ export default function About() {
         description="Truly customizable document AI engineered from real CPA workflows."
       />
 
-      <section className="bg-background py-16 sm:py-20">
+      <section className="bg-background pb-16 pt-8 sm:pb-20 sm:pt-10">
         <div className="mx-auto max-w-4xl space-y-16 px-4 sm:px-6 lg:px-8">
           <div>
             <h2 className="mb-12 text-center text-balance text-3xl font-semibold tracking-tight text-foreground">
