@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import {
   Briefcase,
   FileText,
@@ -67,6 +67,10 @@ export function DashboardShell({
   defaultSidebarOpen = true,
 }: DashboardShellProps) {
   const router = useRouter()
+  const pathname = usePathname() ?? ''
+  const isWideRoute =
+    pathname.startsWith('/dashboard/cpe-tracker') ||
+    pathname.startsWith('/dashboard/inkwise')
   const [paletteOpen, setPaletteOpen] = React.useState(false)
 
   React.useEffect(() => {
@@ -111,7 +115,12 @@ export function DashboardShell({
           tabIndex={-1}
           className="relative flex-1 outline-none focus-visible:outline-none"
         >
-          <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <div
+            className={cn(
+              'mx-auto w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8',
+              isWideRoute ? 'max-w-none' : 'max-w-7xl',
+            )}
+          >
             <ProductTourProvider>{children}</ProductTourProvider>
           </div>
         </main>

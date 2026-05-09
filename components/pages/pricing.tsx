@@ -14,7 +14,6 @@ import {
   useCreateCheckoutSession,
   useSubscriptionPlans,
 } from '@/hooks/useBilling'
-import UsageStats from '@/components/subscription/UsageStats'
 import { buildMfaEnrollmentRedirect } from '@/lib/auth-redirect'
 
 const PLAN_DESCRIPTIONS: Record<string, string> = {
@@ -150,12 +149,6 @@ export default function Pricing() {
 
       <section className="bg-background py-16 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          {user && (
-            <div className="mb-10 flex justify-center">
-              <UsageStats />
-            </div>
-          )}
-
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 py-12 text-foreground-muted">
               <Loader2 className="size-6 animate-spin text-primary" aria-hidden />

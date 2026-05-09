@@ -151,7 +151,7 @@ export default function TemplateModal({ isOpen, onClose, template, defaultTempla
 
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {/* Scrollable content */}
-          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-1">
             {/* Basic Info */}
             <div className="space-y-2">
               <Label htmlFor="name">Template Name *</Label>

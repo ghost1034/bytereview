@@ -59,13 +59,6 @@ const UDA_GROUP: NavGroup = {
     { name: 'Integrations', href: '/dashboard/integrations', icon: Plug },
     { name: 'Automations', href: '/dashboard/automations', icon: Zap },
     { name: 'Settings', href: '/dashboard/settings', icon: SettingsIcon },
-    {
-      name: 'CPE Tracker',
-      href: '/dashboard/cpe-tracker',
-      icon: GraduationCap,
-      badge: 'Free',
-      badgeTone: 'success',
-    },
   ],
 }
 
@@ -73,6 +66,13 @@ const PRODUCTS_GROUP: NavGroup = {
   key: 'products',
   label: 'Products',
   items: [
+    {
+      name: 'CPE Tracker',
+      href: '/dashboard/cpe-tracker',
+      icon: GraduationCap,
+      badge: 'Free',
+      badgeTone: 'success',
+    },
     { name: 'Form Fill', href: '/dashboard/form-fill', icon: Files },
     { name: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
     {
