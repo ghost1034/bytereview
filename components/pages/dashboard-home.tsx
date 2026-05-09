@@ -22,6 +22,7 @@ import { apiClient } from '@/lib/api'
 import { useCurrentUser } from '@/hooks/useUserProfile'
 import UsageStats from '@/components/subscription/UsageStats'
 import type { JobStatus } from '@/components/ui/job-status-badge'
+import { useProductTour } from '@/components/tour/product-tour'
 
 interface RecentJob {
   id: string
@@ -32,6 +33,7 @@ interface RecentJob {
 
 export function DashboardHome() {
   const { user: userProfile, isLoading: userLoading } = useCurrentUser()
+  const { startTour } = useProductTour()
   const [recentJobs, setRecentJobs] = useState<RecentJob[]>([])
   const [jobsLoading, setJobsLoading] = useState(true)
   const [jobsError, setJobsError] = useState<string | null>(null)
@@ -75,12 +77,23 @@ export function DashboardHome() {
         }
         description="Extract structured data from your documents with AI. Start a new job or continue where you left off."
         actions={
-          <Button asChild>
-            <Link href="/dashboard/jobs">
-              <Plus className="mr-1.5 size-4" aria-hidden />
-              New job
-            </Link>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={startTour}
+              data-tour="dashboard-tour-button"
+            >
+              <Sparkles className="mr-1.5 size-4" aria-hidden />
+              Take product tour
+            </Button>
+            <Button asChild>
+              <Link href="/dashboard/jobs">
+                <Plus className="mr-1.5 size-4" aria-hidden />
+                New job
+              </Link>
+            </Button>
+          </div>
         }
       />
 

@@ -95,6 +95,7 @@ export function CreateJobModal({ open, onOpenChange }: CreateJobModalProps) {
             <Label htmlFor="job-name">Job Name *</Label>
             <Input
               id="job-name"
+              data-tour="job-name-input"
               placeholder="e.g., Invoice Processing Q1 2024"
               value={jobName}
               onChange={(e) => setJobName(e.target.value)}

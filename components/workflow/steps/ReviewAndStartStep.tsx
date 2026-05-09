@@ -200,6 +200,7 @@ export default function ReviewAndStartStep({
           onClick={handleStartJob} 
           disabled={isLoading || readOnly}
           size="lg"
+          data-tour="start-processing-button"
         >
           {readOnly ? (
             <>

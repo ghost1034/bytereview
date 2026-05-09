@@ -1032,7 +1032,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
 
         <TabsContent value="computer" className="mt-6">
           {/* Upload Area */}
-          <Card>
+          <Card data-tour="upload-files">
         <CardContent className="pt-6">
           {/* Drag & Drop Zone */}
           <div

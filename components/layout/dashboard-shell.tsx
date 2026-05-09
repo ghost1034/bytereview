@@ -27,6 +27,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
 import { AppSidebar } from './app-sidebar'
 import { DashboardTopbar } from './dashboard-topbar'
+import { ProductTourProvider } from '@/components/tour/product-tour'
 
 interface DashboardShellProps {
   children: React.ReactNode
@@ -111,7 +112,7 @@ export function DashboardShell({
           className="relative flex-1 outline-none focus-visible:outline-none"
         >
           <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-            {children}
+            <ProductTourProvider>{children}</ProductTourProvider>
           </div>
         </main>
       </SidebarInset>

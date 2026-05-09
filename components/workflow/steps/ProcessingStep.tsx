@@ -547,7 +547,7 @@ export default function ProcessingStep({
   return (
     <div className="space-y-6">
       {/* Progress Overview */}
-      <Card>
+      <Card data-tour="processing-status">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Progress Overview</span>

@@ -83,7 +83,7 @@ export function JobsPage() {
               />
               Refresh
             </Button>
-            <Button onClick={() => setShowCreateModal(true)} size="sm">
+            <Button onClick={() => setShowCreateModal(true)} size="sm" data-tour="jobs-new-job-button">
               <Plus className="mr-1.5 size-4" aria-hidden />
               New job
             </Button>

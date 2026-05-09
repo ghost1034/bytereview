@@ -1084,6 +1084,7 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
                     <Button
                       size="sm"
                       variant="outline"
+                      data-tour="use-in-form-fill-button"
                       onClick={() => {
                         if (!selectedFileId || !runId) return
                         const params = new URLSearchParams({

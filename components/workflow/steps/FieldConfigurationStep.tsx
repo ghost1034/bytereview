@@ -609,7 +609,7 @@ export default function FieldConfigurationStep({
       </Card>
 
       {/* Field Configuration */}
-      <Card>
+      <Card data-tour="field-configuration">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings className="w-5 h-5" />

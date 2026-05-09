@@ -296,7 +296,7 @@ export default function FormFillPage() {
         </p>
       </div>
 
-      <Card>
+      <Card data-tour="form-fill-source">
         <CardHeader>
           <CardTitle>Source</CardTitle>
           <CardDescription>The information used to fill the target document.</CardDescription>
@@ -390,7 +390,7 @@ export default function FormFillPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card data-tour="form-fill-target">
         <CardHeader>
           <CardTitle>Target</CardTitle>
           <CardDescription>The PDF or DOCX to fill.</CardDescription>
@@ -493,7 +493,7 @@ export default function FormFillPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card data-tour="form-fill-run">
         <CardHeader>
           <CardTitle>Output</CardTitle>
           <CardDescription>Output format follows the target by default.</CardDescription>
