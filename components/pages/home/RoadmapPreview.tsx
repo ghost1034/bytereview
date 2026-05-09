@@ -52,7 +52,10 @@ export default function RoadmapPreview() {
           whileInView="visible"
           viewport={viewportOnce}
         >
-          <Badge variant="secondary" className="mb-4 rounded-full">
+          <Badge
+            variant="secondary"
+            className="mb-4 rounded-full bg-primary-soft px-3 py-1 text-xs font-medium text-primary-soft-foreground"
+          >
             Roadmap
           </Badge>
           <h2 className="text-balance text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">

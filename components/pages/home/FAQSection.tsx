@@ -54,7 +54,10 @@ export default function FAQSection({ onGetStarted }: FAQSectionProps) {
           whileInView="visible"
           viewport={viewportOnce}
         >
-          <Badge variant="secondary" className="mb-4 rounded-full">
+          <Badge
+            variant="secondary"
+            className="mb-4 rounded-full bg-primary-soft px-3 py-1 text-xs font-medium text-primary-soft-foreground"
+          >
             FAQ
           </Badge>
           <h2 className="text-balance text-4xl font-semibold tracking-tight text-foreground">
@@ -88,12 +91,7 @@ export default function FAQSection({ onGetStarted }: FAQSectionProps) {
             <Button asChild variant="outline">
               <Link href="/contact">Contact support</Link>
             </Button>
-            <Button
-              onClick={onGetStarted}
-              className="bg-success text-success-foreground hover:bg-success/90"
-            >
-              Start free plan →
-            </Button>
+            <Button onClick={onGetStarted}>Start free plan →</Button>
           </div>
         </motion.div>
       </div>

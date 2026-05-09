@@ -121,7 +121,10 @@ export default function FormFillShowcase() {
     <ShowcaseSection
       surface="surface"
       eyebrow={
-        <Badge variant="secondary" className="rounded-full">
+        <Badge
+          variant="secondary"
+          className="rounded-full bg-primary-soft px-3 py-1 text-xs font-medium text-primary-soft-foreground"
+        >
           <Files className="mr-1.5 size-3" aria-hidden />
           Available now
         </Badge>

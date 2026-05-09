@@ -355,12 +355,7 @@ export default function ExtractionFeatures({
               certificates. Upload your CPE documents and let AI organize your
               credits by state requirements.
             </p>
-            <Button
-              onClick={onGetStarted}
-              className="bg-success text-success-foreground hover:bg-success/90"
-            >
-              Try it free →
-            </Button>
+            <Button onClick={onGetStarted}>Try it free →</Button>
           </motion.div>
         </motion.div>
       </div>

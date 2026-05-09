@@ -156,10 +156,7 @@ export default function AutomationFlow({ onGetStarted }: AutomationFlowProps) {
                 Send a sample invoice to document@cpaautomation.ai and watch it
                 get processed in real-time.
               </p>
-              <Button
-                onClick={onGetStarted}
-                className="bg-success px-6 text-success-foreground hover:bg-success/90"
-              >
+              <Button onClick={onGetStarted} className="px-6">
                 Try automation now →
               </Button>
             </div>
