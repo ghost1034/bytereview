@@ -1,22 +1,23 @@
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { cookies } from 'next/headers'
+
 import AuthGuard from '@/components/auth/AuthGuard'
-import Header from '@/components/layout/header'
+import { DashboardShell } from '@/components/layout/dashboard-shell'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
-export default function Layout({ children }: DashboardLayoutProps) {
+export default async function Layout({ children }: DashboardLayoutProps) {
+  // Persisted sidebar state from the shadcn Sidebar primitive.
+  const cookieStore = await cookies()
+  const sidebarState = cookieStore.get('sidebar_state')?.value
+  const defaultOpen = sidebarState === undefined ? true : sidebarState === 'true'
+
   return (
     <AuthGuard requireAuth={true} redirectTo="/">
-      <div className="min-h-screen">
-        <Header />
-        <div className="pt-[var(--header-height)]">
-          <DashboardLayout>
-            {children}
-          </DashboardLayout>
-        </div>
-      </div>
+      <DashboardShell defaultSidebarOpen={defaultOpen}>
+        {children}
+      </DashboardShell>
     </AuthGuard>
   )
 }

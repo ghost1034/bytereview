@@ -2,11 +2,13 @@
 
 import { useParams, useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
+
 import { useAuth } from '@/contexts/AuthContext'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import ResultsStep from '@/components/workflow/steps/ResultsStep'
 import RunSelector from '@/components/jobs/RunSelector'
+import { JobWorkflowFrame } from '@/components/workflow/JobWorkflowFrame'
+import { Section } from '@/components/ui/section'
+import { LoadingState } from '@/components/ui/loading-state'
+import ResultsStep from '@/components/workflow/steps/ResultsStep'
 import { useJobRunSelection } from '@/hooks/useJobRunSelection'
 import { apiClient } from '@/lib/api'
 import { useToast } from '@/hooks/use-toast'
@@ -18,20 +20,18 @@ export default function JobResultsPage() {
   const { toast } = useToast()
   const jobId = params.jobId as string
 
-  // Job run selection
   const {
     runs,
     latestRunId,
     selectedRunId,
     isLoading: runsLoading,
     setSelectedRunId,
-    createNewRun
-  } = useJobRunSelection({ 
+    createNewRun,
+  } = useJobRunSelection({
     jobId,
-    enabled: !!user && !!jobId 
+    enabled: !!user && !!jobId,
   })
 
-  // Fetch job data for the selected run
   const { data: job, isLoading: jobLoading } = useQuery({
     queryKey: ['job', jobId, selectedRunId],
     queryFn: async () => {
@@ -50,48 +50,36 @@ export default function JobResultsPage() {
 
   const handleCreateNewRun = async (opts?: { appendResults?: boolean }) => {
     try {
-      await createNewRun({ 
+      await createNewRun({
         cloneFromRunId: selectedRunId,
         redirectTo: 'upload',
         appendResults: opts?.appendResults ?? false,
       })
       toast({
-        title: "New Run Created",
-        description: "Created a new run for this job. You can now upload files and configure extraction."
+        title: 'New run created',
+        description: 'Created a new run for this job. Upload files and configure extraction next.',
       })
     } catch (error) {
       console.error('Error creating new run:', error)
       toast({
-        title: "Error",
-        description: "Failed to create new run.",
-        variant: "destructive"
+        title: 'Error',
+        description: 'Failed to create new run.',
+        variant: 'destructive',
       })
     }
   }
 
-
   if (isLoading) {
-    return <div className="flex justify-center p-8">Loading...</div>
+    return <LoadingState variant="page" />
   }
 
-
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="text-center space-y-4">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Results</h1>
-          <p className="text-muted-foreground">
-            View and export your extracted data
-          </p>
-        </div>
-        
-      </div>
-
-      {/* Run Selector */}
-      {runs.length > 0 && (
-        <div className="flex items-center justify-center gap-3">
-          <label className="text-sm font-medium text-gray-700">Job Run:</label>
+    <JobWorkflowFrame
+      step="results"
+      jobName={job?.name || 'Job'}
+      description="Review and export your extracted data. Edit cells inline or download as CSV / XLSX."
+      runSelector={
+        runs.length > 0 ? (
           <RunSelector
             jobId={jobId}
             runs={runs}
@@ -100,23 +88,16 @@ export default function JobResultsPage() {
             onChange={setSelectedRunId}
             onCreateNewRun={handleCreateNewRun}
           />
-        </div>
-      )}
-
-      {/* Results Step */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Extraction Results</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResultsStep
-            jobId={jobId}
-            runId={selectedRunId}
-            onStartNew={handleStartNew}
-          />
-        </CardContent>
-      </Card>
-
-    </div>
+        ) : undefined
+      }
+    >
+      <Section variant="card" title="Extraction results">
+        <ResultsStep
+          jobId={jobId}
+          runId={selectedRunId}
+          onStartNew={handleStartNew}
+        />
+      </Section>
+    </JobWorkflowFrame>
   )
 }

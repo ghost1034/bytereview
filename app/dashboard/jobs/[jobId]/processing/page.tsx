@@ -1,140 +1,114 @@
-"use client";
+'use client'
 
-import { useParams, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import ProcessingStep from "@/components/workflow/steps/ProcessingStep";
-import { apiClient } from "@/lib/api";
-import { useToast } from "@/hooks/use-toast";
+import { useParams, useRouter } from 'next/navigation'
+import { useQuery } from '@tanstack/react-query'
+import { ArrowLeft } from 'lucide-react'
+
+import { useAuth } from '@/contexts/AuthContext'
+import { Button } from '@/components/ui/button'
+import { JobWorkflowFrame, WorkflowFooter } from '@/components/workflow/JobWorkflowFrame'
+import { Section } from '@/components/ui/section'
+import { LoadingState } from '@/components/ui/loading-state'
+import ProcessingStep from '@/components/workflow/steps/ProcessingStep'
+import { apiClient } from '@/lib/api'
+import { useToast } from '@/hooks/use-toast'
 
 export default function JobProcessingPage() {
-  const params = useParams();
-  const router = useRouter();
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const jobId = params.jobId as string;
+  const params = useParams()
+  const router = useRouter()
+  const { user } = useAuth()
+  const { toast } = useToast()
+  const jobId = params.jobId as string
 
-  // Fetch job data (always use latest run for processing)
   const { data: job, isLoading } = useQuery({
-    queryKey: ["job", jobId],
-    queryFn: async () => {
-      return apiClient.getJobDetails(jobId); // No runId = latest run
-    },
+    queryKey: ['job', jobId],
+    queryFn: async () => apiClient.getJobDetails(jobId),
     enabled: !!user && !!jobId,
-    staleTime: 5 * 60 * 1000, // 5 minutes - SSE provides real-time updates
-    refetchInterval: (data) => {
-      // Only refetch if job is not processing (SSE handles processing updates)
-      if (data?.status === "in_progress") {
-        return false; // Disable polling during processing - SSE handles this
-      }
-      return 30 * 1000; // 30 seconds for non-processing jobs
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: (query) => {
+      const data = query.state.data as any
+      if (data?.status === 'in_progress') return false
+      return 30 * 1000
     },
-  });
+  }) as any
 
-  const handleJobCompleted = (jobId: string) => {
+  const handleJobCompleted = (id: string) => {
     toast({
-      title: "Processing completed",
-      description: "Your data extraction has finished successfully!",
-    });
-
-    // Navigate to results page
-    router.push(`/dashboard/jobs/${jobId}/results`);
-  };
+      title: 'Processing completed',
+      description: 'Your data extraction has finished successfully.',
+    })
+    router.push(`/dashboard/jobs/${id}/results`)
+  }
 
   const handleViewResults = () => {
-    router.push(`/dashboard/jobs/${jobId}/results`);
-  };
+    router.push(`/dashboard/jobs/${jobId}/results`)
+  }
 
   const handleBack = () => {
-    // Only allow going back if job is not yet submitted or is failed
-    if (job?.config_step !== "submitted" || job?.status === "failed") {
-      router.push(`/dashboard/jobs/${jobId}/review`);
+    if (job?.config_step !== 'submitted' || job?.status === 'failed') {
+      router.push(`/dashboard/jobs/${jobId}/review`)
     } else {
       toast({
-        title: "Cannot go back",
-        description: "Job is currently processing and cannot be modified",
-        variant: "destructive",
-      });
+        title: 'Cannot go back',
+        description: 'Job is currently processing and cannot be modified.',
+        variant: 'destructive',
+      })
     }
-  };
+  }
 
   if (isLoading) {
-    return <div className="flex justify-center p-8">Loading...</div>;
+    return <LoadingState variant="page" />
   }
 
-  // Handle job status for resumability
-  if (job?.status === "completed") {
-    router.push(`/dashboard/jobs/${jobId}/results`);
+  if (job?.status === 'completed') {
+    router.push(`/dashboard/jobs/${jobId}/results`)
     return (
-      <div className="flex justify-center p-8">Redirecting to results...</div>
-    );
+      <div className="flex justify-center p-8 text-foreground-muted">
+        Redirecting to results…
+      </div>
+    )
   }
 
-  // If job is not in processing state, redirect to appropriate step
-  // if (job && job.status !== "in_progress") {
-  //   if (job.config_step !== "submitted") {
-  //     router.push(`/dashboard/jobs/${jobId}`);
-  //     return (
-  //       <div className="flex justify-center p-8">
-  //         Redirecting to job configuration...
-  //       </div>
-  //     );
-  //   }
-  // }
+  const canGoBack = job?.config_step !== 'submitted' || job?.status === 'failed'
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold">Processing</h1>
-        <p className="text-muted-foreground">
-          AI is extracting data from your documents
-        </p>
-      </div>
-
-      {/* Progress indicator */}
-      <div className="text-center text-sm text-muted-foreground">
-        Processing in progress...
-      </div>
-
-      {/* Processing Step */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Data Extraction</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ProcessingStep
-            jobId={jobId}
-            onJobCompleted={handleJobCompleted}
-            onViewResults={handleViewResults}
-            onBack={handleBack}
-          />
-        </CardContent>
-      </Card>
-
-      {/* Navigation */}
-      <div className="flex justify-between">
-        {job?.config_step !== "submitted" || job?.status === "failed" ? (
-          <Button variant="outline" onClick={handleBack}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Review
-          </Button>
-        ) : (
-          <Button
-            variant="outline"
-            onClick={() => router.push("/dashboard/jobs")}
-          >
-            Back to Jobs
-          </Button>
-        )}
-
-        {job?.status === "completed" && (
-          <Button onClick={handleViewResults}>View Results</Button>
-        )}
-      </div>
-    </div>
-  );
+    <JobWorkflowFrame
+      step="processing"
+      jobName={job?.name || 'Job'}
+      description="The AI is extracting data from your documents. You can leave this page — we’ll keep working in the background."
+      footer={
+        <WorkflowFooter
+          back={
+            canGoBack ? (
+              <Button variant="outline" onClick={handleBack}>
+                <ArrowLeft className="mr-1.5 size-4" aria-hidden />
+                Back to review
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => router.push('/dashboard/jobs')}
+              >
+                Back to jobs
+              </Button>
+            )
+          }
+          primary={
+            job?.status === 'completed' ? (
+              <Button onClick={handleViewResults}>View results</Button>
+            ) : null
+          }
+        />
+      }
+    >
+      <Section variant="card" title="Data extraction" description="Live status">
+        <ProcessingStep
+          jobId={jobId}
+          onJobCompleted={handleJobCompleted}
+          onViewResults={handleViewResults}
+          onBack={handleBack}
+        />
+      </Section>
+    </JobWorkflowFrame>
+  )
 }
