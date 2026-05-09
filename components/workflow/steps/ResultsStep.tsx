@@ -36,7 +36,7 @@ import { useExportRefs } from "@/hooks/useExportRefs";
 import { EditableResultsTable } from "@/components/results/EditableResultsTable";
 import { Section } from "@/components/ui/section";
 import { StatCard } from "@/components/ui/stat-card";
-import { cn } from "@/lib/utils";
+import { cn, pluralize } from "@/lib/utils";
 import { downloadBlob } from "@/lib/utils/download-blob";
 
 // Type definitions for file tree structure
@@ -1010,7 +1010,7 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
         title={
           <span className="inline-flex items-center gap-2">
             <BarChart3 className="size-5 text-foreground-muted" aria-hidden />
-            Extraction results ({results?.results?.length || 0} results)
+            Extraction results ({results?.results?.length || 0} {pluralize(results?.results?.length || 0, 'result')})
           </span>
         }
       >
