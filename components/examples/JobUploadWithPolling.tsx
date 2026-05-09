@@ -13,6 +13,7 @@ import { ArrowRight, CheckCircle, Upload } from 'lucide-react';
 import { MultiSourceFileUpload, UploadedFile } from '@/components/upload/MultiSourceFileUpload';
 import { useJobWorkflowWithImports } from '@/hooks/useJobWorkflowWithImports';
 import { toast } from '@/hooks/use-toast';
+import { pluralize } from '@/lib/utils';
 
 interface JobUploadWithPollingProps {
   jobId: string;
@@ -72,7 +73,7 @@ export function JobUploadWithPolling({
       return {
         variant: 'secondary' as const,
         label: 'Importing...',
-        description: `${importProgress.completed}/${importProgress.total} files imported`
+        description: `${importProgress.completed}/${importProgress.total} ${pluralize(importProgress.total, 'file')} imported`
       };
     }
     
@@ -80,7 +81,7 @@ export function JobUploadWithPolling({
       return {
         variant: 'default' as const,
         label: 'Ready',
-        description: `${totalFiles} files ready for processing`
+        description: `${totalFiles} ${pluralize(totalFiles, 'file')} ready for processing`
       };
     }
     

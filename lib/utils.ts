@@ -13,3 +13,7 @@ export function cn(...inputs: ClassValue[]) {
 export function compareNaturalText(a?: string | null, b?: string | null) {
   return naturalTextCollator.compare((a || '').trim(), (b || '').trim())
 }
+
+export function pluralize(count: number, singular: string, plural?: string) {
+  return count === 1 ? singular : (plural ?? `${singular}s`)
+}

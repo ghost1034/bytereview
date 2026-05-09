@@ -23,6 +23,7 @@ import {
   useSubscriptionPlans,
 } from '@/hooks/useBilling'
 import { useToast } from '@/hooks/use-toast'
+import { pluralize } from '@/lib/utils'
 import SubscriptionModal from './SubscriptionModal'
 
 export default function SubscriptionManager() {
@@ -128,7 +129,8 @@ export default function SubscriptionManager() {
               </p>
               <p className="text-xs text-foreground-muted">
                 You&apos;re on the free plan ({billingAccount.pages_included}{' '}
-                pages/month). Upgrade to unlock advanced features.
+                {pluralize(billingAccount.pages_included, 'page')}/month).
+                Upgrade to unlock advanced features.
               </p>
             </div>
             <Button onClick={() => setIsSubscriptionModalOpen(true)}>
@@ -180,7 +182,7 @@ export default function SubscriptionManager() {
             <span className="text-sm font-medium tabular-nums text-foreground">
               {billingAccount.pages_included === 999999
                 ? 'Unlimited'
-                : `${billingAccount.pages_included} pages/mo`}
+                : `${billingAccount.pages_included} ${pluralize(billingAccount.pages_included, 'page')}/mo`}
             </span>
           </div>
 

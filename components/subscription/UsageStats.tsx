@@ -10,7 +10,7 @@ import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Section } from '@/components/ui/section'
 import { useUsageStats } from '@/hooks/useBilling'
-import { cn } from '@/lib/utils'
+import { cn, pluralize } from '@/lib/utils'
 
 export default function UsageStats() {
   const { data: usage, isLoading, error } = useUsageStats()
@@ -110,10 +110,10 @@ export default function UsageStats() {
           />
           <p className="text-xs text-foreground-subtle">
             {usage.pages_remaining > 0
-              ? `${usage.pages_remaining.toLocaleString()} pages remaining`
+              ? `${usage.pages_remaining.toLocaleString()} ${pluralize(usage.pages_remaining, 'page')} remaining`
               : usage.plan_code === 'free'
                 ? 'Limit reached — upgrade to continue'
-                : `${(usage.pages_used - usage.pages_included).toLocaleString()} pages over limit`}
+                : `${(usage.pages_used - usage.pages_included).toLocaleString()} ${pluralize(usage.pages_used - usage.pages_included, 'page')} over limit`}
           </p>
           {isOverLimit && usage.plan_code !== 'free' && overageAmount > 0 && (
             <p className="text-xs text-primary">

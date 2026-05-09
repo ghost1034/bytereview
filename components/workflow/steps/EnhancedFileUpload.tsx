@@ -44,7 +44,7 @@ import { useToast } from '@/hooks/use-toast'
 import { apiClient, type JobFileInfo, type FileStatus, type JobFileAllRunsInfo } from '@/lib/api'
 import { GoogleDrivePicker } from '@/components/integrations/GoogleDrivePicker'
 import { IntegrationPrompt } from '@/components/integrations/IntegrationBanner'
-import { cn } from '@/lib/utils'
+import { cn, pluralize } from '@/lib/utils'
 
 interface EnhancedFileUploadProps {
   jobId: string
@@ -169,7 +169,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
               console.log(`Import started: ${data.source} - ${data.file_count} files`)
               toast({
                 title: `${data.source} Import Started`,
-                description: `Importing ${data.file_count} item(s)`,
+                description: `Importing ${data.file_count} ${pluralize(data.file_count, 'item')}`,
               });
               break
 
@@ -230,7 +230,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
               console.log(`Import batch completed: ${data.source} - ${data.successful}/${data.total} items`)
               toast({
                 title: `${data.source} Import Completed`,
-                description: `Successfully imported ${data.successful} of ${data.total} item(s)`,
+                description: `Successfully imported ${data.successful} of ${data.total} ${pluralize(data.total, 'item')}`,
               });
               // Don't close SSE immediately; wait to see if ZIP unpacking triggers follow-up events
               setTimeout(() => checkAndCloseSSEIfDone(), 1500)
@@ -537,7 +537,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
     if (tooLarge.length > 0) {
       toast({
         title: "File too large",
-        description: `Skipped ${tooLarge.length} file(s) over 50MB.`,
+        description: `Skipped ${tooLarge.length} ${pluralize(tooLarge.length, 'file')} over 50MB.`,
         variant: "destructive"
       })
     }
@@ -652,7 +652,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
       
       toast({
         title: "Files uploaded",
-        description: `Successfully uploaded ${result.files.length} files`
+        description: `Successfully uploaded ${result.files.length} ${pluralize(result.files.length, 'file')}`
       })
 
     } catch (error: any) {
@@ -1267,7 +1267,7 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
           <div className="flex items-center gap-2 text-primary-soft-foreground">
             <Clock className="w-4 h-4" aria-hidden />
             <span className="font-medium">
-              Unpacking {unpackingFiles.length} ZIP file(s)…
+              Unpacking {unpackingFiles.length} ZIP {pluralize(unpackingFiles.length, 'file')}…
             </span>
           </div>
           <p className="mt-1 text-sm text-primary-soft-foreground/80">

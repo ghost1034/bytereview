@@ -19,6 +19,7 @@ import { Separator } from '@/components/ui/separator'
 import { StatCard } from '@/components/ui/stat-card'
 import { useToast } from '@/hooks/use-toast'
 import { JobWorkflowState } from '@/lib/api'
+import { pluralize } from '@/lib/utils'
 
 const ESTIMATED_MINUTES_PER_FILE = 0.5
 
@@ -158,7 +159,7 @@ export default function ReviewAndStartStep({
                 >
                   <span className="text-foreground-muted">
                     {task.path === '/' ? 'Root folder' : task.path} (
-                    {task.file_count || 0} files)
+                    {task.file_count || 0} {pluralize(task.file_count || 0, 'file')})
                   </span>
                   <Badge variant="secondary">
                     {task.mode === 'individual' ? 'Individual' : 'Combined'}
@@ -179,7 +180,7 @@ export default function ReviewAndStartStep({
           />
           <div>
             <p className="text-sm font-medium text-primary-soft-foreground">
-              Estimated processing time: {estimatedTime} minutes
+              Estimated processing time: {estimatedTime} {pluralize(estimatedTime, 'minute')}
             </p>
             <p className="text-xs text-primary-soft-foreground/80">
               You&apos;ll be able to monitor progress in real-time on the next

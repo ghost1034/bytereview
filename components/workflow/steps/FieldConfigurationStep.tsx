@@ -31,6 +31,7 @@ import {
   Save,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { pluralize } from "@/lib/utils";
 import { useTemplates, usePublicTemplates } from "@/hooks/useExtraction";
 import { useDataTypes } from "@/hooks/useDataTypes";
 import FieldConfigurationEditor from "@/components/extraction/FieldConfigurationEditor";
@@ -195,7 +196,7 @@ export default function FieldConfigurationStep({
     if (showToast) {
       toast({
         title: "Template loaded",
-        description: `Loaded ${templateFields.length} fields from "${template.name}". You can customize these fields before proceeding.`,
+        description: `Loaded ${templateFields.length} ${pluralize(templateFields.length, 'field')} from "${template.name}". You can customize these fields before proceeding.`,
       });
     }
   };
@@ -504,7 +505,7 @@ export default function FieldConfigurationStep({
                           )}
                           <span>{template.name}</span>
                           <Badge variant="outline" className="ml-2">
-                            {template.fields.length} fields
+                            {template.fields.length} {pluralize(template.fields.length, 'field')}
                           </Badge>
                         </div>
                       </SelectItem>
