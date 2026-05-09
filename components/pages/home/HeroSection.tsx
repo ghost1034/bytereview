@@ -57,6 +57,7 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
     <MarketingHero
       width="narrow"
       backdrop="gradient"
+      className="flex min-h-[calc(100svh-var(--header-height))] flex-col justify-center"
       eyebrow="Built by CPAs, for professionals"
       title={
         <>
