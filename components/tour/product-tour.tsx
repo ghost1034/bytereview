@@ -88,7 +88,7 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'processing-status',
     title: 'Watch extraction progress',
-    body: 'This page streams task progress while Gemini extracts your configured fields. You can leave the page; CPAAutomation keeps processing in the background.',
+    body: 'This page streams task progress while AI extracts your configured fields. You can leave the page; CPAAutomation keeps processing in the background.',
     target: '[data-tour="processing-status"]',
     manual: true,
   },
