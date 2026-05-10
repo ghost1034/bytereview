@@ -107,7 +107,7 @@ export function DashboardShell({
 
       <AppSidebar />
 
-      <SidebarInset className="bg-surface">
+      <SidebarInset className="min-w-0 bg-surface">
         <DashboardTopbar onOpenCommandPalette={() => setPaletteOpen(true)} />
 
         <main
