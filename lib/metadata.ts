@@ -134,18 +134,6 @@ export const pageMetadata = {
       'financial processing'
     ],
   },
-  documentation: {
-    title: 'Documentation - API & Integration Guides',
-    description: 'Complete documentation for CPAAutomation\'s API, integrations, and platform features. Get started with our comprehensive guides and tutorials.',
-    canonical: 'https://cpaautomation.ai/documentation',
-    keywords: [
-      'CPA automation API',
-      'integration documentation',
-      'developer guides',
-      'technical documentation',
-      'platform tutorials'
-    ],
-  },
   privacy: {
     title: 'Privacy Policy - Data Protection & Security',
     description: 'Learn about CPAAutomation\'s commitment to data privacy and security. Our privacy policy outlines how we protect your sensitive financial documents.',

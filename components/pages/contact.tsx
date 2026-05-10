@@ -310,12 +310,6 @@ export default function Contact() {
                     View demo videos
                   </a>
                   <a
-                    href="/documentation"
-                    className="block text-sm text-primary underline-offset-4 hover:underline"
-                  >
-                    Documentation &amp; API
-                  </a>
-                  <a
                     href="/pricing"
                     className="block text-sm text-primary underline-offset-4 hover:underline"
                   >

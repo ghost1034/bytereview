@@ -24,7 +24,6 @@ module.exports = {
     await config.transform(config, '/privacy'),
     await config.transform(config, '/terms'),
     await config.transform(config, '/case-study/LFO'),
-    await config.transform(config, '/documentation'),
   ],
   transform: async (config, path) => {
     // Custom priority and changefreq for different pages
