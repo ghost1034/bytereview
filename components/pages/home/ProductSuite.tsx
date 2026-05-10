@@ -29,6 +29,7 @@ type Tone =
   | 'warning'
   | 'info'
   | 'neutral'
+  | 'udo'
   | 'formfill'
   | 'inkwise'
   | 'chrona'
@@ -54,7 +55,7 @@ const PRODUCTS: Product[] = [
     description:
       'Extract, analyze, and automate any document type with AI precision.',
     icon: FileText,
-    tone: 'brand',
+    tone: 'udo',
     status: 'Available',
     href: '#extraction-features',
   },

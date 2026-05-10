@@ -68,7 +68,7 @@ export default function ClawShowcase() {
       title={
         <>
           Claw Series:{' '}
-          <span className="bg-gradient-to-r from-success to-primary bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-primary to-marketing-hero-accent bg-clip-text text-transparent">
             digital workers
           </span>{' '}
           for accounting, finance &amp; legal

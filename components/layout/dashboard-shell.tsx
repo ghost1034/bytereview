@@ -11,6 +11,7 @@ import {
   Zap,
   GraduationCap,
   Files,
+  PenTool,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -58,6 +59,7 @@ const QUICK_ACTIONS: Array<{
     items: [
       { label: 'CPE Tracker', href: '/dashboard/cpe-tracker', icon: GraduationCap },
       { label: 'Form Fill', href: '/dashboard/form-fill', icon: Files },
+      { label: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
     ],
   },
 ]

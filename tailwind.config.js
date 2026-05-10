@@ -75,6 +75,10 @@ module.exports = {
           DEFAULT: "hsl(var(--info))",
           soft: "hsl(var(--info-soft))",
         },
+        "product-udo": {
+          DEFAULT: "hsl(var(--product-udo))",
+          soft: "hsl(var(--product-udo-soft))",
+        },
         "product-formfill": {
           DEFAULT: "hsl(var(--product-formfill))",
           soft: "hsl(var(--product-formfill-soft))",

@@ -64,19 +64,22 @@ body {
     --info: 210 80% 50%;
     --info-soft: 210 90% 96%;
 
-    /* Per-product blues (cyan → indigo span; one shade per product for the homepage product row) */
-    --product-formfill: 200 80% 35%;
-    --product-formfill-soft: 200 90% 94%;
-    --product-inkwise: 232 70% 38%;
-    --product-inkwise-soft: 232 80% 95%;
-    --product-chrona: 190 75% 35%;
-    --product-chrona-soft: 190 85% 92%;
-    --product-claw: 250 70% 45%;
-    --product-claw-soft: 250 80% 95%;
-    --product-analysis: 215 75% 40%;
-    --product-analysis-soft: 215 85% 94%;
-    --product-productivity: 258 65% 50%;
-    --product-productivity-soft: 258 75% 95%;
+    /* Per-product blues — single-hue gradient, lighter for earlier pipeline stages,
+       darker for later. Pipeline order: udo → formfill → inkwise → chrona → claw → analysis/productivity. */
+    --product-udo: 217 70% 58%;
+    --product-udo-soft: 217 90% 96%;
+    --product-formfill: 217 75% 50%;
+    --product-formfill-soft: 217 85% 94%;
+    --product-inkwise: 217 78% 42%;
+    --product-inkwise-soft: 217 80% 92%;
+    --product-chrona: 217 80% 35%;
+    --product-chrona-soft: 217 75% 90%;
+    --product-claw: 217 82% 28%;
+    --product-claw-soft: 217 70% 87%;
+    --product-analysis: 217 85% 22%;
+    --product-analysis-soft: 217 65% 84%;
+    --product-productivity: 220 80% 28%;
+    --product-productivity-soft: 220 60% 86%;
 
     /* Borders / inputs / ring */
     --border: 220 14% 90%;
@@ -160,19 +163,22 @@ body {
     --info: 210 80% 60%;
     --info-soft: 210 60% 18%;
 
-    /* Per-product blues (dark-mode pairings) */
-    --product-formfill: 200 90% 84%;
-    --product-formfill-soft: 200 50% 18%;
-    --product-inkwise: 232 90% 84%;
-    --product-inkwise-soft: 232 60% 18%;
-    --product-chrona: 190 90% 82%;
-    --product-chrona-soft: 190 50% 18%;
-    --product-claw: 250 90% 84%;
-    --product-claw-soft: 250 60% 20%;
-    --product-analysis: 215 90% 84%;
-    --product-analysis-soft: 215 60% 18%;
-    --product-productivity: 258 90% 86%;
-    --product-productivity-soft: 258 50% 22%;
+    /* Per-product blues — single-hue gradient (dark-mode pairings).
+       Foreground intensity scales with pipeline depth; soft bg darkens slightly across the row. */
+    --product-udo: 217 70% 88%;
+    --product-udo-soft: 217 40% 14%;
+    --product-formfill: 217 75% 84%;
+    --product-formfill-soft: 217 45% 16%;
+    --product-inkwise: 217 78% 80%;
+    --product-inkwise-soft: 217 50% 18%;
+    --product-chrona: 217 80% 76%;
+    --product-chrona-soft: 217 55% 20%;
+    --product-claw: 217 85% 72%;
+    --product-claw-soft: 217 60% 22%;
+    --product-analysis: 217 90% 70%;
+    --product-analysis-soft: 217 65% 24%;
+    --product-productivity: 220 85% 74%;
+    --product-productivity-soft: 220 60% 22%;
 
     /* Borders / inputs / ring */
     --border: 220 14% 18%;

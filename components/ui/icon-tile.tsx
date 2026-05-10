@@ -13,6 +13,7 @@ const iconTileVariants = cva(
         success: 'bg-success-soft text-success ring-success/15',
         warning: 'bg-warning-soft text-warning ring-warning/20',
         info: 'bg-info-soft text-info ring-info/20',
+        udo: 'bg-product-udo-soft text-product-udo ring-product-udo/15',
         formfill: 'bg-product-formfill-soft text-product-formfill ring-product-formfill/15',
         inkwise: 'bg-product-inkwise-soft text-product-inkwise ring-product-inkwise/15',
         chrona: 'bg-product-chrona-soft text-product-chrona ring-product-chrona/15',
