@@ -68,7 +68,9 @@ export function DashboardShell({
 }: DashboardShellProps) {
   const router = useRouter()
   const pathname = usePathname() ?? ''
-  const isWideRoute = pathname.startsWith('/dashboard/inkwise')
+  const isWideRoute =
+    pathname.startsWith('/dashboard/cpe-tracker') ||
+    pathname.startsWith('/dashboard/inkwise')
   const [paletteOpen, setPaletteOpen] = React.useState(false)
 
   React.useEffect(() => {
