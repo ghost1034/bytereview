@@ -59,7 +59,7 @@ export default function ClawShowcase() {
       eyebrow={
         <Badge
           variant="outline"
-          className="rounded-full border-product-claw/20 bg-product-claw-soft text-product-claw"
+          className="rounded-full border-primary/20 bg-primary-soft text-primary-soft-foreground"
         >
           <Bot className="mr-1.5 size-3" aria-hidden />
           Coming soon

@@ -118,7 +118,7 @@ export default function ChronaShowcase() {
               <div className="flex items-start gap-3">
                 <IconTile
                   icon={f.icon}
-                  tone="chrona"
+                  tone="brand"
                   size="md"
                   className="bg-marketing-hero-accent/15 text-marketing-hero-foreground ring-marketing-hero-border"
                 />

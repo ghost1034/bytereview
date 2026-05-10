@@ -23,19 +23,7 @@ import {
 } from '@/lib/animations'
 import { cn } from '@/lib/utils'
 
-type Tone =
-  | 'brand'
-  | 'success'
-  | 'warning'
-  | 'info'
-  | 'neutral'
-  | 'udo'
-  | 'formfill'
-  | 'inkwise'
-  | 'chrona'
-  | 'claw'
-  | 'analysis'
-  | 'productivity'
+type Tone = 'brand' | 'success' | 'warning' | 'info' | 'neutral'
 type Status = 'Available' | 'Coming Soon'
 
 interface Product {
@@ -55,7 +43,7 @@ const PRODUCTS: Product[] = [
     description:
       'Extract, analyze, and automate any document type with AI precision.',
     icon: FileText,
-    tone: 'udo',
+    tone: 'brand',
     status: 'Available',
     href: '#extraction-features',
   },
@@ -64,7 +52,7 @@ const PRODUCTS: Product[] = [
     description:
       'Auto-fill PDFs and Word documents from extraction results, uploaded sources, or saved templates.',
     icon: Files,
-    tone: 'formfill',
+    tone: 'brand',
     status: 'Available',
     href: '#form-fill-showcase',
   },
@@ -73,7 +61,7 @@ const PRODUCTS: Product[] = [
     description:
       'AI-powered writing with citation-grounded references from your own documents.',
     icon: PenTool,
-    tone: 'inkwise',
+    tone: 'brand',
     status: 'Available',
     href: '#inkwise-showcase',
   },
@@ -82,7 +70,7 @@ const PRODUCTS: Product[] = [
     description:
       'Automatic time tracking that turns your screen into a structured daily timeline.',
     icon: Clock,
-    tone: 'chrona',
+    tone: 'brand',
     status: 'Coming Soon',
     href: '#chrona-showcase',
   },
@@ -91,7 +79,7 @@ const PRODUCTS: Product[] = [
     description:
       'Digital workers with hundreds of pre-built skills for regulated industries.',
     icon: Bot,
-    tone: 'claw',
+    tone: 'brand',
     status: 'Coming Soon',
     href: '#claw-showcase',
   },
@@ -100,11 +88,11 @@ const PRODUCTS: Product[] = [
     description:
       'Reconciliation, flux analysis, project management, month-end checklists, and more.',
     icon: BarChart3,
-    tone: 'analysis',
+    tone: 'brand',
     status: 'Coming Soon',
     href: '#roadmap',
     secondaryIcon: FolderKanban,
-    secondaryTone: 'productivity',
+    secondaryTone: 'brand',
   },
 ]
 

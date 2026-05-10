@@ -64,23 +64,6 @@ body {
     --info: 210 80% 50%;
     --info-soft: 210 90% 96%;
 
-    /* Per-product blues — single-hue gradient, lighter for earlier pipeline stages,
-       darker for later. Pipeline order: udo → formfill → inkwise → chrona → claw → analysis/productivity. */
-    --product-udo: 217 70% 58%;
-    --product-udo-soft: 217 90% 96%;
-    --product-formfill: 217 75% 50%;
-    --product-formfill-soft: 217 85% 94%;
-    --product-inkwise: 217 78% 42%;
-    --product-inkwise-soft: 217 80% 92%;
-    --product-chrona: 217 80% 35%;
-    --product-chrona-soft: 217 75% 90%;
-    --product-claw: 217 82% 28%;
-    --product-claw-soft: 217 70% 87%;
-    --product-analysis: 217 85% 22%;
-    --product-analysis-soft: 217 65% 84%;
-    --product-productivity: 220 80% 28%;
-    --product-productivity-soft: 220 60% 86%;
-
     /* Borders / inputs / ring */
     --border: 220 14% 90%;
     --border-strong: 220 13% 82%;
@@ -162,23 +145,6 @@ body {
     --warning-soft: 38 60% 16%;
     --info: 210 80% 60%;
     --info-soft: 210 60% 18%;
-
-    /* Per-product blues — single-hue gradient (dark-mode pairings).
-       Foreground intensity scales with pipeline depth; soft bg darkens slightly across the row. */
-    --product-udo: 217 70% 88%;
-    --product-udo-soft: 217 40% 14%;
-    --product-formfill: 217 75% 84%;
-    --product-formfill-soft: 217 45% 16%;
-    --product-inkwise: 217 78% 80%;
-    --product-inkwise-soft: 217 50% 18%;
-    --product-chrona: 217 80% 76%;
-    --product-chrona-soft: 217 55% 20%;
-    --product-claw: 217 85% 72%;
-    --product-claw-soft: 217 60% 22%;
-    --product-analysis: 217 90% 70%;
-    --product-analysis-soft: 217 65% 24%;
-    --product-productivity: 220 85% 74%;
-    --product-productivity-soft: 220 60% 22%;
 
     /* Borders / inputs / ring */
     --border: 220 14% 18%;
