@@ -15,7 +15,7 @@ import {
 const MILESTONES = [
   {
     icon: BarChart3,
-    tone: 'brand' as const,
+    tone: 'analysis' as const,
     title: 'AI Analysis Suite',
     description:
       'Automated reconciliation, flux analysis, amortization schedules, and distribution waterfalls.',
@@ -28,7 +28,7 @@ const MILESTONES = [
   },
   {
     icon: FolderKanban,
-    tone: 'info' as const,
+    tone: 'productivity' as const,
     title: 'AI Productivity Suite',
     description:
       'AI-powered project management, month-end checklists, slide decks, and expense reimbursement.',

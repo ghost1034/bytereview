@@ -75,6 +75,30 @@ module.exports = {
           DEFAULT: "hsl(var(--info))",
           soft: "hsl(var(--info-soft))",
         },
+        "product-formfill": {
+          DEFAULT: "hsl(var(--product-formfill))",
+          soft: "hsl(var(--product-formfill-soft))",
+        },
+        "product-inkwise": {
+          DEFAULT: "hsl(var(--product-inkwise))",
+          soft: "hsl(var(--product-inkwise-soft))",
+        },
+        "product-chrona": {
+          DEFAULT: "hsl(var(--product-chrona))",
+          soft: "hsl(var(--product-chrona-soft))",
+        },
+        "product-claw": {
+          DEFAULT: "hsl(var(--product-claw))",
+          soft: "hsl(var(--product-claw-soft))",
+        },
+        "product-analysis": {
+          DEFAULT: "hsl(var(--product-analysis))",
+          soft: "hsl(var(--product-analysis-soft))",
+        },
+        "product-productivity": {
+          DEFAULT: "hsl(var(--product-productivity))",
+          soft: "hsl(var(--product-productivity-soft))",
+        },
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",

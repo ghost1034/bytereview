@@ -64,6 +64,20 @@ body {
     --info: 210 80% 50%;
     --info-soft: 210 90% 96%;
 
+    /* Per-product blues (cyan → indigo span; one shade per product for the homepage product row) */
+    --product-formfill: 200 80% 35%;
+    --product-formfill-soft: 200 90% 94%;
+    --product-inkwise: 232 70% 38%;
+    --product-inkwise-soft: 232 80% 95%;
+    --product-chrona: 190 75% 35%;
+    --product-chrona-soft: 190 85% 92%;
+    --product-claw: 250 70% 45%;
+    --product-claw-soft: 250 80% 95%;
+    --product-analysis: 215 75% 40%;
+    --product-analysis-soft: 215 85% 94%;
+    --product-productivity: 258 65% 50%;
+    --product-productivity-soft: 258 75% 95%;
+
     /* Borders / inputs / ring */
     --border: 220 14% 90%;
     --border-strong: 220 13% 82%;
@@ -145,6 +159,20 @@ body {
     --warning-soft: 38 60% 16%;
     --info: 210 80% 60%;
     --info-soft: 210 60% 18%;
+
+    /* Per-product blues (dark-mode pairings) */
+    --product-formfill: 200 90% 84%;
+    --product-formfill-soft: 200 50% 18%;
+    --product-inkwise: 232 90% 84%;
+    --product-inkwise-soft: 232 60% 18%;
+    --product-chrona: 190 90% 82%;
+    --product-chrona-soft: 190 50% 18%;
+    --product-claw: 250 90% 84%;
+    --product-claw-soft: 250 60% 20%;
+    --product-analysis: 215 90% 84%;
+    --product-analysis-soft: 215 60% 18%;
+    --product-productivity: 258 90% 86%;
+    --product-productivity-soft: 258 50% 22%;
 
     /* Borders / inputs / ring */
     --border: 220 14% 18%;

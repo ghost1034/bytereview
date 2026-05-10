@@ -23,7 +23,18 @@ import {
 } from '@/lib/animations'
 import { cn } from '@/lib/utils'
 
-type Tone = 'brand' | 'success' | 'warning' | 'info' | 'neutral'
+type Tone =
+  | 'brand'
+  | 'success'
+  | 'warning'
+  | 'info'
+  | 'neutral'
+  | 'formfill'
+  | 'inkwise'
+  | 'chrona'
+  | 'claw'
+  | 'analysis'
+  | 'productivity'
 type Status = 'Available' | 'Coming Soon'
 
 interface Product {
@@ -52,7 +63,7 @@ const PRODUCTS: Product[] = [
     description:
       'Auto-fill PDFs and Word documents from extraction results, uploaded sources, or saved templates.',
     icon: Files,
-    tone: 'info',
+    tone: 'formfill',
     status: 'Available',
     href: '#form-fill-showcase',
   },
@@ -61,7 +72,7 @@ const PRODUCTS: Product[] = [
     description:
       'AI-powered writing with citation-grounded references from your own documents.',
     icon: PenTool,
-    tone: 'brand',
+    tone: 'inkwise',
     status: 'Available',
     href: '#inkwise-showcase',
   },
@@ -70,7 +81,7 @@ const PRODUCTS: Product[] = [
     description:
       'Automatic time tracking that turns your screen into a structured daily timeline.',
     icon: Clock,
-    tone: 'warning',
+    tone: 'chrona',
     status: 'Coming Soon',
     href: '#chrona-showcase',
   },
@@ -79,7 +90,7 @@ const PRODUCTS: Product[] = [
     description:
       'Digital workers with hundreds of pre-built skills for regulated industries.',
     icon: Bot,
-    tone: 'success',
+    tone: 'claw',
     status: 'Coming Soon',
     href: '#claw-showcase',
   },
@@ -88,11 +99,11 @@ const PRODUCTS: Product[] = [
     description:
       'Reconciliation, flux analysis, project management, month-end checklists, and more.',
     icon: BarChart3,
-    tone: 'brand',
+    tone: 'analysis',
     status: 'Coming Soon',
     href: '#roadmap',
     secondaryIcon: FolderKanban,
-    secondaryTone: 'info',
+    secondaryTone: 'productivity',
   },
 ]
 
