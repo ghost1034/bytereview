@@ -50,6 +50,18 @@ function mimeToExtension(mimeType?: string | null) {
   return mimeType || 'Unknown'
 }
 
+function inferTargetMimeType(file: File) {
+  if (file.type) return file.type
+  const name = file.name.toLowerCase()
+  if (name.endsWith('.pdf')) return 'application/pdf'
+  if (name.endsWith('.docx')) return DOCX_MIME
+  return ''
+}
+
+function targetDefaultOutputFormat(mimeType: string): 'pdf' | 'docx' {
+  return mimeType === DOCX_MIME ? 'docx' : 'pdf'
+}
+
 function isTabularSourceFile(file: File) {
   const name = file.name.toLowerCase()
   return file.type === 'text/csv'
@@ -121,6 +133,7 @@ export default function FormFillPage() {
   const [templateDescription, setTemplateDescription] = useState('')
   const [allowDocxTableExpansion, setAllowDocxTableExpansion] = useState(false)
   const [outputFormat, setOutputFormat] = useState<'pdf' | 'docx'>('pdf')
+  const [hasOutputFormatOverride, setHasOutputFormatOverride] = useState(false)
   const [repeatMode, setRepeatMode] = useState<'single' | 'source_rows'>('single')
   const [creating, setCreating] = useState(false)
   const [downloadingRunId, setDownloadingRunId] = useState<string | null>(null)
@@ -189,7 +202,7 @@ export default function FormFillPage() {
   }
 
   const targetMimeType = useMemo(() => {
-    if (targetMode === 'upload' && targetFile) return targetFile.type || ''
+    if (targetMode === 'upload') return targetFile ? inferTargetMimeType(targetFile) : ''
     return selectedTemplate?.file_type || ''
   }, [targetMode, targetFile, selectedTemplate])
 
@@ -217,12 +230,16 @@ export default function FormFillPage() {
   }, [repeatMode, repeatModeSupported])
 
   useEffect(() => {
-    if (targetMimeType === DOCX_MIME) {
-      setOutputFormat((current) => (current === 'pdf' || current === 'docx' ? current : 'docx'))
+    if (targetMimeType !== DOCX_MIME) {
+      setOutputFormat('pdf')
+      setHasOutputFormatOverride(false)
       return
     }
-    setOutputFormat('pdf')
-  }, [targetMimeType])
+
+    if (!hasOutputFormatOverride) {
+      setOutputFormat(targetDefaultOutputFormat(targetMimeType))
+    }
+  }, [hasOutputFormatOverride, targetMimeType])
 
   useEffect(() => {
     if (targetMode === 'template' && selectedTemplate?.file_type === DOCX_MIME) {
@@ -250,7 +267,7 @@ export default function FormFillPage() {
         sourceFiles: sourceMode === 'upload' ? sourceFiles : undefined,
         targetFile: targetMode === 'upload' ? targetFile || undefined : undefined,
         templateId: targetMode === 'template' ? selectedTemplateId : undefined,
-        outputFormat,
+        outputFormat: hasOutputFormatOverride ? outputFormat : undefined,
         repeatMode,
         allowDocxTableExpansion: targetMimeType === DOCX_MIME ? allowDocxTableExpansion : undefined,
         saveTemplateName: targetMode === 'upload' && saveAsTemplate ? templateName.trim() : undefined,
@@ -552,7 +569,13 @@ export default function FormFillPage() {
             <Label htmlFor="output-format">Output format</Label>
             <Select
               value={outputFormat}
-              onValueChange={(value) => setOutputFormat(value as 'pdf' | 'docx')}
+              onValueChange={(value) => {
+                const nextOutputFormat = value as 'pdf' | 'docx'
+                setOutputFormat(nextOutputFormat)
+                setHasOutputFormatOverride(
+                  targetMimeType === DOCX_MIME && nextOutputFormat !== targetDefaultOutputFormat(targetMimeType)
+                )
+              }}
             >
               <SelectTrigger id="output-format" className="max-w-xs">
                 <SelectValue />
