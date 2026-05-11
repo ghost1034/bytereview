@@ -22,6 +22,8 @@ interface ShowcaseSectionProps {
   className?: string
   /** Page background. Defaults to a subtle alternating surface. */
   surface?: 'background' | 'surface' | 'surface-muted'
+  /** Optional DOM id applied to the outer <section> for anchor links. */
+  id?: string
 }
 
 export function ShowcaseSection({
@@ -34,6 +36,7 @@ export function ShowcaseSection({
   reverse,
   className,
   surface = 'background',
+  id,
 }: ShowcaseSectionProps) {
   const surfaceClass =
     surface === 'surface'
@@ -43,7 +46,7 @@ export function ShowcaseSection({
         : 'bg-background'
 
   return (
-    <section className={cn('py-16 sm:py-20 lg:py-24', surfaceClass, className)}>
+    <section id={id} className={cn('py-16 sm:py-20 lg:py-24', surfaceClass, className)}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div
           className={cn(

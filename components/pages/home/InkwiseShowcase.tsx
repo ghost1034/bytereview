@@ -110,6 +110,7 @@ function InkwiseMockup() {
 export default function InkwiseShowcase() {
   return (
     <ShowcaseSection
+      id="inkwise-showcase"
       surface="surface-muted"
       reverse
       eyebrow={

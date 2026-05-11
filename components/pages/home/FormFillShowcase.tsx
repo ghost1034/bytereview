@@ -119,6 +119,7 @@ function FormFillMockup() {
 export default function FormFillShowcase() {
   return (
     <ShowcaseSection
+      id="form-fill-showcase"
       surface="surface"
       eyebrow={
         <Badge

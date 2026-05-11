@@ -55,6 +55,7 @@ function ClawMedia() {
 export default function ClawShowcase() {
   return (
     <ShowcaseSection
+      id="claw-showcase"
       surface="background"
       eyebrow={
         <Badge
