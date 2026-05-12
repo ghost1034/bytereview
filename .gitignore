@@ -120,5 +120,7 @@ stripe-cli.log
 # AI tools
 .claude/
 
-# Build info
+# Build artifacts
 tsconfig.tsbuildinfo
+sitemap.xml
+sitemap-0.xml
