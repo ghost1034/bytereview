@@ -111,11 +111,8 @@ def _safe_filename_part(value: str, fallback: str) -> str:
 class FormFillService:
     def __init__(self) -> None:
         self.storage_service = get_storage_service()
-        self.max_spreadsheet_rows = int(os.getenv("FORM_FILL_MAX_SPREADSHEET_ROWS", "200"))
-        self.max_sheet_chars = int(os.getenv("FORM_FILL_MAX_SHEET_CHARS", "30000"))
         self.max_source_files = int(os.getenv("FORM_FILL_MAX_SOURCE_FILES", str(DEFAULT_MAX_SOURCE_FILES)))
         self.max_total_source_bytes = int(os.getenv("FORM_FILL_MAX_TOTAL_SOURCE_BYTES", str(DEFAULT_MAX_TOTAL_SOURCE_BYTES)))
-        self.max_repeat_records = int(os.getenv("FORM_FILL_MAX_REPEAT_RECORDS", "100"))
 
         project = os.getenv("GOOGLE_CLOUD_PROJECT_ID")
         location = os.getenv("GOOGLE_CLOUD_LOCATION", "global")
@@ -937,28 +934,25 @@ class FormFillService:
         if not rows:
             return ""
         columns = [str(item) for item in rows[0]]
-        data_rows = [list(row) for row in rows[1:1 + self.max_spreadsheet_rows]]
-        return self._markdown_table(columns, data_rows, self.max_spreadsheet_rows)[: self.max_sheet_chars]
+        data_rows = [list(row) for row in rows[1:]]
+        return self._markdown_table(columns, data_rows, len(data_rows))
 
     def _load_xlsx_text(self, local_path: str) -> str:
         workbook = load_workbook(local_path, read_only=True, data_only=True)
         parts: list[str] = []
         try:
             for worksheet in workbook.worksheets:
-                rows = list(worksheet.iter_rows(values_only=True, max_row=self.max_spreadsheet_rows + 1))
+                rows = list(worksheet.iter_rows(values_only=True))
                 if not rows:
                     continue
                 columns = [str(item) if item is not None else "" for item in rows[0]]
-                data_rows = [list(row) for row in rows[1:1 + self.max_spreadsheet_rows]]
-                rendered = self._markdown_table(columns, data_rows, self.max_spreadsheet_rows)
+                data_rows = [list(row) for row in rows[1:]]
+                rendered = self._markdown_table(columns, data_rows, len(data_rows))
                 if rendered:
                     parts.append(f"Sheet: {worksheet.title}\n{rendered}")
-                joined = "\n\n".join(parts)
-                if len(joined) >= self.max_sheet_chars:
-                    return joined[: self.max_sheet_chars]
         finally:
             workbook.close()
-        return "\n\n".join(parts)[: self.max_sheet_chars]
+        return "\n\n".join(parts)
 
     def _record_label(self, payload: dict[str, Any], index: int) -> str:
         lowered = {str(key).strip().lower(): value for key, value in payload.items()}
@@ -971,7 +965,7 @@ class FormFillService:
                 return str(value).strip()
         return f"row {index + 1}"
 
-    def _records_from_rows(self, columns: list[Any], rows: list[Any], max_records: Optional[int] = None) -> list[dict[str, Any]]:
+    def _records_from_rows(self, columns: list[Any], rows: list[Any]) -> list[dict[str, Any]]:
         safe_columns = [str(column).strip() or f"Column {index + 1}" for index, column in enumerate(columns)]
         records: list[dict[str, Any]] = []
         for row in rows:
@@ -990,8 +984,6 @@ class FormFillService:
                     "record_payload": payload,
                 }
             )
-            if max_records is not None and len(records) >= max_records:
-                break
         return records
 
     def _load_csv_records(self, local_path: str) -> list[dict[str, Any]]:
@@ -1000,15 +992,15 @@ class FormFillService:
             rows = list(reader)
         if len(rows) < 2:
             return []
-        return self._records_from_rows([str(item) for item in rows[0]], rows[1:], max_records=self.max_repeat_records)
+        return self._records_from_rows([str(item) for item in rows[0]], rows[1:])
 
     def _load_xlsx_records(self, local_path: str) -> list[dict[str, Any]]:
         workbook = load_workbook(local_path, read_only=True, data_only=True)
         try:
             for worksheet in workbook.worksheets:
-                rows = list(worksheet.iter_rows(values_only=True, max_row=self.max_repeat_records + 1))
+                rows = list(worksheet.iter_rows(values_only=True))
                 if len(rows) >= 2:
-                    records = self._records_from_rows(list(rows[0]), [list(row) for row in rows[1:]], max_records=self.max_repeat_records)
+                    records = self._records_from_rows(list(rows[0]), [list(row) for row in rows[1:]])
                     if records:
                         return records
         finally:

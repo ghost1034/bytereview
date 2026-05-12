@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from docx import Document
+from openpyxl import Workbook
 from PyPDF2 import PdfWriter
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
@@ -264,6 +265,19 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(lambda: os.path.exists(handle.name) and os.unlink(handle.name))
         return handle.name
 
+    def _create_xlsx(self, rows: list[list[object]]) -> str:
+        workbook = Workbook()
+        worksheet = workbook.active
+        for row in rows:
+            worksheet.append(row)
+
+        handle = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+        handle.close()
+        workbook.save(handle.name)
+        workbook.close()
+        self.addCleanup(lambda: os.path.exists(handle.name) and os.unlink(handle.name))
+        return handle.name
+
     async def test_build_source_context_labels_multiple_uploaded_csv_sources(self) -> None:
         first_path = self._create_csv("Name,Amount\nChecking,100\n")
         second_path = self._create_csv("Name,Amount\nSavings,250\n")
@@ -373,6 +387,54 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
         )
 
         records = await self.service._extract_repeat_records(run)
+
+        self.assertEqual([record["record_label"] for record in records], ["first", "second", "third"])
+
+    def test_load_csv_text_does_not_cap_input_rows_or_characters(self) -> None:
+        self.service.max_spreadsheet_rows = 1
+        self.service.max_sheet_chars = 20
+        csv_path = self._create_csv("Name,Amount\nfirst,1\nsecond,2\nthird,3\n")
+
+        source_text = self.service._load_csv_text(csv_path)
+
+        self.assertIn("| first | 1 |", source_text)
+        self.assertIn("| second | 2 |", source_text)
+        self.assertIn("| third | 3 |", source_text)
+
+    def test_load_xlsx_text_does_not_cap_input_rows_or_characters(self) -> None:
+        self.service.max_spreadsheet_rows = 1
+        self.service.max_sheet_chars = 20
+        xlsx_path = self._create_xlsx([
+            ["Name", "Amount"],
+            ["first", 1],
+            ["second", 2],
+            ["third", 3],
+        ])
+
+        source_text = self.service._load_xlsx_text(xlsx_path)
+
+        self.assertIn("| first | 1 |", source_text)
+        self.assertIn("| second | 2 |", source_text)
+        self.assertIn("| third | 3 |", source_text)
+
+    def test_load_csv_records_does_not_cap_output_rows(self) -> None:
+        self.service.max_repeat_records = 1
+        csv_path = self._create_csv("Name,Amount\nfirst,1\nsecond,2\nthird,3\n")
+
+        records = self.service._load_csv_records(csv_path)
+
+        self.assertEqual([record["record_label"] for record in records], ["first", "second", "third"])
+
+    def test_load_xlsx_records_does_not_cap_output_rows(self) -> None:
+        self.service.max_repeat_records = 1
+        xlsx_path = self._create_xlsx([
+            ["Name", "Amount"],
+            ["first", 1],
+            ["second", 2],
+            ["third", 3],
+        ])
+
+        records = self.service._load_xlsx_records(xlsx_path)
 
         self.assertEqual([record["record_label"] for record in records], ["first", "second", "third"])
 
