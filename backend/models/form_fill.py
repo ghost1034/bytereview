@@ -99,7 +99,8 @@ class FormFillRunListResponse(BaseModel):
 class FormFillExtractionSourcePreviewResponse(BaseModel):
     job_id: str
     run_id: str
-    task_id: str
+    task_id: Optional[str] = None
+    source_scope: str = "task"
     source_files: list[str] = Field(default_factory=list)
     columns: list[str] = Field(default_factory=list)
     rows: list[list[Any]] = Field(default_factory=list)

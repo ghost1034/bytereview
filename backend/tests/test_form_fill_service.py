@@ -224,6 +224,37 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.service = FormFillService()
 
+    def test_combine_extraction_payloads_aligns_all_rows_to_unified_columns(self) -> None:
+        payload = self.service._combine_extraction_payloads(
+            [
+                {
+                    "columns": ["Name", "Amount"],
+                    "rows": [["Acme", 100], ["Beta", 250]],
+                    "source_files": ["first.pdf"],
+                },
+                {
+                    "columns": ["Tax ID", "Name"],
+                    "rows": [["12-3456789", "Gamma"]],
+                    "source_files": ["second.pdf", "first.pdf"],
+                },
+            ],
+            job_id="job-id",
+            run_id="run-id",
+        )
+
+        self.assertEqual(payload["scope"], "all")
+        self.assertIsNone(payload["task_id"])
+        self.assertEqual(payload["columns"], ["Name", "Amount", "Tax ID"])
+        self.assertEqual(
+            payload["rows"],
+            [
+                ["Acme", 100, None],
+                ["Beta", 250, None],
+                ["Gamma", None, "12-3456789"],
+            ],
+        )
+        self.assertEqual(payload["source_files"], ["first.pdf", "second.pdf"])
+
     def _create_csv(self, content: str) -> str:
         handle = tempfile.NamedTemporaryFile(suffix=".csv", delete=False, mode="w", encoding="utf-8")
         try:
@@ -303,6 +334,47 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn("Source file 1: legacy.csv", source_text)
         self.assertIn("| Owner | Jane |", source_text)
+
+    async def test_build_source_context_does_not_cap_extraction_result_rows(self) -> None:
+        self.service.max_spreadsheet_rows = 1
+        run = SimpleNamespace(
+            id="run-id",
+            user_id="user-id",
+            source_payload={
+                "kind": "extraction_result",
+                "columns": ["Name"],
+                "rows": [["first"], ["second"], ["third"]],
+                "source_files": ["source.pdf"],
+            },
+            source_files=[],
+            source_gcs_object_name=None,
+            source_file_type=None,
+        )
+
+        _source_parts, source_text = await self.service._build_source_context(
+            run=run,
+            source_parts=[],
+            source_text_sections=[],
+        )
+
+        self.assertIn("| first |", source_text)
+        self.assertIn("| second |", source_text)
+        self.assertIn("| third |", source_text)
+
+    async def test_extract_repeat_records_does_not_cap_extraction_result_rows(self) -> None:
+        self.service.max_repeat_records = 1
+        run = SimpleNamespace(
+            source_payload={
+                "kind": "extraction_result",
+                "columns": ["Name"],
+                "rows": [["first"], ["second"], ["third"]],
+            },
+            source_files=[],
+        )
+
+        records = await self.service._extract_repeat_records(run)
+
+        self.assertEqual([record["record_label"] for record in records], ["first", "second", "third"])
 
     def test_load_csv_records_uses_header_row_and_name_label(self) -> None:
         csv_path = self._create_csv("Participant Name,Email\nJane Doe,jane@example.com\nJohn Smith,john@example.com\n")

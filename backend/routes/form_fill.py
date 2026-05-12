@@ -43,7 +43,8 @@ async def delete_form_fill_template(template_id: str, user_id: str = Depends(get
 async def get_extraction_source_preview(
     job_id: str = Query(...),
     run_id: str = Query(...),
-    task_id: str = Query(...),
+    task_id: str | None = Query(default=None),
+    source_scope: str | None = Query(default=None),
     user_id: str = Depends(get_current_user_id),
 ):
     try:
@@ -52,6 +53,7 @@ async def get_extraction_source_preview(
             job_id=job_id,
             run_id=run_id,
             task_id=task_id,
+            source_scope=source_scope,
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
@@ -72,6 +74,7 @@ async def create_form_fill_run(
     source_job_id: str | None = Form(default=None),
     source_run_id: str | None = Form(default=None),
     source_task_id: str | None = Form(default=None),
+    source_scope: str | None = Form(default=None),
     user_id: str = Depends(get_current_user_id),
 ):
     try:
@@ -88,6 +91,7 @@ async def create_form_fill_run(
             source_job_id=source_job_id,
             source_run_id=source_run_id,
             source_task_id=source_task_id,
+            source_scope=source_scope,
         )
         return FormFillRunCreateResponse(run=run, message="Form Fill run created")
     except ValueError as exc:

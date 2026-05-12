@@ -21,6 +21,7 @@ import fitz
 from google import genai
 from google.genai import types
 from openpyxl import load_workbook
+from sqlalchemy import func, nullslast
 from sqlalchemy.orm import Session
 
 from core.database import db_config
@@ -70,6 +71,8 @@ DEFAULT_MAX_TOTAL_SOURCE_BYTES = 100 * 1024 * 1024
 REPEAT_MODE_SINGLE = "single"
 REPEAT_MODE_SOURCE_ROWS = "source_rows"
 REPEAT_LABEL_COLUMNS = ("participant", "participant name", "name", "full name", "client", "customer", "employee")
+SOURCE_SCOPE_TASK = "task"
+SOURCE_SCOPE_ALL = "all"
 
 
 def _guess_mime_type(filename: str, fallback: str = "application/octet-stream") -> str:
@@ -94,6 +97,10 @@ def _normalize_repeat_mode(value: Optional[str]) -> str:
     if lowered in {"source_rows", "rows", "repeat"}:
         return REPEAT_MODE_SOURCE_ROWS
     return REPEAT_MODE_SINGLE
+
+
+def _normalize_source_scope(value: Optional[str]) -> str:
+    return SOURCE_SCOPE_ALL if (value or "").strip().lower() == SOURCE_SCOPE_ALL else SOURCE_SCOPE_TASK
 
 
 def _safe_filename_part(value: str, fallback: str) -> str:
@@ -230,7 +237,89 @@ class FormFillService:
         finally:
             db.close()
 
-    def _load_extraction_source_payload(
+    def _task_source_files(self, db: Session, task_id: Any) -> list[str]:
+        task_source_files = db.query(SourceFile.original_path).join(
+            SourceFileToTask, SourceFile.id == SourceFileToTask.source_file_id
+        ).filter(SourceFileToTask.task_id == task_id).order_by(SourceFile.original_path.asc()).all()
+        return [item[0] for item in task_source_files]
+
+    def _payload_from_extraction_result(
+        self,
+        *,
+        result: ExtractionResult,
+        source_files: list[str],
+        job_id: str,
+        run_id: str,
+        task_id: str,
+    ) -> dict[str, Any]:
+        if not result or not isinstance(result.extracted_data, dict):
+            raise ValueError("Selected extraction result has no saved rows")
+
+        extracted_data = result.extracted_data
+        columns = extracted_data.get("columns") or []
+        rows = extracted_data.get("results") or []
+        if not isinstance(columns, list) or not isinstance(rows, list):
+            raise ValueError("Selected extraction result is malformed")
+
+        return {
+            "kind": "extraction_result",
+            "scope": SOURCE_SCOPE_TASK,
+            "columns": columns,
+            "rows": rows,
+            "source_files": source_files,
+            "job_id": str(job_id),
+            "run_id": str(run_id),
+            "task_id": str(task_id),
+        }
+
+    def _combine_extraction_payloads(
+        self,
+        payloads: list[dict[str, Any]],
+        *,
+        job_id: str,
+        run_id: str,
+    ) -> dict[str, Any]:
+        columns: list[str] = []
+        seen_columns: set[str] = set()
+        source_files: list[str] = []
+        seen_source_files: set[str] = set()
+
+        for payload in payloads:
+            for column in payload.get("columns") or []:
+                column_name = str(column)
+                if column_name not in seen_columns:
+                    seen_columns.add(column_name)
+                    columns.append(column_name)
+            for source_file in payload.get("source_files") or []:
+                source_name = str(source_file)
+                if source_name not in seen_source_files:
+                    seen_source_files.add(source_name)
+                    source_files.append(source_name)
+
+        rows: list[list[Any]] = []
+        for payload in payloads:
+            payload_columns = [str(column) for column in (payload.get("columns") or [])]
+            index_by_column = {column: index for index, column in enumerate(payload_columns)}
+            for row in payload.get("rows") or []:
+                if not isinstance(row, list):
+                    continue
+                rows.append([
+                    row[index_by_column[column]] if column in index_by_column and index_by_column[column] < len(row) else None
+                    for column in columns
+                ])
+
+        return {
+            "kind": "extraction_result",
+            "scope": SOURCE_SCOPE_ALL,
+            "columns": columns,
+            "rows": rows,
+            "source_files": source_files,
+            "job_id": str(job_id),
+            "run_id": str(run_id),
+            "task_id": None,
+        }
+
+    def _load_task_extraction_source_payload(
         self,
         db: Session,
         *,
@@ -251,29 +340,85 @@ class FormFillService:
             raise ValueError("Selected extraction result not found")
 
         result = db.query(ExtractionResult).filter(ExtractionResult.task_id == task.id).first()
-        if not result or not isinstance(result.extracted_data, dict):
-            raise ValueError("Selected extraction result has no saved rows")
+        return self._payload_from_extraction_result(
+            result=result,
+            source_files=self._task_source_files(db, task.id),
+            job_id=job_id,
+            run_id=run_id,
+            task_id=str(task_id),
+        )
 
-        extracted_data = result.extracted_data
-        columns = extracted_data.get("columns") or []
-        rows = extracted_data.get("results") or []
-        if not isinstance(columns, list) or not isinstance(rows, list):
-            raise ValueError("Selected extraction result is malformed")
+    def _load_all_extraction_source_payload(
+        self,
+        db: Session,
+        *,
+        user_id: str,
+        job_id: str,
+        run_id: str,
+    ) -> dict[str, Any]:
+        target_run = db.query(JobRun).join(ExtractionJob, ExtractionJob.id == JobRun.job_id).filter(
+            JobRun.id == uuid.UUID(str(run_id)),
+            ExtractionJob.id == uuid.UUID(str(job_id)),
+            ExtractionJob.user_id == user_id,
+        ).first()
+        if not target_run:
+            raise ValueError("Extraction run not found")
 
-        task_source_files = db.query(SourceFile.original_path).join(
-            SourceFileToTask, SourceFile.id == SourceFileToTask.source_file_id
-        ).filter(SourceFileToTask.task_id == task.id).order_by(SourceFile.original_path.asc()).all()
-        source_files = [item[0] for item in task_source_files]
+        first_file_subquery = db.query(
+            SourceFileToTask.task_id,
+            func.min(SourceFile.original_path).label("first_file_path"),
+        ).join(
+            SourceFile, SourceFile.id == SourceFileToTask.source_file_id
+        ).group_by(SourceFileToTask.task_id).subquery()
 
-        return {
-            "kind": "extraction_result",
-            "columns": columns,
-            "rows": rows,
-            "source_files": source_files,
-            "job_id": str(job_id),
-            "run_id": str(run_id),
-            "task_id": str(task_id),
-        }
+        results_with_tasks = db.query(ExtractionResult, ExtractionTask).join(
+            ExtractionTask, ExtractionResult.task_id == ExtractionTask.id
+        ).outerjoin(
+            first_file_subquery, first_file_subquery.c.task_id == ExtractionTask.id
+        ).filter(
+            ExtractionTask.job_run_id == target_run.id
+        ).order_by(
+            ExtractionTask.result_set_index.asc(),
+            nullslast(first_file_subquery.c.first_file_path.asc()),
+            ExtractionResult.processed_at,
+            ExtractionResult.id,
+        ).all()
+
+        payloads = [
+            self._payload_from_extraction_result(
+                result=result,
+                source_files=self._task_source_files(db, task.id),
+                job_id=job_id,
+                run_id=run_id,
+                task_id=str(task.id),
+            )
+            for result, task in results_with_tasks
+        ]
+        if not payloads:
+            raise ValueError("Extraction run has no saved rows")
+        return self._combine_extraction_payloads(payloads, job_id=job_id, run_id=run_id)
+
+    def _load_extraction_source_payload(
+        self,
+        db: Session,
+        *,
+        user_id: str,
+        job_id: str,
+        run_id: str,
+        task_id: Optional[str] = None,
+        source_scope: Optional[str] = None,
+    ) -> dict[str, Any]:
+        if _normalize_source_scope(source_scope) == SOURCE_SCOPE_ALL:
+            return self._load_all_extraction_source_payload(db, user_id=user_id, job_id=job_id, run_id=run_id)
+        if not task_id:
+            raise ValueError("Select an extraction result or all rows")
+        return self._load_task_extraction_source_payload(
+            db,
+            user_id=user_id,
+            job_id=job_id,
+            run_id=run_id,
+            task_id=task_id,
+        )
 
     def get_extraction_source_preview(
         self,
@@ -281,7 +426,8 @@ class FormFillService:
         *,
         job_id: str,
         run_id: str,
-        task_id: str,
+        task_id: Optional[str] = None,
+        source_scope: Optional[str] = None,
     ) -> FormFillExtractionSourcePreviewResponse:
         db = self._get_session()
         try:
@@ -291,11 +437,13 @@ class FormFillService:
                 job_id=job_id,
                 run_id=run_id,
                 task_id=task_id,
+                source_scope=source_scope,
             )
             return FormFillExtractionSourcePreviewResponse(
                 job_id=job_id,
                 run_id=run_id,
-                task_id=task_id,
+                task_id=payload.get("task_id"),
+                source_scope=payload.get("scope") or _normalize_source_scope(source_scope),
                 source_files=list(payload.get("source_files") or []),
                 columns=list(payload.get("columns") or []),
                 rows=list(payload.get("rows") or []),
@@ -438,11 +586,15 @@ class FormFillService:
         source_job_id: Optional[str] = None,
         source_run_id: Optional[str] = None,
         source_task_id: Optional[str] = None,
+        source_scope: Optional[str] = None,
     ) -> FormFillRunResponse:
         db = self._get_session()
         try:
             uploaded_source_files = [item for item in (source_files or []) if item is not None]
-            source_from_extraction = bool(source_job_id and source_run_id and source_task_id)
+            normalized_source_scope = _normalize_source_scope(source_scope)
+            source_from_extraction = bool(
+                source_job_id and source_run_id and (source_task_id or normalized_source_scope == SOURCE_SCOPE_ALL)
+            )
             normalized_repeat_mode = _normalize_repeat_mode(repeat_mode)
             if bool(uploaded_source_files) == source_from_extraction:
                 raise ValueError("Provide either source files or an extraction result source")
@@ -520,14 +672,15 @@ class FormFillService:
                     user_id=user_id,
                     job_id=str(source_job_id),
                     run_id=str(source_run_id),
-                    task_id=str(source_task_id),
+                    task_id=str(source_task_id) if source_task_id else None,
+                    source_scope=normalized_source_scope,
                 )
-                run.source_filename = "Extraction Results"
+                run.source_filename = "Extraction Results - All Rows" if normalized_source_scope == SOURCE_SCOPE_ALL else "Extraction Results"
                 run.source_file_type = "application/json"
                 run.source_payload = payload
                 run.source_job_id = uuid.UUID(str(source_job_id))
                 run.source_run_id = uuid.UUID(str(source_run_id))
-                run.source_task_id = uuid.UUID(str(source_task_id))
+                run.source_task_id = uuid.UUID(str(source_task_id)) if source_task_id else None
 
             if target_file:
                 target_bytes = await target_file.read()
@@ -818,7 +971,7 @@ class FormFillService:
                 return str(value).strip()
         return f"row {index + 1}"
 
-    def _records_from_rows(self, columns: list[Any], rows: list[Any]) -> list[dict[str, Any]]:
+    def _records_from_rows(self, columns: list[Any], rows: list[Any], max_records: Optional[int] = None) -> list[dict[str, Any]]:
         safe_columns = [str(column).strip() or f"Column {index + 1}" for index, column in enumerate(columns)]
         records: list[dict[str, Any]] = []
         for row in rows:
@@ -837,7 +990,7 @@ class FormFillService:
                     "record_payload": payload,
                 }
             )
-            if len(records) >= self.max_repeat_records:
+            if max_records is not None and len(records) >= max_records:
                 break
         return records
 
@@ -847,7 +1000,7 @@ class FormFillService:
             rows = list(reader)
         if len(rows) < 2:
             return []
-        return self._records_from_rows([str(item) for item in rows[0]], rows[1:])
+        return self._records_from_rows([str(item) for item in rows[0]], rows[1:], max_records=self.max_repeat_records)
 
     def _load_xlsx_records(self, local_path: str) -> list[dict[str, Any]]:
         workbook = load_workbook(local_path, read_only=True, data_only=True)
@@ -855,7 +1008,7 @@ class FormFillService:
             for worksheet in workbook.worksheets:
                 rows = list(worksheet.iter_rows(values_only=True, max_row=self.max_repeat_records + 1))
                 if len(rows) >= 2:
-                    records = self._records_from_rows(list(rows[0]), [list(row) for row in rows[1:]])
+                    records = self._records_from_rows(list(rows[0]), [list(row) for row in rows[1:]], max_records=self.max_repeat_records)
                     if records:
                         return records
         finally:
@@ -997,7 +1150,7 @@ class FormFillService:
             rows = list(run.source_payload.get("rows") or [])
             source_files = list(run.source_payload.get("source_files") or [])
             source_text_sections.append("Extraction result source files: " + ", ".join(source_files))
-            source_text_sections.append(self._markdown_table(columns, rows, self.max_spreadsheet_rows))
+            source_text_sections.append(self._markdown_table(columns, rows, len(rows)))
             return source_parts, "\n\n".join(item for item in source_text_sections if item)
 
         uploaded_source_files = list(run.source_files or [])

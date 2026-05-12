@@ -118,7 +118,8 @@ export default function FormFillPage() {
   const sourceJobId = searchParams.get('job_id') || ''
   const sourceRunId = searchParams.get('run_id') || ''
   const sourceTaskId = searchParams.get('task_id') || ''
-  const hasExtractionSource = Boolean(sourceJobId && sourceRunId && sourceTaskId)
+  const sourceScope = searchParams.get('source_scope') === 'all' ? 'all' : 'task'
+  const hasExtractionSource = Boolean(sourceJobId && sourceRunId && (sourceTaskId || sourceScope === 'all'))
   const runIdParam = hasExtractionSource
     ? searchParams.get('form_fill_run_id') || ''
     : searchParams.get('run_id') || searchParams.get('form_fill_run_id') || ''
@@ -147,8 +148,13 @@ export default function FormFillPage() {
   })
 
   const { data: extractionPreview } = useQuery<FormFillExtractionSourcePreview>({
-    queryKey: ['form-fill-extraction-preview', sourceJobId, sourceRunId, sourceTaskId],
-    queryFn: () => apiClient.getFormFillExtractionSourcePreview({ jobId: sourceJobId, runId: sourceRunId, taskId: sourceTaskId }),
+    queryKey: ['form-fill-extraction-preview', sourceJobId, sourceRunId, sourceTaskId, sourceScope],
+    queryFn: () => apiClient.getFormFillExtractionSourcePreview({
+      jobId: sourceJobId,
+      runId: sourceRunId,
+      taskId: sourceScope === 'all' ? undefined : sourceTaskId,
+      sourceScope,
+    }),
     enabled: !!user && hasExtractionSource,
     staleTime: 60_000,
   })
@@ -274,7 +280,8 @@ export default function FormFillPage() {
         saveTemplateDescription: targetMode === 'upload' && saveAsTemplate ? templateDescription.trim() : undefined,
         sourceJobId: sourceMode === 'extraction' ? sourceJobId : undefined,
         sourceRunId: sourceMode === 'extraction' ? sourceRunId : undefined,
-        sourceTaskId: sourceMode === 'extraction' ? sourceTaskId : undefined,
+        sourceTaskId: sourceMode === 'extraction' && sourceScope !== 'all' ? sourceTaskId : undefined,
+        sourceScope: sourceMode === 'extraction' ? sourceScope : undefined,
       })
 
       selectRun(response.run.id, { replace: true })
@@ -388,8 +395,14 @@ export default function FormFillPage() {
             <div className="rounded-lg border border-border bg-surface-muted p-4 space-y-3">
               <div className="text-sm font-medium text-foreground">Selected extraction result</div>
               <div className="text-xs text-foreground-muted">
-                Job run <code className="font-mono">{sourceRunId}</code> task{' '}
-                <code className="font-mono">{sourceTaskId}</code>
+                Job run <code className="font-mono">{sourceRunId}</code>{' '}
+                {sourceScope === 'all' ? (
+                  <span>all rows</span>
+                ) : (
+                  <>
+                    task <code className="font-mono">{sourceTaskId}</code>
+                  </>
+                )}
               </div>
               {extractionPreview ? (
                 <>

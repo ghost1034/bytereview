@@ -704,13 +704,15 @@ export class ApiClient {
   async getFormFillExtractionSourcePreview(params: {
     jobId: string
     runId: string
-    taskId: string
+    taskId?: string
+    sourceScope?: 'task' | 'all'
   }): Promise<FormFillExtractionSourcePreview> {
     const searchParams = new URLSearchParams({
       job_id: params.jobId,
       run_id: params.runId,
-      task_id: params.taskId,
     })
+    if (params.taskId) searchParams.set('task_id', params.taskId)
+    if (params.sourceScope) searchParams.set('source_scope', params.sourceScope)
     return this.request(`/api/form-fill/extraction-source-preview?${searchParams.toString()}`)
   }
 
@@ -731,6 +733,7 @@ export class ApiClient {
     if (params.sourceJobId) formData.append('source_job_id', params.sourceJobId)
     if (params.sourceRunId) formData.append('source_run_id', params.sourceRunId)
     if (params.sourceTaskId) formData.append('source_task_id', params.sourceTaskId)
+    if (params.sourceScope) formData.append('source_scope', params.sourceScope)
 
     const response = await fetch(`${this.baseURL}/api/form-fill/runs`, {
       method: 'POST',
@@ -1410,7 +1413,8 @@ export interface FormFillTemplateListResponse {
 export interface FormFillExtractionSourcePreview {
   job_id: string
   run_id: string
-  task_id: string
+  task_id?: string | null
+  source_scope?: 'task' | 'all'
   source_files: string[]
   columns: string[]
   rows: any[][]
@@ -1499,6 +1503,7 @@ export interface CreateFormFillRunParams {
   sourceJobId?: string
   sourceRunId?: string
   sourceTaskId?: string
+  sourceScope?: 'task' | 'all'
 }
 
 // CPE Tracker types

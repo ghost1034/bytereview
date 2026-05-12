@@ -1085,15 +1085,19 @@ export default function ResultsStep({ jobId, runId, onStartNew }: ResultsStepPro
                     variant="outline"
                     data-tour="use-in-form-fill-button"
                     onClick={() => {
-                      if (!selectedFileId || !runId) return
+                      if (!runId || (resultsView === 'selected' && !selectedFileId)) return
                       const params = new URLSearchParams({
                         job_id: jobId,
                         run_id: runId,
-                        task_id: selectedFileId,
                       })
+                      if (resultsView === 'all') {
+                        params.set('source_scope', 'all')
+                      } else if (selectedFileId) {
+                        params.set('task_id', selectedFileId)
+                      }
                       router.push(`/dashboard/form-fill?${params.toString()}`)
                     }}
-                    disabled={!selectedFileId || !runId}
+                    disabled={!runId || (resultsView === 'selected' && !selectedFileId)}
                   >
                     Use in Form Fill
                   </Button>
