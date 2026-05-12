@@ -119,3 +119,6 @@ stripe-cli.log
 
 # AI tools
 .claude/
+
+# Build info
+tsconfig.tsbuildinfo
