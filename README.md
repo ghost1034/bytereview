@@ -476,8 +476,8 @@ Environment configuration (.env)
     - FORM_FILL_GEMINI_MAX_OUTPUT_TOKENS=65536 (optional; default 65536)
     - FORM_FILL_CONTINUATION_ENABLED=true (optional; default true)
     - FORM_FILL_CONTINUATION_MAX_ROUNDS=20 (optional; default 20)
-    - FORM_FILL_CONTINUATION_MAX_ITEMS_PER_CALL=250 (optional; default 250)
-    - FORM_FILL_MAPPING_CHUNK_SIZE=250 (optional; default FORM_FILL_CONTINUATION_MAX_ITEMS_PER_CALL)
+    - FORM_FILL_CONTINUATION_MAX_ITEMS_PER_CALL=1000 (optional; default 1000)
+    - FORM_FILL_MAPPING_CHUNK_SIZE=1000 (optional; default FORM_FILL_CONTINUATION_MAX_ITEMS_PER_CALL)
   - Google OAuth and Integrations
     - GOOGLE_CLIENT_ID=...
     - GOOGLE_CLIENT_SECRET=...

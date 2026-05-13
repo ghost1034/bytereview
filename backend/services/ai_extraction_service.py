@@ -58,9 +58,9 @@ class AIExtractionService:
             self.continuation_near_token_ratio = 0.98
         try:
             # Prompt-only limit. Applies to continuation rounds to reduce repeated truncation.
-            self.continuation_max_rows_per_call = int(os.getenv("GEMINI_CONTINUATION_MAX_ROWS_PER_CALL", "250"))
+            self.continuation_max_rows_per_call = int(os.getenv("GEMINI_CONTINUATION_MAX_ROWS_PER_CALL", "1000"))
         except Exception:
-            self.continuation_max_rows_per_call = 250
+            self.continuation_max_rows_per_call = 1000
         try:
             self.continuation_temperature = float(os.getenv("GEMINI_CONTINUATION_TEMPERATURE", "0.0"))
         except Exception:

@@ -121,7 +121,7 @@ class FormFillService:
         self.continuation_enabled = os.getenv("FORM_FILL_CONTINUATION_ENABLED", "true").strip().lower() in {"1", "true", "yes", "y"}
         self.continuation_max_rounds = self._env_int("FORM_FILL_CONTINUATION_MAX_ROUNDS", 20)
         self.continuation_tail_items = self._env_int("FORM_FILL_CONTINUATION_TAIL_ITEMS", 10)
-        self.continuation_max_items_per_call = self._env_int("FORM_FILL_CONTINUATION_MAX_ITEMS_PER_CALL", 250)
+        self.continuation_max_items_per_call = self._env_int("FORM_FILL_CONTINUATION_MAX_ITEMS_PER_CALL", 1000)
         self.mapping_chunk_size = self._env_int("FORM_FILL_MAPPING_CHUNK_SIZE", self.continuation_max_items_per_call)
         try:
             self.continuation_near_token_ratio = float(os.getenv("FORM_FILL_CONTINUATION_NEAR_TOKEN_RATIO", "0.98"))
@@ -2100,7 +2100,7 @@ Instructions:
     ) -> dict[str, Any]:
         all_items: list[dict[str, Any]] = []
         all_warnings: list[str] = []
-        chunk_size = max(1, int(self.mapping_chunk_size or self.continuation_max_items_per_call or 250))
+        chunk_size = max(1, int(self.mapping_chunk_size or self.continuation_max_items_per_call or 1000))
 
         for start in range(0, len(mapping_items), chunk_size):
             chunk = mapping_items[start : start + chunk_size]
