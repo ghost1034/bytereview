@@ -305,10 +305,10 @@ class AIExtractionService:
         base_prompt: str,
         columns_json: str,
         n_cols: int,
-        tail_rows: List[List[Any]],
+        prior_rows: List[List[Any]],
         max_rows: int,
     ) -> str:
-        tail_json = json.dumps(tail_rows, separators=(",", ":"), ensure_ascii=True)
+        prior_json = json.dumps(prior_rows, separators=(",", ":"), ensure_ascii=True)
         max_rows_line = ""
         if isinstance(max_rows, int) and max_rows > 0:
             max_rows_line = f"- Return at most {max_rows} rows in this response.\\n"
@@ -316,14 +316,17 @@ class AIExtractionService:
             f"{base_prompt}\n\n"
             "Continuation:\n"
             "- You previously returned some rows for this SAME document.\n"
-            "- Continue extracting the next rows that come AFTER the tail rows provided below.\n"
-            "- Do not repeat any rows from the tail rows.\n"
+            "- Continue extracting the next rows that come AFTER the final row in prior_rows below.\n"
+            "- Do not repeat any row from prior_rows.\n"
+            "- If the next document row is identical to a prior row, include it only when it is a distinct occurrence after all prior_rows.\n"
             "- Keep the same column order and row shape as before.\n"
             f"- Each row must have exactly {n_cols} values.\n"
             f"{max_rows_line}"
+            "- Do not summarize, collapse, or omit rows because there are many.\n"
+            "- Do not mention output limits or token limits. Return concrete rows only.\n"
             "- If there are no more rows to extract, return {\"results\":[]}.\n\n"
             f"Column order: columns={columns_json}\n\n"
-            f"Tail rows (already returned, in order): {tail_json}\n"
+            f"prior_rows (already returned, in order): {prior_json}\n"
         )
 
     def _build_base_prompt_with_ordering(self, prompt: str) -> str:
@@ -332,7 +335,8 @@ class AIExtractionService:
             f"{prompt}\n\n"
             "Additional rules for long outputs:\n"
             "- Output rows in the same order they appear in the document.\n"
-            "- Do not intentionally drop rows; if output length is limited, stop cleanly and continuation will be requested.\n"
+            "- Do not intentionally drop, summarize, or collapse rows because there are many.\n"
+            "- Do not mention output limits or token limits. If output length is limited, stop cleanly after a complete row and continuation will be requested.\n"
         )
 
     def _config_for_continuation(self, response_schema: types.Schema) -> types.GenerateContentConfig:
@@ -399,13 +403,11 @@ class AIExtractionService:
 
         while rounds < self.continuation_max_rounds:
             rounds += 1
-            tail_n = max(0, self.continuation_tail_rows)
-            tail_rows = all_rows[-tail_n:] if tail_n and all_rows else []
             cont_prompt = self._build_continuation_prompt(
                 base_prompt=prompt,
                 columns_json=columns_json,
                 n_cols=n_cols,
-                tail_rows=tail_rows,
+                prior_rows=all_rows,
                 max_rows=self.continuation_max_rows_per_call,
             )
             resp2 = self.client.models.generate_content(
@@ -424,7 +426,8 @@ class AIExtractionService:
             if overlap == 0 and self._looks_like_restart_from_beginning(all_rows, new_rows):
                 logger.warning(f"Gemini continuation ({label}) appears to restart from beginning; stopping to avoid duplication")
                 break
-            append_rows = new_rows[overlap:] if overlap else new_rows
+            effective_overlap = overlap if overlap > 1 else 0
+            append_rows = new_rows[effective_overlap:] if effective_overlap else new_rows
             all_rows.extend(append_rows)
             added = len(append_rows)
 

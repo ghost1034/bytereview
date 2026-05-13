@@ -73,6 +73,15 @@ REPEAT_MODE_SOURCE_ROWS = "source_rows"
 REPEAT_LABEL_COLUMNS = ("participant", "participant name", "name", "full name", "client", "customer", "employee")
 SOURCE_SCOPE_TASK = "task"
 SOURCE_SCOPE_ALL = "all"
+OUTPUT_LIMIT_WARNING_PATTERNS = (
+    "output limit",
+    "output limits",
+    "too many",
+    "large volume",
+    "exceed",
+    "see attached",
+    "unable to calculate exact totals",
+)
 
 
 def _guess_mime_type(filename: str, fallback: str = "application/octet-stream") -> str:
@@ -1051,9 +1060,9 @@ class FormFillService:
         prompt: str,
         *,
         collection_key: str,
-        tail_items: list[dict[str, Any]],
+        prior_items: list[dict[str, Any]],
     ) -> str:
-        tail_json = json.dumps(tail_items, separators=(",", ":"), ensure_ascii=True)
+        prior_json = json.dumps(prior_items, separators=(",", ":"), ensure_ascii=True)
         max_items_line = ""
         if self.continuation_max_items_per_call > 0:
             max_items_line = f"- Return at most {self.continuation_max_items_per_call} {collection_key} entries in this response.\n"
@@ -1061,12 +1070,28 @@ class FormFillService:
             f"{prompt}\n\n"
             "Continuation:\n"
             f"- You previously returned some '{collection_key}' entries for this SAME target and source.\n"
-            f"- Continue with the next '{collection_key}' entries that come AFTER the tail entries below.\n"
-            "- Do not repeat any tail entries.\n"
+            f"- Continue with the next '{collection_key}' entries that come AFTER the final entry in prior_entries below.\n"
+            "- Do not repeat any prior entry.\n"
+            "- Do not summarize, collapse, or replace remaining entries with warnings.\n"
+            "- Do not write 'see attached', 'too many transactions', or any output-limit workaround.\n"
+            "- Do not mention output limits or token limits. Return concrete entries only.\n"
             f"{max_items_line}"
             f"- If there are no more entries, return {{\"{collection_key}\":[],\"warnings\":[]}}.\n\n"
-            f"Tail entries already returned: {tail_json}\n"
+            f"prior_entries already returned, in order: {prior_json}\n"
         )
+
+    def _filter_output_limit_warnings(self, warnings: list[str], *, label: str) -> list[str]:
+        kept: list[str] = []
+        suppressed: list[str] = []
+        for warning in warnings:
+            lowered = warning.lower()
+            if any(pattern in lowered for pattern in OUTPUT_LIMIT_WARNING_PATTERNS):
+                suppressed.append(warning)
+            else:
+                kept.append(warning)
+        if suppressed:
+            logger.info("Suppressed Form Fill output-limit warnings (%s): %s", label, suppressed)
+        return kept
 
     def _generate_collection_json_response(
         self,
@@ -1108,16 +1133,16 @@ class FormFillService:
             and len(items) >= self.continuation_max_items_per_call
         )
         if not self.continuation_enabled or (not truncated and not full_batch):
+            if continue_on_full_batch and self.continuation_enabled:
+                all_warnings = self._filter_output_limit_warnings(all_warnings, label=label)
             return {collection_key: all_items, "warnings": all_warnings}
 
         no_growth_rounds = 0
         for round_index in range(1, self.continuation_max_rounds + 1):
-            tail_count = max(0, self.continuation_tail_items)
-            tail_items = all_items[-tail_count:] if tail_count else []
             continuation_prompt = self._build_collection_continuation_prompt(
                 prompt,
                 collection_key=collection_key,
-                tail_items=tail_items,
+                prior_items=all_items,
             )
             continuation_response = self.client.models.generate_content(
                 model=self.model_name,
@@ -1166,6 +1191,8 @@ class FormFillService:
             if no_growth_rounds >= 2 or (not truncated2 and not full_batch2):
                 break
 
+        if continue_on_full_batch and self.continuation_enabled:
+            all_warnings = self._filter_output_limit_warnings(all_warnings, label=label)
         return {collection_key: all_items, "warnings": all_warnings}
 
     def _extract_pdf_form_fields(self, local_path: str) -> list[str]:
@@ -1620,6 +1647,9 @@ Instructions:
 - Use placement_hint values such as replace_anchor, right_of, below, or near_blank.
 - Set cover_anchor to true when replacing placeholder text, blanks, or underscores already present in the PDF.
 - overlay_text must be concise and ready to render.
+- Do not summarize, collapse, or omit entries because there are many; continuation will request more entries when needed.
+- Do not write "see attached", "too many transactions", or any output-limit workaround.
+- Do not mention output limits or token limits.
 - Add ambiguities or missing values to warnings.
 """
 
@@ -1671,6 +1701,12 @@ Instructions:
 - Use insert_after_block or insert_before_block for new paragraphs adjacent to an existing block.
 - Use append_to_block only for short additions to an existing block.
 - {table_instruction}
+- For tabular targets, emit one insert_table_row_after operation per source row that belongs in the table.
+- Calculate totals, subtotals, recapitulations, and other numeric rollups from the provided source rows when numeric amounts are present.
+- Do not summarize, collapse, or omit source rows because there are many; continuation will request more operations when needed.
+- Do not write "see attached", "too many transactions", or any output-limit workaround.
+- Do not claim totals cannot be calculated due to transaction volume.
+- Do not mention output limits or token limits.
 - Keep operations minimal and deterministic.
 - Add any ambiguities or low-confidence choices to warnings.
 """

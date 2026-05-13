@@ -537,7 +537,12 @@ class FormFillServiceContinuationTests(unittest.TestCase):
         self.assertEqual(payload["warnings"], ["continued"])
         self.assertEqual(self.service.client.models.generate_content.call_count, 2)
         continuation_contents = self.service.client.models.generate_content.call_args_list[1].kwargs["contents"]
-        self.assertIn("Tail entries already returned", continuation_contents[-1])
+        self.assertIn(
+            'prior_entries already returned, in order: [{"action":"replace_block_text","block_id":"a"},{"action":"insert_after_block","block_id":"b"}]',
+            continuation_contents[-1],
+        )
+        self.assertIn("Do not summarize, collapse, or replace remaining entries", continuation_contents[-1])
+        self.assertIn("Do not write 'see attached'", continuation_contents[-1])
 
     def test_collection_continuation_continues_on_full_batch_without_truncation(self) -> None:
         self.service.continuation_max_items_per_call = 2
@@ -589,6 +594,35 @@ class FormFillServiceContinuationTests(unittest.TestCase):
             ],
         )
         self.assertEqual(self.service.client.models.generate_content.call_count, 2)
+
+    def test_collection_filters_output_limit_warnings_for_continuable_outputs(self) -> None:
+        self.service.client = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=MagicMock(
+                    return_value=self._response(
+                        parsed={
+                            "operations": [{"action": "append_to_block", "block_id": "a"}],
+                            "warnings": [
+                                "The source material contains over 500 transactions and would exceed output limits.",
+                                "Unable to calculate exact totals due to the large volume of transactions.",
+                                "Missing date for one transaction.",
+                            ],
+                        }
+                    )
+                )
+            )
+        )
+
+        payload = self.service._generate_collection_json_response(
+            [],
+            prompt="Edit the DOCX.",
+            schema=self.service._docx_edit_schema(),
+            collection_key="operations",
+            label="test",
+            continue_on_full_batch=True,
+        )
+
+        self.assertEqual(payload["warnings"], ["Missing date for one transaction."])
 
     def test_collection_continuation_does_not_continue_full_batch_when_disabled(self) -> None:
         self.service.continuation_max_items_per_call = 2
@@ -652,6 +686,22 @@ class FormFillServiceContinuationTests(unittest.TestCase):
         self.assertIn("- B", first_prompt)
         self.assertNotIn("- C", first_prompt)
         self.assertIn("- C", second_prompt)
+
+    def test_form_fill_prompts_forbid_output_limit_workarounds(self) -> None:
+        pdf_prompt = self.service._build_pdf_overlay_prompt(source_text="Rows", target_preview_text="Target")
+        docx_prompt = self.service._build_docx_edit_prompt(
+            source_text="Rows",
+            block_summary="Blocks",
+            table_summary="Tables",
+            target_preview_text="Target",
+            allow_table_expansion=True,
+        )
+
+        self.assertIn("Do not summarize, collapse, or omit entries", pdf_prompt)
+        self.assertIn("Do not write \"see attached\"", pdf_prompt)
+        self.assertIn("emit one insert_table_row_after operation per source row", docx_prompt)
+        self.assertIn("Calculate totals", docx_prompt)
+        self.assertIn("Do not claim totals cannot be calculated", docx_prompt)
 
     def test_compact_fill_plan_stores_counts_and_samples(self) -> None:
         compact = self.service._compact_fill_plan(
