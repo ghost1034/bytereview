@@ -363,7 +363,7 @@ export default function FormFillPage() {
                 onChange={(event) => setSourceFiles(Array.from(event.target.files || []))}
               />
               <p className="text-xs text-foreground-muted">
-                Supported: CSV, XLSX, PDF, DOCX. Up to 10 source files, 100 MB total. Multiple source files fill one form each.
+                Supported: CSV, XLSX, PDF, DOCX. Up to 100 source files, 1000 MB total. Multiple source files fill one form each.
               </p>
               {sourceFiles.length > 0 && (
                 <div className="rounded-md border border-border bg-surface-raised divide-y divide-border">
@@ -552,21 +552,21 @@ export default function FormFillPage() {
           )}
 
           {targetMimeType === DOCX_MIME && (
-            <div className="flex items-start gap-3 rounded-md border border-border bg-surface p-4">
-              <Checkbox
-                id="allow-docx-table-expansion"
-                checked={allowDocxTableExpansion}
-                onCheckedChange={(checked) => setAllowDocxTableExpansion(checked === true)}
-              />
-              <div className="space-y-1">
+            <div className="rounded-md border border-border bg-surface p-4">
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="allow-docx-table-expansion"
+                  checked={allowDocxTableExpansion}
+                  onCheckedChange={(checked) => setAllowDocxTableExpansion(checked === true)}
+                />
                 <Label htmlFor="allow-docx-table-expansion" className="text-sm font-medium">
                   Allow AI to add new rows or columns in the form
                 </Label>
-                <p className="text-xs text-foreground-muted">
-                  Use this when a DOCX table may need to grow to fit the extracted data.
-                  {targetMode === 'upload' && saveAsTemplate ? ' This setting will be saved on the template.' : ''}
-                </p>
               </div>
+              <p className="mt-1 ml-7 text-xs text-foreground-muted">
+                Use this when a DOCX table may need to grow to fit the extracted data.
+                {targetMode === 'upload' && saveAsTemplate ? ' This setting will be saved on the template.' : ''}
+              </p>
             </div>
           )}
         </div>

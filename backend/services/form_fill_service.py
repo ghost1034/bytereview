@@ -66,8 +66,8 @@ TABULAR_SOURCE_MIME_TYPES = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
 SUPPORTED_TARGET_MIME_TYPES = {PDF_MIME, DOCX_MIME}
-DEFAULT_MAX_SOURCE_FILES = 10
-DEFAULT_MAX_TOTAL_SOURCE_BYTES = 100 * 1024 * 1024
+DEFAULT_MAX_SOURCE_FILES = 100
+DEFAULT_MAX_TOTAL_SOURCE_BYTES = 1000 * 1024 * 1024
 REPEAT_MODE_SINGLE = "single"
 REPEAT_MODE_SOURCE_ROWS = "source_rows"
 REPEAT_LABEL_COLUMNS = ("participant", "participant name", "name", "full name", "client", "customer", "employee")
