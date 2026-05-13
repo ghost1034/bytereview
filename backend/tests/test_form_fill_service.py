@@ -605,6 +605,7 @@ class FormFillServiceContinuationTests(unittest.TestCase):
                             "warnings": [
                                 "The source material contains over 500 transactions and would exceed output limits.",
                                 "Unable to calculate exact totals due to the large volume of transactions.",
+                                "Due to the large number of transactions, only the first 100 chronological transactions have been inserted. Please request continuation to insert the remaining rows.",
                                 "Missing date for one transaction.",
                             ],
                         }
@@ -699,8 +700,10 @@ class FormFillServiceContinuationTests(unittest.TestCase):
 
         self.assertIn("Do not summarize, collapse, or omit entries", pdf_prompt)
         self.assertIn("Do not write \"see attached\"", pdf_prompt)
+        self.assertIn("Do not ask the user to request continuation", pdf_prompt)
         self.assertIn("emit one insert_table_row_after operation per source row", docx_prompt)
         self.assertIn("Calculate totals", docx_prompt)
+        self.assertIn("Do not insert only the first N rows", docx_prompt)
         self.assertIn("Do not claim totals cannot be calculated", docx_prompt)
 
     def test_compact_fill_plan_stores_counts_and_samples(self) -> None:

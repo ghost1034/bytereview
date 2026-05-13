@@ -78,7 +78,12 @@ OUTPUT_LIMIT_WARNING_PATTERNS = (
     "output limits",
     "too many",
     "large volume",
+    "large number",
     "exceed",
+    "first 100",
+    "only the first",
+    "request continuation",
+    "remaining rows",
     "see attached",
     "unable to calculate exact totals",
 )
@@ -1074,6 +1079,7 @@ class FormFillService:
             "- Do not repeat any prior entry.\n"
             "- Do not summarize, collapse, or replace remaining entries with warnings.\n"
             "- Do not write 'see attached', 'too many transactions', or any output-limit workaround.\n"
+            "- Do not say only the first N entries were inserted. Do not ask the user to request continuation; this continuation request is already that mechanism.\n"
             "- Do not mention output limits or token limits. Return concrete entries only.\n"
             f"{max_items_line}"
             f"- If there are no more entries, return {{\"{collection_key}\":[],\"warnings\":[]}}.\n\n"
@@ -1649,6 +1655,7 @@ Instructions:
 - overlay_text must be concise and ready to render.
 - Do not summarize, collapse, or omit entries because there are many; continuation will request more entries when needed.
 - Do not write "see attached", "too many transactions", or any output-limit workaround.
+- Do not warn that only the first N entries were inserted. Do not ask the user to request continuation.
 - Do not mention output limits or token limits.
 - Add ambiguities or missing values to warnings.
 """
@@ -1705,6 +1712,7 @@ Instructions:
 - Calculate totals, subtotals, recapitulations, and other numeric rollups from the provided source rows when numeric amounts are present.
 - Do not summarize, collapse, or omit source rows because there are many; continuation will request more operations when needed.
 - Do not write "see attached", "too many transactions", or any output-limit workaround.
+- Do not insert only the first N rows and then warn that continuation is needed. Return the next concrete operations for this request; the system will continue automatically.
 - Do not claim totals cannot be calculated due to transaction volume.
 - Do not mention output limits or token limits.
 - Keep operations minimal and deterministic.
