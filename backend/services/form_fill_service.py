@@ -132,15 +132,15 @@ class FormFillService:
         location = os.getenv("GOOGLE_CLOUD_LOCATION", "global")
         self.model_name = os.getenv("FORM_FILL_GEMINI_MODEL", "gemini-3.1-pro-preview")
         self.max_output_tokens = self._env_int("FORM_FILL_GEMINI_MAX_OUTPUT_TOKENS", 65536)
-        self.continuation_enabled = os.getenv("FORM_FILL_CONTINUATION_ENABLED", "true").strip().lower() in {"1", "true", "yes", "y"}
-        self.continuation_max_rounds = self._env_int("FORM_FILL_CONTINUATION_MAX_ROUNDS", 20)
-        self.continuation_tail_items = self._env_int("FORM_FILL_CONTINUATION_TAIL_ITEMS", 10)
-        self.continuation_max_items_per_call = self._env_int("FORM_FILL_CONTINUATION_MAX_ITEMS_PER_CALL", 1000)
-        self.mapping_chunk_size = self._env_int("FORM_FILL_MAPPING_CHUNK_SIZE", self.continuation_max_items_per_call)
+        self.batch_enabled = os.getenv("FORM_FILL_BATCH_ENABLED", "true").strip().lower() in {"1", "true", "yes", "y"}
+        self.batch_max_rounds = self._env_int("FORM_FILL_BATCH_MAX_ROUNDS", 200)
+        self.batch_tail_items = self._env_int("FORM_FILL_BATCH_TAIL_ITEMS", 10)
+        self.batch_items_per_call = self._env_int("FORM_FILL_BATCH_ITEMS_PER_CALL", 100)
+        self.mapping_chunk_size = self._env_int("FORM_FILL_MAPPING_CHUNK_SIZE", self.batch_items_per_call)
         try:
-            self.continuation_near_token_ratio = float(os.getenv("FORM_FILL_CONTINUATION_NEAR_TOKEN_RATIO", "0.98"))
+            self.near_token_ratio = float(os.getenv("FORM_FILL_NEAR_TOKEN_RATIO", "0.98"))
         except Exception:
-            self.continuation_near_token_ratio = 0.98
+            self.near_token_ratio = 0.98
         self.client = None
         if project:
             try:
@@ -932,7 +932,7 @@ class FormFillService:
 
         output_tokens = self._get_usage_counts(response).get("output_tokens")
         if isinstance(output_tokens, int) and self.max_output_tokens:
-            if output_tokens >= int(self.max_output_tokens * self.continuation_near_token_ratio):
+            if output_tokens >= int(self.max_output_tokens * self.near_token_ratio):
                 return True
 
         if not parsed_ok and parse_exc is not None:
@@ -1066,24 +1066,39 @@ class FormFillService:
         *,
         collection_key: str,
         prior_items: list[dict[str, Any]],
+        total_returned: int,
+        max_items: int,
     ) -> str:
         prior_json = json.dumps(prior_items, separators=(",", ":"), ensure_ascii=True)
         max_items_line = ""
-        if self.continuation_max_items_per_call > 0:
-            max_items_line = f"- Return at most {self.continuation_max_items_per_call} {collection_key} entries in this response.\n"
+        if max_items > 0:
+            max_items_line = f"- Return at most {max_items} {collection_key} entries in this response.\n"
         return (
             f"{prompt}\n\n"
-            "Continuation:\n"
-            f"- You previously returned some '{collection_key}' entries for this SAME target and source.\n"
-            f"- Continue with the next '{collection_key}' entries that come AFTER the final entry in prior_entries below.\n"
-            "- Do not repeat any prior entry.\n"
+            "Next batch:\n"
+            f"- You previously returned {total_returned} '{collection_key}' entries for this SAME target and source.\n"
+            f"- Continue with the next '{collection_key}' entries that come AFTER the final entry in prior_tail_entries below.\n"
+            "- Do not restart from the beginning. Do not repeat entries from prior_tail_entries.\n"
             "- Do not summarize, collapse, or replace remaining entries with warnings.\n"
             "- Do not write 'see attached', 'too many transactions', or any output-limit workaround.\n"
             "- Do not say only the first N entries were inserted. Do not ask the user to request continuation; this continuation request is already that mechanism.\n"
             "- Do not mention output limits or token limits. Return concrete entries only.\n"
             f"{max_items_line}"
             f"- If there are no more entries, return {{\"{collection_key}\":[],\"warnings\":[]}}.\n\n"
-            f"prior_entries already returned, in order: {prior_json}\n"
+            f"prior_tail_entries already returned, in order: {prior_json}\n"
+        )
+
+    def _build_collection_batch_prompt(self, prompt: str, *, collection_key: str, max_items: int) -> str:
+        max_items_line = ""
+        if max_items > 0:
+            max_items_line = f"- This is batch 1. Return at most {max_items} '{collection_key}' entries in this response.\n"
+        return (
+            f"{prompt}\n\n"
+            "Batching rules:\n"
+            f"{max_items_line}"
+            "- Return concrete entries only; do not summarize or collapse entries because there are many.\n"
+            "- Do not mention output limits or token limits. If more entries remain after this batch, stop cleanly after a complete entry and the system will request the next batch.\n"
+            f"- If there are no entries to return, return {{\"{collection_key}\":[],\"warnings\":[]}}.\n"
         )
 
     def _filter_output_limit_warnings(self, warnings: list[str], *, label: str) -> list[str]:
@@ -1110,9 +1125,20 @@ class FormFillService:
         continue_on_full_batch: bool = False,
     ) -> dict[str, Any]:
         self._ensure_client()
+        batch_mode = bool(
+            continue_on_full_batch
+            and self.batch_enabled
+            and self.batch_items_per_call > 0
+        )
+        items_per_call = self.batch_items_per_call
+        initial_prompt = (
+            self._build_collection_batch_prompt(prompt, collection_key=collection_key, max_items=items_per_call)
+            if batch_mode
+            else prompt
+        )
         response = self.client.models.generate_content(
             model=self.model_name,
-            contents=contents + [prompt],
+            contents=contents + [initial_prompt],
             config=self._generation_config(schema),
         )
         items, warnings, parsed_ok, text, parse_exc = self._parse_or_salvage_collection(response, collection_key)
@@ -1135,20 +1161,22 @@ class FormFillService:
         all_warnings = list(warnings)
         full_batch = (
             continue_on_full_batch
-            and self.continuation_max_items_per_call > 0
-            and len(items) >= self.continuation_max_items_per_call
+            and items_per_call > 0
+            and len(items) >= items_per_call
         )
-        if not self.continuation_enabled or (not truncated and not full_batch):
-            if continue_on_full_batch and self.continuation_enabled:
+        if not self.batch_enabled or (batch_mode and not all_items) or (not batch_mode and not truncated and not full_batch):
+            if continue_on_full_batch and self.batch_enabled:
                 all_warnings = self._filter_output_limit_warnings(all_warnings, label=label)
             return {collection_key: all_items, "warnings": all_warnings}
 
         no_growth_rounds = 0
-        for round_index in range(1, self.continuation_max_rounds + 1):
+        for round_index in range(1, self.batch_max_rounds + 1):
             continuation_prompt = self._build_collection_continuation_prompt(
                 prompt,
                 collection_key=collection_key,
-                prior_items=all_items,
+                prior_items=all_items[-max(1, self.batch_tail_items):],
+                total_returned=len(all_items),
+                max_items=items_per_call,
             )
             continuation_response = self.client.models.generate_content(
                 model=self.model_name,
@@ -1163,7 +1191,7 @@ class FormFillService:
             if not parsed_ok2 and not truncated2:
                 raise parse_exc2 or ValueError("Failed to parse Gemini continuation response")
 
-            overlap = self._compute_collection_overlap(all_items, new_items, max(1, self.continuation_tail_items))
+            overlap = self._compute_collection_overlap(all_items, new_items, max(1, self.batch_tail_items))
             if overlap == 0 and self._looks_like_collection_restart(all_items, new_items):
                 logger.warning("Form Fill Gemini continuation (%s) restarted from the beginning; stopping", label)
                 break
@@ -1191,13 +1219,17 @@ class FormFillService:
                 no_growth_rounds += 1
             full_batch2 = (
                 continue_on_full_batch
-                and self.continuation_max_items_per_call > 0
-                and len(new_items) >= self.continuation_max_items_per_call
+                and items_per_call > 0
+                and len(new_items) >= items_per_call
             )
-            if no_growth_rounds >= 2 or (not truncated2 and not full_batch2):
+            if no_growth_rounds >= 2:
+                break
+            if batch_mode:
+                continue
+            if not truncated2 and not full_batch2:
                 break
 
-        if continue_on_full_batch and self.continuation_enabled:
+        if continue_on_full_batch and self.batch_enabled:
             all_warnings = self._filter_output_limit_warnings(all_warnings, label=label)
         return {collection_key: all_items, "warnings": all_warnings}
 
@@ -2144,7 +2176,7 @@ Instructions:
     ) -> dict[str, Any]:
         all_items: list[dict[str, Any]] = []
         all_warnings: list[str] = []
-        chunk_size = max(1, int(self.mapping_chunk_size or self.continuation_max_items_per_call or 1000))
+        chunk_size = max(1, int(self.mapping_chunk_size or self.batch_items_per_call or 1000))
 
         for start in range(0, len(mapping_items), chunk_size):
             chunk = mapping_items[start : start + chunk_size]

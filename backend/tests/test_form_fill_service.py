@@ -538,14 +538,14 @@ class FormFillServiceContinuationTests(unittest.TestCase):
         self.assertEqual(self.service.client.models.generate_content.call_count, 2)
         continuation_contents = self.service.client.models.generate_content.call_args_list[1].kwargs["contents"]
         self.assertIn(
-            'prior_entries already returned, in order: [{"action":"replace_block_text","block_id":"a"},{"action":"insert_after_block","block_id":"b"}]',
+            'prior_tail_entries already returned, in order: [{"action":"replace_block_text","block_id":"a"},{"action":"insert_after_block","block_id":"b"}]',
             continuation_contents[-1],
         )
         self.assertIn("Do not summarize, collapse, or replace remaining entries", continuation_contents[-1])
         self.assertIn("Do not write 'see attached'", continuation_contents[-1])
 
     def test_collection_continuation_continues_on_full_batch_without_truncation(self) -> None:
-        self.service.continuation_max_items_per_call = 2
+        self.service.batch_items_per_call = 2
         self.service.client = SimpleNamespace(
             models=SimpleNamespace(
                 generate_content=MagicMock(
@@ -566,6 +566,14 @@ class FormFillServiceContinuationTests(unittest.TestCase):
                                 "operations": [
                                     {"action": "append_to_block", "block_id": "c"},
                                 ],
+                                "warnings": [],
+                            },
+                            finish_reason="STOP",
+                            output_tokens=10,
+                        ),
+                        self._response(
+                            parsed={
+                                "operations": [],
                                 "warnings": [],
                             },
                             finish_reason="STOP",
@@ -593,23 +601,79 @@ class FormFillServiceContinuationTests(unittest.TestCase):
                 {"action": "append_to_block", "block_id": "c"},
             ],
         )
-        self.assertEqual(self.service.client.models.generate_content.call_count, 2)
+        self.assertEqual(self.service.client.models.generate_content.call_count, 3)
+
+    def test_collection_batching_continues_on_clean_non_full_batch(self) -> None:
+        self.service.batch_items_per_call = 5
+        self.service.client = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=MagicMock(
+                    side_effect=[
+                        self._response(
+                            parsed={
+                                "operations": [{"action": "replace_block_text", "block_id": "a"}],
+                                "warnings": [],
+                            },
+                            finish_reason="STOP",
+                            output_tokens=10,
+                        ),
+                        self._response(
+                            parsed={
+                                "operations": [{"action": "append_to_block", "block_id": "b"}],
+                                "warnings": [],
+                            },
+                            finish_reason="STOP",
+                            output_tokens=10,
+                        ),
+                        self._response(
+                            parsed={
+                                "operations": [],
+                                "warnings": [],
+                            },
+                            finish_reason="STOP",
+                            output_tokens=10,
+                        ),
+                    ]
+                )
+            )
+        )
+
+        payload = self.service._generate_collection_json_response(
+            [],
+            prompt="Edit the DOCX.",
+            schema=self.service._docx_edit_schema(),
+            collection_key="operations",
+            label="test",
+            continue_on_full_batch=True,
+        )
+
+        self.assertEqual(
+            payload["operations"],
+            [
+                {"action": "replace_block_text", "block_id": "a"},
+                {"action": "append_to_block", "block_id": "b"},
+            ],
+        )
+        self.assertEqual(self.service.client.models.generate_content.call_count, 3)
 
     def test_collection_filters_output_limit_warnings_for_continuable_outputs(self) -> None:
         self.service.client = SimpleNamespace(
             models=SimpleNamespace(
                 generate_content=MagicMock(
-                    return_value=self._response(
-                        parsed={
-                            "operations": [{"action": "append_to_block", "block_id": "a"}],
-                            "warnings": [
-                                "The source material contains over 500 transactions and would exceed output limits.",
-                                "Unable to calculate exact totals due to the large volume of transactions.",
-                                "Due to the large number of transactions, only the first 100 chronological transactions have been inserted. Please request continuation to insert the remaining rows.",
-                                "Missing date for one transaction.",
-                            ],
-                        }
-                    )
+                    side_effect=[
+                        self._response(
+                            parsed={
+                                "operations": [{"action": "append_to_block", "block_id": "a"}],
+                                "warnings": [
+                                    "The source material contains over 500 transactions and would exceed output limits.",
+                                    "Unable to calculate exact totals due to the large volume of transactions.",
+                                    "Due to the large number of transactions, only the first 100 chronological transactions have been inserted. Please request continuation to insert the remaining rows.",
+                                    "Missing date for one transaction.",
+                                ],
+                            }
+                        ),
+                        self._response(parsed={"operations": [], "warnings": []}),
+                    ]
                 )
             )
         )
@@ -626,7 +690,7 @@ class FormFillServiceContinuationTests(unittest.TestCase):
         self.assertEqual(payload["warnings"], ["Missing date for one transaction."])
 
     def test_collection_continuation_does_not_continue_full_batch_when_disabled(self) -> None:
-        self.service.continuation_max_items_per_call = 2
+        self.service.batch_items_per_call = 2
         self.service.client = SimpleNamespace(
             models=SimpleNamespace(
                 generate_content=MagicMock(

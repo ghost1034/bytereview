@@ -473,11 +473,14 @@ Environment configuration (.env)
     - GCS_BUCKET_NAME=your-dev-bucket
     - GEMINI_MAX_OUTPUT_TOKENS=65536 (optional; default 65536)
     - GEMINI_TEMPERATURE=1.0 (optional; default 1.0)
+    - GEMINI_BATCH_ENABLED=true (optional; default true)
+    - GEMINI_BATCH_MAX_ROUNDS=200 (optional; default 200; up to 100,000 rows at the default batch size)
+    - GEMINI_BATCH_ROWS_PER_CALL=500 (optional; default 500)
     - FORM_FILL_GEMINI_MAX_OUTPUT_TOKENS=65536 (optional; default 65536)
-    - FORM_FILL_CONTINUATION_ENABLED=true (optional; default true)
-    - FORM_FILL_CONTINUATION_MAX_ROUNDS=20 (optional; default 20)
-    - FORM_FILL_CONTINUATION_MAX_ITEMS_PER_CALL=1000 (optional; default 1000)
-    - FORM_FILL_MAPPING_CHUNK_SIZE=1000 (optional; default FORM_FILL_CONTINUATION_MAX_ITEMS_PER_CALL)
+    - FORM_FILL_BATCH_ENABLED=true (optional; default true)
+    - FORM_FILL_BATCH_MAX_ROUNDS=200 (optional; default 200; up to 20,000 items/operations at the default batch size)
+    - FORM_FILL_BATCH_ITEMS_PER_CALL=100 (optional; default 100)
+    - FORM_FILL_MAPPING_CHUNK_SIZE=100 (optional; default FORM_FILL_BATCH_ITEMS_PER_CALL)
   - Google OAuth and Integrations
     - GOOGLE_CLIENT_ID=...
     - GOOGLE_CLIENT_SECRET=...

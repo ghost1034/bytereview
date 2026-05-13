@@ -42,29 +42,28 @@ class AIExtractionService:
         except Exception:
             self.temperature = 1.0
 
-        # Continuation protocol settings (for very large outputs)
-        self.continuation_enabled = os.getenv("GEMINI_CONTINUATION_ENABLED", "true").strip().lower() in ("1", "true", "yes", "y")
+        # Batch protocol settings (for very large outputs)
+        self.batch_enabled = os.getenv("GEMINI_BATCH_ENABLED", "true").strip().lower() in ("1", "true", "yes", "y")
         try:
-            self.continuation_max_rounds = int(os.getenv("GEMINI_CONTINUATION_MAX_ROUNDS", "20"))
+            self.batch_max_rounds = int(os.getenv("GEMINI_BATCH_MAX_ROUNDS", "200"))
         except Exception:
-            self.continuation_max_rounds = 20
+            self.batch_max_rounds = 200
         try:
-            self.continuation_tail_rows = int(os.getenv("GEMINI_CONTINUATION_TAIL_ROWS", "10"))
+            self.batch_tail_rows = int(os.getenv("GEMINI_BATCH_TAIL_ROWS", "10"))
         except Exception:
-            self.continuation_tail_rows = 10
+            self.batch_tail_rows = 10
         try:
-            self.continuation_near_token_ratio = float(os.getenv("GEMINI_CONTINUATION_NEAR_TOKEN_RATIO", "0.98"))
+            self.near_token_ratio = float(os.getenv("GEMINI_NEAR_TOKEN_RATIO", "0.98"))
         except Exception:
-            self.continuation_near_token_ratio = 0.98
+            self.near_token_ratio = 0.98
         try:
-            # Prompt-only limit. Applies to continuation rounds to reduce repeated truncation.
-            self.continuation_max_rows_per_call = int(os.getenv("GEMINI_CONTINUATION_MAX_ROWS_PER_CALL", "1000"))
+            self.batch_rows_per_call = int(os.getenv("GEMINI_BATCH_ROWS_PER_CALL", "500"))
         except Exception:
-            self.continuation_max_rows_per_call = 1000
+            self.batch_rows_per_call = 500
         try:
-            self.continuation_temperature = float(os.getenv("GEMINI_CONTINUATION_TEMPERATURE", "0.0"))
+            self.batch_temperature = float(os.getenv("GEMINI_BATCH_TEMPERATURE", "0.0"))
         except Exception:
-            self.continuation_temperature = 0.0
+            self.batch_temperature = 0.0
 
     def _get_resp_text(self, resp: Any) -> Optional[str]:
         if resp is None:
@@ -178,7 +177,7 @@ class AIExtractionService:
         out_tokens = usage.get("output_tokens")
         if isinstance(out_tokens, int) and self.max_output_tokens:
             try:
-                if out_tokens >= int(self.max_output_tokens * self.continuation_near_token_ratio):
+                if out_tokens >= int(self.max_output_tokens * self.near_token_ratio):
                     return True
             except Exception:
                 pass
@@ -306,6 +305,7 @@ class AIExtractionService:
         columns_json: str,
         n_cols: int,
         prior_rows: List[List[Any]],
+        total_returned: int,
         max_rows: int,
     ) -> str:
         prior_json = json.dumps(prior_rows, separators=(",", ":"), ensure_ascii=True)
@@ -314,11 +314,11 @@ class AIExtractionService:
             max_rows_line = f"- Return at most {max_rows} rows in this response.\\n"
         return (
             f"{base_prompt}\n\n"
-            "Continuation:\n"
-            "- You previously returned some rows for this SAME document.\n"
-            "- Continue extracting the next rows that come AFTER the final row in prior_rows below.\n"
-            "- Do not repeat any row from prior_rows.\n"
-            "- If the next document row is identical to a prior row, include it only when it is a distinct occurrence after all prior_rows.\n"
+            "Next batch:\n"
+            f"- You previously returned {total_returned} rows for this SAME document.\n"
+            "- Continue extracting the next rows that come AFTER the final row in prior_tail_rows below.\n"
+            "- Do not restart from the beginning. Do not repeat rows from prior_tail_rows.\n"
+            "- If the next document row is identical to a prior row, include it only when it is a distinct later occurrence.\n"
             "- Keep the same column order and row shape as before.\n"
             f"- Each row must have exactly {n_cols} values.\n"
             f"{max_rows_line}"
@@ -326,26 +326,31 @@ class AIExtractionService:
             "- Do not mention output limits or token limits. Return concrete rows only.\n"
             "- If there are no more rows to extract, return {\"results\":[]}.\n\n"
             f"Column order: columns={columns_json}\n\n"
-            f"prior_rows (already returned, in order): {prior_json}\n"
+            f"prior_tail_rows (last rows already returned, in order): {prior_json}\n"
         )
 
-    def _build_base_prompt_with_ordering(self, prompt: str) -> str:
+    def _build_base_prompt_with_ordering(self, prompt: str, max_rows: int = 0) -> str:
         # Add ordering guidance without changing the output schema.
+        max_rows_line = ""
+        if isinstance(max_rows, int) and max_rows > 0:
+            max_rows_line = f"- This is batch 1. Return at most {max_rows} rows in this response.\n"
         return (
             f"{prompt}\n\n"
             "Additional rules for long outputs:\n"
             "- Output rows in the same order they appear in the document.\n"
+            f"{max_rows_line}"
             "- Do not intentionally drop, summarize, or collapse rows because there are many.\n"
-            "- Do not mention output limits or token limits. If output length is limited, stop cleanly after a complete row and continuation will be requested.\n"
+            "- Do not mention output limits or token limits. If more rows remain after this batch, stop cleanly after a complete row and the system will request the next batch.\n"
+            "- If there are no rows to extract, return {\"results\":[]}.\n"
         )
 
     def _config_for_continuation(self, response_schema: types.Schema) -> types.GenerateContentConfig:
-        # Use a deterministic temperature for continuation rounds.
+        # Use a deterministic temperature for follow-up batch rounds.
         return types.GenerateContentConfig(
             response_mime_type="application/json",
             response_schema=response_schema,
             max_output_tokens=self.max_output_tokens,
-            temperature=self.continuation_temperature,
+            temperature=self.batch_temperature,
         )
 
     def _parse_or_salvage_rows(self, resp: Any, n_cols: int) -> Tuple[List[List[Any]], bool, Optional[str], Optional[Exception]]:
@@ -376,7 +381,13 @@ class AIExtractionService:
         if not self.client:
             raise ValueError("AI service not available - Vertex client not configured")
         # Initial request
-        initial_prompt = self._build_base_prompt_with_ordering(prompt)
+        batch_mode = bool(
+            self.batch_enabled
+            and isinstance(self.batch_rows_per_call, int)
+            and self.batch_rows_per_call > 0
+        )
+        rows_per_call = self.batch_rows_per_call
+        initial_prompt = self._build_base_prompt_with_ordering(prompt, rows_per_call if batch_mode else 0)
         resp = self.client.models.generate_content(
             model=self.base_model_name,
             contents=file_parts + [initial_prompt],
@@ -394,21 +405,26 @@ class AIExtractionService:
 
         all_rows: List[List[Any]] = list(rows)
 
-        if not self.continuation_enabled or not truncated:
+        if not self.batch_enabled:
+            return all_rows
+        if batch_mode and not all_rows:
+            return all_rows
+        if not batch_mode and not truncated:
             return all_rows
 
         cont_config = self._config_for_continuation(response_schema)
         rounds = 0
         no_growth_rounds = 0
 
-        while rounds < self.continuation_max_rounds:
+        while rounds < self.batch_max_rounds:
             rounds += 1
             cont_prompt = self._build_continuation_prompt(
                 base_prompt=prompt,
                 columns_json=columns_json,
                 n_cols=n_cols,
-                prior_rows=all_rows,
-                max_rows=self.continuation_max_rows_per_call,
+                prior_rows=all_rows[-max(1, self.batch_tail_rows):],
+                total_returned=len(all_rows),
+                max_rows=rows_per_call,
             )
             resp2 = self.client.models.generate_content(
                 model=self.base_model_name,
@@ -421,7 +437,7 @@ class AIExtractionService:
             usage2 = self._get_usage_counts(resp2)
 
             # Merge with overlap to avoid dropping legitimate duplicate rows.
-            max_overlap = max(1, self.continuation_tail_rows)
+            max_overlap = max(1, self.batch_tail_rows)
             overlap = self._compute_suffix_prefix_overlap(all_rows, new_rows, max_k=max_overlap)
             if overlap == 0 and self._looks_like_restart_from_beginning(all_rows, new_rows):
                 logger.warning(f"Gemini continuation ({label}) appears to restart from beginning; stopping to avoid duplication")
@@ -445,11 +461,13 @@ class AIExtractionService:
             if no_growth_rounds >= 2:
                 # Model is likely repeating; stop to avoid infinite loop.
                 break
+            if batch_mode:
+                continue
 
             full_continuation_batch = (
-                isinstance(self.continuation_max_rows_per_call, int)
-                and self.continuation_max_rows_per_call > 0
-                and len(new_rows) >= self.continuation_max_rows_per_call
+                isinstance(self.batch_rows_per_call, int)
+                and self.batch_rows_per_call > 0
+                and len(new_rows) >= self.batch_rows_per_call
             )
             if not truncated2 and not full_continuation_batch:
                 break
