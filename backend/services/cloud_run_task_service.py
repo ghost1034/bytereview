@@ -23,7 +23,7 @@ class CloudRunTaskService:
     def __init__(self):
         self.project_id = os.getenv("GOOGLE_CLOUD_PROJECT_ID", "ace-rider-383100")
         self.region = os.getenv("CLOUD_RUN_REGION", "us-central1")
-        self.tasks_client = tasks_v2.CloudTasksClient()
+        self._tasks_client = None
         
         # Task service URLs - get from environment variables (Secret Manager)
         self.task_services = {
@@ -52,6 +52,12 @@ class CloudRunTaskService:
             self.extract_dispatch_deadline_seconds = 1800
 
         self.extract_retry_config = self._build_extract_retry_config()
+
+    @property
+    def tasks_client(self):
+        if self._tasks_client is None:
+            self._tasks_client = tasks_v2.CloudTasksClient()
+        return self._tasks_client
 
     def _env_int(self, name: str, default: int) -> int:
         try:
