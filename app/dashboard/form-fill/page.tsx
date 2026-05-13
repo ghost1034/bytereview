@@ -614,7 +614,7 @@ export default function FormFillPage() {
                 variant={repeatMode === 'single' ? 'default' : 'outline'}
                 onClick={() => setRepeatMode('single')}
               >
-                Fill once (default)
+                Fill once per file (default)
               </Button>
               <Button
                 type="button"
@@ -626,7 +626,7 @@ export default function FormFillPage() {
               </Button>
             </div>
             <p className="text-xs text-foreground-muted">
-              Multiple source files or all extraction-task result sets automatically download as a ZIP. &ldquo;Fill once per row&rdquo; is still available for CSV, XLSX, and extraction rows.
+              “Fill once per file/row" fills the form once for each file/row and downloads a ZIP of filled documents.
             </p>
             {!repeatModeSupported && sourceMode === 'upload' && sourceFiles.length > 0 && (
               <p className="text-xs text-warning">
