@@ -407,9 +407,15 @@ class AIExtractionService:
 
         if not self.batch_enabled:
             return all_rows
-        if batch_mode and not all_rows:
+        if not all_rows:
             return all_rows
-        if not batch_mode and not truncated:
+        full_initial_batch = (
+            batch_mode
+            and isinstance(self.batch_rows_per_call, int)
+            and self.batch_rows_per_call > 0
+            and len(rows) >= self.batch_rows_per_call
+        )
+        if not truncated and not full_initial_batch:
             return all_rows
 
         cont_config = self._config_for_continuation(response_schema)
@@ -461,9 +467,6 @@ class AIExtractionService:
             if no_growth_rounds >= 2:
                 # Model is likely repeating; stop to avoid infinite loop.
                 break
-            if batch_mode:
-                continue
-
             full_continuation_batch = (
                 isinstance(self.batch_rows_per_call, int)
                 and self.batch_rows_per_call > 0

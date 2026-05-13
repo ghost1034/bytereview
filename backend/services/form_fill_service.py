@@ -1203,7 +1203,7 @@ class FormFillService:
             and items_per_call > 0
             and len(items) >= items_per_call
         )
-        if not self.batch_enabled or (batch_mode and not all_items) or (not batch_mode and not truncated and not full_batch):
+        if not self.batch_enabled or not all_items or (not truncated and not full_batch):
             if continue_on_full_batch and self.batch_enabled:
                 all_warnings = self._filter_output_limit_warnings(all_warnings, label=label)
             return {collection_key: all_items, "warnings": all_warnings}
@@ -1263,8 +1263,6 @@ class FormFillService:
             )
             if no_growth_rounds >= 2:
                 break
-            if batch_mode:
-                continue
             if not truncated2 and not full_batch2:
                 break
 

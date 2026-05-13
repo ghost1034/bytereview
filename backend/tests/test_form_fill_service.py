@@ -656,14 +656,6 @@ class FormFillServiceContinuationTests(unittest.TestCase):
                             finish_reason="STOP",
                             output_tokens=10,
                         ),
-                        self._response(
-                            parsed={
-                                "operations": [],
-                                "warnings": [],
-                            },
-                            finish_reason="STOP",
-                            output_tokens=10,
-                        ),
                     ]
                 )
             )
@@ -686,39 +678,21 @@ class FormFillServiceContinuationTests(unittest.TestCase):
                 {"action": "append_to_block", "block_id": "c"},
             ],
         )
-        self.assertEqual(self.service.client.models.generate_content.call_count, 3)
+        self.assertEqual(self.service.client.models.generate_content.call_count, 2)
 
-    def test_collection_batching_continues_on_clean_non_full_batch(self) -> None:
+    def test_collection_batching_does_not_continue_on_clean_non_full_batch(self) -> None:
         self.service.batch_items_per_call = 5
         self.service.client = SimpleNamespace(
             models=SimpleNamespace(
                 generate_content=MagicMock(
-                    side_effect=[
-                        self._response(
-                            parsed={
-                                "operations": [{"action": "replace_block_text", "block_id": "a"}],
-                                "warnings": [],
-                            },
-                            finish_reason="STOP",
-                            output_tokens=10,
-                        ),
-                        self._response(
-                            parsed={
-                                "operations": [{"action": "append_to_block", "block_id": "b"}],
-                                "warnings": [],
-                            },
-                            finish_reason="STOP",
-                            output_tokens=10,
-                        ),
-                        self._response(
-                            parsed={
-                                "operations": [],
-                                "warnings": [],
-                            },
-                            finish_reason="STOP",
-                            output_tokens=10,
-                        ),
-                    ]
+                    return_value=self._response(
+                        parsed={
+                            "operations": [{"action": "replace_block_text", "block_id": "a"}],
+                            "warnings": [],
+                        },
+                        finish_reason="STOP",
+                        output_tokens=10,
+                    )
                 )
             )
         )
@@ -736,10 +710,9 @@ class FormFillServiceContinuationTests(unittest.TestCase):
             payload["operations"],
             [
                 {"action": "replace_block_text", "block_id": "a"},
-                {"action": "append_to_block", "block_id": "b"},
             ],
         )
-        self.assertEqual(self.service.client.models.generate_content.call_count, 3)
+        self.assertEqual(self.service.client.models.generate_content.call_count, 1)
 
     def test_collection_filters_output_limit_warnings_for_continuable_outputs(self) -> None:
         self.service.client = SimpleNamespace(

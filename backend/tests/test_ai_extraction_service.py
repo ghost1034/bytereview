@@ -45,7 +45,6 @@ class AIExtractionServiceContinuationTests(unittest.TestCase):
                         self._response([["initial"]], finish_reason="MAX_TOKENS"),
                         self._response([["continued-1"], ["continued-2"]], finish_reason="STOP", output_tokens=10),
                         self._response([["continued-3"]], finish_reason="STOP", output_tokens=10),
-                        self._response([], finish_reason="STOP", output_tokens=10),
                     ]
                 )
             )
@@ -65,7 +64,7 @@ class AIExtractionServiceContinuationTests(unittest.TestCase):
         )
 
         self.assertEqual(rows, [["initial"], ["continued-1"], ["continued-2"], ["continued-3"]])
-        self.assertEqual(self.service.client.models.generate_content.call_count, 4)
+        self.assertEqual(self.service.client.models.generate_content.call_count, 3)
         first_continuation_prompt = self.service.client.models.generate_content.call_args_list[1].kwargs["contents"][-1]
         second_continuation_prompt = self.service.client.models.generate_content.call_args_list[2].kwargs["contents"][-1]
         self.assertIn('prior_rows (all rows already returned, in order): [["initial"]]', first_continuation_prompt)
@@ -76,15 +75,11 @@ class AIExtractionServiceContinuationTests(unittest.TestCase):
         self.assertIn("Do not summarize, collapse, or omit rows", second_continuation_prompt)
         self.assertIn("Do not mention output limits or token limits", second_continuation_prompt)
 
-    def test_batching_continues_on_clean_non_full_batch(self) -> None:
+    def test_batching_does_not_continue_on_clean_non_full_batch(self) -> None:
         self.service.client = SimpleNamespace(
             models=SimpleNamespace(
                 generate_content=MagicMock(
-                    side_effect=[
-                        self._response([["first"]], finish_reason="STOP", output_tokens=10),
-                        self._response([["second"]], finish_reason="STOP", output_tokens=10),
-                        self._response([], finish_reason="STOP", output_tokens=10),
-                    ]
+                    return_value=self._response([["first"]], finish_reason="STOP", output_tokens=10)
                 )
             )
         )
@@ -102,8 +97,8 @@ class AIExtractionServiceContinuationTests(unittest.TestCase):
             label="test",
         )
 
-        self.assertEqual(rows, [["first"], ["second"]])
-        self.assertEqual(self.service.client.models.generate_content.call_count, 3)
+        self.assertEqual(rows, [["first"]])
+        self.assertEqual(self.service.client.models.generate_content.call_count, 1)
 
     def test_batching_stops_on_empty_batch(self) -> None:
         self.service.client = SimpleNamespace(
@@ -112,7 +107,6 @@ class AIExtractionServiceContinuationTests(unittest.TestCase):
                     side_effect=[
                         self._response([["initial"]], finish_reason="MAX_TOKENS"),
                         self._response([["continued-1"]], finish_reason="STOP", output_tokens=10),
-                        self._response([], finish_reason="STOP", output_tokens=10),
                     ]
                 )
             )
@@ -132,7 +126,7 @@ class AIExtractionServiceContinuationTests(unittest.TestCase):
         )
 
         self.assertEqual(rows, [["initial"], ["continued-1"]])
-        self.assertEqual(self.service.client.models.generate_content.call_count, 3)
+        self.assertEqual(self.service.client.models.generate_content.call_count, 2)
 
     def test_continuation_keeps_distinct_duplicate_rows(self) -> None:
         self.service.client = SimpleNamespace(
