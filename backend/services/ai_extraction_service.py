@@ -316,8 +316,8 @@ class AIExtractionService:
             f"{base_prompt}\n\n"
             "Next batch:\n"
             f"- You previously returned {total_returned} rows for this SAME document.\n"
-            "- Continue extracting the next rows that come AFTER the final row in prior_tail_rows below.\n"
-            "- Do not restart from the beginning. Do not repeat rows from prior_tail_rows.\n"
+            "- Continue extracting the next rows that come AFTER the final row in prior_rows below.\n"
+            "- Do not restart from the beginning. Do not repeat any rows from prior_rows.\n"
             "- If the next document row is identical to a prior row, include it only when it is a distinct later occurrence.\n"
             "- Keep the same column order and row shape as before.\n"
             f"- Each row must have exactly {n_cols} values.\n"
@@ -326,7 +326,7 @@ class AIExtractionService:
             "- Do not mention output limits or token limits. Return concrete rows only.\n"
             "- If there are no more rows to extract, return {\"results\":[]}.\n\n"
             f"Column order: columns={columns_json}\n\n"
-            f"prior_tail_rows (last rows already returned, in order): {prior_json}\n"
+            f"prior_rows (all rows already returned, in order): {prior_json}\n"
         )
 
     def _build_base_prompt_with_ordering(self, prompt: str, max_rows: int = 0) -> str:
@@ -422,7 +422,7 @@ class AIExtractionService:
                 base_prompt=prompt,
                 columns_json=columns_json,
                 n_cols=n_cols,
-                prior_rows=all_rows[-max(1, self.batch_tail_rows):],
+                prior_rows=all_rows,
                 total_returned=len(all_rows),
                 max_rows=rows_per_call,
             )

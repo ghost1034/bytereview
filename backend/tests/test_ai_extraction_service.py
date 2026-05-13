@@ -68,8 +68,11 @@ class AIExtractionServiceContinuationTests(unittest.TestCase):
         self.assertEqual(self.service.client.models.generate_content.call_count, 4)
         first_continuation_prompt = self.service.client.models.generate_content.call_args_list[1].kwargs["contents"][-1]
         second_continuation_prompt = self.service.client.models.generate_content.call_args_list[2].kwargs["contents"][-1]
-        self.assertIn('prior_tail_rows (last rows already returned, in order): [["initial"]]', first_continuation_prompt)
-        self.assertIn('prior_tail_rows (last rows already returned, in order): [["continued-2"]]', second_continuation_prompt)
+        self.assertIn('prior_rows (all rows already returned, in order): [["initial"]]', first_continuation_prompt)
+        self.assertIn(
+            'prior_rows (all rows already returned, in order): [["initial"],["continued-1"],["continued-2"]]',
+            second_continuation_prompt,
+        )
         self.assertIn("Do not summarize, collapse, or omit rows", second_continuation_prompt)
         self.assertIn("Do not mention output limits or token limits", second_continuation_prompt)
 

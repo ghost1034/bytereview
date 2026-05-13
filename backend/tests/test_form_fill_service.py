@@ -538,7 +538,7 @@ class FormFillServiceContinuationTests(unittest.TestCase):
         self.assertEqual(self.service.client.models.generate_content.call_count, 2)
         continuation_contents = self.service.client.models.generate_content.call_args_list[1].kwargs["contents"]
         self.assertIn(
-            'prior_tail_entries already returned, in order: [{"action":"replace_block_text","block_id":"a"},{"action":"insert_after_block","block_id":"b"}]',
+            'prior_entries (all entries already returned, in order): [{"action":"replace_block_text","block_id":"a"},{"action":"insert_after_block","block_id":"b"}]',
             continuation_contents[-1],
         )
         self.assertIn("Do not summarize, collapse, or replace remaining entries", continuation_contents[-1])

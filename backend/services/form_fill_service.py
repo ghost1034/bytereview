@@ -1077,15 +1077,15 @@ class FormFillService:
             f"{prompt}\n\n"
             "Next batch:\n"
             f"- You previously returned {total_returned} '{collection_key}' entries for this SAME target and source.\n"
-            f"- Continue with the next '{collection_key}' entries that come AFTER the final entry in prior_tail_entries below.\n"
-            "- Do not restart from the beginning. Do not repeat entries from prior_tail_entries.\n"
+            f"- Continue with the next '{collection_key}' entries that come AFTER the final entry in prior_entries below.\n"
+            "- Do not restart from the beginning. Do not repeat any entries from prior_entries.\n"
             "- Do not summarize, collapse, or replace remaining entries with warnings.\n"
             "- Do not write 'see attached', 'too many transactions', or any output-limit workaround.\n"
             "- Do not say only the first N entries were inserted. Do not ask the user to request continuation; this continuation request is already that mechanism.\n"
             "- Do not mention output limits or token limits. Return concrete entries only.\n"
             f"{max_items_line}"
             f"- If there are no more entries, return {{\"{collection_key}\":[],\"warnings\":[]}}.\n\n"
-            f"prior_tail_entries already returned, in order: {prior_json}\n"
+            f"prior_entries (all entries already returned, in order): {prior_json}\n"
         )
 
     def _build_collection_batch_prompt(self, prompt: str, *, collection_key: str, max_items: int) -> str:
@@ -1174,7 +1174,7 @@ class FormFillService:
             continuation_prompt = self._build_collection_continuation_prompt(
                 prompt,
                 collection_key=collection_key,
-                prior_items=all_items[-max(1, self.batch_tail_items):],
+                prior_items=all_items,
                 total_returned=len(all_items),
                 max_items=items_per_call,
             )
