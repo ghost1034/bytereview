@@ -443,7 +443,12 @@ class AIExtractionService:
                 # Model is likely repeating; stop to avoid infinite loop.
                 break
 
-            if not truncated2:
+            full_continuation_batch = (
+                isinstance(self.continuation_max_rows_per_call, int)
+                and self.continuation_max_rows_per_call > 0
+                and len(new_rows) >= self.continuation_max_rows_per_call
+            )
+            if not truncated2 and not full_continuation_batch:
                 break
 
         return all_rows
