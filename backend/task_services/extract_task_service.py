@@ -88,7 +88,20 @@ async def execute_task(request: Request):
             result = await form_fill_service.process_run(run_id)
             logger.info(f"Form Fill run {run_id} completed: {result}")
             return {"success": True, "result": result}
-        
+
+        elif task_type == "process_form_fill_output":
+            run_id = task_data.get("run_id")
+            output_id = task_data.get("output_id")
+            if not run_id:
+                raise HTTPException(status_code=400, detail="run_id is required")
+            if not output_id:
+                raise HTTPException(status_code=400, detail="output_id is required")
+
+            logger.info(f"Executing Form Fill output: {output_id} for run {run_id}")
+            result = await form_fill_service.process_output(run_id, output_id)
+            logger.info(f"Form Fill output {output_id} completed: {result}")
+            return {"success": True, "result": result}
+
         else:
             raise HTTPException(status_code=400, detail=f"Unknown task type: {task_type}")
             

@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from docx import Document
 from openpyxl import Workbook
@@ -340,6 +340,57 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(source_parts, [])
         self.assertIn("source-one.pdf", source_text)
         self.assertIn("| first |", source_text)
+
+    def test_sync_run_output_counts_counts_completed_and_failed_outputs(self) -> None:
+        completed_query = MagicMock()
+        completed_query.filter.return_value.count.return_value = 2
+        failed_query = MagicMock()
+        failed_query.filter.return_value.count.return_value = 1
+        db = MagicMock()
+        db.query.side_effect = [completed_query, failed_query]
+        run = SimpleNamespace(id="run-id", completed_outputs=0, failed_outputs=0)
+
+        self.service._sync_run_output_counts(db, run)
+
+        self.assertEqual(run.completed_outputs, 2)
+        self.assertEqual(run.failed_outputs, 1)
+
+    async def test_enqueue_output_units_requeues_pending_existing_outputs(self) -> None:
+        run_id = "11111111-1111-1111-1111-111111111111"
+        output_id = "22222222-2222-2222-2222-222222222222"
+        output = SimpleNamespace(id=output_id, status="pending")
+        run = SimpleNamespace(
+            id=run_id,
+            user_id="user-id",
+            outputs=[output],
+            total_outputs=1,
+            fill_plan=None,
+        )
+        pending_query = MagicMock()
+        pending_query.filter.return_value.order_by.return_value.all.return_value = [output]
+        db = MagicMock()
+        db.query.return_value = pending_query
+
+        with patch.object(self.service, "_check_usage_limit_or_raise") as check_limit:
+            with patch.object(self.service, "_sync_run_output_counts") as sync_counts:
+                with patch.object(self.service, "_finalize_run_if_ready", new=AsyncMock(return_value={"finalized": False})):
+                    with patch("services.form_fill_service.cloud_run_task_service") as task_service:
+                        task_service.enqueue_form_fill_output_task = AsyncMock(return_value="task-name")
+
+                        result = await self.service._enqueue_output_units(
+                            db=db,
+                            run=run,
+                            target_page_count=3,
+                            units=[{"record_index": 0, "record_label": "first", "record_payload": {}}],
+                            strategy="source_files",
+                        )
+
+        check_limit.assert_called_once()
+        self.assertEqual(sync_counts.call_count, 2)
+        sync_counts.assert_called_with(db, run)
+        task_service.enqueue_form_fill_output_task.assert_awaited_once_with(run_id, output_id)
+        self.assertEqual(result["enqueued_outputs"], 1)
+        self.assertEqual(result["failed_to_enqueue"], 0)
 
     def _create_csv(self, content: str) -> str:
         handle = tempfile.NamedTemporaryFile(suffix=".csv", delete=False, mode="w", encoding="utf-8")

@@ -21,7 +21,7 @@ import fitz
 from google import genai
 from google.genai import types
 from openpyxl import load_workbook
-from sqlalchemy import func, nullslast
+from sqlalchemy import func, nullslast, text
 from sqlalchemy.orm import Session
 
 from core.database import db_config
@@ -73,6 +73,8 @@ REPEAT_MODE_SOURCE_ROWS = "source_rows"
 REPEAT_LABEL_COLUMNS = ("participant", "participant name", "name", "full name", "client", "customer", "employee")
 SOURCE_SCOPE_TASK = "task"
 SOURCE_SCOPE_ALL = "all"
+FORM_FILL_OUTPUT_TERMINAL_STATUSES = {"completed", "failed"}
+FORM_FILL_RUN_TERMINAL_STATUSES = {"completed", "completed_with_errors", "failed"}
 OUTPUT_LIMIT_WARNING_PATTERNS = (
     "output limit",
     "output limits",
@@ -235,6 +237,39 @@ class FormFillService:
             updated_at=run.updated_at,
             completed_at=run.completed_at,
         )
+
+    def _advisory_lock_keys(self, lock_id: str) -> tuple[int, int]:
+        lock_uuid = uuid.UUID(str(lock_id))
+        value = lock_uuid.int
+        key_1 = (value >> 32) & 0xFFFFFFFF
+        key_2 = value & 0xFFFFFFFF
+        if key_1 >= 2**31:
+            key_1 -= 2**32
+        if key_2 >= 2**31:
+            key_2 -= 2**32
+        return int(key_1), int(key_2)
+
+    def _try_advisory_lock(self, db: Session, lock_id: str) -> bool:
+        try:
+            bind = getattr(db, "bind", None)
+            if not bind or getattr(getattr(bind, "dialect", None), "name", "") != "postgresql":
+                return True
+            key_1, key_2 = self._advisory_lock_keys(lock_id)
+            locked = db.execute(text("SELECT pg_try_advisory_lock(:key_1, :key_2)"), {"key_1": key_1, "key_2": key_2}).scalar()
+            return bool(locked)
+        except Exception as exc:
+            logger.warning("Form Fill advisory lock attempt failed; proceeding without lock: %s", exc)
+            return True
+
+    def _advisory_unlock(self, db: Session, lock_id: str) -> None:
+        try:
+            bind = getattr(db, "bind", None)
+            if not bind or getattr(getattr(bind, "dialect", None), "name", "") != "postgresql":
+                return
+            key_1, key_2 = self._advisory_lock_keys(lock_id)
+            db.execute(text("SELECT pg_advisory_unlock(:key_1, :key_2)"), {"key_1": key_1, "key_2": key_2})
+        except Exception:
+            return
 
     def list_templates(self, user_id: str) -> list[FormFillTemplateResponse]:
         db = self._get_session()
@@ -2561,13 +2596,23 @@ Instructions:
 
         raise ValueError("Unsupported target file type")
 
-    async def _process_output_units(
+    def _sync_run_output_counts(self, db: Session, run: FormFillRun) -> None:
+        completed = db.query(FormFillOutput).filter(
+            FormFillOutput.run_id == run.id,
+            FormFillOutput.status == "completed",
+        ).count()
+        failed = db.query(FormFillOutput).filter(
+            FormFillOutput.run_id == run.id,
+            FormFillOutput.status == "failed",
+        ).count()
+        run.completed_outputs = int(completed or 0)
+        run.failed_outputs = int(failed or 0)
+
+    async def _enqueue_output_units(
         self,
         *,
         db: Session,
         run: FormFillRun,
-        temp_dir: str,
-        target_local_path: str,
         target_page_count: int,
         units: list[dict[str, Any]],
         strategy: str,
@@ -2577,34 +2622,93 @@ Instructions:
 
         self._check_usage_limit_or_raise(db, user_id=run.user_id, page_count=target_page_count * len(units))
 
-        run.total_outputs = len(units)
-        run.completed_outputs = 0
-        run.failed_outputs = 0
-        run.outputs.clear()
-        db.flush()
-        outputs = []
-        for unit in units:
-            output = FormFillOutput(
-                run_id=run.id,
-                record_index=int(unit["record_index"]),
-                record_label=str(unit["record_label"]),
-                record_payload=unit["record_payload"],
-                status="pending",
-            )
-            db.add(output)
-            outputs.append(output)
-        db.commit()
+        outputs = list(run.outputs or [])
+        if not outputs:
+            run.total_outputs = len(units)
+            run.completed_outputs = 0
+            run.failed_outputs = 0
+            run.usage_basis = "target_pages_per_output"
+            run.fill_plan = {"strategy": strategy, "outputs": len(units)}
+            for unit in units:
+                output = FormFillOutput(
+                    run_id=run.id,
+                    record_index=int(unit["record_index"]),
+                    record_label=str(unit["record_label"]),
+                    record_payload=unit["record_payload"],
+                    status="pending",
+                )
+                db.add(output)
+            db.commit()
+        else:
+            run.total_outputs = max(int(run.total_outputs or 0), len(outputs))
+            if not isinstance(run.fill_plan, dict) or run.fill_plan.get("strategy") != strategy:
+                run.fill_plan = {"strategy": strategy, "outputs": int(run.total_outputs or len(outputs))}
+            self._sync_run_output_counts(db, run)
+            db.commit()
 
-        completed_files: list[tuple[str, str]] = []
-        aggregate_warnings: list[str] = []
-        last_strategy: str | None = None
-        run_uuid = run.id
-        for output in outputs:
-            output_id = output.id
-            output_label = output.record_label
+        pending_outputs = db.query(FormFillOutput).filter(
+            FormFillOutput.run_id == run.id,
+            FormFillOutput.status == "pending",
+        ).order_by(FormFillOutput.record_index.asc()).all()
+
+        enqueued = 0
+        failed_to_enqueue = 0
+        for output in pending_outputs:
             try:
-                output.status = "in_progress"
-                db.commit()
+                await cloud_run_task_service.enqueue_form_fill_output_task(str(run.id), str(output.id))
+                enqueued += 1
+            except Exception as enqueue_exc:
+                logger.exception("Failed to enqueue Form Fill output %s", output.id)
+                output.status = "failed"
+                output.error_message = f"Failed to enqueue output task: {enqueue_exc}"
+                output.completed_at = datetime.now(timezone.utc)
+                failed_to_enqueue += 1
+
+        self._sync_run_output_counts(db, run)
+        db.commit()
+        await self._finalize_run_if_ready(str(run.id))
+        return {
+            "success": True,
+            "run_id": str(run.id),
+            "outputs": int(run.total_outputs or len(units)),
+            "enqueued_outputs": enqueued,
+            "failed_to_enqueue": failed_to_enqueue,
+        }
+
+    async def process_output(self, run_id: str, output_id: str) -> dict[str, Any]:
+        db = self._get_session()
+        temp_dir = tempfile.mkdtemp(prefix="form_fill_output_")
+        lock_acquired = False
+        try:
+            lock_acquired = self._try_advisory_lock(db, output_id)
+            if not lock_acquired:
+                raise RuntimeError(f"Form Fill output {output_id} is already being processed")
+
+            run = db.query(FormFillRun).filter(FormFillRun.id == uuid.UUID(str(run_id))).first()
+            if not run:
+                raise ValueError("Form Fill run not found")
+            output = db.query(FormFillOutput).filter(
+                FormFillOutput.id == uuid.UUID(str(output_id)),
+                FormFillOutput.run_id == run.id,
+            ).first()
+            if not output:
+                raise ValueError("Form Fill output not found")
+
+            if output.status == "completed" and output.result_gcs_object_name:
+                await self._finalize_run_if_ready(str(run.id))
+                return {"success": True, "run_id": str(run.id), "output_id": str(output.id), "skipped": True}
+            if output.status == "failed":
+                await self._finalize_run_if_ready(str(run.id))
+                return {"success": False, "run_id": str(run.id), "output_id": str(output.id), "skipped": True, "terminal": True}
+
+            output.status = "in_progress"
+            output.error_message = None
+            db.commit()
+
+            try:
+                target_local_path = os.path.join(temp_dir, f"target{_safe_ext(run.target_filename, '.bin')}")
+                await self._download_to_local(run.target_gcs_object_name, target_local_path)
+                await self._ensure_run_target_page_count(db, run, target_local_path, temp_dir)
                 source_parts, source_text = await self._build_output_source_context(
                     run=run,
                     record_payload=output.record_payload or {},
@@ -2630,57 +2734,111 @@ Instructions:
                 output.fill_plan = generated["fill_plan"]
                 output.warnings = generated["warnings"]
                 output.completed_at = datetime.now(timezone.utc)
-                run.completed_outputs = int(run.completed_outputs or 0) + 1
-                last_strategy = generated["strategy"]
-                aggregate_warnings.extend(f"{output.record_label}: {warning}" for warning in generated["warnings"])
-                completed_files.append((generated["local_path"], generated["filename"]))
             except Exception as output_exc:
                 logger.exception("Form Fill output %s failed", output_id)
                 db.rollback()
-                output = db.query(FormFillOutput).filter(FormFillOutput.id == output_id).first()
-                run = db.query(FormFillRun).filter(FormFillRun.id == run_uuid).first()
-                if output and run:
-                    output.status = "failed"
-                    output.error_message = str(output_exc)
-                    output.completed_at = datetime.now(timezone.utc)
-                    run.failed_outputs = int(run.failed_outputs or 0) + 1
-                    aggregate_warnings.append(f"{output_label}: {output.error_message}")
+                output = db.query(FormFillOutput).filter(FormFillOutput.id == uuid.UUID(str(output_id))).first()
+                run = db.query(FormFillRun).filter(FormFillRun.id == uuid.UUID(str(run_id))).first()
+                if not output or not run:
+                    raise
+                output.status = "failed"
+                output.error_message = str(output_exc)
+                output.completed_at = datetime.now(timezone.utc)
+
+            self._sync_run_output_counts(db, run)
             db.commit()
+            await self._finalize_run_if_ready(str(run.id))
+            return {"success": output.status == "completed", "run_id": str(run.id), "output_id": str(output.id), "status": output.status}
+        finally:
+            if lock_acquired:
+                self._advisory_unlock(db, output_id)
+            db.close()
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
-        if not completed_files:
-            raise ValueError("Form Fill failed to generate any output documents")
+    async def _finalize_run_if_ready(self, run_id: str) -> dict[str, Any]:
+        db = self._get_session()
+        temp_dir = tempfile.mkdtemp(prefix="form_fill_finalize_")
+        lock_acquired = False
+        try:
+            lock_acquired = self._try_advisory_lock(db, run_id)
+            if not lock_acquired:
+                return {"success": True, "run_id": run_id, "finalized": False, "locked": True}
 
-        zip_filename = self._filled_filename(run.target_filename, "batch", "zip")
-        zip_local_path = os.path.join(temp_dir, zip_filename)
-        used_names: set[str] = set()
-        with zipfile.ZipFile(zip_local_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            for local_path, filename in completed_files:
-                archive_name = filename
-                if archive_name in used_names:
-                    archive_name = f"{Path(filename).stem}_{len(used_names) + 1}{Path(filename).suffix}"
-                used_names.add(archive_name)
-                archive.write(local_path, arcname=archive_name)
+            run = db.query(FormFillRun).filter(FormFillRun.id == uuid.UUID(str(run_id))).first()
+            if not run:
+                raise ValueError("Form Fill run not found")
+            if run.status in FORM_FILL_RUN_TERMINAL_STATUSES and run.result_gcs_object_name:
+                return {"success": True, "run_id": str(run.id), "finalized": False, "skipped": True}
 
-        result_object_name = f"form-fill/{run.user_id}/runs/{run.id}/result.zip"
-        await self.storage_service.upload_file(zip_local_path, result_object_name)
-        run.status = "completed" if int(run.failed_outputs or 0) == 0 else "completed_with_errors"
-        run.processing_strategy = last_strategy
-        run.result_gcs_object_name = result_object_name
-        run.result_filename = zip_filename
-        run.result_file_type = "application/zip"
-        run.fill_plan = {"strategy": strategy, "outputs": len(units)}
-        run.warnings = aggregate_warnings
-        run.usage_basis = "target_pages_per_output"
-        run.usage_pages = target_page_count * int(run.completed_outputs or 0)
-        run.completed_at = datetime.now(timezone.utc)
-        db.commit()
-        self._record_usage_for_run(db, run)
-        return {
-            "success": True,
-            "run_id": str(run.id),
-            "outputs": len(completed_files),
-            "failed_outputs": int(run.failed_outputs or 0),
-        }
+            outputs = db.query(FormFillOutput).filter(FormFillOutput.run_id == run.id).order_by(FormFillOutput.record_index.asc()).all()
+            if not outputs:
+                return {"success": True, "run_id": str(run.id), "finalized": False, "outputs": 0}
+            if any(output.status not in FORM_FILL_OUTPUT_TERMINAL_STATUSES for output in outputs):
+                self._sync_run_output_counts(db, run)
+                db.commit()
+                return {"success": True, "run_id": str(run.id), "finalized": False, "outputs": len(outputs)}
+
+            completed_outputs = [
+                output for output in outputs
+                if output.status == "completed" and output.result_gcs_object_name and output.result_filename
+            ]
+            aggregate_warnings: list[str] = []
+            for output in outputs:
+                if isinstance(output.warnings, list):
+                    aggregate_warnings.extend(f"{output.record_label}: {warning}" for warning in output.warnings)
+                if output.status == "failed" and output.error_message:
+                    aggregate_warnings.append(f"{output.record_label}: {output.error_message}")
+
+            self._sync_run_output_counts(db, run)
+            run.total_outputs = len(outputs)
+            run.usage_basis = "target_pages_per_output"
+            run.usage_pages = int(run.target_page_count or 0) * int(run.completed_outputs or 0)
+            run.warnings = aggregate_warnings
+            run.completed_at = datetime.now(timezone.utc)
+
+            if not completed_outputs:
+                run.status = "failed"
+                run.error_message = run.error_message or "Form Fill failed to generate any output documents"
+                db.commit()
+                return {"success": False, "run_id": str(run.id), "finalized": True, "outputs": 0}
+
+            zip_filename = self._filled_filename(run.target_filename, "batch", "zip")
+            zip_local_path = os.path.join(temp_dir, zip_filename)
+            used_names: set[str] = set()
+            with zipfile.ZipFile(zip_local_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+                for output in completed_outputs:
+                    suffix = _safe_ext(output.result_filename or "output.bin", ".bin")
+                    local_path = os.path.join(temp_dir, f"output-{output.record_index}-{uuid.uuid4()}{suffix}")
+                    await self._download_to_local(output.result_gcs_object_name, local_path)
+                    archive_name = output.result_filename or f"output-{output.record_index + 1}{suffix}"
+                    if archive_name in used_names:
+                        archive_name = f"{Path(archive_name).stem}_{len(used_names) + 1}{Path(archive_name).suffix}"
+                    used_names.add(archive_name)
+                    archive.write(local_path, arcname=archive_name)
+
+            result_object_name = f"form-fill/{run.user_id}/runs/{run.id}/result.zip"
+            await self.storage_service.upload_file(zip_local_path, result_object_name)
+            run.status = "completed" if int(run.failed_outputs or 0) == 0 else "completed_with_errors"
+            last_completed = completed_outputs[-1]
+            if isinstance(last_completed.fill_plan, dict):
+                run.processing_strategy = last_completed.fill_plan.get("strategy") or run.processing_strategy
+            run.result_gcs_object_name = result_object_name
+            run.result_filename = zip_filename
+            run.result_file_type = "application/zip"
+            db.commit()
+            self._record_usage_for_run(db, run)
+            return {
+                "success": True,
+                "run_id": str(run.id),
+                "finalized": True,
+                "outputs": len(completed_outputs),
+                "failed_outputs": int(run.failed_outputs or 0),
+            }
+        finally:
+            if lock_acquired:
+                self._advisory_unlock(db, run_id)
+            db.close()
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
     async def process_run(self, run_id: str) -> dict[str, Any]:
         db = self._get_session()
@@ -2705,11 +2863,9 @@ Instructions:
                 records = await self._extract_repeat_records(run)
                 if not records:
                     raise ValueError("Repeat mode could not find any source rows to fill")
-                return await self._process_output_units(
+                return await self._enqueue_output_units(
                     db=db,
                     run=run,
-                    temp_dir=temp_dir,
-                    target_local_path=target_local_path,
                     target_page_count=target_page_count,
                     units=records,
                     strategy="repeat_source_rows",
@@ -2718,11 +2874,9 @@ Instructions:
             source_units = self._source_units_for_run(run)
             if len(source_units) > 1:
                 unit_kind = source_units[0].get("record_payload", {}).get("kind") if isinstance(source_units[0].get("record_payload"), dict) else None
-                return await self._process_output_units(
+                return await self._enqueue_output_units(
                     db=db,
                     run=run,
-                    temp_dir=temp_dir,
-                    target_local_path=target_local_path,
                     target_page_count=target_page_count,
                     units=source_units,
                     strategy="extraction_tasks" if unit_kind == "extraction_task" else "source_files",
