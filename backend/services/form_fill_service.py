@@ -203,7 +203,7 @@ class FormFillService:
             allow_docx_table_expansion=bool(run.allow_docx_table_expansion),
             output_format=run.output_format,
             repeat_mode=run.repeat_mode or REPEAT_MODE_SINGLE,
-            total_outputs=int(run.total_outputs or 1),
+            total_outputs=int(run.total_outputs) if run.total_outputs is not None else 1,
             completed_outputs=int(run.completed_outputs or 0),
             failed_outputs=int(run.failed_outputs or 0),
             usage_basis=run.usage_basis,
@@ -297,6 +297,14 @@ class FormFillService:
             "job_id": str(job_id),
             "run_id": str(run_id),
             "task_id": str(task_id),
+            "task_groups": [
+                {
+                    "task_id": str(task_id),
+                    "source_files": source_files,
+                    "columns": columns,
+                    "rows": rows,
+                }
+            ],
         }
 
     def _combine_extraction_payloads(
@@ -335,12 +343,37 @@ class FormFillService:
                     for column in columns
                 ])
 
+        task_groups: list[dict[str, Any]] = []
+        for payload in payloads:
+            payload_groups = payload.get("task_groups")
+            if isinstance(payload_groups, list) and payload_groups:
+                for group in payload_groups:
+                    if isinstance(group, dict):
+                        task_groups.append(
+                            {
+                                "task_id": str(group.get("task_id") or payload.get("task_id") or ""),
+                                "source_files": list(group.get("source_files") or []),
+                                "columns": list(group.get("columns") or []),
+                                "rows": list(group.get("rows") or []),
+                            }
+                        )
+                continue
+            task_groups.append(
+                {
+                    "task_id": str(payload.get("task_id") or ""),
+                    "source_files": list(payload.get("source_files") or []),
+                    "columns": list(payload.get("columns") or []),
+                    "rows": list(payload.get("rows") or []),
+                }
+            )
+
         return {
             "kind": "extraction_result",
             "scope": SOURCE_SCOPE_ALL,
             "columns": columns,
             "rows": rows,
             "source_files": source_files,
+            "task_groups": task_groups,
             "job_id": str(job_id),
             "run_id": str(run_id),
             "task_id": None,
@@ -693,6 +726,8 @@ class FormFillService:
                 run.source_filename = source_filenames[0] if len(source_filenames) == 1 else f"{len(source_filenames)} source files"
                 run.source_file_type = source_mime_types[0] if len(set(source_mime_types)) == 1 else "multiple"
                 run.source_file_size_bytes = total_source_bytes
+                if normalized_repeat_mode != REPEAT_MODE_SOURCE_ROWS and len(uploaded_source_files) > 1:
+                    run.total_outputs = len(uploaded_source_files)
             else:
                 payload = self._load_extraction_source_payload(
                     db,
@@ -708,6 +743,10 @@ class FormFillService:
                 run.source_job_id = uuid.UUID(str(source_job_id))
                 run.source_run_id = uuid.UUID(str(source_run_id))
                 run.source_task_id = uuid.UUID(str(source_task_id)) if source_task_id else None
+                if normalized_repeat_mode != REPEAT_MODE_SOURCE_ROWS:
+                    extraction_task_units = self._extraction_task_units_from_payload(payload)
+                    if len(extraction_task_units) > 1:
+                        run.total_outputs = len(extraction_task_units)
 
             if target_file:
                 target_bytes = await target_file.read()
@@ -1422,6 +1461,100 @@ class FormFillService:
             if source_file.file_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
                 return self._load_xlsx_records(local_path)
         return []
+
+    def _source_file_units(self, run: FormFillRun) -> list[dict[str, Any]]:
+        uploaded_source_files = list(run.source_files or [])
+        if len(uploaded_source_files) <= 1:
+            return []
+
+        units: list[dict[str, Any]] = []
+        for index, source_file in enumerate(uploaded_source_files):
+            label = _safe_filename_part(Path(source_file.original_filename or "").stem, f"source-{index + 1}")
+            units.append(
+                {
+                    "record_index": index,
+                    "record_label": label,
+                    "record_payload": {
+                        "kind": "source_file",
+                        "source_file_id": str(source_file.id),
+                        "original_filename": source_file.original_filename,
+                        "file_type": source_file.file_type,
+                        "gcs_object_name": source_file.gcs_object_name,
+                        "display_order": int(source_file.display_order if source_file.display_order is not None else index),
+                    },
+                }
+            )
+        return units
+
+    def _extraction_task_units_from_payload(self, payload: Any) -> list[dict[str, Any]]:
+        if not isinstance(payload, dict) or payload.get("kind") != "extraction_result" or payload.get("scope") != SOURCE_SCOPE_ALL:
+            return []
+
+        task_groups = payload.get("task_groups")
+        if not isinstance(task_groups, list):
+            return []
+
+        units: list[dict[str, Any]] = []
+        for group in task_groups:
+            if not isinstance(group, dict):
+                continue
+            source_files = [str(item) for item in (group.get("source_files") or [])]
+            label_source = Path(source_files[0]).stem if source_files else str(group.get("task_id") or "")[:8]
+            label = _safe_filename_part(label_source, f"task-{len(units) + 1}")
+            units.append(
+                {
+                    "record_index": len(units),
+                    "record_label": label,
+                    "record_payload": {
+                        "kind": "extraction_task",
+                        "task_id": str(group.get("task_id") or ""),
+                        "source_files": source_files,
+                        "columns": list(group.get("columns") or []),
+                        "rows": list(group.get("rows") or []),
+                    },
+                }
+            )
+        return units
+
+    def _source_units_for_run(self, run: FormFillRun) -> list[dict[str, Any]]:
+        source_file_units = self._source_file_units(run)
+        if source_file_units:
+            return source_file_units
+        return self._extraction_task_units_from_payload(run.source_payload)
+
+    async def _build_output_source_context(
+        self,
+        *,
+        run: FormFillRun,
+        record_payload: Any,
+        record_index: int,
+    ) -> tuple[list[Any], str]:
+        payload = record_payload if isinstance(record_payload, dict) else {}
+        source_parts: list[Any] = []
+        source_text_sections: list[str] = []
+
+        if payload.get("kind") == "source_file":
+            await self._append_uploaded_source_context(
+                run=run,
+                filename=str(payload.get("original_filename") or f"source-{record_index + 1}"),
+                mime_type=str(payload.get("file_type") or ""),
+                object_name=str(payload.get("gcs_object_name") or ""),
+                source_key=str(payload.get("source_file_id") or f"source-{record_index + 1}"),
+                display_order=int(payload.get("display_order") if payload.get("display_order") is not None else record_index),
+                source_parts=source_parts,
+                source_text_sections=source_text_sections,
+            )
+            return source_parts, "\n\n".join(item for item in source_text_sections if item)
+
+        if payload.get("kind") == "extraction_task":
+            source_files = [str(item) for item in (payload.get("source_files") or [])]
+            source_text_sections.append("Extraction result source files: " + (", ".join(source_files) or "(manual rows)"))
+            source_text_sections.append(
+                self._markdown_table(list(payload.get("columns") or []), list(payload.get("rows") or []), len(payload.get("rows") or []))
+            )
+            return source_parts, "\n\n".join(item for item in source_text_sections if item)
+
+        return source_parts, self._record_source_text({"record_payload": payload})
 
     def _record_source_text(self, record: dict[str, Any]) -> str:
         payload = record.get("record_payload") if isinstance(record.get("record_payload"), dict) else {}
@@ -2430,6 +2563,127 @@ Instructions:
 
         raise ValueError("Unsupported target file type")
 
+    async def _process_output_units(
+        self,
+        *,
+        db: Session,
+        run: FormFillRun,
+        temp_dir: str,
+        target_local_path: str,
+        target_page_count: int,
+        units: list[dict[str, Any]],
+        strategy: str,
+    ) -> dict[str, Any]:
+        if not units:
+            raise ValueError("Form Fill could not find any source records to fill")
+
+        self._check_usage_limit_or_raise(db, user_id=run.user_id, page_count=target_page_count * len(units))
+
+        run.total_outputs = len(units)
+        run.completed_outputs = 0
+        run.failed_outputs = 0
+        run.outputs.clear()
+        db.flush()
+        outputs = []
+        for unit in units:
+            output = FormFillOutput(
+                run_id=run.id,
+                record_index=int(unit["record_index"]),
+                record_label=str(unit["record_label"]),
+                record_payload=unit["record_payload"],
+                status="pending",
+            )
+            db.add(output)
+            outputs.append(output)
+        db.commit()
+
+        completed_files: list[tuple[str, str]] = []
+        aggregate_warnings: list[str] = []
+        last_strategy: str | None = None
+        run_uuid = run.id
+        for output in outputs:
+            output_id = output.id
+            output_label = output.record_label
+            try:
+                output.status = "in_progress"
+                db.commit()
+                source_parts, source_text = await self._build_output_source_context(
+                    run=run,
+                    record_payload=output.record_payload or {},
+                    record_index=int(output.record_index or 0),
+                )
+                generated = await self._generate_filled_document(
+                    run=run,
+                    temp_dir=temp_dir,
+                    target_local_path=target_local_path,
+                    source_parts=source_parts,
+                    source_text=source_text,
+                    filename_suffix=f"{output.record_index + 1:03d}_{output.record_label}",
+                )
+                result_object_name = (
+                    f"form-fill/{run.user_id}/runs/{run.id}/outputs/"
+                    f"{output.record_index + 1:03d}-{uuid.uuid4()}{_safe_ext(generated['filename'], '.bin')}"
+                )
+                await self.storage_service.upload_file(generated["local_path"], result_object_name)
+                output.status = "completed"
+                output.result_gcs_object_name = result_object_name
+                output.result_filename = generated["filename"]
+                output.result_file_type = generated["mime_type"]
+                output.fill_plan = generated["fill_plan"]
+                output.warnings = generated["warnings"]
+                output.completed_at = datetime.now(timezone.utc)
+                run.completed_outputs = int(run.completed_outputs or 0) + 1
+                last_strategy = generated["strategy"]
+                aggregate_warnings.extend(f"{output.record_label}: {warning}" for warning in generated["warnings"])
+                completed_files.append((generated["local_path"], generated["filename"]))
+            except Exception as output_exc:
+                logger.exception("Form Fill output %s failed", output_id)
+                db.rollback()
+                output = db.query(FormFillOutput).filter(FormFillOutput.id == output_id).first()
+                run = db.query(FormFillRun).filter(FormFillRun.id == run_uuid).first()
+                if output and run:
+                    output.status = "failed"
+                    output.error_message = str(output_exc)
+                    output.completed_at = datetime.now(timezone.utc)
+                    run.failed_outputs = int(run.failed_outputs or 0) + 1
+                    aggregate_warnings.append(f"{output_label}: {output.error_message}")
+            db.commit()
+
+        if not completed_files:
+            raise ValueError("Form Fill failed to generate any output documents")
+
+        zip_filename = self._filled_filename(run.target_filename, "batch", "zip")
+        zip_local_path = os.path.join(temp_dir, zip_filename)
+        used_names: set[str] = set()
+        with zipfile.ZipFile(zip_local_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for local_path, filename in completed_files:
+                archive_name = filename
+                if archive_name in used_names:
+                    archive_name = f"{Path(filename).stem}_{len(used_names) + 1}{Path(filename).suffix}"
+                used_names.add(archive_name)
+                archive.write(local_path, arcname=archive_name)
+
+        result_object_name = f"form-fill/{run.user_id}/runs/{run.id}/result.zip"
+        await self.storage_service.upload_file(zip_local_path, result_object_name)
+        run.status = "completed" if int(run.failed_outputs or 0) == 0 else "completed_with_errors"
+        run.processing_strategy = last_strategy
+        run.result_gcs_object_name = result_object_name
+        run.result_filename = zip_filename
+        run.result_file_type = "application/zip"
+        run.fill_plan = {"strategy": strategy, "outputs": len(units)}
+        run.warnings = aggregate_warnings
+        run.usage_basis = "target_pages_per_output"
+        run.usage_pages = target_page_count * int(run.completed_outputs or 0)
+        run.completed_at = datetime.now(timezone.utc)
+        db.commit()
+        self._record_usage_for_run(db, run)
+        return {
+            "success": True,
+            "run_id": str(run.id),
+            "outputs": len(completed_files),
+            "failed_outputs": int(run.failed_outputs or 0),
+        }
+
     async def process_run(self, run_id: str) -> dict[str, Any]:
         db = self._get_session()
         temp_dir = tempfile.mkdtemp(prefix="form_fill_run_")
@@ -2448,144 +2702,68 @@ Instructions:
             target_local_path = os.path.join(temp_dir, f"target{_safe_ext(run.target_filename, '.bin')}")
             await self._download_to_local(run.target_gcs_object_name, target_local_path)
             target_page_count = await self._ensure_run_target_page_count(db, run, target_local_path, temp_dir)
-            if (run.repeat_mode or REPEAT_MODE_SINGLE) != REPEAT_MODE_SOURCE_ROWS:
-                self._check_usage_limit_or_raise(db, user_id=run.user_id, page_count=target_page_count)
-                source_parts: list[Any] = []
-                source_text_sections: list[str] = []
-                source_parts, source_text = await self._build_source_context(
-                    run=run,
-                    source_parts=source_parts,
-                    source_text_sections=source_text_sections,
-                )
-                generated = await self._generate_filled_document(
+
+            if (run.repeat_mode or REPEAT_MODE_SINGLE) == REPEAT_MODE_SOURCE_ROWS:
+                records = await self._extract_repeat_records(run)
+                if not records:
+                    raise ValueError("Repeat mode could not find any source rows to fill")
+                return await self._process_output_units(
+                    db=db,
                     run=run,
                     temp_dir=temp_dir,
                     target_local_path=target_local_path,
-                    source_parts=source_parts,
-                    source_text=source_text,
+                    target_page_count=target_page_count,
+                    units=records,
+                    strategy="repeat_source_rows",
                 )
-                result_object_name = f"form-fill/{run.user_id}/runs/{run.id}/result{_safe_ext(generated['filename'], '.bin')}"
-                await self.storage_service.upload_file(generated["local_path"], result_object_name)
 
-                run.status = "completed"
-                run.processing_strategy = generated["strategy"]
-                run.result_gcs_object_name = result_object_name
-                run.result_filename = generated["filename"]
-                run.result_file_type = generated["mime_type"]
-                run.fill_plan = generated["fill_plan"]
-                run.warnings = generated["warnings"]
-                run.total_outputs = 1
-                run.completed_outputs = 1
-                run.failed_outputs = 0
-                run.usage_basis = "target_pages_per_output"
-                run.usage_pages = target_page_count
-                run.completed_at = datetime.now(timezone.utc)
-                db.commit()
-                self._record_usage_for_run(db, run)
-                return {"success": True, "run_id": str(run.id), "strategy": run.processing_strategy}
-
-            records = await self._extract_repeat_records(run)
-            if not records:
-                raise ValueError("Repeat mode could not find any source rows to fill")
-            self._check_usage_limit_or_raise(db, user_id=run.user_id, page_count=target_page_count * len(records))
-
-            run.total_outputs = len(records)
-            run.completed_outputs = 0
-            run.failed_outputs = 0
-            run.outputs.clear()
-            db.flush()
-            outputs = []
-            for record in records:
-                output = FormFillOutput(
-                    run_id=run.id,
-                    record_index=int(record["record_index"]),
-                    record_label=str(record["record_label"]),
-                    record_payload=record["record_payload"],
-                    status="pending",
+            source_units = self._source_units_for_run(run)
+            if len(source_units) > 1:
+                unit_kind = source_units[0].get("record_payload", {}).get("kind") if isinstance(source_units[0].get("record_payload"), dict) else None
+                return await self._process_output_units(
+                    db=db,
+                    run=run,
+                    temp_dir=temp_dir,
+                    target_local_path=target_local_path,
+                    target_page_count=target_page_count,
+                    units=source_units,
+                    strategy="extraction_tasks" if unit_kind == "extraction_task" else "source_files",
                 )
-                db.add(output)
-                outputs.append(output)
-            db.commit()
 
-            completed_files: list[tuple[str, str]] = []
-            aggregate_warnings: list[str] = []
-            last_strategy: str | None = None
-            for output in outputs:
-                output_id = output.id
-                output_label = output.record_label
-                try:
-                    output.status = "in_progress"
-                    db.commit()
-                    generated = await self._generate_filled_document(
-                        run=run,
-                        temp_dir=temp_dir,
-                        target_local_path=target_local_path,
-                        source_parts=[],
-                        source_text=self._record_source_text(
-                            {
-                                "record_payload": output.record_payload or {},
-                            }
-                        ),
-                        filename_suffix=f"{output.record_index + 1:03d}_{output.record_label}",
-                    )
-                    result_object_name = (
-                        f"form-fill/{run.user_id}/runs/{run.id}/outputs/"
-                        f"{output.record_index + 1:03d}-{uuid.uuid4()}{_safe_ext(generated['filename'], '.bin')}"
-                    )
-                    await self.storage_service.upload_file(generated["local_path"], result_object_name)
-                    output.status = "completed"
-                    output.result_gcs_object_name = result_object_name
-                    output.result_filename = generated["filename"]
-                    output.result_file_type = generated["mime_type"]
-                    output.fill_plan = generated["fill_plan"]
-                    output.warnings = generated["warnings"]
-                    output.completed_at = datetime.now(timezone.utc)
-                    run.completed_outputs = int(run.completed_outputs or 0) + 1
-                    last_strategy = generated["strategy"]
-                    aggregate_warnings.extend(f"{output.record_label}: {warning}" for warning in generated["warnings"])
-                    completed_files.append((generated["local_path"], generated["filename"]))
-                except Exception as output_exc:
-                    logger.exception("Form Fill output %s failed", output_id)
-                    db.rollback()
-                    output = db.query(FormFillOutput).filter(FormFillOutput.id == output_id).first()
-                    run = db.query(FormFillRun).filter(FormFillRun.id == uuid.UUID(str(run_id))).first()
-                    if output and run:
-                        output.status = "failed"
-                        output.error_message = str(output_exc)
-                        output.completed_at = datetime.now(timezone.utc)
-                        run.failed_outputs = int(run.failed_outputs or 0) + 1
-                        aggregate_warnings.append(f"{output_label}: {output.error_message}")
-                db.commit()
+            self._check_usage_limit_or_raise(db, user_id=run.user_id, page_count=target_page_count)
+            source_parts: list[Any] = []
+            source_text_sections: list[str] = []
+            source_parts, source_text = await self._build_source_context(
+                run=run,
+                source_parts=source_parts,
+                source_text_sections=source_text_sections,
+            )
+            generated = await self._generate_filled_document(
+                run=run,
+                temp_dir=temp_dir,
+                target_local_path=target_local_path,
+                source_parts=source_parts,
+                source_text=source_text,
+            )
+            result_object_name = f"form-fill/{run.user_id}/runs/{run.id}/result{_safe_ext(generated['filename'], '.bin')}"
+            await self.storage_service.upload_file(generated["local_path"], result_object_name)
 
-            if not completed_files:
-                raise ValueError("Repeat mode failed to generate any output documents")
-
-            zip_filename = self._filled_filename(run.target_filename, "batch", "zip")
-            zip_local_path = os.path.join(temp_dir, zip_filename)
-            used_names: set[str] = set()
-            with zipfile.ZipFile(zip_local_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-                for local_path, filename in completed_files:
-                    archive_name = filename
-                    if archive_name in used_names:
-                        archive_name = f"{Path(filename).stem}_{len(used_names) + 1}{Path(filename).suffix}"
-                    used_names.add(archive_name)
-                    archive.write(local_path, arcname=archive_name)
-
-            result_object_name = f"form-fill/{run.user_id}/runs/{run.id}/result.zip"
-            await self.storage_service.upload_file(zip_local_path, result_object_name)
-            run.status = "completed" if int(run.failed_outputs or 0) == 0 else "completed_with_errors"
-            run.processing_strategy = last_strategy
+            run.status = "completed"
+            run.processing_strategy = generated["strategy"]
             run.result_gcs_object_name = result_object_name
-            run.result_filename = zip_filename
-            run.result_file_type = "application/zip"
-            run.fill_plan = {"strategy": "repeat_source_rows", "records": len(records)}
-            run.warnings = aggregate_warnings
+            run.result_filename = generated["filename"]
+            run.result_file_type = generated["mime_type"]
+            run.fill_plan = generated["fill_plan"]
+            run.warnings = generated["warnings"]
+            run.total_outputs = 1
+            run.completed_outputs = 1
+            run.failed_outputs = 0
             run.usage_basis = "target_pages_per_output"
-            run.usage_pages = target_page_count * int(run.completed_outputs or 0)
+            run.usage_pages = target_page_count
             run.completed_at = datetime.now(timezone.utc)
             db.commit()
             self._record_usage_for_run(db, run)
-            return {"success": True, "run_id": str(run.id), "outputs": len(completed_files), "failed_outputs": int(run.failed_outputs or 0)}
+            return {"success": True, "run_id": str(run.id), "strategy": run.processing_strategy}
         except Exception as exc:
             logger.exception("Form Fill run %s failed", run_id)
             try:

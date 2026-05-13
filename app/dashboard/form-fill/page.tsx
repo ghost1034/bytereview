@@ -363,7 +363,7 @@ export default function FormFillPage() {
                 onChange={(event) => setSourceFiles(Array.from(event.target.files || []))}
               />
               <p className="text-xs text-foreground-muted">
-                Supported: CSV, XLSX, PDF, DOCX. Up to 10 source files, 100 MB total.
+                Supported: CSV, XLSX, PDF, DOCX. Up to 10 source files, 100 MB total. Multiple source files fill one form each.
               </p>
               {sourceFiles.length > 0 && (
                 <div className="rounded-md border border-border bg-surface-raised divide-y divide-border">
@@ -397,7 +397,7 @@ export default function FormFillPage() {
               <div className="text-xs text-foreground-muted">
                 Job run <code className="font-mono">{sourceRunId}</code>{' '}
                 {sourceScope === 'all' ? (
-                  <span>all rows</span>
+                  <span>all rows, grouped by extraction task</span>
                 ) : (
                   <>
                     task <code className="font-mono">{sourceTaskId}</code>
@@ -626,7 +626,7 @@ export default function FormFillPage() {
               </Button>
             </div>
             <p className="text-xs text-foreground-muted">
-              &ldquo;Fill once per row&rdquo; fills the form once for each row and downloads a ZIP of filled documents.
+              Multiple source files or all extraction-task result sets automatically download as a ZIP. &ldquo;Fill once per row&rdquo; is still available for CSV, XLSX, and extraction rows.
             </p>
             {!repeatModeSupported && sourceMode === 'upload' && sourceFiles.length > 0 && (
               <p className="text-xs text-warning">
@@ -678,7 +678,7 @@ export default function FormFillPage() {
                     </div>
                     <div className="mt-1 text-xs text-foreground-muted">
                       {formatStatus(run.status)} · {formatDateTime(run.created_at)}
-                      {run.repeat_mode === 'source_rows'
+                      {run.total_outputs > 1 || run.repeat_mode === 'source_rows'
                         ? ` · ${run.completed_outputs}/${run.total_outputs} completed`
                         : ''}
                     </div>
@@ -724,7 +724,7 @@ export default function FormFillPage() {
               <span className="font-medium text-foreground">Status:</span>{' '}
               <span className="text-foreground-muted">{currentRun?.status || 'pending'}</span>
             </div>
-            {currentRun && currentRun.repeat_mode === 'source_rows' && (
+            {currentRun && (currentRun.total_outputs > 1 || currentRun.repeat_mode === 'source_rows') && (
               <div>
                 <span className="font-medium text-foreground">Progress:</span>{' '}
                 <span className="text-foreground-muted">
@@ -765,7 +765,7 @@ export default function FormFillPage() {
                 {downloadingRunId === currentRun.id
                   ? 'Downloading…'
                   : `Download ${
-                      currentRun.repeat_mode === 'source_rows'
+                      currentRun.repeat_mode === 'source_rows' || currentRun.total_outputs > 1
                         ? 'ZIP'
                         : currentRun.result_filename || 'Result'
                     }`}

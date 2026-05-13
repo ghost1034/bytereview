@@ -255,6 +255,91 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
             ],
         )
         self.assertEqual(payload["source_files"], ["first.pdf", "second.pdf"])
+        self.assertEqual(len(payload["task_groups"]), 2)
+        self.assertEqual(payload["task_groups"][0]["source_files"], ["first.pdf"])
+        self.assertEqual(payload["task_groups"][0]["rows"], [["Acme", 100], ["Beta", 250]])
+        self.assertEqual(payload["task_groups"][1]["source_files"], ["second.pdf", "first.pdf"])
+        self.assertEqual(payload["task_groups"][1]["rows"], [["12-3456789", "Gamma"]])
+
+    def test_source_file_units_create_one_unit_per_uploaded_source_file(self) -> None:
+        run = SimpleNamespace(
+            source_files=[
+                SimpleNamespace(
+                    id="source-1",
+                    original_filename="first client.pdf",
+                    file_type="application/pdf",
+                    gcs_object_name="first-object",
+                    display_order=0,
+                ),
+                SimpleNamespace(
+                    id="source-2",
+                    original_filename="second client.pdf",
+                    file_type="application/pdf",
+                    gcs_object_name="second-object",
+                    display_order=1,
+                ),
+            ]
+        )
+
+        units = self.service._source_file_units(run)
+
+        self.assertEqual([unit["record_label"] for unit in units], ["first_client", "second_client"])
+        self.assertEqual([unit["record_payload"]["kind"] for unit in units], ["source_file", "source_file"])
+        self.assertEqual([unit["record_payload"]["gcs_object_name"] for unit in units], ["first-object", "second-object"])
+
+    def test_extraction_task_units_use_task_groups_not_flat_rows(self) -> None:
+        payload = {
+            "kind": "extraction_result",
+            "scope": "all",
+            "columns": ["Name"],
+            "rows": [["first"], ["second"]],
+            "task_groups": [
+                {
+                    "task_id": "task-1",
+                    "source_files": ["source-one.pdf"],
+                    "columns": ["Name"],
+                    "rows": [["first"]],
+                },
+                {
+                    "task_id": "task-2",
+                    "source_files": ["source-two.pdf"],
+                    "columns": ["Name"],
+                    "rows": [["second"]],
+                },
+            ],
+        }
+
+        units = self.service._extraction_task_units_from_payload(payload)
+
+        self.assertEqual([unit["record_label"] for unit in units], ["source-one", "source-two"])
+        self.assertEqual(units[0]["record_payload"]["rows"], [["first"]])
+        self.assertEqual(units[1]["record_payload"]["rows"], [["second"]])
+
+    async def test_build_output_source_context_uses_one_extraction_task_group(self) -> None:
+        unit = self.service._extraction_task_units_from_payload(
+            {
+                "kind": "extraction_result",
+                "scope": "all",
+                "task_groups": [
+                    {
+                        "task_id": "task-1",
+                        "source_files": ["source-one.pdf"],
+                        "columns": ["Name"],
+                        "rows": [["first"]],
+                    }
+                ],
+            }
+        )[0]
+
+        source_parts, source_text = await self.service._build_output_source_context(
+            run=SimpleNamespace(),
+            record_payload=unit["record_payload"],
+            record_index=0,
+        )
+
+        self.assertEqual(source_parts, [])
+        self.assertIn("source-one.pdf", source_text)
+        self.assertIn("| first |", source_text)
 
     def _create_csv(self, content: str) -> str:
         handle = tempfile.NamedTemporaryFile(suffix=".csv", delete=False, mode="w", encoding="utf-8")
