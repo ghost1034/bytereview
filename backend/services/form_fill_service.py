@@ -117,12 +117,28 @@ class FormFillService:
         project = os.getenv("GOOGLE_CLOUD_PROJECT_ID")
         location = os.getenv("GOOGLE_CLOUD_LOCATION", "global")
         self.model_name = os.getenv("FORM_FILL_GEMINI_MODEL", "gemini-3.1-pro-preview")
+        self.max_output_tokens = self._env_int("FORM_FILL_GEMINI_MAX_OUTPUT_TOKENS", 65536)
+        self.continuation_enabled = os.getenv("FORM_FILL_CONTINUATION_ENABLED", "true").strip().lower() in {"1", "true", "yes", "y"}
+        self.continuation_max_rounds = self._env_int("FORM_FILL_CONTINUATION_MAX_ROUNDS", 20)
+        self.continuation_tail_items = self._env_int("FORM_FILL_CONTINUATION_TAIL_ITEMS", 10)
+        self.continuation_max_items_per_call = self._env_int("FORM_FILL_CONTINUATION_MAX_ITEMS_PER_CALL", 250)
+        self.mapping_chunk_size = self._env_int("FORM_FILL_MAPPING_CHUNK_SIZE", self.continuation_max_items_per_call)
+        try:
+            self.continuation_near_token_ratio = float(os.getenv("FORM_FILL_CONTINUATION_NEAR_TOKEN_RATIO", "0.98"))
+        except Exception:
+            self.continuation_near_token_ratio = 0.98
         self.client = None
         if project:
             try:
                 self.client = genai.Client(vertexai=True, project=project, location=location)
             except Exception as exc:
                 logger.error("Failed to initialize Form Fill Vertex AI client: %s", exc)
+
+    def _env_int(self, name: str, default: int) -> int:
+        try:
+            return int(os.getenv(name, str(default)))
+        except (TypeError, ValueError):
+            return default
 
     def _get_session(self) -> Session:
         return db_config.get_session()
@@ -824,19 +840,333 @@ class FormFillService:
     def _part_from_uri(self, uri: str, mime_type: str) -> Any:
         return types.Part.from_uri(file_uri=uri, mime_type=mime_type)
 
+    def _get_resp_text(self, response: Any) -> Optional[str]:
+        if response is None:
+            return None
+        text = getattr(response, "text", None)
+        if isinstance(text, str) and text.strip():
+            return text
+        try:
+            candidates = getattr(response, "candidates", None)
+            if isinstance(candidates, list) and candidates:
+                parts = getattr(getattr(candidates[0], "content", None), "parts", None)
+                if isinstance(parts, list):
+                    joined = "".join(str(getattr(part, "text", "") or "") for part in parts)
+                    if joined.strip():
+                        return joined
+        except Exception:
+            pass
+        return None
+
+    def _get_finish_reason(self, response: Any) -> Optional[str]:
+        try:
+            candidates = getattr(response, "candidates", None)
+            if isinstance(candidates, list) and candidates:
+                finish_reason = getattr(candidates[0], "finish_reason", None)
+                return str(finish_reason) if finish_reason is not None else None
+        except Exception:
+            return None
+        return None
+
+    def _get_usage_counts(self, response: Any) -> dict[str, Optional[int]]:
+        usage = getattr(response, "usage_metadata", None) or getattr(response, "usage", None)
+        counts: dict[str, Optional[int]] = {"prompt_tokens": None, "output_tokens": None, "total_tokens": None}
+        if usage is None:
+            return counts
+
+        if isinstance(usage, dict):
+            for key in ("prompt_token_count", "prompt_tokens", "input_tokens"):
+                if isinstance(usage.get(key), int):
+                    counts["prompt_tokens"] = usage.get(key)
+                    break
+            for key in ("candidates_token_count", "output_tokens", "completion_tokens"):
+                if isinstance(usage.get(key), int):
+                    counts["output_tokens"] = usage.get(key)
+                    break
+            for key in ("total_token_count", "total_tokens"):
+                if isinstance(usage.get(key), int):
+                    counts["total_tokens"] = usage.get(key)
+                    break
+            return counts
+
+        for attr, key in (
+            ("prompt_token_count", "prompt_tokens"),
+            ("prompt_tokens", "prompt_tokens"),
+            ("input_tokens", "prompt_tokens"),
+            ("candidates_token_count", "output_tokens"),
+            ("output_tokens", "output_tokens"),
+            ("completion_tokens", "output_tokens"),
+            ("total_token_count", "total_tokens"),
+            ("total_tokens", "total_tokens"),
+        ):
+            value = getattr(usage, attr, None)
+            if isinstance(value, int) and counts[key] is None:
+                counts[key] = value
+        return counts
+
+    def _looks_truncated(
+        self,
+        response: Any,
+        *,
+        parsed_ok: bool,
+        text: Optional[str],
+        parse_exc: Optional[Exception] = None,
+    ) -> bool:
+        finish_reason = (self._get_finish_reason(response) or "").upper()
+        if "MAX_TOKENS" in finish_reason or "LENGTH" in finish_reason:
+            return True
+
+        output_tokens = self._get_usage_counts(response).get("output_tokens")
+        if isinstance(output_tokens, int) and self.max_output_tokens:
+            if output_tokens >= int(self.max_output_tokens * self.continuation_near_token_ratio):
+                return True
+
+        if not parsed_ok and parse_exc is not None:
+            message = str(parse_exc).lower()
+            if "unterminated" in message or "expecting" in message or "eof" in message or "end of" in message:
+                return True
+
+        if isinstance(text, str) and text.strip() and not parsed_ok:
+            if text.rstrip()[-1] not in {"}", "]"}:
+                return True
+        return False
+
+    def _coerce_parsed_obj(self, obj: Any) -> Any:
+        if hasattr(obj, "model_dump"):
+            try:
+                return obj.model_dump()
+            except Exception:
+                pass
+        if hasattr(obj, "dict"):
+            try:
+                return obj.dict()
+            except Exception:
+                pass
+        return obj
+
     def _parse_response_payload(self, response: Any) -> dict[str, Any]:
-        parsed = getattr(response, "parsed", None)
-        if hasattr(parsed, "model_dump"):
-            parsed = parsed.model_dump()
+        parsed = self._coerce_parsed_obj(getattr(response, "parsed", None))
         if isinstance(parsed, dict):
             return parsed
-        text = getattr(response, "text", None)
+        text = self._get_resp_text(response)
         if not text:
             raise ValueError("Gemini returned an empty response")
         payload = json.loads(text)
         if not isinstance(payload, dict):
             raise ValueError("Gemini returned an unexpected response")
         return payload
+
+    def _generation_config(self, schema: types.Schema, *, temperature: float = 0.1) -> types.GenerateContentConfig:
+        return types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=schema,
+            temperature=temperature,
+            max_output_tokens=self.max_output_tokens,
+        )
+
+    def _salvage_collection_from_text(self, text: str, collection_key: str) -> list[dict[str, Any]]:
+        if not isinstance(text, str) or not text:
+            return []
+
+        key_index = text.find(f'"{collection_key}"')
+        if key_index == -1:
+            key_index = text.find(f"'{collection_key}'")
+        if key_index == -1:
+            return []
+
+        array_index = text.find("[", key_index)
+        if array_index == -1:
+            return []
+
+        decoder = json.JSONDecoder()
+        items: list[dict[str, Any]] = []
+        index = array_index + 1
+        while index < len(text):
+            while index < len(text) and text[index] in " \t\r\n,":
+                index += 1
+            if index >= len(text) or text[index] == "]":
+                break
+            try:
+                value, end = decoder.raw_decode(text, index)
+            except Exception:
+                break
+            if isinstance(value, dict):
+                items.append(value)
+            index = end
+        return items
+
+    def _parse_or_salvage_collection(
+        self,
+        response: Any,
+        collection_key: str,
+    ) -> tuple[list[dict[str, Any]], list[str], bool, Optional[str], Optional[Exception]]:
+        text = self._get_resp_text(response)
+        try:
+            payload = self._parse_response_payload(response)
+            collection = payload.get(collection_key)
+            if collection is None:
+                collection = []
+            if not isinstance(collection, list):
+                raise ValueError(f"Gemini response '{collection_key}' is not a list")
+            warnings = payload.get("warnings") or []
+            return (
+                [item for item in collection if isinstance(item, dict)],
+                [str(item) for item in warnings if str(item).strip()] if isinstance(warnings, list) else [],
+                True,
+                text,
+                None,
+            )
+        except Exception as exc:
+            salvaged = self._salvage_collection_from_text(text or "", collection_key)
+            if salvaged:
+                return salvaged, [], False, text, exc
+            return [], [], False, text, exc
+
+    def _collection_item_key(self, item: dict[str, Any]) -> str:
+        try:
+            return json.dumps(item, separators=(",", ":"), ensure_ascii=True, sort_keys=True)
+        except Exception:
+            return str(item)
+
+    def _compute_collection_overlap(self, existing: list[dict[str, Any]], new_items: list[dict[str, Any]], max_items: int) -> int:
+        if not existing or not new_items or max_items <= 0:
+            return 0
+        max_items = min(max_items, len(existing), len(new_items))
+        existing_keys = [self._collection_item_key(item) for item in existing[-max_items:]]
+        new_keys = [self._collection_item_key(item) for item in new_items[:max_items]]
+        for size in range(max_items, 0, -1):
+            if existing_keys[-size:] == new_keys[:size]:
+                return size
+        return 0
+
+    def _looks_like_collection_restart(self, existing: list[dict[str, Any]], new_items: list[dict[str, Any]]) -> bool:
+        if len(existing) < 50 or len(new_items) < 10:
+            return False
+        return [self._collection_item_key(item) for item in existing[:10]] == [
+            self._collection_item_key(item) for item in new_items[:10]
+        ]
+
+    def _build_collection_continuation_prompt(
+        self,
+        prompt: str,
+        *,
+        collection_key: str,
+        tail_items: list[dict[str, Any]],
+    ) -> str:
+        tail_json = json.dumps(tail_items, separators=(",", ":"), ensure_ascii=True)
+        max_items_line = ""
+        if self.continuation_max_items_per_call > 0:
+            max_items_line = f"- Return at most {self.continuation_max_items_per_call} {collection_key} entries in this response.\n"
+        return (
+            f"{prompt}\n\n"
+            "Continuation:\n"
+            f"- You previously returned some '{collection_key}' entries for this SAME target and source.\n"
+            f"- Continue with the next '{collection_key}' entries that come AFTER the tail entries below.\n"
+            "- Do not repeat any tail entries.\n"
+            f"{max_items_line}"
+            f"- If there are no more entries, return {{\"{collection_key}\":[],\"warnings\":[]}}.\n\n"
+            f"Tail entries already returned: {tail_json}\n"
+        )
+
+    def _generate_collection_json_response(
+        self,
+        contents: list[Any],
+        *,
+        prompt: str,
+        schema: types.Schema,
+        collection_key: str,
+        label: str,
+        continue_on_full_batch: bool = False,
+    ) -> dict[str, Any]:
+        self._ensure_client()
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=contents + [prompt],
+            config=self._generation_config(schema),
+        )
+        items, warnings, parsed_ok, text, parse_exc = self._parse_or_salvage_collection(response, collection_key)
+        truncated = self._looks_truncated(response, parsed_ok=parsed_ok, text=text, parse_exc=parse_exc)
+        logger.info(
+            "Form Fill Gemini response (%s): %s=%s, parsed_ok=%s, truncated=%s, finish_reason=%s, usage=%s",
+            label,
+            collection_key,
+            len(items),
+            parsed_ok,
+            truncated,
+            self._get_finish_reason(response),
+            self._get_usage_counts(response),
+        )
+
+        if not parsed_ok and not truncated:
+            raise parse_exc or ValueError("Failed to parse Gemini response")
+
+        all_items = list(items)
+        all_warnings = list(warnings)
+        full_batch = (
+            continue_on_full_batch
+            and self.continuation_max_items_per_call > 0
+            and len(items) >= self.continuation_max_items_per_call
+        )
+        if not self.continuation_enabled or (not truncated and not full_batch):
+            return {collection_key: all_items, "warnings": all_warnings}
+
+        no_growth_rounds = 0
+        for round_index in range(1, self.continuation_max_rounds + 1):
+            tail_count = max(0, self.continuation_tail_items)
+            tail_items = all_items[-tail_count:] if tail_count else []
+            continuation_prompt = self._build_collection_continuation_prompt(
+                prompt,
+                collection_key=collection_key,
+                tail_items=tail_items,
+            )
+            continuation_response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=contents + [continuation_prompt],
+                config=self._generation_config(schema, temperature=0.0),
+            )
+            new_items, new_warnings, parsed_ok2, text2, parse_exc2 = self._parse_or_salvage_collection(
+                continuation_response,
+                collection_key,
+            )
+            truncated2 = self._looks_truncated(continuation_response, parsed_ok=parsed_ok2, text=text2, parse_exc=parse_exc2)
+            if not parsed_ok2 and not truncated2:
+                raise parse_exc2 or ValueError("Failed to parse Gemini continuation response")
+
+            overlap = self._compute_collection_overlap(all_items, new_items, max(1, self.continuation_tail_items))
+            if overlap == 0 and self._looks_like_collection_restart(all_items, new_items):
+                logger.warning("Form Fill Gemini continuation (%s) restarted from the beginning; stopping", label)
+                break
+
+            appended = new_items[overlap:] if overlap else new_items
+            all_items.extend(appended)
+            all_warnings.extend(new_warnings)
+            logger.info(
+                "Form Fill Gemini continuation (%s) round=%s: returned=%s, added=%s, total=%s, truncated=%s, finish_reason=%s, usage=%s",
+                label,
+                round_index,
+                len(new_items),
+                len(appended),
+                len(all_items),
+                truncated2,
+                self._get_finish_reason(continuation_response),
+                self._get_usage_counts(continuation_response),
+            )
+
+            if not new_items:
+                break
+            if appended:
+                no_growth_rounds = 0
+            else:
+                no_growth_rounds += 1
+            full_batch2 = (
+                continue_on_full_batch
+                and self.continuation_max_items_per_call > 0
+                and len(new_items) >= self.continuation_max_items_per_call
+            )
+            if no_growth_rounds >= 2 or (not truncated2 and not full_batch2):
+                break
+
+        return {collection_key: all_items, "warnings": all_warnings}
 
     def _extract_pdf_form_fields(self, local_path: str) -> list[str]:
         from PyPDF2 import PdfReader
@@ -1081,12 +1411,7 @@ class FormFillService:
         response = self.client.models.generate_content(
             model=self.model_name,
             contents=contents,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=schema,
-                temperature=0.1,
-                max_output_tokens=65536,
-            ),
+            config=self._generation_config(schema),
         )
         return self._parse_response_payload(response)
 
@@ -1763,6 +2088,58 @@ Instructions:
 - Add any important caveats to warnings.
 """
 
+    def _generate_mapping_payload(
+        self,
+        contents: list[Any],
+        *,
+        source_text: str,
+        mapping_items: list[str],
+        mapping_label: str,
+        target_hint: str,
+        label: str,
+    ) -> dict[str, Any]:
+        all_items: list[dict[str, Any]] = []
+        all_warnings: list[str] = []
+        chunk_size = max(1, int(self.mapping_chunk_size or self.continuation_max_items_per_call or 250))
+
+        for start in range(0, len(mapping_items), chunk_size):
+            chunk = mapping_items[start : start + chunk_size]
+            prompt = self._build_mapping_prompt(
+                source_text=source_text,
+                mapping_items=chunk,
+                mapping_label=mapping_label,
+                target_hint=target_hint,
+            )
+            payload = self._generate_collection_json_response(
+                contents,
+                prompt=prompt,
+                schema=self._field_mapping_schema(),
+                collection_key="items",
+                label=f"{label}:chunk_{(start // chunk_size) + 1}",
+            )
+            allowed_names = {str(item) for item in chunk}
+            all_items.extend(
+                item
+                for item in (payload.get("items") or [])
+                if isinstance(item, dict) and str(item.get("name") or "") in allowed_names
+            )
+            all_warnings.extend([str(item) for item in (payload.get("warnings") or []) if str(item).strip()])
+
+        return {"items": all_items, "warnings": all_warnings}
+
+    def _compact_fill_plan(self, fill_plan: dict[str, Any]) -> dict[str, Any]:
+        compact: dict[str, Any] = {}
+        for key, value in (fill_plan or {}).items():
+            if key in {"items", "operations", "table_operations"} and isinstance(value, list):
+                compact[f"{key}_count"] = len(value)
+                compact[f"{key}_sample"] = value[:20]
+            elif key in {"field_values", "replacements"} and isinstance(value, dict):
+                compact[f"{key}_count"] = len(value)
+                compact[f"{key}_sample"] = dict(list(value.items())[:50])
+            else:
+                compact[key] = value
+        return compact
+
     async def _generate_filled_document(
         self,
         *,
@@ -1782,16 +2159,13 @@ Instructions:
             target_parts.append(self._part_from_uri(self.storage_service.construct_gcs_uri_for_object(run.target_gcs_object_name), PDF_MIME))
             if pdf_fields:
                 processing_strategy = "fillable_pdf"
-                mapping_payload = self._generate_json_response(
-                    source_parts + target_parts + [
-                        self._build_mapping_prompt(
-                            source_text=source_text,
-                            mapping_items=pdf_fields,
-                            mapping_label="Fillable PDF field names",
-                            target_hint="fillable PDF form",
-                        )
-                    ],
-                    self._field_mapping_schema(),
+                mapping_payload = self._generate_mapping_payload(
+                    source_parts + target_parts,
+                    source_text=source_text,
+                    mapping_items=pdf_fields,
+                    mapping_label="Fillable PDF field names",
+                    target_hint="fillable PDF form",
+                    label="fillable_pdf_mapping",
                 )
                 field_values = {
                     str(item.get("name")): "" if item.get("value") is None else str(item.get("value"))
@@ -1808,19 +2182,22 @@ Instructions:
                     "mime_type": PDF_MIME,
                     "strategy": processing_strategy,
                     "warnings": warnings,
-                    "fill_plan": fill_plan,
+                    "fill_plan": self._compact_fill_plan(fill_plan),
                 }
 
             processing_strategy = "pdf_overlay"
             target_preview_text = self._page_texts_with_numbers(target_local_path)
-            overlay_payload = self._generate_json_response(
-                source_parts + target_parts + [
-                    self._build_pdf_overlay_prompt(
-                        source_text=source_text,
-                        target_preview_text=target_preview_text,
-                    )
-                ],
-                self._pdf_overlay_schema(),
+            overlay_prompt = self._build_pdf_overlay_prompt(
+                source_text=source_text,
+                target_preview_text=target_preview_text,
+            )
+            overlay_payload = self._generate_collection_json_response(
+                source_parts + target_parts,
+                prompt=overlay_prompt,
+                schema=self._pdf_overlay_schema(),
+                collection_key="items",
+                label="pdf_overlay",
+                continue_on_full_batch=True,
             )
             overlay_items = [
                 item for item in (overlay_payload.get("items") or []) if isinstance(item, dict) and str(item.get("overlay_text") or "").strip()
@@ -1836,7 +2213,7 @@ Instructions:
                 "mime_type": PDF_MIME,
                 "strategy": processing_strategy,
                 "warnings": warnings,
-                "fill_plan": fill_plan,
+                "fill_plan": self._compact_fill_plan(fill_plan),
             }
 
         if run.target_file_type == DOCX_MIME:
@@ -1847,16 +2224,13 @@ Instructions:
             placeholders = self._extract_docx_placeholders(target_local_path)
             if placeholders:
                 processing_strategy = "docx_placeholders"
-                mapping_payload = self._generate_json_response(
-                    source_parts + target_parts + [
-                        self._build_mapping_prompt(
-                            source_text=source_text,
-                            mapping_items=placeholders,
-                            mapping_label="DOCX placeholders",
-                            target_hint="DOCX template",
-                        )
-                    ],
-                    self._field_mapping_schema(),
+                mapping_payload = self._generate_mapping_payload(
+                    source_parts + target_parts,
+                    source_text=source_text,
+                    mapping_items=placeholders,
+                    mapping_label="DOCX placeholders",
+                    target_hint="DOCX template",
+                    label="docx_placeholder_mapping",
                 )
                 replacements = {
                     str(item.get("name")): "" if item.get("value") is None else str(item.get("value"))
@@ -1881,18 +2255,21 @@ Instructions:
                     docx_tables, _table_map = self._collect_docx_tables(placeholder_doc)
                     table_operations: list[dict[str, Any]] = []
                     if docx_tables:
-                        edit_payload = self._generate_json_response(
-                            source_parts + target_parts + [
-                                self._build_docx_edit_prompt(
-                                    source_text=source_text,
-                                    block_summary=self._summarize_docx_blocks(docx_blocks),
-                                    table_summary=self._summarize_docx_tables(docx_tables),
-                                    target_preview_text=self._extract_docx_text(output_docx_path),
-                                    allow_table_expansion=True,
-                                    restrict_to_table_expansion=True,
-                                )
-                            ],
-                            self._docx_edit_schema(),
+                        edit_prompt = self._build_docx_edit_prompt(
+                            source_text=source_text,
+                            block_summary=self._summarize_docx_blocks(docx_blocks),
+                            table_summary=self._summarize_docx_tables(docx_tables),
+                            target_preview_text=self._extract_docx_text(output_docx_path),
+                            allow_table_expansion=True,
+                            restrict_to_table_expansion=True,
+                        )
+                        edit_payload = self._generate_collection_json_response(
+                            source_parts + target_parts,
+                            prompt=edit_prompt,
+                            schema=self._docx_edit_schema(),
+                            collection_key="operations",
+                            label="docx_table_expansion",
+                            continue_on_full_batch=True,
                         )
                         operations = [
                             item
@@ -1925,17 +2302,20 @@ Instructions:
                 target_doc = DocxDocument(target_local_path)
                 docx_blocks, _block_map = self._collect_docx_blocks(target_doc)
                 docx_tables, _table_map = self._collect_docx_tables(target_doc)
-                edit_payload = self._generate_json_response(
-                    source_parts + target_parts + [
-                        self._build_docx_edit_prompt(
-                            source_text=source_text,
-                            block_summary=self._summarize_docx_blocks(docx_blocks),
-                            table_summary=self._summarize_docx_tables(docx_tables),
-                            target_preview_text=target_preview_text,
-                            allow_table_expansion=bool(run.allow_docx_table_expansion),
-                        )
-                    ],
-                    self._docx_edit_schema(),
+                edit_prompt = self._build_docx_edit_prompt(
+                    source_text=source_text,
+                    block_summary=self._summarize_docx_blocks(docx_blocks),
+                    table_summary=self._summarize_docx_tables(docx_tables),
+                    target_preview_text=target_preview_text,
+                    allow_table_expansion=bool(run.allow_docx_table_expansion),
+                )
+                edit_payload = self._generate_collection_json_response(
+                    source_parts + target_parts,
+                    prompt=edit_prompt,
+                    schema=self._docx_edit_schema(),
+                    collection_key="operations",
+                    label="docx_edit_in_place",
+                    continue_on_full_batch=True,
                 )
                 operations = [
                     item for item in (edit_payload.get("operations") or []) if isinstance(item, dict) and str(item.get("action") or "").strip()
@@ -1969,7 +2349,7 @@ Instructions:
                 "mime_type": final_mime_type,
                 "strategy": processing_strategy,
                 "warnings": warnings,
-                "fill_plan": fill_plan,
+                "fill_plan": self._compact_fill_plan(fill_plan),
             }
 
         raise ValueError("Unsupported target file type")

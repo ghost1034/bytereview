@@ -473,6 +473,11 @@ Environment configuration (.env)
     - GCS_BUCKET_NAME=your-dev-bucket
     - GEMINI_MAX_OUTPUT_TOKENS=65536 (optional; default 65536)
     - GEMINI_TEMPERATURE=1.0 (optional; default 1.0)
+    - FORM_FILL_GEMINI_MAX_OUTPUT_TOKENS=65536 (optional; default 65536)
+    - FORM_FILL_CONTINUATION_ENABLED=true (optional; default true)
+    - FORM_FILL_CONTINUATION_MAX_ROUNDS=20 (optional; default 20)
+    - FORM_FILL_CONTINUATION_MAX_ITEMS_PER_CALL=250 (optional; default 250)
+    - FORM_FILL_MAPPING_CHUNK_SIZE=250 (optional; default FORM_FILL_CONTINUATION_MAX_ITEMS_PER_CALL)
   - Google OAuth and Integrations
     - GOOGLE_CLIENT_ID=...
     - GOOGLE_CLIENT_SECRET=...

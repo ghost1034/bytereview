@@ -464,6 +464,211 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Email: jane@example.com", source_text)
 
 
+class FormFillServiceContinuationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.service = FormFillService()
+
+    def _response(
+        self,
+        *,
+        text: str | None = None,
+        parsed: dict[str, object] | None = None,
+        finish_reason: str = "STOP",
+        output_tokens: int = 10,
+    ) -> SimpleNamespace:
+        return SimpleNamespace(
+            text=text,
+            parsed=parsed,
+            candidates=[SimpleNamespace(finish_reason=finish_reason)],
+            usage_metadata=SimpleNamespace(candidates_token_count=output_tokens),
+        )
+
+    def test_salvages_complete_operations_from_truncated_json(self) -> None:
+        text = '{"operations":[{"action":"replace_block_text","block_id":"a"},{"action":"insert_after_block","block_id":"b"},'
+
+        operations = self.service._salvage_collection_from_text(text, "operations")
+
+        self.assertEqual(
+            operations,
+            [
+                {"action": "replace_block_text", "block_id": "a"},
+                {"action": "insert_after_block", "block_id": "b"},
+            ],
+        )
+
+    def test_collection_continuation_merges_overlap_without_duplication(self) -> None:
+        self.service.client = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=MagicMock(
+                    side_effect=[
+                        self._response(
+                            text='{"operations":[{"action":"replace_block_text","block_id":"a"},{"action":"insert_after_block","block_id":"b"},',
+                            finish_reason="MAX_TOKENS",
+                        ),
+                        self._response(
+                            text=(
+                                '{"operations":['
+                                '{"action":"insert_after_block","block_id":"b"},'
+                                '{"action":"append_to_block","block_id":"c"}'
+                                '],"warnings":["continued"]}'
+                            )
+                        ),
+                    ]
+                )
+            )
+        )
+
+        payload = self.service._generate_collection_json_response(
+            [],
+            prompt="Edit the DOCX.",
+            schema=self.service._docx_edit_schema(),
+            collection_key="operations",
+            label="test",
+        )
+
+        self.assertEqual(
+            payload["operations"],
+            [
+                {"action": "replace_block_text", "block_id": "a"},
+                {"action": "insert_after_block", "block_id": "b"},
+                {"action": "append_to_block", "block_id": "c"},
+            ],
+        )
+        self.assertEqual(payload["warnings"], ["continued"])
+        self.assertEqual(self.service.client.models.generate_content.call_count, 2)
+        continuation_contents = self.service.client.models.generate_content.call_args_list[1].kwargs["contents"]
+        self.assertIn("Tail entries already returned", continuation_contents[-1])
+
+    def test_collection_continuation_continues_on_full_batch_without_truncation(self) -> None:
+        self.service.continuation_max_items_per_call = 2
+        self.service.client = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=MagicMock(
+                    side_effect=[
+                        self._response(
+                            parsed={
+                                "operations": [
+                                    {"action": "replace_block_text", "block_id": "a"},
+                                    {"action": "insert_after_block", "block_id": "b"},
+                                ],
+                                "warnings": [],
+                            },
+                            finish_reason="STOP",
+                            output_tokens=10,
+                        ),
+                        self._response(
+                            parsed={
+                                "operations": [
+                                    {"action": "append_to_block", "block_id": "c"},
+                                ],
+                                "warnings": [],
+                            },
+                            finish_reason="STOP",
+                            output_tokens=10,
+                        ),
+                    ]
+                )
+            )
+        )
+
+        payload = self.service._generate_collection_json_response(
+            [],
+            prompt="Edit the DOCX.",
+            schema=self.service._docx_edit_schema(),
+            collection_key="operations",
+            label="test",
+            continue_on_full_batch=True,
+        )
+
+        self.assertEqual(
+            payload["operations"],
+            [
+                {"action": "replace_block_text", "block_id": "a"},
+                {"action": "insert_after_block", "block_id": "b"},
+                {"action": "append_to_block", "block_id": "c"},
+            ],
+        )
+        self.assertEqual(self.service.client.models.generate_content.call_count, 2)
+
+    def test_collection_continuation_does_not_continue_full_batch_when_disabled(self) -> None:
+        self.service.continuation_max_items_per_call = 2
+        self.service.client = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=MagicMock(
+                    return_value=self._response(
+                        parsed={
+                            "items": [
+                                {"name": "A", "value": "1"},
+                                {"name": "B", "value": "2"},
+                            ],
+                            "warnings": [],
+                        },
+                        finish_reason="STOP",
+                        output_tokens=10,
+                    )
+                )
+            )
+        )
+
+        payload = self.service._generate_collection_json_response(
+            [],
+            prompt="Map known fields.",
+            schema=self.service._field_mapping_schema(),
+            collection_key="items",
+            label="test",
+        )
+
+        self.assertEqual(payload["items"], [{"name": "A", "value": "1"}, {"name": "B", "value": "2"}])
+        self.assertEqual(self.service.client.models.generate_content.call_count, 1)
+
+    def test_mapping_payload_chunks_known_names(self) -> None:
+        self.service.mapping_chunk_size = 2
+        self.service.client = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=MagicMock(
+                    side_effect=[
+                        self._response(parsed={"items": [{"name": "A", "value": "1"}, {"name": "B", "value": "2"}], "warnings": []}),
+                        self._response(parsed={"items": [{"name": "C", "value": "3"}], "warnings": ["check C"]}),
+                    ]
+                )
+            )
+        )
+
+        payload = self.service._generate_mapping_payload(
+            [],
+            source_text="Source",
+            mapping_items=["A", "B", "C"],
+            mapping_label="Names",
+            target_hint="target",
+            label="mapping",
+        )
+
+        self.assertEqual(payload["items"], [{"name": "A", "value": "1"}, {"name": "B", "value": "2"}, {"name": "C", "value": "3"}])
+        self.assertEqual(payload["warnings"], ["check C"])
+        self.assertEqual(self.service.client.models.generate_content.call_count, 2)
+        first_prompt = self.service.client.models.generate_content.call_args_list[0].kwargs["contents"][-1]
+        second_prompt = self.service.client.models.generate_content.call_args_list[1].kwargs["contents"][-1]
+        self.assertIn("- A", first_prompt)
+        self.assertIn("- B", first_prompt)
+        self.assertNotIn("- C", first_prompt)
+        self.assertIn("- C", second_prompt)
+
+    def test_compact_fill_plan_stores_counts_and_samples(self) -> None:
+        compact = self.service._compact_fill_plan(
+            {
+                "strategy": "docx_edit_in_place",
+                "operations": [{"action": str(index)} for index in range(25)],
+                "field_values": {str(index): index for index in range(60)},
+            }
+        )
+
+        self.assertEqual(compact["strategy"], "docx_edit_in_place")
+        self.assertEqual(compact["operations_count"], 25)
+        self.assertEqual(len(compact["operations_sample"]), 20)
+        self.assertEqual(compact["field_values_count"], 60)
+        self.assertEqual(len(compact["field_values_sample"]), 50)
+
+
 class FormFillServiceUsageTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.service = FormFillService()
