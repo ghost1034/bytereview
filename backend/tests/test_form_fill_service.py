@@ -17,7 +17,7 @@ from PyPDF2 import PdfWriter
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from services.form_fill_service import FormFillService
+from services.form_fill_service import FormFillService, _normalize_repeat_mode
 
 
 class RetryableGeminiInvalidArgument(Exception):
@@ -613,6 +613,101 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("single source record only", source_text)
         self.assertIn("Participant Name: Jane Doe", source_text)
         self.assertIn("Email: jane@example.com", source_text)
+
+    def test_normalize_repeat_mode_accepts_all_sources(self) -> None:
+        self.assertEqual(_normalize_repeat_mode("all_sources"), "all_sources")
+
+    async def test_process_run_all_sources_uses_combined_source_context_once(self) -> None:
+        run_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
+        run = SimpleNamespace(
+            id=run_id,
+            user_id="user-id",
+            status="pending",
+            repeat_mode="all_sources",
+            target_filename="target.pdf",
+            target_gcs_object_name="target-object",
+            target_file_type="application/pdf",
+            target_page_count=2,
+        )
+        query = MagicMock()
+        query.filter.return_value.first.return_value = run
+        db = MagicMock()
+        db.query.return_value = query
+        self.service._get_session = MagicMock(return_value=db)
+        self.service.storage_service.upload_file = AsyncMock()
+
+        with patch.object(self.service, "_download_to_local", new=AsyncMock()):
+            with patch.object(self.service, "_ensure_run_target_page_count", new=AsyncMock(return_value=2)):
+                with patch.object(self.service, "_source_units_for_run", return_value=[{"record_index": 0}, {"record_index": 1}]) as source_units:
+                    with patch.object(self.service, "_check_usage_limit_or_raise") as check_limit:
+                        with patch.object(self.service, "_build_source_context", new=AsyncMock(return_value=([], "combined source"))) as build_context:
+                            with patch.object(
+                                self.service,
+                                "_generate_filled_document",
+                                new=AsyncMock(
+                                    return_value={
+                                        "local_path": "/tmp/filled.pdf",
+                                        "filename": "target_filled.pdf",
+                                        "mime_type": "application/pdf",
+                                        "strategy": "fillable_pdf",
+                                        "warnings": [],
+                                        "fill_plan": {"strategy": "fillable_pdf"},
+                                    }
+                                ),
+                            ) as generate:
+                                with patch.object(self.service, "_record_usage_for_run") as record_usage:
+                                    result = await self.service.process_run(str(run_id))
+
+        source_units.assert_not_called()
+        check_limit.assert_called_once_with(db, user_id="user-id", page_count=2)
+        build_context.assert_awaited_once()
+        generate.assert_awaited_once()
+        record_usage.assert_called_once_with(db, run)
+        self.assertTrue(result["success"])
+        self.assertEqual(run.status, "completed")
+        self.assertEqual(run.total_outputs, 1)
+        self.assertEqual(run.completed_outputs, 1)
+        self.assertEqual(run.usage_pages, 2)
+
+    async def test_process_run_default_still_enqueues_multiple_source_units(self) -> None:
+        run_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
+        run = SimpleNamespace(
+            id=run_id,
+            user_id="user-id",
+            status="pending",
+            repeat_mode="single",
+            target_filename="target.pdf",
+            target_gcs_object_name="target-object",
+            target_file_type="application/pdf",
+            target_page_count=2,
+        )
+        units = [
+            {"record_index": 0, "record_label": "first", "record_payload": {"kind": "source_file"}},
+            {"record_index": 1, "record_label": "second", "record_payload": {"kind": "source_file"}},
+        ]
+        query = MagicMock()
+        query.filter.return_value.first.return_value = run
+        db = MagicMock()
+        db.query.return_value = query
+        self.service._get_session = MagicMock(return_value=db)
+
+        with patch.object(self.service, "_download_to_local", new=AsyncMock()):
+            with patch.object(self.service, "_ensure_run_target_page_count", new=AsyncMock(return_value=2)):
+                with patch.object(self.service, "_source_units_for_run", return_value=units) as source_units:
+                    with patch.object(self.service, "_enqueue_output_units", new=AsyncMock(return_value={"success": True, "outputs": 2})) as enqueue:
+                        with patch.object(self.service, "_build_source_context", new=AsyncMock()) as build_context:
+                            result = await self.service.process_run(str(run_id))
+
+        source_units.assert_called_once_with(run)
+        enqueue.assert_awaited_once_with(
+            db=db,
+            run=run,
+            target_page_count=2,
+            units=units,
+            strategy="source_files",
+        )
+        build_context.assert_not_called()
+        self.assertEqual(result["outputs"], 2)
 
 
 class FormFillServiceContinuationTests(unittest.TestCase):

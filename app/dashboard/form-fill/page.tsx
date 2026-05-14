@@ -36,6 +36,7 @@ import { cn } from '@/lib/utils'
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 const TERMINAL_RUN_STATUSES = new Set(['completed', 'completed_with_errors', 'failed'])
+type FillMode = 'single' | 'source_rows' | 'all_sources'
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
@@ -141,7 +142,7 @@ export default function FormFillPage() {
   const [allowDocxTableExpansion, setAllowDocxTableExpansion] = useState(true)
   const [outputFormat, setOutputFormat] = useState<'pdf' | 'docx'>('pdf')
   const [hasOutputFormatOverride, setHasOutputFormatOverride] = useState(false)
-  const [repeatMode, setRepeatMode] = useState<'single' | 'source_rows'>('single')
+  const [repeatMode, setRepeatMode] = useState<FillMode>('single')
   const [creating, setCreating] = useState(false)
   const [downloadingRunId, setDownloadingRunId] = useState<string | null>(null)
   const [currentRunId, setCurrentRunId] = useState<string | null>(runIdParam || null)
@@ -278,7 +279,7 @@ export default function FormFillPage() {
     const sourceReady = sourceMode === 'upload' ? sourceFiles.length > 0 : !!extractionPreview
     const targetReady = targetMode === 'upload' ? !!targetFile : !!selectedTemplateId
     const templateReady = !saveAsTemplate || templateName.trim().length > 0
-    const repeatReady = repeatMode === 'single' || repeatModeSupported
+    const repeatReady = repeatMode !== 'source_rows' || repeatModeSupported
     return sourceReady && targetReady && templateReady && repeatReady && !creating
   }, [creating, extractionPreview, repeatMode, repeatModeSupported, saveAsTemplate, selectedTemplateId, sourceFiles, sourceMode, targetFile, targetMode, templateName])
 
@@ -635,6 +636,13 @@ export default function FormFillPage() {
               </Button>
               <Button
                 type="button"
+                variant={repeatMode === 'all_sources' ? 'default' : 'outline'}
+                onClick={() => setRepeatMode('all_sources')}
+              >
+                Fill once for all files
+              </Button>
+              <Button
+                type="button"
                 variant={repeatMode === 'source_rows' ? 'default' : 'outline'}
                 disabled={!repeatModeSupported}
                 onClick={() => setRepeatMode('source_rows')}
@@ -643,7 +651,7 @@ export default function FormFillPage() {
               </Button>
             </div>
             <p className="text-xs text-foreground-muted">
-              “Fill once per file/row" fills the form once for each file/row and downloads a ZIP of filled documents.
+              “Fill once per file" creates one filled document per uploaded file or extraction task. “Fill once for all files" uses every source together to create one filled document. “Fill once per row" creates one filled document per CSV, XLSX, or extraction row.
             </p>
             {!repeatModeSupported && sourceMode === 'upload' && sourceFiles.length > 0 && (
               <p className="text-xs text-warning">

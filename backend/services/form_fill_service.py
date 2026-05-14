@@ -71,6 +71,7 @@ DEFAULT_MAX_SOURCE_FILES = 100
 DEFAULT_MAX_TOTAL_SOURCE_BYTES = 1000 * 1024 * 1024
 REPEAT_MODE_SINGLE = "single"
 REPEAT_MODE_SOURCE_ROWS = "source_rows"
+REPEAT_MODE_ALL_SOURCES = "all_sources"
 REPEAT_LABEL_COLUMNS = ("participant", "participant name", "name", "full name", "client", "customer", "employee")
 SOURCE_SCOPE_TASK = "task"
 SOURCE_SCOPE_ALL = "all"
@@ -111,6 +112,8 @@ def _normalize_output_format(value: Optional[str]) -> Optional[str]:
 
 def _normalize_repeat_mode(value: Optional[str]) -> str:
     lowered = (value or REPEAT_MODE_SINGLE).strip().lower()
+    if lowered == REPEAT_MODE_ALL_SOURCES:
+        return REPEAT_MODE_ALL_SOURCES
     if lowered in {"source_rows", "rows", "repeat"}:
         return REPEAT_MODE_SOURCE_ROWS
     return REPEAT_MODE_SINGLE
@@ -810,7 +813,7 @@ class FormFillService:
                 run.source_filename = source_filenames[0] if len(source_filenames) == 1 else f"{len(source_filenames)} source files"
                 run.source_file_type = source_mime_types[0] if len(set(source_mime_types)) == 1 else "multiple"
                 run.source_file_size_bytes = total_source_bytes
-                if normalized_repeat_mode != REPEAT_MODE_SOURCE_ROWS and len(uploaded_source_files) > 1:
+                if normalized_repeat_mode not in {REPEAT_MODE_SOURCE_ROWS, REPEAT_MODE_ALL_SOURCES} and len(uploaded_source_files) > 1:
                     run.total_outputs = len(uploaded_source_files)
             else:
                 payload = self._load_extraction_source_payload(
@@ -827,7 +830,7 @@ class FormFillService:
                 run.source_job_id = uuid.UUID(str(source_job_id))
                 run.source_run_id = uuid.UUID(str(source_run_id))
                 run.source_task_id = uuid.UUID(str(source_task_id)) if source_task_id else None
-                if normalized_repeat_mode != REPEAT_MODE_SOURCE_ROWS:
+                if normalized_repeat_mode not in {REPEAT_MODE_SOURCE_ROWS, REPEAT_MODE_ALL_SOURCES}:
                     extraction_task_units = self._extraction_task_units_from_payload(payload)
                     if len(extraction_task_units) > 1:
                         run.total_outputs = len(extraction_task_units)
@@ -2953,16 +2956,17 @@ Instructions:
                     strategy="repeat_source_rows",
                 )
 
-            source_units = self._source_units_for_run(run)
-            if len(source_units) > 1:
-                unit_kind = source_units[0].get("record_payload", {}).get("kind") if isinstance(source_units[0].get("record_payload"), dict) else None
-                return await self._enqueue_output_units(
-                    db=db,
-                    run=run,
-                    target_page_count=target_page_count,
-                    units=source_units,
-                    strategy="extraction_tasks" if unit_kind == "extraction_task" else "source_files",
-                )
+            if (run.repeat_mode or REPEAT_MODE_SINGLE) != REPEAT_MODE_ALL_SOURCES:
+                source_units = self._source_units_for_run(run)
+                if len(source_units) > 1:
+                    unit_kind = source_units[0].get("record_payload", {}).get("kind") if isinstance(source_units[0].get("record_payload"), dict) else None
+                    return await self._enqueue_output_units(
+                        db=db,
+                        run=run,
+                        target_page_count=target_page_count,
+                        units=source_units,
+                        strategy="extraction_tasks" if unit_kind == "extraction_task" else "source_files",
+                    )
 
             self._check_usage_limit_or_raise(db, user_id=run.user_id, page_count=target_page_count)
             source_parts: list[Any] = []

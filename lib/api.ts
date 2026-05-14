@@ -1438,7 +1438,7 @@ export interface FormFillRun {
   target_page_count?: number | null
   allow_docx_table_expansion: boolean
   output_format: string
-  repeat_mode: 'single' | 'source_rows' | string
+  repeat_mode: 'single' | 'source_rows' | 'all_sources' | string
   total_outputs: number
   completed_outputs: number
   failed_outputs: number
@@ -1496,7 +1496,7 @@ export interface CreateFormFillRunParams {
   targetFile?: File
   templateId?: string
   outputFormat?: 'pdf' | 'docx'
-  repeatMode?: 'single' | 'source_rows'
+  repeatMode?: 'single' | 'source_rows' | 'all_sources'
   allowDocxTableExpansion?: boolean
   saveTemplateName?: string
   saveTemplateDescription?: string
