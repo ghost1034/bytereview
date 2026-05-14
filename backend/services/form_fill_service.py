@@ -174,6 +174,8 @@ class FormFillService:
         lowered = message.lower()
         if status_int == 429 or (status_int is not None and status_int >= 500):
             return True
+        if status_int == 499 and "cancelled" in lowered:
+            return True
         if status_int == 400 and "invalid_argument" in lowered and "request contains an invalid argument" in lowered:
             return True
         if any(token in lowered for token in ("timeout", "timed out", "connection", "temporarily unavailable", "service unavailable")):

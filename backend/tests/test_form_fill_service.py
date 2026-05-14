@@ -27,6 +27,13 @@ class RetryableGeminiInvalidArgument(Exception):
         return "400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 'status': 'INVALID_ARGUMENT'}}"
 
 
+class RetryableGeminiCancelled(Exception):
+    status_code = 499
+
+    def __str__(self) -> str:
+        return "499 CANCELLED. {'error': {'code': 499, 'message': 'The operation was cancelled.', 'status': 'CANCELLED'}}"
+
+
 class FormFillServiceDocxEditPlanTests(unittest.TestCase):
     def setUp(self) -> None:
         self.service = FormFillService()
@@ -993,6 +1000,15 @@ class FormFillOutputRetryTests(unittest.IsolatedAsyncioTestCase):
                 RetryableGeminiInvalidArgument(),
                 task_retry_count=self.service.output_max_attempts - 1,
                 task_execution_count=self.service.output_max_attempts,
+            )
+        )
+
+    def test_gemini_cancelled_is_retryable_before_final_attempt(self) -> None:
+        self.assertTrue(
+            self.service._should_retry_output_error(
+                RetryableGeminiCancelled(),
+                task_retry_count=0,
+                task_execution_count=1,
             )
         )
 

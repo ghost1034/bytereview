@@ -69,8 +69,8 @@ class CloudRunTaskService:
         max_attempts = max(1, self._env_int("TASK_EXTRACT_MAX_ATTEMPTS", 3))
         return {
             "max_attempts": max_attempts,
-            "max_retry_duration": f"{max(0, self._env_int('TASK_EXTRACT_MAX_RETRY_DURATION_SECONDS', 900))}s",
-            "min_backoff": f"{max(1, self._env_int('TASK_EXTRACT_MIN_BACKOFF_SECONDS', 10))}s",
+            "max_retry_duration": f"{max(0, self._env_int('TASK_EXTRACT_MAX_RETRY_DURATION_SECONDS', 7200))}s",
+            "min_backoff": f"{max(1, self._env_int('TASK_EXTRACT_MIN_BACKOFF_SECONDS', 30))}s",
             "max_backoff": f"{max(1, self._env_int('TASK_EXTRACT_MAX_BACKOFF_SECONDS', 300))}s",
             "max_doublings": max(0, self._env_int("TASK_EXTRACT_MAX_DOUBLINGS", 5)),
         }

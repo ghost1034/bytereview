@@ -156,7 +156,7 @@ deploy_service \
      --service-account=$SERVICE_ACCOUNT \
      --no-cpu-throttling \
      --set-secrets=DATABASE_URL=DATABASE_URL:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION,TASK_EXTRACT_MAX_ATTEMPTS=3,TASK_EXTRACT_MIN_BACKOFF_SECONDS=10,TASK_EXTRACT_MAX_BACKOFF_SECONDS=300,TASK_EXTRACT_MAX_RETRY_DURATION_SECONDS=900"
+     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION,TASK_EXTRACT_DISPATCH_DEADLINE_SECONDS=1800,TASK_EXTRACT_MAX_ATTEMPTS=3,TASK_EXTRACT_MIN_BACKOFF_SECONDS=30,TASK_EXTRACT_MAX_BACKOFF_SECONDS=300,TASK_EXTRACT_MAX_RETRY_DURATION_SECONDS=7200"
 
 # Deploy I/O Task Service
 echo -e "${BLUE}=== Deploying I/O Task Service ===${NC}"
@@ -220,6 +220,15 @@ deploy_service \
      --no-cpu-throttling \
      --set-secrets=DATABASE_URL=DATABASE_URL:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
+
+echo -e "${BLUE}=== Updating Extract Task Queue Retry Policy ===${NC}"
+gcloud tasks queues update extract-tasks \
+    --location=$REGION \
+    --max-attempts=3 \
+    --min-backoff=30s \
+    --max-backoff=300s \
+    --max-retry-duration=7200s
+echo -e "${GREEN}✅ extract-tasks retry policy updated${NC}"
 
 # # Setup Cloud Tasks queues
 # echo -e "${BLUE}=== Setting up Cloud Tasks Queues ===${NC}"
