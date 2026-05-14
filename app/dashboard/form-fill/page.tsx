@@ -138,7 +138,7 @@ export default function FormFillPage() {
   const [saveAsTemplate, setSaveAsTemplate] = useState(false)
   const [templateName, setTemplateName] = useState('')
   const [templateDescription, setTemplateDescription] = useState('')
-  const [allowDocxTableExpansion, setAllowDocxTableExpansion] = useState(false)
+  const [allowDocxTableExpansion, setAllowDocxTableExpansion] = useState(true)
   const [outputFormat, setOutputFormat] = useState<'pdf' | 'docx'>('pdf')
   const [hasOutputFormatOverride, setHasOutputFormatOverride] = useState(false)
   const [repeatMode, setRepeatMode] = useState<'single' | 'source_rows'>('single')
@@ -271,9 +271,7 @@ export default function FormFillPage() {
       setAllowDocxTableExpansion(Boolean(selectedTemplate.allow_docx_table_expansion))
       return
     }
-    if (targetMimeType !== DOCX_MIME) {
-      setAllowDocxTableExpansion(false)
-    }
+    setAllowDocxTableExpansion(targetMimeType === DOCX_MIME)
   }, [selectedTemplate, targetMimeType, targetMode])
 
   const canSubmit = useMemo(() => {
