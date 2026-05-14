@@ -1004,6 +1004,89 @@ class FormFillServiceContinuationTests(unittest.TestCase):
         self.assertEqual(compact["field_values_count"], 60)
         self.assertEqual(len(compact["field_values_sample"]), 50)
 
+    def test_extraction_tabular_context_converts_rows_to_dicts(self) -> None:
+        context = self.service._extraction_tabular_context(
+            {
+                "columns": ["Name", "Amount"],
+                "rows": [["Checking", "$100.50"], ["Savings", "250"]],
+                "source_files": ["source.pdf"],
+            }
+        )
+
+        self.assertIsNotNone(context)
+        self.assertEqual(context["row_count"], 2)
+        self.assertEqual(context["columns"], ["Name", "Amount"])
+        self.assertEqual(context["rows"][0]["Name"], "Checking")
+        self.assertEqual(context["rows"][0]["_source_file"], "extraction results")
+        self.assertEqual(context["source_files"], ["source.pdf"])
+
+    def test_generated_transform_executes_against_all_rows(self) -> None:
+        code = """
+def transform(rows, context):
+    operations = []
+    for index, row in enumerate(rows):
+        operations.append({
+            "action": "insert_table_row_after",
+            "table_id": "table.0",
+            "row_index": index,
+            "cells": [as_text(row.get("Name")), as_text(row.get("Amount"))],
+        })
+    return {"operations": operations, "warnings": []}
+"""
+
+        result = self.service._execute_generated_transform(
+            code,
+            rows=[{"Name": "Checking", "Amount": "100"}, {"Name": "Savings", "Amount": "250"}],
+            context={"target_kind": "DOCX edit in place"},
+        )
+
+        self.assertEqual(len(result["operations"]), 2)
+        self.assertEqual(result["operations"][1]["cells"], ["Savings", "250"])
+
+    def test_generated_transform_blocks_imports(self) -> None:
+        with self.assertRaisesRegex(ValueError, "may not import"):
+            self.service._execute_generated_transform(
+                "import os\ndef transform(rows, context):\n    return {'operations': [], 'warnings': []}",
+                rows=[],
+                context={},
+            )
+
+    def test_generate_and_execute_tabular_transform_uses_one_code_generation_call(self) -> None:
+        code = """
+def transform(rows, context):
+    return {
+        "operations": [
+            {"action": "insert_after_block", "block_id": "body.paragraph.0", "text": as_text(row.get("Name"))}
+            for row in rows
+        ],
+        "warnings": [],
+    }
+"""
+        self.service.client = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=MagicMock(
+                    return_value=self._response(parsed={"language": "python", "code": code, "warnings": []})
+                )
+            )
+        )
+
+        payload = self.service._generate_and_execute_tabular_transform(
+            [],
+            prompt="Generate code.",
+            rows=[{"Name": "first"}, {"Name": "second"}, {"Name": "third"}],
+            context={
+                "target_kind": "DOCX edit in place",
+                "source_columns": ["Name"],
+                "output_contract": "Return operations.",
+            },
+            expected_key="operations",
+            label="test_generated_code",
+        )
+
+        self.assertEqual([item["text"] for item in payload["operations"]], ["first", "second", "third"])
+        self.assertIn("code_hash", payload)
+        self.assertEqual(self.service.client.models.generate_content.call_count, 1)
+
 
 class FormFillServiceUsageTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:

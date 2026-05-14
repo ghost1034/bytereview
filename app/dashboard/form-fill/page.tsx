@@ -90,12 +90,22 @@ function formatStrategy(strategy?: string | null) {
   switch (strategy) {
     case 'fillable_pdf':
       return 'Fillable PDF'
+    case 'fillable_pdf_generated_code':
+      return 'Fillable PDF Generated Code'
     case 'pdf_overlay':
       return 'PDF Overlay'
+    case 'pdf_overlay_generated_code':
+      return 'PDF Overlay Generated Code'
     case 'docx_placeholders':
       return 'DOCX Placeholder Replacement'
+    case 'docx_placeholders_generated_code':
+      return 'DOCX Placeholder Generated Code'
     case 'docx_edit_in_place':
       return 'DOCX Edited In Place'
+    case 'docx_edit_generated_code':
+      return 'DOCX Generated Code'
+    case 'docx_table_expansion_generated_code':
+      return 'DOCX Table Generated Code'
     default:
       return strategy || 'Unknown'
   }

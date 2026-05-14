@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import ast
 import csv
+import hashlib
 import json
 import logging
 import mimetypes
+import multiprocessing
 import os
 import re
 import shutil
@@ -91,6 +94,46 @@ OUTPUT_LIMIT_WARNING_PATTERNS = (
     "see attached",
     "unable to calculate exact totals",
 )
+GENERATED_CODE_LANGUAGE = "python"
+GENERATED_CODE_REQUIRED_FUNCTION = "transform"
+GENERATED_CODE_MAX_OUTPUT_BYTES_DEFAULT = 50 * 1024 * 1024
+GENERATED_CODE_TIMEOUT_SECONDS_DEFAULT = 120
+GENERATED_CODE_ALLOWED_BUILTINS = {
+    "abs": abs,
+    "all": all,
+    "any": any,
+    "bool": bool,
+    "dict": dict,
+    "enumerate": enumerate,
+    "float": float,
+    "int": int,
+    "isinstance": isinstance,
+    "len": len,
+    "list": list,
+    "max": max,
+    "min": min,
+    "range": range,
+    "round": round,
+    "set": set,
+    "sorted": sorted,
+    "str": str,
+    "sum": sum,
+    "tuple": tuple,
+    "zip": zip,
+}
+GENERATED_CODE_BANNED_CALLS = {
+    "__import__",
+    "compile",
+    "eval",
+    "exec",
+    "getattr",
+    "globals",
+    "input",
+    "locals",
+    "open",
+    "setattr",
+    "vars",
+}
 
 
 def _guess_mime_type(filename: str, fallback: str = "application/octet-stream") -> str:
@@ -128,6 +171,74 @@ def _safe_filename_part(value: str, fallback: str) -> str:
     return (cleaned or fallback)[:80]
 
 
+def _parse_number(value: Any) -> Optional[float]:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return 1.0 if value else 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    text_value = re.sub(r"[^0-9.\-]+", "", str(value))
+    if not text_value or text_value in {"-", ".", "-."}:
+        return None
+    try:
+        return float(text_value)
+    except ValueError:
+        return None
+
+
+def _as_text(value: Any) -> str:
+    return "" if value is None else str(value)
+
+
+def _validate_generated_transform_code(code: str) -> None:
+    if not isinstance(code, str) or not code.strip():
+        raise ValueError("Generated code was empty")
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as exc:
+        raise ValueError(f"Generated code has invalid Python syntax: {exc}") from exc
+
+    has_transform = False
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            raise ValueError("Generated code may not import modules")
+        if isinstance(node, (ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda, ast.Global, ast.Nonlocal)):
+            raise ValueError("Generated code uses unsupported Python constructs")
+        if isinstance(node, ast.FunctionDef) and node.name == GENERATED_CODE_REQUIRED_FUNCTION:
+            has_transform = True
+        if isinstance(node, ast.Name):
+            if node.id.startswith("__") or node.id in GENERATED_CODE_BANNED_CALLS:
+                raise ValueError(f"Generated code uses blocked name '{node.id}'")
+        if isinstance(node, ast.Attribute):
+            if node.attr.startswith("__"):
+                raise ValueError("Generated code may not access dunder attributes")
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in GENERATED_CODE_BANNED_CALLS:
+            raise ValueError(f"Generated code calls blocked function '{node.func.id}'")
+
+    if not has_transform:
+        raise ValueError("Generated code must define transform(rows, context)")
+
+
+def _run_generated_transform_worker(code: str, rows: list[dict[str, Any]], context: dict[str, Any], result_queue: Any) -> None:
+    try:
+        _validate_generated_transform_code(code)
+        globals_dict = {
+            "__builtins__": GENERATED_CODE_ALLOWED_BUILTINS,
+            "parse_number": _parse_number,
+            "as_text": _as_text,
+        }
+        locals_dict: dict[str, Any] = {}
+        exec(compile(code, "<form-fill-generated-transform>", "exec"), globals_dict, locals_dict)
+        transform = locals_dict.get(GENERATED_CODE_REQUIRED_FUNCTION) or globals_dict.get(GENERATED_CODE_REQUIRED_FUNCTION)
+        if not callable(transform):
+            raise ValueError("Generated code did not define a callable transform(rows, context)")
+        result = transform(rows, context)
+        result_queue.put({"ok": True, "result": result})
+    except Exception as exc:
+        result_queue.put({"ok": False, "error": str(exc)})
+
+
 class FormFillService:
     def __init__(self) -> None:
         self.storage_service = get_storage_service()
@@ -144,6 +255,16 @@ class FormFillService:
         self.batch_items_per_call = self._env_int("FORM_FILL_BATCH_ITEMS_PER_CALL", 100)
         self.mapping_chunk_size = self._env_int("FORM_FILL_MAPPING_CHUNK_SIZE", self.batch_items_per_call)
         self.output_max_attempts = max(1, self._env_int("FORM_FILL_OUTPUT_MAX_ATTEMPTS", 3))
+        self.tabular_code_enabled = os.getenv("FORM_FILL_TABULAR_CODE_ENABLED", "true").strip().lower() in {"1", "true", "yes", "y"}
+        self.tabular_code_timeout_seconds = max(
+            1,
+            self._env_int("FORM_FILL_TABULAR_CODE_TIMEOUT_SECONDS", GENERATED_CODE_TIMEOUT_SECONDS_DEFAULT),
+        )
+        self.tabular_code_max_output_bytes = max(
+            1024,
+            self._env_int("FORM_FILL_TABULAR_CODE_MAX_OUTPUT_BYTES", GENERATED_CODE_MAX_OUTPUT_BYTES_DEFAULT),
+        )
+        self.tabular_code_sample_rows = max(1, self._env_int("FORM_FILL_TABULAR_CODE_SAMPLE_ROWS", 10))
         try:
             self.near_token_ratio = float(os.getenv("FORM_FILL_NEAR_TOKEN_RATIO", "0.98"))
         except Exception:
@@ -1446,6 +1567,143 @@ class FormFillService:
             lines.append("| " + " | ".join(values) + " |")
         return "\n".join(lines)
 
+    def _jsonable_cell(self, value: Any) -> Any:
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return str(value)
+
+    def _safe_tabular_columns(self, columns: list[Any]) -> list[str]:
+        seen: dict[str, int] = {}
+        safe_columns: list[str] = []
+        for index, column in enumerate(columns):
+            base = str(column).strip() if column is not None else ""
+            base = base or f"Column {index + 1}"
+            count = seen.get(base, 0)
+            seen[base] = count + 1
+            safe_columns.append(base if count == 0 else f"{base} {count + 1}")
+        return safe_columns
+
+    def _tabular_context_from_rows(
+        self,
+        columns: list[Any],
+        rows: list[Any],
+        *,
+        source_name: str,
+        sheet_name: Optional[str] = None,
+    ) -> dict[str, Any]:
+        safe_columns = self._safe_tabular_columns(columns)
+        output_rows: list[dict[str, Any]] = []
+        for row_index, row in enumerate(rows, start=1):
+            if not isinstance(row, (list, tuple)):
+                continue
+            payload = {
+                column: self._jsonable_cell(row[column_index]) if column_index < len(row) else None
+                for column_index, column in enumerate(safe_columns)
+            }
+            if not any(value is not None and str(value).strip() for value in payload.values()):
+                continue
+            payload["_row_number"] = row_index + 1
+            payload["_source_file"] = source_name
+            if sheet_name:
+                payload["_sheet_name"] = sheet_name
+            output_rows.append(payload)
+        return {
+            "columns": safe_columns,
+            "rows": output_rows,
+            "source_files": [source_name] if source_name else [],
+            "sheets": [sheet_name] if sheet_name else [],
+        }
+
+    def _merge_tabular_contexts(self, contexts: list[dict[str, Any]]) -> Optional[dict[str, Any]]:
+        contexts = [context for context in contexts if context and context.get("rows")]
+        if not contexts:
+            return None
+        columns: list[str] = []
+        seen_columns: set[str] = set()
+        source_files: list[str] = []
+        seen_source_files: set[str] = set()
+        sheets: list[str] = []
+        seen_sheets: set[str] = set()
+        rows: list[dict[str, Any]] = []
+        for context in contexts:
+            for column in context.get("columns") or []:
+                column_name = str(column)
+                if column_name not in seen_columns:
+                    seen_columns.add(column_name)
+                    columns.append(column_name)
+            for source_file in context.get("source_files") or []:
+                source_name = str(source_file)
+                if source_name and source_name not in seen_source_files:
+                    seen_source_files.add(source_name)
+                    source_files.append(source_name)
+            for sheet in context.get("sheets") or []:
+                sheet_name = str(sheet)
+                if sheet_name and sheet_name not in seen_sheets:
+                    seen_sheets.add(sheet_name)
+                    sheets.append(sheet_name)
+            for row in context.get("rows") or []:
+                if isinstance(row, dict):
+                    rows.append(row)
+        return {
+            "kind": "tabular_rows",
+            "columns": columns,
+            "rows": rows,
+            "row_count": len(rows),
+            "source_files": source_files,
+            "sheets": sheets,
+        }
+
+    def _load_csv_tabular_context(self, local_path: str, *, source_name: str) -> Optional[dict[str, Any]]:
+        with open(local_path, "r", encoding="utf-8-sig", newline="") as handle:
+            reader = csv.reader(handle)
+            rows = list(reader)
+        if len(rows) < 2:
+            return None
+        return self._tabular_context_from_rows(rows[0], rows[1:], source_name=source_name)
+
+    def _load_xlsx_tabular_context(self, local_path: str, *, source_name: str) -> Optional[dict[str, Any]]:
+        workbook = load_workbook(local_path, read_only=True, data_only=True)
+        contexts: list[dict[str, Any]] = []
+        try:
+            for worksheet in workbook.worksheets:
+                rows = list(worksheet.iter_rows(values_only=True))
+                if len(rows) < 2:
+                    continue
+                context = self._tabular_context_from_rows(
+                    list(rows[0]),
+                    [list(row) for row in rows[1:]],
+                    source_name=source_name,
+                    sheet_name=worksheet.title,
+                )
+                if context.get("rows"):
+                    contexts.append(context)
+        finally:
+            workbook.close()
+        return self._merge_tabular_contexts(contexts)
+
+    def _extraction_tabular_context(self, payload: dict[str, Any], *, source_name: str = "extraction results") -> Optional[dict[str, Any]]:
+        columns = list(payload.get("columns") or [])
+        rows = list(payload.get("rows") or [])
+        context = self._tabular_context_from_rows(columns, rows, source_name=source_name)
+        source_files = [str(item) for item in (payload.get("source_files") or []) if str(item).strip()]
+        if context and source_files:
+            context["source_files"] = source_files
+        return self._merge_tabular_contexts([context])
+
+    def _tabular_source_summary(self, tabular_context: dict[str, Any]) -> str:
+        columns = [str(item) for item in (tabular_context.get("columns") or [])]
+        source_files = [str(item) for item in (tabular_context.get("source_files") or [])]
+        sample_rows = list(tabular_context.get("rows") or [])[: self.tabular_code_sample_rows]
+        return (
+            "Tabular source data is available to generated code as rows.\n"
+            f"Rows: {int(tabular_context.get('row_count') or len(tabular_context.get('rows') or []))}\n"
+            f"Columns: {', '.join(columns) if columns else '(none)'}\n"
+            f"Source files: {', '.join(source_files) if source_files else '(not specified)'}\n"
+            f"Sample rows: {json.dumps(sample_rows, ensure_ascii=True, default=str)}"
+        )
+
     def _load_csv_text(self, local_path: str) -> str:
         with open(local_path, "r", encoding="utf-8-sig", newline="") as handle:
             reader = csv.reader(handle)
@@ -1546,6 +1804,76 @@ class FormFillService:
             if source_file.file_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
                 return self._load_xlsx_records(local_path)
         return []
+
+    async def _build_tabular_source_context(
+        self,
+        run: FormFillRun,
+        *,
+        record_payload: Optional[dict[str, Any]] = None,
+    ) -> Optional[dict[str, Any]]:
+        if not self.tabular_code_enabled:
+            return None
+
+        payload = record_payload if isinstance(record_payload, dict) else None
+        if payload and payload.get("kind") == "extraction_task":
+            return self._extraction_tabular_context(payload, source_name="extraction task")
+
+        if payload and payload.get("kind") == "source_file":
+            file_type = str(payload.get("file_type") or "").lower()
+            if file_type not in TABULAR_SOURCE_MIME_TYPES:
+                return None
+            filename = str(payload.get("original_filename") or "source")
+            object_name = str(payload.get("gcs_object_name") or "")
+            if not object_name:
+                return None
+            with tempfile.TemporaryDirectory(prefix="form_fill_tabular_") as temp_dir:
+                local_path = os.path.join(temp_dir, f"source{_safe_ext(filename, '.bin')}")
+                await self._download_to_local(object_name, local_path)
+                if file_type in {"text/csv", "application/vnd.ms-excel"}:
+                    return self._load_csv_tabular_context(local_path, source_name=filename)
+                if file_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                    return self._load_xlsx_tabular_context(local_path, source_name=filename)
+            return None
+
+        source_payload = getattr(run, "source_payload", None)
+        if isinstance(source_payload, dict) and source_payload.get("kind") == "extraction_result":
+            return self._extraction_tabular_context(source_payload, source_name="extraction results")
+
+        uploaded_source_files = list(getattr(run, "source_files", None) or [])
+        contexts: list[dict[str, Any]] = []
+        for source_file in uploaded_source_files:
+            file_type = str(source_file.file_type or "").lower()
+            if file_type not in TABULAR_SOURCE_MIME_TYPES:
+                return None
+            with tempfile.TemporaryDirectory(prefix="form_fill_tabular_") as temp_dir:
+                local_path = os.path.join(temp_dir, f"source{_safe_ext(source_file.original_filename, '.bin')}")
+                await self._download_to_local(source_file.gcs_object_name, local_path)
+                if file_type in {"text/csv", "application/vnd.ms-excel"}:
+                    context = self._load_csv_tabular_context(local_path, source_name=source_file.original_filename)
+                elif file_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                    context = self._load_xlsx_tabular_context(local_path, source_name=source_file.original_filename)
+                else:
+                    context = None
+                if context:
+                    contexts.append(context)
+
+        if contexts:
+            return self._merge_tabular_contexts(contexts)
+
+        source_gcs_object_name = getattr(run, "source_gcs_object_name", None)
+        source_file_type = str(getattr(run, "source_file_type", None) or "").lower()
+        if source_gcs_object_name and source_file_type in TABULAR_SOURCE_MIME_TYPES:
+            file_type = source_file_type
+            filename = getattr(run, "source_filename", None) or "source"
+            with tempfile.TemporaryDirectory(prefix="form_fill_tabular_") as temp_dir:
+                local_path = os.path.join(temp_dir, f"source{_safe_ext(filename, '.bin')}")
+                await self._download_to_local(source_gcs_object_name, local_path)
+                if file_type in {"text/csv", "application/vnd.ms-excel"}:
+                    return self._load_csv_tabular_context(local_path, source_name=filename)
+                if file_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                    return self._load_xlsx_tabular_context(local_path, source_name=filename)
+
+        return None
 
     def _source_file_units(self, run: FormFillRun) -> list[dict[str, Any]]:
         uploaded_source_files = list(run.source_files or [])
@@ -1688,6 +2016,181 @@ class FormFillService:
             },
             required=["title", "content", "warnings"],
         )
+
+    def _generated_code_schema(self) -> types.Schema:
+        return types.Schema(
+            type="OBJECT",
+            properties={
+                "language": types.Schema(type="STRING"),
+                "code": types.Schema(type="STRING"),
+                "warnings": types.Schema(type="ARRAY", items=types.Schema(type="STRING")),
+                "assumptions": types.Schema(type="ARRAY", items=types.Schema(type="STRING")),
+            },
+            required=["language", "code", "warnings"],
+        )
+
+    def _strip_code_fence(self, code: str) -> str:
+        text_value = str(code or "").strip()
+        if text_value.startswith("```"):
+            text_value = re.sub(r"^```(?:python)?\s*", "", text_value, flags=re.IGNORECASE)
+            text_value = re.sub(r"\s*```$", "", text_value)
+        return text_value.strip()
+
+    def _build_generated_code_prompt(
+        self,
+        *,
+        tabular_context: dict[str, Any],
+        target_kind: str,
+        target_context: dict[str, Any],
+        output_contract: str,
+        previous_code: Optional[str] = None,
+        previous_error: Optional[str] = None,
+    ) -> str:
+        columns = list(tabular_context.get("columns") or [])
+        rows = list(tabular_context.get("rows") or [])
+        sample_rows = rows[: self.tabular_code_sample_rows]
+        repair_block = ""
+        if previous_code or previous_error:
+            repair_block = f"""
+
+Repair request:
+- The previous generated code failed with this error: {previous_error or 'unknown error'}
+- Return corrected complete code only in the code field.
+- Previous code:
+{previous_code or ''}
+"""
+        return f"""Generate Python code to fill a {target_kind} from tabular source rows.
+
+Source row metadata:
+- Total rows: {len(rows)}
+- Columns: {json.dumps(columns, ensure_ascii=True)}
+- Sample rows: {json.dumps(sample_rows, ensure_ascii=True, default=str)}
+
+Target context:
+{json.dumps(target_context, ensure_ascii=True, default=str)}
+
+Required code shape:
+- Define exactly one callable function named transform(rows, context).
+- rows is a list of dictionaries containing all source rows, not just the sample above.
+- context is the target context shown above.
+- Return a JSON-compatible dict.
+- Do not import modules.
+- Do not read or write files.
+- Do not use eval, exec, open, globals, locals, getattr, setattr, or dunder attributes.
+- Use parse_number(value) for numeric parsing when summing currency or amount columns.
+- Use as_text(value) to convert nullable values to strings.
+
+Output contract:
+{output_contract}
+
+Rules:
+- The code must process every relevant row algorithmically.
+- Do not hard-code only the sample rows.
+- Keep operations deterministic and minimal.
+- Add ambiguous or missing data issues to warnings.
+{repair_block}
+"""
+
+    def _generate_transform_code(self, contents: list[Any], *, prompt: str, label: str) -> tuple[str, list[str]]:
+        payload = self._generate_json_response(contents + [prompt], self._generated_code_schema())
+        language = str(payload.get("language") or GENERATED_CODE_LANGUAGE).strip().lower()
+        if language not in {GENERATED_CODE_LANGUAGE, "py"}:
+            raise ValueError(f"Gemini returned unsupported generated-code language '{language}'")
+        code = self._strip_code_fence(str(payload.get("code") or ""))
+        _validate_generated_transform_code(code)
+        warnings = [str(item) for item in (payload.get("warnings") or []) if str(item).strip()]
+        assumptions = [str(item) for item in (payload.get("assumptions") or []) if str(item).strip()]
+        logger.info("Form Fill generated transform code (%s): chars=%s warnings=%s", label, len(code), len(warnings))
+        return code, warnings + assumptions
+
+    def _execute_generated_transform(
+        self,
+        code: str,
+        *,
+        rows: list[dict[str, Any]],
+        context: dict[str, Any],
+    ) -> dict[str, Any]:
+        _validate_generated_transform_code(code)
+        start_method = "fork" if "fork" in multiprocessing.get_all_start_methods() else "spawn"
+        ctx = multiprocessing.get_context(start_method)
+        result_queue = ctx.Queue(maxsize=1)
+        process = ctx.Process(target=_run_generated_transform_worker, args=(code, rows, context, result_queue))
+        process.start()
+        process.join(self.tabular_code_timeout_seconds)
+        if process.is_alive():
+            process.terminate()
+            process.join(5)
+            raise TimeoutError(f"Generated Form Fill code exceeded {self.tabular_code_timeout_seconds} seconds")
+
+        if result_queue.empty():
+            raise ValueError("Generated Form Fill code exited without returning a result")
+        message = result_queue.get()
+        if not isinstance(message, dict) or not message.get("ok"):
+            raise ValueError(str((message or {}).get("error") or "Generated Form Fill code failed"))
+        result = message.get("result")
+        if not isinstance(result, dict):
+            raise ValueError("Generated Form Fill code must return a dict")
+        try:
+            encoded = json.dumps(result, ensure_ascii=True, default=str)
+        except Exception as exc:
+            raise ValueError(f"Generated Form Fill code returned non-JSON data: {exc}") from exc
+        if len(encoded.encode("utf-8")) > self.tabular_code_max_output_bytes:
+            raise ValueError("Generated Form Fill code returned too much data")
+        return result
+
+    def _validate_generated_transform_result(self, result: dict[str, Any], *, expected_key: str) -> dict[str, Any]:
+        warnings = result.get("warnings") or []
+        if not isinstance(warnings, list):
+            warnings = [str(warnings)]
+        normalized = {"warnings": [str(item) for item in warnings if str(item).strip()]}
+
+        if expected_key in {"items", "operations"}:
+            values = result.get(expected_key) or []
+            if not isinstance(values, list):
+                raise ValueError(f"Generated Form Fill code returned '{expected_key}' as a non-list")
+            normalized[expected_key] = [item for item in values if isinstance(item, dict)]
+            return normalized
+
+        values = result.get(expected_key) or {}
+        if not isinstance(values, dict):
+            raise ValueError(f"Generated Form Fill code returned '{expected_key}' as a non-object")
+        normalized[expected_key] = {str(key): "" if value is None else str(value) for key, value in values.items()}
+        return normalized
+
+    def _generate_and_execute_tabular_transform(
+        self,
+        contents: list[Any],
+        *,
+        prompt: str,
+        rows: list[dict[str, Any]],
+        context: dict[str, Any],
+        expected_key: str,
+        label: str,
+    ) -> dict[str, Any]:
+        code = ""
+        code_warnings: list[str] = []
+        try:
+            code, code_warnings = self._generate_transform_code(contents, prompt=prompt, label=label)
+            result = self._execute_generated_transform(code, rows=rows, context=context)
+            normalized = self._validate_generated_transform_result(result, expected_key=expected_key)
+        except Exception as first_exc:
+            logger.warning("Form Fill generated transform failed (%s), requesting repair: %s", label, first_exc)
+            repair_prompt = self._build_generated_code_prompt(
+                tabular_context={"columns": context.get("source_columns") or [], "rows": rows},
+                target_kind=str(context.get("target_kind") or "target"),
+                target_context=context,
+                output_contract=str(context.get("output_contract") or "Return the requested output."),
+                previous_code=code,
+                previous_error=str(first_exc),
+            )
+            code, repair_warnings = self._generate_transform_code(contents, prompt=repair_prompt, label=f"{label}:repair")
+            code_warnings.extend(repair_warnings)
+            result = self._execute_generated_transform(code, rows=rows, context=context)
+            normalized = self._validate_generated_transform_result(result, expected_key=expected_key)
+
+        normalized["warnings"] = code_warnings + list(normalized.get("warnings") or [])
+        normalized["code_hash"] = hashlib.sha256(code.encode("utf-8")).hexdigest()
+        return normalized
 
     def _generate_json_response(self, contents: list[Any], schema: types.Schema) -> dict[str, Any]:
         self._ensure_client()
@@ -2073,6 +2576,27 @@ Instructions:
                 return combined[:DOCX_BLOCK_TEXT_LIMIT]
         return "\n".join(lines)[:DOCX_BLOCK_TEXT_LIMIT]
 
+    def _public_docx_blocks(self, blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            {
+                "block_id": str(block.get("block_id") or ""),
+                "location": str(block.get("location") or ""),
+                "text": str(block.get("text") or ""),
+            }
+            for block in blocks
+        ]
+
+    def _public_docx_tables(self, tables: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            {
+                "table_id": str(table.get("table_id") or ""),
+                "rows": int(table.get("rows") or 0),
+                "columns": int(table.get("columns") or 0),
+                "preview_rows": [str(item) for item in (table.get("preview_rows") or [])],
+            }
+            for table in tables
+        ]
+
     def _resolve_pdf_anchor_rect(self, page: fitz.Page, item: dict[str, Any]) -> fitz.Rect | None:
         anchor_text = str(item.get("anchor_text") or "").strip()
         anchor_before = str(item.get("anchor_before") or "").strip()
@@ -2442,32 +2966,75 @@ Instructions:
         target_local_path: str,
         source_parts: list[Any],
         source_text: str,
+        tabular_context: Optional[dict[str, Any]] = None,
         filename_suffix: str = "",
     ) -> dict[str, Any]:
         target_parts: list[Any] = []
         warnings: list[str] = []
         fill_plan: dict[str, Any] = {}
+        tabular_rows = list((tabular_context or {}).get("rows") or [])
 
         if run.target_file_type == PDF_MIME:
             pdf_fields = self._extract_pdf_form_fields(target_local_path)
             target_parts.append(self._part_from_uri(self.storage_service.construct_gcs_uri_for_object(run.target_gcs_object_name), PDF_MIME))
             if pdf_fields:
                 processing_strategy = "fillable_pdf"
-                mapping_payload = self._generate_mapping_payload(
-                    source_parts + target_parts,
-                    source_text=source_text,
-                    mapping_items=pdf_fields,
-                    mapping_label="Fillable PDF field names",
-                    target_hint="fillable PDF form",
-                    label="fillable_pdf_mapping",
-                )
-                field_values = {
-                    str(item.get("name")): "" if item.get("value") is None else str(item.get("value"))
-                    for item in mapping_payload.get("items") or []
-                    if isinstance(item, dict) and item.get("name")
-                }
-                warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
-                fill_plan = {"strategy": processing_strategy, "field_values": field_values}
+                if tabular_rows:
+                    processing_strategy = "fillable_pdf_generated_code"
+                    output_contract = (
+                        "Return {'field_values': {field_name: value, ...}, 'warnings': [...]} using only the provided field names. "
+                        "Values must be strings ready for direct insertion."
+                    )
+                    code_context = {
+                        "target_kind": "fillable PDF",
+                        "field_names": pdf_fields,
+                        "source_columns": list((tabular_context or {}).get("columns") or []),
+                        "source_files": list((tabular_context or {}).get("source_files") or []),
+                        "output_contract": output_contract,
+                    }
+                    code_prompt = self._build_generated_code_prompt(
+                        tabular_context=tabular_context or {},
+                        target_kind="fillable PDF",
+                        target_context=code_context,
+                        output_contract=output_contract,
+                    )
+                    mapping_payload = self._generate_and_execute_tabular_transform(
+                        source_parts + target_parts,
+                        prompt=code_prompt,
+                        rows=tabular_rows,
+                        context=code_context,
+                        expected_key="field_values",
+                        label="fillable_pdf_generated_code",
+                    )
+                    allowed_fields = set(pdf_fields)
+                    field_values = {
+                        str(name): str(value)
+                        for name, value in (mapping_payload.get("field_values") or {}).items()
+                        if str(name) in allowed_fields
+                    }
+                    warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
+                    fill_plan = {
+                        "strategy": processing_strategy,
+                        "field_values": field_values,
+                        "source_rows": len(tabular_rows),
+                        "code_hash": mapping_payload.get("code_hash"),
+                    }
+                else:
+                    mapping_payload = self._generate_mapping_payload(
+                        source_parts + target_parts,
+                        source_text=source_text,
+                        mapping_items=pdf_fields,
+                        mapping_label="Fillable PDF field names",
+                        target_hint="fillable PDF form",
+                        label="fillable_pdf_mapping",
+                    )
+                    field_values = {
+                        str(item.get("name")): "" if item.get("value") is None else str(item.get("value"))
+                        for item in mapping_payload.get("items") or []
+                        if isinstance(item, dict) and item.get("name")
+                    }
+                    warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
+                    fill_plan = {"strategy": processing_strategy, "field_values": field_values}
                 output_pdf_path = os.path.join(temp_dir, f"filled-{uuid.uuid4()}.pdf")
                 self._apply_fillable_pdf(target_local_path, field_values, output_pdf_path)
                 return {
@@ -2481,23 +3048,57 @@ Instructions:
 
             processing_strategy = "pdf_overlay"
             target_preview_text = self._page_texts_with_numbers(target_local_path)
-            overlay_prompt = self._build_pdf_overlay_prompt(
-                source_text=source_text,
-                target_preview_text=target_preview_text,
-            )
-            overlay_payload = self._generate_collection_json_response(
-                source_parts + target_parts,
-                prompt=overlay_prompt,
-                schema=self._pdf_overlay_schema(),
-                collection_key="items",
-                label="pdf_overlay",
-                continue_on_full_batch=True,
-            )
+            if tabular_rows:
+                processing_strategy = "pdf_overlay_generated_code"
+                output_contract = (
+                    "Return {'items': [overlay_item, ...], 'warnings': [...]}. Each overlay_item must include "
+                    "page_number and overlay_text, and may include anchor_text, anchor_before, anchor_after, "
+                    "placement_hint, cover_anchor, and font_size."
+                )
+                code_context = {
+                    "target_kind": "PDF overlay",
+                    "target_preview_text": target_preview_text,
+                    "source_columns": list((tabular_context or {}).get("columns") or []),
+                    "source_files": list((tabular_context or {}).get("source_files") or []),
+                    "output_contract": output_contract,
+                }
+                overlay_prompt = self._build_generated_code_prompt(
+                    tabular_context=tabular_context or {},
+                    target_kind="PDF overlay",
+                    target_context=code_context,
+                    output_contract=output_contract,
+                )
+                overlay_payload = self._generate_and_execute_tabular_transform(
+                    source_parts + target_parts,
+                    prompt=overlay_prompt,
+                    rows=tabular_rows,
+                    context=code_context,
+                    expected_key="items",
+                    label="pdf_overlay_generated_code",
+                )
+            else:
+                overlay_prompt = self._build_pdf_overlay_prompt(
+                    source_text=source_text,
+                    target_preview_text=target_preview_text,
+                )
+                overlay_payload = self._generate_collection_json_response(
+                    source_parts + target_parts,
+                    prompt=overlay_prompt,
+                    schema=self._pdf_overlay_schema(),
+                    collection_key="items",
+                    label="pdf_overlay",
+                    continue_on_full_batch=True,
+                )
             overlay_items = [
                 item for item in (overlay_payload.get("items") or []) if isinstance(item, dict) and str(item.get("overlay_text") or "").strip()
             ]
             warnings.extend([str(item) for item in (overlay_payload.get("warnings") or []) if str(item).strip()])
-            fill_plan = {"strategy": processing_strategy, "items": overlay_items}
+            fill_plan = {
+                "strategy": processing_strategy,
+                "items": overlay_items,
+                "source_rows": len(tabular_rows) if tabular_rows else None,
+                "code_hash": overlay_payload.get("code_hash"),
+            }
             final_local_path = os.path.join(temp_dir, f"filled-{uuid.uuid4()}.pdf")
             warnings.extend(self._apply_pdf_overlay_plan(target_local_path, overlay_items, final_local_path))
             warnings.append("The target PDF was not fillable, so Form Fill applied text overlays onto the original PDF.")
@@ -2518,24 +3119,62 @@ Instructions:
             placeholders = self._extract_docx_placeholders(target_local_path)
             if placeholders:
                 processing_strategy = "docx_placeholders"
-                mapping_payload = self._generate_mapping_payload(
-                    source_parts + target_parts,
-                    source_text=source_text,
-                    mapping_items=placeholders,
-                    mapping_label="DOCX placeholders",
-                    target_hint="DOCX template",
-                    label="docx_placeholder_mapping",
-                )
-                replacements = {
-                    str(item.get("name")): "" if item.get("value") is None else str(item.get("value"))
-                    for item in mapping_payload.get("items") or []
-                    if isinstance(item, dict) and item.get("name")
-                }
-                warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
+                if tabular_rows:
+                    processing_strategy = "docx_placeholders_generated_code"
+                    output_contract = (
+                        "Return {'replacements': {placeholder: value, ...}, 'warnings': [...]} using only the provided placeholders. "
+                        "Values must be strings ready for direct insertion."
+                    )
+                    code_context = {
+                        "target_kind": "DOCX placeholders",
+                        "placeholders": placeholders,
+                        "target_preview_text": self._extract_docx_text(target_local_path),
+                        "source_columns": list((tabular_context or {}).get("columns") or []),
+                        "source_files": list((tabular_context or {}).get("source_files") or []),
+                        "output_contract": output_contract,
+                    }
+                    code_prompt = self._build_generated_code_prompt(
+                        tabular_context=tabular_context or {},
+                        target_kind="DOCX placeholders",
+                        target_context=code_context,
+                        output_contract=output_contract,
+                    )
+                    mapping_payload = self._generate_and_execute_tabular_transform(
+                        source_parts + target_parts,
+                        prompt=code_prompt,
+                        rows=tabular_rows,
+                        context=code_context,
+                        expected_key="replacements",
+                        label="docx_placeholders_generated_code",
+                    )
+                    allowed_placeholders = set(placeholders)
+                    replacements = {
+                        str(name): str(value)
+                        for name, value in (mapping_payload.get("replacements") or {}).items()
+                        if str(name) in allowed_placeholders
+                    }
+                    warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
+                else:
+                    mapping_payload = self._generate_mapping_payload(
+                        source_parts + target_parts,
+                        source_text=source_text,
+                        mapping_items=placeholders,
+                        mapping_label="DOCX placeholders",
+                        target_hint="DOCX template",
+                        label="docx_placeholder_mapping",
+                    )
+                    replacements = {
+                        str(item.get("name")): "" if item.get("value") is None else str(item.get("value"))
+                        for item in mapping_payload.get("items") or []
+                        if isinstance(item, dict) and item.get("name")
+                    }
+                    warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
                 fill_plan = {
                     "strategy": processing_strategy,
                     "replacements": replacements,
                     "allow_docx_table_expansion": bool(run.allow_docx_table_expansion),
+                    "source_rows": len(tabular_rows) if tabular_rows else None,
+                    "code_hash": mapping_payload.get("code_hash") if tabular_rows else None,
                 }
                 output_docx_path = os.path.join(temp_dir, f"filled-{uuid.uuid4()}.docx")
                 self._apply_docx_placeholders(target_local_path, replacements, output_docx_path)
@@ -2557,14 +3196,45 @@ Instructions:
                             allow_table_expansion=True,
                             restrict_to_table_expansion=True,
                         )
-                        edit_payload = self._generate_collection_json_response(
-                            source_parts + target_parts,
-                            prompt=edit_prompt,
-                            schema=self._docx_edit_schema(),
-                            collection_key="operations",
-                            label="docx_table_expansion",
-                            continue_on_full_batch=True,
-                        )
+                        if tabular_rows:
+                            output_contract = (
+                                "Return {'operations': [operation, ...], 'warnings': [...]}. Operations must use only "
+                                "insert_table_row_after or insert_table_column_after and valid table_id/row_index/column_index values."
+                            )
+                            code_context = {
+                                "target_kind": "DOCX table expansion",
+                                "target_preview_text": self._extract_docx_text(output_docx_path),
+                                "editable_blocks": self._public_docx_blocks(docx_blocks),
+                                "editable_tables": self._public_docx_tables(docx_tables),
+                                "allow_table_expansion": True,
+                                "source_columns": list((tabular_context or {}).get("columns") or []),
+                                "source_files": list((tabular_context or {}).get("source_files") or []),
+                                "output_contract": output_contract,
+                            }
+                            code_prompt = self._build_generated_code_prompt(
+                                tabular_context=tabular_context or {},
+                                target_kind="DOCX table expansion",
+                                target_context=code_context,
+                                output_contract=output_contract,
+                            )
+                            edit_payload = self._generate_and_execute_tabular_transform(
+                                source_parts + target_parts,
+                                prompt=code_prompt,
+                                rows=tabular_rows,
+                                context=code_context,
+                                expected_key="operations",
+                                label="docx_table_expansion_generated_code",
+                            )
+                            fill_plan["table_code_hash"] = edit_payload.get("code_hash")
+                        else:
+                            edit_payload = self._generate_collection_json_response(
+                                source_parts + target_parts,
+                                prompt=edit_prompt,
+                                schema=self._docx_edit_schema(),
+                                collection_key="operations",
+                                label="docx_table_expansion",
+                                continue_on_full_batch=True,
+                            )
                         operations = [
                             item
                             for item in (edit_payload.get("operations") or [])
@@ -2603,14 +3273,46 @@ Instructions:
                     target_preview_text=target_preview_text,
                     allow_table_expansion=bool(run.allow_docx_table_expansion),
                 )
-                edit_payload = self._generate_collection_json_response(
-                    source_parts + target_parts,
-                    prompt=edit_prompt,
-                    schema=self._docx_edit_schema(),
-                    collection_key="operations",
-                    label="docx_edit_in_place",
-                    continue_on_full_batch=True,
-                )
+                if tabular_rows:
+                    processing_strategy = "docx_edit_generated_code"
+                    output_contract = (
+                        "Return {'operations': [operation, ...], 'warnings': [...]}. Each operation must use one of "
+                        "replace_text_in_block, replace_block_text, append_to_block, insert_before_block, insert_after_block, "
+                        "insert_table_row_after, or insert_table_column_after with valid provided block_id/table_id values."
+                    )
+                    code_context = {
+                        "target_kind": "DOCX edit in place",
+                        "target_preview_text": target_preview_text,
+                        "editable_blocks": self._public_docx_blocks(docx_blocks),
+                        "editable_tables": self._public_docx_tables(docx_tables),
+                        "allow_table_expansion": bool(run.allow_docx_table_expansion),
+                        "source_columns": list((tabular_context or {}).get("columns") or []),
+                        "source_files": list((tabular_context or {}).get("source_files") or []),
+                        "output_contract": output_contract,
+                    }
+                    code_prompt = self._build_generated_code_prompt(
+                        tabular_context=tabular_context or {},
+                        target_kind="DOCX edit in place",
+                        target_context=code_context,
+                        output_contract=output_contract,
+                    )
+                    edit_payload = self._generate_and_execute_tabular_transform(
+                        source_parts + target_parts,
+                        prompt=code_prompt,
+                        rows=tabular_rows,
+                        context=code_context,
+                        expected_key="operations",
+                        label="docx_edit_generated_code",
+                    )
+                else:
+                    edit_payload = self._generate_collection_json_response(
+                        source_parts + target_parts,
+                        prompt=edit_prompt,
+                        schema=self._docx_edit_schema(),
+                        collection_key="operations",
+                        label="docx_edit_in_place",
+                        continue_on_full_batch=True,
+                    )
                 operations = [
                     item for item in (edit_payload.get("operations") or []) if isinstance(item, dict) and str(item.get("action") or "").strip()
                 ]
@@ -2619,6 +3321,8 @@ Instructions:
                     "strategy": processing_strategy,
                     "operations": operations,
                     "allow_docx_table_expansion": bool(run.allow_docx_table_expansion),
+                    "source_rows": len(tabular_rows) if tabular_rows else None,
+                    "code_hash": edit_payload.get("code_hash") if tabular_rows else None,
                 }
                 final_local_path = os.path.join(temp_dir, f"filled-{uuid.uuid4()}.docx")
                 warnings.extend(
@@ -2770,17 +3474,26 @@ Instructions:
                 target_local_path = os.path.join(temp_dir, f"target{_safe_ext(run.target_filename, '.bin')}")
                 await self._download_to_local(run.target_gcs_object_name, target_local_path)
                 await self._ensure_run_target_page_count(db, run, target_local_path, temp_dir)
-                source_parts, source_text = await self._build_output_source_context(
-                    run=run,
-                    record_payload=output.record_payload or {},
-                    record_index=int(output.record_index or 0),
+                tabular_context = await self._build_tabular_source_context(
+                    run,
+                    record_payload=output.record_payload if isinstance(output.record_payload, dict) else {},
                 )
+                if tabular_context:
+                    source_parts = []
+                    source_text = self._tabular_source_summary(tabular_context)
+                else:
+                    source_parts, source_text = await self._build_output_source_context(
+                        run=run,
+                        record_payload=output.record_payload or {},
+                        record_index=int(output.record_index or 0),
+                    )
                 generated = await self._generate_filled_document(
                     run=run,
                     temp_dir=temp_dir,
                     target_local_path=target_local_path,
                     source_parts=source_parts,
                     source_text=source_text,
+                    tabular_context=tabular_context,
                     filename_suffix=f"{output.record_index + 1:03d}_{output.record_label}",
                 )
                 result_object_name = (
@@ -2969,19 +3682,25 @@ Instructions:
                     )
 
             self._check_usage_limit_or_raise(db, user_id=run.user_id, page_count=target_page_count)
-            source_parts: list[Any] = []
-            source_text_sections: list[str] = []
-            source_parts, source_text = await self._build_source_context(
-                run=run,
-                source_parts=source_parts,
-                source_text_sections=source_text_sections,
-            )
+            tabular_context = await self._build_tabular_source_context(run)
+            if tabular_context:
+                source_parts = []
+                source_text = self._tabular_source_summary(tabular_context)
+            else:
+                source_parts = []
+                source_text_sections: list[str] = []
+                source_parts, source_text = await self._build_source_context(
+                    run=run,
+                    source_parts=source_parts,
+                    source_text_sections=source_text_sections,
+                )
             generated = await self._generate_filled_document(
                 run=run,
                 temp_dir=temp_dir,
                 target_local_path=target_local_path,
                 source_parts=source_parts,
                 source_text=source_text,
+                tabular_context=tabular_context,
             )
             result_object_name = f"form-fill/{run.user_id}/runs/{run.id}/result{_safe_ext(generated['filename'], '.bin')}"
             await self.storage_service.upload_file(generated["local_path"], result_object_name)
