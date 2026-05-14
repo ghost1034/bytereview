@@ -98,7 +98,14 @@ async def execute_task(request: Request):
                 raise HTTPException(status_code=400, detail="output_id is required")
 
             logger.info(f"Executing Form Fill output: {output_id} for run {run_id}")
-            result = await form_fill_service.process_output(run_id, output_id)
+            result = await form_fill_service.process_output(
+                run_id,
+                output_id,
+                task_retry_count=_header_int(request, "X-CloudTasks-TaskRetryCount"),
+                task_execution_count=_header_int(request, "X-CloudTasks-TaskExecutionCount"),
+                task_queue_name=request.headers.get("X-CloudTasks-QueueName"),
+                task_name=request.headers.get("X-CloudTasks-TaskName"),
+            )
             logger.info(f"Form Fill output {output_id} completed: {result}")
             return {"success": True, "result": result}
 

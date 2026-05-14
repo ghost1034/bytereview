@@ -5,6 +5,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -17,6 +18,13 @@ os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from services.form_fill_service import FormFillService
+
+
+class RetryableGeminiInvalidArgument(Exception):
+    status_code = 400
+
+    def __str__(self) -> str:
+        return "400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 'status': 'INVALID_ARGUMENT'}}"
 
 
 class FormFillServiceDocxEditPlanTests(unittest.TestCase):
@@ -953,6 +961,123 @@ class FormFillServiceUsageTests(unittest.IsolatedAsyncioTestCase):
             form_fill_run_id="11111111-1111-1111-1111-111111111111",
             notes="Form Fill run for target target.pdf",
         )
+
+
+class FormFillOutputRetryTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self) -> None:
+        self.service = FormFillService()
+        self.run_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
+        self.output_id = uuid.UUID("22222222-2222-2222-2222-222222222222")
+
+    def _db_for_output(self, run: SimpleNamespace, output: SimpleNamespace) -> MagicMock:
+        run_query = MagicMock()
+        run_query.filter.return_value.first.return_value = run
+        output_query = MagicMock()
+        output_query.filter.return_value.first.return_value = output
+        db = MagicMock()
+        db.query.side_effect = [run_query, output_query, output_query, run_query]
+        return db
+
+    def test_generic_gemini_invalid_argument_is_retryable_before_final_attempt(self) -> None:
+        self.assertTrue(
+            self.service._should_retry_output_error(
+                RetryableGeminiInvalidArgument(),
+                task_retry_count=0,
+                task_execution_count=1,
+            )
+        )
+
+    def test_generic_gemini_invalid_argument_is_terminal_on_final_attempt(self) -> None:
+        self.assertFalse(
+            self.service._should_retry_output_error(
+                RetryableGeminiInvalidArgument(),
+                task_retry_count=self.service.output_max_attempts - 1,
+                task_execution_count=self.service.output_max_attempts,
+            )
+        )
+
+    async def test_process_output_retries_retryable_error_before_final_attempt(self) -> None:
+        run = SimpleNamespace(
+            id=self.run_id,
+            target_filename="target.docx",
+            target_gcs_object_name="target-object",
+        )
+        output = SimpleNamespace(
+            id=self.output_id,
+            run_id=self.run_id,
+            status="pending",
+            record_payload={},
+            record_index=0,
+            record_label="record",
+            error_message=None,
+            completed_at=None,
+        )
+        db = self._db_for_output(run, output)
+
+        with patch.object(self.service, "_get_session", return_value=db):
+            with patch.object(self.service, "_try_advisory_lock", return_value=True):
+                with patch.object(self.service, "_advisory_unlock"):
+                    with patch.object(self.service, "_download_to_local", new=AsyncMock()):
+                        with patch.object(self.service, "_ensure_run_target_page_count", new=AsyncMock(return_value=1)):
+                            with patch.object(self.service, "_build_output_source_context", new=AsyncMock(return_value=([], "source"))):
+                                with patch.object(self.service, "_generate_filled_document", new=AsyncMock(side_effect=RetryableGeminiInvalidArgument())):
+                                    with patch.object(self.service, "_sync_run_output_counts") as sync_counts:
+                                        with patch.object(self.service, "_finalize_run_if_ready", new=AsyncMock()) as finalize:
+                                            with self.assertRaises(RetryableGeminiInvalidArgument):
+                                                await self.service.process_output(
+                                                    str(self.run_id),
+                                                    str(self.output_id),
+                                                    task_retry_count=0,
+                                                    task_execution_count=1,
+                                                    task_name="task-name",
+                                                    task_queue_name="extract-tasks",
+                                                )
+
+        self.assertEqual(output.status, "pending")
+        self.assertIn("Retrying after attempt 1 failed", output.error_message)
+        self.assertIsNone(output.completed_at)
+        sync_counts.assert_called_once_with(db, run)
+        finalize.assert_not_awaited()
+
+    async def test_process_output_marks_failed_on_final_retryable_attempt(self) -> None:
+        run = SimpleNamespace(
+            id=self.run_id,
+            target_filename="target.docx",
+            target_gcs_object_name="target-object",
+        )
+        output = SimpleNamespace(
+            id=self.output_id,
+            run_id=self.run_id,
+            status="pending",
+            record_payload={},
+            record_index=0,
+            record_label="record",
+            error_message=None,
+            completed_at=None,
+        )
+        db = self._db_for_output(run, output)
+
+        with patch.object(self.service, "_get_session", return_value=db):
+            with patch.object(self.service, "_try_advisory_lock", return_value=True):
+                with patch.object(self.service, "_advisory_unlock"):
+                    with patch.object(self.service, "_download_to_local", new=AsyncMock()):
+                        with patch.object(self.service, "_ensure_run_target_page_count", new=AsyncMock(return_value=1)):
+                            with patch.object(self.service, "_build_output_source_context", new=AsyncMock(return_value=([], "source"))):
+                                with patch.object(self.service, "_generate_filled_document", new=AsyncMock(side_effect=RetryableGeminiInvalidArgument())):
+                                    with patch.object(self.service, "_sync_run_output_counts"):
+                                        with patch.object(self.service, "_finalize_run_if_ready", new=AsyncMock(return_value={"finalized": False})) as finalize:
+                                            result = await self.service.process_output(
+                                                str(self.run_id),
+                                                str(self.output_id),
+                                                task_retry_count=self.service.output_max_attempts - 1,
+                                                task_execution_count=self.service.output_max_attempts,
+                                            )
+
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(output.status, "failed")
+        self.assertIn("INVALID_ARGUMENT", output.error_message)
+        self.assertIsNotNone(output.completed_at)
+        finalize.assert_awaited_once_with(str(self.run_id))
 
 
 if __name__ == "__main__":

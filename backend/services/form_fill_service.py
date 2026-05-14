@@ -139,6 +139,7 @@ class FormFillService:
         self.batch_tail_items = self._env_int("FORM_FILL_BATCH_TAIL_ITEMS", 10)
         self.batch_items_per_call = self._env_int("FORM_FILL_BATCH_ITEMS_PER_CALL", 100)
         self.mapping_chunk_size = self._env_int("FORM_FILL_MAPPING_CHUNK_SIZE", self.batch_items_per_call)
+        self.output_max_attempts = max(1, self._env_int("FORM_FILL_OUTPUT_MAX_ATTEMPTS", 3))
         try:
             self.near_token_ratio = float(os.getenv("FORM_FILL_NEAR_TOKEN_RATIO", "0.98"))
         except Exception:
@@ -158,6 +159,51 @@ class FormFillService:
 
     def _get_session(self) -> Session:
         return db_config.get_session()
+
+    def _is_retryable_output_error(self, exc: Exception) -> bool:
+        if isinstance(exc, ValueError):
+            return False
+
+        status_code = getattr(exc, "status_code", None)
+        try:
+            status_int = int(status_code) if status_code is not None else None
+        except (TypeError, ValueError):
+            status_int = None
+
+        message = str(exc)
+        lowered = message.lower()
+        if status_int == 429 or (status_int is not None and status_int >= 500):
+            return True
+        if status_int == 400 and "invalid_argument" in lowered and "request contains an invalid argument" in lowered:
+            return True
+        if any(token in lowered for token in ("timeout", "timed out", "connection", "temporarily unavailable", "service unavailable")):
+            return True
+        return False
+
+    def _form_fill_output_attempt(self, task_retry_count: Optional[int], task_execution_count: Optional[int]) -> Optional[int]:
+        if task_retry_count is not None:
+            try:
+                return max(1, int(task_retry_count) + 1)
+            except (TypeError, ValueError):
+                return None
+        if task_execution_count is not None:
+            try:
+                return max(1, int(task_execution_count))
+            except (TypeError, ValueError):
+                return None
+        return None
+
+    def _should_retry_output_error(
+        self,
+        exc: Exception,
+        *,
+        task_retry_count: Optional[int] = None,
+        task_execution_count: Optional[int] = None,
+    ) -> bool:
+        attempt = self._form_fill_output_attempt(task_retry_count, task_execution_count)
+        if attempt is None or attempt >= self.output_max_attempts:
+            return False
+        return self._is_retryable_output_error(exc)
 
     def _serialize_template(self, template: FormFillTemplate) -> FormFillTemplateResponse:
         return FormFillTemplateResponse(
@@ -2675,7 +2721,16 @@ Instructions:
             "failed_to_enqueue": failed_to_enqueue,
         }
 
-    async def process_output(self, run_id: str, output_id: str) -> dict[str, Any]:
+    async def process_output(
+        self,
+        run_id: str,
+        output_id: str,
+        *,
+        task_retry_count: Optional[int] = None,
+        task_execution_count: Optional[int] = None,
+        task_name: Optional[str] = None,
+        task_queue_name: Optional[str] = None,
+    ) -> dict[str, Any]:
         db = self._get_session()
         temp_dir = tempfile.mkdtemp(prefix="form_fill_output_")
         lock_acquired = False
@@ -2741,6 +2796,30 @@ Instructions:
                 run = db.query(FormFillRun).filter(FormFillRun.id == uuid.UUID(str(run_id))).first()
                 if not output or not run:
                     raise
+
+                if self._should_retry_output_error(
+                    output_exc,
+                    task_retry_count=task_retry_count,
+                    task_execution_count=task_execution_count,
+                ):
+                    attempt = self._form_fill_output_attempt(task_retry_count, task_execution_count) or 1
+                    logger.warning(
+                        "Retrying Form Fill output %s for run %s after attempt %s/%s failed: %s (task=%s queue=%s)",
+                        output_id,
+                        run_id,
+                        attempt,
+                        self.output_max_attempts,
+                        output_exc,
+                        task_name,
+                        task_queue_name,
+                    )
+                    output.status = "pending"
+                    output.error_message = f"Retrying after attempt {attempt} failed: {output_exc}"
+                    output.completed_at = None
+                    self._sync_run_output_counts(db, run)
+                    db.commit()
+                    raise
+
                 output.status = "failed"
                 output.error_message = str(output_exc)
                 output.completed_at = datetime.now(timezone.utc)
