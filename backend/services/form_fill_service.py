@@ -21,7 +21,7 @@ import fitz
 from google import genai
 from google.genai import types
 from openpyxl import load_workbook
-from sqlalchemy import func, nullslast, text
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from core.database import db_config
@@ -45,6 +45,7 @@ from models.form_fill import (
 from services.cloud_run_task_service import cloud_run_task_service
 from services.document_conversion_service import DOCX_MIME, get_document_conversion_service
 from services.gcs_service import get_storage_service
+from services.natural_sort import natural_text_key, sort_paths_naturally
 from services.page_counting_service import page_counting_service
 
 
@@ -350,8 +351,8 @@ class FormFillService:
     def _task_source_files(self, db: Session, task_id: Any) -> list[str]:
         task_source_files = db.query(SourceFile.original_path).join(
             SourceFileToTask, SourceFile.id == SourceFileToTask.source_file_id
-        ).filter(SourceFileToTask.task_id == task_id).order_by(SourceFile.original_path.asc()).all()
-        return [item[0] for item in task_source_files]
+        ).filter(SourceFileToTask.task_id == task_id).all()
+        return sort_paths_naturally(item[0] for item in task_source_files)
 
     def _payload_from_extraction_result(
         self,
@@ -507,30 +508,30 @@ class FormFillService:
         if not target_run:
             raise ValueError("Extraction run not found")
 
-        first_file_subquery = db.query(
-            SourceFileToTask.task_id,
-            func.min(SourceFile.original_path).label("first_file_path"),
-        ).join(
-            SourceFile, SourceFile.id == SourceFileToTask.source_file_id
-        ).group_by(SourceFileToTask.task_id).subquery()
-
         results_with_tasks = db.query(ExtractionResult, ExtractionTask).join(
             ExtractionTask, ExtractionResult.task_id == ExtractionTask.id
-        ).outerjoin(
-            first_file_subquery, first_file_subquery.c.task_id == ExtractionTask.id
         ).filter(
             ExtractionTask.job_run_id == target_run.id
-        ).order_by(
-            ExtractionTask.result_set_index.asc(),
-            nullslast(first_file_subquery.c.first_file_path.asc()),
-            ExtractionResult.processed_at,
-            ExtractionResult.id,
         ).all()
+
+        source_files_by_task = {
+            task.id: self._task_source_files(db, task.id)
+            for _, task in results_with_tasks
+        }
+        results_with_tasks.sort(
+            key=lambda item: (
+                getattr(item[1], "result_set_index", 0) or 0,
+                1 if not source_files_by_task.get(item[1].id) else 0,
+                natural_text_key(source_files_by_task[item[1].id][0]) if source_files_by_task.get(item[1].id) else (),
+                item[0].processed_at.timestamp() if item[0].processed_at else 0,
+                str(item[0].id),
+            )
+        )
 
         payloads = [
             self._payload_from_extraction_result(
                 result=result,
-                source_files=self._task_source_files(db, task.id),
+                source_files=source_files_by_task.get(task.id, []),
                 job_id=job_id,
                 run_id=run_id,
                 task_id=str(task.id),

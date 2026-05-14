@@ -27,6 +27,7 @@ from models.db_models import (
 from core.database import db_config
 from services.gcs_service import get_storage_service
 from services.gcs_service import normalize_path
+from services.natural_sort import natural_source_file_key, sort_source_files_naturally
 from services.page_counting_service import page_counting_service
 from services.document_conversion_service import normalize_source_mime_type
 from core.constants import MAX_DIRECT_UPLOAD_BYTES
@@ -34,7 +35,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func, update, and_, or_
-from sqlalchemy.sql.expression import nullslast
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 import logging
@@ -648,7 +648,7 @@ class JobService:
         
         # Filter to processable files only using existing method
         processable_files_query = self._filter_processable_files(source_files_query)
-        processable_files = processable_files_query.all()
+        processable_files = sort_source_files_naturally(processable_files_query.all())
         
         if not processable_files:
             logger.info(f"No processable source files found for job run {job_run_id}")
@@ -719,7 +719,7 @@ class JobService:
         Returns a dictionary mapping folder paths to lists of files
         """
         files_by_folder = {}
-        for file in source_files:
+        for file in sort_source_files_naturally(source_files):
             folder_path = self._get_folder_path(file.original_path)
             if folder_path not in files_by_folder:
                 files_by_folder[folder_path] = []
@@ -1372,7 +1372,7 @@ class JobService:
         """Create extraction tasks based on task definitions for a job run"""
         # Get all processable source files for this job run (exclude archives)
         source_files_query = db.query(SourceFile).filter(SourceFile.job_run_id == job_run_id)
-        source_files = self._filter_processable_files(source_files_query).all()
+        source_files = sort_source_files_naturally(self._filter_processable_files(source_files_query).all())
         
         # Group files by their folder paths using shared logic
         files_by_path = self._group_files_by_folder(source_files)
@@ -2070,7 +2070,7 @@ class JobService:
                 # Filter out archive files that are only used for unpacking, not data extraction
                 query = self._filter_processable_files(query)
             
-            source_files = query.order_by(SourceFile.original_path, SourceFile.id).all()
+            source_files = sort_source_files_naturally(query.all())
             
             files = []
             for source_file in source_files:
@@ -2113,8 +2113,14 @@ class JobService:
             if processable_only:
                 query = self._filter_processable_files(query)
 
-            query = query.order_by(JobRun.created_at.desc(), SourceFile.original_path.asc(), SourceFile.id)
+            query = query.order_by(JobRun.created_at.desc(), SourceFile.id)
             results = query.all()
+            results.sort(
+                key=lambda item: (
+                    -(item[1].created_at.timestamp() if item[1].created_at else 0),
+                    natural_source_file_key(item[0]),
+                )
+            )
 
             files = []
             for source_file, job_run in results:
@@ -2387,35 +2393,37 @@ class JobService:
             if not target_run:
                 raise ValueError(f"Job run not found")
             
-            # Create subquery to get first source file path for each task
-            first_file_subquery = db.query(
-                SourceFileToTask.task_id,
-                func.min(SourceFile.original_path).label('first_file_path')
-            ).join(
-                SourceFile, SourceFile.id == SourceFileToTask.source_file_id
-            ).group_by(SourceFileToTask.task_id).subquery()
-            
-            # Get extraction results ordered by first source file path.
-            # NOTE: We outer-join the first-file subquery so tasks without source files
-            # (e.g., manual rows) still show up.
+            # Sort in Python so numeric path segments use natural ordering.
             results_query = db.query(ExtractionResult, ExtractionTask).join(
                 ExtractionTask, ExtractionResult.task_id == ExtractionTask.id
-            ).outerjoin(
-                first_file_subquery, first_file_subquery.c.task_id == ExtractionTask.id
             ).filter(
                 ExtractionTask.job_run_id == target_run.id
-            ).order_by(
-                ExtractionTask.result_set_index.asc(),
-                nullslast(first_file_subquery.c.first_file_path.asc()),
-                ExtractionResult.processed_at,
-                ExtractionResult.id
             )
-            
-            # Get total count
-            total_count = results_query.count()
-            
-            # Apply pagination
-            results_with_tasks = results_query.offset(offset).limit(limit).all()
+            all_results_with_tasks = results_query.all()
+
+            source_files_by_task: dict[Any, list[SourceFile]] = {task.id: [] for _, task in all_results_with_tasks}
+            task_ids = list(source_files_by_task.keys())
+            if task_ids:
+                task_source_file_rows = db.query(SourceFileToTask.task_id, SourceFile).join(
+                    SourceFile, SourceFileToTask.source_file_id == SourceFile.id
+                ).filter(SourceFileToTask.task_id.in_(task_ids)).all()
+                for task_id, source_file in task_source_file_rows:
+                    source_files_by_task.setdefault(task_id, []).append(source_file)
+                for task_id, task_source_files in source_files_by_task.items():
+                    source_files_by_task[task_id] = sort_source_files_naturally(task_source_files)
+
+            all_results_with_tasks.sort(
+                key=lambda item: (
+                    getattr(item[1], 'result_set_index', 0) or 0,
+                    1 if not source_files_by_task.get(item[1].id) else 0,
+                    natural_source_file_key(source_files_by_task[item[1].id][0]) if source_files_by_task.get(item[1].id) else (),
+                    item[0].processed_at.timestamp() if item[0].processed_at else 0,
+                    str(item[0].id),
+                )
+            )
+
+            total_count = len(all_results_with_tasks)
+            results_with_tasks = all_results_with_tasks[offset:offset + limit]
             
             # Calculate unique files processed count efficiently (excluding archive files)
             unique_files_query = db.query(SourceFile.id).filter(SourceFile.job_run_id == target_run.id)
@@ -2436,13 +2444,7 @@ class JobService:
                 # Handle new array-based format: "results": [[val1, val2], [val3, val4]], "columns": ["field1", "field2"]
                 if "results" in extracted_data and "columns" in extracted_data:
                     # Get source file info from the task
-                    source_files = []
-                    task_source_files = db.query(SourceFileToTask, SourceFile).join(
-                        SourceFile, SourceFileToTask.source_file_id == SourceFile.id
-                    ).filter(SourceFileToTask.task_id == task.id).order_by(SourceFile.original_path, SourceFile.id).all()
-                    
-                    for _, source_file in task_source_files:
-                        source_files.append(source_file.original_path)
+                    source_files = [source_file.original_path for source_file in source_files_by_task.get(task.id, [])]
                     
                     if not source_files:
                         source_files = ["(manual)"]
@@ -2876,7 +2878,7 @@ class JobService:
                 
                 # Get all processable source files for this job run (exclude archives)
                 source_files_query = db.query(SourceFile).filter(SourceFile.job_run_id == target_run.id)
-                source_files = self._filter_processable_files(source_files_query).all()
+                source_files = sort_source_files_naturally(self._filter_processable_files(source_files_query).all())
                 logger.info(f"Found {len(source_files)} processable source files for job run {target_run.id}")
                 
                 # Group files by their folder paths

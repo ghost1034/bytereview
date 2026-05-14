@@ -20,10 +20,11 @@ from dataclasses import dataclass
 from typing import Any, AsyncGenerator, Dict, Optional
 
 import psycopg2
-from sqlalchemy import func, text
+from sqlalchemy import text
 
 from core.database import db_config
 from models.db_models import ExtractionJob, ExtractionTask, SourceFile, SourceFileToTask
+from services.natural_sort import natural_source_file_key, sort_source_files_naturally
 
 logger = logging.getLogger(__name__)
 
@@ -193,26 +194,27 @@ class SSEManager:
                         yield {"type": "error", "message": "No job run found"}
                         return
 
-                    # Build ordered task list using first source file path
-                    first_file_subquery = (
-                        db.query(
-                            SourceFileToTask.task_id,
-                            func.min(SourceFile.original_path).label("first_file_path"),
+                    tasks = db.query(ExtractionTask).filter(ExtractionTask.job_run_id == latest_run.id).all()
+                    source_files_by_task: dict[Any, list[SourceFile]] = {task.id: [] for task in tasks}
+                    task_ids = list(source_files_by_task.keys())
+                    if task_ids:
+                        source_file_rows = (
+                            db.query(SourceFileToTask.task_id, SourceFile)
+                            .join(SourceFile, SourceFile.id == SourceFileToTask.source_file_id)
+                            .filter(SourceFileToTask.task_id.in_(task_ids))
+                            .all()
                         )
-                        .join(SourceFile, SourceFile.id == SourceFileToTask.source_file_id)
-                        .group_by(SourceFileToTask.task_id)
-                        .subquery()
-                    )
+                        for task_id, source_file in source_file_rows:
+                            source_files_by_task.setdefault(task_id, []).append(source_file)
+                        for task_id, source_files in source_files_by_task.items():
+                            source_files_by_task[task_id] = sort_source_files_naturally(source_files)
 
-                    tasks = (
-                        db.query(ExtractionTask)
-                        .join(
-                            first_file_subquery,
-                            first_file_subquery.c.task_id == ExtractionTask.id,
+                    tasks.sort(
+                        key=lambda task: (
+                            1 if not source_files_by_task.get(task.id) else 0,
+                            natural_source_file_key(source_files_by_task[task.id][0]) if source_files_by_task.get(task.id) else (),
+                            str(task.id),
                         )
-                        .filter(ExtractionTask.job_run_id == latest_run.id)
-                        .order_by(first_file_subquery.c.first_file_path)
-                        .all()
                     )
 
                     total_tasks = latest_run.tasks_total or 0
@@ -221,16 +223,7 @@ class SSEManager:
 
                     task_list = []
                     for task in tasks:
-                        source_files = (
-                            db.query(SourceFile)
-                            .join(
-                                SourceFileToTask,
-                                SourceFile.id == SourceFileToTask.source_file_id,
-                            )
-                            .filter(SourceFileToTask.task_id == task.id)
-                            .order_by(SourceFile.original_path, SourceFile.id)
-                            .all()
-                        )
+                        source_files = source_files_by_task.get(task.id, [])
 
                         if len(source_files) == 1:
                             display_name = str(source_files[0].original_filename)

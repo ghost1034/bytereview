@@ -44,7 +44,7 @@ import { useToast } from '@/hooks/use-toast'
 import { apiClient, type JobFileInfo, type FileStatus, type JobFileAllRunsInfo } from '@/lib/api'
 import { GoogleDrivePicker } from '@/components/integrations/GoogleDrivePicker'
 import { IntegrationPrompt } from '@/components/integrations/IntegrationBanner'
-import { cn, pluralize } from '@/lib/utils'
+import { cn, compareNaturalText, pluralize } from '@/lib/utils'
 
 interface EnhancedFileUploadProps {
   jobId: string
@@ -101,13 +101,13 @@ export default function EnhancedFileUpload({ jobId, runId, onFilesReady, onBack,
     }
   }
 
-  // Helper function to sort files alphabetically by full path
+  // Helper function to sort files naturally by full path
   // Uses original_path (includes folder structure) for proper hierarchical sorting
   const sortFilesByPath = (files: DisplayFile[]): DisplayFile[] => {
     return [...files].sort((a, b) => {
-      const pathA = (a.original_path || a.original_filename || '').toLowerCase()
-      const pathB = (b.original_path || b.original_filename || '').toLowerCase()
-      return pathA.localeCompare(pathB)
+      const pathA = a.original_path || a.original_filename || ''
+      const pathB = b.original_path || b.original_filename || ''
+      return compareNaturalText(pathA, pathB)
     })
   }
 

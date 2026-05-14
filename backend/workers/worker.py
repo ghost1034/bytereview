@@ -36,6 +36,7 @@ from models.job import FileStatus
 from services.ai_extraction_service import AIExtractionService
 from services.gcs_service import get_storage_service
 from services.google_service import google_service
+from services.natural_sort import sort_source_files_naturally
 import json
 import io
 from typing import List
@@ -149,14 +150,14 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
             logger.info(f"Task {task_id} already failed terminally; skipping duplicate delivery")
             return {"success": False, "task_id": task_id, "skipped": True, "terminal": True}
         
-        # Get associated source files (natural order by original_path then id)
+        # Get associated source files in user-facing natural path order.
         source_files_query = db.query(SourceFile).join(
             SourceFileToTask, SourceFile.id == SourceFileToTask.source_file_id
         ).filter(
             SourceFileToTask.task_id == task_uuid
-        ).order_by(SourceFile.original_path, SourceFile.id)
+        )
         
-        source_files = source_files_query.all()
+        source_files = sort_source_files_naturally(source_files_query.all())
         
         # Update task status to processing
         task.status = "processing"
@@ -639,12 +640,13 @@ async def unpack_zip_file_task(ctx: Dict[str, Any], source_file_id: str, automat
             job_run = db.query(JobRun).filter(JobRun.id == zip_file.job_run_id).first()
             parent_job_id = str(job_run.job_id) if job_run else "unknown"
             
-            # Query only the newly extracted files in canonical alphabetical order
+            # Query only the newly extracted files in user-facing natural path order.
             extracted_files = db.query(SourceFile).filter(
                 SourceFile.job_run_id == zip_file.job_run_id,
                 SourceFile.status == FileStatus.UPLOADED.value,  # Extracted files are marked as "uploaded"
                 SourceFile.id != zip_file.id  # Exclude the original ZIP file
-            ).order_by(SourceFile.original_path, SourceFile.id).all()
+            ).all()
+            extracted_files = sort_source_files_naturally(extracted_files)
             
             # Convert extracted files to dict format for SSE
             files_data = []
