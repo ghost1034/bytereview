@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -187,6 +193,19 @@ export default function FormFillPage() {
     () => templates.find((item) => item.id === selectedTemplateId) || null,
     [templates, selectedTemplateId]
   )
+
+  const warningGroups = useMemo(() => {
+    const outputs = currentRun?.outputs ?? []
+    return outputs
+      .map((output) => {
+        const items: string[] = Array.isArray(output.warnings) ? [...output.warnings] : []
+        if (output.status === 'failed' && output.error_message) {
+          items.push(output.error_message)
+        }
+        return { id: output.id, recordLabel: output.record_label, items }
+      })
+      .filter((group) => group.items.length > 0)
+  }, [currentRun?.outputs])
 
   const recentRuns = runsData?.runs || []
 
@@ -741,14 +760,28 @@ export default function FormFillPage() {
                 </span>
               </div>
             )}
-            {currentRun?.warnings?.length ? (
+            {warningGroups.length ? (
               <div className="space-y-1">
                 <div className="font-medium text-foreground text-sm">Warnings</div>
-                <ul className="list-disc pl-5 space-y-1 text-foreground-muted">
-                  {currentRun.warnings.map((warning, index) => (
-                    <li key={`${warning}-${index}`}>{warning}</li>
+                <Accordion type="multiple" className="w-full">
+                  {warningGroups.map((group) => (
+                    <AccordionItem key={group.id} value={group.id}>
+                      <AccordionTrigger className="py-2 text-sm">
+                        <span>
+                          {group.recordLabel}{' '}
+                          <span className="text-foreground-muted">({group.items.length})</span>
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent className="pb-2">
+                        <ul className="list-disc pl-5 space-y-1 text-foreground-muted">
+                          {group.items.map((item, index) => (
+                            <li key={`${group.id}-${index}`}>{item}</li>
+                          ))}
+                        </ul>
+                      </AccordionContent>
+                    </AccordionItem>
                   ))}
-                </ul>
+                </Accordion>
               </div>
             ) : null}
             {currentRun?.error_message && (
