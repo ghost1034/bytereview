@@ -10,6 +10,7 @@ import logging
 import mimetypes
 import multiprocessing
 import os
+import queue
 import re
 import shutil
 import tempfile
@@ -2116,15 +2117,22 @@ Rules:
         result_queue = ctx.Queue(maxsize=1)
         process = ctx.Process(target=_run_generated_transform_worker, args=(code, rows, context, result_queue))
         process.start()
-        process.join(self.tabular_code_timeout_seconds)
+        try:
+            message = result_queue.get(timeout=self.tabular_code_timeout_seconds)
+        except queue.Empty:
+            process.join(0)
+            if process.is_alive():
+                process.terminate()
+                process.join(5)
+                raise TimeoutError(f"Generated Form Fill code exceeded {self.tabular_code_timeout_seconds} seconds")
+            raise ValueError("Generated Form Fill code exited without returning a result")
+
+        process.join(5)
         if process.is_alive():
             process.terminate()
             process.join(5)
-            raise TimeoutError(f"Generated Form Fill code exceeded {self.tabular_code_timeout_seconds} seconds")
+            raise TimeoutError("Generated Form Fill code returned a result but did not exit cleanly")
 
-        if result_queue.empty():
-            raise ValueError("Generated Form Fill code exited without returning a result")
-        message = result_queue.get()
         if not isinstance(message, dict) or not message.get("ok"):
             raise ValueError(str((message or {}).get("error") or "Generated Form Fill code failed"))
         result = message.get("result")
@@ -2138,6 +2146,30 @@ Rules:
             raise ValueError("Generated Form Fill code returned too much data")
         return result
 
+    def _generated_operation_text_value(self, value: Any) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, dict):
+            if "text" in value:
+                return "" if value.get("text") is None else str(value.get("text"))
+            if "value" in value:
+                return "" if value.get("value") is None else str(value.get("value"))
+            return str(value)
+        if isinstance(value, (list, tuple)):
+            parts = [self._generated_operation_text_value(item) for item in value]
+            return " ".join(part for part in parts if part)
+        return str(value)
+
+    def _normalize_docx_edit_operation(self, operation: Any) -> Optional[dict[str, Any]]:
+        if not isinstance(operation, dict):
+            return None
+        normalized = dict(operation)
+        if not str(normalized.get("action") or "").strip() and str(normalized.get("operation") or "").strip():
+            normalized["action"] = str(normalized.get("operation") or "").strip()
+        if "cells" in normalized and isinstance(normalized.get("cells"), list):
+            normalized["cells"] = [self._generated_operation_text_value(item) for item in normalized.get("cells") or []]
+        return normalized
+
     def _validate_generated_transform_result(self, result: dict[str, Any], *, expected_key: str) -> dict[str, Any]:
         warnings = result.get("warnings") or []
         if not isinstance(warnings, list):
@@ -2148,7 +2180,10 @@ Rules:
             values = result.get(expected_key) or []
             if not isinstance(values, list):
                 raise ValueError(f"Generated Form Fill code returned '{expected_key}' as a non-list")
-            normalized[expected_key] = [item for item in values if isinstance(item, dict)]
+            if expected_key == "operations":
+                normalized[expected_key] = [item for item in (self._normalize_docx_edit_operation(item) for item in values) if item]
+            else:
+                normalized[expected_key] = [item for item in values if isinstance(item, dict)]
             return normalized
 
         values = result.get(expected_key) or {}
@@ -2457,6 +2492,7 @@ Editable tables:
 Instructions:
 - {scope_instruction}
 - Prefer replace_text_in_block when a specific phrase inside a block should change.
+- Put the operation name in the action field. Do not use operation as the key name.
 - Use replace_block_text when the entire block should be rewritten.
 - Use insert_after_block or insert_before_block for new paragraphs adjacent to an existing block.
 - Use append_to_block only for short additions to an existing block.
@@ -2824,7 +2860,10 @@ Instructions:
         _blocks, block_map = self._collect_docx_blocks(doc)
         _tables, table_map = self._collect_docx_tables(doc)
 
-        for operation in operations:
+        for raw_operation in operations:
+            operation = self._normalize_docx_edit_operation(raw_operation)
+            if not operation:
+                continue
             action = str(operation.get("action") or "").strip()
             block_id = str(operation.get("block_id") or "").strip()
             text = str(operation.get("text") or "")
@@ -3199,7 +3238,8 @@ Instructions:
                         if tabular_rows:
                             output_contract = (
                                 "Return {'operations': [operation, ...], 'warnings': [...]}. Operations must use only "
-                                "insert_table_row_after or insert_table_column_after and valid table_id/row_index/column_index values."
+                                "insert_table_row_after or insert_table_column_after and valid table_id/row_index/column_index values. "
+                                "Each operation object must put the operation name in the 'action' key and must provide cells as strings."
                             )
                             code_context = {
                                 "target_kind": "DOCX table expansion",
@@ -3237,8 +3277,8 @@ Instructions:
                             )
                         operations = [
                             item
-                            for item in (edit_payload.get("operations") or [])
-                            if isinstance(item, dict) and str(item.get("action") or "").strip()
+                            for item in (self._normalize_docx_edit_operation(item) for item in (edit_payload.get("operations") or []))
+                            if item and str(item.get("action") or "").strip()
                         ]
                         table_operations = [
                             item
@@ -3278,7 +3318,8 @@ Instructions:
                     output_contract = (
                         "Return {'operations': [operation, ...], 'warnings': [...]}. Each operation must use one of "
                         "replace_text_in_block, replace_block_text, append_to_block, insert_before_block, insert_after_block, "
-                        "insert_table_row_after, or insert_table_column_after with valid provided block_id/table_id values."
+                        "insert_table_row_after, or insert_table_column_after with valid provided block_id/table_id values. "
+                        "Each operation object must put the operation name in the 'action' key and must provide cells as strings."
                     )
                     code_context = {
                         "target_kind": "DOCX edit in place",
@@ -3314,7 +3355,9 @@ Instructions:
                         continue_on_full_batch=True,
                     )
                 operations = [
-                    item for item in (edit_payload.get("operations") or []) if isinstance(item, dict) and str(item.get("action") or "").strip()
+                    item
+                    for item in (self._normalize_docx_edit_operation(item) for item in (edit_payload.get("operations") or []))
+                    if item and str(item.get("action") or "").strip()
                 ]
                 warnings.extend([str(item) for item in (edit_payload.get("warnings") or []) if str(item).strip()])
                 fill_plan = {

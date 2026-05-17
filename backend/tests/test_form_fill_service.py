@@ -161,6 +161,58 @@ class FormFillServiceDocxEditPlanTests(unittest.TestCase):
         self.assertEqual([cell.text for cell in table.rows[1].cells], ["Header C", "Header D"])
         self.assertEqual([cell.text for cell in table.rows[2].cells], ["Value A1", "Value B1"])
 
+    def test_apply_docx_edit_plan_accepts_generated_operation_alias_and_cell_text_objects(self) -> None:
+        source_path = self._create_table_docx()
+        output_path = self._temp_output_path()
+
+        warnings = self.service._apply_docx_edit_plan(
+            source_path,
+            [
+                {
+                    "operation": "insert_table_row_after",
+                    "table_id": "table.0",
+                    "row_index": 0,
+                    "cells": [[{"text": "Generated A"}], [{"text": "Generated B"}]],
+                }
+            ],
+            output_path,
+            allow_table_expansion=True,
+        )
+
+        self.assertEqual(warnings, [])
+        document = Document(output_path)
+        table = document.tables[0]
+        self.assertEqual([cell.text for cell in table.rows[1].cells], ["Generated A", "Generated B"])
+
+    def test_validate_generated_operations_normalizes_action_alias(self) -> None:
+        result = self.service._validate_generated_transform_result(
+            {
+                "operations": [
+                    {
+                        "operation": "insert_table_row_after",
+                        "table_id": "table.0",
+                        "row_index": 0,
+                        "cells": [[{"text": "Date"}], [{"text": "Amount"}]],
+                    }
+                ],
+                "warnings": [],
+            },
+            expected_key="operations",
+        )
+
+        self.assertEqual(
+            result["operations"],
+            [
+                {
+                    "operation": "insert_table_row_after",
+                    "table_id": "table.0",
+                    "row_index": 0,
+                    "cells": ["Date", "Amount"],
+                    "action": "insert_table_row_after",
+                }
+            ],
+        )
+
     def test_apply_docx_edit_plan_inserts_column_after_selected_column(self) -> None:
         source_path = self._create_table_docx()
         output_path = self._temp_output_path()
@@ -1036,6 +1088,7 @@ class FormFillServiceContinuationTests(unittest.TestCase):
         self.assertIn("Do not write \"see attached\"", pdf_prompt)
         self.assertIn("Do not ask the user to request continuation", pdf_prompt)
         self.assertIn("emit one insert_table_row_after operation per source row", docx_prompt)
+        self.assertIn("Do not use operation as the key name", docx_prompt)
         self.assertIn("Calculate totals", docx_prompt)
         self.assertIn("Do not insert only the first N rows", docx_prompt)
         self.assertIn("Do not claim totals cannot be calculated", docx_prompt)
@@ -1093,6 +1146,29 @@ def transform(rows, context):
 
         self.assertEqual(len(result["operations"]), 2)
         self.assertEqual(result["operations"][1]["cells"], ["Savings", "250"])
+
+    def test_generated_transform_returns_large_operation_list_without_queue_deadlock(self) -> None:
+        code = """
+def transform(rows, context):
+    operations = []
+    for index, row in enumerate(rows):
+        operations.append({
+            "action": "insert_table_row_after",
+            "table_id": "table.0",
+            "row_index": index,
+            "cells": [as_text(row.get("Name")), as_text(row.get("Amount")), "x" * 500],
+        })
+    return {"operations": operations, "warnings": []}
+"""
+
+        result = self.service._execute_generated_transform(
+            code,
+            rows=[{"Name": f"Row {index}", "Amount": index} for index in range(1500)],
+            context={"target_kind": "DOCX edit in place"},
+        )
+
+        self.assertEqual(len(result["operations"]), 1500)
+        self.assertEqual(result["operations"][-1]["cells"][0], "Row 1499")
 
     def test_generated_transform_blocks_imports(self) -> None:
         with self.assertRaisesRegex(ValueError, "may not import"):
