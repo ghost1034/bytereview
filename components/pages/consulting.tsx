@@ -184,13 +184,22 @@ export default function Consulting() {
         description="Our platform is one way to work with us. Forward-Deployed Consulting is the other — a senior team that embeds with yours to design, build, and ship custom AI tools end-to-end. Combining strong technical skills with deep business expertise, we turn AI ambition into software your team actually uses."
         ctas={
           <>
-            <Button asChild size="lg">
+            <Button
+              asChild
+              size="lg"
+              className="btn-shimmer w-full bg-marketing-hero-foreground px-8 text-marketing-hero-from hover:bg-marketing-hero-foreground/90 sm:w-auto"
+            >
               <Link href="/contact">
                 Start a conversation
-                <ArrowRight className="ml-1.5 size-4" aria-hidden />
+                <ArrowRight className="ml-2 size-5" aria-hidden />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
+            <Button
+              asChild
+              size="lg"
+              variant="ghost"
+              className="w-full border border-marketing-hero-border bg-transparent px-8 text-marketing-hero-foreground hover:bg-marketing-hero-foreground/10 hover:text-marketing-hero-foreground sm:w-auto"
+            >
               <a href="#what-we-bring">What we bring</a>
             </Button>
           </>
@@ -218,10 +227,6 @@ export default function Consulting() {
           </>
         }
         description="Most AI consulting hands you a strategy deck. We hand you software running in your environment. The difference is who shows up — senior people who understand both the code and the business it serves."
-        features={DIFFERENTIATORS.map((d) => ({
-          icon: d.icon,
-          title: d.title,
-        }))}
         media={<DifferentiatorStack />}
       />
 
@@ -347,12 +352,24 @@ export default function Consulting() {
         title="Bring us in to build what your team can't ship alone"
         description="Tell us about the workflow you want to transform. We'll come back with a scoped plan, a timeline, and a fixed-price proposal — usually within a week."
         primary={
-          <Button asChild size="lg" variant="secondary">
-            <Link href="/contact">Contact us</Link>
+          <Button
+            asChild
+            size="lg"
+            className="btn-shimmer w-full bg-marketing-hero-foreground px-8 font-semibold text-marketing-hero-from hover:bg-marketing-hero-foreground/90 sm:w-auto"
+          >
+            <Link href="/contact">
+              Contact us
+              <ArrowRight className="ml-2 size-5" aria-hidden />
+            </Link>
           </Button>
         }
         secondary={
-          <Button asChild size="lg" variant="outline">
+          <Button
+            asChild
+            size="lg"
+            variant="ghost"
+            className="w-full border border-marketing-hero-border bg-transparent px-8 text-marketing-hero-foreground hover:bg-marketing-hero-foreground/10 hover:text-marketing-hero-foreground sm:w-auto"
+          >
             <Link href="/about">About our team</Link>
           </Button>
         }

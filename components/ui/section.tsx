@@ -26,8 +26,10 @@ export function Section({
       ? 'rounded-lg border border-border bg-surface-raised shadow-xs'
       : ''
 
+  const hasHeader = !!(title || description || action)
   const headerPad = variant === 'card' ? 'px-5 pt-5' : ''
-  const contentPad = variant === 'card' ? 'px-5 pb-5' : ''
+  const contentPad =
+    variant === 'card' ? (hasHeader ? 'px-5 pb-5' : 'p-5') : ''
 
   return (
     <section className={cn(wrapperClass, className)}>

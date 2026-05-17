@@ -126,13 +126,22 @@ export default function Claw() {
         description="AccountingClaw, FinanceClaw, and LegalClaw run hundreds of pre-built skills autonomously, with guardrails built for accounting, finance, and legal workflows. Choose the cloud, model, and skills — or let us configure everything for you."
         ctas={
           <>
-            <Button asChild size="lg">
+            <Button
+              asChild
+              size="lg"
+              className="btn-shimmer w-full bg-marketing-hero-foreground px-8 text-marketing-hero-from hover:bg-marketing-hero-foreground/90 sm:w-auto"
+            >
               <Link href="/contact">
                 Contact us to get started
-                <ArrowRight className="ml-1.5 size-4" aria-hidden />
+                <ArrowRight className="ml-2 size-5" aria-hidden />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
+            <Button
+              asChild
+              size="lg"
+              variant="ghost"
+              className="w-full border border-marketing-hero-border bg-transparent px-8 text-marketing-hero-foreground hover:bg-marketing-hero-foreground/10 hover:text-marketing-hero-foreground sm:w-auto"
+            >
               <a href="#setup-options">See setup options</a>
             </Button>
           </>
@@ -174,7 +183,7 @@ export default function Claw() {
               Choose your stack, or let us choose it for you
             </h2>
             <p className="mt-4 text-balance text-base text-foreground-muted">
-              Tell us your preferences and we'll deploy AccountingClaw,
+              Tell us your preferences and we&apos;ll deploy AccountingClaw,
               FinanceClaw, and LegalClaw on the infrastructure and models you
               already trust.
             </p>
@@ -280,13 +289,13 @@ export default function Claw() {
           </div>
 
           <p className="mx-auto mt-10 max-w-2xl text-center text-sm text-foreground-muted">
-            Don't see your preferred provider or model? Tell us in your
+            Don&apos;t see your preferred provider or model? Tell us in your
             message — we can usually accommodate.
           </p>
         </div>
       </section>
 
-      <section className="bg-background pb-16 pt-16 sm:pb-20 sm:pt-20">
+      <section className="bg-background py-16 sm:py-20 lg:py-24">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           <Section
             variant="card"
@@ -317,12 +326,24 @@ export default function Claw() {
         title="Deploy your first Claw in days, not months"
         description="Reach out and we'll scope a setup tailored to your firm — including pricing, security review, and a deployment timeline."
         primary={
-          <Button asChild size="lg" variant="secondary">
-            <Link href="/contact">Contact us</Link>
+          <Button
+            asChild
+            size="lg"
+            className="btn-shimmer w-full bg-marketing-hero-foreground px-8 font-semibold text-marketing-hero-from hover:bg-marketing-hero-foreground/90 sm:w-auto"
+          >
+            <Link href="/contact">
+              Contact us
+              <ArrowRight className="ml-2 size-5" aria-hidden />
+            </Link>
           </Button>
         }
         secondary={
-          <Button asChild size="lg" variant="outline">
+          <Button
+            asChild
+            size="lg"
+            variant="ghost"
+            className="w-full border border-marketing-hero-border bg-transparent px-8 text-marketing-hero-foreground hover:bg-marketing-hero-foreground/10 hover:text-marketing-hero-foreground sm:w-auto"
+          >
             <Link href="/pricing">View pricing</Link>
           </Button>
         }
