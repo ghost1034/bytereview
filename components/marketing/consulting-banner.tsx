@@ -38,10 +38,10 @@ export function ConsultingBanner() {
       role="region"
       aria-label="Forward-Deployed Consulting announcement"
       className={cn(
-        'fixed inset-x-0 bottom-0 z-40',
-        'border-t border-border bg-background/95 backdrop-blur',
+        'relative z-30',
+        'border-b border-border bg-background/95 backdrop-blur',
         'supports-[backdrop-filter]:bg-background/85',
-        'shadow-[0_-4px_16px_-8px_rgba(0,0,0,0.12)]',
+        'shadow-[0_4px_16px_-8px_rgba(0,0,0,0.12)]',
       )}
     >
       <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 sm:py-3.5 lg:px-8">

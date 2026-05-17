@@ -39,6 +39,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
+      <ConsultingBanner />
+
       <HeroSection onGetStarted={handleGetStarted} />
       <ProductSuite />
       <ExtractionFeatures onGetStarted={handleGetStarted} />
@@ -52,8 +54,6 @@ export default function Home() {
       <SecurityTrust />
       <FAQSection onGetStarted={handleGetStarted} />
       <CTABanner onGetStarted={handleGetStarted} />
-
-      <ConsultingBanner />
 
       <AuthModal
         isOpen={isAuthModalOpen}
