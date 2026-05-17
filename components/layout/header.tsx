@@ -98,6 +98,7 @@ const PRODUCT_LINKS: ProductLink[] = [
 
 const NAV_LINKS: Array<{ href: string; label: string }> = [
   { href: '/demo', label: 'Demo' },
+  { href: '/consulting', label: 'Consulting' },
   { href: '/pricing', label: 'Pricing' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },

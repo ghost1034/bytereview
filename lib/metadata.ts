@@ -118,6 +118,21 @@ export const pageMetadata = {
       'self-hosted AI agents'
     ],
   },
+  consulting: {
+    title: 'Forward-Deployed Consulting — Custom AI Builds for Accounting, Finance & Legal',
+    description: 'Engineers and operators who embed with your team to build bespoke AI tools. Strong technical skills meet deep business expertise — custom AI workflows, copilots, and agents shipped end-to-end.',
+    canonical: 'https://cpaautomation.ai/consulting',
+    keywords: [
+      'forward-deployed consulting',
+      'AI consulting for accounting',
+      'custom AI tools',
+      'AI for finance',
+      'AI for legal',
+      'AI engineering services',
+      'bespoke AI builds',
+      'AI agent consulting',
+    ],
+  },
   demo: {
     title: 'Demo - Try the CPAAutomation AI Platform',
     description: 'Experience CPAAutomation\'s AI platform in action. Try document extraction, AI writing, and more — see how the platform automates your most time-consuming work.',

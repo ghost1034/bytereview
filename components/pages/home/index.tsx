@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthModal from "@/components/auth/AuthModal";
+import { ConsultingBanner } from "@/components/marketing/consulting-banner";
 
 // Above the fold — load immediately
 import HeroSection from "./HeroSection";
@@ -51,6 +52,8 @@ export default function Home() {
       <SecurityTrust />
       <FAQSection onGetStarted={handleGetStarted} />
       <CTABanner onGetStarted={handleGetStarted} />
+
+      <ConsultingBanner />
 
       <AuthModal
         isOpen={isAuthModalOpen}
