@@ -73,7 +73,7 @@ export default function Footer() {
                 <ComingSoonItem label="Chrona" />
               </li>
               <li>
-                <ComingSoonItem label="Claw Series" />
+                <FooterLink href="/claw">Claw Series</FooterLink>
               </li>
               <li>
                 <ComingSoonItem label="AI Analysis Suite" />

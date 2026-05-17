@@ -1,7 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Bot } from 'lucide-react'
+import { ArrowRight, Bot } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { ShowcaseSection } from '@/components/marketing/showcase-section'
@@ -63,7 +64,7 @@ export default function ClawShowcase() {
           className="rounded-full border-primary/20 bg-primary-soft text-primary-soft-foreground"
         >
           <Bot className="mr-1.5 size-3" aria-hidden />
-          Coming soon
+          Claw Series
         </Badge>
       }
       title={
@@ -78,7 +79,13 @@ export default function ClawShowcase() {
       description="AccountingClaw, FinanceClaw, and LegalClaw are AI agents that work autonomously — not just tools you operate, but digital workers you deploy. Hundreds of pre-built skills with guardrails designed for regulated environments."
       features={CAPABILITIES}
       cta={
-        <p className="text-sm text-foreground-muted">One-click setup.</p>
+        <Link
+          href="/claw"
+          className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
+          Learn more about Claw Series
+          <ArrowRight className="size-4" aria-hidden />
+        </Link>
       }
       media={<ClawMedia />}
     />

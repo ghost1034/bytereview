@@ -103,6 +103,21 @@ export const pageMetadata = {
       'professional integrations'
     ],
   },
+  claw: {
+    title: 'Claw Series - Personalized AI Digital Workers for Accounting, Finance & Legal',
+    description: 'AccountingClaw, FinanceClaw, and LegalClaw — autonomous AI digital workers deployed on the cloud and model of your choice. Personalized setup or fully managed by our team.',
+    canonical: 'https://cpaautomation.ai/claw',
+    keywords: [
+      'AccountingClaw',
+      'FinanceClaw',
+      'LegalClaw',
+      'AI digital workers',
+      'AI agents for accounting',
+      'AI agents for legal',
+      'private cloud AI deployment',
+      'self-hosted AI agents'
+    ],
+  },
   demo: {
     title: 'Demo - Try the CPAAutomation AI Platform',
     description: 'Experience CPAAutomation\'s AI platform in action. Try document extraction, AI writing, and more — see how the platform automates your most time-consuming work.',

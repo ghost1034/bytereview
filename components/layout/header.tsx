@@ -76,10 +76,9 @@ const PRODUCT_LINKS: ProductLink[] = [
   },
   {
     label: 'Claw Series',
-    href: '/#claw-showcase',
+    href: '/claw',
     description: 'AI digital workers',
     icon: Bot,
-    status: 'soon',
   },
   {
     label: 'AI Analysis Suite',

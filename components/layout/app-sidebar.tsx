@@ -84,10 +84,8 @@ const PRODUCTS_GROUP: NavGroup = {
     },
     {
       name: 'Claw Series',
-      href: '/#claw-showcase',
+      href: '/claw',
       icon: Bot,
-      badge: 'Soon',
-      badgeTone: 'muted',
     },
   ],
 }

@@ -80,8 +80,8 @@ const PRODUCTS: Product[] = [
       'Digital workers with hundreds of pre-built skills for regulated industries.',
     icon: Bot,
     tone: 'brand',
-    status: 'Coming Soon',
-    href: '#claw-showcase',
+    status: 'Available',
+    href: '/claw',
   },
   {
     name: 'AI Analysis & Productivity Suites',
