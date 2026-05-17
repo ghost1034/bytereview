@@ -34,6 +34,56 @@ class RetryableGeminiCancelled(Exception):
         return "499 CANCELLED. {'error': {'code': 499, 'message': 'The operation was cancelled.', 'status': 'CANCELLED'}}"
 
 
+class FormFillOutputEnqueueTests(unittest.IsolatedAsyncioTestCase):
+    async def test_enqueue_output_units_uses_staggered_delays(self) -> None:
+        service = FormFillService()
+        outputs = [SimpleNamespace(id=f"output-{index}") for index in range(5)]
+        run = SimpleNamespace(
+            id="run-id",
+            user_id="user-id",
+            outputs=outputs,
+            total_outputs=0,
+            completed_outputs=0,
+            failed_outputs=0,
+            fill_plan=None,
+            usage_basis=None,
+        )
+        query = MagicMock()
+        query.filter.return_value.order_by.return_value.all.return_value = outputs
+        db = MagicMock()
+        db.query.return_value = query
+
+        with patch.object(service, "_check_usage_limit_or_raise"), patch.object(
+            service,
+            "_sync_run_output_counts",
+        ), patch.object(
+            service,
+            "_finalize_run_if_ready",
+            new=AsyncMock(),
+        ), patch.dict(
+            os.environ,
+            {
+                "FORM_FILL_OUTPUT_ENQUEUE_BATCH_SIZE": "2",
+                "FORM_FILL_OUTPUT_ENQUEUE_BATCH_DELAY_SECONDS": "15",
+                "FORM_FILL_OUTPUT_ENQUEUE_MAX_DELAY_SECONDS": "900",
+                "FORM_FILL_OUTPUT_ENQUEUE_JITTER_SECONDS": "0",
+            },
+        ), patch("services.form_fill_service.cloud_run_task_service.enqueue_form_fill_output_task", new_callable=AsyncMock) as enqueue:
+            enqueue.side_effect = [f"cloud-task-{index}" for index in range(5)]
+
+            result = await service._enqueue_output_units(
+                db=db,
+                run=run,
+                target_page_count=1,
+                units=[{"record_index": index, "record_label": str(index), "record_payload": {}} for index in range(5)],
+                strategy="test",
+            )
+
+        delays = [call.kwargs["delay_seconds"] for call in enqueue.await_args_list]
+        self.assertEqual(delays, [0, 0, 15, 15, 30])
+        self.assertEqual(result["enqueued_outputs"], 5)
+
+
 class FormFillServiceDocxEditPlanTests(unittest.TestCase):
     def setUp(self) -> None:
         self.service = FormFillService()
@@ -390,6 +440,7 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
             with patch.object(self.service, "_sync_run_output_counts") as sync_counts:
                 with patch.object(self.service, "_finalize_run_if_ready", new=AsyncMock(return_value={"finalized": False})):
                     with patch("services.form_fill_service.cloud_run_task_service") as task_service:
+                        task_service.calculate_stagger_delay.return_value = 0
                         task_service.enqueue_form_fill_output_task = AsyncMock(return_value="task-name")
 
                         result = await self.service._enqueue_output_units(
@@ -403,7 +454,7 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
         check_limit.assert_called_once()
         self.assertEqual(sync_counts.call_count, 2)
         sync_counts.assert_called_with(db, run)
-        task_service.enqueue_form_fill_output_task.assert_awaited_once_with(run_id, output_id)
+        task_service.enqueue_form_fill_output_task.assert_awaited_once_with(run_id, output_id, delay_seconds=0)
         self.assertEqual(result["enqueued_outputs"], 1)
         self.assertEqual(result["failed_to_enqueue"], 0)
 

@@ -4,12 +4,14 @@ import os
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from task_services.extract_task_service import execute_task
+from services.job_service import JobService
 
 
 class FakeRequest:
@@ -51,6 +53,31 @@ class ExtractTaskServiceTests(unittest.IsolatedAsyncioTestCase):
             task_queue_name="extract-tasks",
             task_name="task-name",
         )
+
+    async def test_enqueue_extraction_tasks_uses_staggered_delays(self) -> None:
+        tasks = [SimpleNamespace(id=f"task-{index}") for index in range(5)]
+        query = MagicMock()
+        query.filter.return_value.order_by.return_value.all.return_value = tasks
+        db = MagicMock()
+        db.query.return_value = query
+
+        service = JobService.__new__(JobService)
+        with patch.object(service, "_get_session", return_value=db), patch.dict(
+            os.environ,
+            {
+                "EXTRACTION_ENQUEUE_BATCH_SIZE": "2",
+                "EXTRACTION_ENQUEUE_BATCH_DELAY_SECONDS": "15",
+                "EXTRACTION_ENQUEUE_MAX_DELAY_SECONDS": "900",
+                "EXTRACTION_ENQUEUE_JITTER_SECONDS": "0",
+            },
+        ), patch("services.job_service.cloud_run_task_service.enqueue_extraction_task", new_callable=AsyncMock) as enqueue:
+            enqueue.side_effect = [f"cloud-task-{index}" for index in range(5)]
+
+            await service._enqueue_extraction_tasks_for_processing("run-id")
+
+        delays = [call.kwargs["delay_seconds"] for call in enqueue.await_args_list]
+        self.assertEqual(delays, [0, 0, 15, 15, 30])
+        db.close.assert_called_once()
 
 
 if __name__ == "__main__":

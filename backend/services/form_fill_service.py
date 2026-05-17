@@ -3409,9 +3409,37 @@ Instructions:
 
         enqueued = 0
         failed_to_enqueue = 0
-        for output in pending_outputs:
+        if pending_outputs:
+            last_delay = cloud_run_task_service.calculate_stagger_delay(
+                len(pending_outputs) - 1,
+                batch_size_env="FORM_FILL_OUTPUT_ENQUEUE_BATCH_SIZE",
+                batch_delay_env="FORM_FILL_OUTPUT_ENQUEUE_BATCH_DELAY_SECONDS",
+                max_delay_env="FORM_FILL_OUTPUT_ENQUEUE_MAX_DELAY_SECONDS",
+                jitter_env="FORM_FILL_OUTPUT_ENQUEUE_JITTER_SECONDS",
+                jitter_seed=f"{run.id}:{pending_outputs[-1].id}",
+            )
+            logger.info(
+                "Staggering %s Form Fill output tasks for run %s across delays 0s-%ss",
+                len(pending_outputs),
+                run.id,
+                last_delay,
+            )
+
+        for index, output in enumerate(pending_outputs):
             try:
-                await cloud_run_task_service.enqueue_form_fill_output_task(str(run.id), str(output.id))
+                delay_seconds = cloud_run_task_service.calculate_stagger_delay(
+                    index,
+                    batch_size_env="FORM_FILL_OUTPUT_ENQUEUE_BATCH_SIZE",
+                    batch_delay_env="FORM_FILL_OUTPUT_ENQUEUE_BATCH_DELAY_SECONDS",
+                    max_delay_env="FORM_FILL_OUTPUT_ENQUEUE_MAX_DELAY_SECONDS",
+                    jitter_env="FORM_FILL_OUTPUT_ENQUEUE_JITTER_SECONDS",
+                    jitter_seed=f"{run.id}:{output.id}",
+                )
+                await cloud_run_task_service.enqueue_form_fill_output_task(
+                    str(run.id),
+                    str(output.id),
+                    delay_seconds=delay_seconds,
+                )
                 enqueued += 1
             except Exception as enqueue_exc:
                 logger.exception("Failed to enqueue Form Fill output %s", output.id)

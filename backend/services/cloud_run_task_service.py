@@ -5,6 +5,7 @@ Handles task creation and execution coordination
 import os
 import json
 import logging
+import hashlib
 from typing import Dict, Any, Optional, List
 from google.api_core.exceptions import NotFound
 from google.cloud import tasks_v2
@@ -64,6 +65,73 @@ class CloudRunTaskService:
             return int(os.getenv(name, str(default)))
         except (TypeError, ValueError):
             return default
+
+    def _env_float(self, name: str, default: float) -> float:
+        try:
+            return float(os.getenv(name, str(default)))
+        except (TypeError, ValueError):
+            return default
+
+    def calculate_stagger_delay(
+        self,
+        index: int,
+        *,
+        batch_size_env: str,
+        batch_delay_env: str,
+        max_delay_env: str,
+        jitter_env: str,
+        default_batch_size: int = 5,
+        default_batch_delay_seconds: int = 15,
+        default_max_delay_seconds: int = 900,
+        default_jitter_seconds: int = 5,
+        jitter_seed: Optional[str] = None,
+    ) -> int:
+        """Calculate a deterministic delay for staggered Cloud Tasks enqueueing."""
+        safe_index = max(0, int(index or 0))
+        batch_size = max(1, self._env_int(batch_size_env, default_batch_size))
+        batch_delay_seconds = max(0, self._env_int(batch_delay_env, default_batch_delay_seconds))
+        max_delay_seconds = max(0, self._env_int(max_delay_env, default_max_delay_seconds))
+        jitter_seconds = max(0, self._env_int(jitter_env, default_jitter_seconds))
+
+        base_delay = (safe_index // batch_size) * batch_delay_seconds
+        if max_delay_seconds > 0:
+            base_delay = min(base_delay, max_delay_seconds)
+
+        # Keep the first batch immediate; jitter later batches to avoid synchronized bursts.
+        if base_delay <= 0 or jitter_seconds <= 0 or not jitter_seed:
+            return base_delay
+
+        digest = hashlib.sha256(str(jitter_seed).encode("utf-8")).hexdigest()
+        jitter = int(digest[:8], 16) % (jitter_seconds + 1)
+        delayed = base_delay + jitter
+        return min(delayed, max_delay_seconds) if max_delay_seconds > 0 else delayed
+
+    def _queue_rate_limits(self, queue_id: str) -> Dict[str, Any]:
+        defaults = {
+            "extract-tasks": (10.0, 100, 20),
+            "io-tasks": (10.0, 100, 10),
+            "automation-tasks": (10.0, 100, 10),
+            "maintenance-tasks": (10.0, 100, 5),
+        }
+        env_prefixes = {
+            "extract-tasks": "TASK_EXTRACT",
+            "io-tasks": "TASK_IO",
+            "automation-tasks": "TASK_AUTOMATION",
+            "maintenance-tasks": "TASK_MAINTENANCE",
+        }
+        default_dispatches, default_burst, default_concurrent = defaults.get(queue_id, (10.0, 100, 5))
+        env_prefix = env_prefixes.get(queue_id, "TASK")
+        return {
+            "max_dispatches_per_second": self._env_float(
+                f"{env_prefix}_MAX_DISPATCHES_PER_SECOND",
+                default_dispatches,
+            ),
+            "max_burst_size": max(1, self._env_int(f"{env_prefix}_MAX_BURST_SIZE", default_burst)),
+            "max_concurrent_dispatches": max(
+                1,
+                self._env_int(f"{env_prefix}_MAX_CONCURRENT_DISPATCHES", default_concurrent),
+            ),
+        }
 
     def _build_extract_retry_config(self) -> Dict[str, Any]:
         max_attempts = max(1, self._env_int("TASK_EXTRACT_MAX_ATTEMPTS", 3))
@@ -310,11 +378,7 @@ class CloudRunTaskService:
             for queue_id in queue_ids:
                 queue = {
                     "name": f"{location_path}/queues/{queue_id}",
-                    "rate_limits": {
-                        "max_dispatches_per_second": 10.0,
-                        "max_burst_size": 100,
-                        "max_concurrent_dispatches": 5
-                    },
+                    "rate_limits": self._queue_rate_limits(queue_id),
                     "retry_config": self.extract_retry_config if queue_id == "extract-tasks" else {
                         "max_attempts": 3,
                         "max_retry_duration": "300s",

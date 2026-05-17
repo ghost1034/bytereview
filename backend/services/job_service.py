@@ -787,17 +787,45 @@ class JobService:
                 tasks = db.query(ExtractionTask).filter(
                     ExtractionTask.job_run_id == run_id,
                     ExtractionTask.status == 'pending'
-                ).all()
+                ).order_by(ExtractionTask.created_at.asc(), ExtractionTask.id.asc()).all()
                 
                 logger.info(f"Found {len(tasks)} pending extraction tasks for job run {run_id}")
+
+                first_delay = 0
+                last_delay = 0
+                if tasks:
+                    last_delay = cloud_run_task_service.calculate_stagger_delay(
+                        len(tasks) - 1,
+                        batch_size_env="EXTRACTION_ENQUEUE_BATCH_SIZE",
+                        batch_delay_env="EXTRACTION_ENQUEUE_BATCH_DELAY_SECONDS",
+                        max_delay_env="EXTRACTION_ENQUEUE_MAX_DELAY_SECONDS",
+                        jitter_env="EXTRACTION_ENQUEUE_JITTER_SECONDS",
+                        jitter_seed=f"{run_id}:{tasks[-1].id}",
+                    )
+                    logger.info(
+                        "Staggering %s extraction tasks for run %s across delays %ss-%ss",
+                        len(tasks),
+                        run_id,
+                        first_delay,
+                        last_delay,
+                    )
                 
-                # Enqueue each task using Cloud Run Tasks
-                for task in tasks:
+                # Enqueue each task using Cloud Run Tasks with staggered schedule_time values.
+                for index, task in enumerate(tasks):
+                    delay_seconds = cloud_run_task_service.calculate_stagger_delay(
+                        index,
+                        batch_size_env="EXTRACTION_ENQUEUE_BATCH_SIZE",
+                        batch_delay_env="EXTRACTION_ENQUEUE_BATCH_DELAY_SECONDS",
+                        max_delay_env="EXTRACTION_ENQUEUE_MAX_DELAY_SECONDS",
+                        jitter_env="EXTRACTION_ENQUEUE_JITTER_SECONDS",
+                        jitter_seed=f"{run_id}:{task.id}",
+                    )
                     task_name = await cloud_run_task_service.enqueue_extraction_task(
                         task_id=str(task.id),
-                        automation_run_id=automation_run_id
+                        automation_run_id=automation_run_id,
+                        delay_seconds=delay_seconds,
                     )
-                    logger.info(f"Enqueued extraction task {task.id} as {task_name}")
+                    logger.info(f"Enqueued extraction task {task.id} as {task_name} with delay {delay_seconds}s")
                 
                 logger.info(f"Enqueued {len(tasks)} extraction tasks for job run {run_id}")
                 
