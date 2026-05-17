@@ -642,7 +642,7 @@ export default function FormFillPage() {
                 variant={repeatMode === 'single' ? 'default' : 'outline'}
                 onClick={() => setRepeatMode('single')}
               >
-                Fill once per file (default)
+                Fill once per file
               </Button>
               <Button
                 type="button"
@@ -657,11 +657,11 @@ export default function FormFillPage() {
                 disabled={!repeatModeSupported}
                 onClick={() => setRepeatMode('source_rows')}
               >
-                Fill once per row (special)
+                Fill once per row
               </Button>
             </div>
             <p className="text-xs text-foreground-muted">
-              “Fill once per file" creates one filled document per uploaded file or extraction task. “Fill once for all files" uses every source together to create one filled document. “Fill once per row" creates one filled document per CSV, XLSX, or extraction row.
+              “Fill once per file" creates one filled document per source. “Fill once for all files" uses all sources together to create one filled document. “Fill once per row" creates one filled document per row.
             </p>
             {!repeatModeSupported && sourceMode === 'upload' && sourceFiles.length > 0 && (
               <p className="text-xs text-warning">
