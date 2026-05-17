@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og'
 
-export const alt = 'CPAAutomation — AI Document Extraction Platform'
+export const alt = 'CPAAutomation — AI Platform for Accounting, Finance & Legal'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -60,7 +60,7 @@ export default function OpenGraphImage() {
                 textTransform: 'uppercase',
               }}
             >
-              AI Document Extraction
+              AI Platform for Accounting
             </span>
             <span
               style={{
@@ -71,7 +71,7 @@ export default function OpenGraphImage() {
                 maxWidth: 920,
               }}
             >
-              Production-grade extraction for accounting professionals.
+              One AI platform for accounting, finance & legal work.
             </span>
           </div>
         </div>

@@ -12,18 +12,24 @@ const ibmPlexSans = IBM_Plex_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: 'CPAAutomation - AI Document Extraction for Accounting Professionals',
+    default: 'CPAAutomation - The AI Platform for Accounting, Finance & Legal Professionals',
     template: '%s | CPAAutomation'
   },
-  description: 'Professional-grade AI extraction built with deep accounting and legal expertise. Extract data from invoices, financial statements, and documents with 99%+ accuracy. Built by CPAs for CPAs.',
+  description: 'From document intelligence to AI writing, time tracking, and autonomous agents — one AI platform built by CPAs for accounting, finance, and legal professionals.',
   keywords: [
     'CPA automation',
+    'accounting AI platform',
+    'AI for accountants',
+    'AI for finance',
+    'AI for legal',
     'document extraction',
-    'AI accounting',
+    'AI writing',
+    'time tracking',
+    'AI agents',
+    'legal automation',
     'invoice processing',
     'financial document analysis',
     'accounting automation',
-    'data extraction',
     'professional services automation'
   ],
   authors: [{ name: 'CPAAutomation' }],
@@ -36,15 +42,15 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://cpaautomation.ai',
-    siteName: 'CPAAutomation',
-    title: 'CPAAutomation - AI Document Extraction for Accounting Professionals',
-    description: 'Professional-grade AI extraction built with deep accounting and legal expertise. Extract data from invoices, financial statements, and documents with 99%+ accuracy. Built by CPAs for CPAs.',
+    siteName: 'CPAAutomation.ai',
+    title: 'CPAAutomation - The AI Platform for Accounting, Finance & Legal Professionals',
+    description: 'From document intelligence to AI writing, time tracking, and autonomous agents — one AI platform built by CPAs for accounting, finance, and legal professionals.',
     // OG image is generated dynamically via app/opengraph-image.tsx
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'CPAAutomation - AI Document Extraction for Accounting Professionals',
-    description: 'Professional-grade AI extraction built with deep accounting and legal expertise. Extract data from invoices, financial statements, and documents with 99%+ accuracy. Built by CPAs for CPAs.',
+    title: 'CPAAutomation - The AI Platform for Accounting, Finance & Legal Professionals',
+    description: 'From document intelligence to AI writing, time tracking, and autonomous agents — one AI platform built by CPAs for accounting, finance, and legal professionals.',
     creator: '@cpaautomation',
   },
   robots: {
@@ -60,6 +66,24 @@ export const metadata: Metadata = {
   },
 }
 
+const structuredData = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'CPAAutomation.ai',
+    alternateName: 'CPAAutomation',
+    url: 'https://cpaautomation.ai',
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'CPAAutomation.ai',
+    alternateName: 'CPAAutomation',
+    url: 'https://cpaautomation.ai',
+    logo: 'https://cpaautomation.ai/logo.png',
+  },
+]
+
 export default function RootLayout({
   children,
 }: {
@@ -68,6 +92,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={ibmPlexSans.variable}>
       <body className="font-sans antialiased">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
         <Providers>
           {children}
         </Providers>

@@ -124,10 +124,11 @@ export default function InkwiseShowcase() {
       }
       title={
         <>
-          Inkwise: AI writing grounded in{' '}
+          AI writing grounded in{' '}
           <span className="bg-gradient-to-r from-primary to-marketing-hero-accent bg-clip-text text-transparent">
             your documents
           </span>
+          {' '}— meet Inkwise
         </>
       }
       description="The first multimodal retrieval-based writing tool in the market. Draft memos, reports, and analyses with AI that cites your own source materials."

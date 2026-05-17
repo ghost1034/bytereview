@@ -49,70 +49,75 @@ export function generateMetadata(page: PageMetadata): Metadata {
 // Page-specific metadata configurations
 export const pageMetadata = {
   home: {
-    title: 'CPAAutomation - AI Document Extraction for Accounting Professionals',
-    description: 'Professional-grade AI extraction built with deep accounting and legal expertise. Extract data from invoices, financial statements, and documents with 99%+ accuracy. Built by CPAs for CPAs.',
+    title: 'CPAAutomation - The AI Platform for Accounting, Finance & Legal Professionals',
+    description: 'From document intelligence to AI writing, time tracking, and autonomous agents — one AI platform built by CPAs for accounting, finance, and legal professionals.',
     canonical: 'https://cpaautomation.ai',
     keywords: [
       'CPA automation',
-      'accounting automation',
+      'accounting AI platform',
+      'AI for accountants',
+      'AI for finance',
+      'AI for legal',
       'document extraction',
-      'AI accounting',
-      'invoice processing',
-      'financial document analysis',
-      'automated data entry'
+      'AI writing',
+      'time tracking',
+      'AI agents',
+      'legal automation',
+      'accounting automation'
     ],
   },
   about: {
     title: 'About Us - Founded for Professional Use by CPAs',
-    description: 'Learn about CPAAutomation\'s mission to empower accounting professionals with AI-powered document extraction. Founded by Ian Stewart and validated by industry experts.',
+    description: 'Learn about CPAAutomation\'s mission to empower accounting, finance, and legal professionals with an AI platform built by CPAs. Founded by Ian Stewart and validated by industry experts.',
     canonical: 'https://cpaautomation.ai/about',
     keywords: [
       'CPA founders',
-      'accounting automation history',
+      'accounting AI platform history',
       'Ian Stewart',
       'professional validation',
       'CPA expertise'
     ],
   },
   pricing: {
-    title: 'Pricing Plans - Professional AI Document Extraction',
-    description: 'Choose the perfect plan for your accounting practice. Starting with 100 free pages per month. Professional-grade AI extraction with transparent pricing.',
+    title: 'Pricing Plans - AI Platform for Accounting Professionals',
+    description: 'Choose the perfect plan for your practice. Starting with 100 free pages per month. Transparent pricing for the AI platform built for accounting, finance, and legal work.',
     canonical: 'https://cpaautomation.ai/pricing',
     keywords: [
       'CPA automation pricing',
-      'document extraction cost',
-      'accounting software pricing',
+      'accounting AI platform pricing',
       'professional plans',
-      'free trial'
+      'free trial',
+      'AI software pricing'
     ],
   },
   features: {
-    title: 'Features - Advanced AI Document Processing Capabilities',
-    description: 'Discover CPAAutomation\'s powerful features: custom field extraction, table recognition, automated workflows, and seamless integrations. Built for professional use.',
+    title: 'Features - AI Tools for Accounting, Finance & Legal',
+    description: 'Discover CPAAutomation\'s features: document extraction, AI writing with citations, time tracking, AI agents, custom fields, and seamless integrations. Built for professional use.',
     canonical: 'https://cpaautomation.ai/features',
     keywords: [
-      'AI document features',
-      'custom field extraction',
-      'table recognition',
-      'automated workflows',
+      'AI platform features',
+      'document extraction',
+      'AI writing',
+      'time tracking',
+      'AI agents',
       'professional integrations'
     ],
   },
   demo: {
-    title: 'Demo - Test AI Document Extraction',
-    description: 'Experience CPAAutomation\'s AI-powered document extraction in action. Upload your documents and see how our platform extracts data with professional accuracy.',
+    title: 'Demo - Try the CPAAutomation AI Platform',
+    description: 'Experience CPAAutomation\'s AI platform in action. Try document extraction, AI writing, and more — see how the platform automates your most time-consuming work.',
     canonical: 'https://cpaautomation.ai/demo',
     keywords: [
+      'AI platform demo',
       'document extraction demo',
-      'AI demo',
       'try CPA automation',
-      'test document processing',
+      'AI writing demo',
       'free trial'
     ],
   },
   contact: {
     title: 'Contact Us - Get in Touch with Our Team',
-    description: 'Contact CPAAutomation for enterprise solutions, custom integrations, or technical support. We\'re here to help optimize your document processing workflows.',
+    description: 'Contact CPAAutomation for enterprise solutions, custom integrations, or technical support. We\'re here to help optimize your accounting, finance, and legal workflows.',
     canonical: 'https://cpaautomation.ai/contact',
     keywords: [
       'contact CPA automation',
@@ -124,19 +129,19 @@ export const pageMetadata = {
   },
   caseStudyLFO: {
     title: 'Case Study: Family Office Success',
-    description: 'See how a leading family office saves hundreds of hours annually processing investment statements with CPAAutomation\'s AI extraction platform.',
+    description: 'See how a leading family office saves hundreds of hours annually processing investment statements with the CPAAutomation AI platform.',
     canonical: 'https://cpaautomation.ai/case-study/LFO',
     keywords: [
       'family office automation',
       'investment statement processing',
       'CPA case study',
-      'document automation success',
+      'AI platform success',
       'financial processing'
     ],
   },
   privacy: {
     title: 'Privacy Policy - Data Protection & Security',
-    description: 'Learn about CPAAutomation\'s commitment to data privacy and security. Our privacy policy outlines how we protect your sensitive financial documents.',
+    description: 'Learn about CPAAutomation\'s commitment to data privacy and security. Our privacy policy outlines how we protect your sensitive financial and legal documents.',
     canonical: 'https://cpaautomation.ai/privacy',
     keywords: [
       'data privacy',
@@ -148,7 +153,7 @@ export const pageMetadata = {
   },
   terms: {
     title: 'Terms of Service - Platform Usage Agreement',
-    description: 'Review CPAAutomation\'s terms of service and usage agreement. Understand your rights and responsibilities when using our AI extraction platform.',
+    description: 'Review CPAAutomation\'s terms of service and usage agreement. Understand your rights and responsibilities when using our AI platform.',
     canonical: 'https://cpaautomation.ai/terms',
     keywords: [
       'terms of service',
