@@ -77,7 +77,7 @@ export default function Contact() {
         backdrop="plain"
         width="narrow"
         title="Contact us"
-        description="Get in touch with our team of CPA and legal professionals."
+        description="Get in touch with our team of CPAs and legal professionals."
       />
 
       <section className="bg-background pb-16 pt-8 sm:pb-20 sm:pt-10">

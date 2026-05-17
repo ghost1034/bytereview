@@ -54,7 +54,7 @@ export default function About() {
                   Ian Stewart
                 </h3>
                 <p className="mb-6 mt-1 text-sm text-foreground-muted">
-                  Senior at Abraham Lincoln High School in San Francisco
+                  Incoming First-Year at University of California, Berkeley
                 </p>
                 <div className="space-y-4 text-foreground-muted">
                   <p>
@@ -109,8 +109,8 @@ export default function About() {
               <TestimonialCard
                 quote="Validated our platform's ability to handle complex technology sector financial processes and automation workflows."
                 author="Ray Sang"
-                role="Director of Accounting Systems & Process Transformation"
-                company="SentinelOne"
+                role="Finance Systems"
+                company="Plaid, Inc."
               />
             </div>
           </div>
