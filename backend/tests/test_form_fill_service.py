@@ -720,6 +720,11 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
     def test_normalize_repeat_mode_accepts_all_sources(self) -> None:
         self.assertEqual(_normalize_repeat_mode("all_sources"), "all_sources")
 
+    def test_normalize_repeat_mode_defaults_to_all_sources(self) -> None:
+        self.assertEqual(_normalize_repeat_mode(None), "all_sources")
+        self.assertEqual(_normalize_repeat_mode("  "), "all_sources")
+        self.assertEqual(_normalize_repeat_mode("single"), "single")
+
     async def test_process_run_all_sources_uses_combined_source_context_once(self) -> None:
         run_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
         run = SimpleNamespace(

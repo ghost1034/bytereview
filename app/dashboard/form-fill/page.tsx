@@ -152,7 +152,7 @@ export default function FormFillPage() {
   const [allowDocxTableExpansion, setAllowDocxTableExpansion] = useState(true)
   const [outputFormat, setOutputFormat] = useState<'pdf' | 'docx'>('pdf')
   const [hasOutputFormatOverride, setHasOutputFormatOverride] = useState(false)
-  const [repeatMode, setRepeatMode] = useState<FillMode>('single')
+  const [repeatMode, setRepeatMode] = useState<FillMode>('all_sources')
   const [creating, setCreating] = useState(false)
   const [downloadingRunId, setDownloadingRunId] = useState<string | null>(null)
   const [currentRunId, setCurrentRunId] = useState<string | null>(runIdParam || null)
@@ -639,17 +639,17 @@ export default function FormFillPage() {
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
-                variant={repeatMode === 'single' ? 'default' : 'outline'}
-                onClick={() => setRepeatMode('single')}
-              >
-                Fill once per file
-              </Button>
-              <Button
-                type="button"
                 variant={repeatMode === 'all_sources' ? 'default' : 'outline'}
                 onClick={() => setRepeatMode('all_sources')}
               >
                 Fill once for all files
+              </Button>
+              <Button
+                type="button"
+                variant={repeatMode === 'single' ? 'default' : 'outline'}
+                onClick={() => setRepeatMode('single')}
+              >
+                Fill once per file
               </Button>
               <Button
                 type="button"
@@ -661,7 +661,7 @@ export default function FormFillPage() {
               </Button>
             </div>
             <p className="text-xs text-foreground-muted">
-              “Fill once per file" creates one filled document per source. “Fill once for all files" uses all sources together to create one filled document. “Fill once per row" creates one filled document per row.
+              "Fill once for all files" uses all sources together to create one filled document. "Fill once per file" creates one filled document per source. "Fill once per row" creates one filled document per row.
             </p>
             {!repeatModeSupported && sourceMode === 'upload' && sourceFiles.length > 0 && (
               <p className="text-xs text-warning">

@@ -134,7 +134,7 @@ class FormFillRun(Base):
     target_file_size_bytes = Column(BigInteger, nullable=False)
     target_page_count = Column(Integer, nullable=True)
     output_format = Column(String(20), nullable=False)
-    repeat_mode = Column(String(50), nullable=False, default="single", server_default="single")
+    repeat_mode = Column(String(50), nullable=False, default="all_sources", server_default="all_sources")
     total_outputs = Column(Integer, nullable=False, default=1, server_default="1")
     completed_outputs = Column(Integer, nullable=False, default=0, server_default="0")
     failed_outputs = Column(Integer, nullable=False, default=0, server_default="0")

@@ -155,7 +155,9 @@ def _normalize_output_format(value: Optional[str]) -> Optional[str]:
 
 
 def _normalize_repeat_mode(value: Optional[str]) -> str:
-    lowered = (value or REPEAT_MODE_SINGLE).strip().lower()
+    lowered = (value or "").strip().lower()
+    if not lowered:
+        return REPEAT_MODE_ALL_SOURCES
     if lowered == REPEAT_MODE_ALL_SOURCES:
         return REPEAT_MODE_ALL_SOURCES
     if lowered in {"source_rows", "rows", "repeat"}:

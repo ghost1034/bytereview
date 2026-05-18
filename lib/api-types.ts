@@ -2970,7 +2970,7 @@ export interface components {
             output_format: string;
             /**
              * Repeat Mode
-             * @default single
+             * @default all_sources
              */
             repeat_mode: string;
             /**

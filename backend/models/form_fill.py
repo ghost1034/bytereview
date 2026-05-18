@@ -66,7 +66,7 @@ class FormFillRunResponse(BaseModel):
     target_page_count: Optional[int] = None
     allow_docx_table_expansion: bool = False
     output_format: str
-    repeat_mode: str = "single"
+    repeat_mode: str = "all_sources"
     total_outputs: int = 1
     completed_outputs: int = 0
     failed_outputs: int = 0
