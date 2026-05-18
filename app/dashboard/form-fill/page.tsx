@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
+import { Loader2 } from 'lucide-react'
 
 import {
   Accordion,
@@ -219,6 +220,9 @@ export default function FormFillPage() {
   }, [currentRun?.outputs])
 
   const recentRuns = runsData?.runs || []
+  const currentRunIsProcessing = Boolean(
+    currentRunId && (!currentRun || !isTerminalRunStatus(currentRun.status))
+  )
 
   const selectRun = (runId: string, options?: { replace?: boolean }) => {
     setCurrentRunId(runId)
@@ -685,6 +689,7 @@ export default function FormFillPage() {
           <div className="rounded-md border border-border bg-surface-raised divide-y divide-border">
             {recentRuns.map((run) => {
               const isSelected = run.id === currentRunId
+              const isProcessing = !isTerminalRunStatus(run.status)
               const isDownloadReady =
                 run.status === 'completed' || run.status === 'completed_with_errors'
               return (
@@ -711,11 +716,13 @@ export default function FormFillPage() {
                         </span>
                       )}
                     </div>
-                    <div className="mt-1 text-xs text-foreground-muted">
-                      {formatStatus(run.status)} · {formatDateTime(run.created_at)}
-                      {run.total_outputs > 1 || run.repeat_mode === 'source_rows'
-                        ? ` · ${run.completed_outputs}/${run.total_outputs} completed`
-                        : ''}
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-foreground-muted">
+                      {isProcessing && <Loader2 className="size-3 animate-spin" aria-hidden />}
+                      <span>{formatStatus(run.status)} · {formatDateTime(run.created_at)}</span>
+                      {(run.total_outputs > 1 || run.repeat_mode === 'source_rows') && (
+                        <span>· {run.completed_outputs}/{run.total_outputs} completed</span>
+                      )}
+                      {isProcessing && <span className="sr-only">Processing run</span>}
                     </div>
                   </button>
                   <div className="flex shrink-0 gap-2">
@@ -757,7 +764,11 @@ export default function FormFillPage() {
             </div>
             <div>
               <span className="font-medium text-foreground">Status:</span>{' '}
-              <span className="text-foreground-muted">{currentRun?.status || 'pending'}</span>
+              <span className="inline-flex items-center gap-1.5 text-foreground-muted">
+                {currentRunIsProcessing && <Loader2 className="size-4 animate-spin" aria-hidden />}
+                <span>{formatStatus(currentRun?.status || 'pending')}</span>
+                {currentRunIsProcessing && <span className="sr-only">Processing run</span>}
+              </span>
             </div>
             {currentRun && (currentRun.total_outputs > 1 || currentRun.repeat_mode === 'source_rows') && (
               <div>
