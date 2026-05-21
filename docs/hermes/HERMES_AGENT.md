@@ -4,6 +4,8 @@
 
 My platform, CPAAutomation.ai, offers an AI agent setup service. We set up Hermes Agent for businesses for a fee. On our advertisement page, we want to include a download link for a Docker image that already has skills included. But because we want to charge businesses a fee, we want the image to be unusable without an activation key. How do I include skills and implement an activation key? Search the web about Hermes Agent if you are unfamiliar.
 
+Implementation note: the current AccountingClaw build uses Option B with encrypted bundled skills and a shared `CPAA_BUNDLE_SECRET`, without an activation API yet. See `docs/hermes/ACCOUNTINGCLAW.md`.
+
 ## Idea
 
 Hermes Agent is a good fit for this, but the safest product design is **not “plaintext skills hidden by a startup check.”** A Docker image can always be inspected by a determined customer. Use **encrypted bundled skills** or **download skills only after activation**.

@@ -124,3 +124,6 @@ stripe-cli.log
 tsconfig.tsbuildinfo
 sitemap.xml
 sitemap-0.xml
+
+# AccountingClaw local Hermes data
+.accountingclaw-data/

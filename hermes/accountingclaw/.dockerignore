@@ -1,0 +1,10 @@
+.git
+.DS_Store
+README.md
+*.log
+tmp/
+temp/
+accountingclaw-data/
+
+# Keep markdown profile files. Hermes skills are defined by SKILL.md.
+!profile/**/*.md

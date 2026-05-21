@@ -1,0 +1,24 @@
+name: accountingclaw
+display_name: AccountingClaw
+description: CPAAutomation.ai accounting agent profile with bundled accounting skills
+version: 0.1.0
+publisher: CPAAutomation.ai
+license: Commercial
+
+required_environment_variables:
+  - name: CPAA_BUNDLE_SECRET
+    prompt: CPAAutomation.ai bundle decryption secret
+    required_for: decrypting bundled AccountingClaw skills
+  - name: OPENAI_API_KEY
+    prompt: OpenAI API key
+    required_for: Hermes model access when using OpenAI-compatible models
+
+contents:
+  - SOUL.md
+  - config.yaml
+  - skills/client-onboarding/SKILL.md
+  - skills/month-end-close/SKILL.md
+  - skills/qbo-reconciliation/SKILL.md
+  - skills/ap-ar-review/SKILL.md
+  - skills/sales-tax-review/SKILL.md
+  - skills/payroll-journal-review/SKILL.md

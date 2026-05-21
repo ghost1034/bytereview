@@ -1,0 +1,14 @@
+name: AccountingClaw
+description: CPAAutomation.ai Hermes profile for accounting operations
+version: 0.1.0
+
+profile:
+  product: AccountingClaw
+  vendor: CPAAutomation.ai
+  category: accounting
+
+skills:
+  directory: skills
+
+runtime:
+  data_dir: /opt/data
