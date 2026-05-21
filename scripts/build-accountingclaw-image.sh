@@ -8,10 +8,12 @@ REGION="${REGION:-us-central1}"
 ARTIFACT_REGISTRY_REPO="${ARTIFACT_REGISTRY_REPO:-cpa-docker}"
 ARTIFACT_REGISTRY_URL="${ARTIFACT_REGISTRY_URL:-${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}}"
 IMAGE_NAME="${ACCOUNTINGCLAW_IMAGE_NAME:-accountingclaw-hermes}"
+DOCKERHUB_NAMESPACE="${DOCKERHUB_NAMESPACE:-cpaautomation}"
 TAG="${1:-$(git rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)}"
 CONTEXT_DIR="hermes/accountingclaw"
 PLATFORM="${ACCOUNTINGCLAW_PLATFORM:-linux/amd64}"
 PUSH="${PUSH:-false}"
+PUSH_TARGET="${PUSH_TARGET:-artifact-registry}"
 
 if [ -z "${CPAA_BUNDLE_SECRET:-}" ]; then
   echo "CPAA_BUNDLE_SECRET is required to encrypt the AccountingClaw bundle."
@@ -23,18 +25,31 @@ if ! docker info >/dev/null 2>&1; then
   exit 69
 fi
 
-local_tag="cpaautomation/${IMAGE_NAME}:${TAG}"
-local_latest="cpaautomation/${IMAGE_NAME}:latest"
-remote_tag="${ARTIFACT_REGISTRY_URL}/${IMAGE_NAME}:${TAG}"
-remote_latest="${ARTIFACT_REGISTRY_URL}/${IMAGE_NAME}:latest"
+local_tag="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}:${TAG}"
+local_latest="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}:latest"
+artifact_registry_tag="${ARTIFACT_REGISTRY_URL}/${IMAGE_NAME}:${TAG}"
+artifact_registry_latest="${ARTIFACT_REGISTRY_URL}/${IMAGE_NAME}:latest"
+dockerhub_tag="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}:${TAG}"
+dockerhub_latest="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}:latest"
 
 output_flag="--load"
 tags=(-t "$local_tag" -t "$local_latest")
 
 if [ "$PUSH" = "true" ]; then
-  gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
   output_flag="--push"
-  tags=(-t "$remote_tag" -t "$remote_latest")
+  case "$PUSH_TARGET" in
+    artifact-registry)
+      gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+      tags=(-t "$artifact_registry_tag" -t "$artifact_registry_latest")
+      ;;
+    dockerhub)
+      tags=(-t "$dockerhub_tag" -t "$dockerhub_latest")
+      ;;
+    *)
+      echo "Unsupported PUSH_TARGET: $PUSH_TARGET. Use artifact-registry or dockerhub."
+      exit 64
+      ;;
+  esac
 fi
 
 docker buildx build \
@@ -46,7 +61,11 @@ docker buildx build \
   "$CONTEXT_DIR"
 
 if [ "$PUSH" = "true" ]; then
-  echo "Built and pushed ${remote_tag} and ${remote_latest}."
+  if [ "$PUSH_TARGET" = "dockerhub" ]; then
+    echo "Built and pushed ${dockerhub_tag} and ${dockerhub_latest}."
+  else
+    echo "Built and pushed ${artifact_registry_tag} and ${artifact_registry_latest}."
+  fi
 else
   echo "Built ${local_tag} and ${local_latest}."
 fi
