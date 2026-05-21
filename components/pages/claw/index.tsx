@@ -76,14 +76,16 @@ const ACCOUNTINGCLAW_IMAGE =
 
 const PULL_COMMAND = `docker pull ${ACCOUNTINGCLAW_IMAGE}`
 
-const RUN_COMMAND = `docker run -d \
-  --name accountingclaw \
-  --restart unless-stopped \
-  -v ~/.accountingclaw:/opt/data \
-  -e CPAA_BUNDLE_SECRET="provided-by-cpaautomation" \
-  -e OPENAI_API_KEY="sk-..." \
-  -p 8642:8642 \
-  ${ACCOUNTINGCLAW_IMAGE} gateway run`
+const RUN_COMMAND = [
+  'docker run -d \\',
+  '  --name accountingclaw \\',
+  '  --restart unless-stopped \\',
+  '  -v ~/.accountingclaw:/opt/data \\',
+  '  -e CPAA_BUNDLE_SECRET="provided-by-cpaautomation" \\',
+  '  -e OPENAI_API_KEY="sk-..." \\',
+  '  -p 8642:8642 \\',
+  `  ${ACCOUNTINGCLAW_IMAGE} gateway run`,
+].join('\n')
 
 const DOWNLOAD_NOTES = [
   {
@@ -180,7 +182,7 @@ function CommandCard({ title, description, command }: CommandCardProps) {
           {copied ? 'Copied' : 'Copy'}
         </Button>
       </div>
-      <pre className="overflow-x-auto bg-slate-950 px-4 py-4 text-xs leading-6 text-slate-100 sm:px-5">
+      <pre className="whitespace-pre-wrap break-words bg-slate-950 px-4 py-4 text-xs leading-6 text-slate-100 sm:px-5">
         <code>{command}</code>
       </pre>
     </div>
@@ -190,9 +192,9 @@ function CommandCard({ title, description, command }: CommandCardProps) {
 function DockerDownloadSection() {
   return (
     <section id="docker-download" className="bg-background py-16 sm:py-20 lg:py-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-          <div className="space-y-6">
+      <div className="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+          <div className="space-y-4">
             <Badge
               variant="outline"
               className="rounded-full border-primary/20 bg-primary-soft text-primary-soft-foreground"
@@ -201,7 +203,7 @@ function DockerDownloadSection() {
               Docker image
             </Badge>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               <h2 className="text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
                 Download AccountingClaw for Hermes Agent
               </h2>
@@ -211,25 +213,6 @@ function DockerDownloadSection() {
                 inside the container and installs them only after CPAAutomation.ai
                 provides the bundle secret.
               </p>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-              {DOWNLOAD_NOTES.map((item) => (
-                <div
-                  key={item.title}
-                  className="flex gap-3 rounded-xl border border-border bg-surface-muted p-4"
-                >
-                  <IconTile icon={item.icon} tone="brand" size="sm" />
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">
-                      {item.title}
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-foreground-muted">
-                      {item.detail}
-                    </p>
-                  </div>
-                </div>
-              ))}
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -256,11 +239,26 @@ function DockerDownloadSection() {
               description="Mount /opt/data so Hermes sessions and installed skills persist."
               command={RUN_COMMAND}
             />
-            <p className="rounded-xl border border-warning/20 bg-warning-soft/60 p-4 text-sm leading-6 text-foreground-muted">
-              This preview build does not call an activation API. Access is
-              controlled by the shared CPAAutomation.ai bundle secret for now.
-            </p>
           </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          {DOWNLOAD_NOTES.map((item) => (
+            <div
+              key={item.title}
+              className="flex gap-3 rounded-xl border border-border bg-surface-muted p-3"
+            >
+              <IconTile icon={item.icon} tone="brand" size="sm" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  {item.title}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-foreground-muted">
+                  {item.detail}
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
