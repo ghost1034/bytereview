@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
@@ -9,7 +10,13 @@ import {
   BrainCircuit,
   Briefcase,
   Calculator,
+  Check,
   Cloud,
+  Copy,
+  Download,
+  HardDrive,
+  KeyRound,
+  ShieldCheck,
   Scale,
 } from 'lucide-react'
 
@@ -63,6 +70,39 @@ const MODEL_OPTIONS = [
   'Open-source (Llama, Mistral)',
 ]
 
+const ACCOUNTINGCLAW_IMAGE =
+  process.env.NEXT_PUBLIC_ACCOUNTINGCLAW_IMAGE ||
+  'cpaautomation/accountingclaw-hermes:latest'
+
+const PULL_COMMAND = `docker pull ${ACCOUNTINGCLAW_IMAGE}`
+
+const RUN_COMMAND = `docker run -d \
+  --name accountingclaw \
+  --restart unless-stopped \
+  -v ~/.accountingclaw:/opt/data \
+  -e CPAA_BUNDLE_SECRET="provided-by-cpaautomation" \
+  -e OPENAI_API_KEY="sk-..." \
+  -p 8642:8642 \
+  ${ACCOUNTINGCLAW_IMAGE} gateway run`
+
+const DOWNLOAD_NOTES = [
+  {
+    icon: ShieldCheck,
+    title: 'Encrypted skills included',
+    detail: 'AccountingClaw skills ship inside the image as an encrypted bundle.',
+  },
+  {
+    icon: KeyRound,
+    title: 'Bundle secret required',
+    detail: 'The image installs skills only when CPAA_BUNDLE_SECRET is provided.',
+  },
+  {
+    icon: HardDrive,
+    title: 'Persistent agent data',
+    detail: 'Hermes profile data, sessions, and installed skills live in /opt/data.',
+  },
+]
+
 const SKILL_PACKAGES: Array<{
   icon: React.ComponentType<{ className?: string }>
   name: string
@@ -100,6 +140,130 @@ function VideoStack() {
         </motion.div>
       ))}
     </motion.div>
+  )
+}
+
+interface CommandCardProps {
+  title: string
+  description: string
+  command: string
+}
+
+function CommandCard({ title, description, command }: CommandCardProps) {
+  const [copied, setCopied] = useState(false)
+
+  const copyCommand = async () => {
+    await navigator.clipboard.writeText(command)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1800)
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-surface-raised shadow-sm">
+      <div className="flex items-start justify-between gap-4 border-b border-border px-4 py-3 sm:px-5">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          <p className="mt-1 text-xs text-foreground-muted">{description}</p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={copyCommand}
+        >
+          {copied ? (
+            <Check className="size-4 text-success" aria-hidden />
+          ) : (
+            <Copy className="size-4" aria-hidden />
+          )}
+          {copied ? 'Copied' : 'Copy'}
+        </Button>
+      </div>
+      <pre className="overflow-x-auto bg-slate-950 px-4 py-4 text-xs leading-6 text-slate-100 sm:px-5">
+        <code>{command}</code>
+      </pre>
+    </div>
+  )
+}
+
+function DockerDownloadSection() {
+  return (
+    <section id="docker-download" className="bg-background py-16 sm:py-20 lg:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+          <div className="space-y-6">
+            <Badge
+              variant="outline"
+              className="rounded-full border-primary/20 bg-primary-soft text-primary-soft-foreground"
+            >
+              <Download className="mr-1.5 size-3" aria-hidden />
+              Docker image
+            </Badge>
+
+            <div className="space-y-4">
+              <h2 className="text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                Download AccountingClaw for Hermes Agent
+              </h2>
+              <p className="text-balance text-base text-foreground-muted sm:text-lg">
+                Pull the AccountingClaw Docker image and run it with your own
+                model key. The image includes AccountingClaw skills encrypted
+                inside the container and installs them only after CPAAutomation.ai
+                provides the bundle secret.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+              {DOWNLOAD_NOTES.map((item) => (
+                <div
+                  key={item.title}
+                  className="flex gap-3 rounded-xl border border-border bg-surface-muted p-4"
+                >
+                  <IconTile icon={item.icon} tone="brand" size="sm" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">
+                      {item.title}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-foreground-muted">
+                      {item.detail}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Button asChild>
+                <Link href="/contact">
+                  Request bundle secret
+                  <ArrowRight className="ml-2 size-4" aria-hidden />
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/demo">View demo videos</Link>
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <CommandCard
+              title="Pull the image"
+              description="Use the public AccountingClaw Hermes image."
+              command={PULL_COMMAND}
+            />
+            <CommandCard
+              title="Run locally or on your server"
+              description="Mount /opt/data so Hermes sessions and installed skills persist."
+              command={RUN_COMMAND}
+            />
+            <p className="rounded-xl border border-warning/20 bg-warning-soft/60 p-4 text-sm leading-6 text-foreground-muted">
+              This preview build does not call an activation API. Access is
+              controlled by the shared CPAAutomation.ai bundle secret for now.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -142,11 +306,16 @@ export default function Claw() {
               variant="ghost"
               className="w-full border border-marketing-hero-border bg-transparent px-8 text-marketing-hero-foreground hover:bg-marketing-hero-foreground/10 hover:text-marketing-hero-foreground sm:w-auto"
             >
-              <a href="#setup-options">See setup options</a>
+              <a href="#docker-download">
+                Download Docker image
+                <Download className="ml-2 size-5" aria-hidden />
+              </a>
             </Button>
           </>
         }
       />
+
+      <DockerDownloadSection />
 
       <ShowcaseSection
         surface="background"
