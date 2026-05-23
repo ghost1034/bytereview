@@ -194,6 +194,10 @@ def _as_text(value: Any) -> str:
     return "" if value is None else str(value)
 
 
+def _normalized_mapping_key(value: Any) -> str:
+    return re.sub(r"[^a-z0-9]+", "", str(value or "").strip().lower())
+
+
 def _validate_generated_transform_code(code: str) -> None:
     if not isinstance(code, str) or not code.strip():
         raise ValueError("Generated code was empty")
@@ -1979,6 +1983,23 @@ class FormFillService:
             lines.append(f"- {key}: {'' if value is None else value}")
         return "\n".join(lines)
 
+    def _record_placeholder_replacements(self, placeholders: list[str], record_payload: dict[str, Any]) -> dict[str, str]:
+        normalized_values = {
+            _normalized_mapping_key(key): "" if value is None else str(value)
+            for key, value in record_payload.items()
+        }
+        replacements: dict[str, str] = {}
+        for placeholder in placeholders:
+            name = str(placeholder).strip()
+            for prefix, suffix in (("{{", "}}"), ("[[", "]]"), ("<<", ">>")):
+                if name.startswith(prefix) and name.endswith(suffix):
+                    name = name[len(prefix):-len(suffix)].strip()
+                    break
+            normalized_name = _normalized_mapping_key(name)
+            if normalized_name in normalized_values:
+                replacements[str(placeholder)] = normalized_values[normalized_name]
+        return replacements
+
     def _filled_filename(self, target_filename: str, suffix: str, extension: str) -> str:
         stem = _safe_filename_part(Path(target_filename).stem, "filled")
         safe_suffix = _safe_filename_part(suffix, "") if suffix else ""
@@ -3009,6 +3030,8 @@ Instructions:
         source_text: str,
         tabular_context: Optional[dict[str, Any]] = None,
         filename_suffix: str = "",
+        single_record_payload: Optional[dict[str, Any]] = None,
+        single_record_mode: bool = False,
     ) -> dict[str, Any]:
         target_parts: list[Any] = []
         warnings: list[str] = []
@@ -3196,32 +3219,40 @@ Instructions:
                     }
                     warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
                 else:
-                    mapping_payload = self._generate_mapping_payload(
-                        source_parts + target_parts,
-                        source_text=source_text,
-                        mapping_items=placeholders,
-                        mapping_label="DOCX placeholders",
-                        target_hint="DOCX template",
-                        label="docx_placeholder_mapping",
+                    replacements = self._record_placeholder_replacements(
+                        placeholders,
+                        single_record_payload if isinstance(single_record_payload, dict) else {},
                     )
-                    replacements = {
-                        str(item.get("name")): "" if item.get("value") is None else str(item.get("value"))
-                        for item in mapping_payload.get("items") or []
-                        if isinstance(item, dict) and item.get("name")
-                    }
-                    warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
+                    remaining_placeholders = [placeholder for placeholder in placeholders if placeholder not in replacements]
+                    if remaining_placeholders:
+                        mapping_payload = self._generate_mapping_payload(
+                            source_parts + target_parts,
+                            source_text=source_text,
+                            mapping_items=remaining_placeholders,
+                            mapping_label="DOCX placeholders",
+                            target_hint="DOCX template",
+                            label="docx_placeholder_mapping",
+                        )
+                        replacements.update(
+                            {
+                                str(item.get("name")): "" if item.get("value") is None else str(item.get("value"))
+                                for item in mapping_payload.get("items") or []
+                                if isinstance(item, dict) and item.get("name")
+                            }
+                        )
+                        warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
                 fill_plan = {
                     "strategy": processing_strategy,
                     "replacements": replacements,
                     "allow_docx_table_expansion": bool(run.allow_docx_table_expansion),
-                    "source_rows": len(tabular_rows) if tabular_rows else None,
+                    "source_rows": len(tabular_rows) if tabular_rows else (1 if single_record_mode else None),
                     "code_hash": mapping_payload.get("code_hash") if tabular_rows else None,
                 }
                 output_docx_path = os.path.join(temp_dir, f"filled-{uuid.uuid4()}.docx")
                 self._apply_docx_placeholders(target_local_path, replacements, output_docx_path)
                 final_local_path = output_docx_path
 
-                if run.allow_docx_table_expansion:
+                if run.allow_docx_table_expansion and not single_record_mode:
                     from docx import Document as DocxDocument
 
                     placeholder_doc = DocxDocument(output_docx_path)
@@ -3547,10 +3578,14 @@ Instructions:
                 target_local_path = os.path.join(temp_dir, f"target{_safe_ext(run.target_filename, '.bin')}")
                 await self._download_to_local(run.target_gcs_object_name, target_local_path)
                 await self._ensure_run_target_page_count(db, run, target_local_path, temp_dir)
-                tabular_context = await self._build_tabular_source_context(
-                    run,
-                    record_payload=output.record_payload if isinstance(output.record_payload, dict) else {},
-                )
+                repeat_mode = getattr(run, "repeat_mode", REPEAT_MODE_SINGLE) or REPEAT_MODE_SINGLE
+                if repeat_mode == REPEAT_MODE_SOURCE_ROWS:
+                    tabular_context = None
+                else:
+                    tabular_context = await self._build_tabular_source_context(
+                        run,
+                        record_payload=output.record_payload if isinstance(output.record_payload, dict) else {},
+                    )
                 if tabular_context:
                     source_parts = []
                     source_text = self._tabular_source_summary(tabular_context)
@@ -3560,6 +3595,8 @@ Instructions:
                         record_payload=output.record_payload or {},
                         record_index=int(output.record_index or 0),
                     )
+                single_record_payload = output.record_payload if isinstance(output.record_payload, dict) else {}
+                single_record_mode = repeat_mode == REPEAT_MODE_SOURCE_ROWS
                 generated = await self._generate_filled_document(
                     run=run,
                     temp_dir=temp_dir,
@@ -3568,6 +3605,8 @@ Instructions:
                     source_text=source_text,
                     tabular_context=tabular_context,
                     filename_suffix=f"{output.record_index + 1:03d}_{output.record_label}",
+                    single_record_payload=single_record_payload if single_record_mode else None,
+                    single_record_mode=single_record_mode,
                 )
                 result_object_name = (
                     f"form-fill/{run.user_id}/runs/{run.id}/outputs/"

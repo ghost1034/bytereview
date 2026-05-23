@@ -717,6 +717,69 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Participant Name: Jane Doe", source_text)
         self.assertIn("Email: jane@example.com", source_text)
 
+    def test_record_placeholder_replacements_match_normalized_row_keys(self) -> None:
+        replacements = self.service._record_placeholder_replacements(
+            ["{{client_name}}", "{{Tax Year}}", "[[primary-contact]]", "<<missing>>"],
+            {
+                "Client Name": "Arbor & Finch LLC",
+                "tax_year": 2025,
+                "Primary Contact": "Maya Patel",
+            },
+        )
+
+        self.assertEqual(replacements["{{client_name}}"], "Arbor & Finch LLC")
+        self.assertEqual(replacements["{{Tax Year}}"], "2025")
+        self.assertEqual(replacements["[[primary-contact]]"], "Maya Patel")
+        self.assertNotIn("<<missing>>", replacements)
+
+    async def test_generate_docx_placeholders_single_record_skips_table_expansion(self) -> None:
+        handle = tempfile.NamedTemporaryFile(suffix=".docx", delete=False)
+        handle.close()
+        self.addCleanup(lambda: os.path.exists(handle.name) and os.unlink(handle.name))
+        target_path = handle.name
+        temp_dir = tempfile.mkdtemp(prefix="form_fill_test_")
+        self.addCleanup(lambda: shutil.rmtree(temp_dir, ignore_errors=True))
+        run = SimpleNamespace(
+            id="run-id",
+            user_id="user-id",
+            target_file_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            target_filename="target.docx",
+            target_gcs_object_name="target-object",
+            allow_docx_table_expansion=True,
+            output_format="docx",
+        )
+        document = Document()
+        table = document.add_table(rows=2, cols=2)
+        table.cell(0, 0).text = "Client"
+        table.cell(0, 1).text = "{{client_name}}"
+        table.cell(1, 0).text = "Contact"
+        table.cell(1, 1).text = "{{primary_contact}}"
+        document.save(target_path)
+
+        converter = SimpleNamespace(convert_docx_gcs_to_pdf_gcs=AsyncMock())
+        self.service.storage_service.construct_gcs_uri_for_object = MagicMock(return_value="gs://bucket/target")
+
+        with patch.object(self.service, "_part_from_uri", return_value=object()):
+            with patch("services.form_fill_service.get_document_conversion_service", return_value=converter):
+                with patch.object(self.service, "_generate_mapping_payload") as generate_mapping:
+                    result = await self.service._generate_filled_document(
+                        run=run,
+                        temp_dir=temp_dir,
+                        target_local_path=target_path,
+                        source_parts=[],
+                        source_text="Fill the target using this single source record only:\n- client_name: Beta LLC",
+                        single_record_payload={"client_name": "Beta LLC", "primary_contact": "Jane Doe"},
+                        single_record_mode=True,
+                    )
+
+        generate_mapping.assert_not_called()
+        output = Document(result["local_path"])
+        output_table = output.tables[0]
+        self.assertEqual(len(self.service._docx_row_cells(output_table.rows[0])), 2)
+        self.assertEqual(output_table.cell(0, 1).text, "Beta LLC")
+        self.assertEqual(output_table.cell(1, 1).text, "Jane Doe")
+        self.assertEqual(result["fill_plan"]["source_rows"], 1)
+
     def test_normalize_repeat_mode_accepts_all_sources(self) -> None:
         self.assertEqual(_normalize_repeat_mode("all_sources"), "all_sources")
 
@@ -816,6 +879,66 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
         )
         build_context.assert_not_called()
         self.assertEqual(result["outputs"], 2)
+
+    async def test_process_output_source_rows_uses_single_record_context(self) -> None:
+        run_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
+        output_id = uuid.UUID("22222222-2222-2222-2222-222222222222")
+        row_payload = {"client_name": "Northstar Dental PLLC", "email": "northstar@example.com"}
+        run = SimpleNamespace(
+            id=run_id,
+            user_id="user-id",
+            repeat_mode="source_rows",
+            target_filename="target.docx",
+            target_gcs_object_name="target-object",
+            target_file_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+        output = SimpleNamespace(
+            id=output_id,
+            run_id=run_id,
+            status="pending",
+            record_index=1,
+            record_label="Northstar Dental PLLC",
+            record_payload=row_payload,
+            result_gcs_object_name=None,
+        )
+        run_query = MagicMock()
+        run_query.filter.return_value.first.return_value = run
+        output_query = MagicMock()
+        output_query.filter.return_value.first.return_value = output
+        db = MagicMock()
+        db.query.side_effect = [run_query, output_query]
+        self.service._get_session = MagicMock(return_value=db)
+        self.service.storage_service.upload_file = AsyncMock()
+
+        generated = {
+            "local_path": "/tmp/filled.docx",
+            "filename": "target_002_Northstar_Dental_PLLC_filled.docx",
+            "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "strategy": "docx_placeholders",
+            "warnings": [],
+            "fill_plan": {"strategy": "docx_placeholders"},
+        }
+
+        with patch.object(self.service, "_try_advisory_lock", return_value=True):
+            with patch.object(self.service, "_advisory_unlock"):
+                with patch.object(self.service, "_download_to_local", new=AsyncMock()):
+                    with patch.object(self.service, "_ensure_run_target_page_count", new=AsyncMock()):
+                        with patch.object(self.service, "_build_tabular_source_context", new=AsyncMock()) as build_tabular:
+                            with patch.object(self.service, "_build_output_source_context", new=AsyncMock(return_value=([], "single record"))) as build_output:
+                                with patch.object(self.service, "_generate_filled_document", new=AsyncMock(return_value=generated)) as generate:
+                                    with patch.object(self.service, "_sync_run_output_counts"):
+                                        with patch.object(self.service, "_finalize_run_if_ready", new=AsyncMock()):
+                                            result = await self.service.process_output(str(run_id), str(output_id))
+
+        build_tabular.assert_not_awaited()
+        build_output.assert_awaited_once_with(run=run, record_payload=row_payload, record_index=1)
+        generate.assert_awaited_once()
+        generate_kwargs = generate.await_args.kwargs
+        self.assertIsNone(generate_kwargs["tabular_context"])
+        self.assertEqual(generate_kwargs["source_text"], "single record")
+        self.assertEqual(generate_kwargs["single_record_payload"], row_payload)
+        self.assertTrue(generate_kwargs["single_record_mode"])
+        self.assertTrue(result["success"])
 
 
 class FormFillServiceContinuationTests(unittest.TestCase):
