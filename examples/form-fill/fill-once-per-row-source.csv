@@ -1,0 +1,5 @@
+client_name,tax_year,entity_type,primary_contact,email,phone,engagement_type,deadline,monthly_revenue,monthly_expenses,estimated_tax_due,notes
+Arbor & Finch LLC,2025,Limited liability company,Maya Patel,maya.patel@arborfinch.example,555-0134,Monthly bookkeeping cleanup,2026-02-15,84500,51750,18420,"Prioritize bank feed cleanup and confirm new fixed asset purchases."
+Northstar Dental PLLC,2025,Professional limited liability company,Dr. Evan Brooks,evan.brooks@northstardental.example,555-0188,Quarterly tax projection,2026-01-31,127300,88240,32110,"Owner requested conservative safe-harbor estimate and payroll review."
+Blue Ridge Foods Inc.,2025,C corporation,Lena Ortiz,lena.ortiz@blueridgefoods.example,555-0172,Year-end close package,2026-03-10,213900,176450,44875,"Include inventory accruals and reconcile vendor credits before filing."
+Harbor Light Design Co.,2025,S corporation,Theo Nguyen,theo.nguyen@harborlightdesign.example,555-0199,Annual tax return organizer,2026-02-28,64200,38975,12680,"Ask client for home office details and 1099 contractor confirmations."
