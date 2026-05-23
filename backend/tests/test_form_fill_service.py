@@ -732,7 +732,7 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(replacements["[[primary-contact]]"], "Maya Patel")
         self.assertNotIn("<<missing>>", replacements)
 
-    async def test_generate_docx_placeholders_single_record_skips_table_expansion(self) -> None:
+    async def test_generate_docx_placeholders_never_runs_post_placeholder_table_expansion(self) -> None:
         handle = tempfile.NamedTemporaryFile(suffix=".docx", delete=False)
         handle.close()
         self.addCleanup(lambda: os.path.exists(handle.name) and os.unlink(handle.name))
@@ -762,23 +762,98 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(self.service, "_part_from_uri", return_value=object()):
             with patch("services.form_fill_service.get_document_conversion_service", return_value=converter):
                 with patch.object(self.service, "_generate_mapping_payload") as generate_mapping:
-                    result = await self.service._generate_filled_document(
-                        run=run,
-                        temp_dir=temp_dir,
-                        target_local_path=target_path,
-                        source_parts=[],
-                        source_text="Fill the target using this single source record only:\n- client_name: Beta LLC",
-                        single_record_payload={"client_name": "Beta LLC", "primary_contact": "Jane Doe"},
-                        single_record_mode=True,
-                    )
+                    with patch.object(self.service, "_generate_collection_json_response") as generate_collection:
+                        with patch.object(self.service, "_generate_and_execute_tabular_transform") as generate_tabular:
+                            with patch.object(self.service, "_apply_docx_edit_plan") as apply_edit_plan:
+                                generate_collection.side_effect = AssertionError("post-placeholder DOCX table expansion should not run")
+                                generate_tabular.side_effect = AssertionError("DOCX placeholders should use direct matching")
+                                apply_edit_plan.side_effect = AssertionError("post-placeholder DOCX table expansion should not be applied")
+                                result = await self.service._generate_filled_document(
+                                    run=run,
+                                    temp_dir=temp_dir,
+                                    target_local_path=target_path,
+                                    source_parts=[],
+                                    source_text="Fill the DOCX placeholders from the source data.",
+                                    tabular_context={
+                                        "columns": ["client_name", "primary_contact"],
+                                        "rows": [{"client_name": "Beta LLC", "primary_contact": "Jane Doe"}],
+                                        "row_count": 1,
+                                    },
+                                )
 
         generate_mapping.assert_not_called()
+        generate_collection.assert_not_called()
+        generate_tabular.assert_not_called()
+        apply_edit_plan.assert_not_called()
         output = Document(result["local_path"])
         output_table = output.tables[0]
         self.assertEqual(len(self.service._docx_row_cells(output_table.rows[0])), 2)
         self.assertEqual(output_table.cell(0, 1).text, "Beta LLC")
         self.assertEqual(output_table.cell(1, 1).text, "Jane Doe")
+        self.assertNotIn("table_operations", result["fill_plan"])
+
+    async def test_generate_docx_without_placeholders_uses_generated_code_for_single_row_context(self) -> None:
+        handle = tempfile.NamedTemporaryFile(suffix=".docx", delete=False)
+        handle.close()
+        self.addCleanup(lambda: os.path.exists(handle.name) and os.unlink(handle.name))
+        target_path = handle.name
+        temp_dir = tempfile.mkdtemp(prefix="form_fill_test_")
+        self.addCleanup(lambda: shutil.rmtree(temp_dir, ignore_errors=True))
+        run = SimpleNamespace(
+            id="run-id",
+            user_id="user-id",
+            target_file_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            target_filename="target.docx",
+            target_gcs_object_name="target-object",
+            allow_docx_table_expansion=False,
+            output_format="docx",
+        )
+        document = Document()
+        document.add_paragraph("Client: [blank]")
+        document.save(target_path)
+
+        converter = SimpleNamespace(convert_docx_gcs_to_pdf_gcs=AsyncMock())
+        self.service.storage_service.construct_gcs_uri_for_object = MagicMock(return_value="gs://bucket/target")
+        row_payload = {"client_name": "Beta LLC"}
+
+        with patch.object(self.service, "_part_from_uri", return_value=object()):
+            with patch("services.form_fill_service.get_document_conversion_service", return_value=converter):
+                with patch.object(
+                    self.service,
+                    "_generate_and_execute_tabular_transform",
+                    return_value={
+                        "operations": [
+                            {
+                                "action": "replace_block_text",
+                                "block_id": "body.paragraph.0",
+                                "text": "Client: Beta LLC",
+                            }
+                        ],
+                        "warnings": [],
+                        "code_hash": "code-hash",
+                    },
+                ) as generate_tabular:
+                    result = await self.service._generate_filled_document(
+                        run=run,
+                        temp_dir=temp_dir,
+                        target_local_path=target_path,
+                        source_parts=[],
+                        source_text="single record",
+                        tabular_context={
+                            "columns": ["client_name"],
+                            "rows": [row_payload],
+                            "row_count": 1,
+                            "single_record": True,
+                        },
+                    )
+
+        generate_tabular.assert_called_once()
+        self.assertEqual(generate_tabular.call_args.kwargs["rows"], [row_payload])
+        self.assertEqual(result["strategy"], "docx_edit_generated_code")
         self.assertEqual(result["fill_plan"]["source_rows"], 1)
+        self.assertEqual(result["fill_plan"]["code_hash"], "code-hash")
+        output = Document(result["local_path"])
+        self.assertEqual(output.paragraphs[0].text, "Client: Beta LLC")
 
     def test_normalize_repeat_mode_accepts_all_sources(self) -> None:
         self.assertEqual(_normalize_repeat_mode("all_sources"), "all_sources")
@@ -934,10 +1009,11 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
         build_output.assert_awaited_once_with(run=run, record_payload=row_payload, record_index=1)
         generate.assert_awaited_once()
         generate_kwargs = generate.await_args.kwargs
-        self.assertIsNone(generate_kwargs["tabular_context"])
+        tabular_context = generate_kwargs["tabular_context"]
+        self.assertEqual(tabular_context["columns"], ["client_name", "email"])
+        self.assertEqual(tabular_context["rows"], [row_payload])
+        self.assertTrue(tabular_context["single_record"])
         self.assertEqual(generate_kwargs["source_text"], "single record")
-        self.assertEqual(generate_kwargs["single_record_payload"], row_payload)
-        self.assertTrue(generate_kwargs["single_record_mode"])
         self.assertTrue(result["success"])
 
 

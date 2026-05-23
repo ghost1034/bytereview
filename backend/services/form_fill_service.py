@@ -2000,6 +2000,26 @@ class FormFillService:
                 replacements[str(placeholder)] = normalized_values[normalized_name]
         return replacements
 
+    def _tabular_context_from_record_payload(self, record_payload: dict[str, Any], *, source_name: str) -> Optional[dict[str, Any]]:
+        if not isinstance(record_payload, dict) or not record_payload:
+            return None
+        columns = [str(key) for key in record_payload.keys()]
+        row = {str(key): value for key, value in record_payload.items()}
+        return {
+            "kind": "tabular_rows",
+            "columns": columns,
+            "rows": [row],
+            "row_count": 1,
+            "source_files": [source_name] if source_name else [],
+            "sheets": [],
+            "single_record": True,
+        }
+
+    def _placeholder_payload_from_tabular_context(self, tabular_context: Optional[dict[str, Any]]) -> dict[str, Any]:
+        rows = list((tabular_context or {}).get("rows") or [])
+        first_row = rows[0] if rows else None
+        return first_row if isinstance(first_row, dict) else {}
+
     def _filled_filename(self, target_filename: str, suffix: str, extension: str) -> str:
         stem = _safe_filename_part(Path(target_filename).stem, "filled")
         safe_suffix = _safe_filename_part(suffix, "") if suffix else ""
@@ -3030,20 +3050,19 @@ Instructions:
         source_text: str,
         tabular_context: Optional[dict[str, Any]] = None,
         filename_suffix: str = "",
-        single_record_payload: Optional[dict[str, Any]] = None,
-        single_record_mode: bool = False,
     ) -> dict[str, Any]:
         target_parts: list[Any] = []
         warnings: list[str] = []
         fill_plan: dict[str, Any] = {}
         tabular_rows = list((tabular_context or {}).get("rows") or [])
+        use_tabular_generation = bool(tabular_rows)
 
         if run.target_file_type == PDF_MIME:
             pdf_fields = self._extract_pdf_form_fields(target_local_path)
             target_parts.append(self._part_from_uri(self.storage_service.construct_gcs_uri_for_object(run.target_gcs_object_name), PDF_MIME))
             if pdf_fields:
                 processing_strategy = "fillable_pdf"
-                if tabular_rows:
+                if use_tabular_generation:
                     processing_strategy = "fillable_pdf_generated_code"
                     output_contract = (
                         "Return {'field_values': {field_name: value, ...}, 'warnings': [...]} using only the provided field names. "
@@ -3112,7 +3131,7 @@ Instructions:
 
             processing_strategy = "pdf_overlay"
             target_preview_text = self._page_texts_with_numbers(target_local_path)
-            if tabular_rows:
+            if use_tabular_generation:
                 processing_strategy = "pdf_overlay_generated_code"
                 output_contract = (
                     "Return {'items': [overlay_item, ...], 'warnings': [...]}. Each overlay_item must include "
@@ -3183,154 +3202,19 @@ Instructions:
             placeholders = self._extract_docx_placeholders(target_local_path)
             if placeholders:
                 processing_strategy = "docx_placeholders"
-                if tabular_rows:
-                    processing_strategy = "docx_placeholders_generated_code"
-                    output_contract = (
-                        "Return {'replacements': {placeholder: value, ...}, 'warnings': [...]} using only the provided placeholders. "
-                        "Values must be strings ready for direct insertion."
-                    )
-                    code_context = {
-                        "target_kind": "DOCX placeholders",
-                        "placeholders": placeholders,
-                        "target_preview_text": self._extract_docx_text(target_local_path),
-                        "source_columns": list((tabular_context or {}).get("columns") or []),
-                        "source_files": list((tabular_context or {}).get("source_files") or []),
-                        "output_contract": output_contract,
-                    }
-                    code_prompt = self._build_generated_code_prompt(
-                        tabular_context=tabular_context or {},
-                        target_kind="DOCX placeholders",
-                        target_context=code_context,
-                        output_contract=output_contract,
-                    )
-                    mapping_payload = self._generate_and_execute_tabular_transform(
-                        source_parts + target_parts,
-                        prompt=code_prompt,
-                        rows=tabular_rows,
-                        context=code_context,
-                        expected_key="replacements",
-                        label="docx_placeholders_generated_code",
-                    )
-                    allowed_placeholders = set(placeholders)
-                    replacements = {
-                        str(name): str(value)
-                        for name, value in (mapping_payload.get("replacements") or {}).items()
-                        if str(name) in allowed_placeholders
-                    }
-                    warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
-                else:
-                    replacements = self._record_placeholder_replacements(
-                        placeholders,
-                        single_record_payload if isinstance(single_record_payload, dict) else {},
-                    )
-                    remaining_placeholders = [placeholder for placeholder in placeholders if placeholder not in replacements]
-                    if remaining_placeholders:
-                        mapping_payload = self._generate_mapping_payload(
-                            source_parts + target_parts,
-                            source_text=source_text,
-                            mapping_items=remaining_placeholders,
-                            mapping_label="DOCX placeholders",
-                            target_hint="DOCX template",
-                            label="docx_placeholder_mapping",
-                        )
-                        replacements.update(
-                            {
-                                str(item.get("name")): "" if item.get("value") is None else str(item.get("value"))
-                                for item in mapping_payload.get("items") or []
-                                if isinstance(item, dict) and item.get("name")
-                            }
-                        )
-                        warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
+                replacements = self._record_placeholder_replacements(
+                    placeholders,
+                    self._placeholder_payload_from_tabular_context(tabular_context),
+                )
                 fill_plan = {
                     "strategy": processing_strategy,
                     "replacements": replacements,
                     "allow_docx_table_expansion": bool(run.allow_docx_table_expansion),
-                    "source_rows": len(tabular_rows) if tabular_rows else (1 if single_record_mode else None),
-                    "code_hash": mapping_payload.get("code_hash") if tabular_rows else None,
+                    "source_rows": len(tabular_rows) if tabular_rows else None,
                 }
                 output_docx_path = os.path.join(temp_dir, f"filled-{uuid.uuid4()}.docx")
                 self._apply_docx_placeholders(target_local_path, replacements, output_docx_path)
                 final_local_path = output_docx_path
-
-                if run.allow_docx_table_expansion and not single_record_mode:
-                    from docx import Document as DocxDocument
-
-                    placeholder_doc = DocxDocument(output_docx_path)
-                    docx_blocks, _block_map = self._collect_docx_blocks(placeholder_doc)
-                    docx_tables, _table_map = self._collect_docx_tables(placeholder_doc)
-                    table_operations: list[dict[str, Any]] = []
-                    if docx_tables:
-                        edit_prompt = self._build_docx_edit_prompt(
-                            source_text=source_text,
-                            block_summary=self._summarize_docx_blocks(docx_blocks),
-                            table_summary=self._summarize_docx_tables(docx_tables),
-                            target_preview_text=self._extract_docx_text(output_docx_path),
-                            allow_table_expansion=True,
-                            restrict_to_table_expansion=True,
-                        )
-                        if tabular_rows:
-                            output_contract = (
-                                "Return {'operations': [operation, ...], 'warnings': [...]}. Operations must use only "
-                                "insert_table_row_after or insert_table_column_after and valid table_id/row_index/column_index values. "
-                                "Each operation object must put the operation name in the 'action' key and must provide cells as strings."
-                            )
-                            code_context = {
-                                "target_kind": "DOCX table expansion",
-                                "target_preview_text": self._extract_docx_text(output_docx_path),
-                                "editable_blocks": self._public_docx_blocks(docx_blocks),
-                                "editable_tables": self._public_docx_tables(docx_tables),
-                                "allow_table_expansion": True,
-                                "source_columns": list((tabular_context or {}).get("columns") or []),
-                                "source_files": list((tabular_context or {}).get("source_files") or []),
-                                "output_contract": output_contract,
-                            }
-                            code_prompt = self._build_generated_code_prompt(
-                                tabular_context=tabular_context or {},
-                                target_kind="DOCX table expansion",
-                                target_context=code_context,
-                                output_contract=output_contract,
-                            )
-                            edit_payload = self._generate_and_execute_tabular_transform(
-                                source_parts + target_parts,
-                                prompt=code_prompt,
-                                rows=tabular_rows,
-                                context=code_context,
-                                expected_key="operations",
-                                label="docx_table_expansion_generated_code",
-                            )
-                            fill_plan["table_code_hash"] = edit_payload.get("code_hash")
-                        else:
-                            edit_payload = self._generate_collection_json_response(
-                                source_parts + target_parts,
-                                prompt=edit_prompt,
-                                schema=self._docx_edit_schema(),
-                                collection_key="operations",
-                                label="docx_table_expansion",
-                                continue_on_full_batch=True,
-                            )
-                        operations = [
-                            item
-                            for item in (self._normalize_docx_edit_operation(item) for item in (edit_payload.get("operations") or []))
-                            if item and str(item.get("action") or "").strip()
-                        ]
-                        table_operations = [
-                            item
-                            for item in operations
-                            if str(item.get("action") or "").strip() in {"insert_table_row_after", "insert_table_column_after"}
-                        ]
-                        warnings.extend([str(item) for item in (edit_payload.get("warnings") or []) if str(item).strip()])
-
-                    fill_plan["table_operations"] = table_operations
-                    expanded_docx_path = os.path.join(temp_dir, f"filled-expanded-{uuid.uuid4()}.docx")
-                    warnings.extend(
-                        self._apply_docx_edit_plan(
-                            output_docx_path,
-                            table_operations,
-                            expanded_docx_path,
-                            allow_table_expansion=True,
-                        )
-                    )
-                    final_local_path = expanded_docx_path
             else:
                 processing_strategy = "docx_edit_in_place"
                 target_preview_text = self._extract_docx_text(target_local_path)
@@ -3346,7 +3230,7 @@ Instructions:
                     target_preview_text=target_preview_text,
                     allow_table_expansion=bool(run.allow_docx_table_expansion),
                 )
-                if tabular_rows:
+                if use_tabular_generation:
                     processing_strategy = "docx_edit_generated_code"
                     output_contract = (
                         "Return {'operations': [operation, ...], 'warnings': [...]}. Each operation must use one of "
@@ -3580,13 +3464,16 @@ Instructions:
                 await self._ensure_run_target_page_count(db, run, target_local_path, temp_dir)
                 repeat_mode = getattr(run, "repeat_mode", REPEAT_MODE_SINGLE) or REPEAT_MODE_SINGLE
                 if repeat_mode == REPEAT_MODE_SOURCE_ROWS:
-                    tabular_context = None
+                    tabular_context = self._tabular_context_from_record_payload(
+                        output.record_payload if isinstance(output.record_payload, dict) else {},
+                        source_name=str(output.record_label or "source row"),
+                    )
                 else:
                     tabular_context = await self._build_tabular_source_context(
                         run,
                         record_payload=output.record_payload if isinstance(output.record_payload, dict) else {},
                     )
-                if tabular_context:
+                if tabular_context and not bool(tabular_context.get("single_record")):
                     source_parts = []
                     source_text = self._tabular_source_summary(tabular_context)
                 else:
@@ -3595,8 +3482,6 @@ Instructions:
                         record_payload=output.record_payload or {},
                         record_index=int(output.record_index or 0),
                     )
-                single_record_payload = output.record_payload if isinstance(output.record_payload, dict) else {}
-                single_record_mode = repeat_mode == REPEAT_MODE_SOURCE_ROWS
                 generated = await self._generate_filled_document(
                     run=run,
                     temp_dir=temp_dir,
@@ -3605,8 +3490,6 @@ Instructions:
                     source_text=source_text,
                     tabular_context=tabular_context,
                     filename_suffix=f"{output.record_index + 1:03d}_{output.record_label}",
-                    single_record_payload=single_record_payload if single_record_mode else None,
-                    single_record_mode=single_record_mode,
                 )
                 result_object_name = (
                     f"form-fill/{run.user_id}/runs/{run.id}/outputs/"
