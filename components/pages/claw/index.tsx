@@ -84,9 +84,22 @@ const RUN_COMMAND = [
   '  -v ~/.accountingclaw:/opt/data \\',
   '  -e CPAA_BUNDLE_SECRET="provided-by-cpaautomation" \\',
   '  -e OPENROUTER_API_KEY="sk-or-..." \\',
-  '  -p 8642:8642 \\',
+  '  -e API_SERVER_ENABLED=true \\',
+  '  -e API_SERVER_HOST=0.0.0.0 \\',
+  '  -e API_SERVER_KEY="change-this-api-key" \\',
+  '  -p 127.0.0.1:8642:8642 \\',
   `  ${ACCOUNTINGCLAW_IMAGE} gateway run`,
 ].join('\n')
+
+const NEXT_STEPS_COMMAND = [
+  'docker logs -f accountingclaw',
+  'docker exec -it accountingclaw /opt/hermes/.venv/bin/hermes status',
+  'docker exec -it accountingclaw /opt/hermes/.venv/bin/hermes skills list',
+  'docker exec -it accountingclaw /opt/hermes/.venv/bin/hermes chat',
+].join('\n')
+
+const HERMES_ALIAS_COMMAND =
+  "alias hermes='docker exec -it accountingclaw /opt/hermes/.venv/bin/hermes'"
 
 const DOWNLOAD_NOTES = [
   {
@@ -243,10 +256,50 @@ function DockerDownloadSection() {
             />
             <CommandCard
               title="Run locally or on your server"
-              description="Mount /opt/data so Hermes sessions and installed skills persist across container restarts."
+              description="Mount /opt/data so Hermes sessions and installed skills persist across container restarts. The API server is bound to localhost."
               command={RUN_COMMAND}
             />
+            <CommandCard
+              title="Use Hermes after it starts"
+              description="The hermes command runs inside the container. Use docker exec to verify the install, list skills, and open chat."
+              command={NEXT_STEPS_COMMAND}
+            />
+            <CommandCard
+              title="Optional host shortcut"
+              description="Add this shell alias if you want to type hermes from your host terminal while the container is running."
+              command={HERMES_ALIAS_COMMAND}
+            />
           </div>
+        </div>
+
+        <div className="rounded-xl border border-primary/20 bg-primary-soft/50 p-4 text-sm leading-6 text-primary-soft-foreground">
+          <p className="font-semibold">What to do next</p>
+          <p className="mt-1">
+            After the container starts, run the commands above. If your terminal
+            says{' '}
+            <code className="rounded bg-background/70 px-1 py-0.5">
+              hermes: command not found
+            </code>{', '}
+            run Hermes through{' '}
+            <code className="rounded bg-background/70 px-1 py-0.5">
+              docker exec
+            </code>{' '}
+            or add the alias. The local API is available on{' '}
+            <code className="rounded bg-background/70 px-1 py-0.5">
+              http://127.0.0.1:8642
+            </code>{' '}
+            only when{' '}
+            <code className="rounded bg-background/70 px-1 py-0.5">
+              API_SERVER_ENABLED
+            </code>{', '}
+            <code className="rounded bg-background/70 px-1 py-0.5">
+              API_SERVER_HOST
+            </code>{', and '}
+            <code className="rounded bg-background/70 px-1 py-0.5">
+              API_SERVER_KEY
+            </code>{' '}
+            are set.
+          </p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

@@ -33,7 +33,8 @@ COPY --from=bundle /tmp/accountingclaw-profile.tar.gz.enc /opt/cpaa/accountingcl
 COPY --from=bundle /tmp/accountingclaw-profile.tar.gz.enc.sha256 /opt/cpaa/accountingclaw-profile.tar.gz.enc.sha256
 COPY bin/accountingclaw-entrypoint /usr/local/bin/accountingclaw-entrypoint
 
-RUN chmod +x /usr/local/bin/accountingclaw-entrypoint
+RUN chmod +x /usr/local/bin/accountingclaw-entrypoint \
+ && ln -sf /opt/hermes/.venv/bin/hermes /usr/local/bin/hermes
 
 ENV HERMES_DATA_DIR=/opt/data \
     ACCOUNTINGCLAW_BUNDLE=/opt/cpaa/accountingclaw-profile.tar.gz.enc

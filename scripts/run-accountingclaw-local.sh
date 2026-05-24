@@ -32,6 +32,10 @@ docker run --rm -it \
   -e OPENAI_API_KEY \
   -e ANTHROPIC_API_KEY \
   -e GEMINI_API_KEY \
+  -e API_SERVER_ENABLED \
+  -e API_SERVER_HOST \
+  -e API_SERVER_KEY \
+  -e API_SERVER_CORS_ORIGINS \
   -p "${PORT}:8642" \
   "$IMAGE" \
   "${cmd[@]}"

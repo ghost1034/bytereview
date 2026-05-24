@@ -99,12 +99,56 @@ Optional environment variables:
 - `ACCOUNTINGCLAW_DATA_DIR`, default `$PWD/.accountingclaw-data`.
 - `ACCOUNTINGCLAW_PORT`, default `8642`.
 - `ACCOUNTINGCLAW_CONTAINER_NAME`, default `accountingclaw-hermes`.
+- `API_SERVER_ENABLED`, `API_SERVER_HOST`, `API_SERVER_KEY`, and `API_SERVER_CORS_ORIGINS`, forwarded to Hermes when set.
 
 You can pass a specific image and Hermes command:
 
 ```bash
 ./scripts/run-accountingclaw-local.sh cpaautomation/accountingclaw-hermes:latest gateway run
 ```
+
+## Use Hermes After Startup
+
+When the container is running in gateway mode, the `hermes` command is inside the container, not on the host machine. Use `docker exec` for local CLI access:
+
+```bash
+docker logs -f accountingclaw-hermes
+docker exec -it accountingclaw-hermes hermes status
+docker exec -it accountingclaw-hermes hermes skills list
+docker exec -it accountingclaw-hermes hermes chat
+```
+
+If you used the public Claw page command, the container name is `accountingclaw` instead:
+
+```bash
+docker logs -f accountingclaw
+docker exec -it accountingclaw hermes status
+docker exec -it accountingclaw hermes skills list
+docker exec -it accountingclaw hermes chat
+```
+
+Optional host shortcut:
+
+```bash
+alias hermes='docker exec -it accountingclaw-hermes hermes'
+```
+
+If `docker exec ... hermes` fails on an older image, use the full venv path or rebuild/pull the latest image:
+
+```bash
+docker exec -it accountingclaw-hermes /opt/hermes/.venv/bin/hermes status
+```
+
+To use the OpenAI-compatible API on port `8642`, run the container with API server settings:
+
+```bash
+-e API_SERVER_ENABLED=true \
+-e API_SERVER_HOST=0.0.0.0 \
+-e API_SERVER_KEY="change-this-api-key" \
+-p 127.0.0.1:8642:8642
+```
+
+Without those `API_SERVER_*` variables, exposing port `8642` alone is not enough to enable the local API server.
 
 ## Runtime Install Flow
 
