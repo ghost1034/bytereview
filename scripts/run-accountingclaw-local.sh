@@ -28,6 +28,7 @@ docker run --rm -it \
   --name "$CONTAINER_NAME" \
   -v "$DATA_DIR:/opt/data" \
   -e CPAA_BUNDLE_SECRET \
+  -e OPENROUTER_API_KEY \
   -e OPENAI_API_KEY \
   -e ANTHROPIC_API_KEY \
   -e GEMINI_API_KEY \

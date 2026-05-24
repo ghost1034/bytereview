@@ -88,7 +88,7 @@ Optional environment variables:
 
 ```bash
 export CPAA_BUNDLE_SECRET="same-secret-used-at-build-time"
-export OPENAI_API_KEY="sk-..."
+export OPENROUTER_API_KEY="sk-or-..."
 ./scripts/run-accountingclaw-local.sh
 ```
 

@@ -42,6 +42,10 @@ if [ ! -s "$MARKER_FILE" ]; then
   date -u +%Y-%m-%dT%H:%M:%SZ > "$MARKER_FILE"
 fi
 
+if [ -x /opt/hermes/docker/entrypoint.sh ]; then
+  exec /opt/hermes/docker/entrypoint.sh "$@"
+fi
+
 if [ -x /opt/hermes/.venv/bin/hermes ]; then
   exec /opt/hermes/.venv/bin/hermes "$@"
 fi

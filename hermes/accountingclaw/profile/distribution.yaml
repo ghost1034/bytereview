@@ -9,9 +9,9 @@ required_environment_variables:
   - name: CPAA_BUNDLE_SECRET
     prompt: CPAAutomation.ai bundle decryption secret
     required_for: decrypting bundled AccountingClaw skills
-  - name: OPENAI_API_KEY
-    prompt: OpenAI API key
-    required_for: Hermes model access when using OpenAI-compatible models
+  - name: OPENROUTER_API_KEY
+    prompt: OpenRouter API key
+    required_for: Hermes model access with the default OpenRouter provider
 
 contents:
   - SOUL.md

@@ -74,15 +74,16 @@ const ACCOUNTINGCLAW_IMAGE =
   process.env.NEXT_PUBLIC_ACCOUNTINGCLAW_IMAGE ||
   'cpaautomation/accountingclaw-hermes:latest'
 
-const PULL_COMMAND = `docker pull ${ACCOUNTINGCLAW_IMAGE}`
+const PULL_COMMAND = `docker pull --platform linux/amd64 ${ACCOUNTINGCLAW_IMAGE}`
 
 const RUN_COMMAND = [
   'docker run -d \\',
+  '  --platform linux/amd64 \\',
   '  --name accountingclaw \\',
   '  --restart unless-stopped \\',
   '  -v ~/.accountingclaw:/opt/data \\',
   '  -e CPAA_BUNDLE_SECRET="provided-by-cpaautomation" \\',
-  '  -e OPENAI_API_KEY="sk-..." \\',
+  '  -e OPENROUTER_API_KEY="sk-or-..." \\',
   '  -p 8642:8642 \\',
   `  ${ACCOUNTINGCLAW_IMAGE} gateway run`,
 ].join('\n')
@@ -91,17 +92,22 @@ const DOWNLOAD_NOTES = [
   {
     icon: ShieldCheck,
     title: 'Encrypted skills included',
-    detail: 'AccountingClaw skills ship inside the image as an encrypted bundle.',
+    detail: 'AccountingClaw skills ship inside the public linux/amd64 image as an encrypted bundle.',
   },
   {
     icon: KeyRound,
     title: 'Bundle secret required',
-    detail: 'The image installs skills only when CPAA_BUNDLE_SECRET is provided.',
+    detail: 'The encrypted AccountingClaw profile installs only when CPAA_BUNDLE_SECRET is provided.',
   },
   {
     icon: HardDrive,
     title: 'Persistent agent data',
-    detail: 'Hermes profile data, sessions, and installed skills live in /opt/data.',
+    detail: 'Hermes profile data, sessions, and installed skills live in the mounted /opt/data volume.',
+  },
+  {
+    icon: Cloud,
+    title: 'OpenRouter key required',
+    detail: 'Hermes uses OpenRouter by default, so pass OPENROUTER_API_KEY with your model access key.',
   },
 ]
 
@@ -208,10 +214,11 @@ function DockerDownloadSection() {
                 Download AccountingClaw for Hermes Agent
               </h2>
               <p className="text-balance text-base text-foreground-muted sm:text-lg">
-                Pull the AccountingClaw Docker image and run it with your own
-                model key. The image includes AccountingClaw skills encrypted
-                inside the container and installs them only after CPAAutomation.ai
-                provides the bundle secret.
+                Pull the verified AccountingClaw Docker image and run it with
+                the CPAAutomation.ai bundle secret plus your OpenRouter key. The
+                image includes AccountingClaw skills encrypted inside the
+                container and installs them into your persistent Hermes data
+                volume on first startup.
               </p>
             </div>
 
@@ -231,18 +238,18 @@ function DockerDownloadSection() {
           <div className="space-y-4">
             <CommandCard
               title="Pull the image"
-              description="Use the public AccountingClaw Hermes image."
+              description="Use the public AccountingClaw Hermes image. The platform flag supports Apple Silicon and other ARM hosts via Docker emulation."
               command={PULL_COMMAND}
             />
             <CommandCard
               title="Run locally or on your server"
-              description="Mount /opt/data so Hermes sessions and installed skills persist."
+              description="Mount /opt/data so Hermes sessions and installed skills persist across container restarts."
               command={RUN_COMMAND}
             />
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {DOWNLOAD_NOTES.map((item) => (
             <div
               key={item.title}
