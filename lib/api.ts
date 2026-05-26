@@ -1264,6 +1264,296 @@ export class ApiClient {
     }
   }
 
+  // ===========================================================================
+  // Analytics — firms / team
+  // ===========================================================================
+
+  async getCurrentAnalyticsFirm(): Promise<ApiResponse<ApiPaths['/api/analytics/firm']['get']>> {
+    return this.request('/api/analytics/firm')
+  }
+
+  async updateAnalyticsFirm(
+    data: ApiRequest<ApiPaths['/api/analytics/firm']['put']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/firm']['put']>> {
+    return this.request('/api/analytics/firm', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async inviteAnalyticsFirmMember(
+    data: ApiRequest<ApiPaths['/api/analytics/firm/invite']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/firm/invite']['post']>> {
+    return this.request('/api/analytics/firm/invite', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async removeAnalyticsFirmMember(memberUserId: string): Promise<{ success: boolean }> {
+    return this.request(`/api/analytics/firm/members/${encodeURIComponent(memberUserId)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // ===========================================================================
+  // Analytics — clients
+  // ===========================================================================
+
+  async listAnalyticsClients(): Promise<ApiResponse<ApiPaths['/api/analytics/clients']['get']>> {
+    return this.request('/api/analytics/clients')
+  }
+
+  async createAnalyticsClient(
+    data: ApiRequest<ApiPaths['/api/analytics/clients']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/clients']['post']>> {
+    return this.request('/api/analytics/clients', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getAnalyticsClient(
+    clientId: string
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/clients/{client_id}']['get']>> {
+    return this.request(`/api/analytics/clients/${encodeURIComponent(clientId)}`)
+  }
+
+  async updateAnalyticsClient(
+    clientId: string,
+    data: ApiRequest<ApiPaths['/api/analytics/clients/{client_id}']['put']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/clients/{client_id}']['put']>> {
+    return this.request(`/api/analytics/clients/${encodeURIComponent(clientId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteAnalyticsClient(clientId: string): Promise<{ success: boolean }> {
+    return this.request(`/api/analytics/clients/${encodeURIComponent(clientId)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // ===========================================================================
+  // Analytics — projects
+  // ===========================================================================
+
+  async listAnalyticsProjects(): Promise<ApiResponse<ApiPaths['/api/analytics/projects']['get']>> {
+    return this.request('/api/analytics/projects')
+  }
+
+  async createAnalyticsProject(
+    data: ApiRequest<ApiPaths['/api/analytics/projects']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/projects']['post']>> {
+    return this.request('/api/analytics/projects', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getAnalyticsProject(
+    projectId: string
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/projects/{project_id}']['get']>> {
+    return this.request(`/api/analytics/projects/${encodeURIComponent(projectId)}`)
+  }
+
+  async updateAnalyticsProject(
+    projectId: string,
+    data: ApiRequest<ApiPaths['/api/analytics/projects/{project_id}']['put']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/projects/{project_id}']['put']>> {
+    return this.request(`/api/analytics/projects/${encodeURIComponent(projectId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteAnalyticsProject(projectId: string): Promise<{ success: boolean }> {
+    return this.request(`/api/analytics/projects/${encodeURIComponent(projectId)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // ===========================================================================
+  // Analytics — research (IRS / GAAP) chat sessions
+  // ===========================================================================
+
+  async listAnalyticsResearchSessions(
+    bot: 'irs' | 'gaap'
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/research/sessions/{bot}']['get']>> {
+    return this.request(`/api/analytics/research/sessions/${bot}`)
+  }
+
+  async getAnalyticsResearchSession(
+    bot: 'irs' | 'gaap',
+    sessionId: string
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/research/sessions/{bot}/{session_id}']['get']>> {
+    return this.request(`/api/analytics/research/sessions/${bot}/${encodeURIComponent(sessionId)}`)
+  }
+
+  async updateAnalyticsResearchSession(
+    bot: 'irs' | 'gaap',
+    sessionId: string,
+    data: ApiRequest<ApiPaths['/api/analytics/research/sessions/{bot}/{session_id}']['put']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/research/sessions/{bot}/{session_id}']['put']>> {
+    return this.request(`/api/analytics/research/sessions/${bot}/${encodeURIComponent(sessionId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteAnalyticsResearchSession(
+    bot: 'irs' | 'gaap',
+    sessionId: string
+  ): Promise<{ success: boolean }> {
+    return this.request(`/api/analytics/research/sessions/${bot}/${encodeURIComponent(sessionId)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // ===========================================================================
+  // Analytics — AI assistant chat sessions
+  // ===========================================================================
+
+  async listAnalyticsAssistantSessions(): Promise<ApiResponse<ApiPaths['/api/analytics/assistant/sessions']['get']>> {
+    return this.request('/api/analytics/assistant/sessions')
+  }
+
+  async getAnalyticsAssistantSession(
+    sessionId: string
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/assistant/sessions/{session_id}']['get']>> {
+    return this.request(`/api/analytics/assistant/sessions/${encodeURIComponent(sessionId)}`)
+  }
+
+  async updateAnalyticsAssistantSession(
+    sessionId: string,
+    data: ApiRequest<ApiPaths['/api/analytics/assistant/sessions/{session_id}']['put']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/assistant/sessions/{session_id}']['put']>> {
+    return this.request(`/api/analytics/assistant/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteAnalyticsAssistantSession(sessionId: string): Promise<{ success: boolean }> {
+    return this.request(`/api/analytics/assistant/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // ===========================================================================
+  // Analytics — streaming (research bots + AI assistant)
+  // ===========================================================================
+
+  async streamAnalyticsResearch(
+    bot: 'irs' | 'gaap',
+    data: ApiRequest<ApiPaths['/api/analytics/research/irs/stream']['post']>,
+    handlers: AnalyticsStreamHandlers,
+    opts?: { signal?: AbortSignal }
+  ): Promise<void> {
+    return this.streamAnalyticsSse(`/api/analytics/research/${bot}/stream`, data, handlers, opts)
+  }
+
+  async streamAnalyticsAssistant(
+    data: ApiRequest<ApiPaths['/api/analytics/assistant/stream']['post']>,
+    handlers: AnalyticsStreamHandlers,
+    opts?: { signal?: AbortSignal }
+  ): Promise<void> {
+    return this.streamAnalyticsSse('/api/analytics/assistant/stream', data, handlers, opts)
+  }
+
+  private async streamAnalyticsSse(
+    path: string,
+    body: unknown,
+    handlers: AnalyticsStreamHandlers,
+    opts?: { signal?: AbortSignal }
+  ): Promise<void> {
+    const token = await this.getAuthToken()
+    const response = await fetch(`${this.getStreamingBaseURL()}${path}`, {
+      method: 'POST',
+      signal: opts?.signal,
+      headers: {
+        Accept: 'text/event-stream',
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify(body),
+    })
+
+    if (!response.ok) {
+      let bodyJson: any = null
+      let message = `HTTP ${response.status}`
+      try {
+        bodyJson = await response.json()
+        message = bodyJson?.detail || bodyJson?.message || message
+      } catch {
+        // ignore
+      }
+      throw new ApiError(response.status, message, bodyJson)
+    }
+
+    if (!response.body) return
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    const emit = (rawEvent: string) => {
+      if (!rawEvent.trim()) return
+      const dataLines: string[] = []
+      for (const line of rawEvent.split('\n')) {
+        if (!line || line.startsWith(':')) continue
+        if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart())
+      }
+      const dataStr = dataLines.join('\n')
+      if (!dataStr) return
+      if (dataStr === '[DONE]') return
+      try {
+        const parsed = JSON.parse(dataStr)
+        if (typeof parsed?.text === 'string') {
+          handlers.onChunk?.(parsed.text)
+        } else if (parsed?.usage) {
+          handlers.onUsage?.(parsed.usage as AnalyticsStreamUsage)
+        } else if (parsed?.error) {
+          handlers.onError?.(String(parsed.error))
+        }
+      } catch {
+        // non-JSON keepalive — ignore
+      }
+    }
+
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      buffer = buffer.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+
+      while (true) {
+        const idx = buffer.indexOf('\n\n')
+        if (idx === -1) break
+        const raw = buffer.slice(0, idx)
+        buffer = buffer.slice(idx + 2)
+        emit(raw)
+      }
+    }
+
+    buffer += decoder.decode()
+    buffer = buffer.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    if (buffer.trim()) emit(buffer)
+  }
+
+}
+
+export interface AnalyticsStreamUsage {
+  prompt_tokens?: number | null
+  output_tokens?: number | null
+  total_tokens?: number | null
+  pages?: number | null
+}
+
+export interface AnalyticsStreamHandlers {
+  onChunk?: (text: string) => void
+  onUsage?: (usage: AnalyticsStreamUsage) => void
+  onError?: (message: string) => void
 }
 
 export const apiClient = new ApiClient()

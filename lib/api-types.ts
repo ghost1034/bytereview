@@ -1525,7 +1525,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List Form Fill Runs */
+        get: operations["list_form_fill_runs_api_form_fill_runs_get"];
         put?: never;
         /** Create Form Fill Run */
         post: operations["create_form_fill_run_api_form_fill_runs_post"];
@@ -2312,10 +2313,1014 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/analytics/firm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Firm */
+        get: operations["get_firm_api_analytics_firm_get"];
+        /** Update Firm */
+        put: operations["update_firm_api_analytics_firm_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/firm/invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invite Member */
+        post: operations["invite_member_api_analytics_firm_invite_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/firm/members/{member_user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Member */
+        delete: operations["remove_member_api_analytics_firm_members__member_user_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/clients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Clients Route */
+        get: operations["list_clients_route_api_analytics_clients_get"];
+        put?: never;
+        /** Create Client Route */
+        post: operations["create_client_route_api_analytics_clients_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/clients/{client_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Client Route */
+        get: operations["get_client_route_api_analytics_clients__client_id__get"];
+        /** Update Client Route */
+        put: operations["update_client_route_api_analytics_clients__client_id__put"];
+        post?: never;
+        /** Delete Client Route */
+        delete: operations["delete_client_route_api_analytics_clients__client_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Projects Route */
+        get: operations["list_projects_route_api_analytics_projects_get"];
+        put?: never;
+        /** Create Project Route */
+        post: operations["create_project_route_api_analytics_projects_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/projects/{project_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Project Route */
+        get: operations["get_project_route_api_analytics_projects__project_id__get"];
+        /** Update Project Route */
+        put: operations["update_project_route_api_analytics_projects__project_id__put"];
+        post?: never;
+        /** Delete Project Route */
+        delete: operations["delete_project_route_api_analytics_projects__project_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/research/irs/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stream Irs Research */
+        post: operations["stream_irs_research_api_analytics_research_irs_stream_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/research/gaap/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stream Gaap Research */
+        post: operations["stream_gaap_research_api_analytics_research_gaap_stream_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/research/sessions/{bot}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Research Sessions */
+        get: operations["list_research_sessions_api_analytics_research_sessions__bot__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/research/sessions/{bot}/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Research Session */
+        get: operations["get_research_session_api_analytics_research_sessions__bot___session_id__get"];
+        /** Update Research Session */
+        put: operations["update_research_session_api_analytics_research_sessions__bot___session_id__put"];
+        post?: never;
+        /** Delete Research Session */
+        delete: operations["delete_research_session_api_analytics_research_sessions__bot___session_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/assistant/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stream Assistant */
+        post: operations["stream_assistant_api_analytics_assistant_stream_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/assistant/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Basic Chat
+         * @description Aggregates the streamed response into a single JSON envelope.
+         *
+         *     This route exists for compatibility with the original CPAAnalytics
+         *     `/api/chat`. Front-end code that needs incremental tokens should use
+         *     `/api/analytics/assistant/stream` instead.
+         */
+        post: operations["basic_chat_api_analytics_assistant_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/assistant/document-extract": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Extract Document */
+        post: operations["extract_document_api_analytics_assistant_document_extract_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/assistant/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Assistant Sessions */
+        get: operations["list_assistant_sessions_api_analytics_assistant_sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/assistant/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Assistant Session */
+        get: operations["get_assistant_session_api_analytics_assistant_sessions__session_id__get"];
+        /** Update Assistant Session */
+        put: operations["update_assistant_session_api_analytics_assistant_sessions__session_id__put"];
+        post?: never;
+        /** Delete Assistant Session */
+        delete: operations["delete_assistant_session_api_analytics_assistant_sessions__session_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/waterfall/extract": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Extract Waterfall */
+        post: operations["extract_waterfall_api_analytics_waterfall_extract_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/waterfall": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Waterfalls Route */
+        get: operations["list_waterfalls_route_api_analytics_waterfall_get"];
+        put?: never;
+        /** Create Waterfall Route */
+        post: operations["create_waterfall_route_api_analytics_waterfall_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/waterfall/{analysis_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Waterfall Route */
+        get: operations["get_waterfall_route_api_analytics_waterfall__analysis_id__get"];
+        /** Update Waterfall Route */
+        put: operations["update_waterfall_route_api_analytics_waterfall__analysis_id__put"];
+        post?: never;
+        /** Delete Waterfall Route */
+        delete: operations["delete_waterfall_route_api_analytics_waterfall__analysis_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/amortization/extract": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Extract Amortization */
+        post: operations["extract_amortization_api_analytics_amortization_extract_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/amortization/compliance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compliance Check */
+        post: operations["compliance_check_api_analytics_amortization_compliance_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/amortization/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate Schedule */
+        post: operations["generate_schedule_api_analytics_amortization_schedule_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/amortization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Amortizations Route */
+        get: operations["list_amortizations_route_api_analytics_amortization_get"];
+        put?: never;
+        /** Create Amortization Route */
+        post: operations["create_amortization_route_api_analytics_amortization_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/amortization/{amortization_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Amortization Route */
+        get: operations["get_amortization_route_api_analytics_amortization__amortization_id__get"];
+        /** Update Amortization Route */
+        put: operations["update_amortization_route_api_analytics_amortization__amortization_id__put"];
+        post?: never;
+        /** Delete Amortization Route */
+        delete: operations["delete_amortization_route_api_analytics_amortization__amortization_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/amortization/journal-entries/list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Journal Entries Route */
+        get: operations["list_journal_entries_route_api_analytics_amortization_journal_entries_list_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/amortization/journal-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Journal Entry Route */
+        post: operations["create_journal_entry_route_api_analytics_amortization_journal_entries_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/reconciliation/rules/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate Rules */
+        post: operations["generate_rules_api_analytics_reconciliation_rules_generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/reconciliation/rules/additional": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate Additional Pass */
+        post: operations["generate_additional_pass_api_analytics_reconciliation_rules_additional_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/reconciliation/match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Perform Match */
+        post: operations["perform_match_api_analytics_reconciliation_match_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/reconciliation/basic": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reconcile Basic */
+        post: operations["reconcile_basic_api_analytics_reconciliation_basic_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/reconciliation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Reconciliations Route */
+        get: operations["list_reconciliations_route_api_analytics_reconciliation_get"];
+        put?: never;
+        /** Create Reconciliation Route */
+        post: operations["create_reconciliation_route_api_analytics_reconciliation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/reconciliation/{reconciliation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Reconciliation Route */
+        get: operations["get_reconciliation_route_api_analytics_reconciliation__reconciliation_id__get"];
+        /** Update Reconciliation Route */
+        put: operations["update_reconciliation_route_api_analytics_reconciliation__reconciliation_id__put"];
+        post?: never;
+        /** Delete Reconciliation Route */
+        delete: operations["delete_reconciliation_route_api_analytics_reconciliation__reconciliation_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/variance/threshold": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Suggest Threshold */
+        post: operations["suggest_threshold_api_analytics_variance_threshold_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/variance/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Analyze Variance */
+        post: operations["analyze_variance_api_analytics_variance_analyze_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/variance/memo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate Memo */
+        post: operations["generate_memo_api_analytics_variance_memo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/variance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Variance Route */
+        get: operations["list_variance_route_api_analytics_variance_get"];
+        put?: never;
+        /** Create Variance Route */
+        post: operations["create_variance_route_api_analytics_variance_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/variance/{analysis_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Variance Route */
+        get: operations["get_variance_route_api_analytics_variance__analysis_id__get"];
+        /** Update Variance Route */
+        put: operations["update_variance_route_api_analytics_variance__analysis_id__put"];
+        post?: never;
+        /** Delete Variance Route */
+        delete: operations["delete_variance_route_api_analytics_variance__analysis_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AmortizationComplianceRequest */
+        AmortizationComplianceRequest: {
+            /** Form */
+            form?: {
+                [key: string]: unknown;
+            };
+        };
+        /** AmortizationComplianceResponse */
+        AmortizationComplianceResponse: {
+            /** Insight */
+            insight: string;
+            usage?: components["schemas"]["UsageMetadata"];
+        };
+        /** AmortizationCreateRequest */
+        AmortizationCreateRequest: {
+            /** Asset Name */
+            asset_name: string;
+            /** Asset Type */
+            asset_type: string;
+            /** Client Id */
+            client_id?: string | null;
+            /** Cost Basis */
+            cost_basis?: number | null;
+            /** Salvage Value */
+            salvage_value?: number | null;
+            /** Useful Life Months */
+            useful_life_months?: number | null;
+            /** Gaap Method */
+            gaap_method?: string | null;
+            /** Tax Method */
+            tax_method?: string | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** Vendor */
+            vendor?: string | null;
+            /**
+             * Status
+             * @default draft
+             */
+            status: string;
+            /**
+             * Approval Status
+             * @default pending
+             */
+            approval_status: string;
+            /** Type Specific */
+            type_specific?: {
+                [key: string]: unknown;
+            } | null;
+            /** Schedule */
+            schedule?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Tax Schedule */
+            tax_schedule?: {
+                [key: string]: unknown;
+            }[] | null;
+        };
+        /** AmortizationExtractRequest */
+        AmortizationExtractRequest: {
+            /** Documenttext */
+            documentText: string;
+        };
+        /** AmortizationExtractResponse */
+        AmortizationExtractResponse: {
+            /** Form */
+            form?: {
+                [key: string]: unknown;
+            };
+            /** Confidencescores */
+            confidenceScores?: {
+                [key: string]: unknown;
+            };
+            usage?: components["schemas"]["UsageMetadata"];
+        };
+        /** AmortizationListResponse */
+        AmortizationListResponse: {
+            /** Amortizations */
+            amortizations?: components["schemas"]["AmortizationResponse"][];
+        };
+        /** AmortizationResponse */
+        AmortizationResponse: {
+            /** Asset Name */
+            asset_name: string;
+            /** Asset Type */
+            asset_type: string;
+            /** Client Id */
+            client_id?: string | null;
+            /** Cost Basis */
+            cost_basis?: number | null;
+            /** Salvage Value */
+            salvage_value?: number | null;
+            /** Useful Life Months */
+            useful_life_months?: number | null;
+            /** Gaap Method */
+            gaap_method?: string | null;
+            /** Tax Method */
+            tax_method?: string | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** Vendor */
+            vendor?: string | null;
+            /**
+             * Status
+             * @default draft
+             */
+            status: string;
+            /**
+             * Approval Status
+             * @default pending
+             */
+            approval_status: string;
+            /** Type Specific */
+            type_specific?: {
+                [key: string]: unknown;
+            } | null;
+            /** Schedule */
+            schedule?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Tax Schedule */
+            tax_schedule?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Id */
+            id: string;
+            /** Firm Id */
+            firm_id: string;
+            /** Created By User Id */
+            created_by_user_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * AmortizationScheduleRequest
+         * @description Inputs to deterministic schedule generation (no LLM call).
+         */
+        AmortizationScheduleRequest: {
+            /** Assettype */
+            assetType: string;
+            /** Method */
+            method: string;
+            /**
+             * Costbasis
+             * @default 0
+             */
+            costBasis: number;
+            /**
+             * Salvagevalue
+             * @default 0
+             */
+            salvageValue: number;
+            /**
+             * Usefullifemonths
+             * @default 0
+             */
+            usefulLifeMonths: number;
+            /** Startdate */
+            startDate?: string | null;
+            /** Decliningmultiplier */
+            decliningMultiplier?: number | null;
+            /** Annualrate */
+            annualRate?: number | null;
+            /** Paymentamount */
+            paymentAmount?: number | null;
+            /** Ibr */
+            ibr?: number | null;
+            /** Directcosts */
+            directCosts?: number | null;
+            /** Prepaid */
+            prepaid?: number | null;
+            /** Incentives */
+            incentives?: number | null;
+            /** Propertyclass */
+            propertyClass?: string | null;
+            /** Bonuspercent */
+            bonusPercent?: number | null;
+            /** Section179 */
+            section179?: number | null;
+            /** Startyear */
+            startYear?: number | null;
+        };
+        /** AmortizationScheduleResponse */
+        AmortizationScheduleResponse: {
+            /** Schedule */
+            schedule?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** AmortizationUpdateRequest */
+        AmortizationUpdateRequest: {
+            /** Asset Name */
+            asset_name?: string | null;
+            /** Asset Type */
+            asset_type?: string | null;
+            /** Client Id */
+            client_id?: string | null;
+            /** Cost Basis */
+            cost_basis?: number | null;
+            /** Salvage Value */
+            salvage_value?: number | null;
+            /** Useful Life Months */
+            useful_life_months?: number | null;
+            /** Gaap Method */
+            gaap_method?: string | null;
+            /** Tax Method */
+            tax_method?: string | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** Vendor */
+            vendor?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Approval Status */
+            approval_status?: string | null;
+            /** Type Specific */
+            type_specific?: {
+                [key: string]: unknown;
+            } | null;
+            /** Schedule */
+            schedule?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Tax Schedule */
+            tax_schedule?: {
+                [key: string]: unknown;
+            }[] | null;
+        };
+        /** AnalysisCreateRequest */
+        AnalysisCreateRequest: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "variance" | "waterfall";
+            /** Name */
+            name: string;
+            /** Client Id */
+            client_id?: string | null;
+            /**
+             * Status
+             * @default draft
+             */
+            status: string;
+            /** Config */
+            config?: {
+                [key: string]: unknown;
+            } | null;
+            /** Data */
+            data?: unknown | null;
+            /** Results */
+            results?: unknown | null;
+            /** Memo Content */
+            memo_content?: string | null;
+        };
+        /** AnalysisListResponse */
+        AnalysisListResponse: {
+            /** Analyses */
+            analyses?: components["schemas"]["AnalysisResponse"][];
+        };
+        /** AnalysisResponse */
+        AnalysisResponse: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "variance" | "waterfall";
+            /** Name */
+            name: string;
+            /** Client Id */
+            client_id?: string | null;
+            /**
+             * Status
+             * @default draft
+             */
+            status: string;
+            /** Config */
+            config?: {
+                [key: string]: unknown;
+            } | null;
+            /** Data */
+            data?: unknown | null;
+            /** Results */
+            results?: unknown | null;
+            /** Memo Content */
+            memo_content?: string | null;
+            /** Id */
+            id: string;
+            /** Firm Id */
+            firm_id: string;
+            /** Created By User Id */
+            created_by_user_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** AnalysisUpdateRequest */
+        AnalysisUpdateRequest: {
+            /** Name */
+            name?: string | null;
+            /** Client Id */
+            client_id?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Config */
+            config?: {
+                [key: string]: unknown;
+            } | null;
+            /** Data */
+            data?: unknown | null;
+            /** Results */
+            results?: unknown | null;
+            /** Memo Content */
+            memo_content?: string | null;
+        };
+        /** AssistantStreamRequest */
+        AssistantStreamRequest: {
+            /** Messages */
+            messages?: components["schemas"]["ChatMessage"][];
+            /** Context */
+            context?: {
+                [key: string]: unknown;
+            } | null;
+            /** Sessionid */
+            sessionId?: string | null;
+            /** Clientid */
+            clientId?: string | null;
+            /** Title */
+            title?: string | null;
+        };
         /**
          * AutomationCreate
          * @description Request model for creating an automation
@@ -2525,6 +3530,11 @@ export interface components {
              */
             job_id?: string | null;
         };
+        /** BasicChatRequest */
+        BasicChatRequest: {
+            /** Messages */
+            messages?: components["schemas"]["ChatMessage"][];
+        };
         /**
          * BillingAccountResponse
          * @description User's billing account information
@@ -2586,6 +3596,62 @@ export interface components {
             source_run_id?: string | null;
             /** Source Task Id */
             source_task_id?: string | null;
+            /** Source Scope */
+            source_scope?: string | null;
+        };
+        /** ChatMessage */
+        ChatMessage: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "model";
+            /** Content */
+            content: string;
+        };
+        /** ChatSessionListResponse */
+        ChatSessionListResponse: {
+            /** Sessions */
+            sessions?: components["schemas"]["ChatSessionResponse"][];
+        };
+        /** ChatSessionResponse */
+        ChatSessionResponse: {
+            /** Id */
+            id: string;
+            /** Firm Id */
+            firm_id: string;
+            /** User Id */
+            user_id: string;
+            /** Client Id */
+            client_id?: string | null;
+            /**
+             * Bot Type
+             * @enum {string}
+             */
+            bot_type: "irs" | "gaap" | "assistant";
+            /** Title */
+            title?: string | null;
+            /** Messages */
+            messages?: components["schemas"]["ChatMessage"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ChatSessionUpdateRequest */
+        ChatSessionUpdateRequest: {
+            /** Title */
+            title?: string | null;
+            /** Client Id */
+            client_id?: string | null;
+            /** Messages */
+            messages?: components["schemas"]["ChatMessage"][] | null;
         };
         /**
          * CheckoutSessionResponse
@@ -2594,6 +3660,76 @@ export interface components {
         CheckoutSessionResponse: {
             /** Checkout Url */
             checkout_url: string;
+        };
+        /** ClientCreateRequest */
+        ClientCreateRequest: {
+            /** Name */
+            name: string;
+            /** Industry */
+            industry?: string | null;
+            /** Contact Name */
+            contact_name?: string | null;
+            /** Contact Email */
+            contact_email?: string | null;
+            /** Contact Phone */
+            contact_phone?: string | null;
+            /** Fiscal Year End */
+            fiscal_year_end?: string | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** ClientListResponse */
+        ClientListResponse: {
+            /** Clients */
+            clients?: components["schemas"]["ClientResponse"][];
+        };
+        /** ClientResponse */
+        ClientResponse: {
+            /** Name */
+            name: string;
+            /** Industry */
+            industry?: string | null;
+            /** Contact Name */
+            contact_name?: string | null;
+            /** Contact Email */
+            contact_email?: string | null;
+            /** Contact Phone */
+            contact_phone?: string | null;
+            /** Fiscal Year End */
+            fiscal_year_end?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Id */
+            id: string;
+            /** Firm Id */
+            firm_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ClientUpdateRequest */
+        ClientUpdateRequest: {
+            /** Name */
+            name?: string | null;
+            /** Industry */
+            industry?: string | null;
+            /** Contact Name */
+            contact_name?: string | null;
+            /** Contact Email */
+            contact_email?: string | null;
+            /** Contact Phone */
+            contact_phone?: string | null;
+            /** Fiscal Year End */
+            fiscal_year_end?: string | null;
+            /** Notes */
+            notes?: string | null;
         };
         /** ConfigStepRequest */
         ConfigStepRequest: {
@@ -2746,6 +3882,30 @@ export interface components {
             /** Display Order */
             display_order: number;
         };
+        /** DocumentExtractRequest */
+        DocumentExtractRequest: {
+            /** Documenttext */
+            documentText: string;
+            /**
+             * Type
+             * @default Financial
+             * @enum {string}
+             */
+            type: "IRS" | "GAAP" | "Tax" | "Financial";
+        };
+        /** DocumentExtractResponse */
+        DocumentExtractResponse: {
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /** Extracteddata */
+            extractedData?: {
+                [key: string]: string;
+            };
+            usage?: components["schemas"]["UsageMetadata"];
+        };
         /** DownloadFilesZipRequest */
         DownloadFilesZipRequest: {
             /** File Ids */
@@ -2871,6 +4031,55 @@ export interface components {
              */
             upload_url: string;
         };
+        /** FirmDetailResponse */
+        FirmDetailResponse: {
+            firm: components["schemas"]["FirmResponse"];
+            /** Members */
+            members?: components["schemas"]["FirmMemberResponse"][];
+        };
+        /** FirmInviteRequest */
+        FirmInviteRequest: {
+            /** Email */
+            email: string;
+        };
+        /** FirmMemberResponse */
+        FirmMemberResponse: {
+            /** User Id */
+            user_id: string;
+            /** Email */
+            email: string;
+            /** Display Name */
+            display_name?: string | null;
+            /** Photo Url */
+            photo_url?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** FirmResponse */
+        FirmResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** FirmUpdateRequest */
+        FirmUpdateRequest: {
+            /** Name */
+            name: string;
+        };
         /** FormFillExtractionSourcePreviewResponse */
         FormFillExtractionSourcePreviewResponse: {
             /** Job Id */
@@ -2878,19 +4087,18 @@ export interface components {
             /** Run Id */
             run_id: string;
             /** Task Id */
-            task_id: string;
+            task_id?: string | null;
+            /**
+             * Source Scope
+             * @default task
+             */
+            source_scope: string;
             /** Source Files */
             source_files?: string[];
             /** Columns */
             columns?: string[];
             /** Rows */
             rows?: unknown[][];
-        };
-        /** FormFillRunCreateResponse */
-        FormFillRunCreateResponse: {
-            run: components["schemas"]["FormFillRunResponse"];
-            /** Message */
-            message: string;
         };
         /** FormFillOutputResponse */
         FormFillOutputResponse: {
@@ -2926,6 +4134,32 @@ export interface components {
             updated_at: string;
             /** Completed At */
             completed_at?: string | null;
+        };
+        /** FormFillRunCreateResponse */
+        FormFillRunCreateResponse: {
+            run: components["schemas"]["FormFillRunResponse"];
+            /** Message */
+            message: string;
+        };
+        /** FormFillRunListResponse */
+        FormFillRunListResponse: {
+            /** Runs */
+            runs?: components["schemas"]["FormFillRunResponse"][];
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Limit
+             * @default 25
+             */
+            limit: number;
+            /**
+             * Offset
+             * @default 0
+             */
+            offset: number;
         };
         /** FormFillRunResponse */
         FormFillRunResponse: {
@@ -4647,6 +5881,46 @@ export interface components {
          * @enum {string}
          */
         JobStatus: "pending" | "in_progress" | "partially_completed" | "completed" | "failed" | "cancelled";
+        /** JournalEntryCreateRequest */
+        JournalEntryCreateRequest: {
+            /** Amortization Id */
+            amortization_id?: string | null;
+            /** Client Id */
+            client_id?: string | null;
+            /** Period */
+            period: string;
+            /** Entries */
+            entries?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** JournalEntryListResponse */
+        JournalEntryListResponse: {
+            /** Journal Entries */
+            journal_entries?: components["schemas"]["JournalEntryResponse"][];
+        };
+        /** JournalEntryResponse */
+        JournalEntryResponse: {
+            /** Id */
+            id: string;
+            /** Firm Id */
+            firm_id: string;
+            /** Client Id */
+            client_id?: string | null;
+            /** Amortization Id */
+            amortization_id?: string | null;
+            /** Period */
+            period: string;
+            /** Entries */
+            entries?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** PhoneAvailabilityResponse */
         PhoneAvailabilityResponse: {
             /** Available */
@@ -4666,6 +5940,249 @@ export interface components {
          * @enum {string}
          */
         ProcessingMode: "individual" | "combined" | "manual";
+        /** ProjectCreateRequest */
+        ProjectCreateRequest: {
+            /** Name */
+            name: string;
+            /** Client Id */
+            client_id?: string | null;
+            /**
+             * Status
+             * @default active
+             */
+            status: string;
+            /** Description */
+            description?: string | null;
+        };
+        /** ProjectListResponse */
+        ProjectListResponse: {
+            /** Projects */
+            projects?: components["schemas"]["ProjectResponse"][];
+        };
+        /** ProjectResponse */
+        ProjectResponse: {
+            /** Name */
+            name: string;
+            /** Client Id */
+            client_id?: string | null;
+            /**
+             * Status
+             * @default active
+             */
+            status: string;
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /** Firm Id */
+            firm_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ProjectUpdateRequest */
+        ProjectUpdateRequest: {
+            /** Name */
+            name?: string | null;
+            /** Client Id */
+            client_id?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Description */
+            description?: string | null;
+        };
+        /** ReconciliationAdditionalPassRequest */
+        ReconciliationAdditionalPassRequest: {
+            /** Instructions */
+            instructions: string;
+            /** Availablerules */
+            availableRules?: {
+                [key: string]: unknown;
+            };
+        };
+        /** ReconciliationAdditionalPassResponse */
+        ReconciliationAdditionalPassResponse: {
+            /** Pass */
+            pass?: {
+                [key: string]: unknown;
+            };
+            usage?: components["schemas"]["UsageMetadata"];
+        };
+        /** ReconciliationBasicRequest */
+        ReconciliationBasicRequest: {
+            /** Sourcea */
+            sourceA?: {
+                [key: string]: unknown;
+            }[];
+            /** Sourceb */
+            sourceB?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** ReconciliationCreateRequest */
+        ReconciliationCreateRequest: {
+            /** Name */
+            name: string;
+            /** Client Id */
+            client_id?: string | null;
+            /**
+             * Status
+             * @default draft
+             */
+            status: string;
+            /** Source A */
+            source_a?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Source B */
+            source_b?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Rules */
+            rules?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Match Groups */
+            match_groups?: {
+                [key: string]: unknown;
+            }[] | null;
+        };
+        /** ReconciliationListResponse */
+        ReconciliationListResponse: {
+            /** Reconciliations */
+            reconciliations?: components["schemas"]["ReconciliationRecord"][];
+        };
+        /** ReconciliationMatchRequest */
+        ReconciliationMatchRequest: {
+            /** Sourcea */
+            sourceA?: {
+                [key: string]: unknown;
+            }[];
+            /** Sourceb */
+            sourceB?: {
+                [key: string]: unknown;
+            }[];
+            /** Rules */
+            rules?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** ReconciliationMatchResponse */
+        ReconciliationMatchResponse: {
+            /** Matchgroups */
+            matchGroups?: {
+                [key: string]: unknown;
+            }[];
+            usage?: components["schemas"]["UsageMetadata"];
+        };
+        /** ReconciliationRecord */
+        ReconciliationRecord: {
+            /** Id */
+            id: string;
+            /** Firm Id */
+            firm_id: string;
+            /** Client Id */
+            client_id?: string | null;
+            /** Created By User Id */
+            created_by_user_id: string;
+            /** Name */
+            name: string;
+            /** Status */
+            status: string;
+            /** Source A */
+            source_a?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Source B */
+            source_b?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Rules */
+            rules?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Match Groups */
+            match_groups?: {
+                [key: string]: unknown;
+            }[] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ReconciliationRulesGenerateRequest */
+        ReconciliationRulesGenerateRequest: {
+            /** Headers */
+            headers: string[];
+            /** Availablerules */
+            availableRules?: {
+                [key: string]: unknown;
+            };
+        };
+        /** ReconciliationRulesGenerateResponse */
+        ReconciliationRulesGenerateResponse: {
+            /** Passes */
+            passes?: {
+                [key: string]: unknown;
+            }[];
+            usage?: components["schemas"]["UsageMetadata"];
+        };
+        /** ReconciliationUpdateRequest */
+        ReconciliationUpdateRequest: {
+            /** Name */
+            name?: string | null;
+            /** Client Id */
+            client_id?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Source A */
+            source_a?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Source B */
+            source_b?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Rules */
+            rules?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Match Groups */
+            match_groups?: {
+                [key: string]: unknown;
+            }[] | null;
+        };
+        /** ResearchStreamRequest */
+        ResearchStreamRequest: {
+            /** Messages */
+            messages?: components["schemas"]["ChatMessage"][];
+            /**
+             * Outputstyle
+             * @default Q&A
+             */
+            outputStyle: string;
+            /** Documentcontext */
+            documentContext?: string | null;
+            /** Sessionid */
+            sessionId?: string | null;
+            /** Clientid */
+            clientId?: string | null;
+            /** Title */
+            title?: string | null;
+        };
         /** ResultRowCreateRequest */
         ResultRowCreateRequest: {
             /** Run Id */
@@ -4802,6 +6319,20 @@ export interface components {
             display_name?: string | null;
         };
         /**
+         * UsageMetadata
+         * @description Token / page billing summary returned alongside LLM responses.
+         */
+        UsageMetadata: {
+            /** Prompt Tokens */
+            prompt_tokens?: number | null;
+            /** Output Tokens */
+            output_tokens?: number | null;
+            /** Total Tokens */
+            total_tokens?: number | null;
+            /** Pages */
+            pages?: number | null;
+        };
+        /**
          * UsageStatsResponse
          * @description Usage statistics for current period
          */
@@ -4867,6 +6398,113 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VarianceAnalyzeRequest */
+        VarianceAnalyzeRequest: {
+            /** Data */
+            data?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** VarianceAnalyzeResponse */
+        VarianceAnalyzeResponse: {
+            /** Explanations */
+            explanations?: {
+                [key: string]: unknown;
+            }[];
+            usage?: components["schemas"]["UsageMetadata"];
+        };
+        /** VarianceMemoRequest */
+        VarianceMemoRequest: {
+            /** Data */
+            data?: {
+                [key: string]: unknown;
+            }[];
+            /** Config */
+            config?: {
+                [key: string]: unknown;
+            };
+        };
+        /** VarianceMemoResponse */
+        VarianceMemoResponse: {
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            usage?: components["schemas"]["UsageMetadata"];
+        };
+        /** VarianceThresholdRequest */
+        VarianceThresholdRequest: {
+            /** Data */
+            data?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** VarianceThresholdResponse */
+        VarianceThresholdResponse: {
+            /**
+             * Thresholddollar
+             * @default 0
+             */
+            thresholdDollar: number;
+            /**
+             * Thresholdpercent
+             * @default 0
+             */
+            thresholdPercent: number;
+            /**
+             * Logic
+             * @default Either
+             * @enum {string}
+             */
+            logic: "Either" | "Both";
+            /**
+             * Explanation
+             * @default
+             */
+            explanation: string;
+            usage?: components["schemas"]["UsageMetadata"];
+        };
+        /** WaterfallExtractRequest */
+        WaterfallExtractRequest: {
+            /**
+             * Documenttext
+             * @default
+             */
+            documentText: string;
+        };
+        /** WaterfallExtractResponse */
+        WaterfallExtractResponse: {
+            /** Type */
+            type: string;
+            /** Name */
+            name: string;
+            /**
+             * Partyname
+             * @default
+             */
+            partyName: string;
+            /**
+             * Totalamount
+             * @default 0
+             */
+            totalAmount: number;
+            /**
+             * Startdate
+             * @default
+             */
+            startDate: string;
+            /**
+             * Enddate
+             * @default
+             */
+            endDate: string;
+            /** Confidencescores */
+            confidenceScores?: {
+                [key: string]: unknown;
+            };
+            usage?: components["schemas"]["UsageMetadata"];
         };
     };
     responses: never;
@@ -7441,7 +9079,8 @@ export interface operations {
             query: {
                 job_id: string;
                 run_id: string;
-                task_id: string;
+                task_id?: string | null;
+                source_scope?: string | null;
             };
             header?: never;
             path?: never;
@@ -7456,6 +9095,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FormFillExtractionSourcePreviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_form_fill_runs_api_form_fill_runs_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormFillRunListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -9314,6 +10986,1863 @@ export interface operations {
                 "application/json": components["schemas"]["InkwiseRetryRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_firm_api_analytics_firm_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirmDetailResponse"];
+                };
+            };
+        };
+    };
+    update_firm_api_analytics_firm_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FirmUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirmResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invite_member_api_analytics_firm_invite_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FirmInviteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirmMemberResponse"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_member_api_analytics_firm_members__member_user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_clients_route_api_analytics_clients_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientListResponse"];
+                };
+            };
+        };
+    };
+    create_client_route_api_analytics_clients_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_client_route_api_analytics_clients__client_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_client_route_api_analytics_clients__client_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_client_route_api_analytics_clients__client_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_projects_route_api_analytics_projects_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectListResponse"];
+                };
+            };
+        };
+    };
+    create_project_route_api_analytics_projects_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_route_api_analytics_projects__project_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_project_route_api_analytics_projects__project_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_project_route_api_analytics_projects__project_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_irs_research_api_analytics_research_irs_stream_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResearchStreamRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_gaap_research_api_analytics_research_gaap_stream_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResearchStreamRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_research_sessions_api_analytics_research_sessions__bot__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bot: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatSessionListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_research_session_api_analytics_research_sessions__bot___session_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bot: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatSessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_research_session_api_analytics_research_sessions__bot___session_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bot: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatSessionUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatSessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_research_session_api_analytics_research_sessions__bot___session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bot: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_assistant_api_analytics_assistant_stream_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssistantStreamRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    basic_chat_api_analytics_assistant_chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BasicChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    extract_document_api_analytics_assistant_document_extract_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentExtractRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentExtractResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_assistant_sessions_api_analytics_assistant_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatSessionListResponse"];
+                };
+            };
+        };
+    };
+    get_assistant_session_api_analytics_assistant_sessions__session_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatSessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_assistant_session_api_analytics_assistant_sessions__session_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatSessionUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatSessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_assistant_session_api_analytics_assistant_sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    extract_waterfall_api_analytics_waterfall_extract_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaterfallExtractRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaterfallExtractResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_waterfalls_route_api_analytics_waterfall_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisListResponse"];
+                };
+            };
+        };
+    };
+    create_waterfall_route_api_analytics_waterfall_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalysisCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_waterfall_route_api_analytics_waterfall__analysis_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                analysis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_waterfall_route_api_analytics_waterfall__analysis_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                analysis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalysisUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_waterfall_route_api_analytics_waterfall__analysis_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                analysis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    extract_amortization_api_analytics_amortization_extract_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AmortizationExtractRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AmortizationExtractResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compliance_check_api_analytics_amortization_compliance_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AmortizationComplianceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AmortizationComplianceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_schedule_api_analytics_amortization_schedule_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AmortizationScheduleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AmortizationScheduleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_amortizations_route_api_analytics_amortization_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AmortizationListResponse"];
+                };
+            };
+        };
+    };
+    create_amortization_route_api_analytics_amortization_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AmortizationCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AmortizationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_amortization_route_api_analytics_amortization__amortization_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                amortization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AmortizationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_amortization_route_api_analytics_amortization__amortization_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                amortization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AmortizationUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AmortizationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_amortization_route_api_analytics_amortization__amortization_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                amortization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_journal_entries_route_api_analytics_amortization_journal_entries_list_get: {
+        parameters: {
+            query?: {
+                amortization_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalEntryListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_journal_entry_route_api_analytics_amortization_journal_entries_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JournalEntryCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalEntryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_rules_api_analytics_reconciliation_rules_generate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReconciliationRulesGenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationRulesGenerateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_additional_pass_api_analytics_reconciliation_rules_additional_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReconciliationAdditionalPassRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationAdditionalPassResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    perform_match_api_analytics_reconciliation_match_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReconciliationMatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationMatchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reconcile_basic_api_analytics_reconciliation_basic_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReconciliationBasicRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationMatchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reconciliations_route_api_analytics_reconciliation_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationListResponse"];
+                };
+            };
+        };
+    };
+    create_reconciliation_route_api_analytics_reconciliation_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReconciliationCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_reconciliation_route_api_analytics_reconciliation__reconciliation_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reconciliation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_reconciliation_route_api_analytics_reconciliation__reconciliation_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reconciliation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReconciliationUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_reconciliation_route_api_analytics_reconciliation__reconciliation_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reconciliation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggest_threshold_api_analytics_variance_threshold_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VarianceThresholdRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VarianceThresholdResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analyze_variance_api_analytics_variance_analyze_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VarianceAnalyzeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VarianceAnalyzeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_memo_api_analytics_variance_memo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VarianceMemoRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VarianceMemoResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_variance_route_api_analytics_variance_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisListResponse"];
+                };
+            };
+        };
+    };
+    create_variance_route_api_analytics_variance_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalysisCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_variance_route_api_analytics_variance__analysis_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                analysis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_variance_route_api_analytics_variance__analysis_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                analysis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalysisUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_variance_route_api_analytics_variance__analysis_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                analysis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

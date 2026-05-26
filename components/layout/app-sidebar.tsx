@@ -5,16 +5,26 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
+  BookOpen,
   Bot,
   Briefcase,
+  Calculator,
   Clock,
+  Droplet,
   Files,
   FileText,
+  FolderKanban,
+  GitMerge,
   GraduationCap,
   Home,
+  LineChart,
   PenTool,
   Plug,
+  Search,
   Settings as SettingsIcon,
+  Sparkles,
+  UserPlus,
+  Users,
   Zap,
 } from 'lucide-react'
 
@@ -87,6 +97,23 @@ const PRODUCTS_GROUP: NavGroup = {
       href: '/claw',
       icon: Bot,
     },
+  ],
+}
+
+const ANALYTICS_GROUP: NavGroup = {
+  key: 'analytics',
+  label: 'Analytics',
+  items: [
+    { name: 'Clients', href: '/dashboard/analytics/clients', icon: Users },
+    { name: 'Projects', href: '/dashboard/analytics/projects', icon: FolderKanban },
+    { name: 'Team', href: '/dashboard/analytics/team', icon: UserPlus },
+    { name: 'IRS Researcher', href: '/dashboard/analytics/research/irs', icon: Search },
+    { name: 'GAAP Researcher', href: '/dashboard/analytics/research/gaap', icon: BookOpen },
+    { name: 'AI Assistant', href: '/dashboard/analytics/assistant', icon: Sparkles },
+    { name: 'Waterfall', href: '/dashboard/analytics/waterfall', icon: Droplet },
+    { name: 'Amortization', href: '/dashboard/analytics/amortization', icon: Calculator },
+    { name: 'Reconciliation', href: '/dashboard/analytics/reconciliation', icon: GitMerge },
+    { name: 'Variance', href: '/dashboard/analytics/variance', icon: LineChart },
   ],
 }
 
@@ -178,6 +205,8 @@ export function AppSidebar() {
         <NavGroupBlock group={UDA_GROUP} />
         <SidebarSeparator />
         <NavGroupBlock group={PRODUCTS_GROUP} />
+        <SidebarSeparator />
+        <NavGroupBlock group={ANALYTICS_GROUP} />
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border px-3 py-3 text-[11px] text-foreground-subtle group-data-[collapsible=icon]:hidden">
