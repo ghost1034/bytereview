@@ -6,7 +6,7 @@ Integration phase - supports multi-source ingestion, exports, and automations
 
 from typing import Optional, cast
 
-from sqlalchemy import Column, String, Integer, BigInteger, Boolean, Text, TIMESTAMP, ForeignKey, UUID, LargeBinary, ARRAY, CheckConstraint
+from sqlalchemy import Column, String, Integer, BigInteger, Boolean, Text, TIMESTAMP, ForeignKey, UUID, LargeBinary, ARRAY, CheckConstraint, Numeric, Date
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
@@ -19,16 +19,17 @@ Base = declarative_base()
 class User(Base):
     """App-specific user profile data linked to Firebase Auth"""
     __tablename__ = "users"
-    
+
     id = Column(String(128), primary_key=True)  # Firebase UID
     email = Column(String(255), unique=True, nullable=False)
     phone_number = Column(String(32), unique=True, nullable=True)
     phone_verified_at = Column(TIMESTAMP(timezone=True), nullable=True)
     display_name = Column(String(255))
     photo_url = Column(Text)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
-    
+
     # Relationships
     templates = relationship("Template", back_populates="user", cascade="all, delete-orphan")
     form_fill_templates = relationship("FormFillTemplate", back_populates="user", cascade="all, delete-orphan")
@@ -37,6 +38,8 @@ class User(Base):
     integration_accounts = relationship("IntegrationAccount", back_populates="user", cascade="all, delete-orphan")
     automations = relationship("Automation", back_populates="user", cascade="all, delete-orphan")
     billing_account = relationship("BillingAccount", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    firm = relationship("Firm", back_populates="users")
+    chat_sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
 
 class DataType(Base):
     """Canonical list of supported data types for extraction"""
@@ -645,11 +648,208 @@ class UsageEvent(Base):
 class UsageCounter(Base):
     """Cached totals per active period (fast UI reads)"""
     __tablename__ = "usage_counters"
-    
+
     user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     period_start = Column(TIMESTAMP(timezone=True), primary_key=True)
     period_end = Column(TIMESTAMP(timezone=True), nullable=False)
     pages_total = Column(Integer, nullable=False, default=0)
-    
+
     # Relationships
     user = relationship("User")
+
+
+# ===================================================================
+# CPAAnalytics Models
+# ===================================================================
+
+class Firm(Base):
+    """Accounting firm — top-level multi-tenancy boundary for analytics data."""
+    __tablename__ = "firms"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    users = relationship("User", back_populates="firm")
+    clients = relationship("Client", back_populates="firm", cascade="all, delete-orphan")
+    projects = relationship("Project", back_populates="firm", cascade="all, delete-orphan")
+    analyses = relationship("Analysis", back_populates="firm", cascade="all, delete-orphan")
+    reconciliations = relationship("Reconciliation", back_populates="firm", cascade="all, delete-orphan")
+    amortizations = relationship("Amortization", back_populates="firm", cascade="all, delete-orphan")
+    chat_sessions = relationship("ChatSession", back_populates="firm", cascade="all, delete-orphan")
+    journal_entries = relationship("JournalEntry", back_populates="firm", cascade="all, delete-orphan")
+    audit_logs = relationship("AnalyticsAuditLog", back_populates="firm", cascade="all, delete-orphan")
+
+
+class Client(Base):
+    """Client (customer) of an accounting firm."""
+    __tablename__ = "clients"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    industry = Column(String(255), nullable=True)
+    contact_name = Column(String(255), nullable=True)
+    contact_email = Column(String(255), nullable=True)
+    contact_phone = Column(String(64), nullable=True)
+    fiscal_year_end = Column(String(32), nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    firm = relationship("Firm", back_populates="clients")
+    projects = relationship("Project", back_populates="client")
+    analyses = relationship("Analysis", back_populates="client")
+    reconciliations = relationship("Reconciliation", back_populates="client")
+    amortizations = relationship("Amortization", back_populates="client")
+    chat_sessions = relationship("ChatSession", back_populates="client")
+    journal_entries = relationship("JournalEntry", back_populates="client")
+
+
+class Project(Base):
+    """Engagement or workstream tied to a client."""
+    __tablename__ = "projects"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True)
+    name = Column(String(255), nullable=False)
+    status = Column(String(50), nullable=False, default="active", server_default="active")
+    description = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    firm = relationship("Firm", back_populates="projects")
+    client = relationship("Client", back_populates="projects")
+
+
+class Analysis(Base):
+    """Variance or Waterfall analysis row."""
+    __tablename__ = "analyses"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True)
+    created_by_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
+    type = Column(String(32), nullable=False)  # 'variance' | 'waterfall'
+    name = Column(String(255), nullable=False)
+    status = Column(String(50), nullable=False, default="draft", server_default="draft")
+    config = Column(JSONB, nullable=True)
+    data = Column(JSONB, nullable=True)
+    results = Column(JSONB, nullable=True)
+    memo_content = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        CheckConstraint("type IN ('variance', 'waterfall')", name="ck_analyses_type"),
+    )
+
+    firm = relationship("Firm", back_populates="analyses")
+    client = relationship("Client", back_populates="analyses")
+
+
+class Reconciliation(Base):
+    """Multi-source transaction reconciliation."""
+    __tablename__ = "reconciliations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True)
+    created_by_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
+    name = Column(String(255), nullable=False)
+    status = Column(String(50), nullable=False, default="draft", server_default="draft")
+    source_a = Column(JSONB, nullable=True)
+    source_b = Column(JSONB, nullable=True)
+    rules = Column(JSONB, nullable=True)
+    match_groups = Column(JSONB, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    firm = relationship("Firm", back_populates="reconciliations")
+    client = relationship("Client", back_populates="reconciliations")
+
+
+class Amortization(Base):
+    """Asset / lease / loan / intangible amortization schedule."""
+    __tablename__ = "amortizations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True)
+    created_by_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
+    asset_name = Column(String(255), nullable=False)
+    asset_type = Column(String(64), nullable=False)  # 'fixed_asset'|'lease'|'loan'|'intangible'|'software'
+    cost_basis = Column(Numeric(18, 2), nullable=True)
+    salvage_value = Column(Numeric(18, 2), nullable=True)
+    useful_life_months = Column(Integer, nullable=True)
+    gaap_method = Column(String(64), nullable=True)
+    tax_method = Column(String(64), nullable=True)
+    start_date = Column(Date(), nullable=True)
+    vendor = Column(String(255), nullable=True)
+    status = Column(String(50), nullable=False, default="draft", server_default="draft")
+    approval_status = Column(String(50), nullable=False, default="pending", server_default="pending")
+    type_specific = Column(JSONB, nullable=True)
+    schedule = Column(JSONB, nullable=True)
+    tax_schedule = Column(JSONB, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    firm = relationship("Firm", back_populates="amortizations")
+    client = relationship("Client", back_populates="amortizations")
+    journal_entries = relationship("JournalEntry", back_populates="amortization", cascade="all, delete-orphan")
+
+
+class ChatSession(Base):
+    """IRS / GAAP research chat or AI assistant conversation."""
+    __tablename__ = "chat_sessions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True)
+    bot_type = Column(String(32), nullable=False)  # 'irs' | 'gaap' | 'assistant'
+    title = Column(String(400), nullable=True)
+    messages = Column(JSONB, nullable=False, default=list, server_default=expression.text("'[]'::jsonb"))
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        CheckConstraint("bot_type IN ('irs', 'gaap', 'assistant')", name="ck_chat_sessions_bot_type"),
+    )
+
+    firm = relationship("Firm", back_populates="chat_sessions")
+    user = relationship("User", back_populates="chat_sessions")
+    client = relationship("Client", back_populates="chat_sessions")
+
+
+class JournalEntry(Base):
+    """Period journal entries generated from amortization schedules."""
+    __tablename__ = "journal_entries"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True)
+    amortization_id = Column(UUID(as_uuid=True), ForeignKey("amortizations.id", ondelete="CASCADE"), nullable=True)
+    period = Column(String(32), nullable=False)
+    entries = Column(JSONB, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    firm = relationship("Firm", back_populates="journal_entries")
+    client = relationship("Client", back_populates="journal_entries")
+    amortization = relationship("Amortization", back_populates="journal_entries")
+
+
+class AnalyticsAuditLog(Base):
+    """Per-action audit trail scoped to a firm."""
+    __tablename__ = "analytics_audit_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    action = Column(String(128), nullable=False)
+    details = Column(JSONB, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    firm = relationship("Firm", back_populates="audit_logs")
