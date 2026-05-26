@@ -129,7 +129,10 @@ async def on_shutdown():
 # ---------- Routers (import after app/init so import errors are logged nicely) ----------
 from routes import (
     users, jobs, stripe_routes, templates,
-    data_types, integrations, automations, webhooks, admin, billing, contact, cpe, form_fill
+    data_types, integrations, automations, webhooks, admin, billing, contact, cpe, form_fill,
+    analytics_firms, analytics_clients, analytics_projects, analytics_research,
+    analytics_assistant, analytics_waterfall, analytics_amortization,
+    analytics_reconciliation, analytics_variance,
 )
 from inkwise.router import router as inkwise_router
 
@@ -147,6 +150,15 @@ app.include_router(admin.router)
 app.include_router(contact.router)
 app.include_router(form_fill.router, prefix="/api/form-fill", tags=["form-fill"])
 app.include_router(inkwise_router, prefix="/api/inkwise")
+app.include_router(analytics_firms.router)
+app.include_router(analytics_clients.router)
+app.include_router(analytics_projects.router)
+app.include_router(analytics_research.router)
+app.include_router(analytics_assistant.router)
+app.include_router(analytics_waterfall.router)
+app.include_router(analytics_amortization.router)
+app.include_router(analytics_reconciliation.router)
+app.include_router(analytics_variance.router)
 
 # ---------- Dev entrypoint (Cloud Run ignores this; CMD in Dockerfile is used) ----------
 if __name__ == "__main__":

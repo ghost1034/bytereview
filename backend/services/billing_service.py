@@ -38,6 +38,47 @@ from models.db_models import (
 logger = logging.getLogger(__name__)
 
 
+# Tokens-to-pages conversion for analytics LLM calls.
+# Defaults to 2000 tokens/page; tunable via env in case we recalibrate later.
+TOKENS_PER_PAGE = int(os.getenv("ANALYTICS_TOKENS_PER_PAGE", "2000"))
+
+
+# Allowed `source` values for analytics UsageEvent rows. Routes use these
+# constants so the value space stays explicit and greppable.
+ANALYTICS_SOURCES = {
+    "analytics_variance_threshold",
+    "analytics_variance_analyze",
+    "analytics_variance_memo",
+    "analytics_recon_rules",
+    "analytics_recon_additional_pass",
+    "analytics_recon_match",
+    "analytics_recon_basic",
+    "analytics_amort_extract",
+    "analytics_amort_compliance",
+    "analytics_waterfall_extract",
+    "analytics_document_extract",
+    "analytics_chat_assistant",
+    "analytics_chat_irs",
+    "analytics_chat_gaap",
+    "analytics_chat_basic",
+}
+
+
+def tokens_to_pages(prompt_tokens: Optional[int], output_tokens: Optional[int]) -> int:
+    """Convert a (prompt, output) token pair to billable pages.
+
+    Returns `ceil((prompt + output) / TOKENS_PER_PAGE)` with a floor of 1 page
+    whenever at least one token was produced. Missing token counts contribute 0.
+    """
+    p = int(prompt_tokens or 0)
+    o = int(output_tokens or 0)
+    total = p + o
+    if total <= 0:
+        return 0
+    # ceiling division
+    return max(1, -(-total // TOKENS_PER_PAGE))
+
+
 class PlanLimitExceeded(Exception):
     """Raised when user exceeds their plan limits."""
     pass
@@ -399,6 +440,31 @@ class BillingService:
             self._report_usage_to_stripe(user_id, pages, event_id)
 
         return event_id
+
+    def record_analytics_usage(
+        self,
+        user_id: str,
+        source: str,
+        prompt_tokens: Optional[int],
+        output_tokens: Optional[int],
+        notes: Optional[str] = None,
+    ) -> Optional[str]:
+        """Convert token usage from an analytics LLM call to pages and record it.
+
+        Returns the usage_event id (uuid) or None if the call consumed zero tokens.
+        Raises PlanLimitExceeded for Free users over quota.
+        """
+        if source not in ANALYTICS_SOURCES:
+            logger.warning(
+                "record_analytics_usage called with unknown source '%s'; recording anyway",
+                source,
+            )
+
+        pages = tokens_to_pages(prompt_tokens, output_tokens)
+        if pages <= 0:
+            return None
+
+        return self.record_usage(user_id=user_id, pages=pages, source=source, notes=notes)
 
     def _report_usage_to_stripe(self, user_id: str, pages: int, event_id: str) -> None:
         """Send a meter event to Stripe. Swallows errors (logs only)."""
