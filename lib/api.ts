@@ -1451,6 +1451,19 @@ export class ApiClient {
     })
   }
 
+  /**
+   * LLM-extract a summary + structured fields from uploaded document text.
+   * Used by the research bots (and AI assistant) before chat to build context.
+   */
+  async extractAnalyticsDocument(
+    data: ApiRequest<ApiPaths['/api/analytics/assistant/document-extract']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/assistant/document-extract']['post']>> {
+    return this.request('/api/analytics/assistant/document-extract', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
   // ===========================================================================
   // Analytics — streaming (research bots + AI assistant)
   // ===========================================================================
@@ -1523,6 +1536,8 @@ export class ApiClient {
           handlers.onChunk?.(parsed.text)
         } else if (parsed?.usage) {
           handlers.onUsage?.(parsed.usage as AnalyticsStreamUsage)
+        } else if (parsed?.session) {
+          handlers.onSession?.(parsed.session as AnalyticsStreamSession)
         } else if (parsed?.error) {
           handlers.onError?.(String(parsed.error))
         }
@@ -1560,9 +1575,19 @@ export interface AnalyticsStreamUsage {
   pages?: number | null
 }
 
+/** The newly-created (or continued) chat session a stream's transcript was saved to. */
+export interface AnalyticsStreamSession {
+  id: string
+  title?: string | null
+}
+
+export type AnalyticsUploadedDoc = components['schemas']['UploadedDoc']
+
 export interface AnalyticsStreamHandlers {
   onChunk?: (text: string) => void
   onUsage?: (usage: AnalyticsStreamUsage) => void
+  /** Fired once after persistence with the session id (+ generated title). */
+  onSession?: (session: AnalyticsStreamSession) => void
   onError?: (message: string) => void
 }
 

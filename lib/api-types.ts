@@ -3321,6 +3321,8 @@ export interface components {
             clientId?: string | null;
             /** Title */
             title?: string | null;
+            /** Uploadeddocs */
+            uploadedDocs?: components["schemas"]["UploadedDoc"][];
         };
         /**
          * AutomationCreate
@@ -3634,6 +3636,8 @@ export interface components {
             title?: string | null;
             /** Messages */
             messages?: components["schemas"]["ChatMessage"][];
+            /** Uploadeddocs */
+            uploadedDocs?: components["schemas"]["UploadedDoc"][];
             /**
              * Created At
              * Format: date-time
@@ -3653,6 +3657,8 @@ export interface components {
             client_id?: string | null;
             /** Messages */
             messages?: components["schemas"]["ChatMessage"][] | null;
+            /** Uploadeddocs */
+            uploadedDocs?: components["schemas"]["UploadedDoc"][] | null;
         };
         /**
          * CheckoutSessionResponse
@@ -6230,6 +6236,8 @@ export interface components {
             clientId?: string | null;
             /** Title */
             title?: string | null;
+            /** Uploadeddocs */
+            uploadedDocs?: components["schemas"]["UploadedDoc"][];
         };
         /** ResultRowCreateRequest */
         ResultRowCreateRequest: {
@@ -6365,6 +6373,28 @@ export interface components {
         UpdateProfileRequest: {
             /** Display Name */
             display_name?: string | null;
+        };
+        /**
+         * UploadedDoc
+         * @description A document attached to a chat session, persisted so reloading the
+         *     session restores both the document list and the combined LLM context.
+         */
+        UploadedDoc: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /** Summary */
+            summary?: string | null;
+            /** Extracteddata */
+            extractedData?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * UsageMetadata

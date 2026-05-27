@@ -11,6 +11,12 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from models.db_models import ChatSession
 
+# Cap stored document text to keep chat_sessions rows reasonable. Mirrors the
+# ~800 KB-per-document truncation the original CPAAnalytics ResearchBot applied
+# before persisting to Firestore.
+_MAX_DOC_TEXT_CHARS = 800_000
+_TRUNCATION_NOTE = "\n\n[TEXT TRUNCATED DUE TO SIZE LIMIT]"
+
 
 def list_sessions(
     db: Session,
@@ -54,6 +60,31 @@ def _serialize_messages(messages) -> List[Dict[str, Any]]:
     return out
 
 
+def _serialize_docs(docs) -> List[Dict[str, Any]]:
+    """Normalize uploaded documents to plain dicts, truncating oversized text."""
+    if not docs:
+        return []
+    out: List[Dict[str, Any]] = []
+    for d in docs:
+        if isinstance(d, dict):
+            get = d.get
+        else:
+            get = lambda k, default=None, _d=d: getattr(_d, k, default)
+        text = get("text") or ""
+        if len(text) > _MAX_DOC_TEXT_CHARS:
+            text = text[:_MAX_DOC_TEXT_CHARS] + _TRUNCATION_NOTE
+        out.append(
+            {
+                "id": get("id"),
+                "name": get("name"),
+                "text": text,
+                "summary": get("summary"),
+                "extracted_data": get("extracted_data") if get("extracted_data") is not None else get("extractedData"),
+            }
+        )
+    return out
+
+
 def create_session(
     db: Session,
     firm_id,
@@ -63,6 +94,7 @@ def create_session(
     title: Optional[str] = None,
     client_id: Optional[str] = None,
     messages: Optional[List[Any]] = None,
+    uploaded_docs: Optional[List[Any]] = None,
 ) -> ChatSession:
     row = ChatSession(
         id=uuid.uuid4(),
@@ -72,6 +104,7 @@ def create_session(
         bot_type=bot_type,
         title=title,
         messages=_serialize_messages(messages or []),
+        uploaded_docs=_serialize_docs(uploaded_docs or []),
     )
     db.add(row)
     db.commit()
@@ -88,6 +121,7 @@ def update_session(
     title: Optional[str] = None,
     client_id: Optional[str] = None,
     messages: Optional[List[Any]] = None,
+    uploaded_docs: Optional[List[Any]] = None,
 ) -> ChatSession:
     row = get_session(db, firm_id, user_id, session_id)
     if title is not None:
@@ -97,6 +131,9 @@ def update_session(
     if messages is not None:
         row.messages = _serialize_messages(messages)
         flag_modified(row, "messages")
+    if uploaded_docs is not None:
+        row.uploaded_docs = _serialize_docs(uploaded_docs)
+        flag_modified(row, "uploaded_docs")
     db.commit()
     db.refresh(row)
     return row
@@ -108,12 +145,16 @@ def append_messages(
     user_id: str,
     session_id: str,
     new_messages: List[Dict[str, Any]],
+    uploaded_docs: Optional[List[Any]] = None,
 ) -> ChatSession:
     row = get_session(db, firm_id, user_id, session_id)
     current = list(row.messages or [])
     current.extend(_serialize_messages(new_messages))
     row.messages = current
     flag_modified(row, "messages")
+    if uploaded_docs is not None:
+        row.uploaded_docs = _serialize_docs(uploaded_docs)
+        flag_modified(row, "uploaded_docs")
     db.commit()
     db.refresh(row)
     return row

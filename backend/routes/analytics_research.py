@@ -43,6 +43,7 @@ def _session_to_response(row) -> ChatSessionResponse:
         bot_type=row.bot_type,
         title=row.title,
         messages=row.messages or [],
+        uploaded_docs=row.uploaded_docs or [],
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -61,6 +62,7 @@ async def _research_event_stream(
     """Forward Gemini chunks as SSE events; persist final transcript on close."""
     source = _stream_source(bot)
     messages = [m.model_dump() for m in payload.messages]
+    uploaded_docs = [d.model_dump() for d in payload.uploaded_docs]
 
     accumulated: list[str] = []
     final_usage: dict | None = None
@@ -85,6 +87,7 @@ async def _research_event_stream(
 
     # Persistence + billing happen after the stream completes successfully.
     full_text = "".join(accumulated)
+    session_event: dict | None = None
     persistence_db: Session = db_config.get_session()
     try:
         # Record billing
@@ -103,7 +106,7 @@ async def _research_event_stream(
         # Persist chat session
         try:
             if payload.session_id:
-                chat_sessions_service.append_messages(
+                row = chat_sessions_service.append_messages(
                     persistence_db,
                     firm_id,
                     user_id,
@@ -112,33 +115,63 @@ async def _research_event_stream(
                         *[m.model_dump() for m in payload.messages],
                         {"role": "model", "content": full_text},
                     ],
+                    uploaded_docs=uploaded_docs or None,
                 )
             else:
-                chat_sessions_service.create_session(
+                title = payload.title or await _generate_title(messages, user_id, persistence_db)
+                row = chat_sessions_service.create_session(
                     persistence_db,
                     firm_id,
                     user_id,
                     bot_type=bot,
-                    title=payload.title or _derive_title(payload),
+                    title=title,
                     client_id=payload.client_id,
                     messages=[
                         *messages,
                         {"role": "model", "content": full_text},
                     ],
+                    uploaded_docs=uploaded_docs,
                 )
+            session_event = {"id": str(row.id), "title": row.title}
         except Exception:
             logger.exception("Failed to persist research chat session for user %s", user_id)
     finally:
         persistence_db.close()
 
+    # Tell the client which session this transcript belongs to so subsequent
+    # turns append instead of creating a duplicate session.
+    if session_event:
+        yield f"data: {json.dumps({'session': session_event})}\n\n".encode("utf-8")
     yield b"data: [DONE]\n\n"
 
 
-def _derive_title(payload: ResearchStreamRequest) -> str:
-    for m in payload.messages:
-        if m.role == "user" and m.content:
-            return m.content.strip().splitlines()[0][:200]
-    return "Research session"
+def _first_user_message(messages: list[dict]) -> str:
+    for m in messages:
+        if m.get("role") == "user" and m.get("content"):
+            return str(m["content"])
+    return ""
+
+
+async def _generate_title(messages: list[dict], user_id: str, db: Session) -> str:
+    """LLM-generated concise title with a truncated fallback."""
+    first = _first_user_message(messages)
+    try:
+        title, usage = await analytics_ai_service.generate_session_title(first)
+        if title:
+            try:
+                record_call(
+                    db,
+                    user_id,
+                    "analytics_chat_title",
+                    usage.get("prompt_tokens"),
+                    usage.get("output_tokens"),
+                )
+            except HTTPException as billing_exc:
+                logger.warning("Title billing failed: %s", billing_exc.detail)
+            return title
+    except Exception:
+        logger.exception("LLM title generation failed; using truncated fallback")
+    return first.strip().splitlines()[0][:200] if first.strip() else "Research session"
 
 
 @router.post("/irs/stream")
@@ -227,6 +260,7 @@ async def update_research_session(
         title=payload.title,
         client_id=payload.client_id,
         messages=payload.messages,
+        uploaded_docs=payload.uploaded_docs,
     )
     return _session_to_response(updated)
 

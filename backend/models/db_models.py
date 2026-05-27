@@ -884,6 +884,8 @@ class ChatSession(Base):
     bot_type = Column(String(32), nullable=False)  # 'irs' | 'gaap' | 'assistant'
     title = Column(String(400), nullable=True)
     messages = Column(JSONB, nullable=False, default=list, server_default=expression.text("'[]'::jsonb"))
+    # Documents uploaded to the session: [{id, name, text, summary?, extractedData?}]
+    uploaded_docs = Column(JSONB, nullable=False, default=list, server_default=expression.text("'[]'::jsonb"))
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 

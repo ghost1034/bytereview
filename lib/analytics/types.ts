@@ -35,6 +35,11 @@ export type AnalyticsChatMessage = S['ChatMessage']
 export type AnalyticsChatSession = S['ChatSessionResponse']
 export type AnalyticsChatSessionList = S['ChatSessionListResponse']
 export type AnalyticsChatSessionUpdateRequest = S['ChatSessionUpdateRequest']
+export type AnalyticsUploadedDoc = S['UploadedDoc']
+
+// Document extraction (research bots / assistant)
+export type AnalyticsDocumentExtractRequest = S['DocumentExtractRequest']
+export type AnalyticsDocumentExtractResponse = S['DocumentExtractResponse']
 
 // Streaming requests
 export type AnalyticsAssistantStreamRequest = S['AssistantStreamRequest']

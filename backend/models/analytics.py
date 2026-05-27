@@ -518,17 +518,36 @@ class ChatMessage(BaseModel):
     content: str
 
 
+class UploadedDoc(BaseModel):
+    """A document attached to a chat session, persisted so reloading the
+    session restores both the document list and the combined LLM context."""
+
+    id: str
+    name: str
+    text: str = ""
+    summary: Optional[str] = None
+    extracted_data: Optional[Dict[str, Any]] = Field(default=None, alias="extractedData")
+
+    model_config = {"populate_by_name": True}
+
+
 class ChatSessionCreateRequest(BaseModel):
     bot_type: BotType
     title: Optional[str] = None
     client_id: Optional[str] = None
     messages: List[ChatMessage] = Field(default_factory=list)
+    uploaded_docs: List[UploadedDoc] = Field(default_factory=list, alias="uploadedDocs")
+
+    model_config = {"populate_by_name": True}
 
 
 class ChatSessionUpdateRequest(BaseModel):
     title: Optional[str] = None
     client_id: Optional[str] = None
     messages: Optional[List[ChatMessage]] = None
+    uploaded_docs: Optional[List[UploadedDoc]] = Field(default=None, alias="uploadedDocs")
+
+    model_config = {"populate_by_name": True}
 
 
 class ChatSessionResponse(BaseModel):
@@ -539,8 +558,11 @@ class ChatSessionResponse(BaseModel):
     bot_type: BotType
     title: Optional[str] = None
     messages: List[ChatMessage] = Field(default_factory=list)
+    uploaded_docs: List[UploadedDoc] = Field(default_factory=list, alias="uploadedDocs")
     created_at: datetime
     updated_at: datetime
+
+    model_config = {"populate_by_name": True}
 
 
 class ChatSessionListResponse(BaseModel):
@@ -554,6 +576,7 @@ class ResearchStreamRequest(BaseModel):
     session_id: Optional[str] = Field(default=None, alias="sessionId")
     client_id: Optional[str] = Field(default=None, alias="clientId")
     title: Optional[str] = None
+    uploaded_docs: List[UploadedDoc] = Field(default_factory=list, alias="uploadedDocs")
 
     model_config = {"populate_by_name": True}
 
@@ -564,6 +587,7 @@ class AssistantStreamRequest(BaseModel):
     session_id: Optional[str] = Field(default=None, alias="sessionId")
     client_id: Optional[str] = Field(default=None, alias="clientId")
     title: Optional[str] = None
+    uploaded_docs: List[UploadedDoc] = Field(default_factory=list, alias="uploadedDocs")
 
     model_config = {"populate_by_name": True}
 

@@ -1184,3 +1184,38 @@ async def stream_basic_chat(
             yield ("chunk", text)
 
     yield ("usage", _get_usage_counts(last_resp))
+
+
+# ---------------------------------------------------------------------------
+# Session title generation (mirrors CPAAnalytics' /api/chat title prompt)
+# ---------------------------------------------------------------------------
+
+async def generate_session_title(
+    first_user_message: str,
+) -> Tuple[str, Dict[str, Optional[int]]]:
+    """Generate a short, descriptive title (<= 5 words) for a chat session.
+
+    Returns (title, usage_counts). Raises on transport errors so callers can
+    fall back to a truncated title.
+    """
+    query = (first_user_message or "").strip()
+    if not query:
+        return "", _empty_usage()
+
+    client = get_client()
+    prompt = (
+        "Based on the following query, generate a short, descriptive title for a "
+        "research session (maximum 5 words, just the title text, no quotes):\n"
+        f'"{query[:1000]}"'
+    )
+    resp = await client.aio.models.generate_content(
+        model=ANALYTICS_MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            temperature=0.3,
+            max_output_tokens=20,
+        ),
+    )
+    text = (_get_resp_text(resp) or "").strip().strip('"').strip()
+    title = text.splitlines()[0][:200] if text else ""
+    return title, _get_usage_counts(resp)

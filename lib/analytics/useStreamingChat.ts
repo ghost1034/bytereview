@@ -2,16 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { apiClient, type AnalyticsStreamUsage } from '@/lib/api'
+import { apiClient, type AnalyticsStreamUsage, type AnalyticsStreamSession, type AnalyticsUploadedDoc } from '@/lib/api'
 import type { AnalyticsChatMessage } from '@/lib/analytics/types'
 
 export type StreamingChatBackend =
-  | { kind: 'assistant'; context?: Record<string, unknown> | null; sessionId?: string | null; clientId?: string | null; title?: string | null }
-  | { kind: 'research'; bot: 'irs' | 'gaap'; outputStyle?: string; documentContext?: string | null; sessionId?: string | null; clientId?: string | null; title?: string | null }
+  | { kind: 'assistant'; context?: Record<string, unknown> | null; sessionId?: string | null; clientId?: string | null; title?: string | null; uploadedDocs?: AnalyticsUploadedDoc[] | null }
+  | { kind: 'research'; bot: 'irs' | 'gaap'; outputStyle?: string; documentContext?: string | null; sessionId?: string | null; clientId?: string | null; title?: string | null; uploadedDocs?: AnalyticsUploadedDoc[] | null }
 
 export interface UseStreamingChatOptions {
   initialMessages?: AnalyticsChatMessage[]
   onUsage?: (usage: AnalyticsStreamUsage) => void
+  onSession?: (session: AnalyticsStreamSession) => void
   onError?: (message: string) => void
 }
 
@@ -19,10 +20,16 @@ export interface UseStreamingChatReturn {
   messages: AnalyticsChatMessage[]
   isStreaming: boolean
   error: string | null
+  /** Id of the session this conversation is persisted to (set after the first turn). */
+  sessionId: string | null
+  /** LLM-generated session title (set after the first turn). */
+  title: string | null
   sendMessage: (text: string, backend: StreamingChatBackend) => Promise<void>
   stop: () => void
   clear: () => void
   setMessages: (messages: AnalyticsChatMessage[]) => void
+  /** Adopt an existing session (e.g. when loading from history) so the next turn appends to it. */
+  setSession: (sessionId: string | null, title?: string | null) => void
 }
 
 /**
@@ -33,11 +40,18 @@ export interface UseStreamingChatReturn {
  * GAAP research bots (`/api/analytics/research/{bot}/stream`).
  */
 export function useStreamingChat(options: UseStreamingChatOptions = {}): UseStreamingChatReturn {
-  const { initialMessages = [], onUsage, onError } = options
+  const { initialMessages = [], onUsage, onSession, onError } = options
   const [messages, setMessages] = useState<AnalyticsChatMessage[]>(initialMessages)
   const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [title, setTitle] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+
+  const setSession = useCallback((id: string | null, t?: string | null) => {
+    setSessionId(id)
+    if (t !== undefined) setTitle(t)
+  }, [])
 
   useEffect(
     () => () => {
@@ -56,6 +70,8 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}): UseStre
     stop()
     setMessages([])
     setError(null)
+    setSessionId(null)
+    setTitle(null)
   }, [stop])
 
   const sendMessage = useCallback(
@@ -89,6 +105,11 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}): UseStre
         const handlers = {
           onChunk: appendChunk,
           onUsage: (usage: AnalyticsStreamUsage) => onUsage?.(usage),
+          onSession: (session: AnalyticsStreamSession) => {
+            setSessionId(session.id)
+            setTitle(session.title ?? null)
+            onSession?.(session)
+          },
           onError: (msg: string) => {
             setError(msg)
             onError?.(msg)
@@ -103,6 +124,7 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}): UseStre
               sessionId: backend.sessionId ?? null,
               clientId: backend.clientId ?? null,
               title: backend.title ?? null,
+              uploadedDocs: backend.uploadedDocs ?? undefined,
             },
             handlers,
             { signal: controller.signal },
@@ -117,6 +139,7 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}): UseStre
               sessionId: backend.sessionId ?? null,
               clientId: backend.clientId ?? null,
               title: backend.title ?? null,
+              uploadedDocs: backend.uploadedDocs ?? undefined,
             },
             handlers,
             { signal: controller.signal },
@@ -135,8 +158,8 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}): UseStre
         setIsStreaming(false)
       }
     },
-    [isStreaming, messages, onError, onUsage],
+    [isStreaming, messages, onError, onUsage, onSession],
   )
 
-  return { messages, isStreaming, error, sendMessage, stop, clear, setMessages }
+  return { messages, isStreaming, error, sessionId, title, sendMessage, stop, clear, setMessages, setSession }
 }
