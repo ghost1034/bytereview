@@ -1422,38 +1422,13 @@ export class ApiClient {
   }
 
   // ===========================================================================
-  // Analytics — AI assistant chat sessions
+  // Analytics — document extraction
   // ===========================================================================
-
-  async listAnalyticsAssistantSessions(): Promise<ApiResponse<ApiPaths['/api/analytics/assistant/sessions']['get']>> {
-    return this.request('/api/analytics/assistant/sessions')
-  }
-
-  async getAnalyticsAssistantSession(
-    sessionId: string
-  ): Promise<ApiResponse<ApiPaths['/api/analytics/assistant/sessions/{session_id}']['get']>> {
-    return this.request(`/api/analytics/assistant/sessions/${encodeURIComponent(sessionId)}`)
-  }
-
-  async updateAnalyticsAssistantSession(
-    sessionId: string,
-    data: ApiRequest<ApiPaths['/api/analytics/assistant/sessions/{session_id}']['put']>
-  ): Promise<ApiResponse<ApiPaths['/api/analytics/assistant/sessions/{session_id}']['put']>> {
-    return this.request(`/api/analytics/assistant/sessions/${encodeURIComponent(sessionId)}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    })
-  }
-
-  async deleteAnalyticsAssistantSession(sessionId: string): Promise<{ success: boolean }> {
-    return this.request(`/api/analytics/assistant/sessions/${encodeURIComponent(sessionId)}`, {
-      method: 'DELETE',
-    })
-  }
 
   /**
    * LLM-extract a summary + structured fields from uploaded document text.
-   * Used by the research bots (and AI assistant) before chat to build context.
+   * Used by the research bots before chat to build context. (The AI assistant
+   * is ephemeral and does not persist sessions.)
    */
   async extractAnalyticsDocument(
     data: ApiRequest<ApiPaths['/api/analytics/assistant/document-extract']['post']>

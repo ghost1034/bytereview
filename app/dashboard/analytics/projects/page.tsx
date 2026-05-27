@@ -25,6 +25,7 @@ import { useAnalyticsProjects, useDeleteAnalyticsProject } from '@/hooks/useAnal
 import { useAnalyticsFirm } from '@/hooks/useAnalyticsTeam'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { AI_CONTEXT_MAX_ITEMS, useAIContext, type ProjectsContext } from '@/lib/analytics/aiContext'
 import {
   PROJECT_MODULE_LABELS,
   PROJECT_STATUS_BADGE_CLASS,
@@ -58,6 +59,29 @@ export default function AnalyticsProjectsPage() {
       new Map((firmData?.members ?? []).map((m) => [m.user_id, m.display_name || m.email])),
     [firmData],
   )
+
+  // Publish a compact snapshot to the floating AI Assistant, resolving client
+  // and assignee names so the assistant can answer in human terms.
+  const aiContext = useMemo<ProjectsContext>(
+    () => ({
+      projects: {
+        count: projectsData?.projects?.length ?? 0,
+        items: (projectsData?.projects ?? []).slice(0, AI_CONTEXT_MAX_ITEMS).map((p) => ({
+          id: p.id,
+          name: p.name,
+          status: p.status,
+          clientName: p.client_id ? clientNameById.get(p.client_id) ?? null : null,
+          module: p.module,
+          dueDate: p.due_date,
+          assignee: p.assigned_to_user_id
+            ? memberNameById.get(p.assigned_to_user_id) ?? null
+            : null,
+        })),
+      },
+    }),
+    [projectsData, clientNameById, memberNameById],
+  )
+  useAIContext(aiContext)
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editingProject, setEditingProject] = useState<AnalyticsProject | null>(null)

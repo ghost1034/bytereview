@@ -37,6 +37,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { isAdmin, USER_PERSONA_LABELS, USER_ROLE_LABELS } from '@/lib/analytics/labels'
+import { AI_CONTEXT_MAX_ITEMS, useAIContext, type TeamContext } from '@/lib/analytics/aiContext'
 import type {
   AnalyticsFirmMember,
   AnalyticsUserPersona,
@@ -67,6 +68,23 @@ export default function AnalyticsTeamPage() {
 
   const currentRole = members.find((m) => m.user_id === user?.uid)?.role
   const admin = isAdmin(currentRole)
+
+  // Publish a compact roster to the floating AI Assistant.
+  const aiContext = useMemo<TeamContext>(
+    () => ({
+      team: {
+        count: firmData?.members?.length ?? 0,
+        members: (firmData?.members ?? []).slice(0, AI_CONTEXT_MAX_ITEMS).map((m) => ({
+          name: m.display_name || m.email,
+          email: m.email,
+          role: m.role,
+          persona: m.persona,
+        })),
+      },
+    }),
+    [firmData],
+  )
+  useAIContext(aiContext)
 
   const [inviteOpen, setInviteOpen] = useState(false)
   const [editingMember, setEditingMember] = useState<AnalyticsFirmMember | null>(null)

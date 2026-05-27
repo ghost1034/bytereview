@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Building2, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 
 import {
@@ -23,6 +23,7 @@ import { ClientModal } from '@/components/analytics/ClientModal'
 import { useAnalyticsClients, useDeleteAnalyticsClient } from '@/hooks/useAnalyticsClients'
 import { useToast } from '@/hooks/use-toast'
 import { exportRows } from '@/lib/analytics/exportData'
+import { AI_CONTEXT_MAX_ITEMS, useAIContext, type ClientsContext } from '@/lib/analytics/aiContext'
 import type { AnalyticsClient } from '@/lib/analytics/types'
 
 export default function AnalyticsClientsPage() {
@@ -31,6 +32,26 @@ export default function AnalyticsClientsPage() {
   const { toast } = useToast()
 
   const clients: AnalyticsClient[] = data?.clients ?? []
+
+  // Publish a compact snapshot to the floating AI Assistant. Keyed off the
+  // stable query result so we don't re-dispatch on every render.
+  const aiContext = useMemo<ClientsContext>(
+    () => ({
+      clients: {
+        count: data?.clients?.length ?? 0,
+        items: (data?.clients ?? []).slice(0, AI_CONTEXT_MAX_ITEMS).map((c) => ({
+          id: c.id,
+          name: c.name,
+          industry: c.industry,
+          contactName: c.contact_name,
+          contactEmail: c.contact_email,
+          fiscalYearEnd: c.fiscal_year_end,
+        })),
+      },
+    }),
+    [data],
+  )
+  useAIContext(aiContext)
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<AnalyticsClient | null>(null)
