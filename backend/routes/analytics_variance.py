@@ -184,7 +184,9 @@ async def update_variance_route(
     row = analyses_service.get_analysis(db, firm_id, analysis_id)
     if row.type != "variance":
         raise HTTPException(status_code=404, detail="Analysis not found")
-    updated = analyses_service.update_analysis(db, firm_id, analysis_id, payload=payload)
+    updated = analyses_service.update_analysis(
+        db, firm_id, analysis_id, payload=payload, actor_user_id=actor.id
+    )
     return _to_response(updated)
 
 
@@ -198,5 +200,5 @@ async def delete_variance_route(
     row = analyses_service.get_analysis(db, firm_id, analysis_id)
     if row.type != "variance":
         raise HTTPException(status_code=404, detail="Analysis not found")
-    analyses_service.delete_analysis(db, firm_id, analysis_id)
+    analyses_service.delete_analysis(db, firm_id, analysis_id, actor_user_id=actor.id)
     return {"success": True}

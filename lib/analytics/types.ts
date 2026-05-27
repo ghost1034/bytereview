@@ -30,6 +30,16 @@ export type AnalyticsProjectCreateRequest = S['ProjectCreateRequest']
 export type AnalyticsProjectUpdateRequest = S['ProjectUpdateRequest']
 export type AnalyticsProjectList = S['ProjectListResponse']
 
+// Analyses (variance + waterfall share the `analyses` table)
+export type AnalyticsAnalysis = S['AnalysisResponse']
+export type AnalyticsAnalysisCreateRequest = S['AnalysisCreateRequest']
+export type AnalyticsAnalysisUpdateRequest = S['AnalysisUpdateRequest']
+export type AnalyticsAnalysisList = S['AnalysisListResponse']
+
+// Waterfall LLM extraction
+export type AnalyticsWaterfallExtractRequest = S['WaterfallExtractRequest']
+export type AnalyticsWaterfallExtractResponse = S['WaterfallExtractResponse']
+
 // Chat — shared
 export type AnalyticsChatMessage = S['ChatMessage']
 export type AnalyticsChatSession = S['ChatSessionResponse']

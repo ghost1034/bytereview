@@ -1440,6 +1440,55 @@ export class ApiClient {
   }
 
   // ===========================================================================
+  // Analytics — waterfall (revenue-recognition / deferral schedules)
+  // ===========================================================================
+
+  /** LLM-extract waterfall fields (subtype, party, amount, dates) from document text. */
+  async extractAnalyticsWaterfall(
+    data: ApiRequest<ApiPaths['/api/analytics/waterfall/extract']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/waterfall/extract']['post']>> {
+    return this.request('/api/analytics/waterfall/extract', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async listAnalyticsWaterfalls(): Promise<ApiResponse<ApiPaths['/api/analytics/waterfall']['get']>> {
+    return this.request('/api/analytics/waterfall')
+  }
+
+  async createAnalyticsWaterfall(
+    data: ApiRequest<ApiPaths['/api/analytics/waterfall']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/waterfall']['post']>> {
+    return this.request('/api/analytics/waterfall', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getAnalyticsWaterfall(
+    analysisId: string
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/waterfall/{analysis_id}']['get']>> {
+    return this.request(`/api/analytics/waterfall/${encodeURIComponent(analysisId)}`)
+  }
+
+  async updateAnalyticsWaterfall(
+    analysisId: string,
+    data: ApiRequest<ApiPaths['/api/analytics/waterfall/{analysis_id}']['put']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/waterfall/{analysis_id}']['put']>> {
+    return this.request(`/api/analytics/waterfall/${encodeURIComponent(analysisId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteAnalyticsWaterfall(analysisId: string): Promise<{ success: boolean }> {
+    return this.request(`/api/analytics/waterfall/${encodeURIComponent(analysisId)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // ===========================================================================
   // Analytics — streaming (research bots + AI assistant)
   // ===========================================================================
 

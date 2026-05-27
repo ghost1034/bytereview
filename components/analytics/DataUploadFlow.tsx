@@ -204,7 +204,17 @@ export default function DataUploadFlow({ module, uploadType = 'bulk', varianceMo
           'Total Amount': ['Amount_USD', 'Value', 'Total', 'Cost', 'Amount'],
           'Transaction Date': ['Txn_Date', 'Date', 'Posting Date'],
           'Account Name/Number': ['Account', 'Account_ID', 'GL Account', 'Account Name'],
-          'Description': ['Desc', 'Memo', 'Details', 'Desc_Field']
+          'Description': ['Desc', 'Memo', 'Details', 'Desc_Field'],
+          // Waterfall bulk-upload header variants
+          'Contract Name': ['Name', 'Schedule Name', 'Contract', 'Schedule'],
+          'Party Name': ['Customer', 'Vendor', 'Counterparty', 'Client', 'Party', 'Supplier'],
+          'Type': ['Schedule Type', 'Category', 'Waterfall Type'],
+          'Recognition Method': ['Method', 'Rec Method', 'Recognition'],
+          'Start Date': ['Effective Date', 'Begin Date', 'Commencement Date'],
+          'End Date': ['Expiry Date', 'Expiration Date', 'Termination Date'],
+          'Expense Category': ['Category', 'Expense Type'],
+          'Payment Date': ['Paid Date', 'Invoice Date'],
+          'Expected Payment Date': ['Expected Pay Date', 'Settlement Date']
         };
         
         const targetAliases = aliases[targetCol] || [];
