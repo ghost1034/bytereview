@@ -17,13 +17,14 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from core.database import get_db, db_config
-from dependencies.auth import get_current_user_id
+from dependencies.analytics_rbac import LLM_ROLES, READER_ROLES, WRITER_ROLES, require_role
 from models.analytics import (
     ChatSessionListResponse,
     ChatSessionResponse,
     ChatSessionUpdateRequest,
     ResearchStreamRequest,
 )
+from models.db_models import User
 from services import analytics_ai_service
 from services.analytics import chat_sessions_service
 from services.analytics.billing_guard import preflight_check, record_call
@@ -143,13 +144,13 @@ def _derive_title(payload: ResearchStreamRequest) -> str:
 @router.post("/irs/stream")
 async def stream_irs_research(
     payload: ResearchStreamRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*LLM_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
-    preflight_check(db, user_id, "analytics_chat_irs")
+    firm_id = require_firm_id(db, actor.id)
+    preflight_check(db, actor.id, "analytics_chat_irs")
     return StreamingResponse(
-        _research_event_stream("irs", user_id, firm_id, payload),
+        _research_event_stream("irs", actor.id, firm_id, payload),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )
@@ -158,13 +159,13 @@ async def stream_irs_research(
 @router.post("/gaap/stream")
 async def stream_gaap_research(
     payload: ResearchStreamRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*LLM_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
-    preflight_check(db, user_id, "analytics_chat_gaap")
+    firm_id = require_firm_id(db, actor.id)
+    preflight_check(db, actor.id, "analytics_chat_gaap")
     return StreamingResponse(
-        _research_event_stream("gaap", user_id, firm_id, payload),
+        _research_event_stream("gaap", actor.id, firm_id, payload),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )
@@ -178,13 +179,13 @@ async def stream_gaap_research(
 @router.get("/sessions/{bot}", response_model=ChatSessionListResponse)
 async def list_research_sessions(
     bot: str,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*READER_ROLES)),
     db: Session = Depends(get_db),
 ):
     if bot not in ("irs", "gaap"):
         raise HTTPException(status_code=400, detail="bot must be 'irs' or 'gaap'")
-    firm_id = require_firm_id(db, user_id)
-    rows = chat_sessions_service.list_sessions(db, firm_id, user_id, bot_type=bot)
+    firm_id = require_firm_id(db, actor.id)
+    rows = chat_sessions_service.list_sessions(db, firm_id, actor.id, bot_type=bot)
     return ChatSessionListResponse(sessions=[_session_to_response(r) for r in rows])
 
 
@@ -192,13 +193,13 @@ async def list_research_sessions(
 async def get_research_session(
     bot: str,
     session_id: str,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*READER_ROLES)),
     db: Session = Depends(get_db),
 ):
     if bot not in ("irs", "gaap"):
         raise HTTPException(status_code=400, detail="bot must be 'irs' or 'gaap'")
-    firm_id = require_firm_id(db, user_id)
-    row = chat_sessions_service.get_session(db, firm_id, user_id, session_id)
+    firm_id = require_firm_id(db, actor.id)
+    row = chat_sessions_service.get_session(db, firm_id, actor.id, session_id)
     if row.bot_type != bot:
         raise HTTPException(status_code=404, detail="Chat session not found")
     return _session_to_response(row)
@@ -209,19 +210,19 @@ async def update_research_session(
     bot: str,
     session_id: str,
     payload: ChatSessionUpdateRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*WRITER_ROLES)),
     db: Session = Depends(get_db),
 ):
     if bot not in ("irs", "gaap"):
         raise HTTPException(status_code=400, detail="bot must be 'irs' or 'gaap'")
-    firm_id = require_firm_id(db, user_id)
-    row = chat_sessions_service.get_session(db, firm_id, user_id, session_id)
+    firm_id = require_firm_id(db, actor.id)
+    row = chat_sessions_service.get_session(db, firm_id, actor.id, session_id)
     if row.bot_type != bot:
         raise HTTPException(status_code=404, detail="Chat session not found")
     updated = chat_sessions_service.update_session(
         db,
         firm_id,
-        user_id,
+        actor.id,
         session_id,
         title=payload.title,
         client_id=payload.client_id,
@@ -234,14 +235,14 @@ async def update_research_session(
 async def delete_research_session(
     bot: str,
     session_id: str,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*WRITER_ROLES)),
     db: Session = Depends(get_db),
 ):
     if bot not in ("irs", "gaap"):
         raise HTTPException(status_code=400, detail="bot must be 'irs' or 'gaap'")
-    firm_id = require_firm_id(db, user_id)
-    row = chat_sessions_service.get_session(db, firm_id, user_id, session_id)
+    firm_id = require_firm_id(db, actor.id)
+    row = chat_sessions_service.get_session(db, firm_id, actor.id, session_id)
     if row.bot_type != bot:
         raise HTTPException(status_code=404, detail="Chat session not found")
-    chat_sessions_service.delete_session(db, firm_id, user_id, session_id)
+    chat_sessions_service.delete_session(db, firm_id, actor.id, session_id)
     return {"success": True}

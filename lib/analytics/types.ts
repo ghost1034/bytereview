@@ -10,6 +10,13 @@ export type AnalyticsFirmDetail = S['FirmDetailResponse']
 export type AnalyticsFirmMember = S['FirmMemberResponse']
 export type AnalyticsFirmUpdateRequest = S['FirmUpdateRequest']
 export type AnalyticsFirmInviteRequest = S['FirmInviteRequest']
+export type AnalyticsMemberUpdateRequest = S['MemberUpdateRequest']
+
+// Role / persona / status / module enums (Phase 5.1)
+export type AnalyticsUserRole = NonNullable<S['MemberUpdateRequest']['role']>
+export type AnalyticsUserPersona = NonNullable<S['MemberUpdateRequest']['persona']>
+export type AnalyticsProjectStatus = NonNullable<S['ProjectResponse']['status']>
+export type AnalyticsProjectModule = NonNullable<S['ProjectResponse']['module']>
 
 // Clients
 export type AnalyticsClient = S['ClientResponse']

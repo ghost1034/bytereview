@@ -3,12 +3,24 @@
 from __future__ import annotations
 
 import uuid
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from models.db_models import Client
+from services.analytics.audit_service import record_audit
+
+
+_AUDITED_FIELDS = (
+    "name",
+    "industry",
+    "contact_name",
+    "contact_email",
+    "contact_phone",
+    "fiscal_year_end",
+    "notes",
+)
 
 
 def list_clients(db: Session, firm_id) -> List[Client]:
@@ -31,7 +43,7 @@ def get_client(db: Session, firm_id, client_id: str) -> Client:
     return client
 
 
-def create_client(db: Session, firm_id, *, payload) -> Client:
+def create_client(db: Session, firm_id, *, payload, actor_user_id: str) -> Client:
     client = Client(
         id=uuid.uuid4(),
         firm_id=firm_id,
@@ -46,20 +58,54 @@ def create_client(db: Session, firm_id, *, payload) -> Client:
     db.add(client)
     db.commit()
     db.refresh(client)
+
+    record_audit(
+        db,
+        firm_id=firm_id,
+        user_id=actor_user_id,
+        action="client.created",
+        details={"client_id": str(client.id), "name": client.name},
+    )
     return client
 
 
-def update_client(db: Session, firm_id, client_id: str, *, payload) -> Client:
+def update_client(
+    db: Session, firm_id, client_id: str, *, payload, actor_user_id: str
+) -> Client:
     client = get_client(db, firm_id, client_id)
     data = payload.model_dump(exclude_unset=True)
+    before: Dict[str, Any] = {k: getattr(client, k) for k in _AUDITED_FIELDS if k in data}
     for k, v in data.items():
         setattr(client, k, v)
     db.commit()
     db.refresh(client)
+
+    after = {k: getattr(client, k) for k in before}
+    diff = {k: {"before": before[k], "after": after[k]} for k in before if before[k] != after[k]}
+    record_audit(
+        db,
+        firm_id=firm_id,
+        user_id=actor_user_id,
+        action="client.updated",
+        details={
+            "client_id": str(client.id),
+            "name": client.name,
+            "diff": diff,
+        },
+    )
     return client
 
 
-def delete_client(db: Session, firm_id, client_id: str) -> None:
+def delete_client(db: Session, firm_id, client_id: str, *, actor_user_id: str) -> None:
     client = get_client(db, firm_id, client_id)
+    snapshot = {"client_id": str(client.id), "name": client.name}
     db.delete(client)
     db.commit()
+
+    record_audit(
+        db,
+        firm_id=firm_id,
+        user_id=actor_user_id,
+        action="client.deleted",
+        details=snapshot,
+    )

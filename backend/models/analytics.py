@@ -13,6 +13,17 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+UserRoleLiteral = Literal["admin", "manager", "analyst", "reviewer", "viewer"]
+UserPersonaLiteral = Literal[
+    "staff_accountant", "senior_accountant", "accounting_manager", "cpa_partner"
+]
+ProjectStatusLiteral = Literal[
+    "draft", "in_progress", "in_review", "approved", "archived"
+]
+ProjectModuleLiteral = Literal[
+    "variance", "reconciliation", "amortization", "waterfall", "irs", "gaap", "assistant", "other"
+]
+
 
 # ---------------------------------------------------------------------------
 # Firms
@@ -31,6 +42,9 @@ class FirmMemberResponse(BaseModel):
     email: str
     display_name: Optional[str] = None
     photo_url: Optional[str] = None
+    role: UserRoleLiteral = "analyst"
+    persona: Optional[UserPersonaLiteral] = None
+    title: Optional[str] = None
     created_at: datetime
 
 
@@ -45,6 +59,12 @@ class FirmUpdateRequest(BaseModel):
 
 class FirmInviteRequest(BaseModel):
     email: str = Field(..., min_length=3, max_length=255)
+
+
+class MemberUpdateRequest(BaseModel):
+    role: Optional[UserRoleLiteral] = None
+    persona: Optional[UserPersonaLiteral] = None
+    title: Optional[str] = Field(default=None, max_length=255)
 
 
 # ---------------------------------------------------------------------------
@@ -95,7 +115,10 @@ class ClientListResponse(BaseModel):
 class ProjectBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     client_id: Optional[str] = None
-    status: str = "active"
+    assigned_to_user_id: Optional[str] = None
+    status: ProjectStatusLiteral = "draft"
+    module: ProjectModuleLiteral = "other"
+    due_date: Optional[date] = None
     description: Optional[str] = None
 
 
@@ -106,7 +129,10 @@ class ProjectCreateRequest(ProjectBase):
 class ProjectUpdateRequest(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     client_id: Optional[str] = None
-    status: Optional[str] = None
+    assigned_to_user_id: Optional[str] = None
+    status: Optional[ProjectStatusLiteral] = None
+    module: Optional[ProjectModuleLiteral] = None
+    due_date: Optional[date] = None
     description: Optional[str] = None
 
 

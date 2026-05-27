@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from dependencies.auth import get_current_user_id
+from dependencies.analytics_rbac import LLM_ROLES, READER_ROLES, WRITER_ROLES, require_role
 from models.analytics import (
     AnalysisCreateRequest,
     AnalysisListResponse,
@@ -18,6 +18,7 @@ from models.analytics import (
     WaterfallExtractRequest,
     WaterfallExtractResponse,
 )
+from models.db_models import User
 from services import analytics_ai_service
 from services.analytics import analyses_service
 from services.analytics.billing_guard import preflight_check, record_call
@@ -58,14 +59,14 @@ def _to_response(row) -> AnalysisResponse:
 @router.post("/extract", response_model=WaterfallExtractResponse)
 async def extract_waterfall(
     payload: WaterfallExtractRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*LLM_ROLES)),
     db: Session = Depends(get_db),
 ):
-    preflight_check(db, user_id, "analytics_waterfall_extract")
+    preflight_check(db, actor.id, "analytics_waterfall_extract")
     parsed, usage = await analytics_ai_service.extract_waterfall(payload.document_text)
     record_call(
         db,
-        user_id,
+        actor.id,
         "analytics_waterfall_extract",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
@@ -85,10 +86,10 @@ async def extract_waterfall(
 
 @router.get("", response_model=AnalysisListResponse)
 async def list_waterfalls_route(
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*READER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     rows = analyses_service.list_analyses(db, firm_id, type_="waterfall")
     return AnalysisListResponse(analyses=[_to_response(r) for r in rows])
 
@@ -96,14 +97,14 @@ async def list_waterfalls_route(
 @router.post("", response_model=AnalysisResponse)
 async def create_waterfall_route(
     payload: AnalysisCreateRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*WRITER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     if payload.type != "waterfall":
         raise HTTPException(status_code=400, detail="Analysis type must be 'waterfall' for this route")
     row = analyses_service.create_analysis(
-        db, firm_id, user_id, payload=payload, expected_type="waterfall"
+        db, firm_id, actor.id, payload=payload, expected_type="waterfall"
     )
     return _to_response(row)
 
@@ -111,10 +112,10 @@ async def create_waterfall_route(
 @router.get("/{analysis_id}", response_model=AnalysisResponse)
 async def get_waterfall_route(
     analysis_id: str,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*READER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     row = analyses_service.get_analysis(db, firm_id, analysis_id)
     if row.type != "waterfall":
         raise HTTPException(status_code=404, detail="Analysis not found")
@@ -125,10 +126,10 @@ async def get_waterfall_route(
 async def update_waterfall_route(
     analysis_id: str,
     payload: AnalysisUpdateRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*WRITER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     row = analyses_service.get_analysis(db, firm_id, analysis_id)
     if row.type != "waterfall":
         raise HTTPException(status_code=404, detail="Analysis not found")
@@ -139,10 +140,10 @@ async def update_waterfall_route(
 @router.delete("/{analysis_id}")
 async def delete_waterfall_route(
     analysis_id: str,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*WRITER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     row = analyses_service.get_analysis(db, firm_id, analysis_id)
     if row.type != "waterfall":
         raise HTTPException(status_code=404, detail="Analysis not found")

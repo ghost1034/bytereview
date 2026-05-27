@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from dependencies.auth import get_current_user_id
+from dependencies.analytics_rbac import LLM_ROLES, READER_ROLES, WRITER_ROLES, require_role
 from models.analytics import (
     ReconciliationAdditionalPassRequest,
     ReconciliationAdditionalPassResponse,
@@ -23,6 +23,7 @@ from models.analytics import (
     ReconciliationUpdateRequest,
     UsageMetadata,
 )
+from models.db_models import User
 from services import analytics_ai_service
 from services.analytics import reconciliations_service
 from services.analytics.billing_guard import preflight_check, record_call
@@ -67,16 +68,16 @@ def _usage(prompt_tokens, output_tokens) -> UsageMetadata:
 @router.post("/rules/generate", response_model=ReconciliationRulesGenerateResponse)
 async def generate_rules(
     payload: ReconciliationRulesGenerateRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*LLM_ROLES)),
     db: Session = Depends(get_db),
 ):
-    preflight_check(db, user_id, "analytics_recon_rules")
+    preflight_check(db, actor.id, "analytics_recon_rules")
     passes, usage = await analytics_ai_service.generate_reconciliation_rules(
         payload.headers, payload.available_rules
     )
     record_call(
         db,
-        user_id,
+        actor.id,
         "analytics_recon_rules",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
@@ -90,16 +91,16 @@ async def generate_rules(
 @router.post("/rules/additional", response_model=ReconciliationAdditionalPassResponse)
 async def generate_additional_pass(
     payload: ReconciliationAdditionalPassRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*LLM_ROLES)),
     db: Session = Depends(get_db),
 ):
-    preflight_check(db, user_id, "analytics_recon_additional_pass")
+    preflight_check(db, actor.id, "analytics_recon_additional_pass")
     pass_, usage = await analytics_ai_service.generate_additional_reconciliation_pass(
         payload.instructions, payload.available_rules
     )
     record_call(
         db,
-        user_id,
+        actor.id,
         "analytics_recon_additional_pass",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
@@ -115,16 +116,16 @@ async def generate_additional_pass(
 @router.post("/match", response_model=ReconciliationMatchResponse)
 async def perform_match(
     payload: ReconciliationMatchRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*LLM_ROLES)),
     db: Session = Depends(get_db),
 ):
-    preflight_check(db, user_id, "analytics_recon_match")
+    preflight_check(db, actor.id, "analytics_recon_match")
     groups, usage = await analytics_ai_service.perform_ai_assisted_match(
         payload.source_a, payload.source_b, payload.rules
     )
     record_call(
         db,
-        user_id,
+        actor.id,
         "analytics_recon_match",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
@@ -140,16 +141,16 @@ async def perform_match(
 @router.post("/basic", response_model=ReconciliationMatchResponse)
 async def reconcile_basic(
     payload: ReconciliationBasicRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*LLM_ROLES)),
     db: Session = Depends(get_db),
 ):
-    preflight_check(db, user_id, "analytics_recon_basic")
+    preflight_check(db, actor.id, "analytics_recon_basic")
     groups, usage = await analytics_ai_service.reconcile_basic(
         payload.source_a, payload.source_b
     )
     record_call(
         db,
-        user_id,
+        actor.id,
         "analytics_recon_basic",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
@@ -169,10 +170,10 @@ async def reconcile_basic(
 
 @router.get("", response_model=ReconciliationListResponse)
 async def list_reconciliations_route(
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*READER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     rows = reconciliations_service.list_reconciliations(db, firm_id)
     return ReconciliationListResponse(reconciliations=[_record_to_response(r) for r in rows])
 
@@ -180,21 +181,21 @@ async def list_reconciliations_route(
 @router.post("", response_model=ReconciliationRecord)
 async def create_reconciliation_route(
     payload: ReconciliationCreateRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*WRITER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
-    row = reconciliations_service.create_reconciliation(db, firm_id, user_id, payload=payload)
+    firm_id = require_firm_id(db, actor.id)
+    row = reconciliations_service.create_reconciliation(db, firm_id, actor.id, payload=payload)
     return _record_to_response(row)
 
 
 @router.get("/{reconciliation_id}", response_model=ReconciliationRecord)
 async def get_reconciliation_route(
     reconciliation_id: str,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*READER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     return _record_to_response(
         reconciliations_service.get_reconciliation(db, firm_id, reconciliation_id)
     )
@@ -204,10 +205,10 @@ async def get_reconciliation_route(
 async def update_reconciliation_route(
     reconciliation_id: str,
     payload: ReconciliationUpdateRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*WRITER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     return _record_to_response(
         reconciliations_service.update_reconciliation(
             db, firm_id, reconciliation_id, payload=payload
@@ -218,9 +219,9 @@ async def update_reconciliation_route(
 @router.delete("/{reconciliation_id}")
 async def delete_reconciliation_route(
     reconciliation_id: str,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*WRITER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     reconciliations_service.delete_reconciliation(db, firm_id, reconciliation_id)
     return {"success": True}

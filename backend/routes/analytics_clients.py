@@ -8,13 +8,14 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from dependencies.auth import get_current_user_id
+from dependencies.analytics_rbac import READER_ROLES, WRITER_ROLES, require_role
 from models.analytics import (
     ClientCreateRequest,
     ClientListResponse,
     ClientResponse,
     ClientUpdateRequest,
 )
+from models.db_models import User
 from services.analytics import clients_service
 from services.analytics.firm_scope import require_firm_id
 
@@ -40,10 +41,10 @@ def _to_response(c) -> ClientResponse:
 
 @router.get("", response_model=ClientListResponse)
 async def list_clients_route(
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*READER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     return ClientListResponse(
         clients=[_to_response(c) for c in clients_service.list_clients(db, firm_id)]
     )
@@ -52,21 +53,23 @@ async def list_clients_route(
 @router.post("", response_model=ClientResponse)
 async def create_client_route(
     payload: ClientCreateRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*WRITER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
-    client = clients_service.create_client(db, firm_id, payload=payload)
+    firm_id = require_firm_id(db, actor.id)
+    client = clients_service.create_client(
+        db, firm_id, payload=payload, actor_user_id=actor.id
+    )
     return _to_response(client)
 
 
 @router.get("/{client_id}", response_model=ClientResponse)
 async def get_client_route(
     client_id: str,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*READER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     return _to_response(clients_service.get_client(db, firm_id, client_id))
 
 
@@ -74,19 +77,23 @@ async def get_client_route(
 async def update_client_route(
     client_id: str,
     payload: ClientUpdateRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*WRITER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
-    return _to_response(clients_service.update_client(db, firm_id, client_id, payload=payload))
+    firm_id = require_firm_id(db, actor.id)
+    return _to_response(
+        clients_service.update_client(
+            db, firm_id, client_id, payload=payload, actor_user_id=actor.id
+        )
+    )
 
 
 @router.delete("/{client_id}")
 async def delete_client_route(
     client_id: str,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*WRITER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
-    clients_service.delete_client(db, firm_id, client_id)
+    firm_id = require_firm_id(db, actor.id)
+    clients_service.delete_client(db, firm_id, client_id, actor_user_id=actor.id)
     return {"success": True}

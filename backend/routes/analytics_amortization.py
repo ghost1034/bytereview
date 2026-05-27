@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from dependencies.auth import get_current_user_id
+from dependencies.analytics_rbac import LLM_ROLES, READER_ROLES, WRITER_ROLES, require_role
 from models.analytics import (
     AmortizationComplianceRequest,
     AmortizationComplianceResponse,
@@ -28,6 +28,7 @@ from models.analytics import (
     JournalEntryResponse,
     UsageMetadata,
 )
+from models.db_models import User
 from services import amortization_math, analytics_ai_service
 from services.analytics import amortizations_service
 from services.analytics.billing_guard import preflight_check, record_call
@@ -92,14 +93,14 @@ def _journal_entry_to_response(row) -> JournalEntryResponse:
 @router.post("/extract", response_model=AmortizationExtractResponse)
 async def extract_amortization(
     payload: AmortizationExtractRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*LLM_ROLES)),
     db: Session = Depends(get_db),
 ):
-    preflight_check(db, user_id, "analytics_amort_extract")
+    preflight_check(db, actor.id, "analytics_amort_extract")
     parsed, usage = await analytics_ai_service.extract_amortization(payload.document_text)
     record_call(
         db,
-        user_id,
+        actor.id,
         "analytics_amort_extract",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
@@ -116,14 +117,14 @@ async def extract_amortization(
 @router.post("/compliance", response_model=AmortizationComplianceResponse)
 async def compliance_check(
     payload: AmortizationComplianceRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*LLM_ROLES)),
     db: Session = Depends(get_db),
 ):
-    preflight_check(db, user_id, "analytics_amort_compliance")
+    preflight_check(db, actor.id, "analytics_amort_compliance")
     insight, usage = await analytics_ai_service.amortization_compliance_check(payload.form)
     record_call(
         db,
-        user_id,
+        actor.id,
         "analytics_amort_compliance",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
@@ -142,7 +143,7 @@ async def compliance_check(
 @router.post("/schedule", response_model=AmortizationScheduleResponse)
 async def generate_schedule(
     payload: AmortizationScheduleRequest,
-    user_id: str = Depends(get_current_user_id),  # noqa: ARG001 (auth-only)
+    actor: User = Depends(require_role(*READER_ROLES)),  # noqa: ARG001 (auth-only)
     db: Session = Depends(get_db),  # noqa: ARG001
 ):
     try:
@@ -177,10 +178,10 @@ async def generate_schedule(
 
 @router.get("", response_model=AmortizationListResponse)
 async def list_amortizations_route(
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*READER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     rows = amortizations_service.list_amortizations(db, firm_id)
     return AmortizationListResponse(amortizations=[_to_response(r) for r in rows])
 
@@ -188,22 +189,22 @@ async def list_amortizations_route(
 @router.post("", response_model=AmortizationResponse)
 async def create_amortization_route(
     payload: AmortizationCreateRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*WRITER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     return _to_response(
-        amortizations_service.create_amortization(db, firm_id, user_id, payload=payload)
+        amortizations_service.create_amortization(db, firm_id, actor.id, payload=payload)
     )
 
 
 @router.get("/{amortization_id}", response_model=AmortizationResponse)
 async def get_amortization_route(
     amortization_id: str,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*READER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     return _to_response(amortizations_service.get_amortization(db, firm_id, amortization_id))
 
 
@@ -211,10 +212,10 @@ async def get_amortization_route(
 async def update_amortization_route(
     amortization_id: str,
     payload: AmortizationUpdateRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*WRITER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     return _to_response(
         amortizations_service.update_amortization(db, firm_id, amortization_id, payload=payload)
     )
@@ -223,10 +224,10 @@ async def update_amortization_route(
 @router.delete("/{amortization_id}")
 async def delete_amortization_route(
     amortization_id: str,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*WRITER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     amortizations_service.delete_amortization(db, firm_id, amortization_id)
     return {"success": True}
 
@@ -239,10 +240,10 @@ async def delete_amortization_route(
 @router.get("/journal-entries/list", response_model=JournalEntryListResponse)
 async def list_journal_entries_route(
     amortization_id: Optional[str] = Query(default=None),
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*READER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     rows = amortizations_service.list_journal_entries(db, firm_id, amortization_id)
     return JournalEntryListResponse(
         journal_entries=[_journal_entry_to_response(r) for r in rows]
@@ -252,9 +253,9 @@ async def list_journal_entries_route(
 @router.post("/journal-entries", response_model=JournalEntryResponse)
 async def create_journal_entry_route(
     payload: JournalEntryCreateRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*WRITER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
+    firm_id = require_firm_id(db, actor.id)
     row = amortizations_service.create_journal_entry(db, firm_id, payload=payload)
     return _journal_entry_to_response(row)

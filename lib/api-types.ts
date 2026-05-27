@@ -2356,7 +2356,8 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+        /** Update Member */
+        put: operations["update_member_api_analytics_firm_members__member_user_id__put"];
         post?: never;
         /** Remove Member */
         delete: operations["remove_member_api_analytics_firm_members__member_user_id__delete"];
@@ -4052,6 +4053,16 @@ export interface components {
             display_name?: string | null;
             /** Photo Url */
             photo_url?: string | null;
+            /**
+             * Role
+             * @default analyst
+             * @enum {string}
+             */
+            role: "admin" | "manager" | "analyst" | "reviewer" | "viewer";
+            /** Persona */
+            persona?: ("staff_accountant" | "senior_accountant" | "accounting_manager" | "cpa_partner") | null;
+            /** Title */
+            title?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -5921,6 +5932,15 @@ export interface components {
              */
             created_at: string;
         };
+        /** MemberUpdateRequest */
+        MemberUpdateRequest: {
+            /** Role */
+            role?: ("admin" | "manager" | "analyst" | "reviewer" | "viewer") | null;
+            /** Persona */
+            persona?: ("staff_accountant" | "senior_accountant" | "accounting_manager" | "cpa_partner") | null;
+            /** Title */
+            title?: string | null;
+        };
         /** PhoneAvailabilityResponse */
         PhoneAvailabilityResponse: {
             /** Available */
@@ -5946,11 +5966,22 @@ export interface components {
             name: string;
             /** Client Id */
             client_id?: string | null;
+            /** Assigned To User Id */
+            assigned_to_user_id?: string | null;
             /**
              * Status
-             * @default active
+             * @default draft
+             * @enum {string}
              */
-            status: string;
+            status: "draft" | "in_progress" | "in_review" | "approved" | "archived";
+            /**
+             * Module
+             * @default other
+             * @enum {string}
+             */
+            module: "variance" | "reconciliation" | "amortization" | "waterfall" | "irs" | "gaap" | "assistant" | "other";
+            /** Due Date */
+            due_date?: string | null;
             /** Description */
             description?: string | null;
         };
@@ -5965,11 +5996,22 @@ export interface components {
             name: string;
             /** Client Id */
             client_id?: string | null;
+            /** Assigned To User Id */
+            assigned_to_user_id?: string | null;
             /**
              * Status
-             * @default active
+             * @default draft
+             * @enum {string}
              */
-            status: string;
+            status: "draft" | "in_progress" | "in_review" | "approved" | "archived";
+            /**
+             * Module
+             * @default other
+             * @enum {string}
+             */
+            module: "variance" | "reconciliation" | "amortization" | "waterfall" | "irs" | "gaap" | "assistant" | "other";
+            /** Due Date */
+            due_date?: string | null;
             /** Description */
             description?: string | null;
             /** Id */
@@ -5993,8 +6035,14 @@ export interface components {
             name?: string | null;
             /** Client Id */
             client_id?: string | null;
+            /** Assigned To User Id */
+            assigned_to_user_id?: string | null;
             /** Status */
-            status?: string | null;
+            status?: ("draft" | "in_progress" | "in_review" | "approved" | "archived") | null;
+            /** Module */
+            module?: ("variance" | "reconciliation" | "amortization" | "waterfall" | "irs" | "gaap" | "assistant" | "other") | null;
+            /** Due Date */
+            due_date?: string | null;
             /** Description */
             description?: string | null;
         };
@@ -11080,6 +11128,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FirmMemberResponse"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_member_api_analytics_firm_members__member_user_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirmMemberResponse"];
                 };
             };
             /** @description Validation Error */

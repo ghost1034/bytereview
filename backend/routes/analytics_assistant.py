@@ -11,7 +11,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from core.database import db_config, get_db
-from dependencies.auth import get_current_user_id
+from dependencies.analytics_rbac import LLM_ROLES, READER_ROLES, WRITER_ROLES, require_role
 from models.analytics import (
     AssistantStreamRequest,
     BasicChatRequest,
@@ -22,6 +22,7 @@ from models.analytics import (
     DocumentExtractResponse,
     UsageMetadata,
 )
+from models.db_models import User
 from services import analytics_ai_service
 from services.analytics import chat_sessions_service
 from services.analytics.billing_guard import preflight_check, record_call
@@ -139,13 +140,13 @@ def _derive_title(payload: AssistantStreamRequest) -> str:
 @router.post("/stream")
 async def stream_assistant(
     payload: AssistantStreamRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*LLM_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
-    preflight_check(db, user_id, "analytics_chat_assistant")
+    firm_id = require_firm_id(db, actor.id)
+    preflight_check(db, actor.id, "analytics_chat_assistant")
     return StreamingResponse(
-        _assistant_event_stream(user_id, firm_id, payload),
+        _assistant_event_stream(actor.id, firm_id, payload),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )
@@ -159,7 +160,7 @@ async def stream_assistant(
 @router.post("/chat")
 async def basic_chat(
     payload: BasicChatRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*LLM_ROLES)),
     db: Session = Depends(get_db),
 ):
     """Aggregates the streamed response into a single JSON envelope.
@@ -168,7 +169,7 @@ async def basic_chat(
     `/api/chat`. Front-end code that needs incremental tokens should use
     `/api/analytics/assistant/stream` instead.
     """
-    preflight_check(db, user_id, "analytics_chat_basic")
+    preflight_check(db, actor.id, "analytics_chat_basic")
     messages = [m.model_dump() for m in payload.messages]
     chunks: list[str] = []
     usage_meta: dict = {}
@@ -180,7 +181,7 @@ async def basic_chat(
 
     record_call(
         db,
-        user_id,
+        actor.id,
         "analytics_chat_basic",
         usage_meta.get("prompt_tokens"),
         usage_meta.get("output_tokens"),
@@ -199,17 +200,17 @@ async def basic_chat(
 @router.post("/document-extract", response_model=DocumentExtractResponse)
 async def extract_document(
     payload: DocumentExtractRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*LLM_ROLES)),
     db: Session = Depends(get_db),
 ):
-    preflight_check(db, user_id, "analytics_document_extract")
+    preflight_check(db, actor.id, "analytics_document_extract")
     doc_type = "IRS" if payload.type in ("IRS", "Tax") else "GAAP"
     parsed, usage = await analytics_ai_service.extract_document(
         payload.document_text, doc_type
     )
     record_call(
         db,
-        user_id,
+        actor.id,
         "analytics_document_extract",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
@@ -230,22 +231,22 @@ async def extract_document(
 
 @router.get("/sessions", response_model=ChatSessionListResponse)
 async def list_assistant_sessions(
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*READER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
-    rows = chat_sessions_service.list_sessions(db, firm_id, user_id, bot_type="assistant")
+    firm_id = require_firm_id(db, actor.id)
+    rows = chat_sessions_service.list_sessions(db, firm_id, actor.id, bot_type="assistant")
     return ChatSessionListResponse(sessions=[_session_to_response(r) for r in rows])
 
 
 @router.get("/sessions/{session_id}", response_model=ChatSessionResponse)
 async def get_assistant_session(
     session_id: str,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*READER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
-    row = chat_sessions_service.get_session(db, firm_id, user_id, session_id)
+    firm_id = require_firm_id(db, actor.id)
+    row = chat_sessions_service.get_session(db, firm_id, actor.id, session_id)
     if row.bot_type != "assistant":
         raise HTTPException(status_code=404, detail="Chat session not found")
     return _session_to_response(row)
@@ -255,17 +256,17 @@ async def get_assistant_session(
 async def update_assistant_session(
     session_id: str,
     payload: ChatSessionUpdateRequest,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*WRITER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
-    row = chat_sessions_service.get_session(db, firm_id, user_id, session_id)
+    firm_id = require_firm_id(db, actor.id)
+    row = chat_sessions_service.get_session(db, firm_id, actor.id, session_id)
     if row.bot_type != "assistant":
         raise HTTPException(status_code=404, detail="Chat session not found")
     updated = chat_sessions_service.update_session(
         db,
         firm_id,
-        user_id,
+        actor.id,
         session_id,
         title=payload.title,
         client_id=payload.client_id,
@@ -277,12 +278,12 @@ async def update_assistant_session(
 @router.delete("/sessions/{session_id}")
 async def delete_assistant_session(
     session_id: str,
-    user_id: str = Depends(get_current_user_id),
+    actor: User = Depends(require_role(*WRITER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    firm_id = require_firm_id(db, user_id)
-    row = chat_sessions_service.get_session(db, firm_id, user_id, session_id)
+    firm_id = require_firm_id(db, actor.id)
+    row = chat_sessions_service.get_session(db, firm_id, actor.id, session_id)
     if row.bot_type != "assistant":
         raise HTTPException(status_code=404, detail="Chat session not found")
-    chat_sessions_service.delete_session(db, firm_id, user_id, session_id)
+    chat_sessions_service.delete_session(db, firm_id, actor.id, session_id)
     return {"success": True}

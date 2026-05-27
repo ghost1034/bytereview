@@ -1296,6 +1296,16 @@ export class ApiClient {
     })
   }
 
+  async updateAnalyticsFirmMember(
+    memberUserId: string,
+    data: ApiRequest<ApiPaths['/api/analytics/firm/members/{member_user_id}']['put']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/firm/members/{member_user_id}']['put']>> {
+    return this.request(`/api/analytics/firm/members/${encodeURIComponent(memberUserId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
   // ===========================================================================
   // Analytics — clients
   // ===========================================================================

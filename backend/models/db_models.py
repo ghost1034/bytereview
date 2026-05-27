@@ -6,7 +6,9 @@ Integration phase - supports multi-source ingestion, exports, and automations
 
 from typing import Optional, cast
 
-from sqlalchemy import Column, String, Integer, BigInteger, Boolean, Text, TIMESTAMP, ForeignKey, UUID, LargeBinary, ARRAY, CheckConstraint, Numeric, Date
+import enum
+
+from sqlalchemy import Column, String, Integer, BigInteger, Boolean, Text, TIMESTAMP, ForeignKey, UUID, LargeBinary, ARRAY, CheckConstraint, Numeric, Date, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
@@ -15,6 +17,45 @@ from sqlalchemy.sql import expression, func
 import uuid
 
 Base = declarative_base()
+
+
+# ---------------------------------------------------------------------------
+# CPAAnalytics enums (Phase 5.1)
+# ---------------------------------------------------------------------------
+
+
+class AnalyticsUserRole(str, enum.Enum):
+    ADMIN = "admin"
+    MANAGER = "manager"
+    ANALYST = "analyst"
+    REVIEWER = "reviewer"
+    VIEWER = "viewer"
+
+
+class AnalyticsUserPersona(str, enum.Enum):
+    STAFF_ACCOUNTANT = "staff_accountant"
+    SENIOR_ACCOUNTANT = "senior_accountant"
+    ACCOUNTING_MANAGER = "accounting_manager"
+    CPA_PARTNER = "cpa_partner"
+
+
+class AnalyticsProjectStatus(str, enum.Enum):
+    DRAFT = "draft"
+    IN_PROGRESS = "in_progress"
+    IN_REVIEW = "in_review"
+    APPROVED = "approved"
+    ARCHIVED = "archived"
+
+
+class AnalyticsProjectModule(str, enum.Enum):
+    VARIANCE = "variance"
+    RECONCILIATION = "reconciliation"
+    AMORTIZATION = "amortization"
+    WATERFALL = "waterfall"
+    IRS = "irs"
+    GAAP = "gaap"
+    ASSISTANT = "assistant"
+    OTHER = "other"
 
 class User(Base):
     """App-specific user profile data linked to Firebase Auth"""
@@ -27,6 +68,16 @@ class User(Base):
     display_name = Column(String(255))
     photo_url = Column(Text)
     firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="SET NULL"), nullable=True)
+    role = Column(
+        Enum(AnalyticsUserRole, name="analytics_user_role", create_type=False, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        server_default=AnalyticsUserRole.ANALYST.value,
+    )
+    persona = Column(
+        Enum(AnalyticsUserPersona, name="analytics_user_persona", create_type=False, values_callable=lambda x: [e.value for e in x]),
+        nullable=True,
+    )
+    title = Column(String(255), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
@@ -40,6 +91,11 @@ class User(Base):
     billing_account = relationship("BillingAccount", back_populates="user", uselist=False, cascade="all, delete-orphan")
     firm = relationship("Firm", back_populates="users")
     chat_sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
+    assigned_projects = relationship(
+        "Project",
+        back_populates="assignee",
+        foreign_keys="Project.assigned_to_user_id",
+    )
 
 class DataType(Base):
     """Canonical list of supported data types for extraction"""
@@ -714,14 +770,30 @@ class Project(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
     client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True)
+    assigned_to_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     name = Column(String(255), nullable=False)
-    status = Column(String(50), nullable=False, default="active", server_default="active")
+    status = Column(
+        Enum(AnalyticsProjectStatus, name="analytics_project_status", create_type=False, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        server_default=AnalyticsProjectStatus.DRAFT.value,
+    )
+    module = Column(
+        Enum(AnalyticsProjectModule, name="analytics_project_module", create_type=False, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        server_default=AnalyticsProjectModule.OTHER.value,
+    )
+    due_date = Column(Date(), nullable=True)
     description = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
     firm = relationship("Firm", back_populates="projects")
     client = relationship("Client", back_populates="projects")
+    assignee = relationship(
+        "User",
+        back_populates="assigned_projects",
+        foreign_keys=[assigned_to_user_id],
+    )
 
 
 class Analysis(Base):
