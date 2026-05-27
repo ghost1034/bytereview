@@ -84,6 +84,17 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}): UseStre
       // Append both the user message and a blank assistant placeholder that we
       // mutate as chunks arrive.
       setMessages([...baseMessages, { role: 'model', content: '' }])
+
+      // When the caller supplies a `sessionId`, the conversation is already
+      // persisted server-side and the stream endpoint *appends* whatever
+      // `messages` we send. To avoid duplicating the transcript we therefore
+      // send only the new user turn on a continuation; on the first turn (no
+      // sessionId) we send the full context so the freshly created session
+      // captures the greeting. Document context is always sent separately, so
+      // doc-grounded follow-ups still work. The floating AI assistant never
+      // passes a sessionId, so its behaviour is unchanged.
+      const isContinuation = backend.sessionId != null
+      const outboundMessages: AnalyticsChatMessage[] = isContinuation ? [userMsg] : baseMessages
       setIsStreaming(true)
       setError(null)
 
@@ -119,7 +130,7 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}): UseStre
         if (backend.kind === 'assistant') {
           await apiClient.streamAnalyticsAssistant(
             {
-              messages: baseMessages,
+              messages: outboundMessages,
               context: backend.context ?? null,
               sessionId: backend.sessionId ?? null,
               clientId: backend.clientId ?? null,
@@ -133,7 +144,7 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}): UseStre
           await apiClient.streamAnalyticsResearch(
             backend.bot,
             {
-              messages: baseMessages,
+              messages: outboundMessages,
               outputStyle: backend.outputStyle ?? 'Q&A',
               documentContext: backend.documentContext ?? null,
               sessionId: backend.sessionId ?? null,
