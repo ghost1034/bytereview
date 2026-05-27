@@ -65,6 +65,26 @@ export interface TeamContext {
   }
 }
 
+export interface WaterfallContext {
+  waterfall: {
+    count: number
+    /** "YYYY-MM" the recognized/balance figures are rolled up to. */
+    asOf?: string
+    items: Array<{
+      id: string
+      name: string
+      /** Subtype, e.g. "Deferred Revenue" | "Prepaid Expenses". */
+      subtype: string
+      party?: string
+      totalAmount: number
+      recognizedToDate?: number
+      currentBalance?: number
+      startDate?: string
+      endDate?: string
+    }>
+  }
+}
+
 /**
  * Discriminated by top-level key. The fallback `Record<string, unknown>` keeps
  * the contract open for modules whose payloads are added in Phases 5.4–5.7.
@@ -73,6 +93,7 @@ export type AnalyticsAIContext =
   | ClientsContext
   | ProjectsContext
   | TeamContext
+  | WaterfallContext
   | Record<string, unknown>
 
 // --- Publisher -----------------------------------------------------------------

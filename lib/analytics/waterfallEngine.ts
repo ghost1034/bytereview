@@ -171,8 +171,8 @@ export interface WriteOffInput {
   totalAmount: number
   partyName?: string
   name?: string
-  /** Account overrides; blanks fall back to DEFAULT_ACCOUNTS. */
-  accounts?: Partial<typeof DEFAULT_ACCOUNTS>
+  /** Account overrides (free-text codes); blanks fall back to DEFAULT_ACCOUNTS. */
+  accounts?: Partial<Record<keyof typeof DEFAULT_ACCOUNTS, string>>
   schedule: ScheduleRow[]
   journalEntries: JournalEntry[]
 }
