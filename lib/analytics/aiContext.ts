@@ -136,6 +136,26 @@ export interface ReconciliationContext {
   }
 }
 
+export interface DashboardContext {
+  dashboard: {
+    counts: {
+      total: number
+      pending: number
+      inPrep: number
+      approved: number
+      finalized: number
+    }
+    items: Array<{
+      id: string
+      name: string
+      module: 'Variance' | 'Reconciliation'
+      status: string
+      clientName: string
+      updatedAt: string
+    }>
+  }
+}
+
 export interface VarianceContext {
   variance: {
     count: number
@@ -173,6 +193,7 @@ export type AnalyticsAIContext =
   | AmortizationContext
   | ReconciliationContext
   | VarianceContext
+  | DashboardContext
   | Record<string, unknown>
 
 // --- Publisher -----------------------------------------------------------------

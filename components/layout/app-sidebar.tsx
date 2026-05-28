@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
+  BarChart3,
   BookOpen,
   Bot,
   Briefcase,
@@ -103,6 +104,7 @@ const ANALYTICS_GROUP: NavGroup = {
   key: 'analytics',
   label: 'Analytics',
   items: [
+    { name: 'Dashboard', href: '/dashboard/analytics', icon: BarChart3 },
     { name: 'Clients', href: '/dashboard/analytics/clients', icon: Users },
     { name: 'Projects', href: '/dashboard/analytics/projects', icon: FolderKanban },
     { name: 'Team', href: '/dashboard/analytics/team', icon: UserPlus },
@@ -118,6 +120,7 @@ const ANALYTICS_GROUP: NavGroup = {
 
 function isActiveHref(pathname: string, href: string) {
   if (href === '/dashboard') return pathname === '/dashboard'
+  if (href === '/dashboard/analytics') return pathname === '/dashboard/analytics'
   if (href.startsWith('/#')) return false
   return pathname === href || pathname.startsWith(`${href}/`)
 }
