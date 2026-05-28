@@ -28,7 +28,9 @@ import { MemberEditDialog } from '@/components/analytics/team/MemberEditDialog'
 import {
   PERSONA_DEFINITIONS,
   ROLE_DEFINITIONS,
+  ROLE_DEFINITION_BY_KEY,
 } from '@/components/analytics/team/teamReference'
+import { cn } from '@/lib/utils'
 import {
   useAnalyticsFirm,
   useRemoveFirmMember,
@@ -171,11 +173,16 @@ export default function AnalyticsTeamPage() {
       header: 'Role',
       accessorKey: 'role',
       sortable: true,
-      cell: (value) => (
-        <Badge variant="secondary">
-          {USER_ROLE_LABELS[value as AnalyticsUserRole] ?? value}
-        </Badge>
-      ),
+      cell: (value) => {
+        const def = ROLE_DEFINITION_BY_KEY[value as AnalyticsUserRole]
+        const Icon = def?.icon
+        return (
+          <Badge variant="secondary" className="gap-1.5">
+            {Icon && <Icon className={cn('size-3', def.iconClass)} aria-hidden />}
+            {def?.label ?? USER_ROLE_LABELS[value as AnalyticsUserRole] ?? value}
+          </Badge>
+        )
+      },
     },
     {
       header: 'Status',
@@ -314,7 +321,14 @@ export default function AnalyticsTeamPage() {
               return (
                 <Card key={role.role} className="p-5">
                   <div className="flex items-center gap-3">
-                    <Icon className={role.iconClass} aria-hidden />
+                    <div
+                      className={cn(
+                        'flex size-10 items-center justify-center rounded-xl',
+                        role.iconBgClass,
+                      )}
+                    >
+                      <Icon className={cn('size-5', role.iconClass)} aria-hidden />
+                    </div>
                     <h3 className="text-base font-semibold text-foreground">{role.label}</h3>
                   </div>
                   <p className="mt-2 text-sm text-foreground-muted">{role.description}</p>

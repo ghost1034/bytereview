@@ -19,6 +19,7 @@ export interface RoleDefinition {
   description: string
   icon: LucideIcon
   iconClass: string
+  iconBgClass: string
 }
 
 export const ROLE_DEFINITIONS: RoleDefinition[] = [
@@ -29,6 +30,7 @@ export const ROLE_DEFINITIONS: RoleDefinition[] = [
       'Full system access: user management, firm settings, billing, and every analytics module.',
     icon: Shield,
     iconClass: 'text-purple-600',
+    iconBgClass: 'bg-purple-50',
   },
   {
     role: 'manager',
@@ -37,6 +39,7 @@ export const ROLE_DEFINITIONS: RoleDefinition[] = [
       'All module access, team oversight, approval workflows, and client management.',
     icon: Users,
     iconClass: 'text-blue-600',
+    iconBgClass: 'bg-blue-50',
   },
   {
     role: 'analyst',
@@ -45,6 +48,7 @@ export const ROLE_DEFINITIONS: RoleDefinition[] = [
       'Create, edit, and run analyses across all modules. Cannot manage users or firm settings.',
     icon: Edit3,
     iconClass: 'text-emerald-600',
+    iconBgClass: 'bg-emerald-50',
   },
   {
     role: 'reviewer',
@@ -52,6 +56,7 @@ export const ROLE_DEFINITIONS: RoleDefinition[] = [
     description: 'View and approve or reject outputs. Cannot create or edit analyses.',
     icon: CheckSquare,
     iconClass: 'text-amber-600',
+    iconBgClass: 'bg-amber-50',
   },
   {
     role: 'viewer',
@@ -59,8 +64,18 @@ export const ROLE_DEFINITIONS: RoleDefinition[] = [
     description: 'Read-only access to reports and dashboards.',
     icon: Eye,
     iconClass: 'text-slate-500',
+    iconBgClass: 'bg-slate-100',
   },
 ]
+
+export const ROLE_DEFINITION_BY_KEY: Record<AnalyticsUserRole, RoleDefinition> =
+  ROLE_DEFINITIONS.reduce(
+    (acc, def) => {
+      acc[def.role] = def
+      return acc
+    },
+    {} as Record<AnalyticsUserRole, RoleDefinition>,
+  )
 
 export interface PersonaDefinition {
   persona: AnalyticsUserPersona

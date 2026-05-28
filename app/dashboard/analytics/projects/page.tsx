@@ -19,6 +19,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { LoadingState } from '@/components/ui/loading-state'
 import { PageHeader } from '@/components/ui/page-header'
 import { DataTable, type ColumnDef } from '@/components/analytics/DataTable'
+import { ExportButton, type ExportFormat } from '@/components/analytics/ExportButton'
 import { ProjectModal } from '@/components/analytics/ProjectModal'
 import { useAnalyticsClients } from '@/hooks/useAnalyticsClients'
 import { useAnalyticsProjects, useDeleteAnalyticsProject } from '@/hooks/useAnalyticsProjects'
@@ -26,6 +27,7 @@ import { useAnalyticsFirm } from '@/hooks/useAnalyticsTeam'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { AI_CONTEXT_MAX_ITEMS, useAIContext, type ProjectsContext } from '@/lib/analytics/aiContext'
+import { exportRows } from '@/lib/analytics/exportData'
 import {
   PROJECT_MODULE_LABELS,
   PROJECT_STATUS_BADGE_CLASS,
@@ -95,6 +97,27 @@ export default function AnalyticsProjectsPage() {
   const handleEdit = (project: AnalyticsProject) => {
     setEditingProject(project)
     setModalOpen(true)
+  }
+
+  const handleExport = (format: ExportFormat) => {
+    if (projects.length === 0) {
+      toast({ title: 'Nothing to export', description: 'Create a project first.' })
+      return
+    }
+    const rows = projects.map((p) => ({
+      'Project Name': p.name,
+      Client: p.client_id ? clientNameById.get(p.client_id) ?? '' : '',
+      Module: PROJECT_MODULE_LABELS[p.module as AnalyticsProjectModule] ?? p.module,
+      Status: PROJECT_STATUS_LABELS[p.status as AnalyticsProjectStatus] ?? p.status,
+      'Assigned To': p.assigned_to_user_id
+        ? memberNameById.get(p.assigned_to_user_id) ?? ''
+        : '',
+      'Due Date': p.due_date || '',
+      Description: p.description || '',
+    }))
+    exportRows(rows, format, 'Projects_Export', 'Projects').catch(() =>
+      toast({ title: 'Export failed', variant: 'destructive' }),
+    )
   }
 
   const confirmDelete = async () => {
@@ -203,6 +226,8 @@ export default function AnalyticsProjectsPage() {
           data={projects}
           columns={columns}
           searchPlaceholder="Search projects…"
+          enableSelection
+          actions={<ExportButton onExport={handleExport} />}
           rowActions={(row) => (
             <div className="flex items-center justify-end gap-1">
               <Button

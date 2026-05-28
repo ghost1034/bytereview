@@ -17,6 +17,13 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LoadingState } from '@/components/ui/loading-state'
 import { PageHeader } from '@/components/ui/page-header'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { DataTable, type ColumnDef } from '@/components/analytics/DataTable'
 import { ExportButton, type ExportFormat } from '@/components/analytics/ExportButton'
 import { ClientModal } from '@/components/analytics/ClientModal'
@@ -32,6 +39,24 @@ export default function AnalyticsClientsPage() {
   const { toast } = useToast()
 
   const clients: AnalyticsClient[] = data?.clients ?? []
+
+  const [industryFilter, setIndustryFilter] = useState<string>('All')
+
+  const industries = useMemo(() => {
+    const set = new Set<string>()
+    for (const c of clients) {
+      if (c.industry) set.add(c.industry)
+    }
+    return ['All', ...Array.from(set).sort((a, b) => a.localeCompare(b))]
+  }, [clients])
+
+  const filteredClients = useMemo(
+    () =>
+      industryFilter === 'All'
+        ? clients
+        : clients.filter((c) => c.industry === industryFilter),
+    [clients, industryFilter],
+  )
 
   // Publish a compact snapshot to the floating AI Assistant. Keyed off the
   // stable query result so we don't re-dispatch on every render.
@@ -84,11 +109,12 @@ export default function AnalyticsClientsPage() {
   }
 
   const handleExport = (format: ExportFormat) => {
-    if (clients.length === 0) {
+    const dataToExport = filteredClients.length > 0 ? filteredClients : clients
+    if (dataToExport.length === 0) {
       toast({ title: 'Nothing to export', description: 'Add a client first.' })
       return
     }
-    const rows = clients.map((c) => ({
+    const rows = dataToExport.map((c) => ({
       'Client Name': c.name,
       Industry: c.industry || '',
       'Contact Name': c.contact_name || '',
@@ -177,10 +203,27 @@ export default function AnalyticsClientsPage() {
         />
       ) : (
         <DataTable
-          data={clients}
+          data={filteredClients}
           columns={columns}
           searchPlaceholder="Search clients…"
-          actions={<ExportButton onExport={handleExport} />}
+          enableSelection
+          actions={
+            <div className="flex items-center gap-2">
+              <Select value={industryFilter} onValueChange={setIndustryFilter}>
+                <SelectTrigger className="h-10 w-44" aria-label="Filter by industry">
+                  <SelectValue placeholder="All industries" />
+                </SelectTrigger>
+                <SelectContent>
+                  {industries.map((ind) => (
+                    <SelectItem key={ind} value={ind}>
+                      {ind === 'All' ? 'All industries' : ind}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <ExportButton onExport={handleExport} />
+            </div>
+          }
           rowActions={(row) => (
             <div className="flex items-center justify-end gap-1">
               <Button
