@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
@@ -8,6 +8,7 @@ import { Bot, Copy, Maximize2, MessageSquare, Minimize2, Send, Sparkles, X } fro
 
 import { cn } from '@/lib/utils'
 import { useStreamingChat } from '@/lib/analytics/useStreamingChat'
+import { exportTranscript, type ChatTranscriptFormat } from '@/lib/analytics/exportChat'
 import type { AnalyticsChatMessage, AnalyticsModuleId } from '@/lib/analytics/types'
 
 const MODULE_NAMES: Record<AnalyticsModuleId, string> = {
@@ -35,6 +36,7 @@ const SUGGESTED_PROMPTS: Record<AnalyticsModuleId, string[]> = {
     'How many active clients do we have?',
     'Summarize the recent activity for our top client',
     'What information is missing from the client profiles?',
+    'Generate a summary of the client portfolio',
   ],
   projects: [
     'Which projects are overdue?',
@@ -46,30 +48,46 @@ const SUGGESTED_PROMPTS: Record<AnalyticsModuleId, string[]> = {
   ],
   variance: [
     'Explain the top 5 material variances',
+    'Why did [Account Name] increase by X%?',
     "What's the appropriate materiality threshold for this dataset?",
     'Draft a variance analysis memo for the reviewer',
+    'Are there any unusual patterns in these variances?',
+    'What accounts should I investigate further?',
   ],
   reconciliation: [
     'Why are these transactions unmatched?',
     'Suggest matches for the remaining unmatched items',
+    'Explain the difference between Source A and Source B totals',
+    "What's causing the reconciling difference of $X?",
+    'How should I categorize this exception?',
     "What's a good tolerance threshold for this reconciliation?",
   ],
   amortization: [
     'Is this the correct amortization method for this asset type?',
     'Explain the GAAP vs. Tax difference for this asset',
     'What are the ASC 842 requirements for this lease?',
+    'Calculate the ROU asset for this lease with these terms',
+    'What journal entries do I need for this month?',
+    'What happens if I modify this lease mid-term?',
   ],
   waterfall: [
     'How much revenue will we recognize next month?',
     'Is this the correct recognition method under ASC 606?',
+    'Explain the deferred revenue balance for this contract',
+    'What if this contract is terminated early?',
     'Show me the remaining performance obligations',
+    'How should I allocate revenue across these performance obligations?',
   ],
   'irs-bot': [
     'Open a new tax research session',
+    'What was the last tax topic I researched?',
+    'Summarize the memo I generated for the S-Corp compensation issue',
     'What IRC section covers home office deductions?',
   ],
   'gaap-bot': [
     'Open a new GAAP research session',
+    'What was the last accounting topic I researched?',
+    'Summarize the technical memo on the lease classification',
     'What ASC topic covers revenue from contracts?',
   ],
   assistant: [
@@ -104,8 +122,25 @@ export function AIAssistant() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [input, setInput] = useState('')
   const [moduleContext, setModuleContext] = useState<Record<string, unknown> | null>(null)
+  // SSR-safe drag constraints for the launcher button — populated on mount.
+  const [dragConstraints, setDragConstraints] = useState<
+    { left: number; right: number; top: number; bottom: number } | undefined
+  >(undefined)
 
   const scrollRef = useRef<HTMLDivElement>(null)
+  // Refs for values needed inside stable callbacks (avoid stale closures).
+  const activeModuleRef = useRef(activeModule)
+  const isOpenRef = useRef(isOpen)
+  const isMinimizedRef = useRef(isMinimized)
+  useEffect(() => {
+    activeModuleRef.current = activeModule
+  }, [activeModule])
+  useEffect(() => {
+    isOpenRef.current = isOpen
+  }, [isOpen])
+  useEffect(() => {
+    isMinimizedRef.current = isMinimized
+  }, [isMinimized])
 
   const greeting: AnalyticsChatMessage = useMemo(
     () => ({
@@ -115,13 +150,34 @@ export function AIAssistant() {
     [activeModule],
   )
 
+  // Scan completed model turns for `[ACTION:ADD_RECON_PASS:<instruction>]` tags
+  // and re-emit them as window events the reconciliation rules step listens
+  // for. The visible transcript already has these tags stripped by the hook.
+  const handleMessageComplete = useCallback((raw: string) => {
+    if (activeModuleRef.current !== 'reconciliation') return
+    const matches = Array.from(raw.matchAll(/\[ACTION:ADD_RECON_PASS:(.*?)\]/g))
+    matches.forEach((m) => {
+      const instruction = m[1].trim()
+      if (!instruction) return
+      window.dispatchEvent(
+        new CustomEvent('ai-add-recon-pass', { detail: { instruction } }),
+      )
+    })
+  }, [])
+
   const { messages, isStreaming, sendMessage, setMessages } = useStreamingChat({
     initialMessages: [greeting],
+    onMessageComplete: handleMessageComplete,
   })
 
   // Reset conversation when module changes so the greeting reflects context.
+  // Also bump the unread badge if the widget is hidden, so the user notices
+  // the assistant has picked up the new module's data.
   useEffect(() => {
     setMessages([greeting])
+    if (!isOpenRef.current || isMinimizedRef.current) {
+      setUnreadCount((c) => c + 1)
+    }
   }, [greeting, setMessages])
 
   // Modules can publish context via window events (matches CPAAnalytics' pattern).
@@ -142,6 +198,29 @@ export function AIAssistant() {
   useEffect(() => {
     if (isOpen && !isMinimized) setUnreadCount(0)
   }, [isOpen, isMinimized])
+
+  // Compute drag constraints client-side (window is unavailable during SSR).
+  // Recomputed on resize so the bounds stay sensible if the viewport changes.
+  useEffect(() => {
+    const compute = () => {
+      setDragConstraints({
+        left: -window.innerWidth + 100,
+        right: 0,
+        top: -window.innerHeight + 100,
+        bottom: 0,
+      })
+    }
+    compute()
+    window.addEventListener('resize', compute)
+    return () => window.removeEventListener('resize', compute)
+  }, [])
+
+  const handleExport = (format: ChatTranscriptFormat) => {
+    void exportTranscript(messages, format, {
+      botLabel: 'ASSISTANT',
+      filenamePrefix: 'AI_Assistant',
+    })
+  }
 
   const send = async (text?: string) => {
     const messageText = (text ?? input).trim()
@@ -249,6 +328,31 @@ export function AIAssistant() {
                             >
                               <Copy size={12} />
                             </button>
+                            <div className="mx-0.5 h-3 w-px bg-border" />
+                            <button
+                              type="button"
+                              onClick={() => handleExport('pdf')}
+                              className="rounded p-1 text-[10px] font-bold text-foreground-muted hover:text-blue-600"
+                              title="Export PDF"
+                            >
+                              PDF
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleExport('word')}
+                              className="rounded p-1 text-[10px] font-bold text-foreground-muted hover:text-blue-600"
+                              title="Export Word"
+                            >
+                              DOC
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleExport('excel')}
+                              className="rounded p-1 text-[10px] font-bold text-foreground-muted hover:text-green-600"
+                              title="Export Excel"
+                            >
+                              XLS
+                            </button>
                           </div>
                         )}
                       </div>
@@ -320,11 +424,14 @@ export function AIAssistant() {
 
       <motion.button
         type="button"
+        drag
+        dragConstraints={dragConstraints}
+        dragMomentum={false}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(true)}
         className={cn(
-          'group pointer-events-auto relative flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-white shadow-2xl transition-colors hover:bg-slate-800',
+          'group pointer-events-auto relative flex h-14 w-14 cursor-grab items-center justify-center rounded-full bg-slate-900 text-white shadow-2xl transition-colors hover:bg-slate-800 active:cursor-grabbing',
           isOpen && 'hidden',
         )}
       >

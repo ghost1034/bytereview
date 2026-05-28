@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, Plus, Play, Sparkles, Trash2, Wand2, Zap } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -141,6 +141,54 @@ export function ReconciliationRulesStep({
     setPasses(next)
     await persistPasses(next)
   }
+
+  // The AI Assistant emits `ai-add-recon-pass` when the model decides a new
+  // matching pass is warranted (via `[ACTION:ADD_RECON_PASS:<instruction>]`).
+  // Reuse the same additional-pass mutation `handleRefine` uses, but driven
+  // by the event's instruction instead of the textbox. Refs keep the listener
+  // stable while still seeing the latest passes / availableRules.
+  const passesRef = useRef(passes)
+  const availableRulesRef = useRef(availableRules)
+  useEffect(() => {
+    passesRef.current = passes
+  }, [passes])
+  useEffect(() => {
+    availableRulesRef.current = availableRules
+  }, [availableRules])
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent).detail as { instruction?: string } | undefined
+      const instruction = detail?.instruction?.trim()
+      if (!instruction) return
+      void (async () => {
+        try {
+          const result = await additionalMutation.mutateAsync({
+            instructions: instruction,
+            availableRules: availableRulesRef.current as unknown as Record<string, unknown>,
+          })
+          const pass = (result.pass ?? null) as unknown as ReconciliationPass | null
+          if (!pass) {
+            toast({ title: 'AI returned no pass', variant: 'destructive' })
+            return
+          }
+          const next = [...passesRef.current, pass]
+          setPasses(next)
+          await persistPasses(next)
+          toast({ title: 'AI added a matching pass', description: pass.name })
+        } catch (error) {
+          toast({
+            title: 'AI pass suggestion failed',
+            description: error instanceof Error ? error.message : 'Try again.',
+            variant: 'destructive',
+          })
+        }
+      })()
+    }
+    window.addEventListener('ai-add-recon-pass', handler)
+    return () => window.removeEventListener('ai-add-recon-pass', handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const applyMatchResult = async (
     matchGroups: ReconciliationMatchGroup[],

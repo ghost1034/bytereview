@@ -14,6 +14,13 @@ export interface UseStreamingChatOptions {
   onUsage?: (usage: AnalyticsStreamUsage) => void
   onSession?: (session: AnalyticsStreamSession) => void
   onError?: (message: string) => void
+  /**
+   * Fires once the stream finishes successfully, with the raw assistant text
+   * including any control tags (e.g. `[ACTION:ADD_RECON_PASS:...]`). Consumers
+   * use this to detect frontend-actionable directives without having to
+   * re-derive the raw text from `messages` (which has those tags stripped).
+   */
+  onMessageComplete?: (rawContent: string) => void
 }
 
 export interface UseStreamingChatReturn {
@@ -39,8 +46,13 @@ export interface UseStreamingChatReturn {
  * the floating AI Assistant (`/api/analytics/assistant/stream`) and the IRS /
  * GAAP research bots (`/api/analytics/research/{bot}/stream`).
  */
+// Control tags the model embeds to drive frontend actions (e.g. the AI
+// Assistant tells the reconciliation module to add a new matching pass).
+// Stripped from the visible transcript and re-extracted via `onMessageComplete`.
+const ACTION_TAG_REGEX = /\[ACTION:ADD_RECON_PASS:.*?\]/g
+
 export function useStreamingChat(options: UseStreamingChatOptions = {}): UseStreamingChatReturn {
-  const { initialMessages = [], onUsage, onSession, onError } = options
+  const { initialMessages = [], onUsage, onSession, onError, onMessageComplete } = options
   const [messages, setMessages] = useState<AnalyticsChatMessage[]>(initialMessages)
   const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -101,12 +113,20 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}): UseStre
       const controller = new AbortController()
       abortRef.current = controller
 
+      // Accumulate the raw assistant text (including control tags) so the
+      // post-stream callback can scan it; the visible transcript stores the
+      // sanitized version. We accumulate locally rather than reading from the
+      // message state to avoid races with concurrent setState batches.
+      let rawContent = ''
+
       const appendChunk = (chunk: string) => {
+        rawContent += chunk
+        const displayContent = rawContent.replace(ACTION_TAG_REGEX, '')
         setMessages((prev) => {
           const next = [...prev]
           const last = next[next.length - 1]
           if (last && last.role === 'model') {
-            next[next.length - 1] = { ...last, content: last.content + chunk }
+            next[next.length - 1] = { ...last, content: displayContent }
           }
           return next
         })
@@ -167,9 +187,10 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}): UseStre
       } finally {
         abortRef.current = null
         setIsStreaming(false)
+        if (rawContent) onMessageComplete?.(rawContent)
       }
     },
-    [isStreaming, messages, onError, onUsage, onSession],
+    [isStreaming, messages, onError, onUsage, onSession, onMessageComplete],
   )
 
   return { messages, isStreaming, error, sessionId, title, sendMessage, stop, clear, setMessages, setSession }
