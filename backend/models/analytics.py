@@ -605,5 +605,40 @@ class AssistantStreamRequest(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+# ---------------------------------------------------------------------------
+# Comments (generic per-entity threads with @mentions)
+# ---------------------------------------------------------------------------
+
+
+class CommentCreateRequest(BaseModel):
+    entity_type: str = Field(..., min_length=1, max_length=48)
+    entity_id: str = Field(..., min_length=1, max_length=128)
+    body: str = Field(..., min_length=1)
+    parent_comment_id: Optional[str] = None
+    mentioned_user_ids: List[str] = Field(default_factory=list)
+
+
+class CommentUpdateRequest(BaseModel):
+    body: Optional[str] = Field(default=None, min_length=1)
+    mentioned_user_ids: Optional[List[str]] = None
+
+
+class CommentResponse(BaseModel):
+    id: str
+    firm_id: str
+    entity_type: str
+    entity_id: str
+    parent_comment_id: Optional[str] = None
+    author_user_id: str
+    body: str
+    mentioned_user_ids: List[str] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+
+class CommentListResponse(BaseModel):
+    comments: List[CommentResponse] = Field(default_factory=list)
+
+
 class BasicChatRequest(BaseModel):
     messages: List[ChatMessage] = Field(default_factory=list)

@@ -136,6 +136,31 @@ export interface ReconciliationContext {
   }
 }
 
+export interface VarianceContext {
+  variance: {
+    count: number
+    items: Array<{
+      id: string
+      name: string
+      status?: string
+      client?: string
+      /** e.g. "Single Period" | "Base vs Comparison". */
+      analysisType?: string
+      flaggedCount: number
+      reviewedCount: number
+    }>
+    /** Populated when an editor is open on a specific variance analysis. */
+    active?: {
+      id: string
+      step: 'upload' | 'mapping' | 'config' | 'review' | 'results'
+      flaggedCount: number
+      totalRows: number
+      thresholdDollar?: number
+      thresholdPercent?: number
+    }
+  }
+}
+
 /**
  * Discriminated by top-level key. The fallback `Record<string, unknown>` keeps
  * the contract open for modules whose payloads are added in Phases 5.4–5.7.
@@ -147,6 +172,7 @@ export type AnalyticsAIContext =
   | WaterfallContext
   | AmortizationContext
   | ReconciliationContext
+  | VarianceContext
   | Record<string, unknown>
 
 // --- Publisher -----------------------------------------------------------------

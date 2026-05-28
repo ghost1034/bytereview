@@ -1705,6 +1705,43 @@ export class ApiClient {
   }
 
   // ===========================================================================
+  // Analytics — comments (generic per-entity threads with @mentions)
+  // ===========================================================================
+
+  async listAnalyticsComments(
+    entityType: string,
+    entityId: string
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/comments']['get']>> {
+    const params = new URLSearchParams({ entity_type: entityType, entity_id: entityId })
+    return this.request(`/api/analytics/comments?${params.toString()}`)
+  }
+
+  async createAnalyticsComment(
+    data: ApiRequest<ApiPaths['/api/analytics/comments']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/comments']['post']>> {
+    return this.request('/api/analytics/comments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateAnalyticsComment(
+    commentId: string,
+    data: ApiRequest<ApiPaths['/api/analytics/comments/{comment_id}']['patch']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/comments/{comment_id}']['patch']>> {
+    return this.request(`/api/analytics/comments/${encodeURIComponent(commentId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteAnalyticsComment(commentId: string): Promise<{ success: boolean }> {
+    return this.request(`/api/analytics/comments/${encodeURIComponent(commentId)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // ===========================================================================
   // Analytics — streaming (research bots + AI assistant)
   // ===========================================================================
 

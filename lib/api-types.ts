@@ -2988,6 +2988,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/analytics/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Comments Route */
+        get: operations["list_comments_route_api_analytics_comments_get"];
+        put?: never;
+        /** Create Comment Route */
+        post: operations["create_comment_route_api_analytics_comments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/comments/{comment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Comment Route */
+        delete: operations["delete_comment_route_api_analytics_comments__comment_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Comment Route */
+        patch: operations["update_comment_route_api_analytics_comments__comment_id__patch"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3752,6 +3788,60 @@ export interface components {
             fiscal_year_end?: string | null;
             /** Notes */
             notes?: string | null;
+        };
+        /** CommentCreateRequest */
+        CommentCreateRequest: {
+            /** Entity Type */
+            entity_type: string;
+            /** Entity Id */
+            entity_id: string;
+            /** Body */
+            body: string;
+            /** Parent Comment Id */
+            parent_comment_id?: string | null;
+            /** Mentioned User Ids */
+            mentioned_user_ids?: string[];
+        };
+        /** CommentListResponse */
+        CommentListResponse: {
+            /** Comments */
+            comments?: components["schemas"]["CommentResponse"][];
+        };
+        /** CommentResponse */
+        CommentResponse: {
+            /** Id */
+            id: string;
+            /** Firm Id */
+            firm_id: string;
+            /** Entity Type */
+            entity_type: string;
+            /** Entity Id */
+            entity_id: string;
+            /** Parent Comment Id */
+            parent_comment_id?: string | null;
+            /** Author User Id */
+            author_user_id: string;
+            /** Body */
+            body: string;
+            /** Mentioned User Ids */
+            mentioned_user_ids?: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** CommentUpdateRequest */
+        CommentUpdateRequest: {
+            /** Body */
+            body?: string | null;
+            /** Mentioned User Ids */
+            mentioned_user_ids?: string[] | null;
         };
         /** ConfigStepRequest */
         ConfigStepRequest: {
@@ -12978,6 +13068,137 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_comments_route_api_analytics_comments_get: {
+        parameters: {
+            query: {
+                entity_type: string;
+                entity_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_comment_route_api_analytics_comments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_comment_route_api_analytics_comments__comment_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_comment_route_api_analytics_comments__comment_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentResponse"];
                 };
             };
             /** @description Validation Error */

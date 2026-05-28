@@ -203,8 +203,12 @@ export default function DataUploadFlow({ module, uploadType = 'bulk', varianceMo
           'Amount': ['Amount_USD', 'Value', 'Total', 'Cost'],
           'Total Amount': ['Amount_USD', 'Value', 'Total', 'Cost', 'Amount'],
           'Transaction Date': ['Txn_Date', 'Date', 'Posting Date'],
-          'Account Name/Number': ['Account', 'Account_ID', 'GL Account', 'Account Name'],
+          'Account Name/Number': ['Account', 'Account_ID', 'GL Account', 'Account Name', 'Account Number', 'Acct'],
           'Description': ['Desc', 'Memo', 'Details', 'Desc_Field'],
+          // Variance-specific column aliases
+          'Description/Memo': ['Description', 'Desc', 'Memo', 'Details', 'Notes', 'Memo/Description'],
+          'Period/Date': ['Period', 'Date', 'Posting Date', 'Txn_Date', 'Transaction Date', 'Month', 'Quarter', 'Fiscal Period'],
+          'Class/Department': ['Department', 'Class', 'Cost Center', 'Division', 'Dept'],
           // Waterfall bulk-upload header variants
           'Contract Name': ['Name', 'Schedule Name', 'Contract', 'Schedule'],
           'Party Name': ['Customer', 'Vendor', 'Counterparty', 'Client', 'Party', 'Supplier'],

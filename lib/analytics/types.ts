@@ -88,6 +88,12 @@ export type AnalyticsResearchStreamRequest = S['ResearchStreamRequest']
 // Usage metadata
 export type AnalyticsUsageMetadata = S['UsageMetadata']
 
+// Comments (generic per-entity threads with @mentions)
+export type AnalyticsComment = S['CommentResponse']
+export type AnalyticsCommentList = S['CommentListResponse']
+export type AnalyticsCommentCreateRequest = S['CommentCreateRequest']
+export type AnalyticsCommentUpdateRequest = S['CommentUpdateRequest']
+
 // Module IDs — used by the floating AI assistant to tailor the prompt.
 export type AnalyticsModuleId =
   | 'dashboard'

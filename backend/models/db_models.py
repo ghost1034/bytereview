@@ -736,6 +736,7 @@ class Firm(Base):
     chat_sessions = relationship("ChatSession", back_populates="firm", cascade="all, delete-orphan")
     journal_entries = relationship("JournalEntry", back_populates="firm", cascade="all, delete-orphan")
     audit_logs = relationship("AnalyticsAuditLog", back_populates="firm", cascade="all, delete-orphan")
+    comments = relationship("AnalyticsComment", back_populates="firm", cascade="all, delete-orphan")
 
 
 class Client(Base):
@@ -927,3 +928,36 @@ class AnalyticsAuditLog(Base):
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     firm = relationship("Firm", back_populates="audit_logs")
+
+
+class AnalyticsComment(Base):
+    """Generic comment thread keyed by (firm_id, entity_type, entity_id).
+
+    Designed for reuse across analytics modules — e.g. entity_type='variance_row'
+    with entity_id='<analysis_id>:<row_id>'. Replies use parent_comment_id;
+    @mentions are stored as a JSONB array of Firebase UIDs. Soft delete via
+    deleted_at.
+    """
+    __tablename__ = "analytics_comments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    entity_type = Column(String(48), nullable=False)
+    entity_id = Column(String(128), nullable=False)
+    parent_comment_id = Column(
+        UUID(as_uuid=True), ForeignKey("analytics_comments.id", ondelete="CASCADE"), nullable=True
+    )
+    author_user_id = Column(
+        String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=False
+    )
+    body = Column(Text, nullable=False)
+    mentioned_user_ids = Column(
+        JSONB, nullable=False, default=list, server_default=expression.text("'[]'::jsonb")
+    )
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+    deleted_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    firm = relationship("Firm", back_populates="comments")
