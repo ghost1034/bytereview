@@ -2935,6 +2935,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/analytics/reconciliation/{reconciliation_id}/exceptions/{txn_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Exception Route */
+        patch: operations["update_exception_route_api_analytics_reconciliation__reconciliation_id__exceptions__txn_id__patch"];
+        trace?: never;
+    };
     "/api/analytics/variance/threshold": {
         parameters: {
             query?: never;
@@ -3833,6 +3850,11 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /**
+             * Active Projects
+             * @default 0
+             */
+            active_projects: number;
         };
         /** ClientUpdateRequest */
         ClientUpdateRequest: {
@@ -6326,6 +6348,18 @@ export interface components {
             match_groups?: {
                 [key: string]: unknown;
             }[] | null;
+        };
+        /** ReconciliationExceptionUpdateRequest */
+        ReconciliationExceptionUpdateRequest: {
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "A" | "B";
+            /** Exceptionstatus */
+            exceptionStatus?: ("open" | "investigating" | "resolved" | "waived") | null;
+            /** Exceptionnote */
+            exceptionNote?: string | null;
         };
         /** ReconciliationListResponse */
         ReconciliationListResponse: {
@@ -12995,6 +13029,42 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_exception_route_api_analytics_reconciliation__reconciliation_id__exceptions__txn_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reconciliation_id: string;
+                txn_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReconciliationExceptionUpdateRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

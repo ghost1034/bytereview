@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LoadingState } from '@/components/ui/loading-state'
@@ -117,6 +118,7 @@ export default function AnalyticsClientsPage() {
     const rows = dataToExport.map((c) => ({
       'Client Name': c.name,
       Industry: c.industry || '',
+      'Active Projects': c.active_projects ?? 0,
       'Contact Name': c.contact_name || '',
       'Contact Email': c.contact_email || '',
       'Contact Phone': c.contact_phone || '',
@@ -147,6 +149,12 @@ export default function AnalyticsClientsPage() {
       accessorKey: 'industry',
       sortable: true,
       cell: (value) => value || <span className="text-foreground-subtle">—</span>,
+    },
+    {
+      header: 'Active projects',
+      accessorKey: 'active_projects',
+      sortable: true,
+      cell: (value) => <Badge variant="secondary">{(value as number) ?? 0}</Badge>,
     },
     {
       header: 'Contact',

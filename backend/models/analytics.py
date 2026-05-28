@@ -141,6 +141,7 @@ class ClientResponse(ClientBase):
     firm_id: str
     created_at: datetime
     updated_at: datetime
+    active_projects: int = 0
 
 
 class ClientListResponse(BaseModel):
