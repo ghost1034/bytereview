@@ -110,6 +110,32 @@ export interface AmortizationContext {
   }
 }
 
+export interface ReconciliationContext {
+  reconciliation: {
+    count: number
+    items: Array<{
+      id: string
+      name: string
+      status?: string
+      client?: string
+      sourceACount: number
+      sourceBCount: number
+      matchGroupCount: number
+      unmatchedCount: number
+    }>
+    /** Populated when an editor is open on a specific reconciliation. */
+    active?: {
+      id: string
+      step: 'upload' | 'rules' | 'results'
+      matchedGroups: number
+      approvedGroups: number
+      rejectedGroups: number
+      unmatchedA: number
+      unmatchedB: number
+    }
+  }
+}
+
 /**
  * Discriminated by top-level key. The fallback `Record<string, unknown>` keeps
  * the contract open for modules whose payloads are added in Phases 5.4–5.7.
@@ -120,6 +146,7 @@ export type AnalyticsAIContext =
   | TeamContext
   | WaterfallContext
   | AmortizationContext
+  | ReconciliationContext
   | Record<string, unknown>
 
 // --- Publisher -----------------------------------------------------------------

@@ -1578,6 +1578,133 @@ export class ApiClient {
   }
 
   // ===========================================================================
+  // Analytics — reconciliation (two-source matching with LLM-generated rules)
+  // ===========================================================================
+
+  /** LLM-generate matching rule passes from the column headers of both sources. */
+  async generateReconciliationRules(
+    data: ApiRequest<ApiPaths['/api/analytics/reconciliation/rules/generate']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/reconciliation/rules/generate']['post']>> {
+    return this.request('/api/analytics/reconciliation/rules/generate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  /** LLM-refine rules with natural-language instructions to produce one more pass. */
+  async generateAdditionalReconciliationPass(
+    data: ApiRequest<ApiPaths['/api/analytics/reconciliation/rules/additional']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/reconciliation/rules/additional']['post']>> {
+    return this.request('/api/analytics/reconciliation/rules/additional', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  /** LLM-execute the rule passes against both sources, returning match groups. */
+  async performReconciliationMatch(
+    data: ApiRequest<ApiPaths['/api/analytics/reconciliation/match']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/reconciliation/match']['post']>> {
+    return this.request('/api/analytics/reconciliation/match', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  /** Deterministic-ish basic reconciliation (no rule definitions needed). */
+  async reconcileBasic(
+    data: ApiRequest<ApiPaths['/api/analytics/reconciliation/basic']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/reconciliation/basic']['post']>> {
+    return this.request('/api/analytics/reconciliation/basic', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async listAnalyticsReconciliations(): Promise<
+    ApiResponse<ApiPaths['/api/analytics/reconciliation']['get']>
+  > {
+    return this.request('/api/analytics/reconciliation')
+  }
+
+  async createAnalyticsReconciliation(
+    data: ApiRequest<ApiPaths['/api/analytics/reconciliation']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/reconciliation']['post']>> {
+    return this.request('/api/analytics/reconciliation', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getAnalyticsReconciliation(
+    reconciliationId: string
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/reconciliation/{reconciliation_id}']['get']>> {
+    return this.request(`/api/analytics/reconciliation/${encodeURIComponent(reconciliationId)}`)
+  }
+
+  async updateAnalyticsReconciliation(
+    reconciliationId: string,
+    data: ApiRequest<ApiPaths['/api/analytics/reconciliation/{reconciliation_id}']['put']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/reconciliation/{reconciliation_id}']['put']>> {
+    return this.request(`/api/analytics/reconciliation/${encodeURIComponent(reconciliationId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteAnalyticsReconciliation(reconciliationId: string): Promise<{ success: boolean }> {
+    return this.request(`/api/analytics/reconciliation/${encodeURIComponent(reconciliationId)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  /** Manually pair selected unmatched rows into a new approved match group. */
+  async manualMatchReconciliation(
+    reconciliationId: string,
+    data: ApiRequest<
+      ApiPaths['/api/analytics/reconciliation/{reconciliation_id}/manual-match']['post']
+    >
+  ): Promise<
+    ApiResponse<ApiPaths['/api/analytics/reconciliation/{reconciliation_id}/manual-match']['post']>
+  > {
+    return this.request(
+      `/api/analytics/reconciliation/${encodeURIComponent(reconciliationId)}/manual-match`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    )
+  }
+
+  async approveReconciliationGroup(
+    reconciliationId: string,
+    groupId: string
+  ): Promise<
+    ApiResponse<
+      ApiPaths['/api/analytics/reconciliation/{reconciliation_id}/match-groups/{group_id}/approve']['post']
+    >
+  > {
+    return this.request(
+      `/api/analytics/reconciliation/${encodeURIComponent(reconciliationId)}/match-groups/${encodeURIComponent(groupId)}/approve`,
+      { method: 'POST' }
+    )
+  }
+
+  async rejectReconciliationGroup(
+    reconciliationId: string,
+    groupId: string
+  ): Promise<
+    ApiResponse<
+      ApiPaths['/api/analytics/reconciliation/{reconciliation_id}/match-groups/{group_id}/reject']['post']
+    >
+  > {
+    return this.request(
+      `/api/analytics/reconciliation/${encodeURIComponent(reconciliationId)}/match-groups/${encodeURIComponent(groupId)}/reject`,
+      { method: 'POST' }
+    )
+  }
+
+  // ===========================================================================
   // Analytics — streaming (research bots + AI assistant)
   // ===========================================================================
 
