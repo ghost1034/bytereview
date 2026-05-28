@@ -180,7 +180,7 @@ export function ComplianceTab() {
             <AlertDialogDescription>
               {purgeStep === 1
                 ? 'Are you absolutely sure you want to permanently delete all firm data? This action cannot be undone.'
-                : 'This will WIPE every client, project, analysis, reconciliation, amortization, chat session, journal entry, and audit log for this firm. Are you REALLY sure?'}
+                : 'This will WIPE every client, project, analysis, waterfall, reconciliation, amortization, chat session, journal entry, and audit log for this firm. Are you REALLY sure?'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

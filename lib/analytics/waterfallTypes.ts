@@ -77,6 +77,20 @@ export interface JournalEntry {
   memo: string
 }
 
+/**
+ * Subtype-specific expense-category presets used by the create/edit form's
+ * Expense Category dropdown. Mirrors CPAAnalytics' `expenseCategoriesList`.
+ * The "Other" entry surfaces a free-text input so users can type a custom
+ * category — anything not in the preset list is treated as custom.
+ */
+export const EXPENSE_CATEGORY_OPTIONS: Record<
+  'Prepaid Expenses' | 'Accrued Expenses',
+  readonly string[]
+> = {
+  'Prepaid Expenses': ['Insurance', 'Software/Subscriptions', 'Rent', 'Maintenance', 'Other'],
+  'Accrued Expenses': ['Bonuses', 'Payroll Taxes', 'Utilities', 'Professional Fees', 'Other'],
+} as const
+
 /** Default chart-of-accounts codes used when the form leaves an account blank. */
 export const DEFAULT_ACCOUNTS = {
   deferredAccount: '2400 — Deferred Revenue',

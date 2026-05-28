@@ -25,6 +25,7 @@ import { parseDocx, parsePDF } from '@/lib/analytics/fileParser'
 import { calculateWaterfall } from '@/lib/analytics/waterfallEngine'
 import type { SavedWaterfall } from '@/lib/analytics/waterfallData'
 import {
+  EXPENSE_CATEGORY_OPTIONS,
   RECOGNITION_METHODS,
   SUBTYPE_SAMPLE_DEFAULTS,
   WATERFALL_SUBTYPES,
@@ -155,6 +156,41 @@ export function WaterfallForm({ initial, onDone }: WaterfallFormProps) {
   const isCommission = form.type === 'Deferred Commission'
   const isDeferred = form.type === 'Deferred Revenue'
 
+  // Subtype-aware labels mirror CPAAnalytics' Waterfall labels (lines 1083-1086).
+  const amountLabel = isDeferred
+    ? 'Total contract value'
+    : isPrepaid
+      ? 'Total prepaid amount'
+      : isAccrued
+        ? 'Total estimated amount'
+        : 'Commission amount'
+  const startLabel = isAccrued
+    ? 'Accrual start date'
+    : isPrepaid
+      ? 'Coverage start date'
+      : isCommission
+        ? 'Benefit period start'
+        : 'Service start date'
+  const endLabel = isAccrued
+    ? 'Accrual end date'
+    : isPrepaid
+      ? 'Coverage end date'
+      : isCommission
+        ? 'Benefit period end'
+        : 'Service end date'
+  const methodLabel = isAccrued ? 'Accrual method' : 'Recognition method'
+  const paymentLabel = isCommission ? 'Commission payment date' : 'Payment date'
+
+  // Expense-category dropdown source for the current subtype (only meaningful
+  // for Prepaid/Accrued). `isCustomCategory` toggles a free-text input.
+  const categoryOptions: readonly string[] =
+    form.type === 'Prepaid Expenses' || form.type === 'Accrued Expenses'
+      ? EXPENSE_CATEGORY_OPTIONS[form.type]
+      : []
+  const isCustomCategory =
+    (isPrepaid || isAccrued) && !categoryOptions.includes(form.expenseCategory)
+  const CUSTOM_CATEGORY_SENTINEL = '__custom__'
+
   const hint = (key: string) => {
     const score = confidence[key]
     if (score == null) return null
@@ -277,7 +313,7 @@ export function WaterfallForm({ initial, onDone }: WaterfallFormProps) {
 
             <div className="space-y-1.5">
               <Label htmlFor="wf-amount">
-                Total amount {hint('totalAmount')}
+                {amountLabel} {hint('totalAmount')}
               </Label>
               <Input
                 id="wf-amount"
@@ -291,7 +327,7 @@ export function WaterfallForm({ initial, onDone }: WaterfallFormProps) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="wf-start">
-                  Start date {hint('startDate')}
+                  {startLabel} {hint('startDate')}
                 </Label>
                 <Input
                   id="wf-start"
@@ -302,7 +338,7 @@ export function WaterfallForm({ initial, onDone }: WaterfallFormProps) {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="wf-end">
-                  End date {hint('endDate')}
+                  {endLabel} {hint('endDate')}
                 </Label>
                 <Input
                   id="wf-end"
@@ -314,7 +350,7 @@ export function WaterfallForm({ initial, onDone }: WaterfallFormProps) {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="wf-method">Recognition method</Label>
+              <Label htmlFor="wf-method">{methodLabel}</Label>
               <Select
                 value={form.recognitionMethod}
                 onValueChange={(v) => set({ recognitionMethod: v as WaterfallFormState['recognitionMethod'] })}
@@ -335,18 +371,48 @@ export function WaterfallForm({ initial, onDone }: WaterfallFormProps) {
             {(isPrepaid || isAccrued) && (
               <div className="space-y-1.5">
                 <Label htmlFor="wf-category">Expense category</Label>
-                <Input
-                  id="wf-category"
-                  value={form.expenseCategory}
-                  onChange={(e) => set({ expenseCategory: e.target.value })}
-                  placeholder="Insurance"
-                />
+                <div className="flex gap-2">
+                  <Select
+                    value={isCustomCategory ? CUSTOM_CATEGORY_SENTINEL : form.expenseCategory}
+                    onValueChange={(v) => {
+                      if (v === CUSTOM_CATEGORY_SENTINEL) {
+                        set({ expenseCategory: '' })
+                      } else {
+                        set({ expenseCategory: v })
+                      }
+                    }}
+                  >
+                    <SelectTrigger
+                      id="wf-category"
+                      className={isCustomCategory ? 'w-1/3 shrink-0' : 'w-full'}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoryOptions.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value={CUSTOM_CATEGORY_SENTINEL}>Custom / Other…</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {isCustomCategory && (
+                    <Input
+                      className="flex-1"
+                      value={form.expenseCategory}
+                      onChange={(e) => set({ expenseCategory: e.target.value })}
+                      placeholder="Type custom category…"
+                      autoFocus
+                    />
+                  )}
+                </div>
               </div>
             )}
 
             {(isPrepaid || isCommission) && (
               <div className="space-y-1.5">
-                <Label htmlFor="wf-payment">Payment date</Label>
+                <Label htmlFor="wf-payment">{paymentLabel}</Label>
                 <Input
                   id="wf-payment"
                   type="date"
