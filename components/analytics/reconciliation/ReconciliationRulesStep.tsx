@@ -63,6 +63,11 @@ import {
   type ReconciliationTransaction,
   type UnmatchedException,
 } from '@/lib/analytics/reconciliationTypes'
+import {
+  INITIAL_GROUPS,
+  INITIAL_SOURCE_A,
+  INITIAL_SOURCE_B,
+} from '@/lib/analytics/mockReconData'
 
 const MATCH_TYPES: MatchGroupType[] = ['1:1', '1:Many', 'Many:1', 'Many:Many']
 
@@ -428,11 +433,36 @@ export function ReconciliationRulesStep({
       })
       onComplete()
     } catch (error) {
-      toast({
-        title: 'Match failed',
-        description: error instanceof Error ? error.message : 'Try again.',
-        variant: 'destructive',
-      })
+      // Demo fallback: when the live Gemini match call fails (no API key, blocked
+      // content, network, etc.), replace the reconciliation's sources and groups
+      // with the bundled sample data so the user still lands on a usable Results
+      // step. Mirrors CPAAnalytics' Reconciliation.tsx behavior.
+      try {
+        await updateMutation.mutateAsync({
+          reconciliationId,
+          data: {
+            source_a: INITIAL_SOURCE_A as unknown as Record<string, unknown>[],
+            source_b: INITIAL_SOURCE_B as unknown as Record<string, unknown>[],
+            match_groups: INITIAL_GROUPS as unknown as Record<string, unknown>[],
+          },
+        })
+        toast({
+          title: 'Live match unavailable — loaded sample reconciliation',
+          description: error instanceof Error ? error.message : 'Showing demo data.',
+        })
+        onComplete()
+      } catch (fallbackError) {
+        toast({
+          title: 'Match failed',
+          description:
+            fallbackError instanceof Error
+              ? fallbackError.message
+              : error instanceof Error
+                ? error.message
+                : 'Try again.',
+          variant: 'destructive',
+        })
+      }
     }
   }
 

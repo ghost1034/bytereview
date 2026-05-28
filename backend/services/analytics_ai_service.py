@@ -288,9 +288,11 @@ For each group, provide a clear explanation referencing dates, descriptions, and
 2. `unmatchedExceptions`: every transaction id from either source that is NOT included in any match group. For each, classify the reason using one of:
 - TIMING — likely matches across a different cutoff period (date crosses period boundary).
 - BANK_FEE — small charge from the bank side with no corresponding ledger entry.
+- AMOUNT_MISMATCH — a 1:1-like counterpart exists but the amounts differ by a small delta.
+- MISSING_COMPONENT — a 1:Many would have matched but one or more components on the multi side are absent (the partial sum is short or over).
+- RECON_VARIANCE — a Many:1 would have matched but the components on the multi side don't sum to the target (a delta remains after summing).
+- COMPLEX_VARIANCE — a Many:Many candidate where no valid subset of either side sums to a clean match.
 - MISSING — counterpart appears entirely absent from the other source.
-- AMOUNT_MISMATCH — likely counterpart exists but amounts differ.
-- OTHER — none of the above.
 
 For each exception, include `id`, `source` ("A" or "B"), `exceptionCategory`, and a one-sentence `exceptionReasoning` that names the specific evidence.
 Every unmatched transaction must appear in exactly one of `unmatchedExceptions`. Do not leave matched transactions in `unmatchedExceptions`.
@@ -332,7 +334,15 @@ Every unmatched transaction must appear in exactly one of `unmatchedExceptions`.
             "source": types.Schema(type="STRING", enum=["A", "B"]),
             "exceptionCategory": types.Schema(
                 type="STRING",
-                enum=["TIMING", "BANK_FEE", "MISSING", "AMOUNT_MISMATCH", "OTHER"],
+                enum=[
+                    "TIMING",
+                    "BANK_FEE",
+                    "AMOUNT_MISMATCH",
+                    "MISSING_COMPONENT",
+                    "RECON_VARIANCE",
+                    "COMPLEX_VARIANCE",
+                    "MISSING",
+                ],
             ),
             "exceptionReasoning": types.Schema(type="STRING"),
         },
