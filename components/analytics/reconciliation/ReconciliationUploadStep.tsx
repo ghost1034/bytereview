@@ -15,11 +15,13 @@ import {
 interface ReconciliationUploadStepProps {
   reconciliationId: string
   onComplete: () => void
+  locked?: boolean
 }
 
 export function ReconciliationUploadStep({
   reconciliationId,
   onComplete,
+  locked = false,
 }: ReconciliationUploadStepProps) {
   const { toast } = useToast()
   const updateMutation = useUpdateAnalyticsReconciliation()
@@ -99,7 +101,11 @@ export function ReconciliationUploadStep({
         </AlertDescription>
       </Alert>
 
-      {isProcessing ? (
+      {locked ? (
+        <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-foreground-muted">
+          This reconciliation is finalized. Reopen it to upload new sources.
+        </div>
+      ) : isProcessing ? (
         <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card p-12 text-sm text-foreground-muted">
           <Loader2 className="size-4 animate-spin" aria-hidden /> Saving sources to reconciliation…
         </div>

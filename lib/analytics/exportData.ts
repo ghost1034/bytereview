@@ -58,3 +58,47 @@ export async function exportRows(
     triggerDownload(`${fileBase}.csv`, Papa.unparse(rows), 'csv')
   }
 }
+
+/**
+ * Export multiple named row-sets. Excel writes one sheet per section; CSV/JSON
+ * concatenate the sections with a separator/wrapper. Used by Reconciliation's
+ * Full Reconciliation Report (Summary / Matched / Unmatched / Exceptions sheets).
+ */
+export async function exportRowsMultiSheet(
+  sections: { sheetName: string; rows: ExportRow[] }[],
+  format: ExportFormat,
+  filenamePrefix: string,
+): Promise<void> {
+  const dateStr = new Date().toISOString().split('T')[0]
+  const fileBase = `${filenamePrefix}_${dateStr}`
+
+  if (format === 'csv') {
+    const parts = sections.map(
+      (s) => `# ${s.sheetName}\n${Papa.unparse(s.rows)}`,
+    )
+    triggerDownload(`${fileBase}.csv`, parts.join('\n\n'), 'csv')
+    return
+  }
+
+  if (format === 'json') {
+    const payload: Record<string, ExportRow[]> = {}
+    for (const s of sections) payload[s.sheetName] = s.rows
+    triggerDownload(`${fileBase}.json`, JSON.stringify(payload, null, 2), 'json')
+    return
+  }
+
+  try {
+    const XLSX = await import('xlsx')
+    const workbook = XLSX.utils.book_new()
+    for (const s of sections) {
+      const ws = XLSX.utils.json_to_sheet(s.rows)
+      XLSX.utils.book_append_sheet(workbook, ws, s.sheetName.slice(0, 31))
+    }
+    XLSX.writeFile(workbook, `${fileBase}.xlsx`)
+  } catch {
+    const parts = sections.map(
+      (s) => `# ${s.sheetName}\n${Papa.unparse(s.rows)}`,
+    )
+    triggerDownload(`${fileBase}.csv`, parts.join('\n\n'), 'csv')
+  }
+}

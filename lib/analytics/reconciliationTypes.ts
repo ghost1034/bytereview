@@ -15,6 +15,8 @@ export type MatchGroupType = '1:1' | '1:Many' | 'Many:1' | 'Many:Many'
 
 export type MatchGroupStatus = 'suggested' | 'approved' | 'rejected' | 'matched'
 
+export type ExceptionStatus = 'open' | 'investigating' | 'resolved' | 'waived'
+
 export interface ReconciliationTransaction {
   id: string
   date: string
@@ -25,6 +27,8 @@ export interface ReconciliationTransaction {
   matchGroupId?: string
   exceptionCategory?: string
   exceptionReasoning?: string
+  exceptionStatus?: ExceptionStatus
+  exceptionNote?: string
   /** Pass-through columns from the uploaded file. */
   [key: string]: unknown
 }

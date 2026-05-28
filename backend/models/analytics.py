@@ -25,6 +25,7 @@ ProjectModuleLiteral = Literal[
 ]
 ReconciliationStatusLiteral = Literal["draft", "in_review", "approved", "finalized"]
 ReconciliationGroupStatusLiteral = Literal["approved", "rejected"]
+ReconciliationExceptionStatusLiteral = Literal["open", "investigating", "resolved", "waived"]
 
 
 # ---------------------------------------------------------------------------
@@ -260,6 +261,16 @@ class ReconciliationManualMatchRequest(BaseModel):
     source_a_ids: List[str] = Field(..., alias="sourceAIds", min_length=1)
     source_b_ids: List[str] = Field(..., alias="sourceBIds", min_length=1)
     explanation: Optional[str] = None
+
+    model_config = {"populate_by_name": True}
+
+
+class ReconciliationExceptionUpdateRequest(BaseModel):
+    source: Literal["A", "B"]
+    exception_status: Optional[ReconciliationExceptionStatusLiteral] = Field(
+        default=None, alias="exceptionStatus"
+    )
+    exception_note: Optional[str] = Field(default=None, alias="exceptionNote", max_length=2000)
 
     model_config = {"populate_by_name": True}
 

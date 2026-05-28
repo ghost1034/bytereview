@@ -232,6 +232,58 @@ def manual_match(
     return row
 
 
+def update_exception(
+    db: Session,
+    firm_id,
+    user_id: str,
+    reconciliation_id: str,
+    txn_id: str,
+    *,
+    payload,
+) -> Reconciliation:
+    """Update the exception status / note for a single unmatched txn in source_a or source_b."""
+    row = get_reconciliation(db, firm_id, reconciliation_id)
+
+    side = payload.source
+    column = "source_a" if side == "A" else "source_b"
+    rows: List[Dict[str, Any]] = list(getattr(row, column) or [])
+
+    target_idx = _find_txn_index(rows, txn_id)
+    if target_idx is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Transaction '{txn_id}' not found in source {side}",
+        )
+
+    data = payload.model_dump(exclude_unset=True, by_alias=False)
+    new_txn = dict(rows[target_idx])
+    if "exception_status" in data:
+        new_txn["exceptionStatus"] = data["exception_status"]
+    if "exception_note" in data:
+        new_txn["exceptionNote"] = data["exception_note"]
+    rows[target_idx] = new_txn
+
+    setattr(row, column, rows)
+    flag_modified(row, column)
+
+    db.commit()
+    db.refresh(row)
+
+    record_audit(
+        db,
+        firm_id=firm_id,
+        user_id=user_id,
+        action="reconciliation.exception_updated",
+        details={
+            "reconciliation_id": str(row.id),
+            "txn_id": txn_id,
+            "source": side,
+            "updates": {k: v for k, v in data.items() if k in ("exception_status", "exception_note")},
+        },
+    )
+    return row
+
+
 def set_match_group_status(
     db: Session,
     firm_id,

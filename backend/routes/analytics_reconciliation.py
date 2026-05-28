@@ -14,6 +14,7 @@ from models.analytics import (
     ReconciliationAdditionalPassResponse,
     ReconciliationBasicRequest,
     ReconciliationCreateRequest,
+    ReconciliationExceptionUpdateRequest,
     ReconciliationListResponse,
     ReconciliationManualMatchRequest,
     ReconciliationMatchRequest,
@@ -283,5 +284,24 @@ async def reject_match_group_route(
     return _record_to_response(
         reconciliations_service.set_match_group_status(
             db, firm_id, actor.id, reconciliation_id, group_id, "rejected"
+        )
+    )
+
+
+@router.patch(
+    "/{reconciliation_id}/exceptions/{txn_id}",
+    response_model=ReconciliationRecord,
+)
+async def update_exception_route(
+    reconciliation_id: str,
+    txn_id: str,
+    payload: ReconciliationExceptionUpdateRequest,
+    actor: User = Depends(require_role(*WRITER_ROLES)),
+    db: Session = Depends(get_db),
+):
+    firm_id = require_firm_id(db, actor.id)
+    return _record_to_response(
+        reconciliations_service.update_exception(
+            db, firm_id, actor.id, reconciliation_id, txn_id, payload=payload
         )
     )

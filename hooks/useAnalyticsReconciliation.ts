@@ -183,3 +183,31 @@ export function useRejectReconciliationGroup() {
     },
   })
 }
+
+export function useUpdateReconciliationException() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: ({
+      reconciliationId,
+      txnId,
+      data,
+    }: {
+      reconciliationId: string
+      txnId: string
+      data: {
+        source: 'A' | 'B'
+        exceptionStatus?: 'open' | 'investigating' | 'resolved' | 'waived'
+        exceptionNote?: string
+      }
+    }) => apiClient.updateReconciliationException(reconciliationId, txnId, data),
+    onSuccess: (response, { reconciliationId }) => {
+      queryClient.setQueryData<AnalyticsReconciliation>(
+        reconciliationItemKey(user?.uid, reconciliationId),
+        response,
+      )
+      queryClient.invalidateQueries({ queryKey: reconciliationKey(user?.uid) })
+    },
+  })
+}

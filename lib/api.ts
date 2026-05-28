@@ -1719,6 +1719,33 @@ export class ApiClient {
     )
   }
 
+  /**
+   * Update an unmatched transaction's exception status / note. Manually typed —
+   * regenerate `api-types` once the backend is running to fold this into the
+   * generated `ApiPaths`. Returns the full reconciliation record.
+   */
+  async updateReconciliationException(
+    reconciliationId: string,
+    txnId: string,
+    data: {
+      source: 'A' | 'B'
+      exceptionStatus?: 'open' | 'investigating' | 'resolved' | 'waived'
+      exceptionNote?: string
+    }
+  ): Promise<
+    ApiResponse<
+      ApiPaths['/api/analytics/reconciliation/{reconciliation_id}']['get']
+    >
+  > {
+    return this.request(
+      `/api/analytics/reconciliation/${encodeURIComponent(reconciliationId)}/exceptions/${encodeURIComponent(txnId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }
+    )
+  }
+
   // ===========================================================================
   // Analytics — variance (flux analysis on `analyses` rows, type='variance')
   // ===========================================================================

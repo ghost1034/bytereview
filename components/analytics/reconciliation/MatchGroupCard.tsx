@@ -21,6 +21,7 @@ interface MatchGroupCardProps {
   group: ReconciliationMatchGroup
   sourceA: ReconciliationTransaction[]
   sourceB: ReconciliationTransaction[]
+  locked?: boolean
 }
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -35,6 +36,7 @@ export function MatchGroupCard({
   group,
   sourceA,
   sourceB,
+  locked = false,
 }: MatchGroupCardProps) {
   const { toast } = useToast()
   const approveMutation = useApproveReconciliationGroup()
@@ -53,6 +55,7 @@ export function MatchGroupCard({
   const isPending = approveMutation.isPending || rejectMutation.isPending
   const status = String(group.status ?? 'suggested')
   const isFinal = status === 'approved' || status === 'rejected'
+  const confidencePct = Math.max(0, Math.min(1, group.confidence)) * 100
 
   const handleApprove = async () => {
     try {
@@ -86,12 +89,19 @@ export function MatchGroupCard({
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline">{group.type}</Badge>
           <Badge variant={STATUS_VARIANT[status] ?? 'secondary'}>{status}</Badge>
-          <span className="inline-flex items-center gap-1 text-xs text-foreground-muted">
+          <div className="inline-flex items-center gap-1.5 text-xs text-foreground-muted">
             <Sparkles className="size-3" aria-hidden />
-            {(group.confidence * 100).toFixed(0)}% confidence
-          </span>
+            <div className="h-1.5 w-20 overflow-hidden rounded-full bg-surface-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${confidencePct}%` }}
+                aria-label={`Confidence ${confidencePct.toFixed(0)}%`}
+              />
+            </div>
+            <span className="tabular-nums">{confidencePct.toFixed(0)}%</span>
+          </div>
         </div>
-        {!isFinal && (
+        {!isFinal && !locked && (
           <div className="flex items-center gap-1.5">
             <Button size="sm" variant="outline" onClick={handleReject} disabled={isPending}>
               {rejectMutation.isPending ? (
