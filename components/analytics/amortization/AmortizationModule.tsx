@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LoadingState } from '@/components/ui/loading-state'
 import { PageHeader } from '@/components/ui/page-header'
+import { ClientSelector, type ClientSelection } from '@/components/analytics/ClientSelector'
 import { useAnalyticsAmortizations } from '@/hooks/useAnalyticsAmortization'
 import { useAnalyticsClients } from '@/hooks/useAnalyticsClients'
 import { computeNbv, summarizePortfolio } from '@/lib/analytics/amortizationHelpers'
@@ -23,9 +24,13 @@ import { AmortizationList } from './AmortizationList'
 import { AmortizationReports } from './AmortizationReports'
 import { DisposalDialog } from './DisposalDialog'
 
-type View = 'list' | 'create' | 'reports' | 'bulk' | 'journal'
+type View = 'client' | 'list' | 'create' | 'reports' | 'bulk' | 'journal'
 
 const HEADER: Record<View, { title: string; description: string }> = {
+  client: {
+    title: 'Fixed Assets',
+    description: 'Select a client to start the fixed assets workflow.',
+  },
   list: {
     title: 'Amortization',
     description:
@@ -54,10 +59,15 @@ export function AmortizationModule() {
   const { data: clientsData } = useAnalyticsClients()
   const clients = useMemo(() => clientsData?.clients ?? [], [clientsData])
 
-  const [view, setView] = useState<View>('list')
+  const [view, setView] = useState<View>('client')
   const [editing, setEditing] = useState<AnalyticsAmortization | null>(null)
   const [disposalTarget, setDisposalTarget] = useState<AnalyticsAmortization | null>(null)
   const [clientFilter, setClientFilter] = useState<string | null>(null)
+
+  const handleSelectClient = (selection: ClientSelection) => {
+    setClientFilter(selection.id === 'general' ? null : selection.id)
+    setView('list')
+  }
 
   const rows = useMemo<AnalyticsAmortization[]>(() => data?.amortizations ?? [], [data])
   const filtered = useMemo(
@@ -103,6 +113,17 @@ export function AmortizationModule() {
 
   const header = HEADER[view]
 
+  if (view === 'client') {
+    return (
+      <ClientSelector
+        onSelectClient={handleSelectClient}
+        title="Fixed Assets"
+        description="Select a client to start the fixed assets workflow."
+        allowGeneral
+      />
+    )
+  }
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -120,7 +141,7 @@ export function AmortizationModule() {
       {isLoading ? (
         <LoadingState variant="table" label="Loading assets" />
       ) : view === 'create' ? (
-        <AmortizationForm initial={editing} onDone={goList} />
+        <AmortizationForm initial={editing} initialClientId={clientFilter} onDone={goList} />
       ) : view === 'reports' ? (
         <AmortizationReports rows={filtered} clients={clients} onBack={goList} />
       ) : view === 'bulk' ? (
@@ -149,6 +170,7 @@ export function AmortizationModule() {
           clients={clients}
           clientFilter={clientFilter}
           onClientFilterChange={setClientFilter}
+          onChangeClient={() => setView('client')}
           onNew={() => setView('create')}
           onBulk={() => setView('bulk')}
           onReports={() => setView('reports')}

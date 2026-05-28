@@ -56,6 +56,8 @@ const NO_CLIENT = '__none__'
 
 interface AmortizationFormProps {
   initial?: AnalyticsAmortization | null
+  /** Pre-fills the client dropdown for new assets when no `initial` is set. */
+  initialClientId?: string | null
   onDone: () => void
 }
 
@@ -84,7 +86,7 @@ function gaapMethodKey(form: AmortizationFormState): ScheduleMethodKey {
   return 'straight_line'
 }
 
-export function AmortizationForm({ initial, onDone }: AmortizationFormProps) {
+export function AmortizationForm({ initial, initialClientId, onDone }: AmortizationFormProps) {
   const { toast } = useToast()
   const { data: clientsData } = useAnalyticsClients()
   const clients = clientsData?.clients ?? []
@@ -99,7 +101,9 @@ export function AmortizationForm({ initial, onDone }: AmortizationFormProps) {
   const [form, setForm] = useState<AmortizationFormState>(
     () => (initial ? mergeFormFromApi(initial) : createDefaultAmortizationForm()),
   )
-  const [clientId, setClientId] = useState<string | null>(initial?.client_id ?? null)
+  const [clientId, setClientId] = useState<string | null>(
+    initial?.client_id ?? initialClientId ?? null,
+  )
   const [confidence, setConfidence] = useState<Record<string, number>>({})
   const [extracting, setExtracting] = useState(false)
   const [schedule, setSchedule] = useState<ScheduleRow[]>(

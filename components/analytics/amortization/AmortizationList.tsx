@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import {
   BookOpen,
+  Building2,
   FileText,
   Loader2,
   Pencil,
@@ -50,6 +51,7 @@ interface AmortizationListProps {
   clients: AnalyticsClient[]
   clientFilter: string | null
   onClientFilterChange: (clientId: string | null) => void
+  onChangeClient: () => void
   onNew: () => void
   onBulk: () => void
   onReports: () => void
@@ -63,6 +65,7 @@ export function AmortizationList({
   clients,
   clientFilter,
   onClientFilterChange,
+  onChangeClient,
   onNew,
   onBulk,
   onReports,
@@ -265,6 +268,9 @@ export function AmortizationList({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={onChangeClient}>
+            <Building2 className="mr-1.5 size-4" aria-hidden /> Switch client
+          </Button>
           <Button variant="outline" onClick={onJournal}>
             <BookOpen className="mr-1.5 size-4" aria-hidden /> Journal entries
           </Button>
