@@ -36,6 +36,14 @@ export type AnalyticsAnalysisCreateRequest = S['AnalysisCreateRequest']
 export type AnalyticsAnalysisUpdateRequest = S['AnalysisUpdateRequest']
 export type AnalyticsAnalysisList = S['AnalysisListResponse']
 
+// Variance LLM
+export type AnalyticsVarianceThresholdRequest = S['VarianceThresholdRequest']
+export type AnalyticsVarianceThresholdResponse = S['VarianceThresholdResponse']
+export type AnalyticsVarianceAnalyzeRequest = S['VarianceAnalyzeRequest']
+export type AnalyticsVarianceAnalyzeResponse = S['VarianceAnalyzeResponse']
+export type AnalyticsVarianceMemoRequest = S['VarianceMemoRequest']
+export type AnalyticsVarianceMemoResponse = S['VarianceMemoResponse']
+
 // Waterfall LLM extraction
 export type AnalyticsWaterfallExtractRequest = S['WaterfallExtractRequest']
 export type AnalyticsWaterfallExtractResponse = S['WaterfallExtractResponse']

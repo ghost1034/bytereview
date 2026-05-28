@@ -1705,6 +1705,77 @@ export class ApiClient {
   }
 
   // ===========================================================================
+  // Analytics — variance (flux analysis on `analyses` rows, type='variance')
+  // ===========================================================================
+
+  /** LLM-suggest materiality thresholds ($ + %) from a raw GL sample. */
+  async suggestVarianceThreshold(
+    data: ApiRequest<ApiPaths['/api/analytics/variance/threshold']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/variance/threshold']['post']>> {
+    return this.request('/api/analytics/variance/threshold', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  /** LLM-generate per-row variance explanations for flagged rows. */
+  async analyzeVariance(
+    data: ApiRequest<ApiPaths['/api/analytics/variance/analyze']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/variance/analyze']['post']>> {
+    return this.request('/api/analytics/variance/analyze', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  /** LLM-generate a markdown variance memo. */
+  async generateVarianceMemo(
+    data: ApiRequest<ApiPaths['/api/analytics/variance/memo']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/variance/memo']['post']>> {
+    return this.request('/api/analytics/variance/memo', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async listAnalyticsVariances(): Promise<
+    ApiResponse<ApiPaths['/api/analytics/variance']['get']>
+  > {
+    return this.request('/api/analytics/variance')
+  }
+
+  async createAnalyticsVariance(
+    data: ApiRequest<ApiPaths['/api/analytics/variance']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/variance']['post']>> {
+    return this.request('/api/analytics/variance', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getAnalyticsVariance(
+    analysisId: string
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/variance/{analysis_id}']['get']>> {
+    return this.request(`/api/analytics/variance/${encodeURIComponent(analysisId)}`)
+  }
+
+  async updateAnalyticsVariance(
+    analysisId: string,
+    data: ApiRequest<ApiPaths['/api/analytics/variance/{analysis_id}']['put']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/variance/{analysis_id}']['put']>> {
+    return this.request(`/api/analytics/variance/${encodeURIComponent(analysisId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteAnalyticsVariance(analysisId: string): Promise<{ success: boolean }> {
+    return this.request(`/api/analytics/variance/${encodeURIComponent(analysisId)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // ===========================================================================
   // Analytics — comments (generic per-entity threads with @mentions)
   // ===========================================================================
 
