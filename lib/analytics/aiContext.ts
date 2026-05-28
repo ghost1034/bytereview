@@ -85,6 +85,31 @@ export interface WaterfallContext {
   }
 }
 
+export interface AmortizationContext {
+  amortization: {
+    count: number
+    /** ISO date the NBV figures are computed as-of (defaults to today). */
+    asOf?: string
+    totals?: {
+      costBasis: number
+      nbv: number
+      monthlyExpense: number
+    }
+    items: Array<{
+      id: string
+      assetName: string
+      assetType: string
+      costBasis: number
+      nbv?: number
+      gaapMethod?: string
+      taxMethod?: string
+      status?: string
+      startDate?: string
+      client?: string
+    }>
+  }
+}
+
 /**
  * Discriminated by top-level key. The fallback `Record<string, unknown>` keeps
  * the contract open for modules whose payloads are added in Phases 5.4–5.7.
@@ -94,6 +119,7 @@ export type AnalyticsAIContext =
   | ProjectsContext
   | TeamContext
   | WaterfallContext
+  | AmortizationContext
   | Record<string, unknown>
 
 // --- Publisher -----------------------------------------------------------------
