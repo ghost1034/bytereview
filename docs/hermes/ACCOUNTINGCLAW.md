@@ -12,9 +12,12 @@ This implementation uses Option B from `docs/hermes/HERMES_AGENT.md`:
 - A dev escape hatch (`CPAA_BUNDLE_SECRET`) still decrypts directly for local builds/tests.
 - The bundled product is AccountingClaw only.
 
-> Temporary gate: today the web activation page requires a universal six-digit code
-> (backend `CPAA_ACTIVATION_CODE`). This is throwaway — the permanent design replaces
-> the code with a payment step. The per-customer key mechanism below stays.
+> Temporary gate: today the web activation page requires a valid six-digit code. Valid
+> codes are an enable/disable allowlist in the `activation_codes` table (managed directly
+> via SQL — add a row to mint a code, flip `active` to false to kill one). This replaced
+> the single universal `CPAA_ACTIVATION_CODE` env value, which is no longer read at runtime.
+> The whole code gate is throwaway — the permanent design replaces it with a payment step.
+> The per-customer key mechanism below stays.
 
 ## Files
 
@@ -198,9 +201,12 @@ The bundle is still encrypted at build time with a single `CPAA_BUNDLE_SECRET`, 
 secret is **never** distributed to customers. Instead the backend holds it and hands it out
 only to holders of a valid per-customer activation key. Endpoints (`backend/routes/activation.py`):
 
-- `POST /api/activation/activate` (Firebase-authed) — the signed-in user enters the universal
-  six-digit code (`CPAA_ACTIVATION_CODE`) and is issued a personal key `cpaa_live_<random>`,
-  shown exactly once. Only a SHA-256 hash is stored (`activation_keys` table).
+- `POST /api/activation/activate` (Firebase-authed) — the signed-in user enters a six-digit
+  code; if it matches an `active` row in the `activation_codes` table they are issued a
+  personal key `cpaa_live_<random>`, shown exactly once. Only a SHA-256 hash is stored
+  (`activation_keys` table). Manage valid codes with SQL:
+  `INSERT INTO activation_codes (id, code, active) VALUES (gen_random_uuid(), '482910', true);`
+  to add one, `UPDATE activation_codes SET active = false WHERE code = '482910';` to disable.
 - `GET /api/activation/me` (Firebase-authed) — activation status for the dashboard (never the
   full key).
 - `POST /api/activation/resolve` (key-authed, not Firebase) — the container exchanges its key

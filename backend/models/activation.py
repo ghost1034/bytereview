@@ -9,7 +9,7 @@ from models.common import BaseResponse
 
 
 class ActivateRequest(BaseModel):
-    """Redeem the universal six-digit activation code."""
+    """Redeem a six-digit activation code from the activation_codes allowlist."""
     code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 

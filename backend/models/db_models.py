@@ -140,6 +140,23 @@ class ActivationKey(Base):
         ),
     )
 
+
+class ActivationCode(Base):
+    """A six-digit code that may be redeemed for an AccountingClaw activation key.
+
+    Replaces the single universal CPAA_ACTIVATION_CODE env value. Multiple codes may
+    be valid at once; each is reusable by many users and can be disabled by flipping
+    ``active`` to false. Codes are managed directly in the database (insert/update).
+    """
+    __tablename__ = "activation_codes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    code = Column(String(6), nullable=False, unique=True)  # the six-digit code, plaintext
+    active = Column(Boolean, nullable=False, server_default=expression.true())
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+
 class DataType(Base):
     """Canonical list of supported data types for extraction"""
     __tablename__ = "data_types"

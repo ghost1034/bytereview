@@ -12,9 +12,10 @@ Only a SHA-256 hash of each key is stored. ``key_lookup`` (a non-secret prefix o
 the random part) gives an indexed lookup; the full key is then verified with a
 constant-time hash comparison.
 
-NOTE (temporary): the six-digit code is universal and read from CPAA_ACTIVATION_CODE.
-The permanent design replaces this code check with a payment check — the per-user
-key mechanism below stays.
+NOTE (temporary): valid six-digit codes are an enable/disable allowlist in the
+``activation_codes`` table (managed directly via SQL), replacing the single universal
+CPAA_ACTIVATION_CODE env value. The permanent design replaces this code check with a
+payment check — the per-user key mechanism below stays.
 """
 import hashlib
 import hmac
@@ -36,7 +37,7 @@ from models.activation import (
     ResolveRequest,
     ResolveResponse,
 )
-from models.db_models import ActivationKey
+from models.db_models import ActivationCode, ActivationKey
 from services.rate_limit import rate_limiter
 
 logger = logging.getLogger(__name__)
@@ -77,21 +78,21 @@ def _client_ip(request: Request) -> str:
 
 @router.post("/activate", response_model=ActivateResponse)
 async def activate(req: ActivateRequest, user_id: str = Depends(get_current_user_id)):
-    """Redeem the universal six-digit code and mint (or return) the user's key."""
+    """Redeem an active six-digit code and mint (or return) the user's key."""
     if not rate_limiter.check("activate", user_id, limit=10, window_seconds=900):
         raise HTTPException(status_code=429, detail="Too many activation attempts. Try again later.")
 
-    expected_code = os.getenv("CPAA_ACTIVATION_CODE")
-    if not expected_code:
-        logger.error("CPAA_ACTIVATION_CODE is not configured on the backend")
-        raise HTTPException(status_code=503, detail="Activation is not currently available.")
-
-    if not hmac.compare_digest(req.code, expected_code):
-        logger.info("Activation code mismatch for user_id=%s", user_id)
-        raise HTTPException(status_code=403, detail="Invalid activation code.")
-
     db = db_config.get_session()
     try:
+        code_row = (
+            db.query(ActivationCode)
+            .filter(ActivationCode.code == req.code, ActivationCode.active.is_(True))
+            .first()
+        )
+        if code_row is None:
+            logger.info("Activation code rejected for user_id=%s", user_id)
+            raise HTTPException(status_code=403, detail="Invalid activation code.")
+
         existing = (
             db.query(ActivationKey)
             .filter(ActivationKey.user_id == user_id, ActivationKey.revoked_at.is_(None))
