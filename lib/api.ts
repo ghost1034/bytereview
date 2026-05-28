@@ -1489,6 +1489,95 @@ export class ApiClient {
   }
 
   // ===========================================================================
+  // Analytics — amortization (assets, leases, loans, intangibles, MACRS)
+  // ===========================================================================
+
+  /** LLM-extract asset details from document text. */
+  async extractAnalyticsAmortization(
+    data: ApiRequest<ApiPaths['/api/analytics/amortization/extract']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/amortization/extract']['post']>> {
+    return this.request('/api/analytics/amortization/extract', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  /** LLM ASC/GAAP compliance check on a form. */
+  async complianceCheckAnalyticsAmortization(
+    data: ApiRequest<ApiPaths['/api/analytics/amortization/compliance']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/amortization/compliance']['post']>> {
+    return this.request('/api/analytics/amortization/compliance', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  /** Deterministic schedule generation (SL, DDB, loan, leases, MACRS). No LLM. */
+  async generateAnalyticsAmortizationSchedule(
+    data: ApiRequest<ApiPaths['/api/analytics/amortization/schedule']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/amortization/schedule']['post']>> {
+    return this.request('/api/analytics/amortization/schedule', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async listAnalyticsAmortizations(): Promise<
+    ApiResponse<ApiPaths['/api/analytics/amortization']['get']>
+  > {
+    return this.request('/api/analytics/amortization')
+  }
+
+  async createAnalyticsAmortization(
+    data: ApiRequest<ApiPaths['/api/analytics/amortization']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/amortization']['post']>> {
+    return this.request('/api/analytics/amortization', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getAnalyticsAmortization(
+    amortizationId: string
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/amortization/{amortization_id}']['get']>> {
+    return this.request(`/api/analytics/amortization/${encodeURIComponent(amortizationId)}`)
+  }
+
+  async updateAnalyticsAmortization(
+    amortizationId: string,
+    data: ApiRequest<ApiPaths['/api/analytics/amortization/{amortization_id}']['put']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/amortization/{amortization_id}']['put']>> {
+    return this.request(`/api/analytics/amortization/${encodeURIComponent(amortizationId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteAnalyticsAmortization(amortizationId: string): Promise<{ success: boolean }> {
+    return this.request(`/api/analytics/amortization/${encodeURIComponent(amortizationId)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async listAnalyticsJournalEntries(
+    amortizationId?: string
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/amortization/journal-entries/list']['get']>> {
+    const qs = amortizationId
+      ? `?amortization_id=${encodeURIComponent(amortizationId)}`
+      : ''
+    return this.request(`/api/analytics/amortization/journal-entries/list${qs}`)
+  }
+
+  async createAnalyticsJournalEntry(
+    data: ApiRequest<ApiPaths['/api/analytics/amortization/journal-entries']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/amortization/journal-entries']['post']>> {
+    return this.request('/api/analytics/amortization/journal-entries', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // ===========================================================================
   // Analytics — streaming (research bots + AI assistant)
   // ===========================================================================
 

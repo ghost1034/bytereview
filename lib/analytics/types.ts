@@ -40,6 +40,21 @@ export type AnalyticsAnalysisList = S['AnalysisListResponse']
 export type AnalyticsWaterfallExtractRequest = S['WaterfallExtractRequest']
 export type AnalyticsWaterfallExtractResponse = S['WaterfallExtractResponse']
 
+// Amortization
+export type AnalyticsAmortization = S['AmortizationResponse']
+export type AnalyticsAmortizationCreateRequest = S['AmortizationCreateRequest']
+export type AnalyticsAmortizationUpdateRequest = S['AmortizationUpdateRequest']
+export type AnalyticsAmortizationList = S['AmortizationListResponse']
+export type AnalyticsAmortizationExtractRequest = S['AmortizationExtractRequest']
+export type AnalyticsAmortizationExtractResponse = S['AmortizationExtractResponse']
+export type AnalyticsAmortizationComplianceRequest = S['AmortizationComplianceRequest']
+export type AnalyticsAmortizationComplianceResponse = S['AmortizationComplianceResponse']
+export type AnalyticsAmortizationScheduleRequest = S['AmortizationScheduleRequest']
+export type AnalyticsAmortizationScheduleResponse = S['AmortizationScheduleResponse']
+export type AnalyticsJournalEntry = S['JournalEntryResponse']
+export type AnalyticsJournalEntryCreateRequest = S['JournalEntryCreateRequest']
+export type AnalyticsJournalEntryList = S['JournalEntryListResponse']
+
 // Chat — shared
 export type AnalyticsChatMessage = S['ChatMessage']
 export type AnalyticsChatSession = S['ChatSessionResponse']
