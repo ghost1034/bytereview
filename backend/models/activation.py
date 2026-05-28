@@ -1,0 +1,47 @@
+"""
+Pydantic request/response models for the AccountingClaw activation flow.
+"""
+from pydantic import BaseModel, Field
+from typing import Optional
+from datetime import datetime
+
+from models.common import BaseResponse
+
+
+class ActivateRequest(BaseModel):
+    """Redeem the universal six-digit activation code."""
+    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class ActivateResponse(BaseResponse):
+    """Result of an activation attempt.
+
+    ``activation_key`` is the full plaintext key and is returned ONLY when a new
+    key is minted (it is never stored and cannot be shown again). When the user
+    already has an active key, ``already_active`` is True and ``activation_key``
+    is null — the client must rely on the key it saved previously.
+    """
+    activation_key: Optional[str] = None
+    key_prefix: str
+    already_active: bool
+    created_at: datetime
+
+
+class ActivationStatusResponse(BaseResponse):
+    """Current activation status for the signed-in user (never the full key)."""
+    has_key: bool
+    key_prefix: Optional[str] = None
+    created_at: Optional[datetime] = None
+    last_resolved_at: Optional[datetime] = None
+    revoked: bool = False
+
+
+class ResolveRequest(BaseModel):
+    """Container-side exchange of a personal activation key for the bundle secret."""
+    activation_key: str = Field(..., min_length=12, max_length=120)
+    fingerprint: Optional[str] = Field(default=None, max_length=128)
+
+
+class ResolveResponse(BaseModel):
+    """The real build-time bundle secret that decrypts the AccountingClaw image."""
+    bundle_secret: str

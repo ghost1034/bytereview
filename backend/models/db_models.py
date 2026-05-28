@@ -8,12 +8,12 @@ from typing import Optional, cast
 
 import enum
 
-from sqlalchemy import Column, String, Integer, BigInteger, Boolean, Text, TIMESTAMP, ForeignKey, UUID, LargeBinary, ARRAY, CheckConstraint, Numeric, Date, Enum
+from sqlalchemy import Column, String, Integer, BigInteger, Boolean, Text, TIMESTAMP, ForeignKey, UUID, LargeBinary, ARRAY, CheckConstraint, Numeric, Date, Enum, Index
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.sql import expression, func
+from sqlalchemy.sql import expression, func, text
 import uuid
 
 Base = declarative_base()
@@ -95,6 +95,49 @@ class User(Base):
         "Project",
         back_populates="assignee",
         foreign_keys="Project.assigned_to_user_id",
+    )
+    activation_keys = relationship("ActivationKey", back_populates="user", cascade="all, delete-orphan")
+
+class ActivationKey(Base):
+    """Per-user AccountingClaw activation key.
+
+    A user redeems an activation code in the web app and is issued a personal,
+    revocable key (``cpaa_live_<random>``). The AccountingClaw container exchanges
+    this key at startup (POST /api/activation/resolve) for the real build-time
+    ``CPAA_BUNDLE_SECRET`` that decrypts the bundled skills.
+
+    Only a SHA-256 hash of the full key is stored; the plaintext key is shown to
+    the user exactly once at activation. ``key_lookup`` is a non-secret prefix of
+    the random part used for an indexed O(1) lookup at resolve time, after which
+    the full key is verified with a constant-time hash comparison.
+    """
+    __tablename__ = "activation_keys"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    key_lookup = Column(String(16), nullable=False, unique=True)  # non-secret lookup handle
+    key_hash = Column(String(64), nullable=False)  # sha256 hex of the full key
+    key_prefix = Column(String(24), nullable=False)  # masked value for display, e.g. "cpaa_live_AbCd…"
+    revoked_at = Column(TIMESTAMP(timezone=True), nullable=True)  # non-null => revoked
+    last_resolved_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    last_resolved_fingerprint = Column(String(128), nullable=True)
+    resolve_count = Column(Integer, nullable=False, server_default="0")
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    # Future hooks (not implemented yet): expires_at, seat_limit, license_token.
+
+    user = relationship("User", back_populates="activation_keys")
+
+    __table_args__ = (
+        # A user may hold at most one active (non-revoked) key at a time. Revoked
+        # rows are retained for history, so this is a partial unique index.
+        Index(
+            "uq_activation_keys_active_user",
+            "user_id",
+            unique=True,
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
     )
 
 class DataType(Base):

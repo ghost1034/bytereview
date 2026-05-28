@@ -82,7 +82,7 @@ const RUN_COMMAND = [
   '  --name accountingclaw \\',
   '  --restart unless-stopped \\',
   '  -v ~/.accountingclaw:/opt/data \\',
-  '  -e CPAA_BUNDLE_SECRET="provided-by-cpaautomation" \\',
+  '  -e CPAA_ACTIVATION_KEY="cpaa_live_..." \\',
   '  -e OPENROUTER_API_KEY="sk-or-..." \\',
   '  -e API_SERVER_ENABLED=true \\',
   '  -e API_SERVER_HOST=0.0.0.0 \\',
@@ -109,8 +109,8 @@ const DOWNLOAD_NOTES = [
   },
   {
     icon: KeyRound,
-    title: 'Bundle secret required',
-    detail: 'The encrypted AccountingClaw profile installs only when CPAA_BUNDLE_SECRET is provided.',
+    title: 'Activation key required',
+    detail: 'The encrypted AccountingClaw profile installs only when your personal CPAA_ACTIVATION_KEY is provided. Get your key from the Activation page.',
   },
   {
     icon: HardDrive,
@@ -228,22 +228,22 @@ function DockerDownloadSection() {
               </h2>
               <p className="text-balance text-base text-foreground-muted sm:text-lg">
                 Pull the verified AccountingClaw Docker image and run it with
-                the CPAAutomation.ai bundle secret plus your OpenRouter key. The
-                image includes AccountingClaw skills encrypted inside the
-                container and installs them into your persistent Hermes data
-                volume on first startup.
+                your personal CPAAutomation.ai activation key plus your
+                OpenRouter key. The image includes AccountingClaw skills
+                encrypted inside the container and installs them into your
+                persistent Hermes data volume on first startup.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
               <Button asChild>
-                <Link href="/contact">
-                  Request bundle secret
+                <Link href="/dashboard/activation">
+                  Activate your image
                   <ArrowRight className="ml-2 size-4" aria-hidden />
                 </Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/demo">View demo videos</Link>
+                <Link href="/contact">Contact us for a code</Link>
               </Button>
             </div>
           </div>

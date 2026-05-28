@@ -18,6 +18,26 @@ export class ApiError extends Error {
   }
 }
 
+// AccountingClaw activation (explicitly typed; not part of the generated OpenAPI types)
+export interface ActivateResult {
+  success: boolean
+  message?: string | null
+  activation_key: string | null
+  key_prefix: string
+  already_active: boolean
+  created_at: string
+}
+
+export interface ActivationStatus {
+  success: boolean
+  message?: string | null
+  has_key: boolean
+  key_prefix: string | null
+  created_at: string | null
+  last_resolved_at: string | null
+  revoked: boolean
+}
+
 function inferUploadContentType(file: File): string {
   if (file.type) return file.type
   const name = file.name.toLowerCase()
@@ -108,6 +128,18 @@ export class ApiClient {
     return this.request('/api/users/me', {
       method: 'DELETE'
     })
+  }
+
+  // AccountingClaw activation endpoints
+  async activate(code: string): Promise<ActivateResult> {
+    return this.request('/api/activation/activate', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    })
+  }
+
+  async getActivation(): Promise<ActivationStatus> {
+    return this.request('/api/activation/me')
   }
 
   // Template endpoints

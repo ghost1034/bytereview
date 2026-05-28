@@ -25,7 +25,7 @@ FROM nousresearch/hermes-agent:latest
 USER root
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates openssl tar \
+ && apt-get install -y --no-install-recommends ca-certificates openssl tar curl jq \
  && rm -rf /var/lib/apt/lists/* \
  && mkdir -p /opt/cpaa /opt/data
 
@@ -52,7 +52,8 @@ RUN chmod +x /usr/local/bin/accountingclaw-entrypoint \
  && ln -sf /opt/hermes/.venv/bin/hermes /usr/local/bin/hermes
 
 ENV HERMES_DATA_DIR=/opt/data \
-    ACCOUNTINGCLAW_BUNDLE=/opt/cpaa/accountingclaw-profile.tar.gz.enc
+    ACCOUNTINGCLAW_BUNDLE=/opt/cpaa/accountingclaw-profile.tar.gz.enc \
+    CPAA_ACTIVATION_URL=https://api.cpaautomation.ai/api/activation/resolve
 
 ENTRYPOINT ["/usr/local/bin/accountingclaw-entrypoint"]
 CMD ["gateway", "run"]

@@ -4,18 +4,59 @@ set -euo pipefail
 DATA_DIR="${HERMES_DATA_DIR:-/opt/data}"
 BUNDLE_PATH="${ACCOUNTINGCLAW_BUNDLE:-/opt/cpaa/accountingclaw-profile.tar.gz.enc}"
 MARKER_FILE="$DATA_DIR/.cpaa/accountingclaw-installed"
+ACTIVATION_URL="${CPAA_ACTIVATION_URL:-https://api.cpaautomation.ai/api/activation/resolve}"
 
 mkdir -p "$DATA_DIR/.cpaa" "$DATA_DIR/skills"
 
 if [ ! -s "$MARKER_FILE" ]; then
-  if [ -z "${CPAA_BUNDLE_SECRET:-}" ]; then
-    echo "AccountingClaw bundle decryption required. Set CPAA_BUNDLE_SECRET to install bundled skills."
-    exit 64
-  fi
-
   if [ ! -s "$BUNDLE_PATH" ]; then
     echo "AccountingClaw encrypted bundle not found at $BUNDLE_PATH."
     exit 66
+  fi
+
+  tmp_dir="$(mktemp -d)"
+  cleanup() {
+    rm -rf "$tmp_dir"
+  }
+  trap cleanup EXIT
+
+  # The decryption secret is written to a root-only file and passed to openssl
+  # via -pass file: so it never appears in the process argument list. The temp
+  # dir (mode 0700) is removed on exit by the trap above.
+  secret_file="$tmp_dir/bundle.pass"
+
+  if [ -n "${CPAA_BUNDLE_SECRET:-}" ]; then
+    # Dev / back-compat escape hatch: decrypt directly with a known secret,
+    # skipping the activation server entirely.
+    ( umask 077; printf '%s' "$CPAA_BUNDLE_SECRET" > "$secret_file" )
+  else
+    # Runtime activation: exchange the personal key for the bundle secret.
+    if [ -z "${CPAA_ACTIVATION_KEY:-}" ]; then
+      echo "AccountingClaw activation required."
+      echo "Set CPAA_ACTIVATION_KEY (get yours at https://cpaautomation.ai/dashboard/activation),"
+      echo "or set CPAA_BUNDLE_SECRET directly for local development."
+      exit 64
+    fi
+
+    fingerprint="$(cat /etc/machine-id 2>/dev/null || hostname 2>/dev/null || echo unknown)"
+
+    # No -f: a rejected key returns an HTTP error body we want to inspect, while
+    # a genuine connection failure makes curl exit non-zero (handled as exit 75).
+    if ! response="$(curl -sS -X POST "$ACTIVATION_URL" \
+        -H 'Content-Type: application/json' \
+        --data "$(jq -nc --arg k "$CPAA_ACTIVATION_KEY" --arg f "$fingerprint" \
+                  '{activation_key:$k,fingerprint:$f}')")"; then
+      echo "Activation server unreachable: $ACTIVATION_URL"
+      exit 75
+    fi
+
+    # `|| true` so a malformed/non-JSON response yields the friendly exit 77
+    # below (via the empty-file check) instead of aborting under `set -e`.
+    ( umask 077; printf '%s' "$response" | jq -r '.bundle_secret // empty' > "$secret_file" ) || true
+    if [ ! -s "$secret_file" ]; then
+      echo "Activation failed: invalid or revoked CPAA_ACTIVATION_KEY."
+      exit 77
+    fi
   fi
 
   if command -v sha256sum >/dev/null 2>&1 && [ -s "${BUNDLE_PATH}.sha256" ]; then
@@ -25,16 +66,10 @@ if [ ! -s "$MARKER_FILE" ]; then
     )
   fi
 
-  tmp_dir="$(mktemp -d)"
-  cleanup() {
-    rm -rf "$tmp_dir"
-  }
-  trap cleanup EXIT
-
   openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -md sha256 \
     -in "$BUNDLE_PATH" \
     -out "$tmp_dir/accountingclaw-profile.tar.gz" \
-    -pass env:CPAA_BUNDLE_SECRET
+    -pass file:"$secret_file"
 
   tar -tzf "$tmp_dir/accountingclaw-profile.tar.gz" >/dev/null
   tar -xzf "$tmp_dir/accountingclaw-profile.tar.gz" -C "$DATA_DIR"

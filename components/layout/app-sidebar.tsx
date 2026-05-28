@@ -18,6 +18,7 @@ import {
   GitMerge,
   GraduationCap,
   Home,
+  KeyRound,
   LineChart,
   PenTool,
   Plug,
@@ -96,6 +97,11 @@ const PRODUCTS_GROUP: NavGroup = {
       name: 'Claw Series',
       href: '/claw',
       icon: Bot,
+    },
+    {
+      name: 'Claw Activation',
+      href: '/dashboard/activation',
+      icon: KeyRound,
     },
   ],
 }

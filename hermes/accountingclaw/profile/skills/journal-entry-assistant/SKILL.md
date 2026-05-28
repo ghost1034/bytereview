@@ -8,8 +8,8 @@ metadata:
     tags: [accounting, journal-entry, erp]
     category: accounting
 required_environment_variables:
-  - name: CPAA_BUNDLE_SECRET
-    prompt: CPAAutomation.ai bundle decryption secret
+  - name: CPAA_ACTIVATION_KEY
+    prompt: CPAAutomation.ai activation key
     required_for: premium skill access
 ---
 

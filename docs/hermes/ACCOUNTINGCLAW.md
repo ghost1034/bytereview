@@ -2,12 +2,19 @@
 
 AccountingClaw is the first Claw Series Hermes profile for CPAAutomation.ai. It bundles accounting-focused Hermes skills into a Docker image while keeping the profile encrypted until runtime.
 
-This implementation intentionally uses Option B from `docs/hermes/HERMES_AGENT.md`:
+This implementation uses Option B from `docs/hermes/HERMES_AGENT.md`:
 
 - Encrypted skills are included inside the image.
-- One shared decryption key is used for all customers for now.
-- No activation API is implemented yet.
+- The image is encrypted at build time with a single `CPAA_BUNDLE_SECRET`.
+- At runtime, each customer activates with a **personal, revocable key** that the
+  container exchanges with the CPAAutomation backend for the bundle secret. The
+  shared secret is never distributed to customers.
+- A dev escape hatch (`CPAA_BUNDLE_SECRET`) still decrypts directly for local builds/tests.
 - The bundled product is AccountingClaw only.
+
+> Temporary gate: today the web activation page requires a universal six-digit code
+> (backend `CPAA_ACTIVATION_CODE`). This is throwaway — the permanent design replaces
+> the code with a payment step. The per-customer key mechanism below stays.
 
 ## Files
 
@@ -86,6 +93,17 @@ Optional environment variables:
 
 ## Run Locally
 
+Activate against a backend with a personal key (production-like):
+
+```bash
+export CPAA_ACTIVATION_KEY="cpaa_live_..."          # issued at /dashboard/activation
+export CPAA_ACTIVATION_URL="http://host.docker.internal:8000/api/activation/resolve"  # local backend
+export OPENROUTER_API_KEY="sk-or-..."
+./scripts/run-accountingclaw-local.sh
+```
+
+Or use the dev escape hatch to decrypt directly without a backend:
+
 ```bash
 export CPAA_BUNDLE_SECRET="same-secret-used-at-build-time"
 export OPENROUTER_API_KEY="sk-or-..."
@@ -155,40 +173,57 @@ Without those `API_SERVER_*` variables, exposing port `8642` alone is not enough
 On container startup, `accountingclaw-entrypoint`:
 
 1. Creates `/opt/data/.cpaa` and `/opt/data/skills`.
-2. Checks `/opt/data/.cpaa/accountingclaw-installed`.
-3. If not installed, requires `CPAA_BUNDLE_SECRET`.
-4. Decrypts `/opt/cpaa/accountingclaw-profile.tar.gz.enc` into a temp directory.
+2. Checks `/opt/data/.cpaa/accountingclaw-installed`. If present, skips straight to Hermes.
+3. Acquires the bundle decryption secret:
+   - If `CPAA_BUNDLE_SECRET` is set, uses it directly (dev / back-compat escape hatch); or
+   - Otherwise requires `CPAA_ACTIVATION_KEY` and `POST`s it (with a machine fingerprint) to
+     `CPAA_ACTIVATION_URL` (default `https://api.cpaautomation.ai/api/activation/resolve`).
+     The backend validates the key and returns the real bundle secret.
+4. Writes the secret to a root-only temp file and decrypts `/opt/cpaa/accountingclaw-profile.tar.gz.enc`
+   with `openssl ... -pass file:` (the secret never appears in the process arg list).
 5. Validates the decrypted archive with `tar -tzf`.
 6. Extracts the profile into `/opt/data`.
 7. Writes the install marker.
 8. Starts Hermes with the original container command.
 
-If the same `/opt/data` volume is reused, the container does not reinstall the bundle on later starts.
+Exit codes: `64` no key/secret provided, `66` bundle missing, `75` activation server unreachable,
+`77` invalid or revoked key.
 
-## Shared-Key Limitation
+Because the network exchange only happens when the marker is absent, an already-installed
+container (same `/opt/data` volume) never contacts the backend on later starts.
 
-This is intentionally not full licensing. Every customer uses the same `CPAA_BUNDLE_SECRET` for now. If that value leaks, anyone with the image can decrypt the included AccountingClaw skills.
+## Activation API
 
-This still prevents casual use of the image without the secret, but it does not provide customer-specific revocation, activation tracking, seat limits, or usage enforcement.
+The bundle is still encrypted at build time with a single `CPAA_BUNDLE_SECRET`, but that
+secret is **never** distributed to customers. Instead the backend holds it and hands it out
+only to holders of a valid per-customer activation key. Endpoints (`backend/routes/activation.py`):
 
-## Key Rotation
+- `POST /api/activation/activate` (Firebase-authed) — the signed-in user enters the universal
+  six-digit code (`CPAA_ACTIVATION_CODE`) and is issued a personal key `cpaa_live_<random>`,
+  shown exactly once. Only a SHA-256 hash is stored (`activation_keys` table).
+- `GET /api/activation/me` (Firebase-authed) — activation status for the dashboard (never the
+  full key).
+- `POST /api/activation/resolve` (key-authed, not Firebase) — the container exchanges its key
+  for the real `CPAA_BUNDLE_SECRET`. Revoked keys (`revoked_at`) are rejected.
 
-To rotate the shared key:
+This provides per-customer revocation and activation tracking. Out of scope for now (future
+hooks): seat limits, expiry, signed license tokens, and periodic re-check.
+
+### Secret consistency
+
+The build-time `CPAA_BUNDLE_SECRET` (used by `scripts/build-accountingclaw-image.sh`) and the
+backend env `CPAA_BUNDLE_SECRET` (returned by `/resolve`) **must be identical**, or activated
+containers cannot decrypt the image.
+
+### Key Rotation
+
+To rotate the bundle secret:
 
 1. Generate a new `CPAA_BUNDLE_SECRET`.
-2. Rebuild and republish the AccountingClaw image.
-3. Distribute the new runtime secret to customers.
-4. Ask customers to restart with the new image and secret.
-5. If a customer already installed the old bundle into `/opt/data`, remove `/opt/data/.cpaa/accountingclaw-installed` and the old profile files before reinstalling.
+2. Rebuild and republish the AccountingClaw image with it.
+3. Update the backend env `CPAA_BUNDLE_SECRET` to the same value, in lockstep.
+4. Already-installed containers (marker present) are unaffected — they decrypted once and
+   cached the result. Only fresh installs use the new secret.
 
-## Later Activation API Upgrade
-
-When CPAAutomation.ai is ready for customer-specific licensing, replace the shared runtime secret with this flow:
-
-1. Customer provides `CPAA_ACTIVATION_KEY`.
-2. Entry point calls a FastAPI activation endpoint.
-3. Backend validates the customer in PostgreSQL.
-4. Backend returns a signed license token and customer-specific bundle secret.
-5. Container decrypts/install skills and caches the license token in `/opt/data/.cpaa`.
-
-That future version should support per-customer revocation, expiry, seat limits, and periodic license refresh.
+To revoke a single customer, set `revoked_at` on their `activation_keys` row; their next
+fresh install fails at `/resolve`.
