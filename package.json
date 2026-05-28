@@ -9,7 +9,7 @@
     "lint": "next lint",
     "sitemap": "next-sitemap",
     "postbuild": "next-sitemap",
-    "postinstall": "node -e \"require('fs').copyFileSync('node_modules/pdfjs-dist/build/pdf.worker.min.mjs', 'public/pdf-worker.min.mjs')\"",
+    "postinstall": "node -e \"const fs=require('fs');fs.mkdirSync('public',{recursive:true});const s='node_modules/pdfjs-dist/build/pdf.worker.min.mjs';if(fs.existsSync(s)){fs.copyFileSync(s,'public/pdf-worker.min.mjs')}else{console.warn('postinstall: pdf worker not found at '+s+'; using committed copy')}\"",
     "backend": "cd backend && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000",
     "generate-types": "cd backend && npm run generate-types",
     "dev:with-types": "npm run generate-types && npm run dev"
