@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { LoadingState } from '@/components/ui/loading-state'
 import { PageHeader } from '@/components/ui/page-header'
@@ -45,6 +46,12 @@ export function ReconciliationModule() {
   const { data, isLoading } = useAnalyticsReconciliations()
   const { data: clientsData } = useAnalyticsClients()
   const clients = useMemo(() => clientsData?.clients ?? [], [clientsData])
+
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const deepLinkId = searchParams.get('id')
+  const openedDeepLinkRef = useRef<string | null>(null)
 
   const [view, setView] = useState<View>('list')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -109,7 +116,19 @@ export function ReconciliationModule() {
     setEditingId(null)
     setActiveSummary(null)
     setView('list')
-  }, [])
+    if (searchParams.get('id')) {
+      router.replace(pathname)
+    }
+  }, [router, pathname, searchParams])
+
+  useEffect(() => {
+    if (!deepLinkId) return
+    if (openedDeepLinkRef.current === deepLinkId) return
+    const match = rows.find((r) => r.id === deepLinkId)
+    if (!match) return
+    openedDeepLinkRef.current = deepLinkId
+    handleOpen(match)
+  }, [deepLinkId, rows, handleOpen])
 
   const header = HEADER[view]
 

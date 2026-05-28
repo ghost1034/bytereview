@@ -97,7 +97,7 @@ export function DashboardModule() {
     variancesQuery.isLoading || reconciliationsQuery.isLoading || clientsQuery.isLoading
 
   const handleRowClick = (project: UnifiedProject) => {
-    router.push(MODULE_ROUTE[project.moduleId])
+    router.push(`${MODULE_ROUTE[project.moduleId]}?id=${encodeURIComponent(project.id)}`)
   }
 
   const handleConfirmDelete = async () => {
