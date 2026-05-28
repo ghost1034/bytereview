@@ -1,0 +1,14 @@
+transaction_id: LEASE-MOD-2024-01
+title: Office Lease Modification — Extension and Rent Reduction
+standard: ASC 842
+issuer: ABC Corp
+facts:
+  - Original lease commenced 2021-01-01 with 60-month term and $10,000/month payment.
+  - Modification effective 2024-06-01 extends term by 24 months and reduces payment to $9,200/month.
+  - No change to asset or scope; not a separate contract.
+  - Incremental borrowing rate at modification: 6.5%.
+issues:
+  - Is this a separate lease or lease modification?
+  - Should remeasurement use cumulative catch-up or prospective approach?
+  - What journal entries are required at modification date?
+conclusion_requested: Classification of modification type and draft JE at effective date.

@@ -1,0 +1,11 @@
+matter_id: SALT-NEXUS-TX-2024
+issue: Does the company have economic nexus in Texas requiring sales tax registration and collection?
+facts:
+  - Remote employee based in Austin, TX since March 2024.
+  - Trailing 12-month Texas sales: $185,000.
+  - Product: B2B SaaS subscription.
+research_questions:
+  - What is the current Texas economic nexus threshold for remote sellers?
+  - Is B2B SaaS taxable in Texas for this fact pattern?
+  - What registration and filing obligations apply once nexus is established?
+preliminary_conclusion: Nexus likely established — registration and taxability analysis required before collecting.

@@ -1,0 +1,10 @@
+vendor,vendor_id,tin,address,bank_account,is_active,is_1099
+ACME Corp,V-1001,12-3456789,"123 Main St, NYC NY",BK-A-998877,True,False
+Stellar Services,V-1002,98-7654321,"45 Oak Ave, SFO CA",BK-A-554433,True,True
+Stellar Services Inc,V-1003,98-7654321,"45 Oak Ave, SFO CA",BK-A-554433,True,True
+Global Tech,V-1004,11-2233445,"789 Tech Pkwy, Austin TX",BK-A-117788,True,False
+Northwind Suppliers,V-1005,22-3344556,"100 Harbor Rd, Seattle WA",BK-A-665544,True,False
+Acme Corporation,V-1006,,Unknown,BK-A-998877,False,False
+Beta Industries,V-1007,33-4455667,"200 Elm St, Boston MA",BK-A-887766,True,False
+Delta Consulting,V-1008,,"Various",BK-A-443322,True,True
+Gamma Co,V-1009,44-5566778,"300 Pine Rd, Denver CO",BK-A-223344,True,False

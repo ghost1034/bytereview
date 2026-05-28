@@ -1,0 +1,15 @@
+invoice_no,vendor,amount,date,account,po_number,approver,terms,due_date,pay_date,currency
+INV-101,ACME Corp,500.00,2024-05-01,Office Supplies,,jdoe,Net 30,2024-05-31,2024-05-28,USD
+INV-102,ACME Corp,500.00,2024-05-05,Office Supplies,,jdoe,Net 30,2024-06-04,2024-06-03,USD
+INV-202,Stellar Services,1200.00,2024-05-10,Consulting,PO-2024-022,mgr.smith,Net 45,2024-06-24,2024-06-22,USD
+INV-203,Stellar Services,1200.00,2024-05-12,Travel,,mgr.smith,Net 45,2024-06-26,2024-06-26,USD
+INV-305,Global Tech,300.00,2024-04-15,Software,,jdoe,Net 30,2024-05-15,2024-05-15,USD
+INV-401,Global Tech,300.00,2024-05-10,Software,,jdoe,Net 30,2024-06-09,2024-06-09,USD
+INV-500,Stellar Services Inc,1200.00,2024-05-15,Consulting,,mgr.smith,Net 30,2024-06-14,2024-06-15,USD
+INV-606,Northwind Suppliers,9500.00,2024-05-03,Inventory,PO-2024-031,,Net 30,2024-06-02,2024-06-01,USD
+INV-607,Northwind Suppliers,9750.00,2024-05-07,Inventory,PO-2024-032,,Net 30,2024-06-06,2024-06-05,USD
+INV-608,Northwind Suppliers,9200.00,2024-05-12,Inventory,PO-2024-033,,Net 30,2024-06-11,2024-06-10,USD
+INV-701,Acme Corporation,500.00,2024-05-20,Office Supplies,,jdoe,Net 30,2024-06-19,2024-06-19,USD
+INV-810,Beta Industries,15000.00,2024-05-22,Equipment,PO-2024-040,,Net 45,2024-07-06,2024-07-06,USD
+INV-900,Delta Consulting,50000.00,2024-05-25,Consulting,,,Net 30,2024-06-24,2024-06-29,USD
+INV-901,Gamma Co,75.00,2024-05-26,Office Supplies,,jdoe,Net 30,2024-06-25,2024-06-25,USD

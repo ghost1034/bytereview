@@ -1,0 +1,11 @@
+report_id,employee_id,employee_name,expense_date,category,amount,currency,vendor,description,has_receipt,attendees
+RPT-2024-051,E001,John Doe,2024-05-02,Meal,85.00,USD,Capital Grille,Client dinner with ACME prospect,True,John Doe;Sara Chen
+RPT-2024-051,E001,John Doe,2024-05-03,Lodging,225.00,USD,Marriott Downtown,Trip to NYC client meeting,True,
+RPT-2024-051,E001,John Doe,2024-05-04,Airfare,820.00,USD,Delta Airlines,Round-trip JFK,True,
+RPT-2024-051,E001,John Doe,2024-05-04,Meal,30.00,USD,Pret a Manger,Lunch JFK,False,
+RPT-2024-052,E002,Jane Smith,2024-05-05,Entertainment,750.00,USD,Topgolf,Team-building event with Engineering team,True,Jane Smith;Alex Lee;Mia Wong;Tom Park;Rita Yu;Kai Tan;Leo Khan;Eve Bo
+RPT-2024-052,E002,Jane Smith,2024-05-11,Meal,95.00,USD,Saturday Bar,Weekend client outreach,True,Jane Smith;Bo Park
+RPT-2024-053,E003,Bob Brown,2024-05-08,Lodging,425.00,USD,Hilton NYC,NYC trip,True,
+RPT-2024-053,E003,Bob Brown,2024-05-08,Other,40.00,USD,Mini-Bar,Personal,True,
+RPT-2024-053,E003,Bob Brown,2024-05-09,Meal,85.00,USD,Capital Grille,Client dinner with ACME prospect,True,Bob Brown;John Doe
+RPT-2024-054,E001,John Doe,2024-05-15,Meal,30.00,USD,Pret a Manger,Lunch JFK,False,

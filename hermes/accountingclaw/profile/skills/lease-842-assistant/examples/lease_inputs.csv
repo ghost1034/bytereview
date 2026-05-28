@@ -1,0 +1,5 @@
+lease_id,description,commencement_date,term_months,monthly_payment,ibr_annual,payment_timing,prepaid_rent,idc,incentives,economic_life_months,fair_value,purchase_option_exercise_price,reasonably_certain_purchase,specialized_nature,transfer_ownership
+HQ-OFFICE,HQ Office Lease - 12000 sqft NYC,2024-01-01,60,9800,0.06,arrears,0,5000,2000,360,800000,0,False,False,False
+WAREHOUSE,Warehouse Lease - 8000 sqft NJ,2024-03-01,36,4200,0.055,arrears,4200,0,0,120,200000,0,False,False,False
+VEHICLE-1,Fleet Vehicle Lease - 5x F150,2024-04-01,24,2100,0.075,arrears,0,0,0,72,150000,30000,True,False,True
+COPIER,Office Copier - specialized config,2024-02-01,48,750,0.07,arrears,0,0,500,60,40000,0,False,True,False

@@ -1,0 +1,11 @@
+matter_id: CORP-NOL-2024
+issue: Is the company's NOL utilization limited following a change of control?
+facts:
+  - Ownership change occurred in Q2 2024 (>50 percentage point shift).
+  - Pre-change NOL carryforward: $12M.
+  - Post-change taxable income projected at $3M annually.
+research_questions:
+  - Does IRC §382 impose an annual limitation on NOL usage?
+  - How is the §382 limitation computed (equity value × long-term tax-exempt rate)?
+  - Are built-in gains/losses relevant under §382(h)?
+preliminary_conclusion: §382 limitation likely applies — annual usage capped; valuation required.

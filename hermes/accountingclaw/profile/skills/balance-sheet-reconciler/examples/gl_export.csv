@@ -1,0 +1,14 @@
+date,description,amount,je_id,reference
+2024-05-01,Opening balance - Cash 1010,250000.00,JE-2024-05-001,OB-MAY24
+2024-05-03,Customer deposit ACME Corp,12500.00,JE-2024-05-014,DEP-1037
+2024-05-05,Wire to vendor Stellar Services,-8500.00,JE-2024-05-021,WIRE-2202
+2024-05-07,ACH credit - Beta Industries invoice 4421,15750.00,JE-2024-05-027,ACH-553
+2024-05-10,Payroll - May Period 1,-42300.00,JE-2024-05-034,PAY-2024-05A
+2024-05-12,Office lease rent,-9800.00,JE-2024-05-041,RENT-MAY
+2024-05-15,Bank service charges,-185.50,JE-2024-05-046,BSC-MAY
+2024-05-18,Customer payment - Gamma LLC,22000.00,JE-2024-05-052,DEP-1041
+2024-05-22,Wire to vendor Northwind,-4500.00,JE-2024-05-058,WIRE-2210
+2024-05-25,Outstanding check #4471 voided,1200.00,JE-2024-05-063,RECL-VOID
+2024-05-28,Refund from vendor Acme Corp,750.00,JE-2024-05-067,REF-882
+2024-05-31,Bank interest income,425.75,JE-2024-05-070,INT-MAY
+2024-05-31,Stale-dated rec item - Apr customer,3500.00,JE-2024-04-099,ROLL-APR

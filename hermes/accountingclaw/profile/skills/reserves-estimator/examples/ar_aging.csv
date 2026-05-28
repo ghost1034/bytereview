@@ -1,0 +1,9 @@
+customer,Current,31-60,61-90,Over 90,segment,risk_grade,customer_specific_reserve
+ACME Corp,45000,2500,0,0,B2B,A,0
+Beta Industries,28000,5500,1200,0,B2B,B,0
+Gamma LLC,12000,3500,2200,800,B2B,C,0
+Delta Co,75000,0,0,0,B2B,A,0
+Echo Inc,8500,2000,1500,500,B2B,B,0
+Foxtrot Bankrupt,0,0,0,15000,B2B,C,15000
+Hotel Indigo,18000,1200,0,0,B2B,B,0
+Juliet Government,42000,0,0,0,Government,A,0

@@ -1,0 +1,18 @@
+evidence_id: EV-2024-06-W2
+control_id: ACC-01
+sample_date: 2024-06-14
+source_system: NetSuite
+proposal_id: PAY-2024-031
+attributes:
+  preparer_id: clerk_jones
+  approver_id: mgr_smith
+  prepared_date: 2024-06-12
+  approved_date: 2024-06-14
+  amount_total: 137800.00
+  record_count: 44
+  source_system: NetSuite
+ipe_validation:
+  report_complete: true
+  ties_to_sub_ledger: false
+  variance_to_sub_ledger: 250.00
+notes: "IPE accuracy issue: report total $137,800 vs. AP sub-ledger $137,550."

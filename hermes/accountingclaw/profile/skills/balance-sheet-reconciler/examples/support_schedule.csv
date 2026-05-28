@@ -1,0 +1,12 @@
+date,description,amount,reference
+2024-05-01,Opening balance,250000.00,STMT-OB
+2024-05-03,ACME Corp incoming deposit,12500.00,DEP-1037
+2024-05-06,Outgoing wire Stellar Services Inc,-8500.00,WIRE-2202
+2024-05-07,Beta Industries ACH credit inv 4421,15750.00,ACH-553
+2024-05-10,Payroll batch May A,-42300.00,PAY-2024-05A
+2024-05-13,Lease payment - Office,-9800.00,RENT-MAY
+2024-05-15,Service charges,-185.50,BSC-MAY
+2024-05-18,Gamma LLC remittance,22000.00,DEP-1041
+2024-05-23,Northwind Suppliers outbound wire,-4500.00,WIRE-2210
+2024-05-31,Interest earned,425.75,INT-MAY
+2024-05-31,Deposit in transit - Delta Co,8200.00,DIT-MAY

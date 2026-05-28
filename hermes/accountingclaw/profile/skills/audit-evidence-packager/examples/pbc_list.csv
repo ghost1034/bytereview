@@ -1,0 +1,9 @@
+request_id,description,category,period_end,expected_filename,expected_format,gl_account,gl_balance,owner,due_date
+PBC-101,Year-end Cash bank reconciliation,Cash,2024-12-31,bank_recon_dec_2024.pdf,pdf,1010,524300.00,AP Manager,2025-01-15
+PBC-102,AR Aging report at year-end,AR,2024-12-31,ar_aging_dec_2024.xlsx,xlsx,1100,1854200.00,AR Manager,2025-01-15
+PBC-103,Fixed Asset Additions schedule,FA,2024-12-31,fa_additions_2024.xlsx,xlsx,1500,892000.00,FA Accountant,2025-01-20
+PBC-104,Long-term debt confirmations,Debt,2024-12-31,debt_confirmations_2024.pdf,pdf,2500,15400000.00,Controller,2025-01-25
+PBC-105,Major customer revenue contracts,Revenue,2024-12-31,top_contracts_2024.zip,zip,,,GC,2025-01-30
+PBC-106,Year-end trial balance,All,2024-12-31,tb_dec_2024.xlsx,xlsx,,,Controller,2025-01-10
+PBC-107,Inventory count sheets,Inventory,2024-12-31,inventory_count_2024.xlsx,xlsx,1400,2105000.00,Inventory Mgr,2025-01-15
+PBC-108,401k Plan year-end fiduciary report,HR,2024-12-31,401k_fiduciary_dec.pdf,pdf,,,HR Director,2025-02-15

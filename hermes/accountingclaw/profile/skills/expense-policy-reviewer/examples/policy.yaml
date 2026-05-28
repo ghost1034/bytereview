@@ -1,0 +1,23 @@
+receipt_required_above: 25.00
+prohibited_categories:
+  - Personal
+  - Alcohol
+require_attendees_for:
+  - Meal
+  - Entertainment
+require_business_purpose_min_chars: 12
+weekend_review: warn
+duplicate_window_days: 14
+limits:
+  Meal:
+    daily_per_attendee: 75.00
+    warn_above: 50.00
+  Lodging:
+    per_night: 350.00
+  Airfare:
+    round_trip_domestic: 800.00
+    international: 5000.00
+  Entertainment:
+    per_event_per_attendee: 100.00
+  Ground:
+    per_day: 100.00

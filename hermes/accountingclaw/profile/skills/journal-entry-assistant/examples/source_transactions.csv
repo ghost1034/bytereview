@@ -1,0 +1,13 @@
+date,description,amount,account,memo,department,class,project
+2024-05-31,Accrue May legal fees from Smith & Co,500.00,6300,Smith & Co invoice expected June,Legal,,
+2024-05-31,Offsetting accrual,500.00,2100,Smith & Co accrual,Legal,,
+2024-05-31,Prepaid insurance amortization - May,1200.00,6300,Annual D&O policy expense recognition,Corporate,,
+2024-05-31,Offset prepaid,-1200.00,1200,D&O insurance amortization,Corporate,,
+2024-05-15,Office supplies purchase (Staples),150.00,6000,Receipt #92834,Operations,,
+2024-05-15,Cash payment to Staples,-150.00,1000,Receipt #92834,Operations,,
+2024-05-17,Client lunch with ACME prospect,45.50,6500,Closed deal Q2,Sales,,
+2024-05-17,Cash payment for lunch,-45.50,1000,Closed deal Q2,Sales,,
+2024-05-20,May rent expense - HQ,9800.00,6400,LL-2024-05,Operations,,
+2024-05-20,Cash payment for HQ rent,-9800.00,1000,LL-2024-05,Operations,,
+2024-05-25,Software subscription - Asana annual,1440.00,Software Subscriptions,Asana annual renewal,Operations,,
+2024-05-25,Asana payment,-1440.00,1000,Asana annual renewal,Operations,,

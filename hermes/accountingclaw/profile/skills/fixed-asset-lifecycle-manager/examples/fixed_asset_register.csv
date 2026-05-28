@@ -1,0 +1,9 @@
+asset_id,description,asset_class,acquisition_date,cost,useful_life_years,salvage_value,method,convention,disposal_date,disposal_proceeds,is_disposed,tax_method,tax_life_years
+FA-001,MacBook Pro M3,Computer Equipment,2023-01-15,2400.00,3,0,SL,half-year,,,False,MACRS-5,5
+FA-002,Office Desk - Executive,Furniture,2023-06-01,1200.00,7,0,SL,half-year,,,False,MACRS-7,7
+FA-003,Server Rack & Switches,Computer Equipment,2024-01-10,42000.00,5,2000,SL,half-year,,,False,MACRS-5,5
+FA-004,Fleet Vehicle - Ford F150,Vehicles,2023-04-01,35000.00,5,5000,DDB,half-year,,,False,MACRS-5,5
+FA-005,Building HVAC Replacement,Building Improvements,2023-01-01,80000.00,15,0,SL,half-year,,,False,MACRS-15,15
+FA-006,Conference Room Tables,Furniture,2022-08-01,4500.00,7,0,SL,half-year,2024-03-15,800.00,True,MACRS-7,7
+FA-007,Land - HQ Parking Lot,Land,2022-01-01,250000.00,99,0,SL,half-year,,,False,SL,99
+FA-008,Stapler (below cap policy),Office Supplies,2024-01-20,150.00,3,0,SL,half-year,,,False,,0

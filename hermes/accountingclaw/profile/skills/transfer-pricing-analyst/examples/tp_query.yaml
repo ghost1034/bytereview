@@ -1,0 +1,11 @@
+matter_id: TP-SERVICES-2024
+issue: Is the intercompany management fee charged by US parent to EU subsidiary at arm's length?
+facts:
+  - US parent provides centralized finance, HR, and IT services to EU sub.
+  - Annual management fee: EUR 2.4M (cost-plus 5%).
+  - Comparable uncontrolled price analysis pending.
+research_questions:
+  - What OECD/IRC §482 method is most appropriate for intra-group services?
+  - Does the low-value-adding services (LVAS) simplified approach apply?
+  - What documentation is required under OECD Chapter VII?
+preliminary_conclusion: Cost-plus 5% may be supportable if benchmarked — full CUP/TNMM analysis required.

@@ -1,0 +1,22 @@
+account_code,account_name,type,is_active,period_open_through,requires_class
+1000,Cash - Operating,Asset,True,2024-12-31,False
+1010,Cash - Operating USD,Asset,True,2024-12-31,False
+1100,Accounts Receivable,Asset,True,2024-12-31,False
+1200,Prepaid Expenses,Asset,True,2024-12-31,False
+1500,Fixed Assets,Asset,True,2024-12-31,False
+1900,Inactive Asset Test,Asset,False,2024-12-31,False
+2000,Accounts Payable,Liability,True,2024-12-31,False
+2100,Accrued Liabilities,Liability,True,2024-12-31,False
+2200,Accrued Payroll,Liability,True,2024-12-31,False
+3000,Common Stock,Equity,True,2024-12-31,False
+4000,Service Revenue,Revenue,True,2024-12-31,True
+4100,Product Revenue,Revenue,True,2024-12-31,True
+5000,Cost of Goods Sold,Expense,True,2024-12-31,True
+6000,Office Expense,Expense,True,2024-12-31,False
+6100,Marketing Expense,Expense,True,2024-12-31,False
+6200,Software Subscriptions,Expense,True,2024-12-31,False
+6300,Legal & Professional Fees,Expense,True,2024-12-31,False
+6400,Rent Expense,Expense,True,2024-12-31,False
+6500,Meals & Entertainment,Expense,True,2024-12-31,False
+6600,Travel,Expense,True,2024-12-31,False
+9999,Suspense,Other,True,2024-12-31,False

@@ -1,0 +1,6 @@
+po_number,vendor,po_amount,po_date,received
+PO-2024-022,Stellar Services,1200.00,2024-04-15,True
+PO-2024-031,Northwind Suppliers,9500.00,2024-04-25,True
+PO-2024-032,Northwind Suppliers,9750.00,2024-04-28,True
+PO-2024-033,Northwind Suppliers,9200.00,2024-05-01,False
+PO-2024-040,Beta Industries,14000.00,2024-05-15,True

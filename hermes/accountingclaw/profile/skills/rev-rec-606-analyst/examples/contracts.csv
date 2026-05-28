@@ -1,0 +1,7 @@
+contract_id,po_id,po_description,customer,contract_start_date,service_start_date,service_end_date,transaction_price,ssp,recognition_pattern,is_distinct
+C-101,PO-1,SaaS Annual Subscription Tier A,ACME Corp,2024-01-01,2024-01-01,2024-12-31,12000.00,12000.00,ratable,True
+C-102,PO-1,SaaS Annual Subscription Tier B,Beta Industries,2024-04-01,2024-04-01,2025-03-31,24000.00,24000.00,ratable,True
+C-103,PO-1,Implementation Services (distinct),Gamma LLC,2024-01-01,2024-01-01,2024-06-30,6000.00,6000.00,point_in_time,True
+C-103,PO-2,SaaS Annual Subscription Tier A,Gamma LLC,2024-01-01,2024-07-01,2025-06-30,12000.00,12000.00,ratable,True
+C-104,PO-1,SaaS + Implementation (bundled non-distinct impl),Delta Co,2024-03-01,2024-03-01,2025-02-28,18000.00,18000.00,ratable,True
+C-105,PO-1,Variable usage block (default to 0 in v1),Echo Inc,2024-05-01,2024-05-01,2025-04-30,10000.00,10000.00,usage_based,True

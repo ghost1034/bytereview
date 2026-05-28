@@ -1,0 +1,11 @@
+matter_id: IND-RSU-2024
+issue: How are RSU vesting events taxed for a California resident employee?
+facts:
+  - Employee is CA resident; employer is DE C-Corp.
+  - RSUs vest in 2024; no 83(b) election.
+  - Some remote work performed in Nevada in Q3 2024.
+research_questions:
+  - What is the federal ordinary income treatment at vest under IRC §83?
+  - How does California source RSU income for multi-state work?
+  - Are payroll withholding obligations triggered in multiple states?
+preliminary_conclusion: Ordinary income at FMV on vest date — CA sourcing apportionment required for NV workdays.

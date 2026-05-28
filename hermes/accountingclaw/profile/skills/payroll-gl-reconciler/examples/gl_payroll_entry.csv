@@ -1,0 +1,12 @@
+date,account,description,amount,department
+2024-05-31,6100,Salaries Expense - Engineering,9500.00,Engineering
+2024-05-31,6100,Salaries Expense - Marketing,4000.00,Marketing
+2024-05-31,6100,Salaries Expense - Sales,6500.00,Sales
+2024-05-31,6100,Salaries Expense - Operations,3500.00,Operations
+2024-05-31,6110,Employer Payroll Taxes,1997.50,
+2024-05-31,6120,401(k) Match Expense,630.00,
+2024-05-31,6130,Employer Health Contribution,1200.00,
+2024-05-31,2210,EE Tax Withholding Liability,-6412.50,
+2024-05-31,2221,Pre-tax Benefits Liability,-1300.00,
+2024-05-31,2222,Post-tax Benefits Liability,-150.00,
+2024-05-31,1000,Cash - Payroll Disbursement,-19465.00,

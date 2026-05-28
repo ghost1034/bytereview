@@ -1,0 +1,11 @@
+task_id,task_name,owner,due_date,status,dependencies,entity,day_target
+1,AP Close,John Doe,2024-05-01,Complete,,US,1
+2,Bank Recon,Jane Smith,2024-05-02,Complete,1,US,2
+3,Fixed Asset Dep,Bob Brown,2024-05-03,In Progress,2,US,3
+4,Revenue Recon,Alice White,2024-05-04,Not Started,3,US,4
+5,Intercompany Elim,Consolidation Team,2024-05-05,Not Started,"3,4",Consolidation,5
+6,Payroll Accrual,HR Finance,2024-05-03,Complete,1,US,3
+7,Consolidation TB,Consolidation Team,2024-05-06,Not Started,5,Consolidation,6
+8,EMEA AP Close,EMEA Controller,2024-05-02,Complete,,EMEA,2
+9,EMEA IC Match,EMEA Controller,2024-05-04,In Progress,8,EMEA,4
+10,Tax Provision,Tax Manager,2024-05-07,Not Started,"5,7",US,7

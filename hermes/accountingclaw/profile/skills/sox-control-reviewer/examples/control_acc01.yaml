@@ -1,0 +1,29 @@
+control_id: ACC-01
+control_owner: AP Manager
+frequency: weekly
+type: preventive
+automation: IT-dependent manual
+risk_addressed: |
+  Risk that vendor payments are released without independent review, leading to
+  unauthorized disbursements or misstatement of cash and AP.
+control_objective: |
+  Each weekly payment proposal is reviewed and approved by an authorized
+  AP Manager before the payment file is transmitted to the bank.
+narrative: |
+  The AP Clerk prepares a weekly payment proposal in NetSuite ERP based on the
+  AP aging report. The AP Manager reviews the proposal for accuracy (vendor name,
+  amount, GL coding, three-way match status), and approves it in the NetSuite
+  approval workflow by Friday of each week. Approval is evidenced by the
+  system-generated audit log report which shows the preparer, approver,
+  prepared date, and approved date.
+required_attributes:
+  - preparer_id
+  - approver_id
+  - prepared_date
+  - approved_date
+  - source_system
+ipe:
+  - report_name: NetSuite Payment Proposal Audit Log
+    source: NetSuite ERP
+    completeness_evidence: report header showing date range and total record count
+    accuracy_evidence: tie of payment proposal total to AP sub-ledger trial balance

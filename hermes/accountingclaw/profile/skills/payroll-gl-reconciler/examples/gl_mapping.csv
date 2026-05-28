@@ -1,0 +1,8 @@
+component,account,dr_cr
+gross_pay,6100,Dr
+er_taxes,6110,Dr
+er_401k_match,6120,Dr
+er_health_contribution,6130,Dr
+ee_withholdings,2210,Cr
+benefits_pretax,2221,Cr
+benefits_posttax,2222,Cr

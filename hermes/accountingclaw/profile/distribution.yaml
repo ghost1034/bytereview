@@ -13,12 +13,32 @@ required_environment_variables:
     prompt: OpenRouter API key
     required_for: Hermes model access with the default OpenRouter provider
 
+# Each skills/<skill>/ entry bundles that skill's SKILL.md plus its scripts/ and
+# examples/ (the skill scripts produce XLSX/DOCX/CSV workpapers from the samples).
 contents:
   - SOUL.md
   - config.yaml
-  - skills/client-onboarding/SKILL.md
-  - skills/month-end-close/SKILL.md
-  - skills/qbo-reconciliation/SKILL.md
-  - skills/ap-ar-review/SKILL.md
-  - skills/sales-tax-review/SKILL.md
-  - skills/payroll-journal-review/SKILL.md
+  - skills/ap-exception-reviewer/
+  - skills/audit-evidence-packager/
+  - skills/audit-pbc-coordinator/
+  - skills/balance-sheet-reconciler/
+  - skills/close-orchestration-dashboard/
+  - skills/corporate-tax-researcher/
+  - skills/debt-equity-reviewer/
+  - skills/disclosure-footnote-assistant/
+  - skills/expense-policy-reviewer/
+  - skills/fixed-asset-lifecycle-manager/
+  - skills/flux-variance-analyst/
+  - skills/individual-tax-researcher/
+  - skills/intercompany-elimination-bot/
+  - skills/journal-entry-assistant/
+  - skills/lease-842-assistant/
+  - skills/partnership-tax-researcher/
+  - skills/payroll-gl-reconciler/
+  - skills/reserves-estimator/
+  - skills/rev-rec-606-analyst/
+  - skills/sales-tax-researcher/
+  - skills/sox-control-reviewer/
+  - skills/tax-provision-calculator/
+  - skills/tech-accounting-memo/
+  - skills/transfer-pricing-analyst/

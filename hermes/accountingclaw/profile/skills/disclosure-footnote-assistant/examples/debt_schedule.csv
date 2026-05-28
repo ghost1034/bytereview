@@ -1,0 +1,6 @@
+instrument,lender,original_principal,principal_outstanding,interest_rate,rate_type,maturity_date,secured,covenant_compliance
+Term Loan A,First National Bank,5000000,3750000,0.0625,fixed,2027-03-31,True,True
+Revolving Credit Facility,First National Bank,10000000,2500000,0.0735,variable,2026-12-31,True,True
+Senior Notes Series 2022,Institutional Investors,8000000,8000000,0.0550,fixed,2029-06-30,False,True
+Equipment Loan,Equipment Finance Co,500000,250000,0.0700,fixed,2025-09-30,True,True
+SBA 7(a) Loan,Community Bank,1500000,900000,0.0825,variable,2030-06-30,True,True

@@ -1,0 +1,14 @@
+pre_tax_income: 1000000
+statutory_rate: 0.21
+state_rate: 0.065
+state_apportionment_pct: 0.85
+valuation_allowance_pct: 0.10
+permanent_differences:
+  - Meals & Entertainment: 15000
+  - Stock Comp Non-deductible: 50000
+temporary_differences:
+  - Accelerated Depreciation: -120000
+  - Accrued Bonus: 40000
+  - Warranty Reserve: 25000
+uncertain_tax_positions:
+  - R&D credit methodology — FIN 48 review required

@@ -1,0 +1,5 @@
+bucket,q_factor_pct
+Current,0.001
+31-60,0.005
+61-90,0.020
+Over 90,0.050

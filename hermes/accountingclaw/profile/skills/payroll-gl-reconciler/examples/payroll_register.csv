@@ -1,0 +1,6 @@
+employee_id,name,pay_period_end,gross_pay,er_taxes,ee_fica,ee_fit,ee_sit,ee_other_taxes,benefits_pretax,benefits_posttax,net_pay,department,er_401k_match,er_health_contribution
+E001,Alice Smith,2024-05-31,5000.00,425.00,310.00,825.00,250.00,55.00,300.00,50.00,3210.00,Engineering,150.00,250.00
+E002,Bob Jones,2024-05-31,4000.00,340.00,248.00,540.00,180.00,40.00,200.00,0.00,2792.00,Marketing,80.00,200.00
+E003,Charlie Brown,2024-05-31,4500.00,382.50,279.00,635.00,205.00,48.00,250.00,25.00,3058.00,Engineering,135.00,250.00
+E004,Diane Lee,2024-05-31,6500.00,552.50,403.00,1180.00,310.00,72.50,400.00,75.00,4059.50,Sales,195.00,300.00
+E005,Evan Patel,2024-05-31,3500.00,297.50,217.00,420.00,160.00,35.00,150.00,0.00,2518.00,Operations,70.00,200.00

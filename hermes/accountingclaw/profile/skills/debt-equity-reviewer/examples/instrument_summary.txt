@@ -1,0 +1,7 @@
+Instrument: Series A Preferred Stock
+Features:
+- Mandatorily Redeemable: No
+- Redemption at Option of Holder: Yes (after 5 years)
+- Dividend: 8% Cumulative
+- Settlement: Fixed number of shares
+Expected Conclusion: Mezzanine Equity due to holder-option redemption.
