@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { FileText, Loader2, Pencil, Plus, Scissors, Trash2, Upload } from 'lucide-react'
+import { BookOpen, FileText, Loader2, Pencil, Plus, Scissors, Trash2, Upload } from 'lucide-react'
 
 import {
   AlertDialog,
@@ -47,6 +47,7 @@ interface WaterfallListProps {
   onNew: () => void
   onBulk: () => void
   onReports: () => void
+  onJournal: () => void
   onEdit: (row: WaterfallRollup) => void
   onWriteOff: (row: WaterfallRollup) => void
 }
@@ -61,6 +62,7 @@ export function WaterfallList({
   onNew,
   onBulk,
   onReports,
+  onJournal,
   onEdit,
   onWriteOff,
 }: WaterfallListProps) {
@@ -219,6 +221,9 @@ export function WaterfallList({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={onJournal}>
+            <BookOpen className="mr-1.5 size-4" aria-hidden /> Journal entries
+          </Button>
           <Button variant="outline" onClick={onReports}>
             <FileText className="mr-1.5 size-4" aria-hidden /> Reports
           </Button>

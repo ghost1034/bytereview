@@ -19,10 +19,11 @@ import { rollupAsOf, toSavedWaterfall, type SavedWaterfall } from '@/lib/analyti
 import { WaterfallBulkUpload } from './WaterfallBulkUpload'
 import { WaterfallForm } from './WaterfallForm'
 import { WaterfallList } from './WaterfallList'
+import { WaterfallMonthlyJournal } from './WaterfallMonthlyJournal'
 import { WaterfallReports } from './WaterfallReports'
 import { WriteOffDialog } from './WriteOffDialog'
 
-type View = 'list' | 'create' | 'reports' | 'bulk'
+type View = 'list' | 'create' | 'reports' | 'bulk' | 'journal'
 
 const HEADER: Record<View, { title: string; description: string }> = {
   list: {
@@ -32,6 +33,10 @@ const HEADER: Record<View, { title: string; description: string }> = {
   create: { title: 'Waterfall schedule', description: 'Configure a schedule and review its recognition and journal entries.' },
   reports: { title: 'Waterfall reports', description: 'Export consolidated schedule detail and monthly recognition summaries.' },
   bulk: { title: 'Bulk upload', description: 'Import multiple schedules from a CSV or Excel file.' },
+  journal: {
+    title: 'Monthly journal entries',
+    description: "Book every contract's recognition for a chosen month as one consolidated journal.",
+  },
 }
 
 export function WaterfallModule() {
@@ -107,6 +112,8 @@ export function WaterfallModule() {
         <WaterfallForm initial={editing} onDone={goList} />
       ) : view === 'reports' ? (
         <WaterfallReports rows={filtered} onBack={goList} />
+      ) : view === 'journal' ? (
+        <WaterfallMonthlyJournal rows={filtered} onBack={goList} />
       ) : view === 'bulk' ? (
         <WaterfallBulkUpload onBack={goList} />
       ) : saved.length === 0 ? (
@@ -136,6 +143,7 @@ export function WaterfallModule() {
           onNew={() => setView('create')}
           onBulk={() => setView('bulk')}
           onReports={() => setView('reports')}
+          onJournal={() => setView('journal')}
           onEdit={(row) => {
             setEditing(row)
             setView('create')

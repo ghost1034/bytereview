@@ -264,6 +264,80 @@ export function applyWriteOff(input: WriteOffInput, asOf: string): WaterfallResu
   return { schedule: newSchedule, journalEntries }
 }
 
+/**
+ * Input shape for `buildMonthlyJournalEntries`. `SavedWaterfall` is a superset
+ * and assignable here; declared structurally to keep the engine free of
+ * `waterfallData` (which itself imports from this file).
+ */
+export interface MonthlyJournalInput {
+  id: string
+  name: string
+  form: WaterfallForm
+  schedule: ScheduleRow[]
+}
+
+/** One row of the consolidated monthly journal-entries view (one debit/credit side). */
+export interface MonthlyJournalRow {
+  id: string
+  date: string // YYYY-MM-DD (last day of the asOf month)
+  contractName: string
+  subtype: WaterfallSubtype
+  account: string
+  debit: number | null
+  credit: number | null
+  memo: string
+}
+
+/**
+ * Build the consolidated monthly journal entries across every waterfall whose
+ * schedule recognizes something in the `asOf` month ("YYYY-MM"). Emits the same
+ * debit/credit pairs `calculateWaterfall` produces for that period, falling
+ * back to `DEFAULT_ACCOUNTS` when a form leaves an account blank.
+ */
+export function buildMonthlyJournalEntries(
+  items: MonthlyJournalInput[],
+  asOf: string,
+): MonthlyJournalRow[] {
+  const cutoff = monthKeyToYYYYMM(asOf)
+  if (cutoff == null) return []
+  const asOfYear = Math.floor(cutoff / 100)
+  const asOfMonth = cutoff % 100 // 0-indexed
+
+  const recDate = toYMD(new Date(asOfYear, asOfMonth + 1, 0))
+  const rows: MonthlyJournalRow[] = []
+
+  for (const item of items) {
+    const period = item.schedule.find((p) => periodToYYYYMM(p.period) === cutoff)
+    if (!period || !(period.recognized > 0)) continue
+
+    const { form, name } = item
+    const periodStr = period.period
+    const partyName = form.partyName
+    const recognized = period.recognized
+    const idPrefix = `mje-${item.id}-${recDate}`
+
+    if (form.type === 'Deferred Revenue') {
+      const memo = `${periodStr} revenue recognition — ${partyName}`
+      rows.push({ id: `${idPrefix}-dr`, date: recDate, contractName: name, subtype: form.type, account: form.deferredAccount || DEFAULT_ACCOUNTS.deferredAccount, debit: recognized, credit: null, memo })
+      rows.push({ id: `${idPrefix}-rev`, date: recDate, contractName: name, subtype: form.type, account: form.revenueAccount || DEFAULT_ACCOUNTS.revenueAccount, debit: null, credit: recognized, memo })
+    } else if (form.type === 'Prepaid Expenses') {
+      const memo = `${periodStr} amortization — ${partyName}`
+      rows.push({ id: `${idPrefix}-exp`, date: recDate, contractName: name, subtype: form.type, account: form.expenseAccount || DEFAULT_ACCOUNTS.expenseAccount, debit: recognized, credit: null, memo })
+      rows.push({ id: `${idPrefix}-prepaid`, date: recDate, contractName: name, subtype: form.type, account: form.prepaidAccount || DEFAULT_ACCOUNTS.prepaidAccount, debit: null, credit: recognized, memo })
+    } else if (form.type === 'Accrued Expenses') {
+      const memo = `${periodStr} accrual — ${name}`
+      rows.push({ id: `${idPrefix}-exp`, date: recDate, contractName: name, subtype: form.type, account: form.expenseAccount || DEFAULT_ACCOUNTS.expenseAccount, debit: recognized, credit: null, memo })
+      rows.push({ id: `${idPrefix}-liab`, date: recDate, contractName: name, subtype: form.type, account: form.liabilityAccount || DEFAULT_ACCOUNTS.liabilityAccount, debit: null, credit: recognized, memo })
+    } else if (form.type === 'Deferred Commission') {
+      const memo = `${periodStr} commission amortization — ${partyName}`
+      rows.push({ id: `${idPrefix}-exp`, date: recDate, contractName: name, subtype: form.type, account: form.commExpenseAccount || DEFAULT_ACCOUNTS.commExpenseAccount, debit: recognized, credit: null, memo })
+      rows.push({ id: `${idPrefix}-defcomm`, date: recDate, contractName: name, subtype: form.type, account: form.defCommAccount || DEFAULT_ACCOUNTS.defCommAccount, debit: null, credit: recognized, memo })
+    }
+  }
+
+  return rows
+}
+
 export interface AsOfAggregate {
   recognizedToDate: number
   currentBalance: number
