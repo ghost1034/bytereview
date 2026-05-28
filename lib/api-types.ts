@@ -2849,6 +2849,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/analytics/reconciliation/{reconciliation_id}/manual-match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Manual Match Route */
+        post: operations["manual_match_route_api_analytics_reconciliation__reconciliation_id__manual_match_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/reconciliation/{reconciliation_id}/match-groups/{group_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Match Group Route */
+        post: operations["approve_match_group_route_api_analytics_reconciliation__reconciliation_id__match_groups__group_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/reconciliation/{reconciliation_id}/match-groups/{group_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Match Group Route */
+        post: operations["reject_match_group_route_api_analytics_reconciliation__reconciliation_id__match_groups__group_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/analytics/variance/threshold": {
         parameters: {
             query?: never;
@@ -6053,8 +6104,9 @@ export interface components {
             /**
              * Status
              * @default draft
+             * @enum {string}
              */
-            status: string;
+            status: "draft" | "in_review" | "approved" | "finalized";
             /** Source A */
             source_a?: {
                 [key: string]: unknown;
@@ -6077,6 +6129,15 @@ export interface components {
             /** Reconciliations */
             reconciliations?: components["schemas"]["ReconciliationRecord"][];
         };
+        /** ReconciliationManualMatchRequest */
+        ReconciliationManualMatchRequest: {
+            /** Sourceaids */
+            sourceAIds: string[];
+            /** Sourcebids */
+            sourceBIds: string[];
+            /** Explanation */
+            explanation?: string | null;
+        };
         /** ReconciliationMatchRequest */
         ReconciliationMatchRequest: {
             /** Sourcea */
@@ -6098,6 +6159,10 @@ export interface components {
             matchGroups?: {
                 [key: string]: unknown;
             }[];
+            /** Unmatchedexceptions */
+            unmatchedExceptions?: {
+                [key: string]: unknown;
+            }[];
             usage?: components["schemas"]["UsageMetadata"];
         };
         /** ReconciliationRecord */
@@ -6112,8 +6177,11 @@ export interface components {
             created_by_user_id: string;
             /** Name */
             name: string;
-            /** Status */
-            status: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "in_review" | "approved" | "finalized";
             /** Source A */
             source_a?: {
                 [key: string]: unknown;
@@ -6165,7 +6233,7 @@ export interface components {
             /** Client Id */
             client_id?: string | null;
             /** Status */
-            status?: string | null;
+            status?: ("draft" | "in_review" | "approved" | "finalized") | null;
             /** Source A */
             source_a?: {
                 [key: string]: unknown;
@@ -12562,6 +12630,105 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    manual_match_route_api_analytics_reconciliation__reconciliation_id__manual_match_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reconciliation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReconciliationManualMatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_match_group_route_api_analytics_reconciliation__reconciliation_id__match_groups__group_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reconciliation_id: string;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_match_group_route_api_analytics_reconciliation__reconciliation_id__match_groups__group_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reconciliation_id: string;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationRecord"];
                 };
             };
             /** @description Validation Error */

@@ -55,6 +55,21 @@ export type AnalyticsJournalEntry = S['JournalEntryResponse']
 export type AnalyticsJournalEntryCreateRequest = S['JournalEntryCreateRequest']
 export type AnalyticsJournalEntryList = S['JournalEntryListResponse']
 
+// Reconciliation
+export type AnalyticsReconciliation = S['ReconciliationRecord']
+export type AnalyticsReconciliationListResponse = S['ReconciliationListResponse']
+export type AnalyticsReconciliationCreateRequest = S['ReconciliationCreateRequest']
+export type AnalyticsReconciliationUpdateRequest = S['ReconciliationUpdateRequest']
+export type AnalyticsReconciliationRulesGenerateRequest = S['ReconciliationRulesGenerateRequest']
+export type AnalyticsReconciliationRulesGenerateResponse = S['ReconciliationRulesGenerateResponse']
+export type AnalyticsReconciliationAdditionalPassRequest = S['ReconciliationAdditionalPassRequest']
+export type AnalyticsReconciliationAdditionalPassResponse = S['ReconciliationAdditionalPassResponse']
+export type AnalyticsReconciliationMatchRequest = S['ReconciliationMatchRequest']
+export type AnalyticsReconciliationMatchResponse = S['ReconciliationMatchResponse']
+export type AnalyticsReconciliationBasicRequest = S['ReconciliationBasicRequest']
+export type AnalyticsReconciliationManualMatchRequest = S['ReconciliationManualMatchRequest']
+export type AnalyticsReconciliationStatus = NonNullable<S['ReconciliationRecord']['status']>
+
 // Chat — shared
 export type AnalyticsChatMessage = S['ChatMessage']
 export type AnalyticsChatSession = S['ChatSessionResponse']

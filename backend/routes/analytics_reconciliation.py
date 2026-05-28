@@ -15,6 +15,7 @@ from models.analytics import (
     ReconciliationBasicRequest,
     ReconciliationCreateRequest,
     ReconciliationListResponse,
+    ReconciliationManualMatchRequest,
     ReconciliationMatchRequest,
     ReconciliationMatchResponse,
     ReconciliationRecord,
@@ -120,7 +121,7 @@ async def perform_match(
     db: Session = Depends(get_db),
 ):
     preflight_check(db, actor.id, "analytics_recon_match")
-    groups, usage = await analytics_ai_service.perform_ai_assisted_match(
+    result, usage = await analytics_ai_service.perform_ai_assisted_match(
         payload.source_a, payload.source_b, payload.rules
     )
     record_call(
@@ -132,7 +133,8 @@ async def perform_match(
     )
     return ReconciliationMatchResponse.model_validate(
         {
-            "matchGroups": groups,
+            "matchGroups": result.get("matchGroups", []),
+            "unmatchedExceptions": result.get("unmatchedExceptions", []),
             "usage": _usage(usage.get("prompt_tokens"), usage.get("output_tokens")),
         }
     )
@@ -211,7 +213,7 @@ async def update_reconciliation_route(
     firm_id = require_firm_id(db, actor.id)
     return _record_to_response(
         reconciliations_service.update_reconciliation(
-            db, firm_id, reconciliation_id, payload=payload
+            db, firm_id, reconciliation_id, payload=payload, actor_user_id=actor.id
         )
     )
 
@@ -223,5 +225,63 @@ async def delete_reconciliation_route(
     db: Session = Depends(get_db),
 ):
     firm_id = require_firm_id(db, actor.id)
-    reconciliations_service.delete_reconciliation(db, firm_id, reconciliation_id)
+    reconciliations_service.delete_reconciliation(
+        db, firm_id, reconciliation_id, actor_user_id=actor.id
+    )
     return {"success": True}
+
+
+# ---------------------------------------------------------------------------
+# Manual match + per-match-group approve / reject (no LLM, no billing)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{reconciliation_id}/manual-match", response_model=ReconciliationRecord)
+async def manual_match_route(
+    reconciliation_id: str,
+    payload: ReconciliationManualMatchRequest,
+    actor: User = Depends(require_role(*WRITER_ROLES)),
+    db: Session = Depends(get_db),
+):
+    firm_id = require_firm_id(db, actor.id)
+    return _record_to_response(
+        reconciliations_service.manual_match(
+            db, firm_id, actor.id, reconciliation_id, payload=payload
+        )
+    )
+
+
+@router.post(
+    "/{reconciliation_id}/match-groups/{group_id}/approve",
+    response_model=ReconciliationRecord,
+)
+async def approve_match_group_route(
+    reconciliation_id: str,
+    group_id: str,
+    actor: User = Depends(require_role(*WRITER_ROLES)),
+    db: Session = Depends(get_db),
+):
+    firm_id = require_firm_id(db, actor.id)
+    return _record_to_response(
+        reconciliations_service.set_match_group_status(
+            db, firm_id, actor.id, reconciliation_id, group_id, "approved"
+        )
+    )
+
+
+@router.post(
+    "/{reconciliation_id}/match-groups/{group_id}/reject",
+    response_model=ReconciliationRecord,
+)
+async def reject_match_group_route(
+    reconciliation_id: str,
+    group_id: str,
+    actor: User = Depends(require_role(*WRITER_ROLES)),
+    db: Session = Depends(get_db),
+):
+    firm_id = require_firm_id(db, actor.id)
+    return _record_to_response(
+        reconciliations_service.set_match_group_status(
+            db, firm_id, actor.id, reconciliation_id, group_id, "rejected"
+        )
+    )

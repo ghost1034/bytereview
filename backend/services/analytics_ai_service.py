@@ -250,13 +250,19 @@ async def perform_ai_assisted_match(
     source_a: List[Dict[str, Any]],
     source_b: List[Dict[str, Any]],
     rules: List[Dict[str, Any]],
-) -> Tuple[List[Dict[str, Any]], Dict[str, Optional[int]]]:
+) -> Tuple[Dict[str, Any], Dict[str, Optional[int]]]:
+    """Run AI-assisted reconciliation matching.
+
+    Returns a dict with ``matchGroups`` and ``unmatchedExceptions`` arrays so the
+    caller can populate both the Matched and Exceptions tabs. The dict shape
+    matches the JSON schema enforced by the model.
+    """
     client = get_client()
     enriched_a = [{**t, "absoluteAmount": abs(t.get("amount", 0) or 0)} for t in source_a]
     enriched_b = [{**t, "absoluteAmount": abs(t.get("amount", 0) or 0)} for t in source_b]
 
     prompt = f"""You are an expert accountant performing reconciliation.
-Given two lists of transactions (Source A and Source B) and a set of matching rules, your task is to identify matching groups of transactions and any unmatched exceptions.
+Given two lists of transactions (Source A and Source B) and a set of matching rules, your task is to identify matching groups of transactions and categorize any unmatched exceptions.
 CRITICAL MATHEMATICAL INSTRUCTION: Use the 'absoluteAmount' property supplied on the transactions for all matching logic. For Group Matches / Sum Matches, the sum of 'absoluteAmount' for the Source A group must EXACTLY match the sum of 'absoluteAmount' for the Source B group.
 
 Source A (e.g., Bank):
@@ -268,48 +274,78 @@ Source B (e.g., G/L):
 Rules to apply:
 {json.dumps(rules, indent=2)}
 
-Please return the matched groups and their confidence scores.
+Return an object with two arrays:
+
+1. `matchGroups`: matched transaction groups with confidence scores.
 A match group can be:
 - 1:1 (one from A, one from B)
 - 1:Many (one from A, multiple from B)
 - Many:1 (multiple from A, one from B)
 - Many:Many (multiple from A, multiple from B)
 
-For each group, provide a clear explanation for why they matched based on dates, descriptions, and absolute amounts.
-Provide a unique ID for each match group starting at g1000.
-For groups, sum the absolute amounts of A to verify it equals the sum of absolute amounts of B.
+For each group, provide a clear explanation referencing dates, descriptions, and absolute amounts. Provide a unique ID for each match group starting at g1000. For groups, sum the absolute amounts of A to verify it equals the sum of absolute amounts of B.
+
+2. `unmatchedExceptions`: every transaction id from either source that is NOT included in any match group. For each, classify the reason using one of:
+- TIMING — likely matches across a different cutoff period (date crosses period boundary).
+- BANK_FEE — small charge from the bank side with no corresponding ledger entry.
+- MISSING — counterpart appears entirely absent from the other source.
+- AMOUNT_MISMATCH — likely counterpart exists but amounts differ.
+- OTHER — none of the above.
+
+For each exception, include `id`, `source` ("A" or "B"), `exceptionCategory`, and a one-sentence `exceptionReasoning` that names the specific evidence.
+Every unmatched transaction must appear in exactly one of `unmatchedExceptions`. Do not leave matched transactions in `unmatchedExceptions`.
 """
 
+    match_group_schema = types.Schema(
+        type="OBJECT",
+        properties={
+            "id": types.Schema(type="STRING"),
+            "type": types.Schema(
+                type="STRING",
+                enum=["1:1", "1:Many", "Many:1", "Many:Many"],
+            ),
+            "sourceAIds": types.Schema(type="ARRAY", items=types.Schema(type="STRING")),
+            "sourceBIds": types.Schema(type="ARRAY", items=types.Schema(type="STRING")),
+            "totalA": types.Schema(type="NUMBER"),
+            "totalB": types.Schema(type="NUMBER"),
+            "confidence": types.Schema(type="NUMBER"),
+            "explanation": types.Schema(type="STRING"),
+            "status": types.Schema(type="STRING", enum=["suggested", "approved"]),
+        },
+        required=[
+            "id",
+            "type",
+            "sourceAIds",
+            "sourceBIds",
+            "totalA",
+            "totalB",
+            "confidence",
+            "explanation",
+            "status",
+        ],
+    )
+
+    exception_schema = types.Schema(
+        type="OBJECT",
+        properties={
+            "id": types.Schema(type="STRING"),
+            "source": types.Schema(type="STRING", enum=["A", "B"]),
+            "exceptionCategory": types.Schema(
+                type="STRING",
+                enum=["TIMING", "BANK_FEE", "MISSING", "AMOUNT_MISMATCH", "OTHER"],
+            ),
+            "exceptionReasoning": types.Schema(type="STRING"),
+        },
+        required=["id", "source", "exceptionCategory", "exceptionReasoning"],
+    )
+
     response_schema = types.Schema(
-        type="ARRAY",
-        items=types.Schema(
-            type="OBJECT",
-            properties={
-                "id": types.Schema(type="STRING"),
-                "type": types.Schema(
-                    type="STRING",
-                    enum=["1:1", "1:Many", "Many:1", "Many:Many"],
-                ),
-                "sourceAIds": types.Schema(type="ARRAY", items=types.Schema(type="STRING")),
-                "sourceBIds": types.Schema(type="ARRAY", items=types.Schema(type="STRING")),
-                "totalA": types.Schema(type="NUMBER"),
-                "totalB": types.Schema(type="NUMBER"),
-                "confidence": types.Schema(type="NUMBER"),
-                "explanation": types.Schema(type="STRING"),
-                "status": types.Schema(type="STRING", enum=["suggested", "approved"]),
-            },
-            required=[
-                "id",
-                "type",
-                "sourceAIds",
-                "sourceBIds",
-                "totalA",
-                "totalB",
-                "confidence",
-                "explanation",
-                "status",
-            ],
-        ),
+        type="OBJECT",
+        properties={
+            "matchGroups": types.Schema(type="ARRAY", items=match_group_schema),
+            "unmatchedExceptions": types.Schema(type="ARRAY", items=exception_schema),
+        },
+        required=["matchGroups", "unmatchedExceptions"],
     )
 
     resp = await client.aio.models.generate_content(
@@ -323,6 +359,10 @@ For groups, sum the absolute amounts of A to verify it equals the sum of absolut
     )
     text = _get_resp_text(resp)
     parsed = _parse_json_text(text)
+    if not isinstance(parsed, dict):
+        parsed = {"matchGroups": parsed if isinstance(parsed, list) else [], "unmatchedExceptions": []}
+    parsed.setdefault("matchGroups", [])
+    parsed.setdefault("unmatchedExceptions", [])
     return parsed, _get_usage_counts(resp)
 
 

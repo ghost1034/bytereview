@@ -23,6 +23,8 @@ ProjectStatusLiteral = Literal[
 ProjectModuleLiteral = Literal[
     "variance", "reconciliation", "amortization", "waterfall", "irs", "gaap", "assistant", "other"
 ]
+ReconciliationStatusLiteral = Literal["draft", "in_review", "approved", "finalized"]
+ReconciliationGroupStatusLiteral = Literal["approved", "rejected"]
 
 
 # ---------------------------------------------------------------------------
@@ -202,6 +204,9 @@ class ReconciliationMatchRequest(BaseModel):
 
 class ReconciliationMatchResponse(BaseModel):
     match_groups: List[Dict[str, Any]] = Field(default_factory=list, alias="matchGroups")
+    unmatched_exceptions: List[Dict[str, Any]] = Field(
+        default_factory=list, alias="unmatchedExceptions"
+    )
     usage: UsageMetadata = Field(default_factory=UsageMetadata)
 
     model_config = {"populate_by_name": True}
@@ -214,13 +219,21 @@ class ReconciliationBasicRequest(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class ReconciliationManualMatchRequest(BaseModel):
+    source_a_ids: List[str] = Field(..., alias="sourceAIds", min_length=1)
+    source_b_ids: List[str] = Field(..., alias="sourceBIds", min_length=1)
+    explanation: Optional[str] = None
+
+    model_config = {"populate_by_name": True}
+
+
 class ReconciliationRecord(BaseModel):
     id: str
     firm_id: str
     client_id: Optional[str] = None
     created_by_user_id: str
     name: str
-    status: str
+    status: ReconciliationStatusLiteral
     source_a: Optional[List[Dict[str, Any]]] = None
     source_b: Optional[List[Dict[str, Any]]] = None
     rules: Optional[List[Dict[str, Any]]] = None
@@ -236,7 +249,7 @@ class ReconciliationListResponse(BaseModel):
 class ReconciliationCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     client_id: Optional[str] = None
-    status: str = "draft"
+    status: ReconciliationStatusLiteral = "draft"
     source_a: Optional[List[Dict[str, Any]]] = None
     source_b: Optional[List[Dict[str, Any]]] = None
     rules: Optional[List[Dict[str, Any]]] = None
@@ -246,7 +259,7 @@ class ReconciliationCreateRequest(BaseModel):
 class ReconciliationUpdateRequest(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     client_id: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[ReconciliationStatusLiteral] = None
     source_a: Optional[List[Dict[str, Any]]] = None
     source_b: Optional[List[Dict[str, Any]]] = None
     rules: Optional[List[Dict[str, Any]]] = None
