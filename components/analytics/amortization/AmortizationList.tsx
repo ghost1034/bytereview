@@ -1,7 +1,16 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { FileText, Loader2, Pencil, Plus, Scissors, Trash2, Upload } from 'lucide-react'
+import {
+  BookOpen,
+  FileText,
+  Loader2,
+  Pencil,
+  Plus,
+  Scissors,
+  Trash2,
+  Upload,
+} from 'lucide-react'
 
 import {
   AlertDialog,
@@ -15,6 +24,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -43,6 +53,7 @@ interface AmortizationListProps {
   onNew: () => void
   onBulk: () => void
   onReports: () => void
+  onJournal: () => void
   onEdit: (row: AnalyticsAmortization) => void
   onDispose: (row: AnalyticsAmortization) => void
 }
@@ -55,19 +66,23 @@ export function AmortizationList({
   onNew,
   onBulk,
   onReports,
+  onJournal,
   onEdit,
   onDispose,
 }: AmortizationListProps) {
   const { toast } = useToast()
   const deleteMutation = useDeleteAnalyticsAmortization()
   const [toDelete, setToDelete] = useState<AnalyticsAmortization | null>(null)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<(string | number)[]>([])
+  const [asOfDate, setAsOfDate] = useState<string>(() => new Date().toISOString().slice(0, 10))
 
   const clientNameById = useMemo(
     () => new Map(clients.map((c) => [c.id, c.name])),
     [clients],
   )
 
-  const summary = useMemo(() => summarizePortfolio(rows), [rows])
+  const summary = useMemo(() => summarizePortfolio(rows, asOfDate), [rows, asOfDate])
   const activeCount = useMemo(
     () => rows.filter((r) => (r.status ?? '').toLowerCase() !== 'disposed').length,
     [rows],
@@ -89,6 +104,23 @@ export function AmortizationList({
     }
   }
 
+  const confirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return
+    const ids = selectedIds.map(String)
+    const results = await Promise.allSettled(
+      ids.map((id) => deleteMutation.mutateAsync(id)),
+    )
+    const ok = results.filter((r) => r.status === 'fulfilled').length
+    const failed = results.length - ok
+    setSelectedIds([])
+    setBulkDeleteOpen(false)
+    toast({
+      title: failed ? 'Some deletes failed' : 'Assets deleted',
+      description: `${ok} removed${failed ? `, ${failed} failed` : ''}.`,
+      variant: failed && !ok ? 'destructive' : undefined,
+    })
+  }
+
   const handleExport = (format: ExportFormat) => {
     if (rows.length === 0) {
       toast({ title: 'Nothing to export', description: 'Add an asset first.' })
@@ -99,7 +131,7 @@ export function AmortizationList({
       'Asset Type': r.asset_type,
       Client: r.client_id ? clientNameById.get(r.client_id) ?? '' : '',
       'Cost Basis': r.cost_basis ?? 0,
-      NBV: computeNbv(r),
+      NBV: computeNbv(r, asOfDate),
       'Useful Life (Months)': r.useful_life_months ?? 0,
       'GAAP Method': r.gaap_method ?? '',
       'Tax Method': r.tax_method ?? '',
@@ -152,7 +184,7 @@ export function AmortizationList({
       accessorKey: 'id',
       cell: (_v, row) => (
         <span className="font-semibold tabular-nums text-foreground">
-          {formatCurrency(computeNbv(row))}
+          {formatCurrency(computeNbv(row, asOfDate))}
         </span>
       ),
     },
@@ -221,8 +253,21 @@ export function AmortizationList({
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="amort-as-of">As of</Label>
+            <Input
+              id="amort-as-of"
+              type="date"
+              value={asOfDate}
+              onChange={(e) => setAsOfDate(e.target.value)}
+              className="w-44"
+            />
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={onJournal}>
+            <BookOpen className="mr-1.5 size-4" aria-hidden /> Journal entries
+          </Button>
           <Button variant="outline" onClick={onReports}>
             <FileText className="mr-1.5 size-4" aria-hidden /> Reports
           </Button>
@@ -249,7 +294,7 @@ export function AmortizationList({
         <StatCard
           label="Net book value"
           value={formatCurrency(summary.totalNbv)}
-          hint="As of today"
+          hint={`As of ${asOfDate}`}
         />
         <StatCard
           label="Monthly expense"
@@ -263,7 +308,24 @@ export function AmortizationList({
         data={rows}
         columns={columns}
         searchPlaceholder="Search assets…"
-        actions={<ExportButton onExport={handleExport} />}
+        enableSelection
+        selectedRows={selectedIds}
+        onSelectionChange={setSelectedIds}
+        actions={
+          <div className="flex items-center gap-2">
+            {selectedIds.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBulkDeleteOpen(true)}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="mr-1.5 size-4" aria-hidden /> Delete selected ({selectedIds.length})
+              </Button>
+            )}
+            <ExportButton onExport={handleExport} />
+          </div>
+        }
         rowActions={(row) => {
           const isDisposed = (row.status ?? '').toLowerCase() === 'disposed'
           return (
@@ -298,6 +360,35 @@ export function AmortizationList({
           )
         }}
       />
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete selected assets</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedIds.length} selected asset
+              {selectedIds.length === 1 ? '' : 's'}? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmBulkDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+                  Deleting…
+                </>
+              ) : (
+                `Delete ${selectedIds.length}`
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!toDelete} onOpenChange={(open) => !open && setToDelete(null)}>
         <AlertDialogContent>

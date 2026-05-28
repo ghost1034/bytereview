@@ -114,6 +114,7 @@ export function AmortizationBulkUpload({ onBack }: AmortizationBulkUploadProps) 
       const form = mapRow(get)
       try {
         let schedule: ScheduleRow[] = []
+        let taxSchedule: ScheduleRow[] = []
         if (form.usefulLifeMonths > 0 && form.costBasis > 0 && form.startDate) {
           const res = await scheduleMutation.mutateAsync({
             assetType: form.assetType,
@@ -124,9 +125,34 @@ export function AmortizationBulkUpload({ onBack }: AmortizationBulkUploadProps) 
             startDate: form.startDate,
           })
           schedule = (res.schedule ?? []) as unknown as ScheduleRow[]
+
+          if (form.taxMethod === 'MACRS') {
+            const parsedYear = Number.parseInt(form.startDate.slice(0, 4), 10)
+            const bonusRaw = form.bonusDepreciationPercentage ?? ''
+            const bonusPercent = bonusRaw
+              ? Number.parseFloat(String(bonusRaw).replace('%', '')) / 100
+              : undefined
+            try {
+              const taxRes = await scheduleMutation.mutateAsync({
+                assetType: form.assetType,
+                method: 'macrs',
+                costBasis: form.costBasis,
+                salvageValue: form.salvageValue,
+                usefulLifeMonths: form.usefulLifeMonths,
+                startDate: form.startDate,
+                propertyClass: form.macrsPropertyClass ?? '5-year',
+                bonusPercent,
+                section179: form.section179Amount ?? undefined,
+                startYear: Number.isFinite(parsedYear) ? parsedYear : undefined,
+              })
+              taxSchedule = (taxRes.schedule ?? []) as unknown as ScheduleRow[]
+            } catch {
+              // Bulk import is forgiving: a tax-schedule failure shouldn't drop the asset.
+            }
+          }
         }
         const payload = splitFormForApi(form)
-        await createMutation.mutateAsync({ ...payload, schedule, tax_schedule: [] })
+        await createMutation.mutateAsync({ ...payload, schedule, tax_schedule: taxSchedule })
         ok += 1
       } catch {
         failed += 1

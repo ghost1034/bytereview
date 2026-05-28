@@ -18,11 +18,12 @@ import {
 import type { AnalyticsAmortization } from '@/lib/analytics/types'
 import { AmortizationBulkUpload } from './AmortizationBulkUpload'
 import { AmortizationForm } from './AmortizationForm'
+import { AmortizationJournalEntriesView } from './AmortizationJournalEntriesView'
 import { AmortizationList } from './AmortizationList'
 import { AmortizationReports } from './AmortizationReports'
 import { DisposalDialog } from './DisposalDialog'
 
-type View = 'list' | 'create' | 'reports' | 'bulk'
+type View = 'list' | 'create' | 'reports' | 'bulk' | 'journal'
 
 const HEADER: Record<View, { title: string; description: string }> = {
   list: {
@@ -41,6 +42,10 @@ const HEADER: Record<View, { title: string; description: string }> = {
   bulk: {
     title: 'Bulk upload',
     description: 'Import multiple assets from a CSV or Excel file.',
+  },
+  journal: {
+    title: 'Journal entries',
+    description: 'Period-end journal entries derived from every asset schedule.',
   },
 }
 
@@ -120,6 +125,8 @@ export function AmortizationModule() {
         <AmortizationReports rows={filtered} clients={clients} onBack={goList} />
       ) : view === 'bulk' ? (
         <AmortizationBulkUpload onBack={goList} />
+      ) : view === 'journal' ? (
+        <AmortizationJournalEntriesView rows={filtered} clients={clients} onBack={goList} />
       ) : rows.length === 0 ? (
         <EmptyState
           icon={Calculator}
@@ -145,6 +152,7 @@ export function AmortizationModule() {
           onNew={() => setView('create')}
           onBulk={() => setView('bulk')}
           onReports={() => setView('reports')}
+          onJournal={() => setView('journal')}
           onEdit={(row) => {
             setEditing(row)
             setView('create')

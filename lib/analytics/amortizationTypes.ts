@@ -74,18 +74,9 @@ export const ASSET_TYPE_DEFAULTS: Record<
 // Method enums
 // ---------------------------------------------------------------------------
 
-export type GaapMethod =
-  | 'Straight-Line'
-  | 'Effective Interest'
-  | 'Declining Balance'
-  | 'Units of Production'
+export type GaapMethod = 'Straight-Line' | 'Declining Balance'
 
-export const GAAP_METHODS: readonly GaapMethod[] = [
-  'Straight-Line',
-  'Effective Interest',
-  'Declining Balance',
-  'Units of Production',
-] as const
+export const GAAP_METHODS: readonly GaapMethod[] = ['Straight-Line', 'Declining Balance'] as const
 
 export type TaxMethod = 'MACRS' | 'Straight-Line' | 'Section 179' | 'Bonus' | 'N/A'
 

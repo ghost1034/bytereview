@@ -217,7 +217,9 @@ async def update_amortization_route(
 ):
     firm_id = require_firm_id(db, actor.id)
     return _to_response(
-        amortizations_service.update_amortization(db, firm_id, amortization_id, payload=payload)
+        amortizations_service.update_amortization(
+            db, firm_id, amortization_id, payload=payload, actor_user_id=actor.id
+        )
     )
 
 
@@ -228,7 +230,9 @@ async def delete_amortization_route(
     db: Session = Depends(get_db),
 ):
     firm_id = require_firm_id(db, actor.id)
-    amortizations_service.delete_amortization(db, firm_id, amortization_id)
+    amortizations_service.delete_amortization(
+        db, firm_id, amortization_id, actor_user_id=actor.id
+    )
     return {"success": True}
 
 
@@ -257,5 +261,7 @@ async def create_journal_entry_route(
     db: Session = Depends(get_db),
 ):
     firm_id = require_firm_id(db, actor.id)
-    row = amortizations_service.create_journal_entry(db, firm_id, payload=payload)
+    row = amortizations_service.create_journal_entry(
+        db, firm_id, payload=payload, actor_user_id=actor.id
+    )
     return _journal_entry_to_response(row)

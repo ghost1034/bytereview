@@ -106,14 +106,26 @@ function buildGainLossDisposal(rows: AnalyticsAmortization[], clients: Analytics
     .filter((r) => (r.status ?? '').toLowerCase() === 'disposed')
     .map((r) => {
       const ts = (r.type_specific ?? {}) as Record<string, unknown>
+      const cost = r.cost_basis ?? 0
+      const gaapNbv = (ts.nbvAtDisposal as number) ?? computeNbv(r)
+      const gaapAccum = (ts.disposalAccumDepr as number) ?? Math.max(0, cost - gaapNbv)
+      const taxNbv = (ts.taxNbvAtDisposal as number) ?? gaapNbv
+      const taxAccum = (ts.taxDisposalAccumDepr as number) ?? Math.max(0, cost - taxNbv)
       return {
         'Asset Name': r.asset_name,
         'Asset Type': r.asset_type,
         Client: clientName(clients, r.client_id),
         'Disposal Date': (ts.disposalDate as string) ?? '',
+        'Cost Basis': cost,
+        'GAAP Accum Depr': gaapAccum,
+        'GAAP NBV': gaapNbv,
+        'Tax Accum Depr': taxAccum,
+        'Tax NBV': taxNbv,
         'Sale Proceeds': (ts.saleProceeds as number) ?? 0,
-        'NBV at Disposal': (ts.nbvAtDisposal as number) ?? computeNbv(r),
-        'Gain / Loss': (ts.gaapGainLoss as number) ?? 0,
+        'GAAP Gain / Loss': (ts.gaapGainLoss as number) ?? 0,
+        'Tax Gain / Loss': (ts.taxGainLoss as number) ?? 0,
+        'GAAP Method': r.gaap_method ?? '',
+        'Tax Method': r.tax_method ?? '',
       }
     })
 }

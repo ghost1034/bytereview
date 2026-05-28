@@ -49,6 +49,7 @@ import {
 import { parseDocx, parsePDF } from '@/lib/analytics/fileParser'
 import type { AnalyticsAmortization } from '@/lib/analytics/types'
 import { AmortizationJournalTable } from './AmortizationJournalTable'
+import { AmortizationScheduleComparisonTable } from './AmortizationScheduleComparisonTable'
 import { AmortizationScheduleTable } from './AmortizationScheduleTable'
 
 const NO_CLIENT = '__none__'
@@ -569,12 +570,46 @@ export function AmortizationForm({ initial, onDone }: AmortizationFormProps) {
                 />
               </div>
             </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="amort-status">Status</Label>
+              <Select value={form.status} onValueChange={(v) => set({ status: v })}>
+                <SelectTrigger id="amort-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Disposed">Disposed</SelectItem>
+                  <SelectItem value="Fully Depreciated">Fully Depreciated</SelectItem>
+                  <SelectItem value="Impaired">Impaired</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Type-specific */}
           {showFixedAsset && (
             <div className="space-y-4 rounded-lg border border-border bg-card p-5">
               <h3 className="text-sm font-semibold text-foreground">Fixed asset details</h3>
+              <div className="space-y-1.5">
+                <Label htmlFor="amort-category">Asset category</Label>
+                <Select
+                  value={form.assetCategory ?? ''}
+                  onValueChange={(v) => set({ assetCategory: v })}
+                >
+                  <SelectTrigger id="amort-category">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Machinery & Equipment">Machinery & Equipment</SelectItem>
+                    <SelectItem value="Furniture & Fixtures">Furniture & Fixtures</SelectItem>
+                    <SelectItem value="Vehicles">Vehicles</SelectItem>
+                    <SelectItem value="Computer & IT">Computer & IT</SelectItem>
+                    <SelectItem value="Buildings">Buildings</SelectItem>
+                    <SelectItem value="Improvements">Improvements</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="amort-cond">Physical condition</Label>
@@ -747,6 +782,21 @@ export function AmortizationForm({ initial, onDone }: AmortizationFormProps) {
                     onChange={(e) => set({ interestRate: parseFloat(e.target.value) })}
                   />
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="amort-ratetype">Rate type</Label>
+                <Select
+                  value={form.rateType ?? 'Fixed'}
+                  onValueChange={(v) => set({ rateType: v })}
+                >
+                  <SelectTrigger id="amort-ratetype">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Fixed">Fixed</SelectItem>
+                    <SelectItem value="Variable">Variable</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -940,6 +990,22 @@ export function AmortizationForm({ initial, onDone }: AmortizationFormProps) {
                   </Select>
                 </div>
               </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="amort-convention">Convention</Label>
+                <Select
+                  value={form.convention ?? 'Half-Year'}
+                  onValueChange={(v) => set({ convention: v })}
+                >
+                  <SelectTrigger id="amort-convention">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Half-Year">Half-Year</SelectItem>
+                    <SelectItem value="Mid-Quarter">Mid-Quarter</SelectItem>
+                    <SelectItem value="Mid-Month">Mid-Month</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-3">
                 <SwitchRow
                   label="Section 179 election"
@@ -1018,6 +1084,9 @@ export function AmortizationForm({ initial, onDone }: AmortizationFormProps) {
               {taxSchedule.length > 0 && (
                 <TabsTrigger value="tax">Tax ({taxSchedule.length})</TabsTrigger>
               )}
+              {taxSchedule.length > 0 && (
+                <TabsTrigger value="comparison">GAAP vs Tax</TabsTrigger>
+              )}
               <TabsTrigger value="journal">Journal entries</TabsTrigger>
             </TabsList>
             <TabsContent value="gaap" className="mt-4">
@@ -1026,6 +1095,14 @@ export function AmortizationForm({ initial, onDone }: AmortizationFormProps) {
             {taxSchedule.length > 0 && (
               <TabsContent value="tax" className="mt-4">
                 <AmortizationScheduleTable schedule={taxSchedule} method="macrs" label="MACRS tax schedule" />
+              </TabsContent>
+            )}
+            {taxSchedule.length > 0 && (
+              <TabsContent value="comparison" className="mt-4">
+                <AmortizationScheduleComparisonTable
+                  schedule={schedule}
+                  taxSchedule={taxSchedule}
+                />
               </TabsContent>
             )}
             <TabsContent value="journal" className="mt-4">

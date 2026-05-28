@@ -267,6 +267,79 @@ export function deriveJournalLines(
   return lines
 }
 
+/**
+ * Build the 4-line disposal journal entry used by both the DisposalDialog
+ * (when an asset is being disposed) and the Journal Entries view (when
+ * rendering historical disposals for a given month).
+ *
+ * Lines:
+ *   Dr Clearing/Cash         saleProceeds
+ *   Dr Accumulated           accumDepr            (reverse accumulated)
+ *   Cr Asset                 cost                 (derecognize at cost)
+ *   Dr/Cr Gain or Loss       |gainLoss|           (plug for the difference)
+ */
+export function buildDisposalJournalLines(args: {
+  assetName: string
+  date: string // YYYY-MM-DD
+  cost: number
+  accumDepr: number
+  saleProceeds: number
+  gainLoss: number
+  clearingAccount?: string
+  accumulatedAccount?: string
+  assetAccount?: string
+  gainLossAccount?: string
+}): JournalLine[] {
+  const {
+    assetName,
+    date,
+    cost,
+    accumDepr,
+    saleProceeds,
+    gainLoss,
+    clearingAccount = DEFAULT_ACCOUNTS.clearingAccount,
+    accumulatedAccount = DEFAULT_ACCOUNTS.accumulatedAccount,
+    assetAccount = DEFAULT_ACCOUNTS.assetAccount,
+    gainLossAccount = DEFAULT_ACCOUNTS.gainLossAccount,
+  } = args
+  const isGain = gainLoss >= 0
+  const idBase = `${date}-disposal-${assetName}`
+  return [
+    {
+      id: `${idBase}-proceeds`,
+      date,
+      account: clearingAccount,
+      debit: round2(saleProceeds),
+      credit: null,
+      memo: `Proceeds — ${assetName}`,
+    },
+    {
+      id: `${idBase}-accum`,
+      date,
+      account: accumulatedAccount,
+      debit: round2(Math.max(0, accumDepr)),
+      credit: null,
+      memo: `Reverse accumulated depreciation — ${assetName}`,
+    },
+    {
+      id: `${idBase}-asset`,
+      date,
+      account: assetAccount,
+      debit: null,
+      credit: round2(cost),
+      memo: `Derecognize asset — ${assetName}`,
+    },
+    {
+      id: `${idBase}-gainloss`,
+      date,
+      account: gainLossAccount,
+      debit: isGain ? null : round2(Math.abs(gainLoss)),
+      credit: isGain ? round2(gainLoss) : null,
+      memo: `${isGain ? 'Gain' : 'Loss'} on disposal — ${assetName}`,
+    },
+  ]
+}
+
 // ---------------------------------------------------------------------------
 // Disposal
 // ---------------------------------------------------------------------------
@@ -275,35 +348,90 @@ export interface DisposalResult {
   truncatedSchedule: ScheduleRow[]
   nbvAtDisposal: number
   gainLoss: number
+  /** Accumulated expense (depreciation/amortization) through the disposal date. */
+  accumAtDisposal: number
 }
 
 /**
- * Clip a schedule at the disposal date and compute GAAP gain/loss vs sale
- * proceeds: gainLoss = proceeds - NBV. Positive => gain, negative => loss.
+ * Clip a schedule at the disposal date and prorate the expense for the
+ * disposal month by `daysActive / daysInMonth`. Mirrors CPAAnalytics'
+ * `processScheduleWithDisposal` so a mid-month disposal records the partial
+ * month's expense (not the full month, and not zero). Returns the clipped
+ * schedule with a rebuilt final row, NBV/accumulated at disposal, and
+ * gainLoss = proceeds - NBV.
  */
 export function prorateDisposal(
   schedule: ScheduleRow[],
   disposalDate: string,
-  saleProceeds: number
+  saleProceeds: number,
+  costBasis?: number
 ): DisposalResult {
   if (schedule.length === 0) {
-    return { truncatedSchedule: [], nbvAtDisposal: 0, gainLoss: saleProceeds }
+    return { truncatedSchedule: [], nbvAtDisposal: 0, gainLoss: saleProceeds, accumAtDisposal: 0 }
   }
 
+  const disposalMonth = disposalDate.slice(0, 7) // YYYY-MM
+  const initialOpening =
+    typeof schedule[0].openingBalance === 'number'
+      ? (schedule[0].openingBalance as number)
+      : (costBasis ?? 0)
+
   const truncated: ScheduleRow[] = []
-  let nbvAtDisposal = schedule[0].openingBalance ?? 0
+  let accum = 0
+  let nbvAtDisposal = initialOpening
+
   for (const row of schedule) {
     if (typeof row.date !== 'string') continue
-    if (row.date > disposalDate) break
-    truncated.push(row)
-    if (typeof row.closingBalance === 'number') nbvAtDisposal = row.closingBalance
-    else if (typeof row.liabBalance === 'number') nbvAtDisposal = row.liabBalance
+    const rowMonth = row.date.slice(0, 7)
+    if (rowMonth > disposalMonth) break
+
+    const expense =
+      (typeof row.expense === 'number' && row.expense) ||
+      (typeof row.totalExpense === 'number' && row.totalExpense) ||
+      (typeof row.slExpense === 'number' && row.slExpense) ||
+      (typeof row.interest === 'number' && row.interest) ||
+      0
+
+    if (rowMonth < disposalMonth) {
+      accum += expense
+      truncated.push(row)
+      if (typeof row.closingBalance === 'number') nbvAtDisposal = row.closingBalance
+      else if (typeof row.liabBalance === 'number') nbvAtDisposal = row.liabBalance
+      continue
+    }
+
+    // disposalMonth: prorate by days
+    const d = new Date(disposalDate + 'T00:00:00Z')
+    const daysInMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate()
+    const daysActive = d.getUTCDate()
+    const ratio = daysInMonth > 0 ? daysActive / daysInMonth : 1
+    const proratedExpense = expense * ratio
+    accum += proratedExpense
+
+    const basis =
+      costBasis ??
+      (typeof schedule[0].openingBalance === 'number' ? (schedule[0].openingBalance as number) : 0)
+    const closing = Math.max(0, basis - accum)
+    nbvAtDisposal = closing
+
+    const proratedRow: ScheduleRow = { ...row }
+    if (typeof row.expense === 'number') proratedRow.expense = proratedExpense
+    if (typeof row.totalExpense === 'number') proratedRow.totalExpense = proratedExpense
+    if (typeof row.slExpense === 'number') proratedRow.slExpense = proratedExpense
+    if (typeof row.interest === 'number') proratedRow.interest = proratedExpense
+    if (typeof row.closingBalance === 'number') proratedRow.closingBalance = closing
+    if (typeof row.liabBalance === 'number') proratedRow.liabBalance = closing
+    proratedRow.accumulated = accum
+    proratedRow.nbv = closing
+    truncated.push(proratedRow)
+    break
   }
 
   return {
     truncatedSchedule: truncated,
     nbvAtDisposal: round2(nbvAtDisposal),
     gainLoss: round2(saleProceeds - nbvAtDisposal),
+    accumAtDisposal: round2(accum),
   }
 }
 

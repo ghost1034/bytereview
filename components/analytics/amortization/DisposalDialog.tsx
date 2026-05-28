@@ -19,7 +19,10 @@ import {
   useCreateAnalyticsJournalEntry,
   useUpdateAnalyticsAmortization,
 } from '@/hooks/useAnalyticsAmortization'
-import { prorateDisposal } from '@/lib/analytics/amortizationHelpers'
+import {
+  buildDisposalJournalLines,
+  prorateDisposal,
+} from '@/lib/analytics/amortizationHelpers'
 import { DEFAULT_ACCOUNTS, type ScheduleRow } from '@/lib/analytics/amortizationTypes'
 import { formatCurrency } from '@/lib/analytics/format'
 import type { AnalyticsAmortization } from '@/lib/analytics/types'
@@ -60,10 +63,22 @@ export function DisposalDialog({ asset, onClose }: DisposalDialogProps) {
     () => (asset?.schedule ?? []) as unknown as ScheduleRow[],
     [asset],
   )
+  const taxSchedule = useMemo<ScheduleRow[]>(
+    () => (asset?.tax_schedule ?? []) as unknown as ScheduleRow[],
+    [asset],
+  )
 
+  const cost = asset?.cost_basis ?? 0
   const preview = useMemo(
-    () => prorateDisposal(schedule, disposalDate, saleProceeds || 0),
-    [schedule, disposalDate, saleProceeds],
+    () => prorateDisposal(schedule, disposalDate, saleProceeds || 0, cost),
+    [schedule, disposalDate, saleProceeds, cost],
+  )
+  const taxPreview = useMemo(
+    () =>
+      taxSchedule.length > 0
+        ? prorateDisposal(taxSchedule, disposalDate, saleProceeds || 0, cost)
+        : null,
+    [taxSchedule, disposalDate, saleProceeds, cost],
   )
 
   const handleSubmit = async () => {
@@ -79,58 +94,50 @@ export function DisposalDialog({ asset, onClose }: DisposalDialogProps) {
         assetAccount,
         nbvAtDisposal: preview.nbvAtDisposal,
         gaapGainLoss: preview.gainLoss,
+        disposalAccumDepr: preview.accumAtDisposal,
+        ...(taxPreview
+          ? {
+              taxNbvAtDisposal: taxPreview.nbvAtDisposal,
+              taxGainLoss: taxPreview.gainLoss,
+              taxDisposalAccumDepr: taxPreview.accumAtDisposal,
+            }
+          : {}),
       }
       await updateMutation.mutateAsync({
         amortizationId: asset.id,
         data: {
           status: 'Disposed',
           schedule: preview.truncatedSchedule,
+          ...(taxPreview ? { tax_schedule: taxPreview.truncatedSchedule } : {}),
           type_specific: typeSpecific,
         },
       })
 
-      // Disposal journal entry: derecognize asset + accum depr, post proceeds (cash or clearing), record gain/loss
-      const expenseAcct = asset.gaap_method ?? DEFAULT_ACCOUNTS.expenseAccount
-      void expenseAcct
-      const isGain = preview.gainLoss >= 0
-      const jeEntries: Array<{
-        account: string
-        debit: number | null
-        credit: number | null
-        memo: string
-      }> = [
-        {
-          account: clearingAccount,
-          debit: saleProceeds || 0,
-          credit: null,
-          memo: `Proceeds — ${asset.asset_name}`,
-        },
-        {
-          account: DEFAULT_ACCOUNTS.accumulatedAccount,
-          debit: Math.max(0, (asset.cost_basis ?? 0) - preview.nbvAtDisposal),
-          credit: null,
-          memo: `Reverse accumulated depreciation — ${asset.asset_name}`,
-        },
-        {
-          account: assetAccount,
-          debit: null,
-          credit: asset.cost_basis ?? 0,
-          memo: `Derecognize asset — ${asset.asset_name}`,
-        },
-        {
-          account: gainLossAccount,
-          debit: isGain ? null : Math.abs(preview.gainLoss),
-          credit: isGain ? preview.gainLoss : null,
-          memo: `${isGain ? 'Gain' : 'Loss'} on disposal — ${asset.asset_name}`,
-        },
-      ]
+      const jeLines = buildDisposalJournalLines({
+        assetName: asset.asset_name,
+        date: disposalDate,
+        cost,
+        accumDepr: preview.accumAtDisposal,
+        saleProceeds: saleProceeds || 0,
+        gainLoss: preview.gainLoss,
+        clearingAccount,
+        accumulatedAccount: DEFAULT_ACCOUNTS.accumulatedAccount,
+        assetAccount,
+        gainLossAccount,
+      })
       await createJeMutation.mutateAsync({
         amortization_id: asset.id,
         client_id: asset.client_id ?? null,
         period: disposalDate.slice(0, 7),
-        entries: jeEntries,
+        entries: jeLines.map((l) => ({
+          account: l.account,
+          debit: l.debit,
+          credit: l.credit,
+          memo: l.memo,
+        })),
       })
 
+      const isGain = preview.gainLoss >= 0
       toast({
         title: 'Asset disposed',
         description: `${asset.asset_name} marked disposed; ${
