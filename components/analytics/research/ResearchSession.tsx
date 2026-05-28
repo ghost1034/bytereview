@@ -78,12 +78,17 @@ function getSuggestedPrompts(bot: ResearchBot, docs: AnalyticsUploadedDoc[]): st
       ? [
           'What are the current Section 179 limits and phase-out thresholds?',
           'Explain the MACRS depreciation rules for 5-year property',
+          'What are the reasonable compensation factors for S-Corp officers?',
           'Summarize the rules for the qualified business income deduction (§199A)',
+          'What are the current individual tax brackets and standard deductions?',
         ]
       : [
           'Explain the five-step revenue recognition model under ASC 606',
           'What are the ASC 842 lease classification criteria?',
+          'How do I account for a business combination under ASC 805?',
           'What is the goodwill impairment test under ASC 350?',
+          'Explain the CECL model under ASC 326',
+          'What are the disclosure requirements for related party transactions?',
         ]
   }
   const names = docs.map((d) => d.name.toLowerCase())
@@ -93,6 +98,8 @@ function getSuggestedPrompts(bot: ResearchBot, docs: AnalyticsUploadedDoc[]): st
         'Summarize the key items on this return',
         'Are there any red flags for audit risk?',
         'What deductions could be optimized?',
+        'Explain the depreciation schedule on Form 4562',
+        'What is the effective tax rate and how does it compare to statutory?',
       ]
     }
     if (names.some((n) => n.includes('notice'))) {
@@ -100,14 +107,43 @@ function getSuggestedPrompts(bot: ResearchBot, docs: AnalyticsUploadedDoc[]): st
         'Explain what this notice means and what action is required',
         'What is the deadline to respond?',
         'Draft a response to this notice',
+        'What are our options to dispute this?',
       ]
     }
-  } else if (names.some((n) => n.includes('lease') || n.includes('contract') || n.includes('agreement'))) {
-    return [
-      'How should this contract be accounted for under ASC 606?',
-      'Is this a lease under ASC 842 — operating or finance?',
-      'Identify the performance obligations in this arrangement',
-    ]
+    if (names.some((n) => n.includes('k-1') || n.includes('k1'))) {
+      return [
+        'Summarize the income and deduction items on this K-1',
+        "How do I report these items on the partner's 1040?",
+        'Are there any passive activity limitations to consider?',
+        'Explain the Section 199A implications',
+      ]
+    }
+  } else {
+    if (names.some((n) => n.includes('financial') || n.includes('balance') || n.includes('income'))) {
+      return [
+        'Review these financial statements for GAAP compliance issues',
+        'What disclosures are missing or incomplete?',
+        'Analyze the revenue recognition policies used',
+        'Evaluate the lease accounting treatment',
+        'Are the income tax provisions and deferred taxes properly stated?',
+      ]
+    }
+    if (names.some((n) => n.includes('lease') || n.includes('contract') || n.includes('agreement'))) {
+      return [
+        'How should this contract be accounted for under ASC 606?',
+        'Identify the performance obligations in this arrangement',
+        'Is this a lease under ASC 842 — operating or finance?',
+        'How should the variable consideration be estimated?',
+      ]
+    }
+    if (names.some((n) => n.includes('loan') || n.includes('debt') || n.includes('note'))) {
+      return [
+        'What is the correct accounting for this debt instrument?',
+        'Calculate the effective interest rate and amortization schedule',
+        'Is there an embedded derivative that needs to be bifurcated?',
+        'How should the debt issuance costs be presented?',
+      ]
+    }
   }
   return [
     'Summarize the key items in these documents',
@@ -280,8 +316,8 @@ export function ResearchSession({ bot, client, sessionId, onBack }: ResearchSess
     toast({ title: 'Copied to clipboard' })
   }
 
-  const runExport = (format: ChatTranscriptFormat) => {
-    exportTranscript(messages, format, {
+  const runExport = (format: ChatTranscriptFormat, msgs: AnalyticsChatMessage[] = messages) => {
+    exportTranscript(msgs, format, {
       botLabel: `${bot.toUpperCase()} BOT`,
       filenamePrefix: `${bot.toUpperCase()}_Research`,
     }).catch(() => toast({ title: 'Export failed', variant: 'destructive' }))
@@ -325,14 +361,14 @@ export function ResearchSession({ bot, client, sessionId, onBack }: ResearchSess
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center rounded-lg bg-surface-muted p-1">
-            {(['pdf', 'word', 'md'] as const).map((fmt) => (
+            {(['pdf', 'word', 'excel'] as const).map((fmt) => (
               <button
                 key={fmt}
                 type="button"
                 onClick={() => runExport(fmt)}
                 className="rounded-md px-3 py-1.5 text-xs font-bold text-foreground-muted transition-colors hover:bg-card hover:text-foreground"
               >
-                {fmt === 'md' ? 'MD' : fmt === 'word' ? 'Word' : 'PDF'}
+                {fmt === 'excel' ? 'Excel' : fmt === 'word' ? 'Word' : 'PDF'}
               </button>
             ))}
           </div>
@@ -526,9 +562,9 @@ export function ResearchSession({ bot, client, sessionId, onBack }: ResearchSess
                         </button>
                         <button
                           type="button"
-                          onClick={() => runExport('word')}
+                          onClick={() => runExport('word', [msg])}
                           className="rounded-md p-1.5 text-foreground-muted transition-colors hover:text-primary"
-                          title="Export to Word"
+                          title="Export this response to Word"
                         >
                           <Download className="size-3.5" aria-hidden />
                         </button>

@@ -1,10 +1,11 @@
 // Chat-transcript and citation export for the research bots / AI assistant.
 // Ported from CPAAnalytics' ResearchBot `handleExport`:
-//   - Markdown: plain `.md` download
 //   - PDF: jsPDF text layout (lazy-imported to stay out of the main bundle)
 //   - Word: HTML -> `.doc` blob, rendering markdown via the existing
 //     unified/remark/rehype pipeline (CPAAnalytics used `marked`; we reuse the
 //     deps already in this app instead of adding another markdown lib)
+//   - Excel: Role / Message / Timestamp rows via `exportRows`
+//   - Markdown: plain `.md` download (port-only convenience format)
 //   - Citations: regex-extracted to a two-column Excel sheet via `exportRows`
 
 import rehypeStringify from 'rehype-stringify'
@@ -16,7 +17,7 @@ import { unified } from 'unified'
 import { exportRows } from '@/lib/analytics/exportData'
 import type { AnalyticsChatMessage } from '@/lib/analytics/types'
 
-export type ChatTranscriptFormat = 'md' | 'pdf' | 'word'
+export type ChatTranscriptFormat = 'md' | 'pdf' | 'word' | 'excel'
 
 // Matches CPAAnalytics: e.g. "IRC §162(a)", "ASC 606-10-25-1", "Rev. Rul. 2019-11".
 const CITATION_REGEX = /([A-Z][a-zA-Z.]+\s+\S*\d+\S*)/g
@@ -90,6 +91,22 @@ export async function exportTranscript(
 
   if (format === 'md') {
     downloadBlob(`${fileBase}.md`, markdown, 'text/markdown;charset=utf-8;')
+    return
+  }
+
+  if (format === 'excel') {
+    // AnalyticsChatMessage has no per-message timestamp, so stamp the row at
+    // export time — matches what CPAAnalytics produced when timestamps were
+    // missing.
+    const ts = new Date().toLocaleString()
+    const rows = messages.map((m) => ({
+      Role: m.role === 'user' ? 'YOU' : botLabel,
+      Message: m.content,
+      Timestamp: ts,
+    }))
+    // `exportRows` adds its own `_<date>` suffix — pass `prefix` (without the
+    // one we built into `fileBase` above) to avoid double-stamping the file.
+    await exportRows(rows, 'excel', prefix, 'Transcript')
     return
   }
 

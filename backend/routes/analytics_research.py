@@ -27,6 +27,7 @@ from models.analytics import (
 from models.db_models import User
 from services import analytics_ai_service
 from services.analytics import chat_sessions_service
+from services.analytics.audit_service import record_audit
 from services.analytics.billing_guard import preflight_check, record_call
 from services.analytics.firm_scope import require_firm_id
 
@@ -132,6 +133,32 @@ async def _research_event_stream(
                     ],
                     uploaded_docs=uploaded_docs,
                 )
+                # Match CPAAnalytics' audit trail: one row for starting the
+                # session, plus an upload row if docs rode along with the
+                # first turn (see processFiles in CPAAnalytics ResearchBot).
+                record_audit(
+                    persistence_db,
+                    firm_id=firm_id,
+                    user_id=user_id,
+                    action="Started AI Research Session",
+                    details={
+                        "bot_type": bot,
+                        "client_id": str(payload.client_id) if payload.client_id else None,
+                        "session_id": str(row.id),
+                    },
+                )
+                if uploaded_docs:
+                    record_audit(
+                        persistence_db,
+                        firm_id=firm_id,
+                        user_id=user_id,
+                        action="Uploaded Documents to AI",
+                        details={
+                            "bot_type": bot,
+                            "session_id": str(row.id),
+                            "file_count": len(uploaded_docs),
+                        },
+                    )
             session_event = {"id": str(row.id), "title": row.title}
         except Exception:
             logger.exception("Failed to persist research chat session for user %s", user_id)
@@ -252,6 +279,15 @@ async def update_research_session(
     row = chat_sessions_service.get_session(db, firm_id, actor.id, session_id)
     if row.bot_type != bot:
         raise HTTPException(status_code=404, detail="Chat session not found")
+
+    # Diff doc IDs before the update so we only audit *additions* — removals
+    # use the same endpoint and shouldn't trigger an "Uploaded …" row.
+    added_doc_count = 0
+    if payload.uploaded_docs is not None:
+        existing_ids = {d.get("id") for d in (row.uploaded_docs or []) if d.get("id")}
+        new_ids = {d.id for d in payload.uploaded_docs if d.id}
+        added_doc_count = len(new_ids - existing_ids)
+
     updated = chat_sessions_service.update_session(
         db,
         firm_id,
@@ -262,6 +298,18 @@ async def update_research_session(
         messages=payload.messages,
         uploaded_docs=payload.uploaded_docs,
     )
+    if added_doc_count > 0:
+        record_audit(
+            db,
+            firm_id=firm_id,
+            user_id=actor.id,
+            action="Uploaded Documents to AI",
+            details={
+                "bot_type": bot,
+                "session_id": session_id,
+                "file_count": added_doc_count,
+            },
+        )
     return _session_to_response(updated)
 
 
