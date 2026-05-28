@@ -70,6 +70,43 @@ class MemberUpdateRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Settings: audit logs, firm-wide export, firm purge
+# ---------------------------------------------------------------------------
+
+
+class AuditLogEntry(BaseModel):
+    id: str
+    action: str
+    details: Optional[Dict[str, Any]] = None
+    user_id: Optional[str] = None
+    user_email: Optional[str] = None
+    user_display_name: Optional[str] = None
+    created_at: datetime
+
+
+class AuditLogsResponse(BaseModel):
+    entries: List[AuditLogEntry] = Field(default_factory=list)
+
+
+class FirmExportResponse(BaseModel):
+    firm: FirmResponse
+    members: List[FirmMemberResponse] = Field(default_factory=list)
+    clients: List[Dict[str, Any]] = Field(default_factory=list)
+    projects: List[Dict[str, Any]] = Field(default_factory=list)
+    analyses: List[Dict[str, Any]] = Field(default_factory=list)
+    reconciliations: List[Dict[str, Any]] = Field(default_factory=list)
+    amortizations: List[Dict[str, Any]] = Field(default_factory=list)
+    chat_sessions: List[Dict[str, Any]] = Field(default_factory=list)
+    journal_entries: List[Dict[str, Any]] = Field(default_factory=list)
+    audit_logs: List[Dict[str, Any]] = Field(default_factory=list)
+    exported_at: datetime
+
+
+class FirmPurgeResponse(BaseModel):
+    success: bool = True
+
+
+# ---------------------------------------------------------------------------
 # Clients
 # ---------------------------------------------------------------------------
 

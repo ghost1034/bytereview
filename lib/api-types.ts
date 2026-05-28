@@ -2325,7 +2325,8 @@ export interface paths {
         /** Update Firm */
         put: operations["update_firm_api_analytics_firm_put"];
         post?: never;
-        delete?: never;
+        /** Delete Firm */
+        delete: operations["delete_firm_api_analytics_firm_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2361,6 +2362,40 @@ export interface paths {
         post?: never;
         /** Remove Member */
         delete: operations["remove_member_api_analytics_firm_members__member_user_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/firm/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Audit Logs */
+        get: operations["get_audit_logs_api_analytics_firm_audit_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/firm/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Export Firm */
+        post: operations["export_firm_api_analytics_firm_export_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3375,6 +3410,33 @@ export interface components {
             /** Uploadeddocs */
             uploadedDocs?: components["schemas"]["UploadedDoc"][];
         };
+        /** AuditLogEntry */
+        AuditLogEntry: {
+            /** Id */
+            id: string;
+            /** Action */
+            action: string;
+            /** Details */
+            details?: {
+                [key: string]: unknown;
+            } | null;
+            /** User Id */
+            user_id?: string | null;
+            /** User Email */
+            user_email?: string | null;
+            /** User Display Name */
+            user_display_name?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** AuditLogsResponse */
+        AuditLogsResponse: {
+            /** Entries */
+            entries?: components["schemas"]["AuditLogEntry"][];
+        };
         /**
          * AutomationCreate
          * @description Request model for creating an automation
@@ -4149,6 +4211,49 @@ export interface components {
             /** Members */
             members?: components["schemas"]["FirmMemberResponse"][];
         };
+        /** FirmExportResponse */
+        FirmExportResponse: {
+            firm: components["schemas"]["FirmResponse"];
+            /** Members */
+            members?: components["schemas"]["FirmMemberResponse"][];
+            /** Clients */
+            clients?: {
+                [key: string]: unknown;
+            }[];
+            /** Projects */
+            projects?: {
+                [key: string]: unknown;
+            }[];
+            /** Analyses */
+            analyses?: {
+                [key: string]: unknown;
+            }[];
+            /** Reconciliations */
+            reconciliations?: {
+                [key: string]: unknown;
+            }[];
+            /** Amortizations */
+            amortizations?: {
+                [key: string]: unknown;
+            }[];
+            /** Chat Sessions */
+            chat_sessions?: {
+                [key: string]: unknown;
+            }[];
+            /** Journal Entries */
+            journal_entries?: {
+                [key: string]: unknown;
+            }[];
+            /** Audit Logs */
+            audit_logs?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Exported At
+             * Format: date-time
+             */
+            exported_at: string;
+        };
         /** FirmInviteRequest */
         FirmInviteRequest: {
             /** Email */
@@ -4179,6 +4284,14 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** FirmPurgeResponse */
+        FirmPurgeResponse: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
         };
         /** FirmResponse */
         FirmResponse: {
@@ -11260,6 +11373,26 @@ export interface operations {
             };
         };
     };
+    delete_firm_api_analytics_firm_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirmPurgeResponse"];
+                };
+            };
+        };
+    };
     invite_member_api_analytics_firm_invite_post: {
         parameters: {
             query?: never;
@@ -11355,6 +11488,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_audit_logs_api_analytics_firm_audit_logs_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_firm_api_analytics_firm_export_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirmExportResponse"];
                 };
             };
         };

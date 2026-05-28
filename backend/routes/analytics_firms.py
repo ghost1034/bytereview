@@ -10,15 +10,22 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from dependencies.analytics_rbac import READER_ROLES, require_role
 from models.analytics import (
+    AuditLogEntry,
+    AuditLogsResponse,
     FirmDetailResponse,
+    FirmExportResponse,
     FirmInviteRequest,
     FirmMemberResponse,
+    FirmPurgeResponse,
     FirmResponse,
     FirmUpdateRequest,
     MemberUpdateRequest,
 )
 from models.db_models import AnalyticsUserRole, User
 from services.analytics import firms_service
+from services.analytics.audit_service import list_audit_logs, record_audit
+from services.analytics.firm_export_service import build_firm_export
+from services.analytics.firm_purge_service import purge_firm
 from services.analytics.firm_scope import get_or_create_user_firm
 
 logger = logging.getLogger(__name__)
@@ -123,3 +130,51 @@ async def remove_member(
     _, firm = get_or_create_user_firm(db, actor.id)
     firms_service.remove_member(db, firm.id, member_user_id)
     return {"success": True}
+
+
+@router.get("/audit-logs", response_model=AuditLogsResponse)
+async def get_audit_logs(
+    limit: int = 50,
+    actor: User = Depends(require_role(*READER_ROLES)),
+    db: Session = Depends(get_db),
+):
+    _, firm = get_or_create_user_firm(db, actor.id)
+    rows = list_audit_logs(db, firm.id, limit=limit)
+    return AuditLogsResponse(entries=[AuditLogEntry(**row) for row in rows])
+
+
+@router.post("/export", response_model=FirmExportResponse)
+async def export_firm(
+    actor: User = Depends(require_role(AnalyticsUserRole.ADMIN)),
+    db: Session = Depends(get_db),
+):
+    _, firm = get_or_create_user_firm(db, actor.id)
+    payload = build_firm_export(db, firm)
+    record_audit(
+        db,
+        firm_id=firm.id,
+        user_id=actor.id,
+        action="firm.exported",
+        details={"member_count": len(payload["members"])},
+    )
+    return FirmExportResponse(**payload)
+
+
+@router.delete("", response_model=FirmPurgeResponse)
+async def delete_firm(
+    actor: User = Depends(require_role(AnalyticsUserRole.ADMIN)),
+    db: Session = Depends(get_db),
+):
+    _, firm = get_or_create_user_firm(db, actor.id)
+    # Best-effort: record the purge intent before we actually delete the
+    # audit_logs table below. The row is destroyed along with the rest, but it
+    # may survive in WAL backups for forensic review.
+    record_audit(
+        db,
+        firm_id=firm.id,
+        user_id=actor.id,
+        action="firm.purged",
+        details={"firm_name": firm.name},
+    )
+    purge_firm(db, firm.id)
+    return FirmPurgeResponse(success=True)

@@ -112,6 +112,7 @@ const ANALYTICS_GROUP: NavGroup = {
     { name: 'Amortization', href: '/dashboard/analytics/amortization', icon: Calculator },
     { name: 'Reconciliation', href: '/dashboard/analytics/reconciliation', icon: GitMerge },
     { name: 'Variance', href: '/dashboard/analytics/variance', icon: LineChart },
+    { name: 'Settings', href: '/dashboard/analytics/settings', icon: SettingsIcon },
   ],
 }
 

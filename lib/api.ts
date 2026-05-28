@@ -1306,6 +1306,21 @@ export class ApiClient {
     })
   }
 
+  async listFirmAuditLogs(
+    limit = 50
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/firm/audit-logs']['get']>> {
+    const params = new URLSearchParams({ limit: String(limit) })
+    return this.request(`/api/analytics/firm/audit-logs?${params.toString()}`)
+  }
+
+  async exportFirmData(): Promise<ApiResponse<ApiPaths['/api/analytics/firm/export']['post']>> {
+    return this.request('/api/analytics/firm/export', { method: 'POST' })
+  }
+
+  async purgeFirm(): Promise<ApiResponse<ApiPaths['/api/analytics/firm']['delete']>> {
+    return this.request('/api/analytics/firm', { method: 'DELETE' })
+  }
+
   // ===========================================================================
   // Analytics — clients
   // ===========================================================================

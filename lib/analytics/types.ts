@@ -102,6 +102,11 @@ export type AnalyticsCommentList = S['CommentListResponse']
 export type AnalyticsCommentCreateRequest = S['CommentCreateRequest']
 export type AnalyticsCommentUpdateRequest = S['CommentUpdateRequest']
 
+// Settings (audit logs, firm-wide export)
+export type AnalyticsAuditLogEntry = S['AuditLogEntry']
+export type AnalyticsAuditLogsResponse = S['AuditLogsResponse']
+export type AnalyticsFirmExport = S['FirmExportResponse']
+
 // Module IDs — used by the floating AI assistant to tailor the prompt.
 export type AnalyticsModuleId =
   | 'dashboard'
