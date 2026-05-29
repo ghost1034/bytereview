@@ -74,8 +74,12 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
     setIsLoading(true);
     setError("");
     try {
-      await signIn(redirectTo);
-      closeModal();
+      const signedIn = await signIn(redirectTo);
+      if (signedIn) {
+        closeModal();
+      }
+      // If the user dismissed the Google popup, keep the modal open so they can
+      // retry immediately; the finally block re-enables the button.
     } catch (error: any) {
       setError(error.message || "Failed to sign in with Google");
     } finally {

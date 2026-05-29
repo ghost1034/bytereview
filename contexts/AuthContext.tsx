@@ -52,7 +52,7 @@ interface AuthContextType {
   pendingEnrollmentPhoneNumber: string | null
   pendingMfaChallenge: boolean
   pendingMfaPhoneNumber: string | null
-  signIn: (redirectTo?: string) => Promise<void>
+  signIn: (redirectTo?: string) => Promise<boolean>
   signInWithEmailAndPassword: (email: string, password: string, redirectTo?: string) => Promise<void>
   signUpWithEmailAndPassword: (options: SignUpWithEmailOptions) => Promise<void>
   sendMfaChallengeCode: (verifier: RecaptchaVerifier) => Promise<string>
@@ -182,7 +182,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => unsubscribe()
   }, [clearRedirectTarget, consumeRedirectTarget, navigateAfterAuthentication, readRedirectTarget, startMfaChallenge])
 
-  const signIn = async (redirectTo?: string) => {
+  const signIn = async (redirectTo?: string): Promise<boolean> => {
     setPendingMfaResolver(null)
     persistRedirectTarget(redirectTo)
 
@@ -192,12 +192,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.log('Google sign-in successful, routing user')
         setUser(result.user)
         navigateAfterAuthentication(result.user, consumeRedirectTarget())
+        return true
       }
+
+      // The user dismissed the Google popup — nothing was signed in.
+      clearRedirectTarget()
+      return false
     } catch (error) {
       if (isMultiFactorAuthRequiredError(error)) {
         console.log('Google sign-in requires a second factor')
         startMfaChallenge(error, readRedirectTarget())
-        return
+        return true
       }
 
       clearRedirectTarget()

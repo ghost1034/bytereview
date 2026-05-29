@@ -47,13 +47,72 @@ googleProvider.addScope('profile');
 // implicit behavior. This keeps the picker deterministic across sessions.
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
+// signInWithPopup does not reliably settle when the user dismisses the Google
+// account-chooser popup: in some browser/COOP configurations the opener loses
+// its handle to the popup window, so Firebase's internal "did it close?" poll
+// never fires and the returned promise hangs forever. That leaves the caller's
+// loading state stuck until a full page refresh. To recover, we watch for the
+// opener window regaining focus (which only happens once the popup closes) and,
+// after a short grace period for a genuine result to arrive, reject with the
+// standard popup-closed code so the handling in signInWithGoogle can take over.
+const POPUP_CLOSED_GRACE_MS = 1000;
+
+const signInWithGooglePopup = (): Promise<Awaited<ReturnType<typeof signInWithPopup>>> => {
+  const popupPromise = signInWithPopup(auth, googleProvider);
+
+  // Without a window (SSR) there is nothing to watch — defer entirely to Firebase.
+  if (typeof window === 'undefined') {
+    return popupPromise;
+  }
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let graceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const cleanup = () => {
+      window.removeEventListener('focus', onFocus);
+      if (graceTimer) {
+        clearTimeout(graceTimer);
+        graceTimer = null;
+      }
+    };
+
+    const settle = (action: () => void) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      action();
+    };
+
+    const onFocus = () => {
+      // The app regains focus only once the popup has closed. Give Firebase a
+      // brief window to deliver a genuine sign-in result before assuming the
+      // user dismissed the popup. If a result (or error) arrives first, the
+      // settle() guard ensures this timer is a no-op.
+      if (graceTimer) return;
+      graceTimer = setTimeout(() => {
+        settle(() => reject(Object.assign(new Error('Popup closed by user.'), {
+          code: 'auth/popup-closed-by-user',
+        })));
+      }, POPUP_CLOSED_GRACE_MS);
+    };
+
+    window.addEventListener('focus', onFocus);
+
+    popupPromise.then(
+      (result) => settle(() => resolve(result)),
+      (error) => settle(() => reject(error)),
+    );
+  });
+};
+
 // Sign in with Google. We prefer the popup flow, but a failed or cancelled popup must
 // NEVER silently fall back into a second account-selection prompt. We only fall back to
 // a full-page redirect when the popup genuinely could not open.
 export const signInWithGoogle = async () => {
   console.log('Initiating Google sign-in popup...');
   try {
-    const result = await signInWithPopup(auth, googleProvider);
+    const result = await signInWithGooglePopup();
     console.log('Popup sign-in successful:', result.user.email);
     return result;
   } catch (error) {
