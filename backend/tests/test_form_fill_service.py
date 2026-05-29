@@ -17,7 +17,7 @@ from PyPDF2 import PdfWriter
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from services.form_fill_service import FormFillService, _normalize_repeat_mode
+from services.form_fill_service import FormFillService, _normalize_repeat_mode, _parse_date
 
 
 class RetryableGeminiInvalidArgument(Exception):
@@ -746,6 +746,7 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
             target_filename="target.docx",
             target_gcs_object_name="target-object",
             allow_docx_table_expansion=True,
+            fill_chronologically=True,
             output_format="docx",
         )
         document = Document()
@@ -806,6 +807,7 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
             target_filename="target.docx",
             target_gcs_object_name="target-object",
             allow_docx_table_expansion=False,
+            fill_chronologically=True,
             output_format="docx",
         )
         document = Document()
@@ -1296,6 +1298,119 @@ class FormFillServiceContinuationTests(unittest.TestCase):
         self.assertIn("Calculate totals", docx_prompt)
         self.assertIn("Do not insert only the first N rows", docx_prompt)
         self.assertIn("Do not claim totals cannot be calculated", docx_prompt)
+
+    def _generated_code_prompt(self, *, fill_chronologically: bool) -> str:
+        return self.service._build_generated_code_prompt(
+            tabular_context={"columns": ["Date", "Amount"], "rows": [{"Date": "2024-01-01", "Amount": "10"}]},
+            target_kind="DOCX edit in place",
+            target_context={"target_kind": "DOCX edit in place"},
+            output_contract="Return {'operations': [...], 'warnings': [...]}.",
+            fill_chronologically=fill_chronologically,
+        )
+
+    def test_generated_code_prompt_includes_chronological_instruction_when_enabled(self) -> None:
+        prompt = self._generated_code_prompt(fill_chronologically=True)
+        self.assertIn("Order the emitted entries chronologically by date, oldest first", prompt)
+        self.assertIn("parse_date(", prompt)
+        self.assertIn("no date column exists", prompt)
+        self.assertIn("do not emit the literal token DATE_COL", prompt)
+
+    def test_generated_code_prompt_omits_chronological_instruction_when_disabled(self) -> None:
+        prompt = self._generated_code_prompt(fill_chronologically=False)
+        self.assertNotIn("chronologically", prompt)
+
+    def test_docx_edit_prompt_chronological_instruction_is_gated(self) -> None:
+        kwargs = dict(
+            source_text="Rows",
+            block_summary="Blocks",
+            table_summary="Tables",
+            target_preview_text="Target",
+            allow_table_expansion=True,
+        )
+        enabled = self.service._build_docx_edit_prompt(**kwargs, fill_chronologically=True)
+        disabled = self.service._build_docx_edit_prompt(**kwargs, fill_chronologically=False)
+        self.assertIn("Emit table rows and repeated entries in chronological order", enabled)
+        self.assertNotIn("chronological order", disabled)
+
+    def test_pdf_overlay_prompt_chronological_instruction_is_gated(self) -> None:
+        enabled = self.service._build_pdf_overlay_prompt(
+            source_text="Rows", target_preview_text="Target", fill_chronologically=True
+        )
+        disabled = self.service._build_pdf_overlay_prompt(
+            source_text="Rows", target_preview_text="Target", fill_chronologically=False
+        )
+        self.assertIn("order them chronologically", enabled)
+        self.assertNotIn("chronologically", disabled)
+
+    def test_parse_date_handles_common_formats(self) -> None:
+        self.assertEqual(_parse_date("2024-03-05"), (2024, 3, 5))
+        self.assertEqual(_parse_date("2024/03/05"), (2024, 3, 5))
+        self.assertEqual(_parse_date("3/5/2024"), (2024, 3, 5))
+        self.assertEqual(_parse_date("03-05-2024"), (2024, 3, 5))
+        self.assertEqual(_parse_date("1/2/99"), (1999, 1, 2))
+        self.assertEqual(_parse_date("1/2/24"), (2024, 1, 2))
+        self.assertEqual(_parse_date("Jan 5, 2024"), (2024, 1, 5))
+        self.assertEqual(_parse_date("January 5 2024"), (2024, 1, 5))
+        self.assertIsNone(_parse_date("not a date"))
+        self.assertIsNone(_parse_date(""))
+        self.assertIsNone(_parse_date(None))
+
+    def test_generated_transform_can_sort_rows_with_parse_date(self) -> None:
+        code = """
+def transform(rows, context):
+    ordered = sorted(
+        rows,
+        key=lambda r: (parse_date(r.get("Date")) is None, parse_date(r.get("Date")) or (0, 0, 0)),
+    )
+    return {
+        "operations": [
+            {"action": "insert_table_row_after", "table_id": "table.0", "row_index": i, "cells": [as_text(r.get("Date"))]}
+            for i, r in enumerate(ordered)
+        ],
+        "warnings": [],
+    }
+"""
+        result = self.service._execute_generated_transform(
+            code,
+            rows=[
+                {"Date": "3/15/2024"},
+                {"Date": "1/2/2024"},
+                {"Date": ""},
+                {"Date": "2/1/2024"},
+            ],
+            context={"target_kind": "DOCX edit in place"},
+        )
+        ordered_dates = [op["cells"][0] for op in result["operations"]]
+        self.assertEqual(ordered_dates, ["1/2/2024", "2/1/2024", "3/15/2024", ""])
+
+    def test_generated_transform_allows_lambda_keys(self) -> None:
+        code = """
+def transform(rows, context):
+    ordered = sorted(rows, key=lambda r: parse_number(r.get("Amount")) or 0)
+    return {"operations": [{"action": "x", "cells": [as_text(r.get("Amount"))]} for r in ordered], "warnings": []}
+"""
+        result = self.service._execute_generated_transform(
+            code,
+            rows=[{"Amount": "30"}, {"Amount": "10"}, {"Amount": "20"}],
+            context={},
+        )
+        self.assertEqual([op["cells"][0] for op in result["operations"]], ["10", "20", "30"])
+
+    def test_generated_transform_blocks_dunder_access_inside_lambda(self) -> None:
+        code = """
+def transform(rows, context):
+    return {"operations": sorted(rows, key=lambda r: r.__class__), "warnings": []}
+"""
+        with self.assertRaisesRegex(ValueError, "dunder"):
+            self.service._execute_generated_transform(code, rows=[], context={})
+
+    def test_generated_transform_blocks_banned_name_inside_lambda(self) -> None:
+        code = """
+def transform(rows, context):
+    return {"operations": sorted(rows, key=lambda r: getattr(r, "amount")), "warnings": []}
+"""
+        with self.assertRaisesRegex(ValueError, "getattr"):
+            self.service._execute_generated_transform(code, rows=[], context={})
 
     def test_compact_fill_plan_stores_counts_and_samples(self) -> None:
         compact = self.service._compact_fill_plan(

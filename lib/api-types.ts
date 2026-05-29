@@ -3719,6 +3719,8 @@ export interface components {
             repeat_mode?: string | null;
             /** Allow Docx Table Expansion */
             allow_docx_table_expansion?: boolean | null;
+            /** Fill Chronologically */
+            fill_chronologically?: boolean | null;
             /** Save Template Name */
             save_template_name?: string | null;
             /** Save Template Description */
@@ -4457,6 +4459,11 @@ export interface components {
              * @default false
              */
             allow_docx_table_expansion: boolean;
+            /**
+             * Fill Chronologically
+             * @default true
+             */
+            fill_chronologically: boolean;
             /** Output Format */
             output_format: string;
             /**
@@ -4547,6 +4554,11 @@ export interface components {
              * @default false
              */
             allow_docx_table_expansion: boolean;
+            /**
+             * Fill Chronologically
+             * @default true
+             */
+            fill_chronologically: boolean;
             /** File Size Bytes */
             file_size_bytes: number;
             /** Page Count */

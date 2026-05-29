@@ -15,6 +15,7 @@ class FormFillTemplateResponse(BaseModel):
     original_filename: str
     file_type: str
     allow_docx_table_expansion: bool = False
+    fill_chronologically: bool = True
     file_size_bytes: int
     page_count: Optional[int] = None
     created_at: datetime
@@ -65,6 +66,7 @@ class FormFillRunResponse(BaseModel):
     target_file_type: str
     target_page_count: Optional[int] = None
     allow_docx_table_expansion: bool = False
+    fill_chronologically: bool = True
     output_format: str
     repeat_mode: str = "all_sources"
     total_outputs: int = 1

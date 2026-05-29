@@ -151,6 +151,7 @@ export default function FormFillPage() {
   const [templateName, setTemplateName] = useState('')
   const [templateDescription, setTemplateDescription] = useState('')
   const [allowDocxTableExpansion, setAllowDocxTableExpansion] = useState(true)
+  const [fillChronologically, setFillChronologically] = useState(true)
   const [outputFormat, setOutputFormat] = useState<'pdf' | 'docx'>('pdf')
   const [hasOutputFormatOverride, setHasOutputFormatOverride] = useState(false)
   const [repeatMode, setRepeatMode] = useState<FillMode>('all_sources')
@@ -289,6 +290,14 @@ export default function FormFillPage() {
     setAllowDocxTableExpansion(targetMimeType === DOCX_MIME)
   }, [selectedTemplate, targetMimeType, targetMode])
 
+  useEffect(() => {
+    if (targetMode === 'template' && selectedTemplate) {
+      setFillChronologically(selectedTemplate.fill_chronologically ?? true)
+      return
+    }
+    setFillChronologically(true)
+  }, [selectedTemplate, targetMode])
+
   const canSubmit = useMemo(() => {
     const sourceReady = sourceMode === 'upload' ? sourceFiles.length > 0 : !!extractionPreview
     const targetReady = targetMode === 'upload' ? !!targetFile : !!selectedTemplateId
@@ -308,6 +317,7 @@ export default function FormFillPage() {
         outputFormat: hasOutputFormatOverride ? outputFormat : undefined,
         repeatMode,
         allowDocxTableExpansion: targetMimeType === DOCX_MIME ? allowDocxTableExpansion : undefined,
+        fillChronologically,
         saveTemplateName: targetMode === 'upload' && saveAsTemplate ? templateName.trim() : undefined,
         saveTemplateDescription: targetMode === 'upload' && saveAsTemplate ? templateDescription.trim() : undefined,
         sourceJobId: sourceMode === 'extraction' ? sourceJobId : undefined,
@@ -601,6 +611,23 @@ export default function FormFillPage() {
               </p>
             </div>
           )}
+
+          <div className="rounded-md border border-border bg-surface p-4">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="fill-chronologically"
+                checked={fillChronologically}
+                onCheckedChange={(checked) => setFillChronologically(checked === true)}
+              />
+              <Label htmlFor="fill-chronologically" className="text-sm font-medium">
+                Fill entries in chronological order
+              </Label>
+            </div>
+            <p className="mt-1 ml-7 text-xs text-foreground-muted">
+              Orders dated rows oldest-first when the source data is not already sorted by date.
+              {targetMode === 'upload' && saveAsTemplate ? ' This setting will be saved on the template.' : ''}
+            </p>
+          </div>
         </div>
       </Section>
 

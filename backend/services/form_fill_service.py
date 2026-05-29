@@ -194,6 +194,41 @@ def _as_text(value: Any) -> str:
     return "" if value is None else str(value)
 
 
+_DATE_MONTH_ABBREVIATIONS = {
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+}
+
+
+def _parse_date(value: Any) -> Optional[tuple]:
+    """Return a sortable (year, month, day) tuple from common date string formats, else None.
+
+    Kept import-free so it can be injected into the generated-code sandbox alongside
+    parse_number/as_text. Unparseable or empty values return None so callers can sort them last.
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    # ISO-style: YYYY-MM-DD or YYYY/MM/DD
+    match = re.match(r"^(\d{4})[-/](\d{1,2})[-/](\d{1,2})", text)
+    if match:
+        return (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+    # US-style: MM/DD/YYYY or MM-DD-YYYY (also handles 2-digit years)
+    match = re.match(r"^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})", text)
+    if match:
+        year = int(match.group(3))
+        if year < 100:
+            year += 2000 if year < 70 else 1900
+        return (year, int(match.group(1)), int(match.group(2)))
+    # Month name: "January 5, 2024" / "Jan 5 2024"
+    match = re.match(r"^([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})", text)
+    if match and match.group(1)[:3].lower() in _DATE_MONTH_ABBREVIATIONS:
+        return (int(match.group(3)), _DATE_MONTH_ABBREVIATIONS[match.group(1)[:3].lower()], int(match.group(2)))
+    return None
+
+
 def _normalized_mapping_key(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", "", str(value or "").strip().lower())
 
@@ -210,7 +245,10 @@ def _validate_generated_transform_code(code: str) -> None:
     for node in ast.walk(tree):
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             raise ValueError("Generated code may not import modules")
-        if isinstance(node, (ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda, ast.Global, ast.Nonlocal)):
+        # Lambdas are allowed: they are strictly less powerful than the def that defines
+        # transform(), and ast.walk below still applies the name/dunder/banned-call checks to
+        # every node inside a lambda body. They are the idiomatic key= for sorted/min/max.
+        if isinstance(node, (ast.AsyncFunctionDef, ast.ClassDef, ast.Global, ast.Nonlocal)):
             raise ValueError("Generated code uses unsupported Python constructs")
         if isinstance(node, ast.FunctionDef) and node.name == GENERATED_CODE_REQUIRED_FUNCTION:
             has_transform = True
@@ -234,6 +272,7 @@ def _run_generated_transform_worker(code: str, rows: list[dict[str, Any]], conte
             "__builtins__": GENERATED_CODE_ALLOWED_BUILTINS,
             "parse_number": _parse_number,
             "as_text": _as_text,
+            "parse_date": _parse_date,
         }
         locals_dict: dict[str, Any] = {}
         exec(compile(code, "<form-fill-generated-transform>", "exec"), globals_dict, locals_dict)
@@ -347,6 +386,7 @@ class FormFillService:
             original_filename=template.original_filename,
             file_type=template.file_type,
             allow_docx_table_expansion=bool(template.allow_docx_table_expansion),
+            fill_chronologically=bool(template.fill_chronologically),
             file_size_bytes=int(template.file_size_bytes or 0),
             page_count=template.page_count,
             created_at=template.created_at,
@@ -383,6 +423,7 @@ class FormFillService:
             target_file_type=run.target_file_type,
             target_page_count=run.target_page_count,
             allow_docx_table_expansion=bool(run.allow_docx_table_expansion),
+            fill_chronologically=bool(run.fill_chronologically),
             output_format=run.output_format,
             repeat_mode=run.repeat_mode or REPEAT_MODE_SINGLE,
             total_outputs=int(run.total_outputs) if run.total_outputs is not None else 1,
@@ -856,6 +897,7 @@ class FormFillService:
         output_format: Optional[str] = None,
         repeat_mode: Optional[str] = None,
         allow_docx_table_expansion: Optional[bool] = None,
+        fill_chronologically: Optional[bool] = None,
         save_template_name: Optional[str] = None,
         save_template_description: Optional[str] = None,
         source_job_id: Optional[str] = None,
@@ -888,6 +930,7 @@ class FormFillService:
                 target_filename="pending",
                 target_file_type="application/octet-stream",
                 allow_docx_table_expansion=False,
+                fill_chronologically=True,
                 target_gcs_object_name="pending",
                 target_file_size_bytes=0,
                 output_format="pending",
@@ -987,6 +1030,7 @@ class FormFillService:
                 run.target_file_size_bytes = len(target_bytes)
                 run.target_page_count = target_page_count
                 run.allow_docx_table_expansion = bool(allow_docx_table_expansion) if target_mime == DOCX_MIME else False
+                run.fill_chronologically = True if fill_chronologically is None else bool(fill_chronologically)
 
                 if save_template_name and save_template_name.strip():
                     template = FormFillTemplate(
@@ -996,6 +1040,7 @@ class FormFillService:
                         original_filename=target_filename,
                         file_type=target_mime,
                         allow_docx_table_expansion=run.allow_docx_table_expansion,
+                        fill_chronologically=run.fill_chronologically,
                         gcs_object_name=f"form-fill/{user_id}/templates/{uuid.uuid4()}/target{_safe_ext(target_filename, '.bin')}",
                         file_size_bytes=len(target_bytes),
                         page_count=target_page_count,
@@ -1024,6 +1069,10 @@ class FormFillService:
                         run.allow_docx_table_expansion = bool(allow_docx_table_expansion)
                 else:
                     run.allow_docx_table_expansion = False
+                if fill_chronologically is None:
+                    run.fill_chronologically = bool(template.fill_chronologically)
+                else:
+                    run.fill_chronologically = bool(fill_chronologically)
 
             normalized_output_format = _normalize_output_format(output_format)
             target_default_format = "docx" if run.target_file_type == DOCX_MIME else "pdf"
@@ -2087,12 +2136,29 @@ class FormFillService:
         target_kind: str,
         target_context: dict[str, Any],
         output_contract: str,
+        fill_chronologically: bool = False,
         previous_code: Optional[str] = None,
         previous_error: Optional[str] = None,
     ) -> str:
         columns = list(tabular_context.get("columns") or [])
         rows = list(tabular_context.get("rows") or [])
         sample_rows = rows[: self.tabular_code_sample_rows]
+        chronological_rule = ""
+        if fill_chronologically:
+            chronological_rule = (
+                "\n- Order the emitted entries chronologically by date, oldest first (ascending). "
+                "Identify the column that holds the entry or transaction date (for example a column whose "
+                "name contains 'date'). Use the injected helper parse_date(value), which returns a sortable "
+                "(year, month, day) tuple or None for unparseable values. Sort rows with the built-in sorted() "
+                "and a stable key such as "
+                "key=lambda r: (parse_date(r.get(DATE_COL)) is None, parse_date(r.get(DATE_COL)) or (0, 0, 0)) "
+                "so rows with missing or unparseable dates keep their original relative order at the end. "
+                "Replace DATE_COL in that example with the exact source column name as a string literal "
+                "(for example r.get(\"Date\")); do not emit the literal token DATE_COL. "
+                "If there are multiple date-like columns, sort each target table independently by the date "
+                "column that belongs to that table. If no date column exists, keep the original row order and "
+                "add a warning that chronological ordering was requested but no date column was found."
+            )
         repair_block = ""
         if previous_code or previous_error:
             repair_block = f"""
@@ -2123,6 +2189,7 @@ Required code shape:
 - Do not use eval, exec, open, globals, locals, getattr, setattr, or dunder attributes.
 - Use parse_number(value) for numeric parsing when summing currency or amount columns.
 - Use as_text(value) to convert nullable values to strings.
+- Use parse_date(value) to obtain a sortable date key when ordering rows by date; it returns None for unparseable values.
 
 Output contract:
 {output_contract}
@@ -2131,7 +2198,7 @@ Rules:
 - The code must process every relevant row algorithmically.
 - Do not hard-code only the sample rows.
 - Keep operations deterministic and minimal.
-- Add ambiguous or missing data issues to warnings.
+- Add ambiguous or missing data issues to warnings.{chronological_rule}
 {repair_block}
 """
 
@@ -2244,6 +2311,7 @@ Rules:
         context: dict[str, Any],
         expected_key: str,
         label: str,
+        fill_chronologically: bool = False,
     ) -> dict[str, Any]:
         code = ""
         code_warnings: list[str] = []
@@ -2258,6 +2326,7 @@ Rules:
                 target_kind=str(context.get("target_kind") or "target"),
                 target_context=context,
                 output_contract=str(context.get("output_contract") or "Return the requested output."),
+                fill_chronologically=fill_chronologically,
                 previous_code=code,
                 previous_error=str(first_exc),
             )
@@ -2466,9 +2535,16 @@ Rules:
             required=["operations", "warnings"],
         )
 
-    def _build_pdf_overlay_prompt(self, *, source_text: str, target_preview_text: str) -> str:
+    def _build_pdf_overlay_prompt(self, *, source_text: str, target_preview_text: str, fill_chronologically: bool = False) -> str:
         source_block = source_text.strip() or "The source is provided as attached document(s)."
         target_block = target_preview_text.strip() or "No preview text was available from the target PDF."
+        chronological_rule = (
+            "\n- When emitting multiple overlay entries that represent dated records, order them chronologically "
+            "by date, oldest first (ascending). Place records with no recognizable date after the dated ones and "
+            "note it in warnings."
+            if fill_chronologically
+            else ""
+        )
         return f"""You are filling the provided PDF by overlaying text onto the original pages.
 
 Source material summary:
@@ -2483,7 +2559,7 @@ Instructions:
 - Prefer anchor_text that appears visibly in the PDF near where the overlay should go.
 - Use placement_hint values such as replace_anchor, right_of, below, or near_blank.
 - Set cover_anchor to true when replacing placeholder text, blanks, or underscores already present in the PDF.
-- overlay_text must be concise and ready to render.
+- overlay_text must be concise and ready to render.{chronological_rule}
 - Do not summarize, collapse, or omit entries because there are many; continuation will request more entries when needed.
 - Do not write "see attached", "too many transactions", or any output-limit workaround.
 - Do not warn that only the first N entries were inserted. Do not ask the user to request continuation.
@@ -2500,11 +2576,19 @@ Instructions:
         target_preview_text: str,
         allow_table_expansion: bool,
         restrict_to_table_expansion: bool = False,
+        fill_chronologically: bool = False,
     ) -> str:
         source_block = source_text.strip() or "The source is provided as attached document(s)."
         target_block = target_preview_text.strip() or "No preview text was available from the target DOCX."
         block_section = block_summary.strip() or "No editable paragraph blocks were found."
         table_section = table_summary.strip() or "No editable tables were found."
+        chronological_rule = (
+            "\n- Emit table rows and repeated entries in chronological order, oldest first (ascending), based on "
+            "the date value in each source row. When a table has a date column, order its inserted rows by that "
+            "date. If the source has no recognizable date, preserve the source order and note it in warnings."
+            if fill_chronologically
+            else ""
+        )
         table_instruction = (
             "You may use insert_table_row_after or insert_table_column_after when the existing table needs more space.\n"
             "- For insert_table_row_after, provide table_id, row_index, and cells with one value per existing column.\n"
@@ -2540,7 +2624,7 @@ Instructions:
 - Use insert_after_block or insert_before_block for new paragraphs adjacent to an existing block.
 - Use append_to_block only for short additions to an existing block.
 - {table_instruction}
-- For tabular targets, emit one insert_table_row_after operation per source row that belongs in the table.
+- For tabular targets, emit one insert_table_row_after operation per source row that belongs in the table.{chronological_rule}
 - Calculate totals, subtotals, recapitulations, and other numeric rollups from the provided source rows when numeric amounts are present.
 - Do not summarize, collapse, or omit source rows because there are many; continuation will request more operations when needed.
 - Do not write "see attached", "too many transactions", or any output-limit workaround.
@@ -3080,6 +3164,7 @@ Instructions:
                         target_kind="fillable PDF",
                         target_context=code_context,
                         output_contract=output_contract,
+                        fill_chronologically=bool(run.fill_chronologically),
                     )
                     mapping_payload = self._generate_and_execute_tabular_transform(
                         source_parts + target_parts,
@@ -3088,6 +3173,7 @@ Instructions:
                         context=code_context,
                         expected_key="field_values",
                         label="fillable_pdf_generated_code",
+                        fill_chronologically=bool(run.fill_chronologically),
                     )
                     allowed_fields = set(pdf_fields)
                     field_values = {
@@ -3150,6 +3236,7 @@ Instructions:
                     target_kind="PDF overlay",
                     target_context=code_context,
                     output_contract=output_contract,
+                    fill_chronologically=bool(run.fill_chronologically),
                 )
                 overlay_payload = self._generate_and_execute_tabular_transform(
                     source_parts + target_parts,
@@ -3158,11 +3245,13 @@ Instructions:
                     context=code_context,
                     expected_key="items",
                     label="pdf_overlay_generated_code",
+                    fill_chronologically=bool(run.fill_chronologically),
                 )
             else:
                 overlay_prompt = self._build_pdf_overlay_prompt(
                     source_text=source_text,
                     target_preview_text=target_preview_text,
+                    fill_chronologically=bool(run.fill_chronologically),
                 )
                 overlay_payload = self._generate_collection_json_response(
                     source_parts + target_parts,
@@ -3229,6 +3318,7 @@ Instructions:
                     table_summary=self._summarize_docx_tables(docx_tables),
                     target_preview_text=target_preview_text,
                     allow_table_expansion=bool(run.allow_docx_table_expansion),
+                    fill_chronologically=bool(run.fill_chronologically),
                 )
                 if use_tabular_generation:
                     processing_strategy = "docx_edit_generated_code"
@@ -3253,6 +3343,7 @@ Instructions:
                         target_kind="DOCX edit in place",
                         target_context=code_context,
                         output_contract=output_contract,
+                        fill_chronologically=bool(run.fill_chronologically),
                     )
                     edit_payload = self._generate_and_execute_tabular_transform(
                         source_parts + target_parts,
@@ -3261,6 +3352,7 @@ Instructions:
                         context=code_context,
                         expected_key="operations",
                         label="docx_edit_generated_code",
+                        fill_chronologically=bool(run.fill_chronologically),
                     )
                 else:
                     edit_payload = self._generate_collection_json_response(
