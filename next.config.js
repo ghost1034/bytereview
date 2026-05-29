@@ -17,6 +17,21 @@ const nextConfig = {
       },
     ]
   },
+  // Frame protection for the app pages (served from Cloud Run). This is intentionally
+  // set here rather than on the Firebase Hosting site, because that site serves the
+  // Firebase auth handler/iframe (/__/auth/**), which must remain frameable for
+  // signInWithPopup to relay credentials back to the app.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+        ],
+      },
+    ]
+  },
   output: 'standalone',
   // Disable type checking during build for now
   typescript: {

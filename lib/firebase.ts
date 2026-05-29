@@ -43,19 +43,42 @@ export const googleProvider = new GoogleAuthProvider();
 // Configure Google provider
 googleProvider.addScope('email');
 googleProvider.addScope('profile');
+// Always show the account chooser, once, rather than relying on Google's
+// implicit behavior. This keeps the picker deterministic across sessions.
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-// Sign in with Google popup (more reliable for development)
-export const signInWithGoogle = () => {
+// Sign in with Google. We prefer the popup flow, but a failed or cancelled popup must
+// NEVER silently fall back into a second account-selection prompt. We only fall back to
+// a full-page redirect when the popup genuinely could not open.
+export const signInWithGoogle = async () => {
   console.log('Initiating Google sign-in popup...');
-  return signInWithPopup(auth, googleProvider).then((result) => {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
     console.log('Popup sign-in successful:', result.user.email);
     return result;
-  }).catch((error) => {
-    console.error('Popup sign-in error:', error);
-    // Fallback to redirect if popup is blocked
-    console.log('Falling back to redirect method...');
-    return signInWithRedirect(auth, googleProvider);
-  });
+  } catch (error) {
+    const code = (error as { code?: string })?.code;
+    console.error('Popup sign-in error:', code, error);
+
+    // The user dismissed the popup themselves — do not re-prompt.
+    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+      return null;
+    }
+
+    // MFA challenge must be resolved by the caller, not swallowed here.
+    if (isMultiFactorAuthRequiredError(error)) {
+      throw error;
+    }
+
+    // The popup genuinely could not be opened (blocked / unsupported environment).
+    // Only here do we fall back to a single redirect-based sign-in.
+    if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-environment') {
+      console.log('Popup unavailable, falling back to redirect...');
+      return signInWithRedirect(auth, googleProvider);
+    }
+
+    throw error;
+  }
 };
 
 // Handle redirect result
