@@ -77,6 +77,22 @@ if [ ! -s "$MARKER_FILE" ]; then
   date -u +%Y-%m-%dT%H:%M:%SZ > "$MARKER_FILE"
 fi
 
+# Hand off to the base image's real entrypoint so the container starts the
+# way the upstream Hermes image intends: s6-overlay's /init runs the
+# cont-init bootstrap (UID/GID remap, volume chown, config seed, skills sync,
+# per-profile gateway reconcile) AND then launches the CMD via main-wrapper.sh.
+#
+# The pre-s6 Hermes image exposed docker/entrypoint.sh as an entrypoint that
+# set up state and then exec'd the CMD. Under s6-overlay that path is now a
+# DEPRECATED SHIM that runs the cont-init bootstrap only and never execs the
+# CMD — so deferring to it would run setup and then exit without ever starting
+# Hermes/the gateway. Defer to /init instead. main-wrapper.sh routes our CMD
+# ("gateway run") to `hermes gateway run`.
+if [ -x /init ] && [ -x /opt/hermes/docker/main-wrapper.sh ]; then
+  exec /init /opt/hermes/docker/main-wrapper.sh "$@"
+fi
+
+# Fallbacks for older / non-s6 base images.
 if [ -x /opt/hermes/docker/entrypoint.sh ]; then
   exec /opt/hermes/docker/entrypoint.sh "$@"
 fi

@@ -33,7 +33,11 @@ RUN apt-get update \
 # workpaper generation, pandas/numpy math, fuzzy matching, YAML/date parsing).
 # Installed into the Hermes venv; python/python3 are pointed at that venv so the
 # skills' `python scripts/<main>.py ...` invocations resolve these packages.
-RUN /opt/hermes/.venv/bin/python -m pip install --no-cache-dir \
+#
+# The Hermes base image manages its venv with `uv` (no `pip`/`ensurepip` is
+# present inside /opt/hermes/.venv), so we install with `uv pip install`
+# targeting that interpreter explicitly rather than `python -m pip`.
+RUN uv pip install --python /opt/hermes/.venv/bin/python --no-cache-dir \
       "pandas>=2.0" \
       "numpy>=1.24" \
       "openpyxl>=3.1" \

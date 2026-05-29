@@ -31,22 +31,55 @@ hermes/accountingclaw/
     config.yaml
     distribution.yaml
     skills/
-      client-onboarding/SKILL.md
-      month-end-close/SKILL.md
-      qbo-reconciliation/SKILL.md
-      ap-ar-review/SKILL.md
-      sales-tax-review/SKILL.md
-      payroll-journal-review/SKILL.md
+      <skill>/SKILL.md          # 24 skills (see Bundled Skills below)
+      <skill>/scripts/...        # most ship a Python script + examples/
+      <skill>/examples/...
 ```
+
+The authoritative list of bundled skills is `profile/distribution.yaml`. Each
+`skills/<skill>/` entry ships its `SKILL.md` plus its `scripts/` and `examples/`
+(the scripts produce XLSX/DOCX/CSV workpapers from the sample inputs).
 
 ## Bundled Skills
 
-- `client-onboarding`: accounting client onboarding checklist and kickoff planning.
-- `month-end-close`: month-end close planning, review, and open-item tracking.
-- `qbo-reconciliation`: QuickBooks Online reconciliation workflow and exception reporting.
-- `ap-ar-review`: AP/AR aging cleanup and exception schedule.
-- `sales-tax-review`: sales tax filing support review and exception summary.
-- `payroll-journal-review`: payroll journal and payroll liability review.
+Close / reconciliation:
+
+- `balance-sheet-reconciler`: reconcile GL balances to supporting schedules.
+- `payroll-gl-reconciler`: reconcile the payroll register to GL postings.
+- `intercompany-elimination-bot`: match intercompany activity and propose consolidation eliminations.
+- `flux-variance-analyst`: period-over-period flux / variance analysis with thresholds.
+- `close-orchestration-dashboard`: month-end close checklist orchestration and open-item tracking.
+- `journal-entry-assistant`: draft balanced, ERP-ready journal entries with COA-driven Dr/Cr logic.
+
+AP / expense:
+
+- `ap-exception-reviewer`: AP three-way-match (invoice / PO / vendor) exception review.
+- `expense-policy-reviewer`: audit expense reports against a configurable expense policy.
+
+Technical accounting:
+
+- `rev-rec-606-analyst`: ASC 606 revenue-recognition waterfall.
+- `lease-842-assistant`: ASC 842 lease classification and amortization schedules.
+- `tax-provision-calculator`: ASC 740 income-tax provision.
+- `debt-equity-reviewer`: debt-vs-equity classification of financing instruments.
+- `fixed-asset-lifecycle-manager`: fixed-asset register and depreciation lifecycle.
+- `reserves-estimator`: AR allowance / loss-reserve estimation.
+- `tech-accounting-memo`: draft technical accounting memos (DOCX/XLSX).
+- `disclosure-footnote-assistant`: draft financial-statement footnote disclosures.
+
+Tax research:
+
+- `individual-tax-researcher`: individual (1040) tax research.
+- `corporate-tax-researcher`: corporate (C-corp) tax research.
+- `partnership-tax-researcher`: partnership (1065) tax research.
+- `sales-tax-researcher`: sales-tax nexus and taxability research.
+- `transfer-pricing-analyst`: transfer-pricing analysis.
+
+Audit / SOX:
+
+- `audit-pbc-coordinator`: track audit PBC (prepared-by-client) request lists.
+- `audit-evidence-packager`: assemble and validate audit evidence packages.
+- `sox-control-reviewer`: SOX control testing and evidence review.
 
 ## How Encryption Works
 
