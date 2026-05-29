@@ -24,8 +24,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # App code
 COPY backend/ .
-COPY vendor/pageindex ./vendor/pageindex
-
 
 # Non-root user
 RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app

@@ -130,7 +130,7 @@ echo -e "• Backend (API + Workers): ${ARTIFACT_REGISTRY_URL}/backend:${GIT_HAS
 echo -e "• Frontend: ${ARTIFACT_REGISTRY_URL}/frontend:${GIT_HASH}"
 echo ""
 echo -e "${YELLOW}📝 Next steps:${NC}"
-echo -e "1. Deploy services using: ./scripts/deploy-services.sh ${GIT_HASH}"
+echo -e "1. Deploy services using: ./scripts/deploy-services.sh --image-tag ${GIT_HASH} --skip-build"
 echo -e "2. Or run full deployment: ./scripts/deploy.sh --skip-infra --skip-build"
 echo ""
 

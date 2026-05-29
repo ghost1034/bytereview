@@ -131,7 +131,9 @@ fi
 # Deploy services
 if [ "$SKIP_DEPLOY" = false ]; then
     print_section "Deploying Services"
-    ./scripts/deploy-services.sh $GIT_HASH $ENVIRONMENT
+    # Images were already built above (or intentionally skipped), so tell
+    # deploy-services.sh to reuse them rather than rebuild.
+    ./scripts/deploy-services.sh --image-tag "$GIT_HASH" --environment "$ENVIRONMENT" --skip-build
 else
     echo -e "${YELLOW}⏭️  Skipping service deployment${NC}"
 fi

@@ -1,292 +1,565 @@
 #!/bin/bash
-# CPAAutomation Services Deployment Script
-# Deploys all Cloud Run services (API, Frontend, Workers)
+# CPAAutomation services deployment (frontend + backend).
+#
+# This is THE deploy script for the cpa-api (backend) and cpa-web (frontend)
+# Cloud Run services. It builds the images, ensures supporting infrastructure
+# (secrets + Cloud Tasks queue), creates the base services if they don't exist
+# yet, then deploys both services — re-asserting the FULL desired set of env
+# vars and secrets on every run so configuration cannot silently drift.
+#
+# It supersedes the previous split between deploy-services.sh (base create) and
+# deploy-inkwise.sh (incremental Inkwise update): the base CPAAutomation config
+# (DATABASE_URL, Firebase, Stripe, Google OAuth, GCS, enqueue tuning, …) and the
+# Inkwise/Cloud-Tasks config now live together here.
+#
+# Other Cloud Run services (workers, task handlers) are deployed by
+# scripts/deploy-cloud-run-tasks.sh — not this script.
 
-set -e
+set -euo pipefail
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# Configuration
-PROJECT_ID="ace-rider-383100"
-REGION="us-central1"
-ARTIFACT_REGISTRY_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/cpa-docker"
-SERVICE_ACCOUNT="cpaautomation-runner@${PROJECT_ID}.iam.gserviceaccount.com"
-VPC_CONNECTOR="cpa-svpc"
-CLOUD_SQL_INSTANCE="${PROJECT_ID}:${REGION}:cpaautomation-db"
-EXTRACTION_ENQUEUE_BATCH_SIZE=${EXTRACTION_ENQUEUE_BATCH_SIZE:-5}
-EXTRACTION_ENQUEUE_BATCH_DELAY_SECONDS=${EXTRACTION_ENQUEUE_BATCH_DELAY_SECONDS:-15}
-EXTRACTION_ENQUEUE_MAX_DELAY_SECONDS=${EXTRACTION_ENQUEUE_MAX_DELAY_SECONDS:-900}
-EXTRACTION_ENQUEUE_JITTER_SECONDS=${EXTRACTION_ENQUEUE_JITTER_SECONDS:-5}
-FORM_FILL_OUTPUT_ENQUEUE_BATCH_SIZE=${FORM_FILL_OUTPUT_ENQUEUE_BATCH_SIZE:-5}
-FORM_FILL_OUTPUT_ENQUEUE_BATCH_DELAY_SECONDS=${FORM_FILL_OUTPUT_ENQUEUE_BATCH_DELAY_SECONDS:-15}
-FORM_FILL_OUTPUT_ENQUEUE_MAX_DELAY_SECONDS=${FORM_FILL_OUTPUT_ENQUEUE_MAX_DELAY_SECONDS:-900}
-FORM_FILL_OUTPUT_ENQUEUE_JITTER_SECONDS=${FORM_FILL_OUTPUT_ENQUEUE_JITTER_SECONDS:-5}
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Get parameters
-GIT_HASH=${1:-latest}
-ENVIRONMENT=${2:-production}
+PROJECT_ID="${PROJECT_ID:-ace-rider-383100}"
+REGION="${REGION:-us-central1}"
+ENVIRONMENT="${ENVIRONMENT:-production}"
+ARTIFACT_REGISTRY_REPO="${ARTIFACT_REGISTRY_REPO:-cpa-docker}"
+ARTIFACT_REGISTRY_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}"
+SERVICE_ACCOUNT="${SERVICE_ACCOUNT:-cpaautomation-runner@${PROJECT_ID}.iam.gserviceaccount.com}"
+VPC_CONNECTOR="${VPC_CONNECTOR:-cpa-svpc}"
+CLOUD_SQL_INSTANCE="${CLOUD_SQL_INSTANCE:-${PROJECT_ID}:${REGION}:cpaautomation-db}"
 
-echo -e "${BLUE}🚀 Deploying CPAAutomation services...${NC}"
-echo -e "${BLUE}Environment: ${ENVIRONMENT}${NC}"
-echo -e "${BLUE}Image tag: ${GIT_HASH}${NC}"
-echo -e "${BLUE}Project: ${PROJECT_ID}${NC}"
-echo ""
+# --- Base backend tuning (carried over from the previous deploy-services.sh) ---
+EXTRACTION_ENQUEUE_BATCH_SIZE="${EXTRACTION_ENQUEUE_BATCH_SIZE:-5}"
+EXTRACTION_ENQUEUE_BATCH_DELAY_SECONDS="${EXTRACTION_ENQUEUE_BATCH_DELAY_SECONDS:-15}"
+EXTRACTION_ENQUEUE_MAX_DELAY_SECONDS="${EXTRACTION_ENQUEUE_MAX_DELAY_SECONDS:-900}"
+EXTRACTION_ENQUEUE_JITTER_SECONDS="${EXTRACTION_ENQUEUE_JITTER_SECONDS:-5}"
+FORM_FILL_OUTPUT_ENQUEUE_BATCH_SIZE="${FORM_FILL_OUTPUT_ENQUEUE_BATCH_SIZE:-5}"
+FORM_FILL_OUTPUT_ENQUEUE_BATCH_DELAY_SECONDS="${FORM_FILL_OUTPUT_ENQUEUE_BATCH_DELAY_SECONDS:-15}"
+FORM_FILL_OUTPUT_ENQUEUE_MAX_DELAY_SECONDS="${FORM_FILL_OUTPUT_ENQUEUE_MAX_DELAY_SECONDS:-900}"
+FORM_FILL_OUTPUT_ENQUEUE_JITTER_SECONDS="${FORM_FILL_OUTPUT_ENQUEUE_JITTER_SECONDS:-5}"
 
-# Function to deploy Cloud Run service
-deploy_service() {
-    local service_name=$1
-    local image_name=$2
-    local port=$3
-    local memory=$4
-    local cpu=$5
-    local min_instances=$6
-    local max_instances=$7
-    local concurrency=$8
-    local timeout=$9
-    local allow_unauthenticated=${10}
-    local additional_args=${11}
-    
-    local full_service_name="${service_name}"
-    if [ "$ENVIRONMENT" = "staging" ]; then
-        full_service_name="${service_name}-staging"
-    fi
-    
-    local image_url="${ARTIFACT_REGISTRY_URL}/${image_name}:${GIT_HASH}"
-    
-    echo -e "${YELLOW}🔄 Deploying ${full_service_name}...${NC}"
-    echo -e "${BLUE}Image: ${image_url}${NC}"
-    
-    local auth_flag="--no-allow-unauthenticated"
-    if [ "$allow_unauthenticated" = "true" ]; then
-        auth_flag="--allow-unauthenticated"
-    fi
-    
-    gcloud run deploy $full_service_name \
-        --image=$image_url \
-        --region=$REGION \
-        --platform=managed \
-        $auth_flag \
-        --memory=$memory \
-        --cpu=$cpu \
-        --min-instances=$min_instances \
-        --max-instances=$max_instances \
-        --concurrency=$concurrency \
-        --timeout=$timeout \
-        --port=$port \
-        $additional_args
-    
-    echo -e "${GREEN}✅ ${full_service_name} deployed successfully${NC}"
-    
-    # Get service URL
-    local service_url=$(gcloud run services describe $full_service_name --region=$REGION --format="value(status.url)")
-    echo -e "${BLUE}🌐 Service URL: ${service_url}${NC}"
-    echo ""
+GCS_BUCKET_NAME="${GCS_BUCKET_NAME:-cpaautomation-files-prod}"
+GCS_TEMP_FOLDER="${GCS_TEMP_FOLDER:-temp_uploads}"
+FIREBASE_CREDENTIALS_PATH="/var/secrets/google/service-account.json"
+
+# --- Inkwise runtime config ---
+INKWISE_DERIVED_BUCKET="${INKWISE_DERIVED_BUCKET:-cpaautomation-files-prod}"
+INKWISE_MAX_UPLOAD_MB="${INKWISE_MAX_UPLOAD_MB:-100}"
+INKWISE_MAX_VIDEO_UPLOAD_MB="${INKWISE_MAX_VIDEO_UPLOAD_MB:-1000}"
+INKWISE_MAX_BOUND_SOURCES="${INKWISE_MAX_BOUND_SOURCES:-100}"
+INKWISE_GEMINI_MODEL="${INKWISE_GEMINI_MODEL:-gemini-3-flash-preview}"
+INKWISE_GROUNDED_MODEL="${INKWISE_GROUNDED_MODEL:-$INKWISE_GEMINI_MODEL}"
+INKWISE_EMBEDDING_MODEL="${INKWISE_EMBEDDING_MODEL:-gemini-embedding-2-preview}"
+INKWISE_EMBEDDING_LOCATION="${INKWISE_EMBEDDING_LOCATION:-us-central1}"
+INKWISE_EMBEDDING_DIMENSION="${INKWISE_EMBEDDING_DIMENSION:-1536}"
+INKWISE_EMBEDDING_QUERY_TASK_TYPE="${INKWISE_EMBEDDING_QUERY_TASK_TYPE:-RETRIEVAL_QUERY}"
+INKWISE_EMBEDDING_DOCUMENT_TASK_TYPE="${INKWISE_EMBEDDING_DOCUMENT_TASK_TYPE:-RETRIEVAL_DOCUMENT}"
+INKWISE_USE_LEXICAL_FUSION="${INKWISE_USE_LEXICAL_FUSION:-false}"
+INKWISE_USE_VECTOR_RERANK="${INKWISE_USE_VECTOR_RERANK:-false}"
+INKWISE_VECTOR_SEARCH_TOP_K="${INKWISE_VECTOR_SEARCH_TOP_K:-24}"
+INKWISE_LEXICAL_SEARCH_TOP_K="${INKWISE_LEXICAL_SEARCH_TOP_K:-16}"
+INKWISE_RERANK_TOP_K="${INKWISE_RERANK_TOP_K:-12}"
+INKWISE_VECTOR_RERANK_MODEL="${INKWISE_VECTOR_RERANK_MODEL:-$INKWISE_GEMINI_MODEL}"
+INKWISE_SEGMENT_PDF_WINDOW_PAGES="${INKWISE_SEGMENT_PDF_WINDOW_PAGES:-4}"
+INKWISE_SEGMENT_PDF_WINDOW_OVERLAP_PAGES="${INKWISE_SEGMENT_PDF_WINDOW_OVERLAP_PAGES:-1}"
+INKWISE_SEGMENT_TEXT_CHUNK_CHARS="${INKWISE_SEGMENT_TEXT_CHUNK_CHARS:-3000}"
+API_TIMEOUT="${API_TIMEOUT:-900}"
+
+# AccountingClaw bundle decryption secret (Secret Manager). The same value must
+# be used to build the AccountingClaw image; the activation /resolve endpoint
+# returns it to containers. Seeded from backend/.env on first deploy (see
+# ensure_bundle_secret) and wired into the API as a mounted secret.
+BUNDLE_SECRET_NAME="${BUNDLE_SECRET_NAME:-CPAA_BUNDLE_SECRET}"
+
+SKIP_BUILD=false
+SKIP_MIGRATE=false
+ROTATE_TASK_TOKEN=false
+
+if git -C "$ROOT_DIR" rev-parse --short HEAD >/dev/null 2>&1; then
+  IMAGE_TAG_DEFAULT="$(git -C "$ROOT_DIR" rev-parse --short HEAD)"
+else
+  IMAGE_TAG_DEFAULT="latest"
+fi
+IMAGE_TAG="${IMAGE_TAG:-$IMAGE_TAG_DEFAULT}"
+
+normalize_bucket_name() {
+  local value="${1:-}"
+  value="${value#gs://}"
+  value="${value%/}"
+  value="${value#\"}"
+  value="${value%\"}"
+  value="${value#\'}"
+  value="${value%\'}"
+  printf '%s' "$value"
 }
 
-# Deploy Backend API
-echo -e "${BLUE}=== Deploying Backend API ===${NC}"
-deploy_service \
-    "cpa-api" \
-    "backend" \
-    "8000" \
-    "2Gi" \
-    "2" \
-    "1" \
-    "10" \
-    "80" \
-    "300" \
-    "true" \
-    "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-     --vpc-connector=$VPC_CONNECTOR \
-     --vpc-egress=private-ranges-only \
-     --service-account=$SERVICE_ACCOUNT \
-     --set-secrets=DATABASE_URL=DATABASE_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,APP_SECRET=APP_SECRET:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,ADMIN_TOKEN=ADMIN_TOKEN:latest,TASK_EXTRACT_URL=TASK_EXTRACT_URL:latest,TASK_IO_URL=TASK_IO_URL:latest,TASK_AUTOMATION_URL=TASK_AUTOMATION_URL:latest,TASK_MAINTENANCE_URL=TASK_MAINTENANCE_URL:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,EXTRACTION_ENQUEUE_BATCH_SIZE=$EXTRACTION_ENQUEUE_BATCH_SIZE,EXTRACTION_ENQUEUE_BATCH_DELAY_SECONDS=$EXTRACTION_ENQUEUE_BATCH_DELAY_SECONDS,EXTRACTION_ENQUEUE_MAX_DELAY_SECONDS=$EXTRACTION_ENQUEUE_MAX_DELAY_SECONDS,EXTRACTION_ENQUEUE_JITTER_SECONDS=$EXTRACTION_ENQUEUE_JITTER_SECONDS,FORM_FILL_OUTPUT_ENQUEUE_BATCH_SIZE=$FORM_FILL_OUTPUT_ENQUEUE_BATCH_SIZE,FORM_FILL_OUTPUT_ENQUEUE_BATCH_DELAY_SECONDS=$FORM_FILL_OUTPUT_ENQUEUE_BATCH_DELAY_SECONDS,FORM_FILL_OUTPUT_ENQUEUE_MAX_DELAY_SECONDS=$FORM_FILL_OUTPUT_ENQUEUE_MAX_DELAY_SECONDS,FORM_FILL_OUTPUT_ENQUEUE_JITTER_SECONDS=$FORM_FILL_OUTPUT_ENQUEUE_JITTER_SECONDS"
+INKWISE_DERIVED_BUCKET="$(normalize_bucket_name "$INKWISE_DERIVED_BUCKET")"
 
-# Deploy Frontend
-echo -e "${BLUE}=== Deploying Frontend ===${NC}"
-deploy_service \
-    "cpa-web" \
-    "frontend" \
-    "3000" \
-    "1Gi" \
-    "1" \
-    "1" \
-    "5" \
-    "100" \
-    "60" \
-    "true" \
-    "--set-env-vars=NODE_ENV=production"
+usage() {
+  cat <<EOF
+Usage: ./scripts/deploy-services.sh [options]
+       ./scripts/deploy-services.sh [IMAGE_TAG] [ENVIRONMENT]   # positional, back-compat
 
-# # Deploy Extract Worker (AI tasks)
-# echo -e "${BLUE}=== Deploying Extract Worker ===${NC}"
-# deploy_service \
-#     "worker-extract" \
-#     "backend" \
-#     "8000" \
-#     "2Gi" \
-#     "2" \
-#     "1" \
-#     "10" \
-#     "1" \
-#     "3600" \
-#     "false" \
-#     "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-#      --vpc-connector=$VPC_CONNECTOR \
-#      --vpc-egress=private-ranges-only \
-#      --service-account=$SERVICE_ACCOUNT \
-#      --no-cpu-throttling \
-#      --set-secrets=DATABASE_URL=DATABASE_URL:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-#      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=extract \
-#      --command=python \
-#      --args=workers/entrypoint.py"
+Deploys the cpa-api (backend) and cpa-web (frontend) Cloud Run services.
 
-# # Deploy I/O Worker (imports, exports, ZIP)
-# echo -e "${BLUE}=== Deploying I/O Worker ===${NC}"
-# deploy_service \
-#     "worker-io" \
-#     "backend" \
-#     "8000" \
-#     "1Gi" \
-#     "1" \
-#     "1" \
-#     "5" \
-#     "1" \
-#     "1800" \
-#     "false" \
-#     "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-#      --vpc-connector=$VPC_CONNECTOR \
-#      --vpc-egress=private-ranges-only \
-#      --service-account=$SERVICE_ACCOUNT \
-#      --no-cpu-throttling \
-#      --set-secrets=DATABASE_URL=DATABASE_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-#      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=io \
-#      --command=python \
-#      --args=workers/entrypoint.py"
+Options:
+  --project-id ID           GCP project id (default: ${PROJECT_ID})
+  --region REGION           GCP region (default: ${REGION})
+  --image-tag TAG           Docker image tag to deploy (default: git sha)
+  --environment ENV         production or staging (default: ${ENVIRONMENT})
+  --skip-build              Reuse existing backend/frontend images
+  --skip-migrate            Skip Alembic migration job
+  --rotate-task-token       Force a new Inkwise task token secret version
+  -h, --help                Show this help text
+EOF
+}
 
-# # Deploy Maintenance Worker (cron tasks)
-# echo -e "${BLUE}=== Deploying Maintenance Worker ===${NC}"
-# deploy_service \
-#     "worker-maint" \
-#     "backend" \
-#     "8000" \
-#     "1Gi" \
-#     "1" \
-#     "1" \
-#     "1" \
-#     "1" \
-#     "3600" \
-#     "false" \
-#     "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-#      --vpc-connector=$VPC_CONNECTOR \
-#      --vpc-egress=private-ranges-only \
-#      --service-account=$SERVICE_ACCOUNT \
-#      --no-cpu-throttling \
-#      --set-secrets=DATABASE_URL=DATABASE_URL:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-#      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=maint \
-#      --command=python \
-#      --args=workers/entrypoint.py"
+section() {
+  echo -e "${YELLOW}===================================================${NC}"
+  echo -e "${YELLOW}$1${NC}"
+  echo -e "${YELLOW}===================================================${NC}"
+}
 
-# # Deploy Automation Worker (Gmail triggers, job initialization)
-# echo -e "${BLUE}=== Deploying Automation Worker ===${NC}"
-# deploy_service \
-#     "worker-automation" \
-#     "backend" \
-#     "8000" \
-#     "1Gi" \
-#     "1" \
-#     "1" \
-#     "3" \
-#     "1" \
-#     "1800" \
-#     "false" \
-#     "--add-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-#      --vpc-connector=$VPC_CONNECTOR \
-#      --vpc-egress=private-ranges-only \
-#      --service-account=$SERVICE_ACCOUNT \
-#      --no-cpu-throttling \
-#      --set-secrets=DATABASE_URL=DATABASE_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-#      --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,WORKER_TYPE=automation \
-#      --command=python \
-#      --args=workers/entrypoint.py"
+info() {
+  echo -e "${BLUE}$1${NC}"
+}
 
-# # Run database migrations
-# echo -e "${BLUE}=== Running Database Migrations ===${NC}"
-# echo -e "${YELLOW}🔄 Running Alembic migrations...${NC}"
+ok() {
+  echo -e "${GREEN}$1${NC}"
+}
 
-# # Create a temporary Cloud Run job to run migrations
-# gcloud run jobs create migration-job \
-#     --image=$ARTIFACT_REGISTRY_URL/backend:$GIT_HASH \
-#     --region=$REGION \
-#     --set-cloudsql-instances=$CLOUD_SQL_INSTANCE \
-#     --vpc-connector=$VPC_CONNECTOR \
-#     --vpc-egress=private-ranges-only \
-#     --service-account=$SERVICE_ACCOUNT \
-#     --set-secrets=DATABASE_URL=DATABASE_URL:latest \
-#     --set-env-vars=ENVIRONMENT=$ENVIRONMENT \
-#     --args=alembic,upgrade,head \
-#     --max-retries=1 \
-#     --parallelism=1 \
-#     --tasks=1 \
-#     --task-timeout=600 || true
+warn() {
+  echo -e "${YELLOW}$1${NC}"
+}
 
-# # Execute the migration job
-# if gcloud run jobs describe migration-job --region=$REGION >/dev/null 2>&1; then
-#     gcloud run jobs execute migration-job --region=$REGION --wait
-#     echo -e "${GREEN}✅ Database migrations completed${NC}"
-    
-#     # Clean up migration job
-#     gcloud run jobs delete migration-job --region=$REGION --quiet
-# else
-#     echo -e "${RED}❌ Failed to create migration job${NC}"
-# fi
+die() {
+  echo -e "${RED}$1${NC}"
+  exit 1
+}
 
-# Deployment summary
-echo -e "${GREEN}🎉 All services deployed successfully!${NC}"
-echo ""
-echo -e "${BLUE}📋 Deployed services:${NC}"
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
 
+service_exists() {
+  local service_name="$1"
+  gcloud run services describe "$service_name" --region="$REGION" >/dev/null 2>&1
+}
+
+secret_exists() {
+  local secret_name="$1"
+  gcloud secrets describe "$secret_name" >/dev/null 2>&1
+}
+
+queue_exists() {
+  local queue_name="$1"
+  gcloud tasks queues describe "$queue_name" --location="$REGION" >/dev/null 2>&1
+}
+
+random_token() {
+  openssl rand -hex 32
+}
+
+# Join env-var "k=v" items into a gcloud value list using '@' as the delimiter
+# (so individual values may safely contain commas). The leading '^@^' tells
+# gcloud which delimiter to use for --set-env-vars / --update-env-vars.
+join_env_vars() {
+  local IFS='@'
+  printf '%s' "^@^$*"
+}
+
+ensure_secret_value() {
+  local secret_name="$1"
+  local should_rotate="$2"
+  local token
+
+  if ! secret_exists "$secret_name"; then
+    token="$(random_token)"
+    printf '%s' "$token" | gcloud secrets create "$secret_name" --data-file=- >/dev/null
+    ok "Created secret ${secret_name}"
+    return
+  fi
+
+  if [ "$should_rotate" = true ]; then
+    token="$(random_token)"
+    printf '%s' "$token" | gcloud secrets versions add "$secret_name" --data-file=- >/dev/null
+    ok "Rotated secret ${secret_name}"
+  else
+    ok "Secret ${secret_name} already exists"
+  fi
+}
+
+# Ensure the AccountingClaw bundle secret exists in Secret Manager. Created only
+# if absent (an existing value is never overwritten), seeded from the
+# CPAA_BUNDLE_SECRET value in backend/.env so the deployed backend hands out the
+# same secret that the image was encrypted with.
+ensure_bundle_secret() {
+  if secret_exists "$BUNDLE_SECRET_NAME"; then
+    ok "Secret ${BUNDLE_SECRET_NAME} already exists (left unchanged)"
+    return
+  fi
+
+  local env_file="$ROOT_DIR/backend/.env"
+  local value=""
+  if [ -f "$env_file" ]; then
+    value="$(grep -E '^CPAA_BUNDLE_SECRET=' "$env_file" | head -n1 | cut -d= -f2-)"
+    value="${value%\"}"; value="${value#\"}"
+    value="${value%\'}"; value="${value#\'}"
+    value="$(printf '%s' "$value" | tr -d '[:space:]')"
+  fi
+
+  if [ -z "$value" ] || [ "$value" = "replace-with-the-build-time-bundle-secret" ]; then
+    die "Cannot create ${BUNDLE_SECRET_NAME}: set a real CPAA_BUNDLE_SECRET in backend/.env first (it must match the value the AccountingClaw image was built with)."
+  fi
+
+  printf '%s' "$value" | gcloud secrets create "$BUNDLE_SECRET_NAME" --data-file=- >/dev/null
+  ok "Created secret ${BUNDLE_SECRET_NAME} from backend/.env"
+}
+
+ensure_queue() {
+  local queue_name="$1"
+
+  if queue_exists "$queue_name"; then
+    gcloud tasks queues update "$queue_name" \
+      --location="$REGION" \
+      --max-dispatches-per-second=2 \
+      --max-concurrent-dispatches=2 \
+      --max-attempts=5 >/dev/null
+    ok "Cloud Tasks queue ${queue_name} updated"
+  else
+    gcloud tasks queues create "$queue_name" \
+      --location="$REGION" \
+      --max-dispatches-per-second=2 \
+      --max-concurrent-dispatches=2 \
+      --max-attempts=5 >/dev/null
+    ok "Cloud Tasks queue ${queue_name} created"
+  fi
+}
+
+# Create the base API/web services if they don't exist yet so the later
+# `gcloud run services update` re-assertion has something to update. The full
+# base config is applied here for fresh environments; existing services are
+# left untouched at this step and re-asserted by deploy_api/deploy_web.
+ensure_base_services() {
+  local api_service="$1"
+  local web_service="$2"
+
+  if ! service_exists "$api_service"; then
+    warn "Base API service ${api_service} missing; creating it"
+    gcloud run deploy "$api_service" \
+      --image="$BACKEND_IMAGE" \
+      --region="$REGION" \
+      --platform=managed \
+      --allow-unauthenticated \
+      --port=8000 \
+      --memory=2Gi \
+      --cpu=2 \
+      --min-instances=1 \
+      --max-instances=10 \
+      --concurrency=80 \
+      --timeout="$API_TIMEOUT" \
+      --add-cloudsql-instances="$CLOUD_SQL_INSTANCE" \
+      --vpc-connector="$VPC_CONNECTOR" \
+      --vpc-egress=private-ranges-only \
+      --service-account="$SERVICE_ACCOUNT" \
+      --update-secrets="$BACKEND_BASE_SECRETS" \
+      --update-env-vars="$(join_env_vars "${BACKEND_BASE_ENV[@]}")" \
+      >/dev/null
+    ok "Created ${api_service}"
+  fi
+
+  if ! service_exists "$web_service"; then
+    warn "Base web service ${web_service} missing; creating it"
+    gcloud run deploy "$web_service" \
+      --image="$FRONTEND_IMAGE" \
+      --region="$REGION" \
+      --platform=managed \
+      --allow-unauthenticated \
+      --port=3000 \
+      --memory=1Gi \
+      --cpu=1 \
+      --min-instances=1 \
+      --max-instances=5 \
+      --concurrency=100 \
+      --timeout=60 \
+      --update-env-vars="NODE_ENV=production" \
+      >/dev/null
+    ok "Created ${web_service}"
+  fi
+}
+
+deploy_api() {
+  local service_name="$1"
+  local image_url="$2"
+  local api_url="$3"
+  local queue_name="$4"
+  local token_secret_name="$5"
+  local env_items
+  local env_vars
+  local secrets
+
+  # Full desired env: base CPAAutomation config + Inkwise runtime config.
+  # Re-asserted on every deploy via --update-env-vars (merge semantics — env
+  # vars set elsewhere are preserved, declared ones are brought back in sync).
+  env_items=(
+    "${BACKEND_BASE_ENV[@]}"
+    "INKWISE_ENABLED=true"
+    "INKWISE_DERIVED_BUCKET=${INKWISE_DERIVED_BUCKET}"
+    "INKWISE_MAX_UPLOAD_MB=${INKWISE_MAX_UPLOAD_MB}"
+    "INKWISE_MAX_VIDEO_UPLOAD_MB=${INKWISE_MAX_VIDEO_UPLOAD_MB}"
+    "INKWISE_MAX_BOUND_SOURCES=${INKWISE_MAX_BOUND_SOURCES}"
+    "INKWISE_GEMINI_MODEL=${INKWISE_GEMINI_MODEL}"
+    "INKWISE_GROUNDED_MODEL=${INKWISE_GROUNDED_MODEL}"
+    "INKWISE_EMBEDDING_MODEL=${INKWISE_EMBEDDING_MODEL}"
+    "INKWISE_EMBEDDING_LOCATION=${INKWISE_EMBEDDING_LOCATION}"
+    "INKWISE_EMBEDDING_DIMENSION=${INKWISE_EMBEDDING_DIMENSION}"
+    "INKWISE_EMBEDDING_QUERY_TASK_TYPE=${INKWISE_EMBEDDING_QUERY_TASK_TYPE}"
+    "INKWISE_EMBEDDING_DOCUMENT_TASK_TYPE=${INKWISE_EMBEDDING_DOCUMENT_TASK_TYPE}"
+    "INKWISE_QUERY_REWRITE_MODEL=${INKWISE_QUERY_REWRITE_MODEL:-${INKWISE_GEMINI_MODEL}}"
+    "INKWISE_QUERY_REWRITE_ENABLED=${INKWISE_QUERY_REWRITE_ENABLED:-true}"
+    "INKWISE_USE_LEXICAL_FUSION=${INKWISE_USE_LEXICAL_FUSION}"
+    "INKWISE_USE_VECTOR_RERANK=${INKWISE_USE_VECTOR_RERANK}"
+    "INKWISE_VECTOR_SEARCH_TOP_K=${INKWISE_VECTOR_SEARCH_TOP_K}"
+    "INKWISE_LEXICAL_SEARCH_TOP_K=${INKWISE_LEXICAL_SEARCH_TOP_K}"
+    "INKWISE_RERANK_TOP_K=${INKWISE_RERANK_TOP_K}"
+    "INKWISE_VECTOR_RERANK_MODEL=${INKWISE_VECTOR_RERANK_MODEL}"
+    "INKWISE_SEGMENT_PDF_WINDOW_PAGES=${INKWISE_SEGMENT_PDF_WINDOW_PAGES}"
+    "INKWISE_SEGMENT_PDF_WINDOW_OVERLAP_PAGES=${INKWISE_SEGMENT_PDF_WINDOW_OVERLAP_PAGES}"
+    "INKWISE_SEGMENT_TEXT_CHUNK_CHARS=${INKWISE_SEGMENT_TEXT_CHUNK_CHARS}"
+    "CLOUD_TASKS_PROJECT=${PROJECT_ID}"
+    "CLOUD_TASKS_LOCATION=${REGION}"
+    "CLOUD_TASKS_QUEUE_INGEST=${queue_name}"
+    "CLOUD_TASKS_SERVICE_URL=${api_url}"
+    "INKWISE_INLINE_INGEST_FALLBACK_ENABLED=false"
+    "INKWISE_TASKS_QUEUE=${queue_name}"
+    "INKWISE_TASKS_SERVICE_URL=${api_url}"
+  )
+
+  env_vars="$(join_env_vars "${env_items[@]}")"
+
+  # Full desired secrets: base CPAAutomation secrets (incl. CPAA_BUNDLE_SECRET)
+  # plus the Inkwise task token. Re-asserted via --update-secrets (merge).
+  secrets="${BACKEND_BASE_SECRETS},INKWISE_TASKS_TOKEN=${token_secret_name}:latest,TASKS_TOKEN=${token_secret_name}:latest"
+
+  gcloud run services update "$service_name" \
+    --region="$REGION" \
+    --image="$image_url" \
+    --timeout="${API_TIMEOUT}" \
+    --update-env-vars="$env_vars" \
+    --update-secrets="$secrets" \
+    >/dev/null
+
+  ok "Updated ${service_name} (base + Inkwise config re-asserted)"
+}
+
+deploy_web() {
+  local service_name="$1"
+  local image_url="$2"
+
+  gcloud run services update "$service_name" \
+    --region="$REGION" \
+    --image="$image_url" \
+    --update-env-vars="NODE_ENV=production" \
+    >/dev/null
+
+  ok "Updated ${service_name} with the latest frontend image"
+}
+
+run_migrations() {
+  local image_url="$1"
+  local job_name="$2"
+
+  local common_args=(
+    --image="$image_url"
+    --region="$REGION"
+    --service-account="$SERVICE_ACCOUNT"
+    --set-cloudsql-instances="$CLOUD_SQL_INSTANCE"
+    --vpc-connector="$VPC_CONNECTOR"
+    --vpc-egress=private-ranges-only
+    --set-secrets=DATABASE_URL=DATABASE_URL:latest
+    --command=alembic
+    --args=-c,alembic.ini,upgrade,head
+    --tasks=1
+    --parallelism=1
+    --max-retries=1
+    --task-timeout=1200
+  )
+
+  if gcloud run jobs describe "$job_name" --region="$REGION" >/dev/null 2>&1; then
+    gcloud run jobs update "$job_name" "${common_args[@]}" >/dev/null
+  else
+    gcloud run jobs create "$job_name" "${common_args[@]}" >/dev/null
+  fi
+
+  gcloud run jobs execute "$job_name" --region="$REGION" --wait >/dev/null
+  ok "Alembic migrations executed via Cloud Run job ${job_name}"
+}
+
+# Positional back-compat: `deploy-services.sh <IMAGE_TAG> <ENVIRONMENT>` (as
+# called historically by deploy.sh and build-images.sh). Flags below take
+# precedence and are the preferred interface.
+if [[ "${1:-}" != "" && "${1:-}" != -* ]]; then
+  IMAGE_TAG="$1"
+  if [[ "${2:-}" != "" && "${2:-}" != -* ]]; then
+    ENVIRONMENT="$2"
+    shift 2
+  else
+    shift
+  fi
+fi
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --project-id)
+      PROJECT_ID="$2"
+      shift 2
+      ;;
+    --region)
+      REGION="$2"
+      shift 2
+      ;;
+    --image-tag)
+      IMAGE_TAG="$2"
+      shift 2
+      ;;
+    --environment)
+      ENVIRONMENT="$2"
+      shift 2
+      ;;
+    --skip-build)
+      SKIP_BUILD=true
+      shift
+      ;;
+    --skip-migrate)
+      SKIP_MIGRATE=true
+      shift
+      ;;
+    --rotate-task-token)
+      ROTATE_TASK_TOKEN=true
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "Unknown option: $1"
+      ;;
+  esac
+done
+
+ARTIFACT_REGISTRY_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}"
+SERVICE_ACCOUNT="${SERVICE_ACCOUNT:-cpaautomation-runner@${PROJECT_ID}.iam.gserviceaccount.com}"
+CLOUD_SQL_INSTANCE="${CLOUD_SQL_INSTANCE:-${PROJECT_ID}:${REGION}:cpaautomation-db}"
+
+API_SERVICE="cpa-api"
+WEB_SERVICE="cpa-web"
+QUEUE_NAME="inkwise-ingest"
+TASK_TOKEN_SECRET="INKWISE_TASKS_TOKEN"
+MIGRATION_JOB_NAME="cpa-inkwise-migrate"
 if [ "$ENVIRONMENT" = "staging" ]; then
-    echo -e "• API: cpa-api-staging"
-    echo -e "• Frontend: cpa-web-staging"
-    echo -e "• Extract Worker: worker-extract-staging"
-    echo -e "• I/O Worker: worker-io-staging"
-    echo -e "• Maintenance Worker: worker-maint-staging"
-    echo -e "• Automation Worker: worker-automation-staging"
+  API_SERVICE="cpa-api-staging"
+  WEB_SERVICE="cpa-web-staging"
+  QUEUE_NAME="inkwise-ingest-staging"
+  TASK_TOKEN_SECRET="INKWISE_TASKS_TOKEN_STAGING"
+  MIGRATION_JOB_NAME="cpa-inkwise-migrate-staging"
+fi
+
+BACKEND_IMAGE="${ARTIFACT_REGISTRY_URL}/backend:${IMAGE_TAG}"
+FRONTEND_IMAGE="${ARTIFACT_REGISTRY_URL}/frontend:${IMAGE_TAG}"
+
+# Full backend secret set (Secret Manager name -> in-container target), applied
+# to cpa-api on both create and every update. The mounted FIREBASE_SERVICE_ACCOUNT
+# secret backs GOOGLE_APPLICATION_CREDENTIALS, and CPAA_BUNDLE_SECRET decrypts the
+# AccountingClaw image at activation time.
+BACKEND_BASE_SECRETS="DATABASE_URL=DATABASE_URL:latest"
+BACKEND_BASE_SECRETS+=",GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest"
+BACKEND_BASE_SECRETS+=",GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest"
+BACKEND_BASE_SECRETS+=",GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest"
+BACKEND_BASE_SECRETS+=",APP_SECRET=APP_SECRET:latest"
+BACKEND_BASE_SECRETS+=",GEMINI_API_KEY=GEMINI_API_KEY:latest"
+BACKEND_BASE_SECRETS+=",STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest"
+BACKEND_BASE_SECRETS+=",STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest"
+BACKEND_BASE_SECRETS+=",ENCRYPTION_KEY=ENCRYPTION_KEY:latest"
+BACKEND_BASE_SECRETS+=",ADMIN_TOKEN=ADMIN_TOKEN:latest"
+BACKEND_BASE_SECRETS+=",TASK_EXTRACT_URL=TASK_EXTRACT_URL:latest"
+BACKEND_BASE_SECRETS+=",TASK_IO_URL=TASK_IO_URL:latest"
+BACKEND_BASE_SECRETS+=",TASK_AUTOMATION_URL=TASK_AUTOMATION_URL:latest"
+BACKEND_BASE_SECRETS+=",TASK_MAINTENANCE_URL=TASK_MAINTENANCE_URL:latest"
+BACKEND_BASE_SECRETS+=",${BUNDLE_SECRET_NAME}=${BUNDLE_SECRET_NAME}:latest"
+BACKEND_BASE_SECRETS+=",${FIREBASE_CREDENTIALS_PATH}=FIREBASE_SERVICE_ACCOUNT:latest"
+
+# Full backend base env set (non-secret), applied to cpa-api on create + update.
+BACKEND_BASE_ENV=(
+  "ENVIRONMENT=${ENVIRONMENT}"
+  "GOOGLE_CLOUD_PROJECT_ID=${PROJECT_ID}"
+  "GCS_BUCKET_NAME=${GCS_BUCKET_NAME}"
+  "GCS_TEMP_FOLDER=${GCS_TEMP_FOLDER}"
+  "GOOGLE_APPLICATION_CREDENTIALS=${FIREBASE_CREDENTIALS_PATH}"
+  "EXTRACTION_ENQUEUE_BATCH_SIZE=${EXTRACTION_ENQUEUE_BATCH_SIZE}"
+  "EXTRACTION_ENQUEUE_BATCH_DELAY_SECONDS=${EXTRACTION_ENQUEUE_BATCH_DELAY_SECONDS}"
+  "EXTRACTION_ENQUEUE_MAX_DELAY_SECONDS=${EXTRACTION_ENQUEUE_MAX_DELAY_SECONDS}"
+  "EXTRACTION_ENQUEUE_JITTER_SECONDS=${EXTRACTION_ENQUEUE_JITTER_SECONDS}"
+  "FORM_FILL_OUTPUT_ENQUEUE_BATCH_SIZE=${FORM_FILL_OUTPUT_ENQUEUE_BATCH_SIZE}"
+  "FORM_FILL_OUTPUT_ENQUEUE_BATCH_DELAY_SECONDS=${FORM_FILL_OUTPUT_ENQUEUE_BATCH_DELAY_SECONDS}"
+  "FORM_FILL_OUTPUT_ENQUEUE_MAX_DELAY_SECONDS=${FORM_FILL_OUTPUT_ENQUEUE_MAX_DELAY_SECONDS}"
+  "FORM_FILL_OUTPUT_ENQUEUE_JITTER_SECONDS=${FORM_FILL_OUTPUT_ENQUEUE_JITTER_SECONDS}"
+)
+
+section "Checking prerequisites"
+command_exists gcloud || die "gcloud CLI not found"
+command_exists docker || die "docker not found"
+command_exists openssl || die "openssl not found"
+
+if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q .; then
+  die "Not logged into gcloud. Run 'gcloud auth login' first."
+fi
+
+gcloud config set project "$PROJECT_ID" >/dev/null
+gcloud services enable run.googleapis.com artifactregistry.googleapis.com cloudtasks.googleapis.com secretmanager.googleapis.com >/dev/null
+ok "Using project ${PROJECT_ID} in ${REGION} (${ENVIRONMENT})"
+
+if [ "$SKIP_BUILD" = false ]; then
+  section "Building images"
+  printf 'n\n' | "$ROOT_DIR/scripts/build-images.sh" "$IMAGE_TAG"
 else
-    echo -e "• API: cpa-api"
-    echo -e "• Frontend: cpa-web"
-    echo -e "• Extract Worker: worker-extract"
-    echo -e "• I/O Worker: worker-io"
-    echo -e "• Maintenance Worker: worker-maint"
-    echo -e "• Automation Worker: worker-automation"
+  warn "Skipping image build"
 fi
 
-echo ""
-echo -e "${YELLOW}📝 Next steps:${NC}"
-echo -e "1. Configure domain mappings (run ./scripts/setup-domains.sh)"
-echo -e "2. Test all services"
-echo -e "3. Set up monitoring and alerts"
-echo ""
+section "Preparing infrastructure (secrets + queue)"
+ensure_bundle_secret
+ensure_secret_value "$TASK_TOKEN_SECRET" "$ROTATE_TASK_TOKEN"
+ensure_queue "$QUEUE_NAME"
 
-# Get service URLs
-echo -e "${BLUE}🌐 Service URLs:${NC}"
-api_service="cpa-api"
-web_service="cpa-web"
-if [ "$ENVIRONMENT" = "staging" ]; then
-    api_service="cpa-api-staging"
-    web_service="cpa-web-staging"
+section "Ensuring base services exist"
+ensure_base_services "$API_SERVICE" "$WEB_SERVICE"
+
+API_URL="$(gcloud run services describe "$API_SERVICE" --region="$REGION" --format='value(status.url)')"
+WEB_URL="$(gcloud run services describe "$WEB_SERVICE" --region="$REGION" --format='value(status.url)')"
+ok "API URL: ${API_URL}"
+ok "Web URL: ${WEB_URL}"
+
+section "Deploying services (backend + frontend)"
+deploy_api "$API_SERVICE" "$BACKEND_IMAGE" "$API_URL" "$QUEUE_NAME" "$TASK_TOKEN_SECRET"
+deploy_web "$WEB_SERVICE" "$FRONTEND_IMAGE"
+
+if [ "$SKIP_MIGRATE" = false ]; then
+  section "Running database migrations"
+  run_migrations "$BACKEND_IMAGE" "$MIGRATION_JOB_NAME"
+else
+  warn "Skipping Alembic migrations"
 fi
 
-api_url=$(gcloud run services describe $api_service --region=$REGION --format="value(status.url)")
-web_url=$(gcloud run services describe $web_service --region=$REGION --format="value(status.url)")
-
-echo -e "• API: $api_url"
-echo -e "• Frontend: $web_url"
-echo ""
-echo -e "${GREEN}✨ Services deployment complete!${NC}"
+section "Deployment complete"
+ok "CPAAutomation services deployed (backend + frontend, incl. Inkwise)."
+echo -e "${BLUE}Next checks:${NC}"
+echo -e "- API docs: ${API_URL}/api/docs"
+echo -e "- Inkwise UI: ${WEB_URL}/dashboard/inkwise"
+echo -e "- Queue: ${QUEUE_NAME}"
+echo -e "- Migration job: ${MIGRATION_JOB_NAME}"

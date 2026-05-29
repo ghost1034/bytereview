@@ -554,7 +554,7 @@ Troubleshooting
 Overview
 - Deploys to Google Cloud Run (API + Task services) with Google Cloud Tasks, Cloud Scheduler, Pub/Sub, GCS, and Cloud SQL (Postgres)
 - Scripts:
-  - scripts/deploy-services.sh (API/frontend; sample worker deploys commented out)
+  - scripts/deploy-services.sh (main deploy for the API/frontend Cloud Run services, incl. Inkwise config + Alembic migrations)
   - scripts/deploy-cloud-run-tasks.sh (task services: extract/io/automation/maintenance)
   - scripts/setup-secrets.sh (example Secret Manager provisioning for TASK_* URLs)
 
