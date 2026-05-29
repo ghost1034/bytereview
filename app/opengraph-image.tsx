@@ -24,26 +24,8 @@ export default function OpenGraphImage() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 16,
           }}
         >
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 14,
-              background: '#ffffff',
-              color: '#0f172a',
-              fontSize: 32,
-              fontWeight: 700,
-              letterSpacing: -1,
-            }}
-          >
-            CA
-          </div>
           <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: -0.5 }}>
             CPAAutomation
           </span>
