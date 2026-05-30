@@ -15,20 +15,11 @@ export type AnalyticsMemberUpdateRequest = S['MemberUpdateRequest']
 // Role / persona / status / module enums (Phase 5.1)
 export type AnalyticsUserRole = NonNullable<S['MemberUpdateRequest']['role']>
 export type AnalyticsUserPersona = NonNullable<S['MemberUpdateRequest']['persona']>
-export type AnalyticsProjectStatus = NonNullable<S['ProjectResponse']['status']>
-export type AnalyticsProjectModule = NonNullable<S['ProjectResponse']['module']>
-
 // Clients
 export type AnalyticsClient = S['ClientResponse']
 export type AnalyticsClientCreateRequest = S['ClientCreateRequest']
 export type AnalyticsClientUpdateRequest = S['ClientUpdateRequest']
 export type AnalyticsClientList = S['ClientListResponse']
-
-// Projects
-export type AnalyticsProject = S['ProjectResponse']
-export type AnalyticsProjectCreateRequest = S['ProjectCreateRequest']
-export type AnalyticsProjectUpdateRequest = S['ProjectUpdateRequest']
-export type AnalyticsProjectList = S['ProjectListResponse']
 
 // Analyses (variance + waterfall share the `analyses` table)
 export type AnalyticsAnalysis = S['AnalysisResponse']
@@ -111,7 +102,6 @@ export type AnalyticsFirmExport = S['FirmExportResponse']
 export type AnalyticsModuleId =
   | 'dashboard'
   | 'clients'
-  | 'projects'
   | 'team'
   | 'variance'
   | 'reconciliation'

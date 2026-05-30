@@ -1,13 +1,7 @@
+'use client'
+
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
-import * as pdfjsLib from 'pdfjs-dist'
-
-// Worker is copied to public/ by the postinstall script in package.json.
-// Setting workerSrc once at module load is safe — pdfjs ignores subsequent
-// assignments after the first getDocument() call.
-if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf-worker.min.mjs'
-}
 
 export type ParsedRow = Record<string, unknown>
 
@@ -34,8 +28,19 @@ export async function parseExcel<T = ParsedRow>(file: File): Promise<T[]> {
   return XLSX.utils.sheet_to_json<T>(firstSheet)
 }
 
+/** Load pdfjs lazily — the package must not be imported at module scope (SSR/Turbopack). */
+async function loadPdfJs() {
+  if (typeof window === 'undefined') {
+    throw new Error('PDF parsing is only available in the browser')
+  }
+  const pdfjsLib = await import('pdfjs-dist')
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf-worker.min.mjs'
+  return pdfjsLib
+}
+
 /** Extract text content from a PDF file (client-side only). */
 export async function parsePDF(file: File): Promise<string> {
+  const pdfjsLib = await loadPdfJs()
   const arrayBuffer = await file.arrayBuffer()
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
   let fullText = ''

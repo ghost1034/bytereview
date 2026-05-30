@@ -6,9 +6,9 @@ already passed and proceeds with firm-scoped queries.
 
 Role matrix (Phase 5.1):
   Admin     full access; only role permitted to mutate firm members or firm name
-  Manager   read/write analytics resources; can approve projects; cannot manage firm
-  Analyst   read/write analytics resources; cannot approve projects; cannot manage firm
-  Reviewer  read everything; can approve projects; can stream LLM endpoints; cannot create/edit/delete
+  Manager   read/write analytics resources; cannot manage firm
+  Analyst   read/write analytics resources; cannot manage firm
+  Reviewer  read everything; can stream LLM endpoints; cannot create/edit/delete
   Viewer    read-only across analytics; cannot run LLM endpoints
 
 The role lives on `users.role` (added in migration 028). The Firebase token
@@ -18,14 +18,14 @@ returns the row for the route to consume.
 
 from __future__ import annotations
 
-from typing import Callable, Iterable
+from typing import Callable
 
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from core.database import get_db
 from dependencies.auth import get_current_user_id
-from models.db_models import AnalyticsProjectStatus, AnalyticsUserRole, User
+from models.db_models import AnalyticsUserRole, User
 from services.analytics.firm_scope import get_or_create_user_firm
 
 
@@ -92,53 +92,10 @@ def require_role(*allowed: AnalyticsUserRole) -> Callable[..., User]:
     return _dep
 
 
-def assert_project_transition(
-    actor: User,
-    current_status: AnalyticsProjectStatus | str | None,
-    new_status: AnalyticsProjectStatus | str | None,
-) -> None:
-    """Enforce that only Admin/Manager/Reviewer can move a project to APPROVED.
-
-    Called from `projects_service.update_project` whenever `status` is in the
-    update payload. Other transitions are open to any WRITER_ROLES actor; the
-    router gates non-writers out before we get here.
-    """
-    if new_status is None:
-        return
-
-    target = _coerce_status(new_status)
-    if target is not AnalyticsProjectStatus.APPROVED:
-        return
-
-    source = _coerce_status(current_status)
-    if source is AnalyticsProjectStatus.APPROVED:
-        # No-op transition; allow.
-        return
-
-    actor_role = _coerce_role(actor.role)
-    if actor_role not in APPROVER_ROLES:
-        raise HTTPException(
-            status_code=403,
-            detail="Only Admin, Manager, or Reviewer can approve a project",
-        )
-
-
-def _coerce_status(value) -> AnalyticsProjectStatus | None:
-    if value is None:
-        return None
-    if isinstance(value, AnalyticsProjectStatus):
-        return value
-    try:
-        return AnalyticsProjectStatus(value)
-    except ValueError:
-        return None
-
-
 __all__ = [
     "APPROVER_ROLES",
     "LLM_ROLES",
     "READER_ROLES",
     "WRITER_ROLES",
-    "assert_project_transition",
     "require_role",
 ]

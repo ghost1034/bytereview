@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { LoadingState } from '@/components/ui/loading-state'
@@ -19,9 +20,17 @@ import {
   type VarianceActiveSummary,
 } from '@/lib/analytics/varianceTypes'
 
-import { VarianceEditor } from './VarianceEditor'
 import { VarianceList } from './VarianceList'
-import { VarianceReports } from './VarianceReports'
+
+const VarianceEditor = dynamic(
+  () => import('./VarianceEditor').then((m) => m.VarianceEditor),
+  { loading: () => <LoadingState variant="page" label="Loading variance editor" /> },
+)
+
+const VarianceReports = dynamic(
+  () => import('./VarianceReports').then((m) => m.VarianceReports),
+  { loading: () => <LoadingState variant="table" label="Loading reports" /> },
+)
 
 type View = 'list' | 'editor' | 'reports'
 
@@ -41,7 +50,7 @@ const HEADER: Record<View, { title: string; description: string }> = {
   },
 }
 
-export function VarianceModule() {
+function VarianceModuleContent() {
   const { data, isLoading } = useAnalyticsVariances()
   const { data: clientsData } = useAnalyticsClients()
   const clients = useMemo(() => clientsData?.clients ?? [], [clientsData])
@@ -149,6 +158,14 @@ export function VarianceModule() {
         />
       )}
     </div>
+  )
+}
+
+export function VarianceModule() {
+  return (
+    <Suspense fallback={<LoadingState variant="page" label="Loading variance analyses" />}>
+      <VarianceModuleContent />
+    </Suspense>
   )
 }
 

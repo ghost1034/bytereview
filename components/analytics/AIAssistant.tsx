@@ -14,7 +14,6 @@ import type { AnalyticsChatMessage, AnalyticsModuleId } from '@/lib/analytics/ty
 const MODULE_NAMES: Record<AnalyticsModuleId, string> = {
   dashboard: 'Dashboard',
   clients: 'Client Management',
-  projects: 'Projects',
   team: 'Team Management',
   variance: 'Variance & Flux Analysis',
   reconciliation: 'Intelligent Reconciliation',
@@ -37,10 +36,6 @@ const SUGGESTED_PROMPTS: Record<AnalyticsModuleId, string[]> = {
     'Summarize the recent activity for our top client',
     'What information is missing from the client profiles?',
     'Generate a summary of the client portfolio',
-  ],
-  projects: [
-    'Which projects are overdue?',
-    'Summarize the active projects this quarter',
   ],
   team: [
     'How do I invite a teammate?',
@@ -107,7 +102,6 @@ function deriveModule(pathname: string | null): AnalyticsModuleId {
   if (pathname.includes('/analytics/research/gaap')) return 'gaap-bot'
   if (pathname.includes('/analytics/assistant')) return 'assistant'
   if (pathname.includes('/analytics/clients')) return 'clients'
-  if (pathname.includes('/analytics/projects')) return 'projects'
   if (pathname.includes('/analytics/team')) return 'team'
   if (pathname.includes('/analytics/settings')) return 'settings'
   return 'dashboard'
@@ -229,7 +223,7 @@ export function AIAssistant() {
     if (!isOpen || isMinimized) setUnreadCount((c) => c + 1)
     await sendMessage(messageText, {
       kind: 'assistant',
-      context: { activeModule, moduleData: moduleContext },
+      context: { activeModule: MODULE_NAMES[activeModule], moduleData: moduleContext },
     })
   }
 

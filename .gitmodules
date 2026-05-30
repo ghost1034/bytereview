@@ -1,0 +1,3 @@
+[submodule "vendor/CPAAnalytics"]
+	path = vendor/CPAAnalytics
+	url = https://github.com/ChipmunkRPA/CPAAnalytics.git

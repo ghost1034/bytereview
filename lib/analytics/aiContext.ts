@@ -38,21 +38,6 @@ export interface ClientsContext {
   }
 }
 
-export interface ProjectsContext {
-  projects: {
-    count: number
-    items: Array<{
-      id: string
-      name: string
-      status?: string | null
-      clientName?: string | null
-      module?: string | null
-      dueDate?: string | null
-      assignee?: string | null
-    }>
-  }
-}
-
 export interface TeamContext {
   team: {
     count: number
@@ -187,7 +172,6 @@ export interface VarianceContext {
  */
 export type AnalyticsAIContext =
   | ClientsContext
-  | ProjectsContext
   | TeamContext
   | WaterfallContext
   | AmortizationContext

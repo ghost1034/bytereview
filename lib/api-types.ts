@@ -2438,43 +2438,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/analytics/projects": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Projects Route */
-        get: operations["list_projects_route_api_analytics_projects_get"];
-        put?: never;
-        /** Create Project Route */
-        post: operations["create_project_route_api_analytics_projects_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/analytics/projects/{project_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Project Route */
-        get: operations["get_project_route_api_analytics_projects__project_id__get"];
-        /** Update Project Route */
-        put: operations["update_project_route_api_analytics_projects__project_id__put"];
-        post?: never;
-        /** Delete Project Route */
-        delete: operations["delete_project_route_api_analytics_projects__project_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/analytics/research/irs/stream": {
         parameters: {
             query?: never;
@@ -3076,10 +3039,135 @@ export interface paths {
         patch: operations["update_comment_route_api_analytics_comments__comment_id__patch"];
         trace?: never;
     };
+    "/api/activation/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activate
+         * @description Redeem an active six-digit code and mint (or return) the user's key.
+         */
+        post: operations["activate_api_activation_activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/activation/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Activation
+         * @description Return the user's activation status (never the full key).
+         */
+        get: operations["get_my_activation_api_activation_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/activation/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve
+         * @description Container-only: exchange a valid activation key for the bundle secret.
+         *
+         *     Authenticated by possession of the activation key itself (NOT Firebase), then
+         *     validated against the database. Returns a generic 401 for unknown, revoked, or
+         *     mismatched keys so the endpoint does not reveal which keys exist.
+         */
+        post: operations["resolve_api_activation_resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ActivateRequest
+         * @description Redeem a six-digit activation code from the activation_codes allowlist.
+         */
+        ActivateRequest: {
+            /** Code */
+            code: string;
+        };
+        /**
+         * ActivateResponse
+         * @description Result of an activation attempt.
+         *
+         *     ``activation_key`` is the full plaintext key and is returned ONLY when a new
+         *     key is minted (it is never stored and cannot be shown again). When the user
+         *     already has an active key, ``already_active`` is True and ``activation_key``
+         *     is null — the client must rely on the key it saved previously.
+         */
+        ActivateResponse: {
+            /** Success */
+            success: boolean;
+            /** Message */
+            message?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Activation Key */
+            activation_key?: string | null;
+            /** Key Prefix */
+            key_prefix: string;
+            /** Already Active */
+            already_active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * ActivationStatusResponse
+         * @description Current activation status for the signed-in user (never the full key).
+         */
+        ActivationStatusResponse: {
+            /** Success */
+            success: boolean;
+            /** Message */
+            message?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Has Key */
+            has_key: boolean;
+            /** Key Prefix */
+            key_prefix?: string | null;
+            /** Created At */
+            created_at?: string | null;
+            /** Last Resolved At */
+            last_resolved_at?: string | null;
+            /**
+             * Revoked
+             * @default false
+             */
+            revoked: boolean;
+        };
         /** AmortizationComplianceRequest */
         AmortizationComplianceRequest: {
             /** Form */
@@ -3852,11 +3940,6 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
-            /**
-             * Active Projects
-             * @default 0
-             */
-            active_projects: number;
         };
         /** ClientUpdateRequest */
         ClientUpdateRequest: {
@@ -4242,10 +4325,6 @@ export interface components {
             members?: components["schemas"]["FirmMemberResponse"][];
             /** Clients */
             clients?: {
-                [key: string]: unknown;
-            }[];
-            /** Projects */
-            projects?: {
                 [key: string]: unknown;
             }[];
             /** Analyses */
@@ -6218,92 +6297,6 @@ export interface components {
          * @enum {string}
          */
         ProcessingMode: "individual" | "combined" | "manual";
-        /** ProjectCreateRequest */
-        ProjectCreateRequest: {
-            /** Name */
-            name: string;
-            /** Client Id */
-            client_id?: string | null;
-            /** Assigned To User Id */
-            assigned_to_user_id?: string | null;
-            /**
-             * Status
-             * @default draft
-             * @enum {string}
-             */
-            status: "draft" | "in_progress" | "in_review" | "approved" | "archived";
-            /**
-             * Module
-             * @default other
-             * @enum {string}
-             */
-            module: "variance" | "reconciliation" | "amortization" | "waterfall" | "irs" | "gaap" | "assistant" | "other";
-            /** Due Date */
-            due_date?: string | null;
-            /** Description */
-            description?: string | null;
-        };
-        /** ProjectListResponse */
-        ProjectListResponse: {
-            /** Projects */
-            projects?: components["schemas"]["ProjectResponse"][];
-        };
-        /** ProjectResponse */
-        ProjectResponse: {
-            /** Name */
-            name: string;
-            /** Client Id */
-            client_id?: string | null;
-            /** Assigned To User Id */
-            assigned_to_user_id?: string | null;
-            /**
-             * Status
-             * @default draft
-             * @enum {string}
-             */
-            status: "draft" | "in_progress" | "in_review" | "approved" | "archived";
-            /**
-             * Module
-             * @default other
-             * @enum {string}
-             */
-            module: "variance" | "reconciliation" | "amortization" | "waterfall" | "irs" | "gaap" | "assistant" | "other";
-            /** Due Date */
-            due_date?: string | null;
-            /** Description */
-            description?: string | null;
-            /** Id */
-            id: string;
-            /** Firm Id */
-            firm_id: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /** ProjectUpdateRequest */
-        ProjectUpdateRequest: {
-            /** Name */
-            name?: string | null;
-            /** Client Id */
-            client_id?: string | null;
-            /** Assigned To User Id */
-            assigned_to_user_id?: string | null;
-            /** Status */
-            status?: ("draft" | "in_progress" | "in_review" | "approved" | "archived") | null;
-            /** Module */
-            module?: ("variance" | "reconciliation" | "amortization" | "waterfall" | "irs" | "gaap" | "assistant" | "other") | null;
-            /** Due Date */
-            due_date?: string | null;
-            /** Description */
-            description?: string | null;
-        };
         /** ReconciliationAdditionalPassRequest */
         ReconciliationAdditionalPassRequest: {
             /** Instructions */
@@ -6519,6 +6512,24 @@ export interface components {
             title?: string | null;
             /** Uploadeddocs */
             uploadedDocs?: components["schemas"]["UploadedDoc"][];
+        };
+        /**
+         * ResolveRequest
+         * @description Container-side exchange of a personal activation key for the bundle secret.
+         */
+        ResolveRequest: {
+            /** Activation Key */
+            activation_key: string;
+            /** Fingerprint */
+            fingerprint?: string | null;
+        };
+        /**
+         * ResolveResponse
+         * @description The real build-time bundle secret that decrypts the AccountingClaw image.
+         */
+        ResolveResponse: {
+            /** Bundle Secret */
+            bundle_secret: string;
         };
         /** ResultRowCreateRequest */
         ResultRowCreateRequest: {
@@ -6757,6 +6768,10 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
         };
         /** VarianceAnalyzeRequest */
         VarianceAnalyzeRequest: {
@@ -11739,156 +11754,6 @@ export interface operations {
             };
         };
     };
-    list_projects_route_api_analytics_projects_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectListResponse"];
-                };
-            };
-        };
-    };
-    create_project_route_api_analytics_projects_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProjectCreateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_project_route_api_analytics_projects__project_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_project_route_api_analytics_projects__project_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProjectUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_project_route_api_analytics_projects__project_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     stream_irs_research_api_analytics_research_irs_stream_post: {
         parameters: {
             query?: never;
@@ -13465,6 +13330,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_api_activation_activate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_activation_api_activation_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivationStatusResponse"];
+                };
+            };
+        };
+    };
+    resolve_api_activation_resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResolveResponse"];
                 };
             };
             /** @description Validation Error */
