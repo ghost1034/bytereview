@@ -93,13 +93,13 @@ const RUN_COMMAND = [
 
 const NEXT_STEPS_COMMAND = [
   'docker logs -f accountingclaw',
-  'docker exec -it accountingclaw /opt/hermes/.venv/bin/hermes status',
-  'docker exec -it accountingclaw /opt/hermes/.venv/bin/hermes skills list',
-  'docker exec -it accountingclaw /opt/hermes/.venv/bin/hermes chat',
+  'docker exec -it accountingclaw hermes status',
+  'docker exec -it accountingclaw hermes skills list',
+  'docker exec -it accountingclaw hermes chat',
 ].join('\n')
 
 const HERMES_ALIAS_COMMAND =
-  "alias hermes='docker exec -it accountingclaw /opt/hermes/.venv/bin/hermes'"
+  "alias hermes='docker exec -it accountingclaw hermes'"
 
 const DOWNLOAD_NOTES = [
   {
