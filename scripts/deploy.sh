@@ -69,17 +69,12 @@ echo -e "${GREEN}✓ Prerequisites check passed${NC}"
 echo ""
 
 # Parse command line arguments
-SKIP_INFRA=false
 SKIP_BUILD=false
 SKIP_DEPLOY=false
 ENVIRONMENT="production"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --skip-infra)
-            SKIP_INFRA=true
-            shift
-            ;;
         --skip-build)
             SKIP_BUILD=true
             shift
@@ -95,7 +90,6 @@ while [[ $# -gt 0 ]]; do
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo "Options:"
-            echo "  --skip-infra    Skip infrastructure setup"
             echo "  --skip-build    Skip building images"
             echo "  --skip-deploy   Skip deploying services"
             echo "  --staging       Deploy to staging environment"
@@ -112,13 +106,10 @@ done
 echo -e "${BLUE}Deployment mode: ${ENVIRONMENT}${NC}"
 echo ""
 
-# Infrastructure setup
-if [ "$SKIP_INFRA" = false ]; then
-    print_section "Setting Up Infrastructure"
-    ./scripts/setup-infrastructure.sh
-else
-    echo -e "${YELLOW}⏭️  Skipping infrastructure setup${NC}"
-fi
+# NOTE: One-time foundational infrastructure (Cloud SQL, VPC connector, runner
+# service account + IAM, GCS bucket, Artifact Registry repo) is NOT provisioned
+# here. It rarely changes and is bootstrapped separately for new environments
+# via ./scripts/setup-infrastructure.sh. Routine deploys assume it already exists.
 
 # Build images
 if [ "$SKIP_BUILD" = false ]; then
@@ -128,12 +119,20 @@ else
     echo -e "${YELLOW}⏭️  Skipping image build${NC}"
 fi
 
-# Deploy services
+# Deploy services (API + frontend) followed by the Cloud Run task services.
+# Together these two steps replace the previous manual sequence of running
+# `./scripts/deploy-services.sh && ./scripts/deploy-cloud-run-tasks.sh`.
 if [ "$SKIP_DEPLOY" = false ]; then
-    print_section "Deploying Services"
+    print_section "Deploying Services (API + Frontend)"
     # Images were already built above (or intentionally skipped), so tell
     # deploy-services.sh to reuse them rather than rebuild.
     ./scripts/deploy-services.sh --image-tag "$GIT_HASH" --environment "$ENVIRONMENT" --skip-build
+
+    print_section "Deploying Cloud Run Task Services"
+    # Worker/task handlers (extract, io, automation, maintenance). This script
+    # builds and pushes its own task-* images from backend/task_services, so it
+    # runs regardless of the backend/frontend image build above.
+    ./scripts/deploy-cloud-run-tasks.sh "$GIT_HASH" "$ENVIRONMENT"
 else
     echo -e "${YELLOW}⏭️  Skipping service deployment${NC}"
 fi
@@ -143,6 +142,7 @@ echo -e "${GREEN}✅ CPAAutomation has been deployed successfully!${NC}"
 echo ""
 echo -e "${BLUE}🌐 Frontend: https://cpaautomation.ai${NC}"
 echo -e "${BLUE}🔧 API: https://api.cpaautomation.ai${NC}"
+echo -e "${BLUE}⚙️  Task services: task-extract, task-io, task-automation, task-maintenance${NC}"
 echo -e "${BLUE}📊 Monitoring: https://console.cloud.google.com/run?project=${PROJECT_ID}${NC}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"

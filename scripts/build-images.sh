@@ -131,7 +131,7 @@ echo -e "• Frontend: ${ARTIFACT_REGISTRY_URL}/frontend:${GIT_HASH}"
 echo ""
 echo -e "${YELLOW}📝 Next steps:${NC}"
 echo -e "1. Deploy services using: ./scripts/deploy-services.sh --image-tag ${GIT_HASH} --skip-build"
-echo -e "2. Or run full deployment: ./scripts/deploy.sh --skip-infra --skip-build"
+echo -e "2. Or run full deployment: ./scripts/deploy.sh --skip-build"
 echo ""
 
 # Optional: Clean up buildx cache to save space
