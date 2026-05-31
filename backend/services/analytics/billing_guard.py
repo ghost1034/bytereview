@@ -46,9 +46,14 @@ def record_call(
     source: str,
     prompt_tokens: Optional[int],
     output_tokens: Optional[int],
+    total_tokens: Optional[int] = None,
     notes: Optional[str] = None,
 ) -> Optional[str]:
-    """Post-flight: convert token usage to pages and record a UsageEvent."""
+    """Post-flight: convert token usage to pages and record a UsageEvent.
+
+    Pages remain the billable unit; the raw token counts are persisted for
+    tracking. `total_tokens` is the provider-reported total when available.
+    """
     billing = BillingService(db)
     try:
         return billing.record_analytics_usage(
@@ -56,6 +61,7 @@ def record_call(
             source=source,
             prompt_tokens=prompt_tokens,
             output_tokens=output_tokens,
+            total_tokens=total_tokens,
             notes=notes,
         )
     except PlanLimitExceeded:

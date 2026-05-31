@@ -76,6 +76,7 @@ async def _assistant_event_stream(
                 "analytics_chat_assistant",
                 final_usage.get("prompt_tokens"),
                 final_usage.get("output_tokens"),
+                final_usage.get("total_tokens"),
             )
         except HTTPException as billing_exc:
             logger.warning("Analytics billing failed: %s", billing_exc.detail)
@@ -134,6 +135,7 @@ async def basic_chat(
         "analytics_chat_basic",
         usage_meta.get("prompt_tokens"),
         usage_meta.get("output_tokens"),
+        usage_meta.get("total_tokens"),
     )
     return {
         "text": "".join(chunks),
@@ -180,6 +182,7 @@ async def extract_document(
             "analytics_document_extract",
             usage.get("prompt_tokens"),
             usage.get("output_tokens"),
+            usage.get("total_tokens"),
         )
     except HTTPException:
         raise

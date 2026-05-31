@@ -83,6 +83,7 @@ async def generate_rules(
         "analytics_recon_rules",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
+        usage.get("total_tokens"),
     )
     return ReconciliationRulesGenerateResponse(
         passes=passes,
@@ -106,6 +107,7 @@ async def generate_additional_pass(
         "analytics_recon_additional_pass",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
+        usage.get("total_tokens"),
     )
     return ReconciliationAdditionalPassResponse.model_validate(
         {
@@ -131,6 +133,7 @@ async def perform_match(
         "analytics_recon_match",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
+        usage.get("total_tokens"),
     )
     return ReconciliationMatchResponse.model_validate(
         {
@@ -157,6 +160,7 @@ async def reconcile_basic(
         "analytics_recon_basic",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
+        usage.get("total_tokens"),
     )
     return ReconciliationMatchResponse.model_validate(
         {

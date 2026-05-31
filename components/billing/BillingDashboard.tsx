@@ -9,6 +9,7 @@ import {
   Calendar,
   CreditCard,
   FileText,
+  Sparkles,
   Zap,
 } from 'lucide-react'
 
@@ -47,8 +48,8 @@ export default function BillingDashboard() {
 
   if (billingLoading || usageLoading || plansLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[...Array(4)].map((_, i) => (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        {[...Array(5)].map((_, i) => (
           <div
             key={i}
             className="space-y-3 rounded-lg border border-border bg-surface-raised p-5 shadow-xs"
@@ -96,7 +97,7 @@ export default function BillingDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <StatCard
           icon={CreditCard}
           label="Current plan"
@@ -122,6 +123,12 @@ export default function BillingDashboard() {
             </span>
           }
           hint={`of ${usage.pages_included.toLocaleString()} included`}
+        />
+        <StatCard
+          icon={Sparkles}
+          label="Analytics tokens"
+          value={usage.tokens_used.toLocaleString()}
+          hint="AI tokens used by Analytics this period"
         />
         <StatCard
           icon={Zap}

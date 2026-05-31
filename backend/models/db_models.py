@@ -750,6 +750,12 @@ class UsageEvent(Base):
     inkwise_ingestion_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_source_ingestions.id", ondelete="SET NULL"), nullable=True)
     form_fill_run_id = Column(UUID(as_uuid=True), ForeignKey("form_fill_runs.id", ondelete="SET NULL"), nullable=True)
     pages = Column(Integer, nullable=False)
+    # Raw token usage for analytics LLM calls (NULL for page-based sources like
+    # extraction / Form Fill / Inkwise). Billing still uses `pages`; these are
+    # for durable token tracking and reporting only.
+    prompt_tokens = Column(Integer, nullable=True)
+    output_tokens = Column(Integer, nullable=True)
+    total_tokens = Column(Integer, nullable=True)
     stripe_reported = Column(Boolean, nullable=False, default=False)
     stripe_record_id = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
@@ -771,6 +777,8 @@ class UsageCounter(Base):
     period_start = Column(TIMESTAMP(timezone=True), primary_key=True)
     period_end = Column(TIMESTAMP(timezone=True), nullable=False)
     pages_total = Column(Integer, nullable=False, default=0)
+    # Cached sum of raw tokens consumed by analytics calls this period.
+    tokens_total = Column(BigInteger, nullable=False, default=0, server_default="0")
 
     # Relationships
     user = relationship("User")

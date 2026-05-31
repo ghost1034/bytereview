@@ -14,6 +14,7 @@ export interface BillingAccount {
   plan_display_name: string
   pages_included: number
   pages_used: number
+  tokens_used?: number
   automations_limit: number
   automations_count: number
   overage_cents: number
@@ -28,6 +29,7 @@ export interface UsageStats {
   pages_used: number
   pages_included: number
   pages_remaining: number
+  tokens_used: number
   automations_count: number
   automations_limit: number
   period_start?: string

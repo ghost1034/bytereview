@@ -104,6 +104,7 @@ async def extract_amortization(
         "analytics_amort_extract",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
+        usage.get("total_tokens"),
     )
     return AmortizationExtractResponse.model_validate(
         {
@@ -128,6 +129,7 @@ async def compliance_check(
         "analytics_amort_compliance",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
+        usage.get("total_tokens"),
     )
     return AmortizationComplianceResponse(
         insight=insight,

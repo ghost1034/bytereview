@@ -102,6 +102,7 @@ async def _research_event_stream(
                     source,
                     final_usage.get("prompt_tokens"),
                     final_usage.get("output_tokens"),
+                    final_usage.get("total_tokens"),
                 )
             except HTTPException as billing_exc:
                 logger.warning("Analytics billing failed: %s", billing_exc.detail)
@@ -194,6 +195,7 @@ async def _generate_title(messages: list[dict], user_id: str, db: Session) -> st
                     "analytics_chat_title",
                     usage.get("prompt_tokens"),
                     usage.get("output_tokens"),
+                    usage.get("total_tokens"),
                 )
             except HTTPException as billing_exc:
                 logger.warning("Title billing failed: %s", billing_exc.detail)

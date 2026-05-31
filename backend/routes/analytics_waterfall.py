@@ -70,6 +70,7 @@ async def extract_waterfall(
         "analytics_waterfall_extract",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
+        usage.get("total_tokens"),
     )
     return WaterfallExtractResponse.model_validate(
         {

@@ -79,6 +79,7 @@ async def suggest_threshold(
         "analytics_variance_threshold",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
+        usage.get("total_tokens"),
     )
     return VarianceThresholdResponse.model_validate(
         {
@@ -102,6 +103,7 @@ async def analyze_variance(
         "analytics_variance_analyze",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
+        usage.get("total_tokens"),
     )
     return VarianceAnalyzeResponse(
         explanations=explanations,
@@ -123,6 +125,7 @@ async def generate_memo(
         "analytics_variance_memo",
         usage.get("prompt_tokens"),
         usage.get("output_tokens"),
+        usage.get("total_tokens"),
     )
     return VarianceMemoResponse(
         text=text,

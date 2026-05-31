@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from services.billing_service import BillingService
+from services.billing_service import BillingService, tokens_to_pages
 
 
 class BillingServiceSubscriptionSyncTests(unittest.TestCase):
@@ -219,6 +219,81 @@ class BillingServiceSubscriptionSyncTests(unittest.TestCase):
         self.assertEqual(event_id, "22222222-2222-2222-2222-222222222222")
         db.add.assert_not_called()
         db.commit.assert_not_called()
+
+
+class BillingServiceTokenTrackingTests(unittest.TestCase):
+    """Analytics token usage is persisted while billing stays page-derived."""
+
+    def _service_with_free_account(self) -> tuple[BillingService, MagicMock]:
+        db = MagicMock()
+        service = BillingService(db)
+        account = SimpleNamespace(
+            plan_code="free",  # stays off the Stripe reporting path
+            current_period_start=datetime(2026, 5, 1, tzinfo=timezone.utc),
+            current_period_end=datetime(2026, 5, 31, 23, 59, 59, tzinfo=timezone.utc),
+        )
+        service.get_or_create_billing_account = MagicMock(return_value=account)
+        service.check_page_limit = MagicMock(return_value=True)
+        return service, db
+
+    def test_record_analytics_usage_persists_tokens_and_keeps_pages(self) -> None:
+        service, db = self._service_with_free_account()
+
+        prompt_tokens, output_tokens = 1500, 1000
+        service.record_analytics_usage(
+            user_id="user-1",
+            source="analytics_variance_analyze",
+            prompt_tokens=prompt_tokens,
+            output_tokens=output_tokens,
+        )
+
+        # The appended UsageEvent carries the raw tokens and the derived pages.
+        event = db.add.call_args.args[0]
+        self.assertEqual(event.prompt_tokens, prompt_tokens)
+        self.assertEqual(event.output_tokens, output_tokens)
+        # total_tokens defaults to prompt + output when not provided.
+        self.assertEqual(event.total_tokens, prompt_tokens + output_tokens)
+        # Billing is unchanged: pages are still derived via tokens_to_pages.
+        self.assertEqual(event.pages, tokens_to_pages(prompt_tokens, output_tokens))
+
+        # The counter upsert increments tokens_total alongside pages_total.
+        sql, params = db.execute.call_args.args
+        self.assertIn("tokens_total", str(sql))
+        self.assertEqual(params["tok"], prompt_tokens + output_tokens)
+        self.assertEqual(params["pg"], tokens_to_pages(prompt_tokens, output_tokens))
+
+    def test_record_analytics_usage_prefers_provider_total(self) -> None:
+        service, db = self._service_with_free_account()
+
+        # Provider-reported total may exceed prompt+output (e.g. thinking tokens).
+        service.record_analytics_usage(
+            user_id="user-2",
+            source="analytics_chat_assistant",
+            prompt_tokens=1000,
+            output_tokens=500,
+            total_tokens=1800,
+        )
+
+        event = db.add.call_args.args[0]
+        self.assertEqual(event.total_tokens, 1800)
+        params = db.execute.call_args.args[1]
+        self.assertEqual(params["tok"], 1800)
+        # Pages remain derived from prompt+output only, independent of total.
+        self.assertEqual(event.pages, tokens_to_pages(1000, 500))
+
+    def test_record_analytics_usage_ignores_zero_token_calls(self) -> None:
+        service, db = self._service_with_free_account()
+
+        result = service.record_analytics_usage(
+            user_id="user-3",
+            source="analytics_chat_title",
+            prompt_tokens=0,
+            output_tokens=0,
+        )
+
+        self.assertIsNone(result)
+        db.add.assert_not_called()
+        db.execute.assert_not_called()
 
 
 if __name__ == "__main__":

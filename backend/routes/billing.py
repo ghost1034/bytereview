@@ -45,6 +45,7 @@ async def get_usage_stats(
             pages_used=billing_info['pages_used'],
             pages_included=billing_info['pages_included'],
             pages_remaining=pages_remaining,
+            tokens_used=billing_info['tokens_used'],
             automations_count=billing_info['automations_count'],
             automations_limit=billing_info['automations_limit'],
             period_start=billing_info['current_period_start'],

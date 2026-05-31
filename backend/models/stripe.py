@@ -25,6 +25,7 @@ class BillingAccountResponse(BaseModel):
     automations_limit: int
     automations_count: int
     overage_cents: int
+    tokens_used: Optional[int] = None  # raw analytics tokens consumed this period
     current_period_start: Optional[datetime]
     current_period_end: Optional[datetime]
     status: str
@@ -46,6 +47,7 @@ class UsageStatsResponse(BaseModel):
     pages_used: int
     pages_included: int
     pages_remaining: int
+    tokens_used: int = 0  # raw analytics tokens consumed this period
     automations_count: int
     automations_limit: int
     period_start: Optional[datetime]

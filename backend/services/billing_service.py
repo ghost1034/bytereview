@@ -292,6 +292,7 @@ class BillingService:
             .first()
         )
         pages_used = counter.pages_total if counter else 0
+        tokens_used = (counter.tokens_total if counter else 0) or 0
 
         automations_count = (
             self.db.query(Automation)
@@ -305,6 +306,7 @@ class BillingService:
             "plan_display_name": plan.display_name if plan else "Unknown",
             "pages_included": plan.pages_included if plan else 0,
             "pages_used": pages_used,
+            "tokens_used": tokens_used,
             "automations_limit": plan.automations_limit if plan else 0,
             "automations_count": automations_count,
             "overage_cents": plan.overage_cents if plan else 0,
@@ -362,8 +364,15 @@ class BillingService:
         inkwise_ingestion_id: Optional[str] = None,
         form_fill_run_id: Optional[str] = None,
         notes: Optional[str] = None,
+        prompt_tokens: Optional[int] = None,
+        output_tokens: Optional[int] = None,
+        total_tokens: Optional[int] = None,
     ) -> Optional[str]:
         """Append a usage event and bump the cached counter. Report to Stripe for paid plans.
+
+        `pages` remains the billable unit. The optional token counts are stored
+        verbatim for analytics calls so token consumption is auditable; they do
+        not affect billing.
 
         Returns the usage_event id (uuid) or None if pages <= 0.
         """
@@ -412,6 +421,9 @@ class BillingService:
                 inkwise_ingestion_id=inkwise_ingestion_uuid,
                 form_fill_run_id=form_fill_run_uuid,
                 pages=pages,
+                prompt_tokens=prompt_tokens,
+                output_tokens=output_tokens,
+                total_tokens=total_tokens,
                 notes=notes,
             )
         )
@@ -420,10 +432,11 @@ class BillingService:
         self.db.execute(
             text(
                 """
-            INSERT INTO usage_counters(user_id, period_start, period_end, pages_total)
-            VALUES (:u, :ps, :pe, :pg)
+            INSERT INTO usage_counters(user_id, period_start, period_end, pages_total, tokens_total)
+            VALUES (:u, :ps, :pe, :pg, :tok)
             ON CONFLICT (user_id, period_start) DO UPDATE
-            SET pages_total = usage_counters.pages_total + EXCLUDED.pages_total
+            SET pages_total = usage_counters.pages_total + EXCLUDED.pages_total,
+                tokens_total = usage_counters.tokens_total + EXCLUDED.tokens_total
             """
             ),
             {
@@ -431,6 +444,7 @@ class BillingService:
                 "ps": acct.current_period_start,
                 "pe": acct.current_period_end,
                 "pg": pages,
+                "tok": int(total_tokens or 0),
             },
         )
 
@@ -448,9 +462,14 @@ class BillingService:
         source: str,
         prompt_tokens: Optional[int],
         output_tokens: Optional[int],
+        total_tokens: Optional[int] = None,
         notes: Optional[str] = None,
     ) -> Optional[str]:
         """Convert token usage from an analytics LLM call to pages and record it.
+
+        The raw token counts are persisted alongside the derived page count.
+        `total_tokens` defaults to prompt+output when the provider does not
+        report it explicitly.
 
         Returns the usage_event id (uuid) or None if the call consumed zero tokens.
         Raises PlanLimitExceeded for Free users over quota.
@@ -465,7 +484,18 @@ class BillingService:
         if pages <= 0:
             return None
 
-        return self.record_usage(user_id=user_id, pages=pages, source=source, notes=notes)
+        if total_tokens is None:
+            total_tokens = int(prompt_tokens or 0) + int(output_tokens or 0)
+
+        return self.record_usage(
+            user_id=user_id,
+            pages=pages,
+            source=source,
+            notes=notes,
+            prompt_tokens=prompt_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
+        )
 
     def _report_usage_to_stripe(self, user_id: str, pages: int, event_id: str) -> None:
         """Send a meter event to Stripe. Swallows errors (logs only)."""
