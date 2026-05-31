@@ -554,9 +554,11 @@ Troubleshooting
 Overview
 - Deploys to Google Cloud Run (API + Task services) with Google Cloud Tasks, Cloud Scheduler, Pub/Sub, GCS, and Cloud SQL (Postgres)
 - Scripts:
-  - scripts/deploy-services.sh (main deploy for the API/frontend Cloud Run services, incl. Inkwise config + Alembic migrations)
-  - scripts/deploy-cloud-run-tasks.sh (task services: extract/io/automation/maintenance)
-  - scripts/setup-secrets.sh (example Secret Manager provisioning for TASK_* URLs)
+  - scripts/deploy.sh (unified deploy entry point — builds images, then deploys the API/frontend and task services; run this for routine deploys)
+  - scripts/deploy-services.sh (API/frontend Cloud Run services, incl. Inkwise config + Alembic migrations; invoked by deploy.sh)
+  - scripts/deploy-cloud-run-tasks.sh (task services: extract/io/automation/maintenance; invoked by deploy.sh)
+  - scripts/setup-infrastructure.sh (one-time bootstrap: Cloud SQL, VPC connector, runner service account + IAM, GCS bucket, Artifact Registry — not part of routine deploys)
+  - scripts/setup-secrets.sh (one-time Secret Manager provisioning for TASK_* URLs)
 
 Environments and services
 - Cloud Run services:
@@ -611,7 +613,7 @@ Step-by-step GCP setup (high level)
   - Store Firebase service account JSON; mount as `/var/secrets/google/service-account.json`
   - Store TASK_* URLs (or set post-deploy when URLs are known)
 5) Build & deploy services
-  - Build images to Artifact Registry; deploy Cloud Run services via scripts
+  - Run `./scripts/deploy.sh` to build images and deploy the API/frontend + task services (use `--skip-build` to reuse existing images)
   - Set env vars and secret mounts per service
 6) Tasks and queues
   - Ensure Cloud Tasks queues exist; run `cloud_run_task_service.setup_task_queues()` once or create via gcloud
