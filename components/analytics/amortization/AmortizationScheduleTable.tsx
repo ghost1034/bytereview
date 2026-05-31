@@ -24,7 +24,14 @@ function detectShape(schedule: ScheduleRow[], method?: ScheduleMethodKey): Colum
   if (!first) return 'standard'
   if (typeof first.totalExpense === 'number') return 'lease'
   if (typeof first.payment === 'number' && typeof first.interest === 'number') return 'loan'
-  if (typeof first.rate === 'number' && typeof first.basis === 'number') return 'macrs'
+  if (
+    (typeof first.rate === 'number' && typeof first.basis === 'number') ||
+    typeof first.macrsRate === 'number' ||
+    typeof first.totalDep === 'number' ||
+    typeof first.year === 'number'
+  ) {
+    return 'macrs'
+  }
   return 'standard'
 }
 
@@ -71,10 +78,37 @@ export function AmortizationScheduleTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-border tabular-nums">
-            {schedule.map((row, idx) => (
-              <tr key={`${row.period}-${row.date}-${idx}`} className="hover:bg-surface-muted/50">
-                <td className="p-3 text-left font-medium text-foreground">{row.period}</td>
-                <td className="p-3 text-foreground-muted">{row.date}</td>
+            {schedule.map((row, idx) => {
+              const period =
+                row.period ??
+                (typeof row.year === 'number' ? row.year : undefined) ??
+                idx + 1
+              const macrsRatePct =
+                typeof row.macrsRate === 'number'
+                  ? row.macrsRate
+                  : typeof row.rate === 'number'
+                    ? row.rate * 100
+                    : undefined
+              const macrsExpense =
+                typeof row.totalDep === 'number'
+                  ? row.totalDep
+                  : typeof row.expense === 'number'
+                    ? row.expense
+                    : undefined
+              const macrsAccum = typeof row.accumulated === 'number' ? row.accumulated : undefined
+              const macrsBasis =
+                typeof row.taxBasis === 'number'
+                  ? row.taxBasis
+                  : typeof row.basis === 'number'
+                    ? row.basis
+                    : undefined
+
+              return (
+              <tr key={`${period}-${row.date}-${idx}`} className="hover:bg-surface-muted/50">
+                <td className="p-3 text-left font-medium text-foreground">{period}</td>
+                <td className="p-3 text-foreground-muted">
+                  {row.date || (typeof row.year === 'number' ? `${row.year}-12-31` : '—')}
+                </td>
                 {shape === 'standard' && (
                   <>
                     <td className="p-3 text-foreground-muted">{formatCurrency(row.openingBalance)}</td>
@@ -116,15 +150,15 @@ export function AmortizationScheduleTable({
                 {shape === 'macrs' && (
                   <>
                     <td className="p-3 text-foreground-muted">
-                      {typeof row.rate === 'number' ? `${(row.rate * 100).toFixed(2)}%` : '—'}
+                      {typeof macrsRatePct === 'number' ? `${macrsRatePct.toFixed(2)}%` : '—'}
                     </td>
-                    <td className="p-3 font-semibold text-foreground">{formatCurrency(row.expense)}</td>
-                    <td className="p-3 text-foreground-muted">{formatCurrency(row.accumulated)}</td>
-                    <td className="p-3 text-foreground-muted">{formatCurrency(row.basis)}</td>
+                    <td className="p-3 font-semibold text-foreground">{formatCurrency(macrsExpense)}</td>
+                    <td className="p-3 text-foreground-muted">{formatCurrency(macrsAccum)}</td>
+                    <td className="p-3 text-foreground-muted">{formatCurrency(macrsBasis)}</td>
                   </>
                 )}
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
       </div>

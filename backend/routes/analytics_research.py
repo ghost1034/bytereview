@@ -77,6 +77,8 @@ async def _research_event_stream(
             if kind == "chunk":
                 accumulated.append(value)
                 yield f"data: {json.dumps({'text': value})}\n\n".encode("utf-8")
+            elif kind == "grounding":
+                yield f"data: {json.dumps({'grounding': value})}\n\n".encode("utf-8")
             elif kind == "usage":
                 final_usage = value
                 yield f"data: {json.dumps({'usage': value})}\n\n".encode("utf-8")

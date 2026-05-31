@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { LoadingState } from '@/components/ui/loading-state'
@@ -42,7 +42,7 @@ const HEADER: Record<View, { title: string; description: string }> = {
   },
 }
 
-export function ReconciliationModule() {
+export function ReconciliationModuleContent() {
   const { data, isLoading } = useAnalyticsReconciliations()
   const { data: clientsData } = useAnalyticsClients()
   const clients = useMemo(() => clientsData?.clients ?? [], [clientsData])
@@ -157,6 +157,14 @@ export function ReconciliationModule() {
         />
       )}
     </div>
+  )
+}
+
+export function ReconciliationModule() {
+  return (
+    <Suspense fallback={<LoadingState variant="page" label="Loading reconciliations" />}>
+      <ReconciliationModuleContent />
+    </Suspense>
   )
 }
 

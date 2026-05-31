@@ -10,7 +10,7 @@ import {
   useCreateAnalyticsAmortization,
   useGenerateAnalyticsAmortizationSchedule,
 } from '@/hooks/useAnalyticsAmortization'
-import { splitFormForApi } from '@/lib/analytics/amortizationHelpers'
+import { splitFormForApi, buildMacrsScheduleRequest, normalizeMacrsScheduleRows } from '@/lib/analytics/amortizationHelpers'
 import {
   CSV_COLUMN_MAP,
   createDefaultAmortizationForm,
@@ -127,25 +127,12 @@ export function AmortizationBulkUpload({ onBack }: AmortizationBulkUploadProps) 
           schedule = (res.schedule ?? []) as unknown as ScheduleRow[]
 
           if (form.taxMethod === 'MACRS') {
-            const parsedYear = Number.parseInt(form.startDate.slice(0, 4), 10)
-            const bonusRaw = form.bonusDepreciationPercentage ?? ''
-            const bonusPercent = bonusRaw
-              ? Number.parseFloat(String(bonusRaw).replace('%', '')) / 100
-              : undefined
             try {
-              const taxRes = await scheduleMutation.mutateAsync({
-                assetType: form.assetType,
-                method: 'macrs',
-                costBasis: form.costBasis,
-                salvageValue: form.salvageValue,
-                usefulLifeMonths: form.usefulLifeMonths,
-                startDate: form.startDate,
-                propertyClass: form.macrsPropertyClass ?? '5-year',
-                bonusPercent,
-                section179: form.section179Amount ?? undefined,
-                startYear: Number.isFinite(parsedYear) ? parsedYear : undefined,
-              })
-              taxSchedule = (taxRes.schedule ?? []) as unknown as ScheduleRow[]
+              const taxRes = await scheduleMutation.mutateAsync(buildMacrsScheduleRequest(form))
+              taxSchedule = normalizeMacrsScheduleRows(
+                (taxRes.schedule ?? []) as unknown as ScheduleRow[],
+                form.costBasis ?? 0,
+              )
             } catch {
               // Bulk import is forgiving: a tax-schedule failure shouldn't drop the asset.
             }

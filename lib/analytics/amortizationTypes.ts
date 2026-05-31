@@ -74,19 +74,13 @@ export const ASSET_TYPE_DEFAULTS: Record<
 // Method enums
 // ---------------------------------------------------------------------------
 
-export type GaapMethod = 'Straight-Line' | 'Declining Balance'
+export type GaapMethod = 'Straight-Line'
 
-export const GAAP_METHODS: readonly GaapMethod[] = ['Straight-Line', 'Declining Balance'] as const
+export const GAAP_METHODS: readonly GaapMethod[] = ['Straight-Line'] as const
 
-export type TaxMethod = 'MACRS' | 'Straight-Line' | 'Section 179' | 'Bonus' | 'N/A'
+export type TaxMethod = 'MACRS' | 'Straight-Line'
 
-export const TAX_METHODS: readonly TaxMethod[] = [
-  'MACRS',
-  'Straight-Line',
-  'Section 179',
-  'Bonus',
-  'N/A',
-] as const
+export const TAX_METHODS: readonly TaxMethod[] = ['MACRS', 'Straight-Line'] as const
 
 /** Wire-format method strings accepted by `POST /amortization/schedule`. */
 export type ScheduleMethodKey =
@@ -436,7 +430,7 @@ export const REPORT_DEFS: readonly ReportDef[] = [
   {
     key: 'all_assets_schedule',
     name: 'All Assets Schedule',
-    description: 'Full period-by-period schedule for every active asset.',
+    description: 'GAAP schedule (tab 1) and tax schedule (tab 2) for every asset.',
   },
   {
     key: 'monthly_expense_summary',

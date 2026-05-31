@@ -2313,6 +2313,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/analytics/firm/onboarding-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Onboarding Status */
+        get: operations["get_onboarding_status_api_analytics_firm_onboarding_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/firm/create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Firm */
+        post: operations["create_firm_api_analytics_firm_create_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/firm/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Join Firm */
+        post: operations["join_firm_api_analytics_firm_join_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/analytics/firm": {
         parameters: {
             query?: never;
@@ -2327,6 +2378,23 @@ export interface paths {
         post?: never;
         /** Delete Firm */
         delete: operations["delete_firm_api_analytics_firm_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/firm/invite-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate Invite Code */
+        post: operations["generate_invite_code_api_analytics_firm_invite_code_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3357,6 +3425,18 @@ export interface components {
             section179?: number | null;
             /** Startyear */
             startYear?: number | null;
+            /** Macrssystem */
+            macrsSystem?: string | null;
+            /** Convention */
+            convention?: string | null;
+            /** Section179election */
+            section179Election?: boolean;
+            /** Bonusdepreciationelection */
+            bonusDepreciationElection?: boolean;
+            /** Listedproperty */
+            listedProperty?: boolean;
+            /** Businessusepercentage */
+            businessUsePercentage?: number | null;
         };
         /** AmortizationScheduleResponse */
         AmortizationScheduleResponse: {
@@ -4312,11 +4392,18 @@ export interface components {
              */
             upload_url: string;
         };
+        /** FirmCreateRequest */
+        FirmCreateRequest: {
+            /** Name */
+            name: string;
+        };
         /** FirmDetailResponse */
         FirmDetailResponse: {
             firm: components["schemas"]["FirmResponse"];
             /** Members */
             members?: components["schemas"]["FirmMemberResponse"][];
+            /** Invite Code */
+            invite_code?: string | null;
         };
         /** FirmExportResponse */
         FirmExportResponse: {
@@ -4357,10 +4444,20 @@ export interface components {
              */
             exported_at: string;
         };
+        /** FirmInviteCodeResponse */
+        FirmInviteCodeResponse: {
+            /** Code */
+            code: string;
+        };
         /** FirmInviteRequest */
         FirmInviteRequest: {
             /** Email */
             email: string;
+        };
+        /** FirmJoinRequest */
+        FirmJoinRequest: {
+            /** Code */
+            code: string;
         };
         /** FirmMemberResponse */
         FirmMemberResponse: {
@@ -4387,6 +4484,12 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** FirmOnboardingStatusResponse */
+        FirmOnboardingStatusResponse: {
+            /** Needs Onboarding */
+            needs_onboarding: boolean;
+            firm?: components["schemas"]["FirmResponse"] | null;
         };
         /** FirmPurgeResponse */
         FirmPurgeResponse: {
@@ -6302,9 +6405,14 @@ export interface components {
             /** Instructions */
             instructions: string;
             /** Availablerules */
-            availableRules?: {
+            availableRules?: ({
+                /** Category */
+                category?: string;
+                /** Rules */
+                rules?: string[];
+            }[] | {
                 [key: string]: unknown;
-            };
+            });
         };
         /** ReconciliationAdditionalPassResponse */
         ReconciliationAdditionalPassResponse: {
@@ -6456,9 +6564,14 @@ export interface components {
             /** Headers */
             headers: string[];
             /** Availablerules */
-            availableRules?: {
+            availableRules?: ({
+                /** Category */
+                category?: string;
+                /** Rules */
+                rules?: string[];
+            }[] | {
                 [key: string]: unknown;
-            };
+            });
         };
         /** ReconciliationRulesGenerateResponse */
         ReconciliationRulesGenerateResponse: {
@@ -11381,6 +11494,92 @@ export interface operations {
             };
         };
     };
+    get_onboarding_status_api_analytics_firm_onboarding_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirmOnboardingStatusResponse"];
+                };
+            };
+        };
+    };
+    create_firm_api_analytics_firm_create_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FirmCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirmDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    join_firm_api_analytics_firm_join_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FirmJoinRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirmDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_firm_api_analytics_firm_get: {
         parameters: {
             query?: never;
@@ -11450,6 +11649,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FirmPurgeResponse"];
+                };
+            };
+        };
+    };
+    generate_invite_code_api_analytics_firm_invite_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirmInviteCodeResponse"];
                 };
             };
         };

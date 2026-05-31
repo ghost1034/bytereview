@@ -368,23 +368,11 @@ export default function DataUploadFlow({ module, uploadType = 'bulk', varianceMo
           rows.push(row);
         }
 
-        // Add intentional errors
-        if (isDual) {
-          rows.push(`,1000,Missing account name error,G&A,San Francisco`); // Missing account
-          rows.push(`7000-01 Error Account,INVALID,Non-numeric amount error,Sales,New York`); // Invalid amount
-          rows.push(`7000-02 Error Account,,Missing amount error,Marketing,Austin`); // Missing amount
-        } else {
-          rows.push(`,1000,2025-08-15,Missing account name error,G&A,San Francisco`);
-          rows.push(`7000-01 Error Account,INVALID,2025-08-15,Non-numeric amount error,Sales,New York`);
-          rows.push(`7000-02 Error Account,,2025-08-15,Missing amount error,Marketing,Austin`);
-          rows.push(`7000-03 Error Account,500,INVALID_DATE,Invalid period format error,IT,Remote`);
-        }
-
         return rows;
       };
 
       if (varianceMode === 'single') {
-        const header = 'Account Name/Number,Amount,Date,Description/Memo,Class/Department,Location';
+        const header = 'Account Name/Number,Amount,Period/Date,Description/Memo,Class/Department,Location';
         const q3Rows = generateRows(50, false, '2025-08-15');
         const q4Rows = generateRows(50, false, '2025-11-15');
         const csvContent = [header, ...q3Rows, ...q4Rows].join('\n');

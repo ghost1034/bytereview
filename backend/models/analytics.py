@@ -9,7 +9,7 @@ model groups follow the routers: firms, clients, analyses
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -48,10 +48,28 @@ class FirmMemberResponse(BaseModel):
 class FirmDetailResponse(BaseModel):
     firm: FirmResponse
     members: List[FirmMemberResponse] = Field(default_factory=list)
+    invite_code: Optional[str] = None
 
 
 class FirmUpdateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
+
+
+class FirmCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+
+
+class FirmJoinRequest(BaseModel):
+    code: str = Field(..., min_length=1, max_length=6)
+
+
+class FirmInviteCodeResponse(BaseModel):
+    code: str
+
+
+class FirmOnboardingStatusResponse(BaseModel):
+    needs_onboarding: bool
+    firm: Optional[FirmResponse] = None
 
 
 class FirmInviteRequest(BaseModel):
@@ -159,9 +177,13 @@ class UsageMetadata(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+# Frontend sends an array of {category, rules}; legacy callers may send a dict.
+AvailableRulesPayload = Union[List[Dict[str, Any]], Dict[str, Any]]
+
+
 class ReconciliationRulesGenerateRequest(BaseModel):
     headers: List[str]
-    available_rules: Dict[str, Any] = Field(default_factory=dict, alias="availableRules")
+    available_rules: AvailableRulesPayload = Field(default_factory=list, alias="availableRules")
 
     model_config = {"populate_by_name": True}
 
@@ -173,7 +195,7 @@ class ReconciliationRulesGenerateResponse(BaseModel):
 
 class ReconciliationAdditionalPassRequest(BaseModel):
     instructions: str
-    available_rules: Dict[str, Any] = Field(default_factory=dict, alias="availableRules")
+    available_rules: AvailableRulesPayload = Field(default_factory=list, alias="availableRules")
 
     model_config = {"populate_by_name": True}
 
@@ -316,6 +338,12 @@ class AmortizationScheduleRequest(BaseModel):
     bonus_percent: Optional[float] = Field(default=None, alias="bonusPercent")
     section179: Optional[float] = None
     start_year: Optional[int] = Field(default=None, alias="startYear")
+    macrs_system: Optional[str] = Field(default=None, alias="macrsSystem")
+    convention: Optional[str] = None
+    section179_election: bool = Field(default=False, alias="section179Election")
+    bonus_election: bool = Field(default=False, alias="bonusDepreciationElection")
+    listed_property: bool = Field(default=False, alias="listedProperty")
+    business_use_percentage: Optional[float] = Field(default=None, alias="businessUsePercentage")
 
     model_config = {"populate_by_name": True}
 

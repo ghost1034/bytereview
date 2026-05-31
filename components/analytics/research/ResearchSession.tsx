@@ -24,7 +24,7 @@ import {
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
-import { apiClient } from '@/lib/api'
+import { apiClient, type AnalyticsStreamGrounding } from '@/lib/api'
 import { useStreamingChat } from '@/lib/analytics/useStreamingChat'
 import {
   useAnalyticsResearchSession,
@@ -166,6 +166,7 @@ export function ResearchSession({ bot, client, sessionId, onBack }: ResearchSess
   const [uploadedDocs, setUploadedDocs] = useState<AnalyticsUploadedDoc[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const [lastWebSources, setLastWebSources] = useState<AnalyticsStreamGrounding | null>(null)
 
   const greeting = useMemo<AnalyticsChatMessage>(() => {
     const suffix = client.id === 'general' ? '' : ` for **${client.name}**`
@@ -201,6 +202,7 @@ export function ResearchSession({ bot, client, sessionId, onBack }: ResearchSess
     initialMessages: sessionId ? [] : [greeting],
     onSession,
     onError,
+    onGrounding: setLastWebSources,
   })
 
   // Resume an existing session: seed transcript + documents once it loads.
@@ -258,12 +260,25 @@ export function ResearchSession({ bot, client, sessionId, onBack }: ResearchSess
         }
         let summary = ''
         let extractedData: Record<string, unknown> | undefined
-        try {
-          const res = await apiClient.extractAnalyticsDocument({ documentText: text, type: docType })
-          summary = res.summary
-          extractedData = res.extractedData
-        } catch {
-          summary = `Detected ${bot === 'irs' ? 'tax' : 'financial'} document. Could not extract details.`
+        const trimmedText = text.trim()
+        if (trimmedText.length < 40) {
+          summary =
+            `Detected ${bot === 'irs' ? 'tax' : 'financial'} document, but little or no text could be read from the file. ` +
+            'If this is a scanned PDF or image export, try a text-based PDF or DOCX. You can still ask questions in chat.'
+        } else {
+          try {
+            const res = await apiClient.extractAnalyticsDocument({ documentText: text, type: docType })
+            summary = res.summary
+            extractedData = res.extractedData
+          } catch (err) {
+            const detail = err instanceof Error ? err.message : 'Unknown error'
+            summary = `Detected ${bot === 'irs' ? 'tax' : 'financial'} document. Could not extract details (${detail}).`
+            toast({
+              title: 'Document extraction failed',
+              description: detail,
+              variant: 'destructive',
+            })
+          }
         }
         added.push({ id: crypto.randomUUID(), name: file.name, text, summary, extractedData })
       }
@@ -638,11 +653,24 @@ export function ResearchSession({ bot, client, sessionId, onBack }: ResearchSess
                 <Send className="size-4" aria-hidden />
               </button>
             </div>
-            <div className="mt-2 flex items-center justify-between text-xs text-foreground-subtle">
-              <p>
-                Output style: <strong className="text-foreground-muted">{outputStyle}</strong>
-              </p>
-              <p>AI can make mistakes. Verify citations.</p>
+            <div className="mt-2 flex flex-col gap-1 text-xs text-foreground-subtle">
+              <div className="flex items-center justify-between">
+                <p>
+                  Output style: <strong className="text-foreground-muted">{outputStyle}</strong>
+                </p>
+                <p>Uses Google Search + your uploads. Verify citations.</p>
+              </div>
+              {lastWebSources?.sources && lastWebSources.sources.length > 0 ? (
+                <p className="truncate" title={lastWebSources.sources.map((s) => s.domain).join(', ')}>
+                  Web sources:{' '}
+                  {lastWebSources.sources
+                    .map((s) => s.domain || s.title)
+                    .filter(Boolean)
+                    .slice(0, 5)
+                    .join(', ')}
+                  {lastWebSources.sources.length > 5 ? '…' : ''}
+                </p>
+              ) : null}
             </div>
           </div>
         </div>

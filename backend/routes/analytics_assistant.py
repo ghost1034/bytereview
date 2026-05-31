@@ -154,16 +154,42 @@ async def extract_document(
 ):
     preflight_check(db, actor.id, "analytics_document_extract")
     doc_type = "IRS" if payload.type in ("IRS", "Tax") else "GAAP"
-    parsed, usage = await analytics_ai_service.extract_document(
-        payload.document_text, doc_type
-    )
-    record_call(
-        db,
-        actor.id,
-        "analytics_document_extract",
-        usage.get("prompt_tokens"),
-        usage.get("output_tokens"),
-    )
+    try:
+        parsed, usage = await analytics_ai_service.extract_document(
+            payload.document_text, doc_type
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        logger.exception("Document extract invalid model output for user %s", actor.id)
+        raise HTTPException(
+            status_code=502,
+            detail=f"AI could not parse extraction results: {exc}",
+        ) from exc
+    except Exception as exc:
+        logger.exception("Document extract failed for user %s", actor.id)
+        raise HTTPException(
+            status_code=502,
+            detail=f"Document extraction failed: {exc}",
+        ) from exc
+
+    try:
+        record_call(
+            db,
+            actor.id,
+            "analytics_document_extract",
+            usage.get("prompt_tokens"),
+            usage.get("output_tokens"),
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Document extract billing failed for user %s", actor.id)
+        raise HTTPException(
+            status_code=500,
+            detail="Extraction succeeded but usage could not be recorded. Please try again.",
+        ) from exc
+
     return DocumentExtractResponse.model_validate(
         {
             "summary": parsed.get("summary", ""),

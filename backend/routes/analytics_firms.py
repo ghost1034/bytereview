@@ -9,24 +9,29 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from dependencies.analytics_rbac import READER_ROLES, require_role
+from dependencies.auth import verify_firebase_token
 from models.analytics import (
     AuditLogEntry,
     AuditLogsResponse,
+    FirmCreateRequest,
     FirmDetailResponse,
     FirmExportResponse,
+    FirmInviteCodeResponse,
     FirmInviteRequest,
+    FirmJoinRequest,
     FirmMemberResponse,
+    FirmOnboardingStatusResponse,
     FirmPurgeResponse,
     FirmResponse,
     FirmUpdateRequest,
     MemberUpdateRequest,
 )
-from models.db_models import AnalyticsUserRole, User
+from models.db_models import AnalyticsUserRole, Firm, User
 from services.analytics import firms_service
 from services.analytics.audit_service import list_audit_logs, record_audit
 from services.analytics.firm_export_service import build_firm_export
 from services.analytics.firm_purge_service import purge_firm
-from services.analytics.firm_scope import get_or_create_user_firm
+from services.analytics.firm_scope import ensure_user_row, get_or_create_user_firm, get_user_firm
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/analytics/firm", tags=["analytics-firm"])
@@ -58,17 +63,92 @@ def _member_to_response(user) -> FirmMemberResponse:
     )
 
 
+def _firm_detail(db: Session, firm) -> FirmDetailResponse:
+    firms_service.ensure_firm_has_admin(db, firm.id)
+    members = firms_service.list_members(db, firm.id)
+    return FirmDetailResponse(
+        firm=_firm_to_response(firm),
+        members=[_member_to_response(m) for m in members],
+        invite_code=firms_service.get_invite_code(db, firm.id),
+    )
+
+
+@router.get("/onboarding-status", response_model=FirmOnboardingStatusResponse)
+async def get_onboarding_status(
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    email = token_data.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="User email not found in token")
+
+    user = ensure_user_row(
+        db,
+        user_id=token_data["uid"],
+        email=email,
+        display_name=token_data.get("name"),
+        photo_url=token_data.get("picture"),
+    )
+    if user.firm_id is None:
+        return FirmOnboardingStatusResponse(needs_onboarding=True)
+    firm = db.query(Firm).filter(Firm.id == user.firm_id).first()
+    if firm is None:
+        return FirmOnboardingStatusResponse(needs_onboarding=True)
+    return FirmOnboardingStatusResponse(
+        needs_onboarding=False,
+        firm=_firm_to_response(firm),
+    )
+
+
+@router.post("/create", response_model=FirmDetailResponse)
+async def create_firm(
+    payload: FirmCreateRequest,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    email = token_data.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="User email not found in token")
+
+    user = ensure_user_row(
+        db,
+        user_id=token_data["uid"],
+        email=email,
+        display_name=token_data.get("name"),
+        photo_url=token_data.get("picture"),
+    )
+    firm, _code = firms_service.create_firm_for_user(db, user, payload.name)
+    return _firm_detail(db, firm)
+
+
+@router.post("/join", response_model=FirmDetailResponse)
+async def join_firm(
+    payload: FirmJoinRequest,
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    email = token_data.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="User email not found in token")
+
+    user = ensure_user_row(
+        db,
+        user_id=token_data["uid"],
+        email=email,
+        display_name=token_data.get("name"),
+        photo_url=token_data.get("picture"),
+    )
+    firm = firms_service.join_firm_by_code(db, user, payload.code)
+    return _firm_detail(db, firm)
+
+
 @router.get("", response_model=FirmDetailResponse)
 async def get_firm(
     actor: User = Depends(require_role(*READER_ROLES)),
     db: Session = Depends(get_db),
 ):
-    _, firm = get_or_create_user_firm(db, actor.id)
-    members = firms_service.list_members(db, firm.id)
-    return FirmDetailResponse(
-        firm=_firm_to_response(firm),
-        members=[_member_to_response(m) for m in members],
-    )
+    _, firm = get_user_firm(db, actor.id)
+    return _firm_detail(db, firm)
 
 
 @router.put("", response_model=FirmResponse)
@@ -80,6 +160,16 @@ async def update_firm(
     _, firm = get_or_create_user_firm(db, actor.id)
     firm = firms_service.update_firm_name(db, firm.id, payload.name)
     return _firm_to_response(firm)
+
+
+@router.post("/invite-code", response_model=FirmInviteCodeResponse)
+async def generate_invite_code(
+    actor: User = Depends(require_role(AnalyticsUserRole.ADMIN)),
+    db: Session = Depends(get_db),
+):
+    _, firm = get_user_firm(db, actor.id)
+    code = firms_service.generate_invite_code(db, firm.id)
+    return FirmInviteCodeResponse(code=code)
 
 
 @router.post("/invite", response_model=FirmMemberResponse | None)

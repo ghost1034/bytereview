@@ -39,7 +39,7 @@ import { DataTable, type ColumnDef } from '@/components/analytics/DataTable'
 import { ExportButton, type ExportFormat } from '@/components/analytics/ExportButton'
 import { useDeleteAnalyticsAmortization } from '@/hooks/useAnalyticsAmortization'
 import { useToast } from '@/hooks/use-toast'
-import { computeNbv, summarizePortfolio } from '@/lib/analytics/amortizationHelpers'
+import { computeNbv, summarizePortfolio, getLifecycleStatus, isDraftRecord } from '@/lib/analytics/amortizationHelpers'
 import { exportRows } from '@/lib/analytics/exportData'
 import { formatCurrency } from '@/lib/analytics/format'
 import type { AnalyticsAmortization, AnalyticsClient } from '@/lib/analytics/types'
@@ -87,7 +87,7 @@ export function AmortizationList({
 
   const summary = useMemo(() => summarizePortfolio(rows, asOfDate), [rows, asOfDate])
   const activeCount = useMemo(
-    () => rows.filter((r) => (r.status ?? '').toLowerCase() !== 'disposed').length,
+    () => rows.filter((r) => getLifecycleStatus(r).toLowerCase() !== 'disposed').length,
     [rows],
   )
 
@@ -140,7 +140,7 @@ export function AmortizationList({
       'Tax Method': r.tax_method ?? '',
       'Start Date': r.start_date ?? '',
       Vendor: r.vendor ?? '',
-      Status: r.status ?? '',
+      Status: getLifecycleStatus(r),
       Approval: r.approval_status ?? '',
     }))
     exportRows(data, format, 'Amortization_Portfolio', 'Portfolio').catch(() =>
@@ -216,12 +216,16 @@ export function AmortizationList({
       accessorKey: 'status',
       sortable: true,
       cell: (value, row) => {
-        const status = (value as string) ?? 'draft'
-        const isDisposed = status.toLowerCase() === 'disposed'
+        const lifecycle = getLifecycleStatus(row)
+        const isDisposed = lifecycle.toLowerCase() === 'disposed'
+        const draft = isDraftRecord(row)
         return (
           <div className="flex flex-col gap-1">
-            <Badge variant={isDisposed ? 'destructive' : 'outline'}>{status}</Badge>
-            {row.approval_status && (
+            <Badge variant={isDisposed ? 'destructive' : 'outline'}>{lifecycle}</Badge>
+            {draft && (
+              <span className="text-[10px] uppercase tracking-wider text-foreground-subtle">Draft</span>
+            )}
+            {row.approval_status && row.approval_status !== 'approved' && (
               <span className="text-[10px] uppercase tracking-wider text-foreground-subtle">
                 {row.approval_status}
               </span>
@@ -333,7 +337,7 @@ export function AmortizationList({
           </div>
         }
         rowActions={(row) => {
-          const isDisposed = (row.status ?? '').toLowerCase() === 'disposed'
+          const isDisposed = getLifecycleStatus(row).toLowerCase() === 'disposed'
           return (
             <div className="flex items-center justify-end gap-1">
               <Button

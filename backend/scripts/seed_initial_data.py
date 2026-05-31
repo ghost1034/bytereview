@@ -15,7 +15,35 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from core.database import db_config
-from models.db_models import SystemPrompt, DataType
+from models.db_models import SubscriptionPlan, SystemPrompt, DataType
+
+# Matches marketing copy (100 free pages/mo) and setup_stripe_products.py tier sizes.
+SUBSCRIPTION_PLANS = [
+    {
+        "code": "free",
+        "display_name": "Free",
+        "pages_included": 100,
+        "automations_limit": 1,
+        "overage_cents": 0,
+        "sort_order": 0,
+    },
+    {
+        "code": "basic",
+        "display_name": "Basic",
+        "pages_included": 500,
+        "automations_limit": 5,
+        "overage_cents": 50,
+        "sort_order": 1,
+    },
+    {
+        "code": "pro",
+        "display_name": "Pro",
+        "pages_included": 5000,
+        "automations_limit": 25,
+        "overage_cents": 20,
+        "sort_order": 2,
+    },
+]
 
 def seed_system_prompts():
     """Seed the system_prompts table with default prompts"""
@@ -213,6 +241,32 @@ def seed_data_types():
     finally:
         db.close()
 
+def seed_subscription_plans():
+    """Seed subscription_plans required for billing_accounts FK (free/basic/pro)."""
+    db = db_config.get_session()
+
+    try:
+        existing = {row.code for row in db.query(SubscriptionPlan.code).all()}
+        created = 0
+        for spec in SUBSCRIPTION_PLANS:
+            if spec["code"] in existing:
+                continue
+            db.add(SubscriptionPlan(**spec))
+            created += 1
+
+        if created == 0:
+            print(f"Subscription plans already exist ({len(existing)} found), skipping...")
+            return
+
+        db.commit()
+        print(f"✅ Created {created} subscription plan(s)")
+    except Exception as e:
+        print(f"❌ Error seeding subscription plans: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
 def main():
     """Main function to seed all initial data"""
     print("🌱 Seeding initial data for ByteReview...")
@@ -222,6 +276,9 @@ def main():
     
     # Seed data types
     seed_data_types()
+
+    # Seed billing plan catalog (required before get_or_create_billing_account)
+    seed_subscription_plans()
     
     print("✅ Initial data seeding completed!")
 

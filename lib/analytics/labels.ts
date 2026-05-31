@@ -53,3 +53,8 @@ export function canWrite(role?: AnalyticsUserRole | null): boolean {
 export function isAdmin(role?: AnalyticsUserRole | null): boolean {
   return role === 'admin'
 }
+
+/** CPAAnalytics settings surface only Admin vs User labels. */
+export function settingsRoleLabel(role?: AnalyticsUserRole | null): string {
+  return isAdmin(role) ? 'Admin' : 'User'
+}

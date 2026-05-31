@@ -69,9 +69,9 @@ def _coerce_role(value) -> AnalyticsUserRole | None:
 def require_role(*allowed: AnalyticsUserRole) -> Callable[..., User]:
     """FastAPI dependency factory that gates routes by analytics role.
 
-    Resolves the user's firm (auto-creating a personal one on first use so the
-    `firm_id` is always set after this dependency returns) and rejects with
-    HTTP 403 if their role is not in `allowed`.
+    Resolves the user's firm (auto-creating a personal one on first analytics use
+    when onboarding has not assigned a firm yet) and rejects with HTTP 403 if
+    their role is not in `allowed`.
     """
 
     allowed_set = set(allowed)

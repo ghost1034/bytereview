@@ -9,7 +9,10 @@ export type AnalyticsFirm = S['FirmResponse']
 export type AnalyticsFirmDetail = S['FirmDetailResponse']
 export type AnalyticsFirmMember = S['FirmMemberResponse']
 export type AnalyticsFirmUpdateRequest = S['FirmUpdateRequest']
-export type AnalyticsFirmInviteRequest = S['FirmInviteRequest']
+export type AnalyticsFirmCreateRequest = S['FirmCreateRequest']
+export type AnalyticsFirmJoinRequest = S['FirmJoinRequest']
+export type AnalyticsFirmInviteCodeResponse = S['FirmInviteCodeResponse']
+export type AnalyticsFirmOnboardingStatus = S['FirmOnboardingStatusResponse']
 export type AnalyticsMemberUpdateRequest = S['MemberUpdateRequest']
 
 // Role / persona / status / module enums (Phase 5.1)
@@ -102,7 +105,6 @@ export type AnalyticsFirmExport = S['FirmExportResponse']
 export type AnalyticsModuleId =
   | 'dashboard'
   | 'clients'
-  | 'team'
   | 'variance'
   | 'reconciliation'
   | 'amortization'

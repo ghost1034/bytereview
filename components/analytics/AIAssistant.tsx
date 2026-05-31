@@ -14,7 +14,6 @@ import type { AnalyticsChatMessage, AnalyticsModuleId } from '@/lib/analytics/ty
 const MODULE_NAMES: Record<AnalyticsModuleId, string> = {
   dashboard: 'Dashboard',
   clients: 'Client Management',
-  team: 'Team Management',
   variance: 'Variance & Flux Analysis',
   reconciliation: 'Intelligent Reconciliation',
   amortization: 'Fixed Assets',
@@ -36,10 +35,6 @@ const SUGGESTED_PROMPTS: Record<AnalyticsModuleId, string[]> = {
     'Summarize the recent activity for our top client',
     'What information is missing from the client profiles?',
     'Generate a summary of the client portfolio',
-  ],
-  team: [
-    'How do I invite a teammate?',
-    'Show me everyone on my firm',
   ],
   variance: [
     'Explain the top 5 material variances',
@@ -89,7 +84,10 @@ const SUGGESTED_PROMPTS: Record<AnalyticsModuleId, string[]> = {
     'What can you help me with?',
     'Explain how to use this platform',
   ],
-  settings: ['How do I invite a teammate?', 'How do I change my fiscal year end?'],
+  settings: [
+    'How do I generate an invitation code for my firm?',
+    'How do I export all firm data?',
+  ],
 }
 
 function deriveModule(pathname: string | null): AnalyticsModuleId {
@@ -102,7 +100,6 @@ function deriveModule(pathname: string | null): AnalyticsModuleId {
   if (pathname.includes('/analytics/research/gaap')) return 'gaap-bot'
   if (pathname.includes('/analytics/assistant')) return 'assistant'
   if (pathname.includes('/analytics/clients')) return 'clients'
-  if (pathname.includes('/analytics/team')) return 'team'
   if (pathname.includes('/analytics/settings')) return 'settings'
   return 'dashboard'
 }

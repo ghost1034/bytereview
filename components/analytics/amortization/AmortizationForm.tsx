@@ -32,7 +32,16 @@ import {
   useGenerateAnalyticsAmortizationSchedule,
   useUpdateAnalyticsAmortization,
 } from '@/hooks/useAnalyticsAmortization'
-import { mergeFormFromApi, splitFormForApi } from '@/lib/analytics/amortizationHelpers'
+import {
+  mergeFormFromApi,
+  splitFormForApi,
+  buildMacrsScheduleRequest,
+  buildGaapScheduleRequest,
+  gaapMethodKey,
+  generateAssetSchedules,
+  canGenerateSchedules,
+  normalizeMacrsScheduleRows,
+} from '@/lib/analytics/amortizationHelpers'
 import {
   ASSET_TYPES,
   ASSET_TYPE_DEFAULTS,
@@ -77,15 +86,6 @@ function isFixedAsset(type: string) {
   return type.startsWith('Fixed Assets')
 }
 
-/** Pick the schedule method to call for a given GAAP method + asset type. */
-function gaapMethodKey(form: AmortizationFormState): ScheduleMethodKey {
-  if (isLoan(form.assetType)) return 'loan'
-  if (form.assetType === 'Lease - Operating') return 'operating_lease'
-  if (form.assetType === 'Lease - Finance') return 'finance_lease'
-  if (form.gaapMethod === 'Declining Balance') return 'declining_balance'
-  return 'straight_line'
-}
-
 export function AmortizationForm({ initial, initialClientId, onDone }: AmortizationFormProps) {
   const { toast } = useToast()
   const { data: clientsData } = useAnalyticsClients()
@@ -109,8 +109,11 @@ export function AmortizationForm({ initial, initialClientId, onDone }: Amortizat
   const [schedule, setSchedule] = useState<ScheduleRow[]>(
     () => ((initial?.schedule ?? []) as unknown as ScheduleRow[]) || [],
   )
-  const [taxSchedule, setTaxSchedule] = useState<ScheduleRow[]>(
-    () => ((initial?.tax_schedule ?? []) as unknown as ScheduleRow[]) || [],
+  const [taxSchedule, setTaxSchedule] = useState<ScheduleRow[]>(() =>
+    normalizeMacrsScheduleRows(
+      ((initial?.tax_schedule ?? []) as unknown as ScheduleRow[]) || [],
+      initial?.cost_basis ?? 0,
+    ),
   )
   const [complianceInsight, setComplianceInsight] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -121,7 +124,12 @@ export function AmortizationForm({ initial, initialClientId, onDone }: Amortizat
       setForm(mergeFormFromApi(initial))
       setClientId(initial.client_id ?? null)
       setSchedule(((initial.schedule ?? []) as unknown as ScheduleRow[]) || [])
-      setTaxSchedule(((initial.tax_schedule ?? []) as unknown as ScheduleRow[]) || [])
+      setTaxSchedule(
+        normalizeMacrsScheduleRows(
+          ((initial.tax_schedule ?? []) as unknown as ScheduleRow[]) || [],
+          initial.cost_basis ?? 0,
+        ),
+      )
     }
   }, [initial])
 
@@ -182,34 +190,7 @@ export function AmortizationForm({ initial, initialClientId, onDone }: Amortizat
     }
   }
 
-  const buildScheduleRequest = (method: ScheduleMethodKey) => {
-    const periods = form.usefulLifeMonths ?? 0
-    return {
-      assetType: form.assetType,
-      method,
-      costBasis: form.costBasis ?? 0,
-      salvageValue: form.salvageValue ?? 0,
-      usefulLifeMonths: periods,
-      startDate: form.startDate || undefined,
-      decliningMultiplier: form.gaapMethod === 'Declining Balance' ? 2 : undefined,
-      annualRate:
-        form.interestRate != null
-          ? form.interestRate / (form.interestRate > 1 ? 100 : 1)
-          : undefined,
-      paymentAmount: form.paymentAmount ?? undefined,
-      ibr: form.ibr != null ? form.ibr / (form.ibr > 1 ? 100 : 1) : undefined,
-      directCosts: form.initialDirectCosts ?? undefined,
-      prepaid: form.prepaidLeasePayments ?? undefined,
-      incentives: form.leaseIncentives ?? undefined,
-      propertyClass: form.macrsPropertyClass,
-      bonusPercent:
-        form.bonusDepreciationPercentage != null
-          ? parseFloat(String(form.bonusDepreciationPercentage).replace('%', '')) / 100
-          : undefined,
-      section179: form.section179Amount ?? undefined,
-      startYear: form.startDate ? new Date(form.startDate).getFullYear() : undefined,
-    }
-  }
+  const buildScheduleRequest = (method: ScheduleMethodKey) => buildGaapScheduleRequest(form, method)
 
   const handleGenerate = async () => {
     if (!form.startDate) {
@@ -228,11 +209,13 @@ export function AmortizationForm({ initial, initialClientId, onDone }: Amortizat
       setSchedule((res.schedule ?? []) as unknown as ScheduleRow[])
 
       if (form.taxMethod === 'MACRS') {
-        const taxRes = await scheduleMutation.mutateAsync({
-          ...buildScheduleRequest('macrs'),
-          propertyClass: form.macrsPropertyClass ?? '5-year',
-        })
-        setTaxSchedule((taxRes.schedule ?? []) as unknown as ScheduleRow[])
+        const taxRes = await scheduleMutation.mutateAsync(buildMacrsScheduleRequest(form))
+        setTaxSchedule(
+          normalizeMacrsScheduleRows(
+            (taxRes.schedule ?? []) as unknown as ScheduleRow[],
+            form.costBasis ?? 0,
+          ),
+        )
       } else {
         setTaxSchedule([])
       }
@@ -266,19 +249,31 @@ export function AmortizationForm({ initial, initialClientId, onDone }: Amortizat
       toast({ title: 'Asset name required', variant: 'destructive' })
       return
     }
-    const payload = splitFormForApi(form, { clientId })
+    const payload = splitFormForApi(form, { clientId, status: 'published', approvalStatus: 'approved' })
     try {
+      let gaapSchedule = schedule
+      let taxSched = taxSchedule
+      if (gaapSchedule.length === 0 && canGenerateSchedules(form)) {
+        const generated = await generateAssetSchedules(form, (req) =>
+          scheduleMutation.mutateAsync(req),
+        )
+        gaapSchedule = generated.schedule
+        taxSched = generated.taxSchedule
+        setSchedule(gaapSchedule)
+        setTaxSchedule(taxSched)
+      }
+
       if (initial) {
         await updateMutation.mutateAsync({
           amortizationId: initial.id,
-          data: { ...payload, schedule, tax_schedule: taxSchedule },
+          data: { ...payload, schedule: gaapSchedule, tax_schedule: taxSched },
         })
         toast({ title: 'Asset updated', description: `${form.assetName} has been saved.` })
       } else {
         await createMutation.mutateAsync({
           ...payload,
-          schedule,
-          tax_schedule: taxSchedule,
+          schedule: gaapSchedule,
+          tax_schedule: taxSched,
         })
         toast({ title: 'Asset created', description: `${form.assetName} has been added.` })
       }
@@ -308,7 +303,7 @@ export function AmortizationForm({ initial, initialClientId, onDone }: Amortizat
   const showLoan = isLoan(aType)
   const showIntangible = isIntangible(aType)
   const showSoftware = isSoftware(aType)
-  const showTax = form.taxMethod === 'MACRS' || form.taxMethod === 'Bonus' || form.taxMethod === 'Section 179' || showFixedAsset
+  const showTax = form.taxMethod === 'MACRS' || showFixedAsset
 
   return (
     <div className="space-y-6">
@@ -909,7 +904,14 @@ export function AmortizationForm({ initial, initialClientId, onDone }: Amortizat
 
           {showSoftware && (
             <div className="space-y-4 rounded-lg border border-border bg-card p-5">
-              <h3 className="text-sm font-semibold text-foreground">Software details (ASC 350-40)</h3>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Software details (ASC 350-40)</h3>
+                <p className="mt-1 text-xs text-foreground-muted">
+                  Reference metadata for ASC 350-40 classification and audit documentation. Schedules
+                  and journal entries use <span className="font-medium text-foreground">Cost basis</span>{' '}
+                  from Financial above — fields here do not add to or override that amount.
+                </p>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="amort-sw-stage">Stage</Label>
@@ -945,6 +947,9 @@ export function AmortizationForm({ initial, initialClientId, onDone }: Amortizat
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="amort-totcap">Total capitalized cost</Label>
+                <p className="text-xs text-foreground-muted">
+                  Documented capitalization total for reference; not added to cost basis automatically.
+                </p>
                 <Input
                   id="amort-totcap"
                   type="number"

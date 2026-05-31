@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { apiClient, type AnalyticsStreamUsage, type AnalyticsStreamSession, type AnalyticsUploadedDoc } from '@/lib/api'
+import {
+  apiClient,
+  type AnalyticsStreamGrounding,
+  type AnalyticsStreamUsage,
+  type AnalyticsStreamSession,
+  type AnalyticsUploadedDoc,
+} from '@/lib/api'
 import type { AnalyticsChatMessage } from '@/lib/analytics/types'
 
 export type StreamingChatBackend =
@@ -13,6 +19,7 @@ export interface UseStreamingChatOptions {
   initialMessages?: AnalyticsChatMessage[]
   onUsage?: (usage: AnalyticsStreamUsage) => void
   onSession?: (session: AnalyticsStreamSession) => void
+  onGrounding?: (grounding: AnalyticsStreamGrounding) => void
   onError?: (message: string) => void
   /**
    * Fires once the stream finishes successfully, with the raw assistant text
@@ -52,7 +59,8 @@ export interface UseStreamingChatReturn {
 const ACTION_TAG_REGEX = /\[ACTION:ADD_RECON_PASS:.*?\]/g
 
 export function useStreamingChat(options: UseStreamingChatOptions = {}): UseStreamingChatReturn {
-  const { initialMessages = [], onUsage, onSession, onError, onMessageComplete } = options
+  const { initialMessages = [], onUsage, onSession, onGrounding, onError, onMessageComplete } =
+    options
   const [messages, setMessages] = useState<AnalyticsChatMessage[]>(initialMessages)
   const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -141,6 +149,7 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}): UseStre
             setTitle(session.title ?? null)
             onSession?.(session)
           },
+          onGrounding: (grounding: AnalyticsStreamGrounding) => onGrounding?.(grounding),
           onError: (msg: string) => {
             setError(msg)
             onError?.(msg)
@@ -190,7 +199,7 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}): UseStre
         if (rawContent) onMessageComplete?.(rawContent)
       }
     },
-    [isStreaming, messages, onError, onUsage, onSession, onMessageComplete],
+    [isStreaming, messages, onError, onUsage, onSession, onGrounding, onMessageComplete],
   )
 
   return { messages, isStreaming, error, sessionId, title, sendMessage, stop, clear, setMessages, setSession }

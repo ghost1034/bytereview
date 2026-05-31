@@ -15,6 +15,9 @@ import {
 } from '@/lib/analytics/aiContext'
 import type { AnalyticsAnalysis } from '@/lib/analytics/types'
 import {
+  countReviewedVarianceRows,
+} from '@/lib/analytics/varianceHelpers'
+import {
   readVarianceConfig,
   readVarianceData,
   type VarianceActiveSummary,
@@ -88,7 +91,7 @@ function VarianceModuleContent() {
             client: r.client_id ? clientNameById.get(r.client_id) : undefined,
             analysisType: config.uploadMode === 'single' ? 'Single Period' : 'Base vs Comparison',
             flaggedCount: processed.filter((p) => p.isFlagged).length,
-            reviewedCount: processed.filter((p) => p.status !== 'Pending').length,
+            reviewedCount: countReviewedVarianceRows(processed),
           }
         }),
         ...(activeSummary

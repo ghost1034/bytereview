@@ -1,349 +1,213 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { Check, Loader2, Pencil, Trash2, UserPlus, X } from 'lucide-react'
+import { Copy, Loader2 } from 'lucide-react'
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { LoadingState } from '@/components/ui/loading-state'
 import { Section } from '@/components/ui/section'
-import { DataTable, type ColumnDef } from '@/components/analytics/DataTable'
-import { InviteMemberDialog } from '@/components/analytics/team/InviteMemberDialog'
-import { MemberEditDialog } from '@/components/analytics/team/MemberEditDialog'
 import {
   useAnalyticsFirm,
-  useRemoveFirmMember,
-  useUpdateFirm,
+  useGenerateFirmInviteCode,
   useUpdateFirmMember,
 } from '@/hooks/useAnalyticsTeam'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
-import {
-  isAdmin,
-  USER_PERSONA_LABELS,
-  USER_ROLE_LABELS,
-  USER_ROLE_OPTIONS,
-} from '@/lib/analytics/labels'
-import type {
-  AnalyticsFirmMember,
-  AnalyticsUserPersona,
-  AnalyticsUserRole,
-} from '@/lib/analytics/types'
+import { isAdmin, settingsRoleLabel } from '@/lib/analytics/labels'
+import type { AnalyticsFirmMember, AnalyticsUserRole } from '@/lib/analytics/types'
 
-type MemberRow = AnalyticsFirmMember & { id: string }
+/** CPAAnalytics settings only distinguish Admin vs User. Map User to analyst in the API. */
+function toSettingsRole(role: AnalyticsUserRole | undefined): 'admin' | 'user' {
+  return role === 'admin' ? 'admin' : 'user'
+}
 
-function initials(member: AnalyticsFirmMember): string {
-  const source = member.display_name || member.email || '?'
-  const parts = source.trim().split(/\s+/)
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
-  return source.slice(0, 2).toUpperCase()
+function toApiRole(settingsRole: 'admin' | 'user'): AnalyticsUserRole {
+  return settingsRole === 'admin' ? 'admin' : 'analyst'
+}
+
+function formatJoinedDate(value: string | undefined): string {
+  if (!value) return 'Recently'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? 'Recently' : date.toLocaleDateString()
 }
 
 export function FirmManagementTab() {
   const { user } = useAuth()
-  const { data: firmData, isLoading } = useAnalyticsFirm()
-  const updateFirm = useUpdateFirm()
+  const { data: firmData, isPending, isError, error, refetch } = useAnalyticsFirm()
   const updateMember = useUpdateFirmMember()
-  const removeMember = useRemoveFirmMember()
+  const generateInviteCode = useGenerateFirmInviteCode()
   const { toast } = useToast()
 
   const firm = firmData?.firm
-  const members = useMemo<MemberRow[]>(
-    () => (firmData?.members ?? []).map((m) => ({ ...m, id: m.user_id })),
-    [firmData],
-  )
+  const inviteCode = firmData?.invite_code ?? null
+  const members = firmData?.members ?? []
 
   const currentRole = members.find((m) => m.user_id === user?.uid)?.role
   const admin = isAdmin(currentRole)
 
-  const [inviteOpen, setInviteOpen] = useState(false)
-  const [editingMember, setEditingMember] = useState<AnalyticsFirmMember | null>(null)
-  const [memberToRemove, setMemberToRemove] = useState<MemberRow | null>(null)
-
-  const [renaming, setRenaming] = useState(false)
-  const [firmName, setFirmName] = useState('')
-
-  const startRename = () => {
-    setFirmName(firm?.name ?? '')
-    setRenaming(true)
-  }
-
-  const saveRename = async () => {
-    const name = firmName.trim()
-    if (!name) return
+  const handleRoleChange = async (member: AnalyticsFirmMember, settingsRole: 'admin' | 'user') => {
+    const newRole = toApiRole(settingsRole)
+    if (member.role === newRole) return
     try {
-      await updateFirm.mutateAsync({ name })
-      toast({ title: 'Firm renamed', description: `Firm name updated to ${name}.` })
-      setRenaming(false)
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to rename firm.',
-        variant: 'destructive',
-      })
-    }
-  }
-
-  const handleRoleChange = async (row: MemberRow, newRole: AnalyticsUserRole) => {
-    if (row.role === newRole) return
-    try {
-      await updateMember.mutateAsync({ memberUserId: row.user_id, data: { role: newRole } })
+      await updateMember.mutateAsync({ memberUserId: member.user_id, data: { role: newRole } })
       toast({
         title: 'Role updated',
-        description: `${row.display_name || row.email} is now ${USER_ROLE_LABELS[newRole]}.`,
+        description: `${member.email} is now ${settingsRoleLabel(newRole)}.`,
       })
-    } catch (error) {
+    } catch (err) {
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to change role.',
+        description: err instanceof Error ? err.message : 'Failed to change role.',
         variant: 'destructive',
       })
     }
   }
 
-  const confirmRemove = async () => {
-    if (!memberToRemove) return
+  const handleGenerateInviteCode = async () => {
     try {
-      await removeMember.mutateAsync(memberToRemove.user_id)
+      const result = await generateInviteCode.mutateAsync()
       toast({
-        title: 'Member removed',
-        description: `${memberToRemove.display_name || memberToRemove.email} was removed from the firm.`,
+        title: inviteCode ? 'Invitation code regenerated' : 'Invitation code generated',
+        description: `Share code ${result.code} so colleagues can join your firm.`,
       })
-    } catch (error) {
+    } catch (err) {
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to remove member.',
+        description: err instanceof Error ? err.message : 'Failed to generate invitation code.',
         variant: 'destructive',
       })
-    } finally {
-      setMemberToRemove(null)
     }
   }
 
-  const columns: ColumnDef<MemberRow>[] = [
-    {
-      header: 'Member',
-      accessorKey: 'display_name',
-      sortable: true,
-      cell: (_value, row) => (
-        <div className="flex items-center gap-3">
-          <Avatar className="size-9">
-            <AvatarFallback>{initials(row)}</AvatarFallback>
-          </Avatar>
-          <div className="min-w-0">
-            <div className="font-semibold text-foreground">
-              {row.display_name || row.email}
-            </div>
-            <div className="text-xs text-foreground-muted">{row.email}</div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      header: 'Persona / title',
-      accessorKey: 'persona',
-      cell: (_value, row) => (
-        <div className="space-y-0.5 text-sm">
-          <div className="text-foreground">
-            {row.persona
-              ? USER_PERSONA_LABELS[row.persona as AnalyticsUserPersona]
-              : '—'}
-          </div>
-          {row.title && <div className="text-xs text-foreground-muted">{row.title}</div>}
-        </div>
-      ),
-    },
-    {
-      header: 'Role',
-      accessorKey: 'role',
-      sortable: true,
-      cell: (value, row) => {
-        const role = (value as AnalyticsUserRole) ?? 'analyst'
-        if (admin && row.user_id !== user?.uid) {
-          return (
-            <select
-              value={role}
-              onChange={(e) => handleRoleChange(row, e.target.value as AnalyticsUserRole)}
-              className="h-8 rounded-md border border-border bg-surface px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
-              aria-label={`Change role for ${row.display_name || row.email}`}
-            >
-              {USER_ROLE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {USER_ROLE_LABELS[option]}
-                </option>
-              ))}
-            </select>
-          )
-        }
-        return <Badge variant="secondary">{USER_ROLE_LABELS[role]}</Badge>
-      },
-    },
-    {
-      header: 'Status',
-      accessorKey: 'created_at',
-      cell: () => (
-        <Badge className="border-success/20 bg-success-soft text-success">Active</Badge>
-      ),
-    },
-  ]
+  const handleCopyInviteCode = async () => {
+    if (!inviteCode) return
+    try {
+      await navigator.clipboard.writeText(inviteCode)
+      toast({ title: 'Copied', description: 'Invitation code copied to clipboard.' })
+    } catch {
+      toast({
+        title: 'Copy failed',
+        description: 'Could not copy the invitation code.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  if (isPending) {
+    return <LoadingState variant="page" label="Loading firm settings" />
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+        <p>{error instanceof Error ? error.message : 'Failed to load firm settings.'}</p>
+        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => refetch()}>
+          Try again
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      {firm && (
-        <Section variant="card">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">
-                Firm
-              </p>
-              {renaming ? (
-                <div className="mt-1 flex items-center gap-2">
-                  <Input
-                    value={firmName}
-                    onChange={(e) => setFirmName(e.target.value)}
-                    className="h-9 w-64"
-                    autoFocus
-                  />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={saveRename}
-                    disabled={updateFirm.isPending}
-                    aria-label="Save firm name"
-                  >
-                    {updateFirm.isPending ? (
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
-                    ) : (
-                      <Check className="size-4" aria-hidden />
-                    )}
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => setRenaming(false)}
-                    aria-label="Cancel rename"
-                  >
-                    <X className="size-4" aria-hidden />
-                  </Button>
-                </div>
-              ) : (
-                <div className="mt-1 flex items-center gap-2">
-                  <h2 className="text-lg font-semibold text-foreground">{firm.name}</h2>
-                  {admin && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={startRename}
-                      aria-label="Rename firm"
-                    >
-                      <Pencil className="size-4" aria-hidden />
-                    </Button>
-                  )}
-                </div>
-              )}
-              <p className="mt-2 font-mono text-xs text-foreground-subtle">{firm.id}</p>
+      <Section
+        variant="card"
+        title="Firm details"
+        description="Basic information about your analytics firm."
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border bg-surface-muted p-4">
+            <p className="text-sm text-foreground-muted">Firm name</p>
+            <p className="mt-1 font-semibold text-foreground">{firm?.name ?? 'Loading…'}</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-border bg-surface-muted p-4">
+              <p className="text-sm text-foreground-muted">Firm ID</p>
+              <p className="mt-1 font-mono text-sm text-foreground">{firm?.id}</p>
             </div>
-            <div className="flex items-center gap-3">
-              <p className="text-sm text-foreground-muted">
-                {members.length} {members.length === 1 ? 'member' : 'members'}
-              </p>
-              {admin && (
-                <Button onClick={() => setInviteOpen(true)}>
-                  <UserPlus className="mr-1.5 size-4" aria-hidden />
-                  Add member
-                </Button>
-              )}
+            <div className="rounded-xl border border-border bg-surface-muted p-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm text-foreground-muted">Invitation code</p>
+                {admin && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto p-0 text-xs"
+                    onClick={handleGenerateInviteCode}
+                    disabled={generateInviteCode.isPending}
+                  >
+                    {generateInviteCode.isPending
+                      ? 'Working…'
+                      : inviteCode
+                        ? 'Regenerate'
+                        : 'Generate'}
+                  </Button>
+                )}
+              </div>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <p className="font-mono text-sm font-semibold tracking-widest text-foreground">
+                  {inviteCode || 'Not generated'}
+                </p>
+                {inviteCode && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    onClick={handleCopyInviteCode}
+                    aria-label="Copy invitation code"
+                  >
+                    <Copy className="size-4" aria-hidden />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
-        </Section>
-      )}
+        </div>
+      </Section>
 
-      {isLoading ? (
-        <LoadingState variant="table" label="Loading team" />
-      ) : (
-        <DataTable
-          data={members}
-          columns={columns}
-          searchPlaceholder="Search members…"
-          rowActions={
-            admin
-              ? (row) => (
-                  <div className="flex items-center justify-end gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Edit ${row.display_name || row.email}`}
-                      onClick={() => setEditingMember(row)}
+      <Section variant="card" title="User management" description="People who belong to this firm.">
+        <div className="space-y-3">
+          {members.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-border bg-surface-muted/40 p-4 text-center text-sm text-foreground-muted">
+              No users found for this firm.
+            </p>
+          ) : (
+            members.map((member) => (
+              <div
+                key={member.user_id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface-muted p-4"
+              >
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground">{member.email}</p>
+                  <p className="text-sm text-foreground-muted">
+                    Joined {formatJoinedDate(member.created_at)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {admin && member.user_id !== user?.uid ? (
+                    <select
+                      value={toSettingsRole(member.role)}
+                      onChange={(e) =>
+                        handleRoleChange(member, e.target.value as 'admin' | 'user')
+                      }
+                      disabled={updateMember.isPending}
+                      className="h-9 rounded-lg border border-border bg-surface px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                      aria-label={`Change role for ${member.email}`}
                     >
-                      <Pencil className="size-4" aria-hidden />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Remove ${row.display_name || row.email}`}
-                      disabled={row.user_id === user?.uid}
-                      onClick={() => setMemberToRemove(row)}
-                    >
-                      <Trash2 className="size-4" aria-hidden />
-                    </Button>
-                  </div>
-                )
-              : undefined
-          }
-        />
-      )}
-
-      <InviteMemberDialog isOpen={inviteOpen} onClose={() => setInviteOpen(false)} />
-
-      <MemberEditDialog
-        isOpen={!!editingMember}
-        onClose={() => setEditingMember(null)}
-        member={editingMember}
-      />
-
-      <AlertDialog
-        open={!!memberToRemove}
-        onOpenChange={(open) => !open && setMemberToRemove(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove member</AlertDialogTitle>
-            <AlertDialogDescription>
-              Remove {memberToRemove?.display_name || memberToRemove?.email} from the firm? They
-              will lose access to its analytics data.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmRemove}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={removeMember.isPending}
-            >
-              {removeMember.isPending ? (
-                <>
-                  <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
-                  Removing…
-                </>
-              ) : (
-                'Remove member'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+                      <option value="user">User</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  ) : (
+                    <Badge variant={isAdmin(member.role) ? 'default' : 'secondary'}>
+                      {settingsRoleLabel(member.role)}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </Section>
     </div>
   )
 }
