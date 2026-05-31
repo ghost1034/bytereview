@@ -25,7 +25,9 @@ from google.genai import types
 logger = logging.getLogger(__name__)
 
 
-ANALYTICS_MODEL = os.getenv("ANALYTICS_GEMINI_MODEL", "gemini-2.5-flash")
+# CPA Analytics only (IRS/GAAP research, assistant, variance, reconciliation, etc.).
+# Inkwise, extraction, and form-fill use their own model env vars.
+ANALYTICS_MODEL = os.getenv("ANALYTICS_GEMINI_MODEL", "gemini-3.1-pro-preview")
 
 
 _client: Optional[genai.Client] = None
@@ -134,6 +136,80 @@ def _empty_usage() -> Dict[str, Optional[int]]:
     return {"prompt_tokens": None, "output_tokens": None, "total_tokens": None}
 
 
+_RESEARCH_WEB_SEARCH_BLOCK = """Web research (Google Search is enabled):
+- Use Google Search to verify current law, rates, thresholds, effective dates, proposed
+  rules, recent ASUs, and guidance issued after your training cutoff.
+- Prefer authoritative sources (tax: irs.gov, treasury.gov, law.cornell.edu; GAAP:
+  fasb.org, sec.gov, pcaobus.org, aicpa.org).
+- Combine uploaded Document Context (client-specific facts, line items, amounts) with
+  web-grounded authorities. Read Document Context directly for facts; use web search
+  for up-to-date rules and whether guidance has changed.
+- When citing web-sourced information, note the source domain or publication where helpful.
+- Do not describe your search process in the answer (no "Let me search…"); deliver the
+  final polished response only."""
+
+
+def _serialize_grounding_metadata(resp: Any) -> Optional[Dict[str, Any]]:
+    """Extract Google Search grounding sources from a Gemini response."""
+    if resp is None:
+        return None
+    try:
+        candidates = getattr(resp, "candidates", None)
+        if not isinstance(candidates, list) or not candidates:
+            return None
+        gm = getattr(candidates[0], "grounding_metadata", None)
+        if gm is None:
+            return None
+
+        queries = getattr(gm, "web_search_queries", None) or []
+        sources: List[Dict[str, str]] = []
+        seen_domains: set[str] = set()
+        chunks = getattr(gm, "grounding_chunks", None) or []
+        for chunk in chunks:
+            web = getattr(chunk, "web", None)
+            if web is None:
+                continue
+            domain = getattr(web, "domain", None) or ""
+            if domain and domain in seen_domains:
+                continue
+            if domain:
+                seen_domains.add(domain)
+            title = getattr(web, "title", None) or domain
+            uri = getattr(web, "uri", None) or ""
+            if domain or uri:
+                sources.append({"domain": domain, "title": title, "uri": uri})
+
+        if not queries and not sources:
+            return None
+        return {
+            "web_search_queries": list(queries) if queries else [],
+            "sources": sources,
+        }
+    except Exception:
+        logger.debug("Failed to serialize grounding metadata", exc_info=True)
+        return None
+
+
+def _structured_json_config(
+    *,
+    response_schema: types.Schema,
+    temperature: float = 0.1,
+    max_output_tokens: int = 1024,
+) -> types.GenerateContentConfig:
+    """JSON schema config for short analytics LLM responses.
+
+    Gemini 2.5+ models allocate internal thinking tokens from max_output_tokens.
+    A 256-token cap truncates structured JSON to ``{`` and surfaces as a 500.
+    """
+    return types.GenerateContentConfig(
+        response_mime_type="application/json",
+        response_schema=response_schema,
+        temperature=temperature,
+        max_output_tokens=max_output_tokens,
+        thinking_config=types.ThinkingConfig(thinking_budget=0),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Reconciliation: rule generation, additional pass, AI-assisted match
 # ---------------------------------------------------------------------------
@@ -172,7 +248,7 @@ def _reconciliation_pass_schema(required_id: bool = True) -> types.Schema:
 
 async def generate_reconciliation_rules(
     headers: List[str],
-    available_rules: Dict[str, Any],
+    available_rules: Any,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Optional[int]]]:
     """Generate a recommended set of reconciliation matching passes."""
     client = get_client()
@@ -206,10 +282,10 @@ Generate passes specifically tailored to the columns provided."""
     resp = await client.aio.models.generate_content(
         model=ANALYTICS_MODEL,
         contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
+        config=_structured_json_config(
             response_schema=response_schema,
             temperature=0.1,
+            max_output_tokens=4096,
         ),
     )
     text = _get_resp_text(resp)
@@ -219,7 +295,7 @@ Generate passes specifically tailored to the columns provided."""
 
 async def generate_additional_reconciliation_pass(
     instructions: str,
-    available_rules: Dict[str, Any],
+    available_rules: Any,
 ) -> Tuple[Dict[str, Any], Dict[str, Optional[int]]]:
     client = get_client()
     prompt = f"""You are a reconciliation expert. The user wants to add a specific rule or pass to their reconciliation engine.
@@ -235,10 +311,10 @@ Each rule object must have a "type" matching an element from the availableRules.
     resp = await client.aio.models.generate_content(
         model=ANALYTICS_MODEL,
         contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
+        config=_structured_json_config(
             response_schema=_reconciliation_pass_schema(required_id=True),
             temperature=0.1,
+            max_output_tokens=2048,
         ),
     )
     text = _get_resp_text(resp)
@@ -518,6 +594,28 @@ Provide a brief (max 2 sentences) compliance insight based on US GAAP and ASC gu
 # Document extraction (research bots) and waterfall extraction
 # ---------------------------------------------------------------------------
 
+_MAX_DOCUMENT_EXTRACT_CHARS = 120_000
+
+
+def _coerce_summary(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    return str(value).strip()
+
+
+def _document_extract_config(response_schema: types.Schema, *, use_thinking_budget_zero: bool) -> types.GenerateContentConfig:
+    kwargs: Dict[str, Any] = {
+        "response_mime_type": "application/json",
+        "response_schema": response_schema,
+        "max_output_tokens": 8192,
+    }
+    if use_thinking_budget_zero:
+        kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
+    return types.GenerateContentConfig(**kwargs)
+
+
 async def extract_document(
     document_text: str,
     doc_type: str,
@@ -530,9 +628,16 @@ async def extract_document(
     """
     client = get_client()
     label = "Tax" if doc_type == "IRS" else "Financial"
+    body = document_text or ""
+    truncated_note = ""
+    if len(body) > _MAX_DOCUMENT_EXTRACT_CHARS:
+        body = body[:_MAX_DOCUMENT_EXTRACT_CHARS]
+        truncated_note = (
+            f"\n(Note: document text was truncated to the first {_MAX_DOCUMENT_EXTRACT_CHARS} characters.)"
+        )
     prompt = f"""Analyze the following document and extract key data for a {label} context.
 Document text:
-{document_text}
+{body}{truncated_note}
 
 Provide a short "summary" describing the document type and a high-level overview.
 Also provide "extractedData", which should be a comprehensive array of key-value pairs covering all important fields, amounts, entities, dates, structural points, and numerical data found in the document. Each item must be an object with "key" and "value" (both strings).
@@ -558,18 +663,52 @@ Return a JSON object conforming strictly to the schema provided."""
         required=["summary", "extractedData"],
     )
 
-    resp = await client.aio.models.generate_content(
-        model=ANALYTICS_MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=response_schema,
-        ),
-    )
+    last_exc: Optional[Exception] = None
+    resp: Any = None
+    for use_thinking in (True, False):
+        try:
+            resp = await client.aio.models.generate_content(
+                model=ANALYTICS_MODEL,
+                contents=prompt,
+                config=_document_extract_config(response_schema, use_thinking_budget_zero=use_thinking),
+            )
+            break
+        except Exception as exc:
+            last_exc = exc
+            logger.warning(
+                "Document extract Gemini call failed (thinking_zero=%s): %s",
+                use_thinking,
+                exc,
+            )
+    if resp is None:
+        raise RuntimeError(f"Document extraction model call failed: {last_exc}") from last_exc
+
     text = _get_resp_text(resp)
-    parsed = _parse_json_text(text)
+    if not text or not text.strip():
+        raise ValueError("Analytics AI model returned empty document extraction response")
+
+    try:
+        parsed = _parse_json_text(text)
+    except Exception as first_parse_exc:
+        # One retry without schema enforcement if the model returned malformed JSON.
+        logger.warning("Document extract JSON parse failed, retrying: %s", first_parse_exc)
+        retry = await client.aio.models.generate_content(
+            model=ANALYTICS_MODEL,
+            contents=prompt + "\n\nRespond with valid JSON only.",
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                max_output_tokens=8192,
+            ),
+        )
+        resp = retry
+        text = _get_resp_text(retry)
+        parsed = _parse_json_text(text)
 
     pairs = parsed.get("extractedData", []) if isinstance(parsed, dict) else []
+    if isinstance(parsed, dict) and isinstance(parsed.get("extractedData"), dict):
+        # Some model turns return a map instead of an array — normalize it.
+        pairs = [{"key": k, "value": v} for k, v in parsed["extractedData"].items()]
+
     extracted_map: Dict[str, str] = {}
     for pair in pairs:
         if isinstance(pair, dict):
@@ -579,7 +718,10 @@ Return a JSON object conforming strictly to the schema provided."""
                 extracted_map[k] = "" if v is None else str(v)
 
     return (
-        {"summary": parsed.get("summary", "") if isinstance(parsed, dict) else "", "extractedData": extracted_map},
+        {
+            "summary": _coerce_summary(parsed.get("summary") if isinstance(parsed, dict) else None),
+            "extractedData": extracted_map,
+        },
         _get_usage_counts(resp),
     )
 
@@ -689,13 +831,13 @@ Min Amount: {min_amount}
 Suggest:
 1. A dollar threshold (e.g., 10000, 50000, 100000)
 2. A percentage threshold (e.g., 5, 10, 15)
-3. The logic to use: "Either" (Dollar OR Percent) or "Both" (Dollar AND Percent)
+3. The logic to use: exactly "Either" (Dollar OR Percent) or "Both" (Dollar AND Percent)
 4. A brief explanation for your recommendation.
 
 Return ONLY a JSON object with the following keys:
 - thresholdDollar (number)
 - thresholdPercent (number)
-- logic ("Either" or "Both")
+- logic (string — must be exactly "Either" or "Both")
 - explanation (string)
 """
     response_schema = types.Schema(
@@ -703,7 +845,7 @@ Return ONLY a JSON object with the following keys:
         properties={
             "thresholdDollar": types.Schema(type="NUMBER"),
             "thresholdPercent": types.Schema(type="NUMBER"),
-            "logic": types.Schema(type="STRING"),
+            "logic": types.Schema(type="STRING", enum=["Either", "Both"]),
             "explanation": types.Schema(type="STRING"),
         },
         required=["thresholdDollar", "thresholdPercent", "logic", "explanation"],
@@ -712,12 +854,7 @@ Return ONLY a JSON object with the following keys:
     resp = await client.aio.models.generate_content(
         model=ANALYTICS_MODEL,
         contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=response_schema,
-            temperature=0.1,
-            max_output_tokens=256,
-        ),
+        config=_structured_json_config(response_schema=response_schema, max_output_tokens=1024),
     )
     text = _get_resp_text(resp)
     parsed = _parse_json_text(text)
@@ -894,7 +1031,7 @@ def _ai_assistant_system_instruction(
 used by Certified Public Accountants and accounting teams. You are an expert
 in US GAAP (ASC 606, ASC 842, ASC 350, ASC 340-40, ASC 835), tax
 regulations (MACRS, Section 179, bonus depreciation), variance & flux
-analysis, financial reconciliation, amortization, and revenue/expense
+analysis, financial reconciliation, fixed assets, and revenue/expense
 waterfall scheduling.
 
 Rules:
@@ -915,7 +1052,7 @@ Module-Specific Behaviors:
 - Variance & Flux Analysis: Explain top variances citing account names/amounts, compare to historical patterns/industry norms, draft formatted variance memos, recommend materiality thresholds.
 - Intelligent Reconciliation: Analyze unmatched transactions, suggest matches based on description/amount, calculate/explain reconciling differences, classify timing differences, recommend tolerances.
   SPECIAL FEATURE: If the user explicitly asks you to add, create, or suggest a new rule/pass in the Matching Configuration, you must append an action tag at the very end of your response exactly like this: [ACTION:ADD_RECON_PASS: <rule logic summary>]. For example: "I will add a fuzzy matching rule for invoices. [ACTION:ADD_RECON_PASS: Fuzzy match description and exact match amount]"
-- AI Amortization Schedule: Recommend GAAP/Tax methods, explain GAAP vs Tax differences, calculate ROU assets, explain lease modifications, verify schedule math.
+- Fixed Assets: Recommend GAAP/Tax methods, explain GAAP vs Tax differences, calculate ROU assets, explain lease modifications, verify schedule math.
 - AI Waterfall Schedule: Sum upcoming recognition, evaluate contract terms against ASC 606, aggregate remaining performance obligations, explain deferred balances, model early terminations.
 - IRS Researcher Bot: If asked general tax questions, provide brief answers with IRC citations and suggest opening a full research session in the IRS Researcher Bot.
 - GAAP Bot: If asked general GAAP questions, provide brief answers with ASC citations and suggest opening a full research session in the GAAP Bot."""
@@ -966,7 +1103,7 @@ async def stream_ai_assistant(
 
 def _research_system_instruction(bot: str, output_style: str, document_context: Optional[str]) -> str:
     if bot == "irs":
-        domain_block = """You are the IRS Researcher Bot for CPA Analytics Platform, a professional
+        domain_block = f"""You are the IRS Researcher Bot for CPA Analytics Platform, a professional
 tax research assistant used by Certified Public Accountants and tax
 professionals. You are an expert in:
 
@@ -992,8 +1129,8 @@ Rules:
 - Render citations as **highlighted inline references** (e.g., `IRC §162(a)`)
 - Each citation must include a brief parenthetical explaining its relevance
 - When analyzing uploaded documents, reference specific line items,
-  amounts, and form fields by name. The ENTIRE text of the document is provided to you in the Document Context. You do not need to "search" for anything, just read the context and answer directly.
-- DO NOT output your internal thinking, reasoning, or manual search processes. Never start sentences with "Wait,", "Let's search", or "Let me look". Just give the final, polished answer directly.
+  amounts, and form fields by name. The ENTIRE text of each uploaded document is in Document Context.
+{_RESEARCH_WEB_SEARCH_BLOCK}
 - If the law is ambiguous or there are conflicting authorities, present
   both sides and indicate the weight of authority
 - If uncertain, state so explicitly and recommend the user consult
@@ -1039,7 +1176,7 @@ Rules:
         summary_provisions_header = "## Applicable Tax Provisions"
         summary_issue_ref = "See IRC §XXX"
     else:
-        domain_block = """You are the GAAP Bot for CPA Analytics Platform, a professional
+        domain_block = f"""You are the GAAP Bot for CPA Analytics Platform, a professional
 accounting standards research assistant used by Certified Public
 Accountants and accounting professionals. You are an expert in:
 
@@ -1074,8 +1211,8 @@ Rules:
 - Render citations as **highlighted inline references** (e.g., `ASC 606-10-25-1`)
 - Each citation must include a brief parenthetical explaining its relevance
 - When analyzing uploaded documents, reference specific line items,
-  accounts, amounts, and contractual terms. The ENTIRE text of the document is provided to you in the Document Context. You do not need to "search" for anything, just read the context and answer directly.
-- DO NOT output your internal thinking, reasoning, or manual search processes. Never start sentences with "Wait,", "Let's search", or "Let me look". Just give the final, polished answer directly.
+  accounts, amounts, and contractual terms. The ENTIRE text of each uploaded document is in Document Context.
+{_RESEARCH_WEB_SEARCH_BLOCK}
 - Present the authoritative guidance first, then apply it to the user's
   specific facts and circumstances
 - If there are judgment areas or alternative treatments, present both
@@ -1166,7 +1303,8 @@ async def stream_research(
 ) -> AsyncGenerator[Tuple[str, Any], None]:
     """Stream IRS or GAAP research responses with Google Search grounding.
 
-    `bot` must be 'irs' or 'gaap'. Yields ("chunk", str) and a final ("usage", dict).
+    `bot` must be 'irs' or 'gaap'. Yields ("chunk", str), optional ("grounding", dict),
+    and a final ("usage", dict).
     """
     if bot not in ("irs", "gaap"):
         raise ValueError(f"Unknown research bot: {bot!r}")
@@ -1199,6 +1337,10 @@ async def stream_research(
         text = _get_resp_text(chunk)
         if text:
             yield ("chunk", text)
+
+    grounding = _serialize_grounding_metadata(last_resp)
+    if grounding:
+        yield ("grounding", grounding)
 
     yield ("usage", _get_usage_counts(last_resp))
 

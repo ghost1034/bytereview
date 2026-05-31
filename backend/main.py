@@ -130,7 +130,7 @@ async def on_shutdown():
 from routes import (
     users, jobs, stripe_routes, templates,
     data_types, integrations, automations, webhooks, admin, billing, contact, cpe, form_fill,
-    analytics_firms, analytics_clients, analytics_projects, analytics_research,
+    analytics_firms, analytics_clients, analytics_research,
     analytics_assistant, analytics_waterfall, analytics_amortization,
     analytics_reconciliation, analytics_variance, analytics_comments, activation,
 )
@@ -152,7 +152,6 @@ app.include_router(form_fill.router, prefix="/api/form-fill", tags=["form-fill"]
 app.include_router(inkwise_router, prefix="/api/inkwise")
 app.include_router(analytics_firms.router)
 app.include_router(analytics_clients.router)
-app.include_router(analytics_projects.router)
 app.include_router(analytics_research.router)
 app.include_router(analytics_assistant.router)
 app.include_router(analytics_waterfall.router)

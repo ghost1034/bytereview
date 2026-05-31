@@ -6,6 +6,7 @@ import { AlertTriangle, Check, MessageSquare, Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { DataTable, type ColumnDef } from '@/components/analytics/DataTable'
 import { formatCurrency } from '@/lib/analytics/format'
+import { requiresVarianceExplanation } from '@/lib/analytics/varianceHelpers'
 import type { VarianceData } from '@/lib/analytics/varianceTypes'
 
 interface VarianceTableProps {
@@ -114,6 +115,11 @@ export function VarianceTable({ rows, onRowClick }: VarianceTableProps) {
       accessorKey: 'status',
       cell: (_v, row) => {
         const hasExplanation = !!row.explanation
+        if (!requiresVarianceExplanation(row)) {
+          return (
+            <span className="text-xs text-foreground-subtle">Below threshold</span>
+          )
+        }
         return (
           <div className="flex items-center gap-1.5">
             <Badge variant={STATUS_VARIANT[row.status]} className="text-xs">

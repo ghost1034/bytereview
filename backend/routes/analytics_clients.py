@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/analytics/clients", tags=["analytics-clients"])
 
 
-def _to_response(c, active_projects: int = 0) -> ClientResponse:
+def _to_response(c) -> ClientResponse:
     return ClientResponse(
         id=str(c.id),
         firm_id=str(c.firm_id),
@@ -36,7 +36,6 @@ def _to_response(c, active_projects: int = 0) -> ClientResponse:
         notes=c.notes,
         created_at=c.created_at,
         updated_at=c.updated_at,
-        active_projects=active_projects,
     )
 
 
@@ -46,10 +45,8 @@ async def list_clients_route(
     db: Session = Depends(get_db),
 ):
     firm_id = require_firm_id(db, actor.id)
-    rows = clients_service.list_clients(db, firm_id)
-    return ClientListResponse(
-        clients=[_to_response(c, count) for c, count in rows]
-    )
+    clients = clients_service.list_clients(db, firm_id)
+    return ClientListResponse(clients=[_to_response(c) for c in clients])
 
 
 @router.post("", response_model=ClientResponse)
@@ -62,7 +59,7 @@ async def create_client_route(
     client = clients_service.create_client(
         db, firm_id, payload=payload, actor_user_id=actor.id
     )
-    return _to_response(client, 0)
+    return _to_response(client)
 
 
 @router.get("/{client_id}", response_model=ClientResponse)
@@ -73,8 +70,7 @@ async def get_client_route(
 ):
     firm_id = require_firm_id(db, actor.id)
     client = clients_service.get_client(db, firm_id, client_id)
-    count = clients_service.count_active_projects(db, firm_id, client_id)
-    return _to_response(client, count)
+    return _to_response(client)
 
 
 @router.put("/{client_id}", response_model=ClientResponse)
@@ -88,8 +84,7 @@ async def update_client_route(
     client = clients_service.update_client(
         db, firm_id, client_id, payload=payload, actor_user_id=actor.id
     )
-    count = clients_service.count_active_projects(db, firm_id, client_id)
-    return _to_response(client, count)
+    return _to_response(client)
 
 
 @router.delete("/{client_id}")

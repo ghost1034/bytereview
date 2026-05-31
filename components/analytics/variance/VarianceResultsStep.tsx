@@ -71,11 +71,19 @@ export function VarianceResultsStep({ record, onRestart }: VarianceResultsStepPr
       const merged: VarianceData[] = processed.map((row) => {
         const ex = explanationsById.get(row.id)
         if (!ex) return row
+        const nextStatus =
+          row.isFlagged &&
+          row.status !== 'Accepted' &&
+          row.status !== 'Edited' &&
+          row.status !== 'Rejected'
+            ? 'Pending'
+            : row.status
         return {
           ...row,
           explanation: typeof ex.explanation === 'string' ? ex.explanation : row.explanation,
           confidence: (ex.confidence as VarianceData['confidence']) ?? row.confidence,
           followUp: typeof ex.followUp === 'string' ? ex.followUp : row.followUp,
+          status: row.isFlagged ? nextStatus : 'Accepted',
         }
       })
       const nextData: VarianceRecordData = {
@@ -159,7 +167,7 @@ export function VarianceResultsStep({ record, onRestart }: VarianceResultsStepPr
       'Variance %': r.variancePercent === 'N/M' ? 'N/M' : (r.variancePercent as number).toFixed(2),
       Flagged: r.isFlagged ? 'Yes' : 'No',
       Favorable: r.isFavorable === null ? '' : r.isFavorable ? 'Yes' : 'No',
-      Status: r.status,
+      Status: r.isFlagged ? r.status : 'Below threshold',
       Confidence: r.confidence ?? '',
       Explanation: r.explanation ?? '',
       'Follow-up': r.followUp ?? '',

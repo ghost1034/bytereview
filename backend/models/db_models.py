@@ -799,6 +799,24 @@ class Firm(Base):
     journal_entries = relationship("JournalEntry", back_populates="firm", cascade="all, delete-orphan")
     audit_logs = relationship("AnalyticsAuditLog", back_populates="firm", cascade="all, delete-orphan")
     comments = relationship("AnalyticsComment", back_populates="firm", cascade="all, delete-orphan")
+    invite_code = relationship(
+        "FirmInviteCode",
+        back_populates="firm",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+
+
+class FirmInviteCode(Base):
+    """Six-character code that lets new users join an existing analytics firm."""
+
+    __tablename__ = "firm_invite_codes"
+
+    code = Column(String(6), primary_key=True)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    firm = relationship("Firm", back_populates="invite_code")
 
 
 class Client(Base):

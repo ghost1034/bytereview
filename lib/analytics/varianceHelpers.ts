@@ -67,6 +67,20 @@ export const WORKFLOW_STATUS_VARIANT: Record<string, 'default' | 'secondary' | '
   Finalized: 'default',
 }
 
+/** Rows below materiality thresholds do not require review or explanation. */
+export function requiresVarianceExplanation(row: { isFlagged: boolean }): boolean {
+  return row.isFlagged
+}
+
+export function initialVarianceRowStatus(isFlagged: boolean): 'Pending' | 'Accepted' {
+  return isFlagged ? 'Pending' : 'Accepted'
+}
+
+/** Count rows that are either below threshold or have completed review. */
+export function countReviewedVarianceRows(rows: { isFlagged: boolean; status: string }[]): number {
+  return rows.filter((row) => !requiresVarianceExplanation(row) || row.status !== 'Pending').length
+}
+
 /**
  * Mock GL fixture (used by the New Analysis dialog "Load sample data" option).
  * Sums roll up to recognizable Q3→Q4 deltas so the engine produces a non-empty

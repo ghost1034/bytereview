@@ -21,7 +21,6 @@ from models.db_models import (
     Client,
     Firm,
     JournalEntry,
-    Project,
     Reconciliation,
     User,
 )
@@ -52,10 +51,6 @@ def _row_to_dict(row, columns: tuple[str, ...]) -> Dict[str, Any]:
 _CLIENT_COLS = (
     "id", "firm_id", "name", "industry", "contact_name", "contact_email",
     "contact_phone", "fiscal_year_end", "notes", "created_at", "updated_at",
-)
-_PROJECT_COLS = (
-    "id", "firm_id", "client_id", "assigned_to_user_id", "name", "status",
-    "module", "due_date", "description", "created_at", "updated_at",
 )
 _ANALYSIS_COLS = (
     "id", "firm_id", "client_id", "created_by_user_id", "type", "name",
@@ -118,7 +113,6 @@ def build_firm_export(db: Session, firm: Firm) -> Dict[str, Any]:
         },
         "members": member_payloads,
         "clients": _scoped(Client, _CLIENT_COLS),
-        "projects": _scoped(Project, _PROJECT_COLS),
         "analyses": _scoped(Analysis, _ANALYSIS_COLS),
         "reconciliations": _scoped(Reconciliation, _RECON_COLS),
         "amortizations": _scoped(Amortization, _AMORT_COLS),

@@ -32,7 +32,7 @@ const HEADER: Record<View, { title: string; description: string }> = {
     description: 'Select a client to start the fixed assets workflow.',
   },
   list: {
-    title: 'Amortization',
+    title: 'Fixed Assets',
     description:
       'Manage fixed assets, leases, loans, intangibles, and software with GAAP + tax schedules and auto-generated journal entries.',
   },
@@ -41,7 +41,7 @@ const HEADER: Record<View, { title: string; description: string }> = {
     description: 'Configure an asset and preview its GAAP and tax schedules.',
   },
   reports: {
-    title: 'Amortization reports',
+    title: 'Fixed assets reports',
     description: 'Export schedules, summaries, registers, and disposal gain/loss.',
   },
   bulk: {

@@ -15,6 +15,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { CommentThread } from '@/components/analytics/CommentThread'
 import { formatCurrency } from '@/lib/analytics/format'
+import { requiresVarianceExplanation } from '@/lib/analytics/varianceHelpers'
 import type {
   VarianceAccountType,
   VarianceData,
@@ -215,6 +216,10 @@ export function VarianceDetailPanel({
             ) : row.explanation ? (
               <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
                 {row.explanation}
+              </p>
+            ) : !requiresVarianceExplanation(row) ? (
+              <p className="text-sm text-foreground-muted">
+                Below threshold — no explanation required.
               </p>
             ) : (
               <p className="text-sm text-foreground-muted">

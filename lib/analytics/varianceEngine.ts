@@ -23,6 +23,7 @@ import type {
   VarianceData,
   VarianceColumnMap,
 } from './varianceTypes'
+import { initialVarianceRowStatus, countReviewedVarianceRows } from './varianceHelpers'
 
 function cleanNum(val: unknown): number {
   if (typeof val === 'number') return val
@@ -234,7 +235,7 @@ export function aggregateVariances(input: AggregationInput): VarianceData[] {
       absVariancePercent,
       isFavorable,
       isFlagged,
-      status: 'Pending',
+      status: initialVarianceRowStatus(isFlagged),
       customAttributes: g.customAttributes,
     }
   })
@@ -243,13 +244,13 @@ export function aggregateVariances(input: AggregationInput): VarianceData[] {
 /** Summarize processed rows for the `results` JSONB column. */
 export function summarizeProcessed(processed: VarianceData[]) {
   const flagged = processed.filter((r) => r.isFlagged)
-  const reviewed = processed.filter((r) => r.status !== 'Pending')
+  const reviewed = countReviewedVarianceRows(processed)
   const totalAbsVariance = processed.reduce((sum, r) => sum + r.absVariance, 0)
   const top = [...processed].sort((a, b) => b.absVariance - a.absVariance)[0]
   return {
     totalRows: processed.length,
     flaggedCount: flagged.length,
-    reviewedCount: reviewed.length,
+    reviewedCount: reviewed,
     totalAbsVariance,
     topVarianceAccountName: top?.accountName,
     topVarianceAmount: top?.absVariance,

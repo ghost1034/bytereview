@@ -3,62 +3,9 @@
 // these maps turn them into human-readable text and consistent badge styling.
 
 import type {
-  AnalyticsProjectModule,
-  AnalyticsProjectStatus,
   AnalyticsUserPersona,
   AnalyticsUserRole,
 } from '@/lib/analytics/types'
-
-// --- Project status ---------------------------------------------------------
-
-export const PROJECT_STATUS_LABELS: Record<AnalyticsProjectStatus, string> = {
-  draft: 'Draft',
-  in_progress: 'In Progress',
-  in_review: 'In Review',
-  approved: 'Approved',
-  archived: 'Archived',
-}
-
-/** Semantic-token Badge classes per status (mirrors components/ui/job-status-badge.tsx). */
-export const PROJECT_STATUS_BADGE_CLASS: Record<AnalyticsProjectStatus, string> = {
-  draft: 'border-border bg-surface-muted text-foreground-muted',
-  in_progress: 'border-info/20 bg-info-soft text-info',
-  in_review: 'border-warning/30 bg-warning-soft text-warning',
-  approved: 'border-success/20 bg-success-soft text-success',
-  archived: 'border-border bg-surface-muted text-foreground-subtle',
-}
-
-export const PROJECT_STATUS_OPTIONS: AnalyticsProjectStatus[] = [
-  'draft',
-  'in_progress',
-  'in_review',
-  'approved',
-  'archived',
-]
-
-// --- Project module ---------------------------------------------------------
-
-export const PROJECT_MODULE_LABELS: Record<AnalyticsProjectModule, string> = {
-  variance: 'Variance',
-  reconciliation: 'Reconciliation',
-  amortization: 'Amortization',
-  waterfall: 'Waterfall',
-  irs: 'IRS Researcher',
-  gaap: 'GAAP Researcher',
-  assistant: 'AI Assistant',
-  other: 'Other',
-}
-
-export const PROJECT_MODULE_OPTIONS: AnalyticsProjectModule[] = [
-  'other',
-  'variance',
-  'reconciliation',
-  'amortization',
-  'waterfall',
-  'irs',
-  'gaap',
-  'assistant',
-]
 
 // --- Member role ------------------------------------------------------------
 
@@ -96,7 +43,7 @@ export const USER_PERSONA_OPTIONS: AnalyticsUserPersona[] = [
 
 // --- Role-based UI gating (backend RBAC is authoritative; this is UX only) ---
 
-/** Roles allowed to create/update/delete clients & projects. */
+/** Roles allowed to create/update/delete clients. */
 export const ANALYTICS_WRITER_ROLES: AnalyticsUserRole[] = ['admin', 'manager', 'analyst']
 
 export function canWrite(role?: AnalyticsUserRole | null): boolean {
@@ -105,4 +52,9 @@ export function canWrite(role?: AnalyticsUserRole | null): boolean {
 
 export function isAdmin(role?: AnalyticsUserRole | null): boolean {
   return role === 'admin'
+}
+
+/** CPAAnalytics settings surface only Admin vs User labels. */
+export function settingsRoleLabel(role?: AnalyticsUserRole | null): string {
+  return isAdmin(role) ? 'Admin' : 'User'
 }

@@ -165,6 +165,12 @@ async def generate_schedule(
             bonus_percent=payload.bonus_percent,
             section_179=payload.section179,
             start_year=payload.start_year,
+            macrs_system=payload.macrs_system,
+            convention=payload.convention,
+            section179_election=payload.section179_election,
+            bonus_election=payload.bonus_election,
+            listed_property=payload.listed_property,
+            business_use_percentage=payload.business_use_percentage,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

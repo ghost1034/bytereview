@@ -1,7 +1,7 @@
 """Pydantic schemas for the CPA Analytics feature set.
 
 Every analytics route imports its request/response models from here. The
-model groups follow the routers: firms, clients, projects, analyses
+model groups follow the routers: firms, clients, analyses
 (variance + waterfall), reconciliations, amortizations, chat sessions
 (IRS / GAAP research + AI assistant), and journal entries.
 """
@@ -9,19 +9,13 @@ model groups follow the routers: firms, clients, projects, analyses
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
 UserRoleLiteral = Literal["admin", "manager", "analyst", "reviewer", "viewer"]
 UserPersonaLiteral = Literal[
     "staff_accountant", "senior_accountant", "accounting_manager", "cpa_partner"
-]
-ProjectStatusLiteral = Literal[
-    "draft", "in_progress", "in_review", "approved", "archived"
-]
-ProjectModuleLiteral = Literal[
-    "variance", "reconciliation", "amortization", "waterfall", "irs", "gaap", "assistant", "other"
 ]
 ReconciliationStatusLiteral = Literal["draft", "in_review", "approved", "finalized"]
 ReconciliationGroupStatusLiteral = Literal["approved", "rejected"]
@@ -54,10 +48,28 @@ class FirmMemberResponse(BaseModel):
 class FirmDetailResponse(BaseModel):
     firm: FirmResponse
     members: List[FirmMemberResponse] = Field(default_factory=list)
+    invite_code: Optional[str] = None
 
 
 class FirmUpdateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
+
+
+class FirmCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+
+
+class FirmJoinRequest(BaseModel):
+    code: str = Field(..., min_length=1, max_length=6)
+
+
+class FirmInviteCodeResponse(BaseModel):
+    code: str
+
+
+class FirmOnboardingStatusResponse(BaseModel):
+    needs_onboarding: bool
+    firm: Optional[FirmResponse] = None
 
 
 class FirmInviteRequest(BaseModel):
@@ -93,7 +105,6 @@ class FirmExportResponse(BaseModel):
     firm: FirmResponse
     members: List[FirmMemberResponse] = Field(default_factory=list)
     clients: List[Dict[str, Any]] = Field(default_factory=list)
-    projects: List[Dict[str, Any]] = Field(default_factory=list)
     analyses: List[Dict[str, Any]] = Field(default_factory=list)
     reconciliations: List[Dict[str, Any]] = Field(default_factory=list)
     amortizations: List[Dict[str, Any]] = Field(default_factory=list)
@@ -141,51 +152,10 @@ class ClientResponse(ClientBase):
     firm_id: str
     created_at: datetime
     updated_at: datetime
-    active_projects: int = 0
 
 
 class ClientListResponse(BaseModel):
     clients: List[ClientResponse] = Field(default_factory=list)
-
-
-# ---------------------------------------------------------------------------
-# Projects
-# ---------------------------------------------------------------------------
-
-
-class ProjectBase(BaseModel):
-    name: str = Field(..., min_length=1, max_length=255)
-    client_id: Optional[str] = None
-    assigned_to_user_id: Optional[str] = None
-    status: ProjectStatusLiteral = "draft"
-    module: ProjectModuleLiteral = "other"
-    due_date: Optional[date] = None
-    description: Optional[str] = None
-
-
-class ProjectCreateRequest(ProjectBase):
-    pass
-
-
-class ProjectUpdateRequest(BaseModel):
-    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
-    client_id: Optional[str] = None
-    assigned_to_user_id: Optional[str] = None
-    status: Optional[ProjectStatusLiteral] = None
-    module: Optional[ProjectModuleLiteral] = None
-    due_date: Optional[date] = None
-    description: Optional[str] = None
-
-
-class ProjectResponse(ProjectBase):
-    id: str
-    firm_id: str
-    created_at: datetime
-    updated_at: datetime
-
-
-class ProjectListResponse(BaseModel):
-    projects: List[ProjectResponse] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -207,9 +177,13 @@ class UsageMetadata(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+# Frontend sends an array of {category, rules}; legacy callers may send a dict.
+AvailableRulesPayload = Union[List[Dict[str, Any]], Dict[str, Any]]
+
+
 class ReconciliationRulesGenerateRequest(BaseModel):
     headers: List[str]
-    available_rules: Dict[str, Any] = Field(default_factory=dict, alias="availableRules")
+    available_rules: AvailableRulesPayload = Field(default_factory=list, alias="availableRules")
 
     model_config = {"populate_by_name": True}
 
@@ -221,7 +195,7 @@ class ReconciliationRulesGenerateResponse(BaseModel):
 
 class ReconciliationAdditionalPassRequest(BaseModel):
     instructions: str
-    available_rules: Dict[str, Any] = Field(default_factory=dict, alias="availableRules")
+    available_rules: AvailableRulesPayload = Field(default_factory=list, alias="availableRules")
 
     model_config = {"populate_by_name": True}
 
@@ -364,6 +338,12 @@ class AmortizationScheduleRequest(BaseModel):
     bonus_percent: Optional[float] = Field(default=None, alias="bonusPercent")
     section179: Optional[float] = None
     start_year: Optional[int] = Field(default=None, alias="startYear")
+    macrs_system: Optional[str] = Field(default=None, alias="macrsSystem")
+    convention: Optional[str] = None
+    section179_election: bool = Field(default=False, alias="section179Election")
+    bonus_election: bool = Field(default=False, alias="bonusDepreciationElection")
+    listed_property: bool = Field(default=False, alias="listedProperty")
+    business_use_percentage: Optional[float] = Field(default=None, alias="businessUsePercentage")
 
     model_config = {"populate_by_name": True}
 

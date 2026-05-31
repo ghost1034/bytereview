@@ -14,7 +14,6 @@ import {
   Droplet,
   Files,
   FileText,
-  FolderKanban,
   GitMerge,
   GraduationCap,
   Home,
@@ -24,7 +23,6 @@ import {
   Plug,
   Search,
   Settings as SettingsIcon,
-  UserPlus,
   Users,
   Zap,
 } from 'lucide-react'
@@ -108,18 +106,16 @@ const PRODUCTS_GROUP: NavGroup = {
 
 const ANALYTICS_GROUP: NavGroup = {
   key: 'analytics',
-  label: 'Analytics',
+  label: 'Analytics (beta)',
   items: [
-    { name: 'Dashboard', href: '/dashboard/analytics', icon: BarChart3 },
     { name: 'Clients', href: '/dashboard/analytics/clients', icon: Users },
-    { name: 'Projects', href: '/dashboard/analytics/projects', icon: FolderKanban },
-    { name: 'Team', href: '/dashboard/analytics/team', icon: UserPlus },
+    { name: 'Dashboard', href: '/dashboard/analytics', icon: BarChart3 },
+    { name: 'Variance', href: '/dashboard/analytics/variance', icon: LineChart },
+    { name: 'Reconciliation', href: '/dashboard/analytics/reconciliation', icon: GitMerge },
+    { name: 'Fixed Assets', href: '/dashboard/analytics/amortization', icon: Calculator },
+    { name: 'Waterfall', href: '/dashboard/analytics/waterfall', icon: Droplet },
     { name: 'IRS Researcher', href: '/dashboard/analytics/research/irs', icon: Search },
     { name: 'GAAP Researcher', href: '/dashboard/analytics/research/gaap', icon: BookOpen },
-    { name: 'Waterfall', href: '/dashboard/analytics/waterfall', icon: Droplet },
-    { name: 'Amortization', href: '/dashboard/analytics/amortization', icon: Calculator },
-    { name: 'Reconciliation', href: '/dashboard/analytics/reconciliation', icon: GitMerge },
-    { name: 'Variance', href: '/dashboard/analytics/variance', icon: LineChart },
     { name: 'Settings', href: '/dashboard/analytics/settings', icon: SettingsIcon },
   ],
 }

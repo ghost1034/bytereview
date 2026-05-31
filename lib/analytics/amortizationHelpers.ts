@@ -4,7 +4,7 @@
 // portfolio totals). The heavy math (SL, DDB, MACRS, loan, ASC 842 leases)
 // runs server-side in `amortization_math.py`.
 
-import type { AnalyticsAmortization, AnalyticsAmortizationCreateRequest } from '@/lib/analytics/types'
+import type { AnalyticsAmortization, AnalyticsAmortizationCreateRequest, AnalyticsAmortizationScheduleRequest } from '@/lib/analytics/types'
 
 import {
   AmortizationForm,
@@ -12,6 +12,7 @@ import {
   FIRST_CLASS_FORM_KEYS,
   JournalLine,
   ScheduleRow,
+  type ScheduleMethodKey,
 } from '@/lib/analytics/amortizationTypes'
 
 // ---------------------------------------------------------------------------
@@ -49,8 +50,9 @@ export function splitFormForApi(
     tax_method: form.taxMethod ?? null,
     start_date: form.startDate ?? null,
     vendor: form.vendor ?? null,
-    status: opts.status ?? form.persistenceStatus ?? 'draft',
-    approval_status: opts.approvalStatus ?? form.approvalStatus ?? 'pending',
+    // Portfolio workflow status (draft → published). Lifecycle lives in type_specific.status.
+    status: opts.status ?? form.persistenceStatus ?? 'published',
+    approval_status: opts.approvalStatus ?? form.approvalStatus ?? 'approved',
     type_specific: typeSpecific,
   }
 }
@@ -58,6 +60,7 @@ export function splitFormForApi(
 /** Inverse: turn an API response into an `AmortizationForm` for the edit UI. */
 export function mergeFormFromApi(row: AnalyticsAmortization): AmortizationForm {
   const extra = (row.type_specific ?? {}) as Partial<AmortizationForm>
+  const { status: lifecycleStatus, persistenceStatus: _ignored, ...restExtra } = extra
   return {
     id: row.id,
     assetName: row.asset_name,
@@ -69,11 +72,240 @@ export function mergeFormFromApi(row: AnalyticsAmortization): AmortizationForm {
     taxMethod: row.tax_method ?? 'Straight-Line',
     startDate: row.start_date ?? '',
     vendor: row.vendor ?? '',
-    status: (extra as AmortizationForm).status ?? 'Active',
+    status: lifecycleStatus ?? 'Active',
     persistenceStatus: row.status as AmortizationForm['persistenceStatus'],
     approvalStatus: row.approval_status as AmortizationForm['approvalStatus'],
-    ...extra,
+    ...restExtra,
   } as AmortizationForm
+}
+
+/** Lifecycle status stored in type_specific (Active, Disposed, etc.). */
+export function getLifecycleStatus(
+  row: Pick<AnalyticsAmortization, 'status' | 'type_specific'>,
+): string {
+  const extra = (row.type_specific ?? {}) as Partial<AmortizationForm>
+  if (typeof extra.status === 'string' && extra.status.trim()) {
+    return extra.status
+  }
+  if (row.status === 'published') return 'Active'
+  return row.status ?? 'Active'
+}
+
+/** Whether the asset record is still a draft in the portfolio workflow. */
+export function isDraftRecord(row: Pick<AnalyticsAmortization, 'status'>): boolean {
+  return (row.status ?? '').toLowerCase() === 'draft'
+}
+
+/**
+ * Map backend MACRS schedule rows (year, macrsRate, totalDep, taxBasis, …)
+ * into the ScheduleRow shape the UI tables expect.
+ */
+export function normalizeMacrsScheduleRows(
+  rows: ScheduleRow[],
+  costBasis = 0,
+): ScheduleRow[] {
+  if (rows.length === 0) return rows
+
+  const first = rows[0]
+  if (
+    typeof first.expense === 'number' &&
+    (typeof first.period === 'number' || typeof first.year === 'number') &&
+    typeof first.date === 'string' &&
+    first.date.length > 0
+  ) {
+    return rows
+  }
+
+  let accumulated = 0
+  return rows.map((row, idx) => {
+    const period =
+      (typeof row.period === 'number' ? row.period : undefined) ??
+      (typeof row.year === 'number' ? row.year : idx + 1)
+    const ratePct =
+      (typeof row.macrsRate === 'number' ? row.macrsRate : undefined) ??
+      (typeof row.rate === 'number' ? row.rate * 100 : 0)
+    const expense =
+      (typeof row.totalDep === 'number' ? row.totalDep : undefined) ??
+      (typeof row.expense === 'number' ? row.expense : 0)
+    accumulated += expense
+    const basis =
+      (typeof row.taxBasis === 'number' ? row.taxBasis : undefined) ??
+      (typeof row.basis === 'number' ? row.basis : Math.max(0, costBasis - accumulated))
+
+    return {
+      ...row,
+      period,
+      date:
+        typeof row.date === 'string' && row.date
+          ? row.date
+          : `${period}-12-31`,
+      rate: ratePct / 100,
+      expense,
+      accumulated,
+      basis,
+    }
+  })
+}
+
+/** Build the MACRS schedule API payload from form tax-detail fields. */
+export function buildMacrsScheduleRequest(
+  form: Pick<
+    AmortizationForm,
+    | 'assetType'
+    | 'costBasis'
+    | 'salvageValue'
+    | 'usefulLifeMonths'
+    | 'startDate'
+    | 'macrsPropertyClass'
+    | 'macrsSystem'
+    | 'convention'
+    | 'section179Election'
+    | 'section179Amount'
+    | 'bonusDepreciationElection'
+    | 'bonusDepreciationPercentage'
+    | 'listedProperty'
+    | 'businessUsePercentage'
+  >
+): AnalyticsAmortizationScheduleRequest {
+  const bonusRaw = form.bonusDepreciationPercentage ?? ''
+  const bonusPercent = bonusRaw
+    ? Number.parseFloat(String(bonusRaw).replace('%', ''))
+    : undefined
+  const parsedYear = form.startDate
+    ? Number.parseInt(form.startDate.slice(0, 4), 10)
+    : Number.NaN
+
+  return {
+    assetType: form.assetType,
+    method: 'macrs',
+    costBasis: form.costBasis ?? 0,
+    salvageValue: form.salvageValue ?? 0,
+    usefulLifeMonths: form.usefulLifeMonths ?? 0,
+    startDate: form.startDate || undefined,
+    propertyClass: form.macrsPropertyClass ?? '5-year',
+    macrsSystem: form.macrsSystem ?? 'GDS',
+    convention: form.convention ?? 'Half-Year',
+    section179Election: !!form.section179Election,
+    bonusDepreciationElection: !!form.bonusDepreciationElection,
+    listedProperty: !!form.listedProperty,
+    businessUsePercentage: form.listedProperty ? form.businessUsePercentage : undefined,
+    bonusPercent: form.bonusDepreciationElection ? bonusPercent : 0,
+    section179: form.section179Election ? form.section179Amount ?? 0 : 0,
+    startYear: Number.isFinite(parsedYear) ? parsedYear : undefined,
+  }
+}
+
+/** Extract the expense / depreciation amount from any schedule row shape. */
+export function scheduleRowExpense(row: ScheduleRow | undefined): number {
+  if (!row) return 0
+  if (typeof row.totalDep === 'number') return row.totalDep
+  if (typeof row.expense === 'number') return row.expense
+  if (typeof row.totalExpense === 'number') return row.totalExpense
+  if (typeof row.slExpense === 'number') return row.slExpense
+  if (typeof row.interest === 'number') return row.interest
+  return 0
+}
+
+export function gaapMethodKey(form: Pick<AmortizationForm, 'assetType'>): ScheduleMethodKey {
+  if (form.assetType === 'Loan Amortization') return 'loan'
+  if (form.assetType === 'Lease - Operating') return 'operating_lease'
+  if (form.assetType === 'Lease - Finance') return 'finance_lease'
+  return 'straight_line'
+}
+
+export function canGenerateSchedules(form: AmortizationForm): boolean {
+  if (!form.startDate) return false
+  if (form.assetType === 'Loan Amortization' || form.assetType.includes('Lease')) {
+    return (form.costBasis ?? 0) > 0 || (form.paymentAmount ?? 0) > 0
+  }
+  return (form.costBasis ?? 0) > 0 && (form.usefulLifeMonths ?? 0) > 0
+}
+
+export function buildGaapScheduleRequest(
+  form: AmortizationForm,
+  method: ScheduleMethodKey,
+): AnalyticsAmortizationScheduleRequest {
+  const periods = form.usefulLifeMonths ?? 0
+  return {
+    assetType: form.assetType,
+    method,
+    costBasis: form.costBasis ?? 0,
+    salvageValue: form.salvageValue ?? 0,
+    usefulLifeMonths: periods,
+    startDate: form.startDate || undefined,
+    annualRate:
+      form.interestRate != null
+        ? form.interestRate / (form.interestRate > 1 ? 100 : 1)
+        : undefined,
+    paymentAmount: form.paymentAmount ?? undefined,
+    ibr: form.ibr != null ? form.ibr / (form.ibr > 1 ? 100 : 1) : undefined,
+    directCosts: form.initialDirectCosts ?? undefined,
+    prepaid: form.prepaidLeasePayments ?? undefined,
+    incentives: form.leaseIncentives ?? undefined,
+    startYear: form.startDate ? new Date(form.startDate).getFullYear() : undefined,
+  }
+}
+
+type ScheduleGenerator = (
+  req: AnalyticsAmortizationScheduleRequest,
+) => Promise<{ schedule?: ScheduleRow[] }>
+
+/** Generate GAAP and tax schedules from form fields (same logic as the asset form). */
+export async function generateAssetSchedules(
+  form: AmortizationForm,
+  generate: ScheduleGenerator,
+): Promise<{ schedule: ScheduleRow[]; taxSchedule: ScheduleRow[] }> {
+  const gaapKey = gaapMethodKey(form)
+  const gaapRes = await generate(buildGaapScheduleRequest(form, gaapKey))
+  const schedule = (gaapRes.schedule ?? []) as ScheduleRow[]
+
+  let taxSchedule: ScheduleRow[] = []
+  if (form.taxMethod === 'MACRS') {
+    const taxRes = await generate(buildMacrsScheduleRequest(form))
+    taxSchedule = normalizeMacrsScheduleRows(
+      (taxRes.schedule ?? []) as ScheduleRow[],
+      form.costBasis ?? 0,
+    )
+  }
+
+  return { schedule, taxSchedule }
+}
+
+/**
+ * Ensure each asset has schedule data for reporting — uses stored schedules when
+ * present, otherwise generates them on the fly from saved asset fields.
+ */
+export async function resolveAssetsForReports(
+  rows: AnalyticsAmortization[],
+  generate: ScheduleGenerator,
+): Promise<AnalyticsAmortization[]> {
+  return Promise.all(
+    rows.map(async (row) => {
+      const gaap = (row.schedule ?? []) as ScheduleRow[]
+      const tax = (row.tax_schedule ?? []) as ScheduleRow[]
+      if (gaap.length > 0) {
+        const normalizedTax =
+          tax.length > 0 && row.tax_method === 'MACRS'
+            ? normalizeMacrsScheduleRows(tax, row.cost_basis ?? 0)
+            : tax
+        return { ...row, tax_schedule: normalizedTax }
+      }
+
+      const form = mergeFormFromApi(row)
+      if (!canGenerateSchedules(form)) return row
+
+      try {
+        const generated = await generateAssetSchedules(form, generate)
+        return {
+          ...row,
+          schedule: generated.schedule,
+          tax_schedule: generated.taxSchedule.length > 0 ? generated.taxSchedule : row.tax_schedule,
+        }
+      } catch {
+        return row
+      }
+    }),
+  )
 }
 
 // ---------------------------------------------------------------------------

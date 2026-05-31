@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { LoadingState } from '@/components/ui/loading-state'
@@ -14,14 +15,25 @@ import {
 } from '@/lib/analytics/aiContext'
 import type { AnalyticsAnalysis } from '@/lib/analytics/types'
 import {
+  countReviewedVarianceRows,
+} from '@/lib/analytics/varianceHelpers'
+import {
   readVarianceConfig,
   readVarianceData,
   type VarianceActiveSummary,
 } from '@/lib/analytics/varianceTypes'
 
-import { VarianceEditor } from './VarianceEditor'
 import { VarianceList } from './VarianceList'
-import { VarianceReports } from './VarianceReports'
+
+const VarianceEditor = dynamic(
+  () => import('./VarianceEditor').then((m) => m.VarianceEditor),
+  { loading: () => <LoadingState variant="page" label="Loading variance editor" /> },
+)
+
+const VarianceReports = dynamic(
+  () => import('./VarianceReports').then((m) => m.VarianceReports),
+  { loading: () => <LoadingState variant="table" label="Loading reports" /> },
+)
 
 type View = 'list' | 'editor' | 'reports'
 
@@ -41,7 +53,7 @@ const HEADER: Record<View, { title: string; description: string }> = {
   },
 }
 
-export function VarianceModule() {
+function VarianceModuleContent() {
   const { data, isLoading } = useAnalyticsVariances()
   const { data: clientsData } = useAnalyticsClients()
   const clients = useMemo(() => clientsData?.clients ?? [], [clientsData])
@@ -79,7 +91,7 @@ export function VarianceModule() {
             client: r.client_id ? clientNameById.get(r.client_id) : undefined,
             analysisType: config.uploadMode === 'single' ? 'Single Period' : 'Base vs Comparison',
             flaggedCount: processed.filter((p) => p.isFlagged).length,
-            reviewedCount: processed.filter((p) => p.status !== 'Pending').length,
+            reviewedCount: countReviewedVarianceRows(processed),
           }
         }),
         ...(activeSummary
@@ -149,6 +161,14 @@ export function VarianceModule() {
         />
       )}
     </div>
+  )
+}
+
+export function VarianceModule() {
+  return (
+    <Suspense fallback={<LoadingState variant="page" label="Loading variance analyses" />}>
+      <VarianceModuleContent />
+    </Suspense>
   )
 }
 
