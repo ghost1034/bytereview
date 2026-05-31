@@ -1307,20 +1307,41 @@ export class ApiClient {
     return this.request('/api/analytics/firm')
   }
 
+  async getAnalyticsFirmOnboardingStatus(): Promise<
+    ApiResponse<ApiPaths['/api/analytics/firm/onboarding-status']['get']>
+  > {
+    return this.request('/api/analytics/firm/onboarding-status')
+  }
+
+  async createAnalyticsFirm(
+    data: ApiRequest<ApiPaths['/api/analytics/firm/create']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/firm/create']['post']>> {
+    return this.request('/api/analytics/firm/create', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async joinAnalyticsFirm(
+    data: ApiRequest<ApiPaths['/api/analytics/firm/join']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/analytics/firm/join']['post']>> {
+    return this.request('/api/analytics/firm/join', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async generateAnalyticsFirmInviteCode(): Promise<
+    ApiResponse<ApiPaths['/api/analytics/firm/invite-code']['post']>
+  > {
+    return this.request('/api/analytics/firm/invite-code', { method: 'POST' })
+  }
+
   async updateAnalyticsFirm(
     data: ApiRequest<ApiPaths['/api/analytics/firm']['put']>
   ): Promise<ApiResponse<ApiPaths['/api/analytics/firm']['put']>> {
     return this.request('/api/analytics/firm', {
       method: 'PUT',
-      body: JSON.stringify(data),
-    })
-  }
-
-  async inviteAnalyticsFirmMember(
-    data: ApiRequest<ApiPaths['/api/analytics/firm/invite']['post']>
-  ): Promise<ApiResponse<ApiPaths['/api/analytics/firm/invite']['post']>> {
-    return this.request('/api/analytics/firm/invite', {
-      method: 'POST',
       body: JSON.stringify(data),
     })
   }
