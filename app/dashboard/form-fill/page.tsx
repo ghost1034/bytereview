@@ -375,7 +375,7 @@ export default function FormFillPage() {
 
       <Section
         variant="card"
-        title="Source"
+        title="1. Source"
         description="The information used to fill the target document."
         contentClassName=""
       >
@@ -503,7 +503,7 @@ export default function FormFillPage() {
 
       <Section
         variant="card"
-        title="Target"
+        title="2. Target"
         description="The PDF or DOCX to fill."
       >
         <div data-tour="form-fill-target" className="space-y-4">
@@ -636,7 +636,7 @@ export default function FormFillPage() {
 
       <Section
         variant="card"
-        title="Output"
+        title="3. Output"
         description="Output format follows the target by default."
       >
         <div data-tour="form-fill-run" className="space-y-5">
@@ -709,77 +709,6 @@ export default function FormFillPage() {
           </Button>
         </div>
       </Section>
-
-      {recentRuns.length > 0 && (
-        <Section
-          variant="card"
-          title="Recent Form Fill runs"
-          description="Persisted runs stay available after you leave this page."
-        >
-          <div className="rounded-md border border-border bg-surface-raised divide-y divide-border">
-            {recentRuns.map((run) => {
-              const isSelected = run.id === currentRunId
-              const isProcessing = !isTerminalRunStatus(run.status)
-              const isDownloadReady =
-                run.status === 'completed' || run.status === 'completed_with_errors'
-              return (
-                <div
-                  key={run.id}
-                  className={cn(
-                    'flex flex-col gap-3 px-3 py-3 text-sm md:flex-row md:items-center md:justify-between',
-                    isSelected && 'bg-primary-soft/40',
-                  )}
-                >
-                  <button
-                    type="button"
-                    aria-label={`Select form-fill run ${run.target_filename}`}
-                    className="min-w-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
-                    onClick={() => selectRun(run.id)}
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium truncate text-foreground">
-                        {run.target_filename}
-                      </span>
-                      {isSelected && (
-                        <span className="rounded-full bg-primary-soft px-2 py-0.5 text-xs text-primary-soft-foreground">
-                          Selected
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-foreground-muted">
-                      {isProcessing && <Loader2 className="size-3 animate-spin" aria-hidden />}
-                      <span>{formatStatus(run.status)} · {formatDateTime(run.created_at)}</span>
-                      {(run.total_outputs > 1 || run.repeat_mode === 'source_rows') && (
-                        <span>· {run.completed_outputs}/{run.total_outputs} completed</span>
-                      )}
-                      {isProcessing && <span className="sr-only">Processing run</span>}
-                    </div>
-                  </button>
-                  <div className="flex shrink-0 gap-2">
-                    <Button
-                      type="button"
-                      variant={isSelected ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => selectRun(run.id)}
-                    >
-                      View
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={!isDownloadReady || downloadingRunId === run.id}
-                      onClick={() => handleDownload(run.id)}
-                    >
-                      {downloadingRunId === run.id ? 'Downloading…' : 'Download'}
-                    </Button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </Section>
-      )}
 
       {(currentRun || currentRunId) && (
         <Section
@@ -861,6 +790,77 @@ export default function FormFillPage() {
                     }`}
               </Button>
             )}
+          </div>
+        </Section>
+      )}
+
+      {recentRuns.length > 0 && (
+        <Section
+          variant="card"
+          title="Recent Form Fill runs"
+          description="Persisted runs stay available after you leave this page."
+        >
+          <div className="rounded-md border border-border bg-surface-raised divide-y divide-border">
+            {recentRuns.map((run) => {
+              const isSelected = run.id === currentRunId
+              const isProcessing = !isTerminalRunStatus(run.status)
+              const isDownloadReady =
+                run.status === 'completed' || run.status === 'completed_with_errors'
+              return (
+                <div
+                  key={run.id}
+                  className={cn(
+                    'flex flex-col gap-3 px-3 py-3 text-sm md:flex-row md:items-center md:justify-between',
+                    isSelected && 'bg-primary-soft/40',
+                  )}
+                >
+                  <button
+                    type="button"
+                    aria-label={`Select form-fill run ${run.target_filename}`}
+                    className="min-w-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+                    onClick={() => selectRun(run.id)}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium truncate text-foreground">
+                        {run.target_filename}
+                      </span>
+                      {isSelected && (
+                        <span className="rounded-full bg-primary-soft px-2 py-0.5 text-xs text-primary-soft-foreground">
+                          Selected
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-foreground-muted">
+                      {isProcessing && <Loader2 className="size-3 animate-spin" aria-hidden />}
+                      <span>{formatStatus(run.status)} · {formatDateTime(run.created_at)}</span>
+                      {(run.total_outputs > 1 || run.repeat_mode === 'source_rows') && (
+                        <span>· {run.completed_outputs}/{run.total_outputs} completed</span>
+                      )}
+                      {isProcessing && <span className="sr-only">Processing run</span>}
+                    </div>
+                  </button>
+                  <div className="flex shrink-0 gap-2">
+                    <Button
+                      type="button"
+                      variant={isSelected ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => selectRun(run.id)}
+                    >
+                      View
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!isDownloadReady || downloadingRunId === run.id}
+                      onClick={() => handleDownload(run.id)}
+                    >
+                      {downloadingRunId === run.id ? 'Downloading…' : 'Download'}
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </Section>
       )}
