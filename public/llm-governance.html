@@ -1868,6 +1868,25 @@
             cursor: pointer;
         }
 
+        .control-button svg {
+            width: 14px;
+            height: 14px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        #fullscreenButton .icon-compress,
+        body.is-fullscreen #fullscreenButton .icon-expand {
+            display: none;
+        }
+
+        body.is-fullscreen #fullscreenButton .icon-compress {
+            display: block;
+        }
+
         .progress-shell {
             width: 168px;
             height: 5px;
@@ -3018,6 +3037,10 @@
         <span id="counter">1 / 19</span>
         <div class="progress-shell" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
         <button class="control-button" id="nextButton" aria-label="Next slide">&#8250;</button>
+        <button class="control-button" id="fullscreenButton" title="Fullscreen (F)" aria-label="Enter fullscreen">
+            <svg class="icon-expand" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+            <svg class="icon-compress" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+        </button>
     </nav>
 
     <div class="edit-hotzone" aria-hidden="true"></div>
@@ -3090,6 +3113,7 @@
                 this.setupTouchNav();
                 this.setupWheelNav();
                 this.setupButtons();
+                this.setupFullscreen();
                 const requestedSlide = Number(new URLSearchParams(window.location.search).get("slide"));
                 const startIndex = Number.isFinite(requestedSlide) && requestedSlide > 0 ? requestedSlide - 1 : 0;
                 this.showSlide(startIndex);
@@ -3126,6 +3150,10 @@
                         event.preventDefault();
                         this.showSlide(this.slides.length - 1);
                     }
+                    if (event.key === "f" || event.key === "F") {
+                        event.preventDefault();
+                        this.toggleFullscreen();
+                    }
                 });
             }
 
@@ -3158,6 +3186,32 @@
             setupButtons() {
                 document.getElementById("prevButton").addEventListener("click", () => this.previous());
                 document.getElementById("nextButton").addEventListener("click", () => this.next());
+            }
+
+            setupFullscreen() {
+                const button = document.getElementById("fullscreenButton");
+                if (!(document.fullscreenEnabled || document.webkitFullscreenEnabled)) {
+                    button.style.display = "none";
+                    return;
+                }
+                button.addEventListener("click", () => this.toggleFullscreen());
+                const syncState = () => {
+                    const active = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+                    document.body.classList.toggle("is-fullscreen", active);
+                    button.setAttribute("aria-label", active ? "Exit fullscreen" : "Enter fullscreen");
+                    button.setAttribute("title", active ? "Exit fullscreen (F)" : "Fullscreen (F)");
+                };
+                document.addEventListener("fullscreenchange", syncState);
+                document.addEventListener("webkitfullscreenchange", syncState);
+            }
+
+            toggleFullscreen() {
+                const root = document.documentElement;
+                if (document.fullscreenElement || document.webkitFullscreenElement) {
+                    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+                } else {
+                    (root.requestFullscreen || root.webkitRequestFullscreen).call(root);
+                }
             }
 
             showSlide(index) {
