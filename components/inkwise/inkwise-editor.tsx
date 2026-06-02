@@ -18,6 +18,7 @@ import {
   type InkwiseTrackedChange,
 } from '@/lib/inkwise-editor-extensions'
 import { INKWISE_TIPTAP_BASE_EXTENSIONS } from '@/lib/inkwise-tiptap'
+import { cn } from '@/lib/utils'
 
 export type InkwiseEditorValue = {
   json: JSONContent
@@ -198,14 +199,22 @@ export function InkwiseEditor({
   if (!editor) {
     return (
       <div
-        className={`rounded-2xl border ${focusMode ? 'border-white/40 bg-white/80 shadow-2xl shadow-slate-950/20 backdrop-blur-xl' : 'bg-white'} ${className || ''}`}
+        className={cn(
+          'rounded-2xl border',
+          focusMode ? 'border-white/40 bg-white/80 shadow-2xl shadow-slate-950/20 backdrop-blur-xl' : 'bg-white',
+          className
+        )}
       />
     )
   }
 
   return (
     <div
-      className={`rounded-2xl border ${focusMode ? 'flex min-h-0 flex-col overflow-hidden border-white/40 bg-white/80 shadow-2xl shadow-slate-950/20 backdrop-blur-xl' : 'flex min-h-0 flex-col overflow-hidden bg-white shadow-sm'} ${className || ''}`}
+      className={cn(
+        'flex min-h-0 flex-col overflow-hidden rounded-2xl border',
+        focusMode ? 'border-white/40 bg-white/80 shadow-2xl shadow-slate-950/20 backdrop-blur-xl' : 'bg-white shadow-sm',
+        className
+      )}
     >
       {editable ? (
         <InkwiseEditorToolbar
