@@ -1556,8 +1556,8 @@ export default function InkwiseDocumentPage() {
 
               <TabsContent value="references" className="mt-0 min-h-0 min-w-0 flex-1 px-3 pb-3">
                 <div className="flex h-full min-h-0 min-w-0 flex-col">
-                  <div className="min-h-0 min-w-0 flex-1 overflow-x-scroll overflow-y-auto rounded-2xl bg-slate-50 p-3">
-                    <div className="min-w-[22rem] space-y-5">
+                  <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto rounded-2xl bg-slate-50 p-3">
+                    <div className="min-w-0 space-y-5">
                       <InkwiseSourceImportPanel
                         compact
                         title="Add and bind references"
