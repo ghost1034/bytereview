@@ -5,19 +5,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, Cloud, Download, History, LibraryBig, Loader2, Maximize2, MessageSquarePlus, MessageSquareText, Minimize2, MoreHorizontal, PanelRightClose, PanelRightOpen, Save, Settings2, Sparkles, Trash2, Unplug, Volume2, VolumeX, Wand2, X } from 'lucide-react'
+import { BookOpen, Cloud, Download, History, LibraryBig, Loader2, Maximize2, MessageSquareText, Minimize2, MoreHorizontal, PanelRightClose, PanelRightOpen, Save, Settings2, Trash2, Unplug, Volume2, VolumeX, Wand2 } from 'lucide-react'
 
+import { ChatPanel } from '@/components/inkwise/chat-panel'
 import { InkwiseEditor, type InkwiseEditorReviewState } from '@/components/inkwise/inkwise-editor'
 import { InkwiseSourceImportPanel } from '@/components/inkwise/source-import-panel'
 import { InlineWritingTools } from '@/components/inkwise/inline-writing-tools'
 import { InkwiseChatDebugSheet } from '@/components/inkwise/chat-debug-sheet'
 import { InkwiseCitationBubbles } from '@/components/inkwise/citation-bubbles'
 import { FocusBackground } from '@/components/inkwise/focus-background'
-import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
 import { GoogleDriveFolderPicker } from '@/components/integrations/GoogleDriveFolderPicker'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import {
@@ -60,6 +59,7 @@ import {
   InkwiseSource,
   InkwiseSseEvent,
 } from '@/lib/api'
+import { type ChatInsertMode, messageCitations, type StreamState } from '@/lib/inkwise-chat'
 import { diffParagraphs } from '@/lib/inkwise-diff'
 import {
   getInkwiseEditorTarget,
@@ -89,15 +89,6 @@ const INKWISE_CHAT_DEBUG_USER_ID = 'jbvogQmSz6WKNk1KL79bmK31Uk63'
 const INKWISE_THREAD_AUTO_NAME_POLL_INTERVAL_MS = 1500
 const INKWISE_THREAD_AUTO_NAME_POLL_TIMEOUT_MS = 15000
 
-type StreamState = {
-  text: string
-  contentWithCitations?: string | null
-  retrievalRunId?: string
-  citations?: InkwiseCitation[]
-  attemptId?: string
-  debugTimeline?: InkwiseDebugTimelineEntry[]
-}
-
 type PredictionState = {
   text: string
   contentWithCitations?: string | null
@@ -111,32 +102,10 @@ type PredictionContext = {
   beforeCursorInBlock: string
 }
 
-type ChatInsertMode = 'insert' | 'replace' | 'append'
-
 type DriveFolderSelection = {
   id: string
   name: string
   url?: string
-}
-
-const assistantMarkdownClassName =
-  'prose prose-sm max-w-none break-words text-slate-700 prose-headings:text-slate-900 prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-blockquote:border-slate-300 prose-blockquote:text-slate-600 prose-pre:bg-slate-950 prose-pre:text-slate-50 prose-code:text-slate-800 prose-a:text-sky-700'
-
-function messageCitations(message: InkwiseChatMessage): InkwiseCitation[] {
-  const raw = message.citations_json?.citations
-  return Array.isArray(raw) ? raw : []
-}
-
-function messageDisplayMarkdown(message: InkwiseChatMessage): string {
-  return message.content_with_citations || message.citations_json?.content_with_citations || message.content || ''
-}
-
-function messageAttemptId(message: InkwiseChatMessage): string | null {
-  return typeof message.provider_meta?.attempt_id === 'string' ? message.provider_meta.attempt_id : null
-}
-
-function messageRetrievalRunId(message: InkwiseChatMessage): string | null {
-  return message.citations_json?.retrieval_run_id || null
 }
 
 function upsertDebugTimelineEntry(entries: InkwiseDebugTimelineEntry[] | undefined, entry: InkwiseDebugTimelineEntry): InkwiseDebugTimelineEntry[] {
@@ -1310,248 +1279,41 @@ export default function InkwiseDocumentPage() {
               </div>
 
               <TabsContent value="chat" className="mt-0 min-h-0 flex-1 px-3 pb-3">
-                <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto rounded-2xl bg-slate-50 p-3">
-                  <div className="max-h-28 shrink-0 overflow-y-auto rounded-2xl border bg-white">
-                    <div className="flex flex-wrap gap-2 p-3 pr-4">
-                      {(threadsQuery.data?.threads ?? []).map((thread) => (
-                        <div key={thread.id} className="group relative">
-                          <Button
-                            variant={selectedThreadId === thread.id ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => setSelectedThreadId(thread.id)}
-                            className="pr-7"
-                          >
-                            {thread.title || 'New chat'}
-                          </Button>
-                          <button
-                            className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 opacity-0 transition-opacity hover:bg-black/10 group-hover:opacity-100"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              if (window.confirm('Delete this thread and all its messages?')) {
-                                deleteThread.mutate(thread.id)
-                              }
-                            }}
-                            disabled={deleteThread.isPending}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                      <Button variant="outline" size="sm" onClick={() => createThread.mutate()} disabled={createThread.isPending}>
-                        <MessageSquarePlus className="mr-2 h-4 w-4" />
-                        New thread
-                      </Button>
-                    </div>
-                  </div>
-
-                  <ScrollArea className="min-h-[30rem] flex-1 rounded-2xl border bg-white xl:min-h-[34rem]">
-                    <div className="space-y-3 p-4">
-                      {renderedMessages.map((message) => (
-                        <div key={message.id} className={`rounded-2xl p-3 text-sm ${message.role === 'assistant' ? 'border bg-white' : 'bg-slate-900 text-white'}`}>
-                          <div className="mb-1 flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-wide opacity-70">
-                            <span>{message.role}</span>
-                            {message.role === 'assistant' && message.id === latestAssistantMessageId ? (
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 px-2 text-[10px]"
-                                  onClick={() => retryChat.mutate({ messageId: message.id, freshRetrieval: true })}
-                                  disabled={retryChat.isPending || sendChat.isPending}
-                                >
-                                  Retry
-                                </Button>
-                              </div>
-                            ) : null}
-                          </div>
-                          {message.role === 'assistant' ? (
-                            <InkwiseMarkdownView
-                              markdown={messageDisplayMarkdown(message)}
-                              citations={messageCitations(message)}
-                              renderInlineCitations
-                              className={assistantMarkdownClassName}
-                            />
-                          ) : (
-                            <div className="whitespace-pre-wrap">{message.content}</div>
-                          )}
-                          {message.role === 'assistant' ? (
-                            <div className="mt-3 flex flex-wrap justify-end gap-2">
-                              {chatDebugEnabled && (messageAttemptId(message) || messageRetrievalRunId(message)) ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 px-2 text-[10px]"
-                                  onClick={() => setChatDebugTarget({ attemptId: messageAttemptId(message), retrievalRunId: messageRetrievalRunId(message) })}
-                                >
-                                  Debug
-                                </Button>
-                              ) : null}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 px-2 text-[10px]"
-                                onClick={() => copyAssistantMessage(message)}
-                              >
-                                Copy
-                              </Button>
-                              {activeDraftSelection ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 px-2 text-[10px]"
-                                  onClick={() => void insertAssistantMessage(message, 'replace')}
-                                  disabled={Boolean(chatInsertKey)}
-                                >
-                                  {chatInsertKey === `${message.id}:replace` ? 'Replacing...' : 'Replace selection'}
-                                </Button>
-                              ) : null}
-                              <Button
-                                size="sm"
-                                className="h-7 px-2 text-[10px]"
-                                onClick={() => void insertAssistantMessage(message, primaryChatInsertMode)}
-                                disabled={Boolean(chatInsertKey)}
-                              >
-                                {chatInsertKey === `${message.id}:${primaryChatInsertMode}` ? 'Inserting...' : primaryChatInsertLabel}
-                              </Button>
-                            </div>
-                          ) : null}
-                        </div>
-                      ))}
-
-                      {streamState ? (
-                        <div className="rounded-2xl border bg-white p-3 text-sm">
-                          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">assistant</div>
-                          {streamState.text ? (
-                            <InkwiseMarkdownView
-                              markdown={streamState.contentWithCitations || streamState.text}
-                              citations={streamState.citations}
-                              renderInlineCitations
-                              className={assistantMarkdownClassName}
-                            />
-                          ) : (
-                            <div className="text-slate-500">Thinking...</div>
-                          )}
-                          {chatDebugEnabled && streamState.debugTimeline?.length ? (
-                            <div className="mt-4 rounded-xl border bg-slate-50 p-3">
-                              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Backend debug</div>
-                              <div className="mt-2 space-y-2">
-                                {streamState.debugTimeline.map((entry) => (
-                                  <div key={entry.stage} className="flex items-start justify-between gap-3 text-xs text-slate-600">
-                                    <div>
-                                      <div className="font-medium text-slate-700">{entry.label}</div>
-                                      <div>{entry.status}</div>
-                                    </div>
-                                    <div className="whitespace-nowrap text-slate-500">{typeof entry.duration_ms === 'number' ? `${entry.duration_ms} ms` : ''}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : !renderedMessages.length ? (
-                        <div className="rounded-2xl border border-dashed bg-white p-4 text-sm text-slate-500">
-                          Waiting for your first question.
-                        </div>
-                      ) : null}
-                    </div>
-                  </ScrollArea>
-
-                  <div className="space-y-2">
-                    <Textarea
-                      value={chatInput}
-                      onChange={(event) => setChatInput(event.target.value)}
-                      placeholder="Ask a grounded question about this draft or your bound sources..."
-                      className="min-h-[110px] bg-white"
-                    />
-                    <div className="flex justify-end">
-                      <Button onClick={() => sendChat.mutate()} disabled={sendChat.isPending || !chatInput.trim() || !selectedChatSourceIds.length}>
-                        {sendChat.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                        Send grounded chat
-                      </Button>
-                    </div>
-                    {activeDraftSelection ? (
-                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs text-emerald-800">
-                        Draft selection attached for context{draftSelectionLabel ? `: ${draftSelectionLabel}` : '.'}
-                      </div>
-                    ) : null}
-                    <div className="rounded-2xl border bg-white p-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-medium text-slate-900">Chat references</div>
-                          <div className="text-xs text-slate-500">
-                            {readyChatSources.length
-                              ? `${selectedChatSourceIds.length} of ${readyChatSources.length} ready bound references selected`
-                              : boundSources.length
-                                ? 'No bound references are ready for grounded chat yet'
-                                : 'Bind references from the References tab to ground this chat'}
-                          </div>
-                        </div>
-                        {readyChatSources.length ? (
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setChatSourceChecked(Object.fromEntries(readyChatSources.map((item) => [item.source.id, true])))}
-                              disabled={sendChat.isPending}
-                            >
-                              Select All
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setChatSourceChecked(Object.fromEntries(readyChatSources.map((item) => [item.source.id, false])))}
-                              disabled={sendChat.isPending}
-                            >
-                              None
-                            </Button>
-                          </div>
-                        ) : null}
-                      </div>
-
-                      {boundSources.length ? (
-                        <Input
-                          value={chatSourceSearch}
-                          onChange={(event) => setChatSourceSearch(event.target.value)}
-                          placeholder="Search chat references"
-                          className="mt-3 bg-white"
-                        />
-                      ) : null}
-
-                      {boundSources.length ? (
-                        <div className="mt-3 grid max-h-40 gap-2 overflow-auto">
-                          {filteredChatSources.map((item) => (
-                            <label
-                              key={item.binding_id}
-                              className={cn('flex items-center gap-3 text-sm', item.grounded_chat_ready ? 'text-slate-700' : 'text-slate-400')}
-                            >
-                              <Checkbox
-                                checked={chatSourceChecked[item.source.id] ?? item.grounded_chat_ready}
-                                disabled={!item.grounded_chat_ready || sendChat.isPending}
-                                onCheckedChange={(checked) => {
-                                  setChatSourceChecked((prev) => ({ ...prev, [item.source.id]: Boolean(checked) }))
-                                }}
-                              />
-                              <span>{item.source.title}</span>
-                              {!item.grounded_chat_ready ? <span className="text-xs">({item.grounded_chat_reason || 'Not ready'})</span> : null}
-                            </label>
-                          ))}
-                          {!filteredChatSources.length ? (
-                            <div className="text-sm text-slate-500">No bound references match that search.</div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                    {!readyChatSources.length ? (
-                      <div className="text-xs text-amber-700">
-                        Grounded chat needs at least one ready bound reference. Use the References tab to bind and prepare sources.
-                      </div>
-                    ) : !selectedChatSourceIds.length ? (
-                      <div className="text-xs text-amber-700">
-                        Select at least one ready reference before sending grounded chat.
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
+                <ChatPanel
+                  threads={threadsQuery.data?.threads ?? []}
+                  selectedThreadId={selectedThreadId}
+                  onSelectThread={setSelectedThreadId}
+                  onCreateThread={() => createThread.mutate()}
+                  onDeleteThread={(threadId) => deleteThread.mutate(threadId)}
+                  createThreadPending={createThread.isPending}
+                  deleteThreadPending={deleteThread.isPending}
+                  messages={renderedMessages}
+                  latestAssistantMessageId={latestAssistantMessageId}
+                  streamState={streamState}
+                  chatInput={chatInput}
+                  onChatInputChange={setChatInput}
+                  onSend={() => sendChat.mutate()}
+                  sendPending={sendChat.isPending}
+                  onRetry={(messageId) => retryChat.mutate({ messageId, freshRetrieval: true })}
+                  retryPending={retryChat.isPending}
+                  onCopy={(message) => void copyAssistantMessage(message)}
+                  onInsert={(message, mode) => void insertAssistantMessage(message, mode)}
+                  chatInsertKey={chatInsertKey}
+                  primaryChatInsertMode={primaryChatInsertMode}
+                  primaryChatInsertLabel={primaryChatInsertLabel}
+                  chatDebugEnabled={chatDebugEnabled}
+                  onOpenDebug={setChatDebugTarget}
+                  activeDraftSelection={Boolean(activeDraftSelection)}
+                  draftSelectionLabel={draftSelectionLabel}
+                  boundSources={boundSources}
+                  readyChatSources={readyChatSources}
+                  filteredChatSources={filteredChatSources}
+                  selectedChatSourceIds={selectedChatSourceIds}
+                  chatSourceChecked={chatSourceChecked}
+                  onChatSourceCheckedChange={setChatSourceChecked}
+                  chatSourceSearch={chatSourceSearch}
+                  onChatSourceSearchChange={setChatSourceSearch}
+                />
               </TabsContent>
 
               <TabsContent value="references" className="mt-0 min-h-0 min-w-0 flex-1 px-3 pb-3">
