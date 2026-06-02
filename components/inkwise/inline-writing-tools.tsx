@@ -3,21 +3,26 @@
 import type { Editor } from '@tiptap/core'
 import { BubbleMenu, FloatingMenu } from '@tiptap/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Copy, Play, RefreshCw, Square, Wand2, X } from 'lucide-react'
+import { ArrowUp, ChevronDown, Copy, Library, Loader2, RotateCcw, Sparkles, Square, Wand2, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { apiClient, InkwiseBoundSource, InkwiseCitationStyle, InkwiseCitation, InkwiseSseEvent, InkwiseWritingAction } from '@/lib/api'
 import { getInkwiseEditorTarget, type InkwiseEditorTarget, insertMarkdownIntoEditor } from '@/lib/inkwise-editor'
+import { assistantMarkdownClassName } from '@/lib/inkwise-chat'
 import { clearWritingSelectionHighlight, setWritingSelectionHighlight } from '@/components/inkwise/editor-writing-selection'
+import { ActionIcon } from '@/components/inkwise/action-icon'
 import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
-import { compareNaturalText } from '@/lib/utils'
+import { cn, compareNaturalText } from '@/lib/utils'
 
 type ToolAction = Exclude<InkwiseWritingAction, 'other'> | 'custom'
 const DEFAULT_CUSTOM_INSTRUCTION = ''
+const MAX_COMPOSER_HEIGHT_PX = 160
+const TOOL_PILL_ORDER: ToolAction[] = ['coherent', 'concise', 'detailed', 'humanize', 'custom']
 
 const TOOL_CONFIG: Record<Exclude<ToolAction, 'custom'>, { label: string; instruction: string }> = {
   coherent: {
@@ -74,9 +79,19 @@ export function InlineWritingTools({
   const [groundingState, setGroundingState] = useState<GroundingState | null>(null)
   const [attemptId, setAttemptId] = useState<string | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
+  const [sourcesOpen, setSourcesOpen] = useState(false)
 
   const rangeRef = useRef<InkwiseEditorTarget | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const promptRef = useRef<HTMLTextAreaElement>(null)
+
+  // Auto-grow the prompt composer as the instruction changes (typed input or preset population).
+  useEffect(() => {
+    const el = promptRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, MAX_COMPOSER_HEIGHT_PX)}px`
+  }, [instruction, draftAction, panelOpen])
 
   const sortedBoundSources = useMemo(() => {
     const items = [...boundSources]
@@ -408,136 +423,190 @@ export function InlineWritingTools({
   const hasSelection = Boolean(visibleTarget?.hasSelection)
 
   const panel = (
-    <div className="flex max-h-[min(80vh,42rem)] w-[min(32rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-2xl border bg-white/95 p-3 shadow-2xl backdrop-blur">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex flex-wrap gap-2">
+    <div className="flex max-h-[min(80vh,42rem)] w-[min(32rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card p-3 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Sparkles className="h-3.5 w-3.5" />
+          </div>
           {hasSelection ? (
-            <>
-              <Button size="sm" variant={draftAction === 'coherent' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('coherent')} disabled={busy}>Coherent</Button>
-              <Button size="sm" variant={draftAction === 'concise' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('concise')} disabled={busy}>Concise</Button>
-              <Button size="sm" variant={draftAction === 'detailed' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('detailed')} disabled={busy}>Detailed</Button>
-              <Button size="sm" variant={draftAction === 'humanize' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('humanize')} disabled={busy}>Humanize</Button>
-              <Button size="sm" variant={draftAction === 'custom' ? 'default' : 'outline'} onMouseDown={preventEditorBlur} onClick={() => prepareAction('custom')} disabled={busy}>Custom</Button>
-            </>
+            TOOL_PILL_ORDER.map((action) => (
+              <button
+                key={action}
+                type="button"
+                onMouseDown={preventEditorBlur}
+                onClick={() => prepareAction(action)}
+                disabled={busy}
+                className={cn(
+                  'rounded-full border px-2.5 py-1 text-xs transition-colors disabled:pointer-events-none disabled:opacity-50',
+                  draftAction === action
+                    ? 'border-emerald-200 bg-emerald-50 font-medium text-emerald-700'
+                    : 'border-border bg-card text-foreground-muted hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700',
+                )}
+              >
+                {action === 'custom' ? 'Custom' : TOOL_CONFIG[action].label}
+              </button>
+            ))
           ) : (
-            <div className="text-sm font-medium text-slate-900">Write with AI</div>
+            <span className="text-sm font-medium text-foreground">Write with AI</span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          {busy ? <Button size="sm" variant="outline" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={stop} aria-label="Stop"><Square className="h-4 w-4 fill-red-500 text-red-500" /></Button> : null}
-          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={closePanel} aria-label="Close Write with AI">
-            <X className="h-4 w-4" />
-          </Button>
+        <div className="flex items-center gap-1">
+          {busy ? (
+            <button
+              type="button"
+              onMouseDown={preventEditorBlur}
+              onClick={stop}
+              aria-label="Stop"
+              className="rounded-md p-1.5 transition-colors hover:bg-surface-muted"
+            >
+              <Square className="h-3.5 w-3.5 fill-destructive text-destructive" />
+            </button>
+          ) : null}
+          <ActionIcon icon={X} label="Close" onClick={closePanel} onMouseDown={preventEditorBlur} />
         </div>
       </div>
 
       <div className="mt-3 flex-1 space-y-3 overflow-y-auto pr-1">
-        <div className="rounded-xl border bg-slate-50 p-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-sm font-medium text-slate-900">Sources</div>
-              <div className="text-xs text-slate-500">
+        <Collapsible open={sourcesOpen} onOpenChange={setSourcesOpen}>
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              onMouseDown={preventEditorBlur}
+              className="flex w-full items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 py-1.5 text-xs text-foreground-muted transition-colors hover:border-emerald-300 hover:text-emerald-700"
+            >
+              <Library className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">
                 {readySources.length
-                  ? `${selectedSourceIds.length} of ${readySources.length} ready sources attached`
+                  ? `${selectedSourceIds.length} of ${readySources.length} sources`
                   : boundSources.length
-                    ? 'No ready sources attached yet'
-                    : 'No sources bound to this document'}
-              </div>
-            </div>
-            {readySources.length ? (
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onMouseDown={preventEditorBlur}
-                  onClick={() => setSourceChecked(Object.fromEntries(readySources.map((item) => [item.source.id, true])))}
-                  disabled={busy}
-                >
-                  Select All
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onMouseDown={preventEditorBlur}
-                  onClick={() => setSourceChecked(Object.fromEntries(readySources.map((item) => [item.source.id, false])))}
-                  disabled={busy}
-                >
-                  None
-                </Button>
-              </div>
-            ) : null}
-          </div>
-
-          {sortedBoundSources.length ? (
-            <>
-              <Input
-                value={sourceSearch}
-                onChange={(event) => setSourceSearch(event.target.value)}
-                placeholder="Search attached sources"
-                className="mt-3 bg-white focus-visible:ring-inset focus-visible:ring-offset-0"
-              />
-              <div className="mt-3 grid max-h-36 gap-2 overflow-auto">
-                {filteredBoundSources.map((item) => (
-                  <label
-                    key={item.binding_id}
-                    onMouseDown={preventEditorBlur}
-                    className={`flex items-center gap-3 text-sm ${item.grounded_chat_ready ? 'text-slate-700' : 'text-slate-400'}`}
-                  >
-                    <Checkbox
-                      checked={sourceChecked[item.source.id] ?? item.grounded_chat_ready}
-                      disabled={!item.grounded_chat_ready || busy}
+                    ? 'No ready sources'
+                    : 'No sources bound'}
+              </span>
+              <ChevronDown className={cn('ml-auto h-3.5 w-3.5 shrink-0 transition-transform', sourcesOpen && 'rotate-180')} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="mt-2 space-y-2 rounded-xl border border-border bg-surface-muted/60 p-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs font-medium text-foreground">Sources</div>
+                {readySources.length ? (
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
                       onMouseDown={preventEditorBlur}
-                      onCheckedChange={(checked) => {
-                        setSourceChecked((prev) => ({ ...prev, [item.source.id]: Boolean(checked) }))
-                      }}
-                    />
-                    <span>{item.source.title}</span>
-                    {!item.grounded_chat_ready ? <span className="text-xs">({item.grounded_chat_reason || 'Not ready'})</span> : null}
-                  </label>
-                ))}
-                {!filteredBoundSources.length ? (
-                  <div className="text-sm text-slate-500">No attached sources match that search.</div>
+                      onClick={() => setSourceChecked(Object.fromEntries(readySources.map((item) => [item.source.id, true])))}
+                      disabled={busy}
+                    >
+                      All
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      onMouseDown={preventEditorBlur}
+                      onClick={() => setSourceChecked(Object.fromEntries(readySources.map((item) => [item.source.id, false])))}
+                      disabled={busy}
+                    >
+                      None
+                    </Button>
+                  </div>
                 ) : null}
               </div>
-            </>
-          ) : null}
-        </div>
+
+              {sortedBoundSources.length ? (
+                <>
+                  <Input
+                    value={sourceSearch}
+                    onChange={(event) => setSourceSearch(event.target.value)}
+                    placeholder="Search attached sources"
+                    className="h-8 bg-card text-sm"
+                  />
+                  <div className="grid max-h-36 gap-1.5 overflow-auto pr-1">
+                    {filteredBoundSources.map((item) => (
+                      <label
+                        key={item.binding_id}
+                        onMouseDown={preventEditorBlur}
+                        className={cn(
+                          'flex items-center gap-2.5 rounded-lg px-1.5 py-1 text-sm',
+                          item.grounded_chat_ready ? 'cursor-pointer text-foreground hover:bg-surface-muted' : 'text-foreground-subtle',
+                        )}
+                      >
+                        <Checkbox
+                          checked={sourceChecked[item.source.id] ?? item.grounded_chat_ready}
+                          disabled={!item.grounded_chat_ready || busy}
+                          onMouseDown={preventEditorBlur}
+                          onCheckedChange={(checked) => {
+                            setSourceChecked((prev) => ({ ...prev, [item.source.id]: Boolean(checked) }))
+                          }}
+                        />
+                        <span className="truncate">{item.source.title}</span>
+                        {!item.grounded_chat_ready ? (
+                          <span className="ml-auto shrink-0 text-[10px]">{item.grounded_chat_reason || 'Not ready'}</span>
+                        ) : null}
+                      </label>
+                    ))}
+                    {!filteredBoundSources.length ? (
+                      <div className="px-1.5 py-2 text-xs text-foreground-muted">No attached sources match that search.</div>
+                    ) : null}
+                  </div>
+                </>
+              ) : (
+                <div className="text-xs text-foreground-muted">Bind references from the References tab to ground writing tools.</div>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         {draftAction ? (
-          <div className="space-y-2">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <Label htmlFor="inkwise-tool-prompt">Prompt</Label>
-                <div className="mt-1 text-xs text-slate-500">Review and edit this instruction before sending it to Inkwise.</div>
-              </div>
-              <Button size="sm" onMouseDown={preventEditorBlur} onClick={() => submitDraft()} disabled={busy || !instruction.trim()}>
-                <Play className="mr-1.5 h-4 w-4" />
-                Send
-              </Button>
-            </div>
+          <div className="relative">
             <Textarea
-              id="inkwise-tool-prompt"
+              ref={promptRef}
               value={instruction}
               onChange={(event) => setInstruction(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault()
+                  if (!busy && instruction.trim()) void submitDraft()
+                }
+              }}
               placeholder={hasSelection ? 'e.g. rewrite in a persuasive tone' : 'e.g. draft a concise transition sentence'}
-              className="min-h-[108px] bg-white focus-visible:ring-inset focus-visible:ring-offset-0"
+              rows={1}
+              className="max-h-40 min-h-[44px] resize-none rounded-xl bg-card pr-12"
             />
+            <Button
+              size="icon"
+              onMouseDown={preventEditorBlur}
+              onClick={() => submitDraft()}
+              disabled={busy || !instruction.trim()}
+              className="absolute bottom-2 right-2 h-8 w-8 rounded-lg"
+              aria-label="Send"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
+            </Button>
           </div>
         ) : hasSelection ? (
-          <div className="rounded-xl border border-dashed bg-slate-50 p-3 text-sm text-slate-600">
+          <div className="rounded-xl border border-dashed border-border bg-surface-muted p-3 text-sm text-foreground-muted">
             Choose a tool to preview its prompt, then edit and send when ready.
           </div>
         ) : null}
 
-        {error ? <div className="text-sm text-red-600">{error}</div> : null}
+        {error ? <div className="text-sm text-destructive">{error}</div> : null}
 
         {busy || outputMd ? (
-          <div className="rounded-xl border bg-white p-3">
-            <div className="text-sm font-medium text-slate-900">
-              {busy ? 'Writing...' : lastAction ? `Result (${lastAction === 'custom' ? 'Custom' : TOOL_CONFIG[lastAction].label})` : 'Result'}
+          <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+            <div className="flex items-center gap-2">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Sparkles className="h-3 w-3" />
+              </div>
+              <span className="text-sm font-medium text-foreground">
+                {busy ? 'Writing...' : lastAction ? `Result (${lastAction === 'custom' ? 'Custom' : TOOL_CONFIG[lastAction].label})` : 'Result'}
+              </span>
             </div>
             {groundingState ? (
-              <div className="mt-1 text-xs text-slate-500">
+              <div className="mt-1 text-xs text-foreground-muted">
                 {groundingState.grounded
                   ? `Grounded to ${groundingState.evidenceCount} evidence ${groundingState.evidenceCount === 1 ? 'segment' : 'segments'}`
                   : groundingState.fallback === 'no_evidence'
@@ -547,30 +616,51 @@ export function InlineWritingTools({
                       : 'Running without grounded evidence'}
               </div>
             ) : null}
-            <div className="mt-3 max-h-56 overflow-auto text-sm text-slate-700">
-              {outputMd ? <InkwiseMarkdownView markdown={outputWithCitations || outputMd} citations={groundingState?.evidence} renderInlineCitations className="prose prose-sm max-w-none" /> : <div className="text-slate-400">...</div>}
+            <div className="mt-3 max-h-56 overflow-auto text-sm">
+              {outputMd ? (
+                <InkwiseMarkdownView
+                  markdown={outputWithCitations || outputMd}
+                  citations={groundingState?.evidence}
+                  renderInlineCitations
+                  className={assistantMarkdownClassName}
+                />
+              ) : (
+                <div className="flex gap-1 py-1.5" aria-label="Writing">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground-subtle" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground-subtle [animation-delay:0.2s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground-subtle [animation-delay:0.4s]" />
+                </div>
+              )}
             </div>
-            <div className="mt-3 flex flex-wrap justify-end gap-2">
-              <Button size="sm" variant="outline" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={() => retryAttempt()} disabled={!attemptId || busy} aria-label="Retry">
-                <RefreshCw className="h-4 w-4" />
-              </Button>
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+              <ActionIcon
+                icon={RotateCcw}
+                label="Retry"
+                onClick={() => void retryAttempt()}
+                onMouseDown={preventEditorBlur}
+                disabled={!attemptId || busy}
+              />
               {rangeRef.current?.hasSelection ? (
                 <>
-                  <Button size="sm" variant="outline" onMouseDown={preventEditorBlur} onClick={() => insert('after')} disabled={!outputMd || inserting === 'after'}>
+                  <Button size="sm" variant="outline" className="h-8 rounded-lg" onMouseDown={preventEditorBlur} onClick={() => insert('after')} disabled={!outputMd || inserting === 'after'}>
                     {inserting === 'after' ? 'Inserting...' : 'Insert after'}
                   </Button>
-                  <Button size="sm" onMouseDown={preventEditorBlur} onClick={() => insert('replace')} disabled={!outputMd || inserting === 'replace'}>
+                  <Button size="sm" className="h-8 rounded-lg" onMouseDown={preventEditorBlur} onClick={() => insert('replace')} disabled={!outputMd || inserting === 'replace'}>
                     {inserting === 'replace' ? 'Replacing...' : 'Replace selection'}
                   </Button>
                 </>
               ) : (
-                <Button size="sm" onMouseDown={preventEditorBlur} onClick={() => insert('insert')} disabled={!outputMd || inserting === 'insert'}>
+                <Button size="sm" className="h-8 rounded-lg" onMouseDown={preventEditorBlur} onClick={() => insert('insert')} disabled={!outputMd || inserting === 'insert'}>
                   {inserting === 'insert' ? 'Inserting...' : 'Insert'}
                 </Button>
               )}
-              <Button size="sm" variant="outline" className="h-8 w-8 p-0" onMouseDown={preventEditorBlur} onClick={() => navigator.clipboard?.writeText(outputMd || '')} disabled={!outputMd} aria-label="Copy">
-                <Copy className="h-4 w-4" />
-              </Button>
+              <ActionIcon
+                icon={Copy}
+                label="Copy"
+                onClick={() => navigator.clipboard?.writeText(outputMd || '')}
+                onMouseDown={preventEditorBlur}
+                disabled={!outputMd}
+              />
             </div>
           </div>
         ) : null}
@@ -583,7 +673,7 @@ export function InlineWritingTools({
       type="button"
       onMouseDown={(event) => event.preventDefault()}
       onClick={openPanel}
-      className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border bg-white/95 text-slate-700 shadow-2xl backdrop-blur transition hover:border-emerald-300 hover:text-emerald-700"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-foreground-muted shadow-sm transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
       aria-label="Open inline writing tools"
     >
       <Wand2 className="h-4 w-4" />
@@ -591,7 +681,7 @@ export function InlineWritingTools({
   )
 
   return (
-    <>
+    <TooltipProvider delayDuration={200}>
       <BubbleMenu
         editor={editor}
         shouldShow={({ editor }) => shouldShowBubbleWritingTools(editor)}
@@ -631,7 +721,7 @@ export function InlineWritingTools({
       >
         {panelOpen && !hasSelection ? panel : icon}
       </FloatingMenu>
-    </>
+    </TooltipProvider>
   )
 }
 

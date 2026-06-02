@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import type { LucideIcon } from 'lucide-react'
 import {
   ArrowUp,
   Bug,
@@ -18,6 +17,7 @@ import {
   Trash2,
 } from 'lucide-react'
 
+import { ActionIcon } from '@/components/inkwise/action-icon'
 import { InkwiseMarkdownView } from '@/components/inkwise/markdown-view'
 import {
   AlertDialog,
@@ -297,39 +297,6 @@ function ChatMessageBubble({
         </div>
       </div>
     </div>
-  )
-}
-
-function ActionIcon({
-  icon: Icon,
-  label,
-  onClick,
-  disabled,
-  busy,
-}: {
-  icon: LucideIcon
-  label: string
-  onClick: () => void
-  disabled?: boolean
-  busy?: boolean
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          onClick={onClick}
-          disabled={disabled || busy}
-          aria-label={label}
-          className="rounded-md p-1.5 text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
-        >
-          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="text-xs">
-        {label}
-      </TooltipContent>
-    </Tooltip>
   )
 }
 
