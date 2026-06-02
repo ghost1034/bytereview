@@ -143,6 +143,20 @@ export const pageMetadata = {
       'AI agent consulting',
     ],
   },
+  llmGovernance: {
+    title: 'LLM Governance Operating Model — Consulting for Accounting, Finance & Legal',
+    description: 'An interactive briefing on the LLM governance operating model for professional firms: governance councils, decision rights, risk tiers, policy controls, approval workflows, and a deployment roadmap.',
+    canonical: 'https://cpaautomation.ai/consulting/llm-governance',
+    keywords: [
+      'LLM governance',
+      'AI governance for accounting',
+      'AI governance operating model',
+      'LLM risk management',
+      'AI policy controls',
+      'AI governance consulting',
+      'LLM approval workflow',
+    ],
+  },
   demo: {
     title: 'Demo - Try the CPAAutomation AI Platform',
     description: 'Experience CPAAutomation\'s AI platform in action. Try document extraction, AI writing, and more — see how the platform automates your most time-consuming work.',

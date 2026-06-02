@@ -1,0 +1,3310 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPA Automation - LLM Governance Operating Model</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ===========================================
+           CSS CUSTOM PROPERTIES (THEME)
+           Change these variables to adjust the deck.
+           =========================================== */
+        :root {
+            --stage-bg: #07161b;
+            --slide-bg: #f7f3ea;
+            --paper: #f7f3ea;
+            --paper-warm: #fffaf1;
+            --ink: #071923;
+            --ink-soft: #263942;
+            --muted: #6b7a80;
+            --line: rgba(7, 25, 35, 0.22);
+            --line-soft: rgba(7, 25, 35, 0.1);
+            --brand-navy: #03213a;
+            --brand-teal: #0b8793;
+            --brand-cyan: #33c7d8;
+            --amber: #f2a73b;
+            --coral: #d95845;
+            --green: #2fb676;
+            --blue: #2d6cdf;
+            --violet: #6741d9;
+            --white: #ffffff;
+            --font-display: "Bricolage Grotesque";
+            --font-body: "IBM Plex Sans";
+            --font-mono: "IBM Plex Mono";
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+            --duration-normal: 0.6s;
+        }
+
+        /* ===========================================
+           BASE RESET
+           Establish predictable sizing across slides.
+           =========================================== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* ===========================================
+           FIXED 16:9 STAGE: MANDATORY BASE STYLES
+           Include this ENTIRE file in every presentation.
+           Slides are authored at 1920x1080 and scaled as a whole.
+           =========================================== */
+
+        /* 1. Lock the browser viewport */
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: var(--stage-bg, #000);
+        }
+
+        /* 2. Full-window deck viewport */
+        .deck-viewport {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            background: var(--stage-bg, #000);
+        }
+
+        /* 3. Fixed 16:9 design canvas.
+           JavaScript sets transform: translate(...) scale(...). */
+        .deck-stage {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            transform-origin: 0 0;
+            background: var(--slide-bg, #fff);
+        }
+
+        /* 4. Slides stack inside the fixed stage.
+           Content must be laid out at 1920x1080, not reflowed per device. */
+        .slide {
+            position: absolute;
+            inset: 0;
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            display: block;
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none;
+            background: var(--slide-bg, #fff);
+        }
+
+        .slide.active,
+        .slide.visible {
+            visibility: visible;
+            opacity: 1;
+            pointer-events: auto;
+            z-index: 1;
+        }
+
+        /* 5. Keep media inside authored slide bounds */
+        img,
+        video,
+        canvas,
+        svg {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        /* 6. Presentation chrome stays outside the slide design system */
+        .deck-controls {
+            position: fixed;
+            left: 50%;
+            bottom: 22px;
+            transform: translateX(-50%);
+            z-index: 1000;
+        }
+
+        /* 7. Print one fixed-size slide per page */
+        @media print {
+            html,
+            body {
+                width: 1920px;
+                height: auto;
+                overflow: visible;
+                background: #fff;
+            }
+
+            .deck-viewport {
+                position: static;
+                overflow: visible;
+                background: #fff;
+            }
+
+            .deck-stage {
+                position: static;
+                width: auto;
+                height: auto;
+                transform: none !important;
+                background: none;
+            }
+
+            .slide {
+                position: relative;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                pointer-events: auto !important;
+                width: 1920px;
+                height: 1080px;
+                break-after: page;
+                page-break-after: always;
+            }
+
+            .slide:last-child {
+                break-after: auto;
+                page-break-after: auto;
+            }
+
+            .deck-controls {
+                display: none !important;
+            }
+        }
+
+        /* 8. Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.2s !important;
+            }
+        }
+
+        /* ===========================================
+           SLIDE CANVAS AND ATMOSPHERE
+           Ledger grid, corner rules, and CPA brand chrome.
+           =========================================== */
+        body {
+            color: var(--ink);
+            font-family: var(--font-body);
+        }
+
+        .slide {
+            isolation: isolate;
+            padding: 86px 92px 70px;
+        }
+
+        .slide::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: -3;
+            background:
+                linear-gradient(90deg, rgba(7, 25, 35, 0.045) 1px, transparent 1px),
+                linear-gradient(0deg, rgba(7, 25, 35, 0.045) 1px, transparent 1px),
+                var(--paper);
+            background-size: 64px 64px, 64px 64px, auto;
+        }
+
+        .slide::after {
+            content: "";
+            position: absolute;
+            inset: 28px;
+            z-index: -2;
+            border: 1px solid rgba(7, 25, 35, 0.16);
+            pointer-events: none;
+        }
+
+        .dark-slide {
+            color: var(--white);
+            background: var(--stage-bg);
+        }
+
+        .dark-slide::before {
+            background:
+                radial-gradient(circle at 14% 12%, rgba(51, 199, 216, 0.2), transparent 25%),
+                radial-gradient(circle at 84% 20%, rgba(242, 167, 59, 0.16), transparent 24%),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+                linear-gradient(0deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+                linear-gradient(135deg, #06141a 0%, #072333 54%, #0b3237 100%);
+            background-size: auto, auto, 72px 72px, 72px 72px, auto;
+        }
+
+        .dark-slide::after {
+            border-color: rgba(255, 255, 255, 0.16);
+        }
+
+        .accent-ribbon {
+            position: absolute;
+            left: -130px;
+            bottom: 86px;
+            width: 520px;
+            height: 58px;
+            transform: rotate(-28deg);
+            background: var(--amber);
+            border: 4px solid var(--ink);
+            z-index: -1;
+        }
+
+        .accent-ribbon.thin {
+            bottom: 20px;
+            height: 22px;
+            background: var(--brand-cyan);
+        }
+
+        .corner-rail {
+            position: absolute;
+            right: 72px;
+            top: 72px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .corner-rail span {
+            width: 20px;
+            height: 94px;
+            border-radius: 16px;
+            background: var(--brand-teal);
+        }
+
+        .corner-rail span:nth-child(2) {
+            height: 64px;
+            background: var(--amber);
+        }
+
+        .corner-rail span:nth-child(3) {
+            height: 34px;
+            background: var(--coral);
+        }
+
+        /* ===========================================
+           TYPOGRAPHY
+           Fixed-stage type scale and text components.
+           =========================================== */
+        h1,
+        h2,
+        h3 {
+            font-family: var(--font-display);
+            line-height: 0.94;
+            letter-spacing: 0;
+            color: inherit;
+        }
+
+        h1 {
+            font-size: 118px;
+            max-width: 1180px;
+        }
+
+        h2 {
+            font-size: 78px;
+            max-width: 1260px;
+        }
+
+        h3 {
+            font-size: 34px;
+            line-height: 1.04;
+        }
+
+        p,
+        li,
+        .body-copy {
+            font-size: 26px;
+            line-height: 1.32;
+            color: var(--ink-soft);
+        }
+
+        .dark-slide p,
+        .dark-slide .body-copy {
+            color: rgba(255, 255, 255, 0.78);
+        }
+
+        .eyebrow {
+            font-family: var(--font-mono);
+            font-size: 17px;
+            letter-spacing: 0;
+            text-transform: uppercase;
+            color: var(--brand-teal);
+        }
+
+        .dark-slide .eyebrow {
+            color: var(--brand-cyan);
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .dark-slide .muted {
+            color: rgba(255, 255, 255, 0.58);
+        }
+
+        .big-number {
+            font-family: var(--font-display);
+            font-size: 148px;
+            line-height: 0.78;
+        }
+
+        .mono {
+            font-family: var(--font-mono);
+        }
+
+        /* ===========================================
+           BRAND CHROME
+           Logo, section labels, page numbers, and footer.
+           =========================================== */
+        .brand-mark {
+            position: absolute;
+            left: 92px;
+            top: 54px;
+            width: 245px;
+            height: auto;
+            opacity: 0.98;
+        }
+
+        .dark-slide .brand-mark {
+            filter: brightness(1.22) saturate(1.1);
+        }
+
+        .slide-kicker {
+            position: absolute;
+            top: 66px;
+            right: 92px;
+            font-family: var(--font-mono);
+            font-size: 18px;
+            color: var(--muted);
+            text-transform: uppercase;
+        }
+
+        .dark-slide .slide-kicker {
+            color: rgba(255, 255, 255, 0.58);
+        }
+
+        .slide-number {
+            position: absolute;
+            right: 92px;
+            bottom: 48px;
+            font-family: var(--font-mono);
+            font-size: 16px;
+            color: var(--muted);
+        }
+
+        .source-note {
+            position: absolute;
+            left: 92px;
+            bottom: 48px;
+            font-family: var(--font-mono);
+            font-size: 14px;
+            color: rgba(7, 25, 35, 0.46);
+        }
+
+        .dark-slide .source-note {
+            color: rgba(255, 255, 255, 0.46);
+        }
+
+        /* ===========================================
+           LAYOUT UTILITIES
+           Fixed grids and blocks for dense readable slides.
+           =========================================== */
+        .slide-shell {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .content {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 142px;
+            bottom: 70px;
+        }
+
+        .title-band {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 60px;
+            margin-bottom: 42px;
+        }
+
+        .title-band h2 {
+            flex: 1 1 auto;
+        }
+
+        .title-band .summary {
+            width: 455px;
+            padding-top: 8px;
+        }
+
+        .section-title {
+            margin-bottom: 34px;
+        }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 36px;
+        }
+
+        .three-col {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 28px;
+        }
+
+        .four-col {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+        }
+
+        .card {
+            background: rgba(255, 250, 241, 0.86);
+            border: 2px solid var(--ink);
+            border-radius: 8px;
+            padding: 30px 30px 28px;
+            box-shadow: 10px 10px 0 rgba(7, 25, 35, 0.1);
+        }
+
+        .dark-slide .card {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.28);
+            box-shadow: 10px 10px 0 rgba(51, 199, 216, 0.15);
+        }
+
+        .card h3 {
+            margin-bottom: 18px;
+        }
+
+        .card p {
+            font-size: 23px;
+        }
+
+        .label {
+            display: inline-flex;
+            align-items: center;
+            height: 34px;
+            padding: 0 12px;
+            border: 1px solid currentColor;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 15px;
+            text-transform: uppercase;
+            margin-bottom: 18px;
+        }
+
+        .list {
+            display: grid;
+            gap: 14px;
+            list-style: none;
+        }
+
+        .list li {
+            display: grid;
+            grid-template-columns: 18px 1fr;
+            gap: 14px;
+            font-size: 24px;
+            color: var(--ink-soft);
+        }
+
+        .dark-slide .list li {
+            color: rgba(255, 255, 255, 0.78);
+        }
+
+        .list li::before {
+            content: "";
+            width: 11px;
+            height: 11px;
+            margin-top: 10px;
+            background: var(--brand-teal);
+            border: 2px solid var(--ink);
+        }
+
+        .dark-slide .list li::before {
+            background: var(--amber);
+            border-color: rgba(255, 255, 255, 0.72);
+        }
+
+        /* ===========================================
+           ANIMATIONS
+           Subtle reveals for professional movement.
+           =========================================== */
+        .reveal,
+        .reveal-left,
+        .reveal-scale {
+            opacity: 0;
+            transition:
+                opacity var(--duration-normal) var(--ease-out-expo),
+                transform var(--duration-normal) var(--ease-out-expo),
+                filter var(--duration-normal) var(--ease-out-expo);
+        }
+
+        .reveal {
+            transform: translateY(28px);
+        }
+
+        .reveal-left {
+            transform: translateX(-42px);
+        }
+
+        .reveal-scale {
+            transform: scale(0.94);
+            filter: blur(4px);
+        }
+
+        .slide.visible .reveal,
+        .slide.visible .reveal-left,
+        .slide.visible .reveal-scale {
+            opacity: 1;
+            transform: none;
+            filter: none;
+        }
+
+        .delay-1 { transition-delay: 0.08s; }
+        .delay-2 { transition-delay: 0.16s; }
+        .delay-3 { transition-delay: 0.24s; }
+        .delay-4 { transition-delay: 0.32s; }
+        .delay-5 { transition-delay: 0.4s; }
+
+        /* ===========================================
+           TITLE SLIDE
+           Opening composition with strong CPA Automation signal.
+           =========================================== */
+        .title-slide {
+            padding: 92px 104px;
+        }
+
+        .title-slide .hero-logo {
+            width: 360px;
+            padding: 14px 18px;
+            margin-bottom: 120px;
+            background: rgba(255, 250, 241, 0.94);
+            border: 2px solid rgba(255, 255, 255, 0.18);
+            border-radius: 8px;
+            filter: none;
+        }
+
+        .title-slide h1 {
+            font-size: 126px;
+            max-width: 1300px;
+        }
+
+        .title-slide .hero-rule {
+            width: 420px;
+            height: 10px;
+            background: linear-gradient(90deg, var(--brand-cyan), var(--amber), var(--coral));
+            margin: 38px 0 34px;
+        }
+
+        .title-slide .hero-meta {
+            display: grid;
+            grid-template-columns: 460px 550px;
+            gap: 36px;
+            margin-top: 40px;
+        }
+
+        .title-slide .hero-meta p {
+            font-size: 25px;
+        }
+
+        .title-panel {
+            position: absolute;
+            right: 104px;
+            bottom: 96px;
+            width: 432px;
+            padding: 34px;
+            border: 2px solid rgba(255, 255, 255, 0.26);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .title-panel .mono {
+            color: var(--brand-cyan);
+            font-size: 17px;
+            text-transform: uppercase;
+        }
+
+        .title-panel p {
+            margin-top: 18px;
+            font-size: 24px;
+        }
+
+        /* ===========================================
+           TRANSFORMATION MODEL
+           Four phase map adapted for LLM governance.
+           =========================================== */
+        .phase-map {
+            display: grid;
+            grid-template-columns: 1.2fr 0.85fr 0.85fr 0.75fr;
+            height: 608px;
+            border: 3px solid var(--ink);
+            background: var(--paper-warm);
+        }
+
+        .phase {
+            display: grid;
+            grid-template-rows: 98px 96px 1fr;
+            border-right: 2px solid var(--ink);
+        }
+
+        .phase:last-child {
+            border-right: 0;
+        }
+
+        .phase-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px;
+            font-family: var(--font-display);
+            font-size: 29px;
+            text-align: center;
+            color: var(--white);
+            background: var(--brand-teal);
+        }
+
+        .phase:nth-child(1) .phase-header { background: #7d2552; }
+        .phase:nth-child(2) .phase-header { background: #6f7074; }
+        .phase:nth-child(3) .phase-header { background: #d88831; }
+        .phase:nth-child(4) .phase-header { background: #0e6670; }
+
+        .phase-steps {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            border-bottom: 2px solid var(--ink);
+        }
+
+        .phase:nth-child(2) .phase-steps {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .phase:nth-child(3) .phase-steps {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .phase:nth-child(4) .phase-steps {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .phase-step {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 2px solid var(--ink);
+            background: rgba(11, 135, 147, 0.16);
+            font-family: var(--font-display);
+            font-size: 40px;
+        }
+
+        .phase-step:last-child {
+            border-right: 0;
+        }
+
+        .phase-detail {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .phase:nth-child(2) .phase-detail,
+        .phase:nth-child(3) .phase-detail,
+        .phase:nth-child(4) .phase-detail {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .phase-cell {
+            padding: 24px 20px;
+            border-right: 2px solid rgba(7, 25, 35, 0.18);
+            text-align: center;
+        }
+
+        .phase-cell:last-child {
+            border-right: 0;
+        }
+
+        .phase-cell h3 {
+            font-size: 26px;
+            margin-bottom: 14px;
+        }
+
+        .phase-cell p {
+            font-size: 20px;
+        }
+
+        /* ===========================================
+           OPERATING MODEL
+           Council, practice, and control owner layout.
+           =========================================== */
+        .operating-model {
+            display: grid;
+            grid-template-columns: 420px 1fr 420px;
+            gap: 34px;
+            align-items: center;
+            height: 650px;
+        }
+
+        .role-stack {
+            display: grid;
+            gap: 24px;
+        }
+
+        .role-card {
+            min-height: 136px;
+            padding: 25px 25px 22px;
+            border: 2px solid var(--ink);
+            background: var(--paper-warm);
+            box-shadow: 8px 8px 0 rgba(7, 25, 35, 0.1);
+        }
+
+        .role-card h3 {
+            font-size: 30px;
+            margin-bottom: 10px;
+        }
+
+        .role-card p {
+            font-size: 21px;
+        }
+
+        .council-core {
+            height: 520px;
+            display: grid;
+            place-items: center;
+            position: relative;
+            border: 3px solid var(--ink);
+            background:
+                linear-gradient(90deg, rgba(7, 25, 35, 0.06) 1px, transparent 1px),
+                linear-gradient(0deg, rgba(7, 25, 35, 0.06) 1px, transparent 1px),
+                var(--paper-warm);
+            background-size: 38px 38px;
+        }
+
+        .council-core::before,
+        .council-core::after {
+            content: "";
+            position: absolute;
+            width: 92%;
+            height: 2px;
+            background: var(--ink);
+        }
+
+        .council-core::before {
+            transform: rotate(28deg);
+        }
+
+        .council-core::after {
+            transform: rotate(-28deg);
+        }
+
+        .council-badge {
+            position: relative;
+            z-index: 2;
+            width: 360px;
+            height: 360px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            padding: 44px;
+            color: var(--white);
+            background: radial-gradient(circle at 30% 20%, var(--brand-cyan), var(--brand-teal) 45%, var(--brand-navy));
+            border: 4px solid var(--ink);
+            box-shadow: 18px 18px 0 rgba(7, 25, 35, 0.12);
+        }
+
+        .council-badge h3 {
+            font-size: 45px;
+        }
+
+        .council-badge p {
+            margin-top: 16px;
+            color: rgba(255, 255, 255, 0.82);
+            font-size: 22px;
+        }
+
+        /* ===========================================
+           DECISION RIGHTS
+           RACI-style matrix with concise ownership.
+           =========================================== */
+        .raci-grid {
+            display: grid;
+            grid-template-columns: 360px repeat(5, 1fr);
+            grid-template-rows: 88px repeat(5, 82px);
+            border: 3px solid var(--ink);
+            background: var(--paper-warm);
+        }
+
+        .raci-grid > div {
+            min-height: 0;
+            padding: 16px 18px;
+            border-right: 2px solid var(--ink);
+            border-bottom: 2px solid var(--ink);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 22px;
+        }
+
+        .raci-grid > div:nth-child(6n) {
+            border-right: 0;
+        }
+
+        .raci-grid > div:nth-last-child(-n + 6) {
+            border-bottom: 0;
+        }
+
+        .raci-head {
+            background: var(--brand-navy);
+            color: var(--white);
+            font-family: var(--font-display);
+            font-size: 24px !important;
+        }
+
+        .raci-row {
+            justify-content: flex-start !important;
+            text-align: left !important;
+            font-family: var(--font-display);
+            font-size: 24px !important;
+            background: rgba(51, 199, 216, 0.15);
+        }
+
+        .raci-mark {
+            font-family: var(--font-display);
+            font-size: 34px !important;
+            color: var(--brand-teal);
+        }
+
+        .raci-watch {
+            color: var(--amber);
+        }
+
+        .raci-slide .source-note,
+        .raci-slide .slide-number {
+            bottom: 52px;
+            line-height: 1;
+        }
+
+        /* ===========================================
+           FUNCTION INVENTORY MAP
+           Accounting-firm structure adapted from source PDF.
+           =========================================== */
+        .function-map {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 28px;
+            height: 520px;
+        }
+
+        .function-labels {
+            display: grid;
+            grid-template-rows: 70px 176px 142px 82px;
+            gap: 16px;
+        }
+
+        .side-label {
+            border: 2px solid var(--ink);
+            background: var(--paper-warm);
+            display: grid;
+            place-items: center;
+            text-align: center;
+            font-family: var(--font-display);
+            font-size: 24px;
+        }
+
+        .function-blocks {
+            display: grid;
+            grid-template-rows: 70px 176px 142px 82px;
+            gap: 16px;
+        }
+
+        .exec-bar,
+        .system-bar {
+            border: 2px solid var(--ink);
+            background: #d8dad6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-size: 26px;
+            text-align: center;
+        }
+
+        .delivery-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+        }
+
+        .support-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+        }
+
+        .func-box {
+            border: 2px solid var(--ink);
+            background: #d8dad6;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            padding: 18px;
+            font-family: var(--font-display);
+            font-size: 23px;
+            min-height: 100%;
+        }
+
+        .func-box.teal {
+            background: rgba(51, 199, 216, 0.22);
+        }
+
+        .func-box.gold {
+            background: rgba(242, 167, 59, 0.24);
+        }
+
+        .system-row {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 12px;
+            height: 82px;
+        }
+
+        .system-row .func-box {
+            font-size: 18px;
+        }
+
+        /* ===========================================
+           TAXONOMY AND SCORECARD
+           Risk tiers and structured intake evaluation.
+           =========================================== */
+        .tier-board {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 28px;
+            height: 640px;
+        }
+
+        .tier {
+            display: grid;
+            grid-template-rows: 118px 1fr;
+            border: 3px solid var(--ink);
+            background: var(--paper-warm);
+            box-shadow: 10px 10px 0 rgba(7, 25, 35, 0.1);
+        }
+
+        .tier-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 26px 30px;
+            color: var(--white);
+            border-bottom: 3px solid var(--ink);
+        }
+
+        .tier.green .tier-head { background: var(--green); }
+        .tier.yellow .tier-head { background: var(--amber); color: var(--ink); }
+        .tier.red .tier-head { background: var(--coral); }
+
+        .tier-head h3 {
+            font-size: 36px;
+        }
+
+        .tier-head .mono {
+            font-size: 18px;
+        }
+
+        .tier-body {
+            padding: 30px;
+            display: grid;
+            gap: 22px;
+            align-content: start;
+        }
+
+        .tier-body p {
+            font-size: 22px;
+        }
+
+        .example-line {
+            border-top: 1px solid var(--line);
+            padding-top: 18px;
+            font-family: var(--font-mono);
+            font-size: 17px;
+            color: var(--muted);
+            line-height: 1.38;
+        }
+
+        .scorecard {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 36px;
+            height: 645px;
+        }
+
+        .score-table {
+            border: 3px solid var(--ink);
+            background: var(--paper-warm);
+        }
+
+        .score-row {
+            display: grid;
+            grid-template-columns: 265px 1fr 168px;
+            min-height: 96px;
+            border-bottom: 2px solid var(--ink);
+        }
+
+        .score-row:last-child {
+            border-bottom: 0;
+        }
+
+        .score-row > div {
+            padding: 20px 22px;
+            border-right: 2px solid var(--ink);
+            display: flex;
+            align-items: center;
+            font-size: 21px;
+            line-height: 1.22;
+        }
+
+        .score-row > div:last-child {
+            border-right: 0;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-size: 30px;
+            color: var(--brand-teal);
+        }
+
+        .score-row .criterion {
+            font-family: var(--font-display);
+            font-size: 27px;
+            background: rgba(51, 199, 216, 0.16);
+        }
+
+        .gate-stack {
+            display: grid;
+            gap: 20px;
+        }
+
+        .gate {
+            border: 2px solid var(--ink);
+            background: var(--paper-warm);
+            padding: 26px;
+            min-height: 112px;
+        }
+
+        .gate h3 {
+            font-size: 30px;
+            margin-bottom: 9px;
+        }
+
+        .gate p {
+            font-size: 22px;
+        }
+
+        /* ===========================================
+           POLICY STACK
+           Concrete controls every approved LLM use must satisfy.
+           =========================================== */
+        .policy-stack {
+            display: grid;
+            grid-template-columns: 0.88fr 1.12fr;
+            gap: 38px;
+            height: 650px;
+        }
+
+        .policy-column {
+            display: grid;
+            gap: 18px;
+        }
+
+        .policy-item {
+            display: grid;
+            grid-template-columns: 64px 1fr;
+            gap: 20px;
+            align-items: start;
+            min-height: 112px;
+            padding: 22px;
+            border: 2px solid var(--ink);
+            background: var(--paper-warm);
+        }
+
+        .policy-index {
+            width: 56px;
+            height: 56px;
+            display: grid;
+            place-items: center;
+            font-family: var(--font-display);
+            font-size: 25px;
+            color: var(--white);
+            background: var(--brand-navy);
+        }
+
+        .policy-item h3 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .policy-item p {
+            font-size: 21px;
+        }
+
+        .policy-memo {
+            border: 3px solid var(--ink);
+            background: var(--brand-navy);
+            color: var(--white);
+            padding: 34px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .policy-memo::after {
+            content: "";
+            position: absolute;
+            right: -80px;
+            bottom: -80px;
+            width: 300px;
+            height: 300px;
+            border: 38px solid rgba(51, 199, 216, 0.22);
+            border-radius: 50%;
+        }
+
+        .policy-memo h3 {
+            font-size: 41px;
+            max-width: 560px;
+        }
+
+        .policy-memo p {
+            margin-top: 20px;
+            color: rgba(255, 255, 255, 0.78);
+        }
+
+        .policy-memo .memo-rule {
+            height: 9px;
+            width: 260px;
+            margin: 24px 0;
+            background: linear-gradient(90deg, var(--brand-cyan), var(--amber));
+        }
+
+        .policy-memo .mini-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 24px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .policy-memo .mini-list span {
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            padding: 11px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.82);
+        }
+
+        /* ===========================================
+           COMPANY-WIDE LLM PROCESS SLIDES
+           Approval workflows for models, MCPs, connectors, and data.
+           =========================================== */
+        .process-flow {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 16px;
+            height: 272px;
+            margin-bottom: 28px;
+        }
+
+        .process-step {
+            position: relative;
+            border: 2px solid var(--ink);
+            background: var(--paper-warm);
+            padding: 22px 18px;
+            display: grid;
+            align-content: start;
+            gap: 12px;
+        }
+
+        .process-step:not(:last-child)::after {
+            content: "";
+            position: absolute;
+            right: -18px;
+            top: 50%;
+            width: 18px;
+            height: 3px;
+            background: var(--ink);
+        }
+
+        .process-step .step-id {
+            width: 42px;
+            height: 42px;
+            display: grid;
+            place-items: center;
+            background: var(--brand-navy);
+            color: var(--white);
+            font-family: var(--font-display);
+            font-size: 21px;
+        }
+
+        .process-step h3 {
+            font-size: 25px;
+        }
+
+        .process-step p {
+            font-size: 18px;
+            line-height: 1.27;
+        }
+
+        .process-panels {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            height: 288px;
+        }
+
+        .process-panel {
+            border: 2px solid var(--ink);
+            background: rgba(51, 199, 216, 0.12);
+            padding: 24px;
+        }
+
+        .process-panel:nth-child(2) {
+            background: rgba(242, 167, 59, 0.16);
+        }
+
+        .process-panel:nth-child(3) {
+            background: rgba(47, 182, 118, 0.13);
+        }
+
+        .process-panel h3 {
+            font-size: 28px;
+            margin-bottom: 12px;
+        }
+
+        .process-panel p {
+            font-size: 20px;
+        }
+
+        .config-matrix {
+            display: grid;
+            grid-template-columns: 1.05fr 1.05fr 0.9fr;
+            gap: 24px;
+            height: 520px;
+        }
+
+        .config-column {
+            border: 3px solid var(--ink);
+            background: var(--paper-warm);
+            display: grid;
+            grid-template-rows: 76px repeat(6, minmax(0, 1fr));
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .config-head {
+            display: flex;
+            align-items: center;
+            padding: 16px 22px;
+            border-bottom: 3px solid var(--ink);
+            background: var(--brand-navy);
+            color: var(--white);
+            font-family: var(--font-display);
+            font-size: 27px;
+        }
+
+        .config-column:nth-child(2) .config-head {
+            background: var(--brand-teal);
+        }
+
+        .config-column:nth-child(3) .config-head {
+            background: var(--amber);
+            color: var(--ink);
+        }
+
+        .config-row {
+            display: grid;
+            align-content: center;
+            padding: 8px 18px;
+            border-bottom: 2px solid rgba(7, 25, 35, 0.17);
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .config-row:last-child {
+            border-bottom: 0;
+        }
+
+        .config-row h3 {
+            font-size: 21px;
+            margin-bottom: 3px;
+        }
+
+        .config-row p {
+            font-size: 15.5px;
+            line-height: 1.18;
+        }
+
+        .approval-board {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 28px;
+            height: 642px;
+        }
+
+        .approval-left {
+            display: grid;
+            grid-template-rows: repeat(5, 1fr);
+            border: 3px solid var(--ink);
+            background: var(--paper-warm);
+        }
+
+        .approval-item {
+            display: grid;
+            grid-template-columns: 88px 1fr 180px;
+            align-items: center;
+            border-bottom: 2px solid var(--ink);
+        }
+
+        .approval-item:last-child {
+            border-bottom: 0;
+        }
+
+        .approval-num {
+            height: 100%;
+            display: grid;
+            place-items: center;
+            background: var(--brand-navy);
+            color: var(--white);
+            font-family: var(--font-display);
+            font-size: 34px;
+        }
+
+        .approval-copy {
+            padding: 20px 24px;
+        }
+
+        .approval-copy h3 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .approval-copy p {
+            font-size: 19px;
+        }
+
+        .approval-owner {
+            height: 100%;
+            display: grid;
+            place-items: center;
+            padding: 12px;
+            border-left: 2px solid var(--ink);
+            background: rgba(51, 199, 216, 0.14);
+            font-family: var(--font-mono);
+            font-size: 15px;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .approval-side {
+            display: grid;
+            gap: 18px;
+        }
+
+        .side-card {
+            border: 2px solid var(--ink);
+            background: var(--paper-warm);
+            padding: 24px;
+        }
+
+        .side-card h3 {
+            font-size: 28px;
+            margin-bottom: 12px;
+        }
+
+        .side-card p {
+            font-size: 20px;
+        }
+
+        .data-lanes {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            height: 354px;
+            margin-bottom: 28px;
+        }
+
+        .data-lane {
+            border: 2px solid var(--ink);
+            background: var(--paper-warm);
+            padding: 24px;
+            position: relative;
+        }
+
+        .data-lane::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 12px;
+            background: var(--green);
+        }
+
+        .data-lane:nth-child(2)::after {
+            background: var(--brand-teal);
+        }
+
+        .data-lane:nth-child(3)::after {
+            background: var(--amber);
+        }
+
+        .data-lane:nth-child(4)::after {
+            background: var(--coral);
+        }
+
+        .data-lane h3 {
+            font-size: 29px;
+            margin-bottom: 14px;
+        }
+
+        .data-lane p {
+            font-size: 19px;
+        }
+
+        .data-approval {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+            height: 206px;
+        }
+
+        .data-gate {
+            border: 2px solid var(--ink);
+            background: rgba(51, 199, 216, 0.12);
+            padding: 20px;
+        }
+
+        .data-gate h3 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .data-gate p {
+            font-size: 17px;
+        }
+
+        /* ===========================================
+           CONTROL ARCHITECTURE
+           Flow diagram for technical and process controls.
+           =========================================== */
+        .control-flow {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 18px;
+            align-items: stretch;
+            height: 350px;
+            margin-top: 46px;
+        }
+
+        .control-node {
+            position: relative;
+            border: 2px solid var(--ink);
+            background: var(--paper-warm);
+            padding: 24px 18px;
+            display: grid;
+            align-content: start;
+            gap: 14px;
+        }
+
+        .control-node:not(:last-child)::after {
+            content: "";
+            position: absolute;
+            right: -20px;
+            top: 50%;
+            width: 20px;
+            height: 2px;
+            background: var(--ink);
+        }
+
+        .control-node h3 {
+            font-size: 27px;
+        }
+
+        .control-node p {
+            font-size: 19px;
+        }
+
+        .control-bands {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-top: 34px;
+        }
+
+        .control-band {
+            border: 2px solid var(--ink);
+            padding: 24px;
+            background: rgba(51, 199, 216, 0.12);
+        }
+
+        .control-band:nth-child(2) {
+            background: rgba(242, 167, 59, 0.16);
+        }
+
+        .control-band:nth-child(3) {
+            background: rgba(47, 182, 118, 0.13);
+        }
+
+        .control-band h3 {
+            font-size: 27px;
+            margin-bottom: 10px;
+        }
+
+        .control-band p {
+            font-size: 20px;
+        }
+
+        /* ===========================================
+           ROADMAP
+           Sprint sequence for deploying governance.
+           =========================================== */
+        .roadmap {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            height: 642px;
+        }
+
+        .roadmap-lane {
+            border: 3px solid var(--ink);
+            background: var(--paper-warm);
+            display: grid;
+            grid-template-rows: 118px 1fr;
+            box-shadow: 10px 10px 0 rgba(7, 25, 35, 0.1);
+        }
+
+        .roadmap-head {
+            padding: 26px 30px;
+            border-bottom: 3px solid var(--ink);
+            color: var(--white);
+            background: var(--brand-navy);
+        }
+
+        .roadmap-lane:nth-child(2) .roadmap-head {
+            background: var(--brand-teal);
+        }
+
+        .roadmap-lane:nth-child(3) .roadmap-head {
+            background: var(--amber);
+            color: var(--ink);
+        }
+
+        .roadmap-head .mono {
+            font-size: 17px;
+            text-transform: uppercase;
+        }
+
+        .roadmap-head h3 {
+            margin-top: 8px;
+            font-size: 37px;
+        }
+
+        .roadmap-body {
+            padding: 30px;
+        }
+
+        .roadmap-body .list {
+            gap: 18px;
+        }
+
+        .roadmap-body .list li {
+            font-size: 23px;
+        }
+
+        /* ===========================================
+           EDUCATION AND METRICS
+           Role-based enablement and dashboard cards.
+           =========================================== */
+        .training-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 22px;
+            height: 380px;
+            margin-bottom: 30px;
+        }
+
+        .training-card {
+            border: 2px solid var(--ink);
+            background: var(--paper-warm);
+            padding: 26px;
+        }
+
+        .training-card h3 {
+            font-size: 29px;
+            margin-bottom: 14px;
+        }
+
+        .training-card p {
+            font-size: 20px;
+        }
+
+        .enablement-strip {
+            display: grid;
+            grid-template-columns: 1.3fr 1fr 1fr 1fr;
+            gap: 18px;
+        }
+
+        .enablement-item {
+            border: 2px solid var(--ink);
+            background: rgba(51, 199, 216, 0.15);
+            padding: 22px;
+            min-height: 130px;
+        }
+
+        .enablement-item h3 {
+            font-size: 27px;
+            margin-bottom: 8px;
+        }
+
+        .enablement-item p {
+            font-size: 19px;
+        }
+
+        .metrics-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            height: 520px;
+        }
+
+        .metric-card {
+            position: relative;
+            border: 2px solid var(--ink);
+            background: var(--paper-warm);
+            padding: 26px;
+            overflow: hidden;
+        }
+
+        .metric-card::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 12px;
+            background: var(--brand-teal);
+        }
+
+        .metric-card:nth-child(2)::after,
+        .metric-card:nth-child(6)::after {
+            background: var(--amber);
+        }
+
+        .metric-card:nth-child(3)::after,
+        .metric-card:nth-child(7)::after {
+            background: var(--coral);
+        }
+
+        .metric-card:nth-child(4)::after,
+        .metric-card:nth-child(8)::after {
+            background: var(--green);
+        }
+
+        .metric-card .metric-value {
+            font-family: var(--font-display);
+            font-size: 56px;
+            line-height: 0.92;
+            margin-bottom: 18px;
+        }
+
+        .metric-card h3 {
+            font-size: 27px;
+            margin-bottom: 10px;
+        }
+
+        .metric-card p {
+            font-size: 19px;
+        }
+
+        /* ===========================================
+           CADENCE AND CLOSING
+           Meeting rhythm, artifacts, and final contact slide.
+           =========================================== */
+        .cadence {
+            display: grid;
+            grid-template-columns: 0.85fr 1.15fr;
+            gap: 38px;
+            height: 645px;
+        }
+
+        .meeting-stack {
+            display: grid;
+            gap: 18px;
+        }
+
+        .meeting {
+            border: 2px solid var(--ink);
+            background: var(--paper-warm);
+            padding: 24px;
+        }
+
+        .meeting h3 {
+            font-size: 30px;
+            margin-bottom: 8px;
+        }
+
+        .meeting p {
+            font-size: 21px;
+        }
+
+        .artifact-board {
+            border: 3px solid var(--ink);
+            background: var(--paper-warm);
+            padding: 30px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+        }
+
+        .artifact {
+            border: 2px solid var(--line);
+            padding: 22px;
+            min-height: 118px;
+        }
+
+        .artifact h3 {
+            font-size: 27px;
+            margin-bottom: 8px;
+        }
+
+        .artifact p {
+            font-size: 19px;
+        }
+
+        .closing-slide h2 {
+            font-size: 82px;
+            max-width: 1080px;
+        }
+
+        .closing-grid {
+            display: grid;
+            grid-template-columns: 1fr 390px;
+            gap: 42px;
+            align-items: end;
+            margin-top: 46px;
+        }
+
+        .next-steps {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .next-step {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.08);
+            padding: 22px;
+            min-height: 154px;
+        }
+
+        .next-step h3 {
+            font-size: 27px;
+            margin-bottom: 12px;
+        }
+
+        .next-step p {
+            font-size: 18px;
+        }
+
+        .contact-card {
+            border: 2px solid rgba(255, 255, 255, 0.32);
+            background: rgba(255, 255, 255, 0.08);
+            padding: 26px;
+        }
+
+        .contact-card img {
+            width: 268px;
+            padding: 10px 12px;
+            background: rgba(255, 250, 241, 0.94);
+            border-radius: 8px;
+            filter: none;
+            margin-bottom: 22px;
+        }
+
+        .contact-card h3 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .contact-card p {
+            font-size: 21px;
+        }
+
+        /* ===========================================
+           DECK CONTROLS
+           Progress, counter, and unobtrusive navigation.
+           =========================================== */
+        .deck-controls {
+            top: 18px;
+            bottom: auto;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: rgba(7, 22, 27, 0.78);
+            color: var(--white);
+            font-family: var(--font-mono);
+            font-size: 13px;
+            backdrop-filter: blur(10px);
+        }
+
+        .control-button {
+            width: 32px;
+            height: 32px;
+            display: grid;
+            place-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            border-radius: 50%;
+            color: var(--white);
+            background: rgba(255, 255, 255, 0.08);
+            cursor: pointer;
+        }
+
+        .progress-shell {
+            width: 168px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--brand-cyan), var(--amber));
+            transition: width 0.25s ease;
+        }
+
+        /* ===========================================
+           INLINE EDITING CONTROLS
+           Hover the top-left corner or press E to edit.
+           =========================================== */
+        .edit-hotzone {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 84px;
+            height: 84px;
+            z-index: 10000;
+            cursor: pointer;
+        }
+
+        .edit-toggle,
+        .edit-download {
+            position: fixed;
+            left: 18px;
+            z-index: 10001;
+            border: 1px solid rgba(255, 255, 255, 0.26);
+            background: rgba(7, 22, 27, 0.86);
+            color: var(--white);
+            font-family: var(--font-mono);
+            font-size: 13px;
+            border-radius: 999px;
+            cursor: pointer;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .edit-toggle {
+            top: 18px;
+            width: 42px;
+            height: 42px;
+        }
+
+        .edit-download {
+            top: 68px;
+            height: 34px;
+            padding: 0 14px;
+        }
+
+        .edit-toggle.show,
+        .edit-toggle.active,
+        .edit-download.show,
+        .edit-download.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        body.editing [data-editable] {
+            outline: 2px dashed rgba(51, 199, 216, 0.82);
+            outline-offset: 4px;
+            cursor: text;
+        }
+
+        body.editing [data-editable]:focus {
+            outline: 3px solid var(--amber);
+            background: rgba(242, 167, 59, 0.12);
+        }
+    </style>
+</head>
+<body>
+    <div class="deck-viewport">
+        <main class="deck-stage" id="deckStage" aria-label="LLM governance operating model presentation">
+
+            <section class="slide dark-slide title-slide active">
+                <div class="accent-ribbon"></div>
+                <div class="accent-ribbon thin"></div>
+                <img class="hero-logo reveal-left" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <p class="eyebrow reveal delay-1" data-editable>Firm-wide governance for Claude, ChatGPT, and approved LLMs</p>
+                <h1 class="reveal delay-2" data-editable>Turn LLMs into governed firm capabilities.</h1>
+                <div class="hero-rule reveal delay-3"></div>
+                <div class="hero-meta">
+                    <p class="reveal delay-4" data-editable>Operating model, controls, roadmap, and adoption system for professional services teams using AI in client work.</p>
+                    <p class="reveal delay-5" data-editable>Prepared for CPA Automation Inc. by Ray Sang | raysang@cpaautomation.ai | cpaautomation.ai</p>
+                </div>
+                <div class="title-panel reveal-scale delay-4">
+                    <div class="mono" data-editable>Governance thesis</div>
+                    <p data-editable>LLMs should expand professional judgment, not bypass it. The firm needs clear decision rights before usage scales.</p>
+                </div>
+            </section>
+
+            <section class="slide">
+                <img class="brand-mark" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <div class="slide-kicker">Governance frame</div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <div class="title-band">
+                            <h2 class="reveal" data-editable>The goal is controlled adoption, not slower adoption.</h2>
+                            <p class="summary reveal delay-1" data-editable>LLM governance should make it obvious which use cases are encouraged, which require review, and which are off limits.</p>
+                        </div>
+                        <div class="four-col">
+                            <div class="card reveal delay-1">
+                                <span class="label">1. Enable</span>
+                                <h3 data-editable>Use AI where judgment bottlenecks exist</h3>
+                                <p data-editable>Drafting, research synthesis, client-ready explanations, workflow documentation, and first-pass analysis.</p>
+                            </div>
+                            <div class="card reveal delay-2">
+                                <span class="label">2. Protect</span>
+                                <h3 data-editable>Guard client data and firm reputation</h3>
+                                <p data-editable>Confidentiality, privilege, retention, disclosure, and output reliance must be designed into the workflow.</p>
+                            </div>
+                            <div class="card reveal delay-3">
+                                <span class="label">3. Standardize</span>
+                                <h3 data-editable>Move from individual experiments to reusable patterns</h3>
+                                <p data-editable>Approved prompts, playbooks, model/tool records, evaluation rubrics, and shared examples.</p>
+                            </div>
+                            <div class="card reveal delay-4">
+                                <span class="label">4. Measure</span>
+                                <h3 data-editable>Track value and reliability with the same discipline</h3>
+                                <p data-editable>Monitor adoption, cycle time, rework, exceptions, incidents, hallucination rates, and business impact.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">02 / 19</div>
+            </section>
+
+            <section class="slide">
+                <img class="brand-mark" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <div class="slide-kicker">Operating system</div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <div class="section-title">
+                            <p class="eyebrow reveal" data-editable>Adapted from the attached AI transformation model</p>
+                            <h2 class="reveal delay-1" data-editable>Four workstreams make firm-wide LLM adoption governable.</h2>
+                        </div>
+                        <div class="phase-map reveal delay-2">
+                            <div class="phase">
+                                <div class="phase-header" data-editable>AI vision & coordination</div>
+                                <div class="phase-steps">
+                                    <div class="phase-step">1</div>
+                                    <div class="phase-step">2</div>
+                                    <div class="phase-step">3</div>
+                                </div>
+                                <div class="phase-detail">
+                                    <div class="phase-cell">
+                                        <h3 data-editable>Program owner</h3>
+                                        <p data-editable>Name accountable leader, council, and intake path.</p>
+                                    </div>
+                                    <div class="phase-cell">
+                                        <h3 data-editable>Readiness & risk</h3>
+                                        <p data-editable>Assess maturity, data exposure, standards, and gaps.</p>
+                                    </div>
+                                    <div class="phase-cell">
+                                        <h3 data-editable>Strategy & roadmap</h3>
+                                        <p data-editable>Set principles, priorities, pilots, budget, and timeline.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="phase">
+                                <div class="phase-header" data-editable>AI implementation</div>
+                                <div class="phase-steps">
+                                    <div class="phase-step">4</div>
+                                    <div class="phase-step">5</div>
+                                </div>
+                                <div class="phase-detail">
+                                    <div class="phase-cell">
+                                        <h3 data-editable>Data prep</h3>
+                                        <p data-editable>Map data sources, sensitivity, access, and quality.</p>
+                                    </div>
+                                    <div class="phase-cell">
+                                        <h3 data-editable>Build & maintain</h3>
+                                        <p data-editable>Deploy approved LLM workflows and test them.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="phase">
+                                <div class="phase-header" data-editable>AI governance</div>
+                                <div class="phase-steps">
+                                    <div class="phase-step">6</div>
+                                    <div class="phase-step">7</div>
+                                </div>
+                                <div class="phase-detail">
+                                    <div class="phase-cell">
+                                        <h3 data-editable>Report & monitor</h3>
+                                        <p data-editable>Measure usage, value, reliability, exceptions, and incidents.</p>
+                                    </div>
+                                    <div class="phase-cell">
+                                        <h3 data-editable>Security & ethics</h3>
+                                        <p data-editable>Keep AI secure, accurate, compliant, and explainable.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="phase">
+                                <div class="phase-header" data-editable>AI education</div>
+                                <div class="phase-steps">
+                                    <div class="phase-step">8</div>
+                                    <div class="phase-step">9</div>
+                                </div>
+                                <div class="phase-detail">
+                                    <div class="phase-cell">
+                                        <h3 data-editable>Training</h3>
+                                        <p data-editable>Role-based learning for staff, managers, builders, and partners.</p>
+                                    </div>
+                                    <div class="phase-cell">
+                                        <h3 data-editable>Center of excellence</h3>
+                                        <p data-editable>Publish patterns, examples, office hours, and lessons learned.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">03 / 19</div>
+            </section>
+
+            <section class="slide">
+                <img class="brand-mark" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <div class="slide-kicker">Organization</div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <div class="title-band">
+                            <h2 class="reveal" data-editable>Governance needs a council with real operating reach.</h2>
+                            <p class="summary reveal delay-1" data-editable>The AI Council is not a debate forum. It owns the policy system, approves restricted uses, and clears blockers across practices.</p>
+                        </div>
+                        <div class="operating-model">
+                            <div class="role-stack reveal-left delay-1">
+                                <div class="role-card">
+                                    <h3 data-editable>Executive sponsor</h3>
+                                    <p data-editable>Sets risk appetite, funding, and firm-wide mandate.</p>
+                                </div>
+                                <div class="role-card">
+                                    <h3 data-editable>Practice owners</h3>
+                                    <p data-editable>Own use-case value, workflow fit, quality review, and staff adoption.</p>
+                                </div>
+                                <div class="role-card">
+                                    <h3 data-editable>Client delivery leads</h3>
+                                    <p data-editable>Retain professional judgment and certify final work product.</p>
+                                </div>
+                            </div>
+                            <div class="council-core reveal-scale delay-2">
+                                <div class="council-badge">
+                                    <div>
+                                        <h3 data-editable>AI Council</h3>
+                                        <p data-editable>Decision rights, exceptions, metrics, and roadmap governance.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="role-stack reveal delay-3">
+                                <div class="role-card">
+                                    <h3 data-editable>Risk, legal, compliance</h3>
+                                    <p data-editable>Own restricted data rules, client disclosure, retention, and incident policy.</p>
+                                </div>
+                                <div class="role-card">
+                                    <h3 data-editable>IT and security</h3>
+                                    <p data-editable>Own access, logging, DLP, approved tools, identity, and vendor controls.</p>
+                                </div>
+                                <div class="role-card">
+                                    <h3 data-editable>AI Center of Excellence</h3>
+                                    <p data-editable>Own standards, prompt libraries, evaluations, training, and reusable patterns.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">04 / 19</div>
+            </section>
+
+            <section class="slide raci-slide">
+                <img class="brand-mark" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <div class="slide-kicker">Decision rights</div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <div class="section-title">
+                            <p class="eyebrow reveal" data-editable>Suggested ownership model</p>
+                            <h2 class="reveal delay-1" data-editable>Assign ownership by decision, not by enthusiasm.</h2>
+                        </div>
+                        <div class="raci-grid reveal delay-2">
+                            <div class="raci-head">Decision</div>
+                            <div class="raci-head">AI Council</div>
+                            <div class="raci-head">Practice owner</div>
+                            <div class="raci-head">IT / security</div>
+                            <div class="raci-head">Risk / legal</div>
+                            <div class="raci-head">CoE</div>
+
+                            <div class="raci-row" data-editable>Approve firm policy</div>
+                            <div class="raci-mark">A</div>
+                            <div>C</div>
+                            <div>C</div>
+                            <div>C</div>
+                            <div>R</div>
+
+                            <div class="raci-row" data-editable>Approve restricted use cases</div>
+                            <div class="raci-mark">A</div>
+                            <div>R</div>
+                            <div>C</div>
+                            <div class="raci-mark raci-watch">R</div>
+                            <div>C</div>
+
+                            <div class="raci-row" data-editable>Approve tools and integrations</div>
+                            <div>C</div>
+                            <div>C</div>
+                            <div class="raci-mark">A/R</div>
+                            <div>C</div>
+                            <div>C</div>
+
+                            <div class="raci-row" data-editable>Maintain playbooks and evaluations</div>
+                            <div>C</div>
+                            <div>C</div>
+                            <div>C</div>
+                            <div>C</div>
+                            <div class="raci-mark">A/R</div>
+
+                            <div class="raci-row" data-editable>Certify final client work</div>
+                            <div>I</div>
+                            <div class="raci-mark">A/R</div>
+                            <div>I</div>
+                            <div>C</div>
+                            <div>C</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="source-note">A = accountable | R = responsible | C = consulted | I = informed</div>
+                <div class="slide-number">05 / 19</div>
+            </section>
+
+            <section class="slide">
+                <img class="brand-mark" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <div class="slide-kicker">Inventory</div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <div class="title-band">
+                            <h2 class="reveal" data-editable>Start with the firm map: functions, systems, data, and work products.</h2>
+                            <p class="summary reveal delay-1" data-editable>The source model inventories org structure, processes, systems, and data sets before prioritizing AI. Apply that same discipline to every LLM platform.</p>
+                        </div>
+                        <div class="function-map reveal delay-2">
+                            <div class="function-labels">
+                                <div class="side-label">Governance</div>
+                                <div class="side-label">Client delivery</div>
+                                <div class="side-label">Supporting functions</div>
+                                <div class="side-label">Systems & data</div>
+                            </div>
+                            <div class="function-blocks">
+                                <div class="exec-bar" data-editable>Executive leadership: strategy, risk appetite, operations, governance</div>
+                                <div class="delivery-grid">
+                                    <div class="func-box teal" data-editable>Tax</div>
+                                    <div class="func-box teal" data-editable>Audit & assurance</div>
+                                    <div class="func-box teal" data-editable>Client accounting services</div>
+                                    <div class="func-box teal" data-editable>Advisory</div>
+                                    <div class="func-box teal" data-editable>Client onboarding</div>
+                                </div>
+                                <div class="support-grid">
+                                    <div class="func-box" data-editable>Finance</div>
+                                    <div class="func-box" data-editable>HR</div>
+                                    <div class="func-box" data-editable>Legal</div>
+                                    <div class="func-box gold" data-editable>IT & security</div>
+                                    <div class="func-box" data-editable>Marketing & sales</div>
+                                    <div class="func-box" data-editable>Knowledge management</div>
+                                </div>
+                                <div class="system-row">
+                                    <div class="func-box" data-editable>DMS</div>
+                                    <div class="func-box" data-editable>Tax apps</div>
+                                    <div class="func-box" data-editable>Audit apps</div>
+                                    <div class="func-box" data-editable>CRM</div>
+                                    <div class="func-box" data-editable>Billing</div>
+                                    <div class="func-box" data-editable>Email / chat</div>
+                                    <div class="func-box" data-editable>Client portals</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">06 / 19</div>
+            </section>
+
+            <section class="slide">
+                <img class="brand-mark" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <div class="slide-kicker">Use-case taxonomy</div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <div class="section-title">
+                            <p class="eyebrow reveal" data-editable>Default policy bands</p>
+                            <h2 class="reveal delay-1" data-editable>Every LLM use case belongs in one of three lanes.</h2>
+                        </div>
+                        <div class="tier-board">
+                            <div class="tier green reveal delay-1">
+                                <div class="tier-head">
+                                    <h3 data-editable>Allowed</h3>
+                                    <span class="mono">Low risk</span>
+                                </div>
+                                <div class="tier-body">
+                                    <p data-editable>Public or internal non-sensitive content, brainstorming, formatting, checklists, training drafts, and general knowledge support.</p>
+                                    <p data-editable>Human review is still required before client or external use.</p>
+                                    <div class="example-line" data-editable>Examples: internal SOP draft, meeting agenda, first-pass email tone rewrite.</div>
+                                </div>
+                            </div>
+                            <div class="tier yellow reveal delay-2">
+                                <div class="tier-head">
+                                    <h3 data-editable>Controlled</h3>
+                                    <span class="mono">Approval required</span>
+                                </div>
+                                <div class="tier-body">
+                                    <p data-editable>Client data, regulated subject matter, tax positions, audit evidence, contracts, financial statements, or output used in professional judgment.</p>
+                                    <p data-editable>Requires approved surface, logging, data handling controls, validation, and reviewer sign-off.</p>
+                                    <div class="example-line" data-editable>Examples: memo drafting from client files, reconciliations, contract clause summaries.</div>
+                                </div>
+                            </div>
+                            <div class="tier red reveal delay-3">
+                                <div class="tier-head">
+                                    <h3 data-editable>Prohibited</h3>
+                                    <span class="mono">Do not use</span>
+                                </div>
+                                <div class="tier-body">
+                                    <p data-editable>Unapproved tools, secrets, credentials, raw sensitive personal data, privileged material without approval, or autonomous decisions without human review.</p>
+                                    <p data-editable>Exceptions must be formally documented and approved before any pilot.</p>
+                                    <div class="example-line" data-editable>Examples: uploading full client data rooms to a personal account, finalizing advice without review.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">07 / 19</div>
+            </section>
+
+            <section class="slide">
+                <img class="brand-mark" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <div class="slide-kicker">Assessment</div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <div class="title-band">
+                            <h2 class="reveal" data-editable>Prioritize by fit, value, feasibility, risk, and effort.</h2>
+                            <p class="summary reveal delay-1" data-editable>Not every issue needs an AI solution. The intake scorecard should make weak use cases easy to stop early.</p>
+                        </div>
+                        <div class="scorecard">
+                            <div class="score-table reveal-left delay-1">
+                                <div class="score-row">
+                                    <div class="criterion" data-editable>Strategic fit</div>
+                                    <div data-editable>Does the use case support firm goals, client service quality, or operating leverage?</div>
+                                    <div>1-5</div>
+                                </div>
+                                <div class="score-row">
+                                    <div class="criterion" data-editable>Business value</div>
+                                    <div data-editable>Will it reduce cycle time, improve quality, increase capacity, or lower rework?</div>
+                                    <div>1-5</div>
+                                </div>
+                                <div class="score-row">
+                                    <div class="criterion" data-editable>Feasibility</div>
+                                    <div data-editable>Are data sources, workflow owners, reviewers, and integration paths ready?</div>
+                                    <div>1-5</div>
+                                </div>
+                                <div class="score-row">
+                                    <div class="criterion" data-editable>Risk</div>
+                                    <div data-editable>What is the confidentiality, regulatory, client reliance, and reputational exposure?</div>
+                                    <div>1-5</div>
+                                </div>
+                                <div class="score-row">
+                                    <div class="criterion" data-editable>Effort vs. value</div>
+                                    <div data-editable>Can the firm pilot quickly, measure impact, and reuse the pattern elsewhere?</div>
+                                    <div>1-5</div>
+                                </div>
+                            </div>
+                            <div class="gate-stack reveal delay-2">
+                                <div class="gate">
+                                    <h3 data-editable>Gate 1: data sensitivity</h3>
+                                    <p data-editable>Classify public, internal, confidential, restricted, privileged, and regulated data before any tool decision.</p>
+                                </div>
+                                <div class="gate">
+                                    <h3 data-editable>Gate 2: output reliance</h3>
+                                    <p data-editable>Determine whether the LLM is drafting, summarizing, recommending, calculating, or triggering downstream action.</p>
+                                </div>
+                                <div class="gate">
+                                    <h3 data-editable>Gate 3: reversibility</h3>
+                                    <p data-editable>Prefer pilots where errors are visible, reviewable, reversible, and contained inside a supervised workflow.</p>
+                                </div>
+                                <div class="gate">
+                                    <h3 data-editable>Gate 4: scale path</h3>
+                                    <p data-editable>Require owner, training plan, control evidence, and monitoring metrics before broad rollout.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">08 / 19</div>
+            </section>
+
+            <section class="slide">
+                <img class="brand-mark" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <div class="slide-kicker">Policy stack</div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <div class="title-band">
+                            <h2 class="reveal" data-editable>Policy should be operational enough to use on Monday.</h2>
+                            <p class="summary reveal delay-1" data-editable>Write the LLM policy around concrete workflow requirements, not abstract AI principles alone.</p>
+                        </div>
+                        <div class="policy-stack">
+                            <div class="policy-column reveal-left delay-1">
+                                <div class="policy-item">
+                                    <div class="policy-index">01</div>
+                                    <div>
+                                        <h3 data-editable>Approved surfaces</h3>
+                                        <p data-editable>Define where approved LLMs can be used: browser, workspace, API, embedded agents, MCPs, and approved integrations.</p>
+                                    </div>
+                                </div>
+                                <div class="policy-item">
+                                    <div class="policy-index">02</div>
+                                    <div>
+                                        <h3 data-editable>Data handling</h3>
+                                        <p data-editable>Specify what data may be entered, masked, uploaded, retained, logged, or excluded entirely.</p>
+                                    </div>
+                                </div>
+                                <div class="policy-item">
+                                    <div class="policy-index">03</div>
+                                    <div>
+                                        <h3 data-editable>Human review</h3>
+                                        <p data-editable>State who reviews outputs, what evidence is retained, and when second-level review is needed.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="policy-memo reveal delay-2">
+                                <p class="eyebrow" data-editable>Minimum documentation for every governed use case</p>
+                                <h3 data-editable>Use case card: owner, data, prompt, output, reviewer, risk tier, controls, KPIs.</h3>
+                                <div class="memo-rule"></div>
+                                <p data-editable>This card becomes the single record used by the AI Council, IT/security, practice leadership, training, and monitoring.</p>
+                                <div class="mini-list">
+                                    <span data-editable>Client disclosure position</span>
+                                    <span data-editable>Retention and audit trail</span>
+                                    <span data-editable>Validation test set</span>
+                                    <span data-editable>Exception process</span>
+                                    <span data-editable>Responsible reviewer</span>
+                                    <span data-editable>Rollback criteria</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">09 / 19</div>
+            </section>
+
+            <section class="slide">
+                <img class="brand-mark" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <div class="slide-kicker">Screening process</div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <div class="title-band">
+                            <h2 class="reveal" data-editable>Use one company-wide approval path for every LLM platform.</h2>
+                            <p class="summary reveal delay-1" data-editable>Claude, ChatGPT, and any future model should pass the same screening gates before users, data, MCPs, or client workflows are enabled.</p>
+                        </div>
+                        <div class="process-flow reveal delay-2">
+                            <div class="process-step">
+                                <div class="step-id">1</div>
+                                <h3 data-editable>Request</h3>
+                                <p data-editable>Business owner submits model, workspace, use cases, data classes, expected users, and target launch date.</p>
+                            </div>
+                            <div class="process-step">
+                                <div class="step-id">2</div>
+                                <h3 data-editable>Classify</h3>
+                                <p data-editable>AI CoE tags risk tier, data sensitivity, output reliance, affected clients, and required reviewers.</p>
+                            </div>
+                            <div class="process-step">
+                                <div class="step-id">3</div>
+                                <h3 data-editable>Screen vendor</h3>
+                                <p data-editable>IT/security reviews SOC reports, DPA, subprocessors, retention, admin controls, and incident terms.</p>
+                            </div>
+                            <div class="process-step">
+                                <div class="step-id">4</div>
+                                <h3 data-editable>Configure</h3>
+                                <p data-editable>Admins set SSO, groups, logging, retention, sharing, connector rules, model access, and default restrictions.</p>
+                            </div>
+                            <div class="process-step">
+                                <div class="step-id">5</div>
+                                <h3 data-editable>Pilot</h3>
+                                <p data-editable>Run test users, validation prompts, data-loss checks, reviewer sign-off, and rollback criteria.</p>
+                            </div>
+                            <div class="process-step">
+                                <div class="step-id">6</div>
+                                <h3 data-editable>Approve</h3>
+                                <p data-editable>AI Council approves scope, publishes playbook, trains users, and moves the record to monitoring.</p>
+                            </div>
+                        </div>
+                        <div class="process-panels reveal delay-3">
+                            <div class="process-panel">
+                                <h3 data-editable>Required intake artifacts</h3>
+                                <p data-editable>Use-case card, data map, owner, reviewer, user group, model/workspace requested, MCP/connectors requested, client impact, and KPIs.</p>
+                            </div>
+                            <div class="process-panel">
+                                <h3 data-editable>Approval evidence</h3>
+                                <p data-editable>Vendor review, security review, legal/privacy review, data-governance decision, pilot results, and final configuration checklist.</p>
+                            </div>
+                            <div class="process-panel">
+                                <h3 data-editable>Launch controls</h3>
+                                <p data-editable>Named admins, SSO group, approved user list, training completion, monitoring owner, incident channel, and exception expiration date.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">10 / 19</div>
+            </section>
+
+            <section class="slide">
+                <img class="brand-mark" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <div class="slide-kicker">Configuration baseline</div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <div class="title-band">
+                            <h2 class="reveal" data-editable>Configure every LLM platform from one firm standard.</h2>
+                            <p class="summary reveal delay-1" data-editable>The policy should define the control objective; admins then map it to each platform's enterprise settings.</p>
+                        </div>
+                        <div class="config-matrix reveal delay-2">
+                            <div class="config-column">
+                                <div class="config-head" data-editable>Enterprise tenant</div>
+                                <div class="config-row">
+                                    <h3 data-editable>Identity</h3>
+                                    <p data-editable>SSO required; no shared accounts; group-based access by role, practice, and risk tier.</p>
+                                </div>
+                                <div class="config-row">
+                                    <h3 data-editable>Data use</h3>
+                                    <p data-editable>Disable training on firm data where available; document retention and deletion rules.</p>
+                                </div>
+                                <div class="config-row">
+                                    <h3 data-editable>Sharing</h3>
+                                    <p data-editable>Restrict public sharing, unmanaged export, external collaborators, and personal workspace migration.</p>
+                                </div>
+                                <div class="config-row">
+                                    <h3 data-editable>Connectors</h3>
+                                    <p data-editable>Default off; enable only approved connectors, MCP servers, and tool scopes.</p>
+                                </div>
+                                <div class="config-row">
+                                    <h3 data-editable>Logging</h3>
+                                    <p data-editable>Capture admin actions, user activity, tool calls, incidents, and exception approvals.</p>
+                                </div>
+                                <div class="config-row">
+                                    <h3 data-editable>Model access</h3>
+                                    <p data-editable>Maintain approved model list by use case, risk tier, and evaluation status.</p>
+                                </div>
+                            </div>
+                            <div class="config-column">
+                                <div class="config-head" data-editable>Workspace rollout</div>
+                                <div class="config-row">
+                                    <h3 data-editable>Admin owners</h3>
+                                    <p data-editable>Primary and backup admins named; changes require ticket and monthly review.</p>
+                                </div>
+                                <div class="config-row">
+                                    <h3 data-editable>User groups</h3>
+                                    <p data-editable>Pilot, builder, reviewer, partner, and restricted-data groups with different permissions.</p>
+                                </div>
+                                <div class="config-row">
+                                    <h3 data-editable>Default prompts</h3>
+                                    <p data-editable>Publish approved system guidance, disclaimers, review reminders, and data restrictions.</p>
+                                </div>
+                                <div class="config-row">
+                                    <h3 data-editable>Knowledge sources</h3>
+                                    <p data-editable>Curate approved firm libraries; tag client files, restricted data, and stale source material.</p>
+                                </div>
+                                <div class="config-row">
+                                    <h3 data-editable>Release cycle</h3>
+                                    <p data-editable>Review new features monthly before enabling browsing, memory, file tools, agents, or connectors.</p>
+                                </div>
+                                <div class="config-row">
+                                    <h3 data-editable>Exit process</h3>
+                                    <p data-editable>Remove departed users, rotate secrets, revoke tokens, and archive governed workspaces.</p>
+                                </div>
+                            </div>
+                            <div class="config-column">
+                                <div class="config-head" data-editable>Decision rules</div>
+                                <div class="config-row">
+                                    <h3 data-editable>AI Council</h3>
+                                    <p data-editable>Approves platform scope, restricted use cases, and exception policy.</p>
+                                </div>
+                                <div class="config-row">
+                                    <h3 data-editable>IT/security</h3>
+                                    <p data-editable>Owns SSO, groups, logs, connectors, secrets, and vendor security review.</p>
+                                </div>
+                                <div class="config-row">
+                                    <h3 data-editable>Data owner</h3>
+                                    <p data-editable>Approves data classes, retention, and use in client or practice workflows.</p>
+                                </div>
+                                <div class="config-row">
+                                    <h3 data-editable>Practice owner</h3>
+                                    <p data-editable>Certifies workflow value, quality review, user training, and final output accountability.</p>
+                                </div>
+                                <div class="config-row">
+                                    <h3 data-editable>Legal/privacy</h3>
+                                    <p data-editable>Approves client disclosure, DPA, cross-border terms, and regulated data use.</p>
+                                </div>
+                                <div class="config-row">
+                                    <h3 data-editable>CoE</h3>
+                                    <p data-editable>Maintains playbooks, prompts, evaluations, training, and adoption support.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">11 / 19</div>
+            </section>
+
+            <section class="slide">
+                <img class="brand-mark" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <div class="slide-kicker">MCP and connectors</div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <div class="title-band">
+                            <h2 class="reveal" data-editable>Approve MCPs and connectors as system integrations.</h2>
+                            <p class="summary reveal delay-1" data-editable>An MCP can give an LLM operational reach into firm systems. Treat it like an integration, not like a prompt.</p>
+                        </div>
+                        <div class="approval-board">
+                            <div class="approval-left reveal-left delay-1">
+                                <div class="approval-item">
+                                    <div class="approval-num">1</div>
+                                    <div class="approval-copy">
+                                        <h3 data-editable>Register the MCP</h3>
+                                        <p data-editable>Capture provider, code owner, hosting location, data touched, tool actions, auth method, and business purpose.</p>
+                                    </div>
+                                    <div class="approval-owner">CoE + requester</div>
+                                </div>
+                                <div class="approval-item">
+                                    <div class="approval-num">2</div>
+                                    <div class="approval-copy">
+                                        <h3 data-editable>Review access scope</h3>
+                                        <p data-editable>Approve least-privilege OAuth scopes, service accounts, read/write limits, rate limits, and token rotation.</p>
+                                    </div>
+                                    <div class="approval-owner">IT / security</div>
+                                </div>
+                                <div class="approval-item">
+                                    <div class="approval-num">3</div>
+                                    <div class="approval-copy">
+                                        <h3 data-editable>Screen the third party</h3>
+                                        <p data-editable>Review SOC report, DPA, privacy posture, subprocessors, retention, breach notification, and support model.</p>
+                                    </div>
+                                    <div class="approval-owner">Legal / privacy</div>
+                                </div>
+                                <div class="approval-item">
+                                    <div class="approval-num">4</div>
+                                    <div class="approval-copy">
+                                        <h3 data-editable>Sandbox and test</h3>
+                                        <p data-editable>Use non-production data; test tool call boundaries, error handling, injection resistance, and audit logging.</p>
+                                    </div>
+                                    <div class="approval-owner">Security + CoE</div>
+                                </div>
+                                <div class="approval-item">
+                                    <div class="approval-num">5</div>
+                                    <div class="approval-copy">
+                                        <h3 data-editable>Approve and monitor</h3>
+                                        <p data-editable>Publish allowed users, actions, data classes, owner, review cadence, kill switch, and incident path.</p>
+                                    </div>
+                                    <div class="approval-owner">AI Council</div>
+                                </div>
+                            </div>
+                            <div class="approval-side reveal delay-2">
+                                <div class="side-card">
+                                    <h3 data-editable>Default rule</h3>
+                                    <p data-editable>No third-party MCP or connector is enabled for firm data until it is registered, risk-scored, sandbox-tested, and approved by the AI Council.</p>
+                                </div>
+                                <div class="side-card">
+                                    <h3 data-editable>Configuration checklist</h3>
+                                    <p data-editable>Allowed tools, denied tools, read/write actions, OAuth scopes, service account, environment, log destination, token owner, and rollback switch.</p>
+                                </div>
+                                <div class="side-card">
+                                    <h3 data-editable>Ongoing review</h3>
+                                    <p data-editable>Monthly usage and exception review; quarterly access recertification; immediate review after vendor feature changes or incidents.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">12 / 19</div>
+            </section>
+
+            <section class="slide">
+                <img class="brand-mark" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <div class="slide-kicker">Data governance</div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <div class="title-band">
+                            <h2 class="reveal" data-editable>Data approval decides what the LLM may see, not just which tool is allowed.</h2>
+                            <p class="summary reveal delay-1" data-editable>Each use case should carry a data decision: allowed, masked, restricted to approved tenant, or prohibited.</p>
+                        </div>
+                        <div class="data-lanes reveal delay-2">
+                            <div class="data-lane">
+                                <h3 data-editable>Public / published</h3>
+                                <p data-editable>Generally allowed in approved tools. Still verify sources, avoid misleading citations, and keep professional review.</p>
+                            </div>
+                            <div class="data-lane">
+                                <h3 data-editable>Internal firm data</h3>
+                                <p data-editable>Allowed only in approved workspaces with retention, logging, and sharing controls configured.</p>
+                            </div>
+                            <div class="data-lane">
+                                <h3 data-editable>Client confidential</h3>
+                                <p data-editable>Requires data owner approval, approved tenant, masking where practical, reviewer evidence, and client disclosure position.</p>
+                            </div>
+                            <div class="data-lane">
+                                <h3 data-editable>Restricted / privileged</h3>
+                                <p data-editable>Default prohibited unless legal/privacy, data owner, practice owner, and AI Council approve compensating controls.</p>
+                            </div>
+                        </div>
+                        <div class="data-approval reveal delay-3">
+                            <div class="data-gate">
+                                <h3 data-editable>1. Data map</h3>
+                                <p data-editable>Source system, data fields, sensitivity, owner, retention, and client obligations.</p>
+                            </div>
+                            <div class="data-gate">
+                                <h3 data-editable>2. Purpose limit</h3>
+                                <p data-editable>Allowed prompt purpose, output use, reviewer role, and downstream action.</p>
+                            </div>
+                            <div class="data-gate">
+                                <h3 data-editable>3. Control design</h3>
+                                <p data-editable>Masking, approved workspace, logging, export limits, and access group.</p>
+                            </div>
+                            <div class="data-gate">
+                                <h3 data-editable>4. Approval</h3>
+                                <p data-editable>Data owner plus legal/privacy for client, regulated, or privileged data.</p>
+                            </div>
+                            <div class="data-gate">
+                                <h3 data-editable>5. Recertify</h3>
+                                <p data-editable>Quarterly review of data scope, users, MCP access, incidents, and exceptions.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">13 / 19</div>
+            </section>
+
+            <section class="slide">
+                <img class="brand-mark" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <div class="slide-kicker">Control architecture</div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <div class="section-title">
+                            <p class="eyebrow reveal" data-editable>Controls that make usage auditable</p>
+                            <h2 class="reveal delay-1" data-editable>Approved LLMs need a control layer around identity, data, output, tools, and incidents.</h2>
+                        </div>
+                        <div class="control-flow reveal delay-2">
+                            <div class="control-node">
+                                <h3 data-editable>Identity</h3>
+                                <p data-editable>SSO, groups, role-based access, named accounts.</p>
+                            </div>
+                            <div class="control-node">
+                                <h3 data-editable>Data</h3>
+                                <p data-editable>DLP, masking, approved upload classes, retention rules.</p>
+                            </div>
+                            <div class="control-node">
+                                <h3 data-editable>Tools</h3>
+                                <p data-editable>Approved LLM surfaces, MCPs, connectors, agents, and APIs.</p>
+                            </div>
+                            <div class="control-node">
+                                <h3 data-editable>Logging</h3>
+                                <p data-editable>Prompt/output records, user activity, exceptions, approvals.</p>
+                            </div>
+                            <div class="control-node">
+                                <h3 data-editable>Evaluation</h3>
+                                <p data-editable>Accuracy, hallucination checks, reviewer feedback, drift testing.</p>
+                            </div>
+                            <div class="control-node">
+                                <h3 data-editable>Response</h3>
+                                <p data-editable>Incident triage, client impact review, rollback, remediation.</p>
+                            </div>
+                        </div>
+                        <div class="control-bands reveal delay-3">
+                            <div class="control-band">
+                                <h3 data-editable>Prevent</h3>
+                                <p data-editable>Access controls, data classifications, approved tools, training prerequisites.</p>
+                            </div>
+                            <div class="control-band">
+                                <h3 data-editable>Detect</h3>
+                                <p data-editable>Logs, usage monitoring, output review sampling, issue reporting.</p>
+                            </div>
+                            <div class="control-band">
+                                <h3 data-editable>Correct</h3>
+                                <p data-editable>Exception review, prompt/playbook fixes, user coaching, model/workflow rollback.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">14 / 19</div>
+            </section>
+
+            <section class="slide">
+                <img class="brand-mark" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <div class="slide-kicker">Roadmap</div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <div class="title-band">
+                            <h2 class="reveal" data-editable>Run governance in sprints: stabilize, scale, industrialize.</h2>
+                            <p class="summary reveal delay-1" data-editable>The attached roadmap uses 0-3, 3-9, and 9+ month horizons. That cadence fits LLM governance well.</p>
+                        </div>
+                        <div class="roadmap">
+                            <div class="roadmap-lane reveal delay-1">
+                                <div class="roadmap-head">
+                                    <div class="mono">0-3 months</div>
+                                    <h3 data-editable>Stabilize</h3>
+                                </div>
+                                <div class="roadmap-body">
+                                    <ul class="list">
+                                        <li data-editable>Appoint sponsor, AI Council, CoE lead, and security owner.</li>
+                                        <li data-editable>Publish interim LLM acceptable-use policy.</li>
+                                        <li data-editable>Inventory current usage, tools, systems, data, and top workflows.</li>
+                                        <li data-editable>Select 3-5 low-risk pilots with clear review steps.</li>
+                                        <li data-editable>Start role-based training and prompt/playbook library.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="roadmap-lane reveal delay-2">
+                                <div class="roadmap-head">
+                                    <div class="mono">3-9 months</div>
+                                    <h3 data-editable>Scale</h3>
+                                </div>
+                                <div class="roadmap-body">
+                                    <ul class="list">
+                                        <li data-editable>Implement approved access model, logging, DLP, and exception process.</li>
+                                        <li data-editable>Expand pilots into governed practice workflows.</li>
+                                        <li data-editable>Build evaluation rubrics for high-value use cases.</li>
+                                        <li data-editable>Launch monthly AI Council dashboard and office hours.</li>
+                                        <li data-editable>Codify client disclosure and reviewer evidence standards.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="roadmap-lane reveal delay-3">
+                                <div class="roadmap-head">
+                                    <div class="mono">9+ months</div>
+                                    <h3 data-editable>Industrialize</h3>
+                                </div>
+                                <div class="roadmap-body">
+                                    <ul class="list">
+                                        <li data-editable>Move proven patterns into reusable CPA Automation workflows.</li>
+                                        <li data-editable>Integrate governed LLM use into systems of record and client portals.</li>
+                                        <li data-editable>Maintain model, tool, prompt, and evaluation registries.</li>
+                                        <li data-editable>Run quarterly maturity reviews and control testing.</li>
+                                        <li data-editable>Refresh training as tools, risks, and standards evolve.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">15 / 19</div>
+            </section>
+
+            <section class="slide">
+                <img class="brand-mark" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <div class="slide-kicker">Education</div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <div class="section-title">
+                            <p class="eyebrow reveal" data-editable>Training and change management</p>
+                            <h2 class="reveal delay-1" data-editable>Education is a control, not a one-time rollout activity.</h2>
+                        </div>
+                        <div class="training-grid">
+                            <div class="training-card reveal delay-1">
+                                <h3 data-editable>All staff</h3>
+                                <p data-editable>Acceptable use, data rules, prompt hygiene, verification basics, and how to report issues.</p>
+                            </div>
+                            <div class="training-card reveal delay-2">
+                                <h3 data-editable>Managers & reviewers</h3>
+                                <p data-editable>Output review procedures, evidence retention, exception handling, and client-ready quality checks.</p>
+                            </div>
+                            <div class="training-card reveal delay-3">
+                                <h3 data-editable>Builders & automators</h3>
+                                <p data-editable>Workflow design, API/tool use, test sets, logging, security, and rollback criteria.</p>
+                            </div>
+                            <div class="training-card reveal delay-4">
+                                <h3 data-editable>Partners & client leads</h3>
+                                <p data-editable>Risk appetite, client disclosure, engagement economics, quality accountability, and change leadership.</p>
+                            </div>
+                        </div>
+                        <div class="enablement-strip reveal delay-5">
+                            <div class="enablement-item">
+                                <h3 data-editable>Prompt library</h3>
+                                <p data-editable>Approved examples by practice and risk tier.</p>
+                            </div>
+                            <div class="enablement-item">
+                                <h3 data-editable>Office hours</h3>
+                                <p data-editable>Weekly support for pilots and exceptions.</p>
+                            </div>
+                            <div class="enablement-item">
+                                <h3 data-editable>Champions</h3>
+                                <p data-editable>Embedded practice advocates with feedback loops.</p>
+                            </div>
+                            <div class="enablement-item">
+                                <h3 data-editable>Release notes</h3>
+                                <p data-editable>Policy, tool, and playbook updates as capabilities change.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">16 / 19</div>
+            </section>
+
+            <section class="slide">
+                <img class="brand-mark" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <div class="slide-kicker">Monitoring</div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <div class="title-band">
+                            <h2 class="reveal" data-editable>Monitor adoption, value, reliability, and risk together.</h2>
+                            <p class="summary reveal delay-1" data-editable>The source model tracks development progress, business KPIs, training, change management, availability, and accuracy. LLM governance should do the same.</p>
+                        </div>
+                        <div class="metrics-board">
+                            <div class="metric-card reveal delay-1">
+                                <div class="metric-value">01</div>
+                                <h3 data-editable>Active governed use cases</h3>
+                                <p data-editable>Count by practice, risk tier, workflow owner, and lifecycle stage.</p>
+                            </div>
+                            <div class="metric-card reveal delay-2">
+                                <div class="metric-value">02</div>
+                                <h3 data-editable>Cycle-time reduction</h3>
+                                <p data-editable>Hours saved, review time, turnaround, and throughput improvement.</p>
+                            </div>
+                            <div class="metric-card reveal delay-3">
+                                <div class="metric-value">03</div>
+                                <h3 data-editable>Quality and rework</h3>
+                                <p data-editable>Reviewer corrections, issue density, and client-facing defect trends.</p>
+                            </div>
+                            <div class="metric-card reveal delay-4">
+                                <div class="metric-value">04</div>
+                                <h3 data-editable>Reliability</h3>
+                                <p data-editable>Availability, hallucination rate, stale-source rate, and evaluation pass rate.</p>
+                            </div>
+                            <div class="metric-card reveal delay-1">
+                                <div class="metric-value">05</div>
+                                <h3 data-editable>Training coverage</h3>
+                                <p data-editable>Completion, role certification, policy acknowledgement, and office-hour demand.</p>
+                            </div>
+                            <div class="metric-card reveal delay-2">
+                                <div class="metric-value">06</div>
+                                <h3 data-editable>Exception volume</h3>
+                                <p data-editable>Policy exceptions requested, approved, rejected, expired, and remediated.</p>
+                            </div>
+                            <div class="metric-card reveal delay-3">
+                                <div class="metric-value">07</div>
+                                <h3 data-editable>Incidents</h3>
+                                <p data-editable>Data exposure, inaccurate output, unauthorized use, and remediation timing.</p>
+                            </div>
+                            <div class="metric-card reveal delay-4">
+                                <div class="metric-value">08</div>
+                                <h3 data-editable>Reuse</h3>
+                                <p data-editable>Approved patterns reused across teams and retired one-off experiments.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">17 / 19</div>
+            </section>
+
+            <section class="slide">
+                <img class="brand-mark" src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                <div class="slide-kicker">Cadence</div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <div class="title-band">
+                            <h2 class="reveal" data-editable>Use cadence to keep governance alive after launch.</h2>
+                            <p class="summary reveal delay-1" data-editable>Governance fails when artifacts are static. The cadence should refresh decisions, exceptions, metrics, and training every month.</p>
+                        </div>
+                        <div class="cadence">
+                            <div class="meeting-stack reveal-left delay-1">
+                                <div class="meeting">
+                                    <h3 data-editable>Weekly CoE working session</h3>
+                                    <p data-editable>Review pilots, prompt patterns, issue reports, evaluation results, and training needs.</p>
+                                </div>
+                                <div class="meeting">
+                                    <h3 data-editable>Monthly AI Council</h3>
+                                    <p data-editable>Approve use cases, exceptions, tool changes, roadmap shifts, and dashboard actions.</p>
+                                </div>
+                                <div class="meeting">
+                                    <h3 data-editable>Quarterly maturity review</h3>
+                                    <p data-editable>Test controls, refresh risk appetite, review vendor posture, and reset strategic priorities.</p>
+                                </div>
+                            </div>
+                            <div class="artifact-board reveal delay-2">
+                                <div class="artifact">
+                                    <h3 data-editable>Use-case inventory</h3>
+                                    <p data-editable>Firm-wide register by owner, data, risk tier, control status, and business value.</p>
+                                </div>
+                                <div class="artifact">
+                                    <h3 data-editable>Policy exception log</h3>
+                                    <p data-editable>Temporary approvals with expiration dates, compensating controls, and decision rationale.</p>
+                                </div>
+                                <div class="artifact">
+                                    <h3 data-editable>Model and tool registry</h3>
+                                    <p data-editable>Approved LLM surfaces, MCPs, integrations, connectors, agents, versions, and owners.</p>
+                                </div>
+                                <div class="artifact">
+                                    <h3 data-editable>Evaluation library</h3>
+                                    <p data-editable>Test prompts, expected outputs, pass/fail criteria, and reviewer calibration notes.</p>
+                                </div>
+                                <div class="artifact">
+                                    <h3 data-editable>Training record</h3>
+                                    <p data-editable>Role-based completion, policy acknowledgements, and remediation coaching.</p>
+                                </div>
+                                <div class="artifact">
+                                    <h3 data-editable>Incident record</h3>
+                                    <p data-editable>Detected issue, client impact, root cause, remediation, and control updates.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">18 / 19</div>
+            </section>
+
+            <section class="slide dark-slide closing-slide">
+                <div class="accent-ribbon"></div>
+                <div class="accent-ribbon thin"></div>
+                <div class="corner-rail"><span></span><span></span><span></span></div>
+                <div class="slide-shell">
+                    <div class="content">
+                        <p class="eyebrow reveal" data-editable>Recommended next move</p>
+                        <h2 class="reveal delay-1" data-editable>Stand up the AI Council, inventory current LLM usage, and approve the first governed pilots.</h2>
+                        <div class="closing-grid">
+                            <div class="next-steps">
+                                <div class="next-step reveal delay-2">
+                                    <h3 data-editable>1. Charter</h3>
+                                    <p data-editable>Confirm decision rights, members, cadence, policy scope, and risk appetite.</p>
+                                </div>
+                                <div class="next-step reveal delay-3">
+                                    <h3 data-editable>2. Inventory</h3>
+                                    <p data-editable>Collect tools, users, data types, workflows, and known AI experiments.</p>
+                                </div>
+                                <div class="next-step reveal delay-4">
+                                    <h3 data-editable>3. Pilot</h3>
+                                    <p data-editable>Select measurable use cases with owners, controls, reviewers, and KPIs.</p>
+                                </div>
+                            </div>
+                            <div class="contact-card reveal-scale delay-4">
+                                <img src="https://cpaautomation.ai/logo.png" alt="CPA Automation logo">
+                                <h3 data-editable>Ray Sang</h3>
+                                <p data-editable>raysang@cpaautomation.ai</p>
+                                <p data-editable>cpaautomation.ai</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="source-note">CPA Automation Inc. | LLM governance operating model</div>
+                <div class="slide-number">19 / 19</div>
+            </section>
+        </main>
+    </div>
+
+    <nav class="deck-controls" aria-label="Slide controls">
+        <button class="control-button" id="prevButton" aria-label="Previous slide">&#8249;</button>
+        <span id="counter">1 / 19</span>
+        <div class="progress-shell" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
+        <button class="control-button" id="nextButton" aria-label="Next slide">&#8250;</button>
+    </nav>
+
+    <div class="edit-hotzone" aria-hidden="true"></div>
+    <button class="edit-toggle" id="editToggle" title="Edit mode (E)" aria-label="Toggle edit mode">E</button>
+    <button class="edit-download" id="editDownload" title="Download edited HTML">Save HTML</button>
+
+    <script>
+        (function enforceCanonicalAppsScriptRoute() {
+            let currentUrl;
+
+            try {
+                currentUrl = new URL(window.location.href);
+            } catch (_error) {
+                return;
+            }
+
+            if (currentUrl.hostname !== "script.google.com") return;
+
+            const routePatterns = [
+                /^\/a\/macros\/[^/]+\/s\/([^/]+)\/(exec|dev)$/i,
+                /^\/a\/[^/]+\/macros\/s\/([^/]+)\/(exec|dev)$/i,
+                /^\/macros\/u\/\d+\/s\/([^/]+)\/(exec|dev)$/i,
+                /^\/macros\/s\/([^/]+)\/(exec|dev)$/i
+            ];
+            const routeMatch = routePatterns
+                .map((pattern) => currentUrl.pathname.match(pattern))
+                .find(Boolean);
+
+            if (!routeMatch) return;
+
+            const [, deploymentId, mode] = routeMatch;
+            const cleanPath = `/macros/s/${deploymentId}/${mode}`;
+            const needsRedirect = currentUrl.pathname !== cleanPath || currentUrl.searchParams.has("authuser");
+
+            if (!needsRedirect) return;
+
+            const targetUrl = new URL(window.location.origin);
+            targetUrl.pathname = cleanPath;
+            currentUrl.searchParams.forEach((value, key) => {
+                if (key.toLowerCase() !== "authuser") {
+                    targetUrl.searchParams.set(key, value);
+                }
+            });
+            targetUrl.hash = currentUrl.hash;
+
+            const redirectKey = "cpaCanonicalRedirectTarget";
+            if (sessionStorage.getItem(redirectKey) === targetUrl.href) return;
+
+            sessionStorage.setItem(redirectKey, targetUrl.href);
+            window.location.replace(targetUrl.href);
+        })();
+
+        /* ===========================================
+           SLIDE PRESENTATION CONTROLLER
+           Handles fixed-stage scaling and navigation.
+           =========================================== */
+        class SlidePresentation {
+            constructor() {
+                this.slides = Array.from(document.querySelectorAll(".slide"));
+                this.currentSlide = 0;
+                this.stage = document.getElementById("deckStage");
+                this.counter = document.getElementById("counter");
+                this.progressFill = document.getElementById("progressFill");
+                this.wheelLocked = false;
+                this.touchStartX = 0;
+                this.touchStartY = 0;
+
+                this.setupStageScale();
+                this.setupKeyboardNav();
+                this.setupTouchNav();
+                this.setupWheelNav();
+                this.setupButtons();
+                const requestedSlide = Number(new URLSearchParams(window.location.search).get("slide"));
+                const startIndex = Number.isFinite(requestedSlide) && requestedSlide > 0 ? requestedSlide - 1 : 0;
+                this.showSlide(startIndex);
+            }
+
+            setupStageScale() {
+                const scale = () => {
+                    const factor = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+                    const x = (window.innerWidth - 1920 * factor) / 2;
+                    const y = (window.innerHeight - 1080 * factor) / 2;
+                    this.stage.style.transform = `translate(${x}px, ${y}px) scale(${factor})`;
+                };
+                scale();
+                window.addEventListener("resize", scale);
+            }
+
+            setupKeyboardNav() {
+                document.addEventListener("keydown", (event) => {
+                    const editingText = event.target && event.target.getAttribute("contenteditable") === "true";
+                    if (editingText) return;
+                    if (["ArrowRight", "PageDown", " "].includes(event.key)) {
+                        event.preventDefault();
+                        this.next();
+                    }
+                    if (["ArrowLeft", "PageUp"].includes(event.key)) {
+                        event.preventDefault();
+                        this.previous();
+                    }
+                    if (event.key === "Home") {
+                        event.preventDefault();
+                        this.showSlide(0);
+                    }
+                    if (event.key === "End") {
+                        event.preventDefault();
+                        this.showSlide(this.slides.length - 1);
+                    }
+                });
+            }
+
+            setupTouchNav() {
+                document.addEventListener("touchstart", (event) => {
+                    const touch = event.changedTouches[0];
+                    this.touchStartX = touch.clientX;
+                    this.touchStartY = touch.clientY;
+                }, { passive: true });
+
+                document.addEventListener("touchend", (event) => {
+                    const touch = event.changedTouches[0];
+                    const deltaX = touch.clientX - this.touchStartX;
+                    const deltaY = touch.clientY - this.touchStartY;
+                    if (Math.abs(deltaX) > 60 && Math.abs(deltaX) > Math.abs(deltaY)) {
+                        deltaX < 0 ? this.next() : this.previous();
+                    }
+                }, { passive: true });
+            }
+
+            setupWheelNav() {
+                document.addEventListener("wheel", (event) => {
+                    if (this.wheelLocked || Math.abs(event.deltaY) < 18) return;
+                    this.wheelLocked = true;
+                    event.deltaY > 0 ? this.next() : this.previous();
+                    setTimeout(() => { this.wheelLocked = false; }, 460);
+                }, { passive: true });
+            }
+
+            setupButtons() {
+                document.getElementById("prevButton").addEventListener("click", () => this.previous());
+                document.getElementById("nextButton").addEventListener("click", () => this.next());
+            }
+
+            showSlide(index) {
+                this.currentSlide = Math.max(0, Math.min(index, this.slides.length - 1));
+                this.slides.forEach((slide, slideIndex) => {
+                    const active = slideIndex === this.currentSlide;
+                    slide.classList.toggle("active", active);
+                    slide.classList.toggle("visible", active);
+                    slide.setAttribute("aria-hidden", String(!active));
+                });
+                this.counter.textContent = `${this.currentSlide + 1} / ${this.slides.length}`;
+                this.progressFill.style.width = `${((this.currentSlide + 1) / this.slides.length) * 100}%`;
+            }
+
+            next() {
+                this.showSlide(this.currentSlide + 1);
+            }
+
+            previous() {
+                this.showSlide(this.currentSlide - 1);
+            }
+        }
+
+        /* ===========================================
+           INLINE EDITOR
+           Enables local text edits and saves to localStorage.
+           =========================================== */
+        class InlineEditor {
+            constructor() {
+                this.isActive = false;
+                this.storageKey = "cpaautomation-llm-governance-edits-v1";
+                this.editables = Array.from(document.querySelectorAll("[data-editable]"));
+                this.toggleButton = document.getElementById("editToggle");
+                this.downloadButton = document.getElementById("editDownload");
+                this.assignKeys();
+                this.load();
+                this.setupListeners();
+            }
+
+            assignKeys() {
+                this.editables.forEach((element, index) => {
+                    if (!element.dataset.editKey) {
+                        element.dataset.editKey = `editable-${index}`;
+                    }
+                });
+            }
+
+            setupListeners() {
+                this.toggleButton.addEventListener("click", () => this.toggleEditMode());
+                this.downloadButton.addEventListener("click", () => this.downloadHtml());
+                this.editables.forEach((element) => {
+                    element.addEventListener("input", () => this.save());
+                });
+
+                document.addEventListener("keydown", (event) => {
+                    const editingText = event.target && event.target.getAttribute("contenteditable") === "true";
+                    if ((event.key === "e" || event.key === "E") && !editingText) {
+                        this.toggleEditMode();
+                    }
+                    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+                        event.preventDefault();
+                        this.save();
+                    }
+                });
+            }
+
+            toggleEditMode() {
+                this.isActive = !this.isActive;
+                document.body.classList.toggle("editing", this.isActive);
+                this.toggleButton.classList.toggle("active", this.isActive);
+                this.downloadButton.classList.toggle("active", this.isActive);
+                this.editables.forEach((element) => {
+                    element.setAttribute("contenteditable", String(this.isActive));
+                    element.setAttribute("spellcheck", "true");
+                });
+                if (!this.isActive) this.save();
+            }
+
+            save() {
+                const data = {};
+                this.editables.forEach((element) => {
+                    data[element.dataset.editKey] = element.innerHTML;
+                });
+                localStorage.setItem(this.storageKey, JSON.stringify(data));
+            }
+
+            load() {
+                const raw = localStorage.getItem(this.storageKey);
+                if (!raw) return;
+                try {
+                    const data = JSON.parse(raw);
+                    this.editables.forEach((element) => {
+                        if (data[element.dataset.editKey]) {
+                            element.innerHTML = data[element.dataset.editKey];
+                        }
+                    });
+                } catch (error) {
+                    console.warn("Could not load saved edits", error);
+                }
+            }
+
+            downloadHtml() {
+                this.save();
+                const html = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+                const blob = new Blob([html], { type: "text/html" });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = "cpaautomation-llm-governance-edited.html";
+                link.click();
+                URL.revokeObjectURL(link.href);
+            }
+        }
+
+        /* ===========================================
+           EDIT HOTZONE
+           Uses JS delay so the edit button does not disappear.
+           =========================================== */
+        const deck = new SlidePresentation();
+        const editor = new InlineEditor();
+        const hotzone = document.querySelector(".edit-hotzone");
+        const editToggle = document.getElementById("editToggle");
+        const editDownload = document.getElementById("editDownload");
+        let hideTimeout = null;
+
+        function showEditControls() {
+            clearTimeout(hideTimeout);
+            editToggle.classList.add("show");
+            editDownload.classList.add("show");
+        }
+
+        function hideEditControls() {
+            hideTimeout = setTimeout(() => {
+                if (!editor.isActive) {
+                    editToggle.classList.remove("show");
+                    editDownload.classList.remove("show");
+                }
+            }, 400);
+        }
+
+        hotzone.addEventListener("mouseenter", showEditControls);
+        hotzone.addEventListener("mouseleave", hideEditControls);
+        hotzone.addEventListener("click", () => editor.toggleEditMode());
+        editToggle.addEventListener("mouseenter", showEditControls);
+        editToggle.addEventListener("mouseleave", hideEditControls);
+        editDownload.addEventListener("mouseenter", showEditControls);
+        editDownload.addEventListener("mouseleave", hideEditControls);
+    </script>
+</body>
+</html>
+

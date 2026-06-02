@@ -30,6 +30,16 @@ const nextConfig = {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
         ],
       },
+      // The LLM governance deck is embedded in a same-origin iframe on
+      // /consulting/llm-governance, so it must remain frameable by the app.
+      // Later rules override earlier ones for the same header key.
+      {
+        source: '/llm-governance.html',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+        ],
+      },
     ]
   },
   output: 'standalone',

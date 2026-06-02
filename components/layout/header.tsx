@@ -96,9 +96,22 @@ const PRODUCT_LINKS: ProductLink[] = [
   },
 ]
 
-const NAV_LINKS: Array<{ href: string; label: string }> = [
+interface NavLink {
+  href: string
+  label: string
+  children?: Array<{ href: string; label: string }>
+}
+
+const NAV_LINKS: NavLink[] = [
   { href: '/demo', label: 'Demo' },
-  { href: '/consulting', label: 'Consulting' },
+  {
+    href: '/consulting',
+    label: 'Consulting',
+    children: [
+      { href: '/consulting', label: 'Forward-Deployed Consulting' },
+      { href: '/consulting/llm-governance', label: 'LLM Governance' },
+    ],
+  },
   { href: '/pricing', label: 'Pricing' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
@@ -110,7 +123,9 @@ export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [isProductsOpen, setIsProductsOpen] = useState(false)
+  const [isConsultingOpen, setIsConsultingOpen] = useState(false)
   const productsRef = useRef<HTMLDivElement>(null)
+  const consultingRef = useRef<HTMLDivElement>(null)
   const { user, loading, requiresMfaEnrollment, signOut } = useAuth()
 
   // Close products dropdown on outside click
@@ -136,6 +151,30 @@ export default function Header() {
       return () => document.removeEventListener('keydown', handleEscape)
     }
   }, [isProductsOpen])
+
+  // Close consulting dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (consultingRef.current && !consultingRef.current.contains(e.target as Node)) {
+        setIsConsultingOpen(false)
+      }
+    }
+    if (isConsultingOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isConsultingOpen])
+
+  // Close consulting dropdown on ESC
+  useEffect(() => {
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') setIsConsultingOpen(false)
+    }
+    if (isConsultingOpen) {
+      document.addEventListener('keydown', handleEscape)
+      return () => document.removeEventListener('keydown', handleEscape)
+    }
+  }, [isConsultingOpen])
 
   const primaryAuthenticatedHref = requiresMfaEnrollment
     ? '/complete-signup'
@@ -253,20 +292,81 @@ export default function Header() {
                 )}
               </div>
 
-              {NAV_LINKS.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={cn(
-                    'text-sm font-medium transition-colors',
-                    isActive(link.href)
-                      ? 'text-foreground'
-                      : 'text-foreground-muted hover:text-foreground',
-                  )}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {NAV_LINKS.map((link) =>
+                link.children ? (
+                  <div
+                    key={link.href}
+                    ref={consultingRef}
+                    className="relative flex items-center"
+                    onMouseEnter={() => setIsConsultingOpen(true)}
+                    onMouseLeave={() => setIsConsultingOpen(false)}
+                  >
+                    <button
+                      type="button"
+                      aria-haspopup="menu"
+                      aria-expanded={isConsultingOpen}
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-md text-sm font-medium transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                        pathname.startsWith(link.href)
+                          ? 'text-foreground'
+                          : 'text-foreground-muted',
+                      )}
+                      onClick={() => setIsConsultingOpen((open) => !open)}
+                    >
+                      {link.label}
+                      <ChevronDown
+                        className={cn(
+                          'size-4 transition-transform',
+                          isConsultingOpen && 'rotate-180',
+                        )}
+                        aria-hidden
+                      />
+                    </button>
+
+                    {isConsultingOpen && (
+                      <div
+                        role="menu"
+                        aria-label={link.label}
+                        className="absolute left-0 top-full z-10 pt-2"
+                      >
+                        <div className="w-64 rounded-xl border border-border bg-popover p-2 shadow-lg">
+                          <div className="space-y-1">
+                            {link.children.map((child) => (
+                              <Link
+                                key={child.href}
+                                href={child.href}
+                                role="menuitem"
+                                onClick={() => setIsConsultingOpen(false)}
+                                className={cn(
+                                  'block rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-foreground',
+                                  isActive(child.href)
+                                    ? 'text-foreground'
+                                    : 'text-foreground-muted',
+                                )}
+                              >
+                                {child.label}
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                      'text-sm font-medium transition-colors',
+                      isActive(link.href)
+                        ? 'text-foreground'
+                        : 'text-foreground-muted hover:text-foreground',
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                ),
+              )}
             </div>
           </div>
 
@@ -386,16 +486,34 @@ export default function Header() {
                         {primaryAuthenticatedLabel}
                       </Link>
                     )}
-                    {NAV_LINKS.map((link) => (
-                      <Link
-                        key={link.href}
-                        href={link.href}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className="block rounded-md px-2 py-2 text-sm font-medium text-foreground-muted hover:bg-accent hover:text-foreground"
-                      >
-                        {link.label}
-                      </Link>
-                    ))}
+                    {NAV_LINKS.map((link) =>
+                      link.children ? (
+                        <div key={link.href} className="space-y-1">
+                          <p className="px-2 pt-2 text-xs font-semibold uppercase tracking-wider text-foreground-subtle">
+                            {link.label}
+                          </p>
+                          {link.children.map((child) => (
+                            <Link
+                              key={child.href}
+                              href={child.href}
+                              onClick={() => setIsMobileMenuOpen(false)}
+                              className="block rounded-md px-2 py-2 text-sm font-medium text-foreground-muted hover:bg-accent hover:text-foreground"
+                            >
+                              {child.label}
+                            </Link>
+                          ))}
+                        </div>
+                      ) : (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className="block rounded-md px-2 py-2 text-sm font-medium text-foreground-muted hover:bg-accent hover:text-foreground"
+                        >
+                          {link.label}
+                        </Link>
+                      ),
+                    )}
                   </div>
 
                   <div className="border-t border-border pt-4">
