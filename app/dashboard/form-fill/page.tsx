@@ -271,6 +271,9 @@ export default function FormFillPage() {
   }, [repeatMode, repeatModeSupported])
 
   useEffect(() => {
+    // No target chosen yet — keep the user's selection until a target sets the default.
+    if (!targetMimeType) return
+
     if (targetMimeType !== DOCX_MIME) {
       setOutputFormat('pdf')
       setHasOutputFormatOverride(false)
@@ -653,7 +656,7 @@ export default function FormFillPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {targetMimeType === DOCX_MIME ? (
+                {targetMimeType === DOCX_MIME || !targetMimeType ? (
                   <>
                     <SelectItem value="docx">DOCX</SelectItem>
                     <SelectItem value="pdf">PDF</SelectItem>
