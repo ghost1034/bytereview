@@ -12,9 +12,11 @@ import {
   FileText,
   Files,
   FolderKanban,
+  Handshake,
   LogOut,
   Menu,
   PenTool,
+  ShieldCheck,
   User,
   X,
 } from 'lucide-react'
@@ -99,7 +101,7 @@ const PRODUCT_LINKS: ProductLink[] = [
 interface NavLink {
   href: string
   label: string
-  children?: Array<{ href: string; label: string }>
+  children?: ProductLink[]
 }
 
 const NAV_LINKS: NavLink[] = [
@@ -108,8 +110,18 @@ const NAV_LINKS: NavLink[] = [
     href: '/consulting',
     label: 'Consulting',
     children: [
-      { href: '/consulting', label: 'Forward-Deployed Consulting' },
-      { href: '/consulting/llm-governance', label: 'LLM Governance' },
+      {
+        label: 'Forward-Deployed Consulting',
+        href: '/consulting',
+        description: 'Embedded teams that ship custom AI',
+        icon: Handshake,
+      },
+      {
+        label: 'LLM Governance',
+        href: '/consulting/llm-governance',
+        description: 'AI policy, risk tiers & approval workflows',
+        icon: ShieldCheck,
+      },
     ],
   },
   { href: '/pricing', label: 'Pricing' },
@@ -329,23 +341,23 @@ export default function Header() {
                         aria-label={link.label}
                         className="absolute left-0 top-full z-10 pt-2"
                       >
-                        <div className="w-64 rounded-xl border border-border bg-popover p-2 shadow-lg">
-                          <div className="space-y-1">
+                        <div className="w-80 rounded-xl border border-border bg-popover p-2 shadow-lg">
+                          <div
+                            className="space-y-1"
+                            onClick={() => setIsConsultingOpen(false)}
+                          >
                             {link.children.map((child) => (
-                              <Link
-                                key={child.href}
+                              <ProductCard
+                                key={child.label}
+                                icon={child.icon}
+                                name={child.label}
+                                description={child.description}
                                 href={child.href}
-                                role="menuitem"
-                                onClick={() => setIsConsultingOpen(false)}
-                                className={cn(
-                                  'block rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-foreground',
-                                  isActive(child.href)
-                                    ? 'text-foreground'
-                                    : 'text-foreground-muted',
-                                )}
-                              >
-                                {child.label}
-                              </Link>
+                                size="sm"
+                                tone="brand"
+                                status={child.status}
+                                className="border-transparent bg-transparent shadow-none hover:bg-accent"
+                              />
                             ))}
                           </div>
                         </div>
@@ -488,20 +500,28 @@ export default function Header() {
                     )}
                     {NAV_LINKS.map((link) =>
                       link.children ? (
-                        <div key={link.href} className="space-y-1">
+                        <div key={link.href} className="space-y-2">
                           <p className="px-2 pt-2 text-xs font-semibold uppercase tracking-wider text-foreground-subtle">
                             {link.label}
                           </p>
-                          {link.children.map((child) => (
-                            <Link
-                              key={child.href}
-                              href={child.href}
-                              onClick={() => setIsMobileMenuOpen(false)}
-                              className="block rounded-md px-2 py-2 text-sm font-medium text-foreground-muted hover:bg-accent hover:text-foreground"
-                            >
-                              {child.label}
-                            </Link>
-                          ))}
+                          <div
+                            className="space-y-1"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            {link.children.map((child) => (
+                              <ProductCard
+                                key={child.label}
+                                icon={child.icon}
+                                name={child.label}
+                                description={child.description}
+                                href={child.href}
+                                size="sm"
+                                tone="brand"
+                                status={child.status}
+                                className="border-transparent bg-transparent shadow-none hover:bg-accent"
+                              />
+                            ))}
+                          </div>
                         </div>
                       ) : (
                         <Link
