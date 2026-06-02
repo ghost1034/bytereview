@@ -11,7 +11,7 @@ export default function LlmGovernancePage() {
     <iframe
       src="/llm-governance.html"
       title="CPA Automation - LLM Governance Operating Model"
-      className="block h-[calc(100vh-var(--header-height))] w-full border-0"
+      className="block h-full w-full border-0"
       allowFullScreen
     />
   )
