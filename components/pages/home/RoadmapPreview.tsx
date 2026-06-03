@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { BarChart3, FolderKanban } from 'lucide-react'
+import { FolderKanban } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { IconTile } from '@/components/ui/icon-tile'
@@ -13,19 +13,6 @@ import {
 } from '@/lib/animations'
 
 const MILESTONES = [
-  {
-    icon: BarChart3,
-    tone: 'brand' as const,
-    title: 'AI Analytics Suite',
-    description:
-      'Automated reconciliation, flux analysis, amortization schedules, and distribution waterfalls.',
-    capabilities: [
-      'Multi-period flux analysis with variance explanations',
-      'Amortization schedule generation',
-      'Distribution waterfall calculations',
-      'Automated reconciliation matching',
-    ],
-  },
   {
     icon: FolderKanban,
     tone: 'brand' as const,
@@ -74,10 +61,12 @@ export default function RoadmapPreview() {
           whileInView="visible"
           viewport={viewportOnce}
         >
-          <div
-            className="absolute left-[23px] top-6 bottom-6 hidden w-px bg-gradient-to-b from-border-strong to-border md:block"
-            aria-hidden
-          />
+          {MILESTONES.length > 1 && (
+            <div
+              className="absolute left-[23px] top-6 bottom-6 hidden w-px bg-gradient-to-b from-border-strong to-border md:block"
+              aria-hidden
+            />
+          )}
 
           {MILESTONES.map((m, idx) => (
             <motion.div

@@ -84,10 +84,9 @@ const PRODUCT_LINKS: ProductLink[] = [
   },
   {
     label: 'AI Analytics Suite',
-    href: '/#roadmap',
-    description: 'Reconciliation & flux analysis',
+    href: '/#analytics-showcase',
+    description: 'Variance, reconciliation, fixed assets & research bots',
     icon: BarChart3,
-    status: 'soon',
   },
   {
     label: 'AI Productivity Suite',

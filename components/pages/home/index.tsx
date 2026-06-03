@@ -17,6 +17,7 @@ const AutomationFlow = dynamic(() => import("./AutomationFlow"));
 const FormFillShowcase = dynamic(() => import("./FormFillShowcase"));
 const InkwiseShowcase = dynamic(() => import("./InkwiseShowcase"));
 const ChronaShowcase = dynamic(() => import("./ChronaShowcase"));
+const AnalyticsShowcase = dynamic(() => import("./AnalyticsShowcase"));
 const ClawShowcase = dynamic(() => import("./ClawShowcase"));
 const RoadmapPreview = dynamic(() => import("./RoadmapPreview"));
 const Testimonials = dynamic(() => import("./Testimonials"));
@@ -48,6 +49,7 @@ export default function Home() {
       <FormFillShowcase />
       <InkwiseShowcase />
       <ChronaShowcase />
+      <AnalyticsShowcase />
       <ClawShowcase />
       <RoadmapPreview />
       <Testimonials />

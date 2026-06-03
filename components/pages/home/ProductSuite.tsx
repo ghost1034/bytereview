@@ -8,7 +8,6 @@ import {
   Clock,
   FileText,
   Files,
-  FolderKanban,
   PenTool,
 } from 'lucide-react'
 
@@ -84,15 +83,13 @@ const PRODUCTS: Product[] = [
     href: '/claw',
   },
   {
-    name: 'AI Analysis & Productivity Suites',
+    name: 'AI Analytics Suite',
     description:
-      'Reconciliation, flux analysis, project management, month-end checklists, and more.',
+      'Variance & flux analysis, reconciliation, fixed assets, and distribution waterfalls — with IRS/GAAP research bots and a context-aware AI assistant.',
     icon: BarChart3,
     tone: 'brand',
-    status: 'Coming Soon',
-    href: '#roadmap',
-    secondaryIcon: FolderKanban,
-    secondaryTone: 'brand',
+    status: 'Available',
+    href: '#analytics-showcase',
   },
 ]
 

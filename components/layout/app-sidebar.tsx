@@ -107,7 +107,7 @@ const PRODUCTS_GROUP: NavGroup = {
 
 const ANALYTICS_GROUP: NavGroup = {
   key: 'analytics',
-  label: 'Analytics (beta)',
+  label: 'Analytics',
   items: [
     { name: 'Clients', href: '/dashboard/analytics/clients', icon: Users },
     { name: 'Dashboard', href: '/dashboard/analytics', icon: BarChart3 },

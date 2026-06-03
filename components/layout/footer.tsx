@@ -76,7 +76,9 @@ export default function Footer() {
                 <FooterLink href="/claw">Claw Series</FooterLink>
               </li>
               <li>
-                <ComingSoonItem label="AI Analytics Suite" />
+                <FooterLink href="/dashboard/analytics">
+                  AI Analytics Suite
+                </FooterLink>
               </li>
               <li>
                 <ComingSoonItem label="AI Productivity Suite" />
