@@ -3,11 +3,11 @@
 import { motion } from 'framer-motion'
 import {
   BarChart3,
-  BookOpen,
+  CalendarDays,
   Clock,
-  LayoutDashboard,
-  Search,
-  Target,
+  FileSpreadsheet,
+  MonitorSmartphone,
+  ShieldCheck,
 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
@@ -22,33 +22,33 @@ import {
 const FEATURES = [
   {
     icon: Clock,
-    label: 'Structured Timeline',
-    detail: 'AI turns screen captures into time-aligned activity cards',
+    label: 'Automatic Time Capture',
+    detail: 'AI turns screen activity into time-aligned cards — no timers, no manual entry',
   },
   {
-    icon: Target,
-    label: 'Focus Reviews',
-    detail: 'Rate time blocks as focused, neutral, or distracted',
-  },
-  {
-    icon: Search,
-    label: 'Natural Language Search',
-    detail: 'Ask questions about your day with clickable source references',
-  },
-  {
-    icon: BookOpen,
-    label: 'AI Journal',
-    detail: 'Auto-generated daily reflections grounded in your timeline',
-  },
-  {
-    icon: LayoutDashboard,
-    label: 'Dashboard',
-    detail: 'Trends, category breakdowns, and longest focus streaks',
+    icon: MonitorSmartphone,
+    label: 'One-Code Device Pairing',
+    detail: 'Staff redeem a pairing code and their hours sync to your firm dashboard',
   },
   {
     icon: BarChart3,
-    label: 'Analytics',
-    detail: 'Tracked vs. untracked time across flexible date ranges',
+    label: 'Firm-Wide Visibility',
+    detail: 'Hours by category and by day across every paired device at your firm',
+  },
+  {
+    icon: CalendarDays,
+    label: 'Daily Timelines',
+    detail: "Drill into any device's day to see exactly how time was spent",
+  },
+  {
+    icon: FileSpreadsheet,
+    label: 'Billing-Ready Exports',
+    detail: 'Export tracked hours to CSV for timesheets, WIP review, and client billing',
+  },
+  {
+    icon: ShieldCheck,
+    label: 'Local-First Privacy',
+    detail: 'Screenshots stay on each device — only structured activity summaries sync',
   },
 ]
 
@@ -88,17 +88,19 @@ export default function ChronaShowcase() {
             className="mb-4 text-balance text-4xl font-semibold tracking-tight sm:text-5xl"
             variants={staggerChild}
           >
-            Chrona: know where your{' '}
+            Chrona: every hour,{' '}
             <span className="bg-gradient-to-r from-marketing-hero-accent to-marketing-hero-foreground bg-clip-text text-transparent">
-              time goes
+              accounted for
             </span>
           </motion.h2>
           <motion.p
             className="mx-auto max-w-2xl text-balance text-lg text-marketing-hero-foreground-muted"
             variants={staggerChild}
           >
-            Automatic screen-based time tracking with AI-powered timeline
-            generation. Everything stays local until you choose to analyze.
+            Automatic screen-based time tracking for accounting teams. AI
+            reconstructs each workday into a structured timeline that syncs
+            straight into your CPAAutomation dashboard — no timers, no
+            end-of-week timesheet archaeology.
           </motion.p>
         </motion.div>
 
@@ -171,7 +173,8 @@ export default function ChronaShowcase() {
           whileInView="visible"
           viewport={viewportOnce}
         >
-          Desktop app and CPAAutomation dashboard integration available now.
+          Chrona desktop app and the CPAAutomation Time Tracking dashboard are
+          available now.
         </motion.p>
       </div>
     </section>

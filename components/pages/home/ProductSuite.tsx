@@ -67,7 +67,7 @@ const PRODUCTS: Product[] = [
   {
     name: 'Chrona',
     description:
-      'Automatic time tracking that turns your screen into a structured daily timeline.',
+      'Automatic time tracking that syncs AI-built daily timelines from staff devices into your firm dashboard.',
     icon: Clock,
     tone: 'brand',
     status: 'Available',
