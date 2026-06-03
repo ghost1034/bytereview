@@ -83,7 +83,7 @@ const PRODUCT_LINKS: ProductLink[] = [
     icon: Bot,
   },
   {
-    label: 'AI Analysis Suite',
+    label: 'AI Analytics Suite',
     href: '/#roadmap',
     description: 'Reconciliation & flux analysis',
     icon: BarChart3,

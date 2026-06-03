@@ -16,7 +16,7 @@ const MILESTONES = [
   {
     icon: BarChart3,
     tone: 'brand' as const,
-    title: 'AI Analysis Suite',
+    title: 'AI Analytics Suite',
     description:
       'Automated reconciliation, flux analysis, amortization schedules, and distribution waterfalls.',
     capabilities: [
