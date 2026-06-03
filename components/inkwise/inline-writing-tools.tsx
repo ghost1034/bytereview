@@ -467,7 +467,7 @@ export function InlineWritingTools({
         </div>
       </div>
 
-      <div className="mt-3 flex-1 space-y-3 overflow-y-auto pr-1">
+      <div className="mt-3 flex-1 space-y-3 overflow-y-auto px-1 pb-1">
         <Collapsible open={sourcesOpen} onOpenChange={setSourcesOpen}>
           <CollapsibleTrigger asChild>
             <button
