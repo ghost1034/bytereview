@@ -92,6 +92,8 @@ const PRODUCTS_GROUP: NavGroup = {
       badge: 'Soon',
       badgeTone: 'muted',
     },
+    { name: 'Time Tracking', href: '/dashboard/analytics/chrona', icon: Clock },
+    { name: 'Chrona Devices', href: '/dashboard/analytics/chrona/devices', icon: MonitorSmartphone },
     {
       name: 'Claw Series',
       href: '/claw',
@@ -117,8 +119,6 @@ const ANALYTICS_GROUP: NavGroup = {
     { name: 'Waterfall', href: '/dashboard/analytics/waterfall', icon: Droplet },
     { name: 'IRS Researcher', href: '/dashboard/analytics/research/irs', icon: Search },
     { name: 'GAAP Researcher', href: '/dashboard/analytics/research/gaap', icon: BookOpen },
-    { name: 'Time Tracking', href: '/dashboard/analytics/chrona', icon: Clock },
-    { name: 'Chrona Devices', href: '/dashboard/analytics/chrona/devices', icon: MonitorSmartphone },
     { name: 'Settings', href: '/dashboard/analytics/settings', icon: SettingsIcon },
   ],
 }
