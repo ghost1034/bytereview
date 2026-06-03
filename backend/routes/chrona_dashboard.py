@@ -8,10 +8,10 @@ matching the device list in routes/chrona_devices.py.
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 
 from core.database import get_db
@@ -26,6 +26,7 @@ from models.chrona import (
 from models.db_models import User
 from services.analytics.firm_scope import require_firm_id
 from services.chrona import dashboard_service
+from services.export_service import generate_export_filename
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chrona/dashboard", tags=["chrona-dashboard"])
@@ -48,6 +49,31 @@ async def chrona_summary_route(
         to_day=to_day,
         cells=[ChronaSummaryCell(**c) for c in cells],
         devices=[ChronaSummaryDevice(**d) for d in devices],
+    )
+
+
+@router.get("/export.csv")
+async def chrona_export_csv_route(
+    from_day: date = Query(..., alias="from", description="Start day (device-local), inclusive"),
+    to_day: date = Query(..., alias="to", description="End day (device-local), inclusive"),
+    device_id: Optional[str] = Query(default=None, description="Restrict to one device"),
+    actor: User = Depends(require_role(*READER_ROLES)),
+    db: Session = Depends(get_db),
+):
+    """Download the summary as CSV — one row per (device, category, day)."""
+    firm_id = require_firm_id(db, actor.id)
+    csv_content = dashboard_service.export_csv(
+        db, firm_id, from_day=from_day, to_day=to_day, device_id=device_id
+    )
+    filename = generate_export_filename(
+        f"chrona_time_{from_day.isoformat()}_{to_day.isoformat()}",
+        datetime.utcnow(),
+        "csv",
+    )
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 

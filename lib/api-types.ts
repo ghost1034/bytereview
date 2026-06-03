@@ -3321,6 +3321,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/chrona/dashboard/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Chrona Export Csv Route
+         * @description Download the summary as CSV — one row per (device, category, day).
+         */
+        get: operations["chrona_export_csv_route_api_chrona_dashboard_export_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/chrona/dashboard/timeline": {
         parameters: {
             query?: never;
@@ -14352,6 +14372,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChronaSummaryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chrona_export_csv_route_api_chrona_dashboard_export_csv_get: {
+        parameters: {
+            query: {
+                /** @description Start day (device-local), inclusive */
+                from: string;
+                /** @description End day (device-local), inclusive */
+                to: string;
+                /** @description Restrict to one device */
+                device_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

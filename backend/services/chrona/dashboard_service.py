@@ -7,8 +7,10 @@ re-bucketed by UTC, per the integration contract).
 
 from __future__ import annotations
 
+import csv
 import uuid
 from datetime import date
+from io import StringIO
 from typing import List, Optional, Tuple
 
 from fastapi import HTTPException
@@ -129,6 +131,40 @@ def summary(
         for d in devices
     ]
     return cells, device_rows
+
+
+def export_csv(
+    db: Session,
+    firm_id,
+    *,
+    from_day: date,
+    to_day: date,
+    device_id: Optional[str] = None,
+) -> str:
+    """CSV mirror of ``summary()`` — one row per (device, category, day) cell.
+
+    Built on the same query as the dashboard so exported totals always match it.
+    """
+    cells, devices = summary(
+        db, firm_id, from_day=from_day, to_day=to_day, device_id=device_id
+    )
+    display_names = {d["device_id"]: d["display_name"] for d in devices}
+
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["day", "device", "device_id", "category", "hours", "cards"])
+    for c in cells:
+        writer.writerow(
+            [
+                c["day_key"].isoformat(),
+                display_names.get(c["device_id"], ""),
+                c["device_id"],
+                c["category"],
+                round(c["hours"], 4),
+                c["card_count"],
+            ]
+        )
+    return output.getvalue()
 
 
 def timeline(

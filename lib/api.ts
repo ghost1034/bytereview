@@ -2081,6 +2081,32 @@ export class ApiClient {
     return this.request(`/api/chrona/dashboard/timeline?${params.toString()}`)
   }
 
+  async exportChronaCSV(options: {
+    from: string
+    to: string
+    deviceId?: string
+  }): Promise<{ blob: Blob; filename: string }> {
+    const token = await this.getAuthToken()
+    const params = new URLSearchParams({ from: options.from, to: options.to })
+    if (options.deviceId) params.set('device_id', options.deviceId)
+
+    const response = await fetch(`${this.baseURL}/api/chrona/dashboard/export.csv?${params.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'CSV export failed' }))
+      throw new Error(error.detail || error.message || 'CSV export failed')
+    }
+
+    const blob = await response.blob()
+    const filename = response.headers.get('Content-Disposition')?.match(/filename=(.+)/)?.[1] || 'chrona_export.csv'
+    return { blob, filename: filename.replace(/"/g, '') }
+  }
+
 }
 
 export interface AnalyticsStreamUsage {

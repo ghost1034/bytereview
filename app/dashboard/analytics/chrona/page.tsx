@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Clock, Layers, MonitorSmartphone } from 'lucide-react'
+import { Clock, Download, Layers, Loader2, MonitorSmartphone } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts'
 
 import { Badge } from '@/components/ui/badge'
@@ -27,8 +27,10 @@ import {
 } from '@/components/ui/select'
 import { StatCard } from '@/components/ui/stat-card'
 import { DataTable, type ColumnDef } from '@/components/analytics/DataTable'
+import { useToast } from '@/hooks/use-toast'
 import { useChronaSummary } from '@/hooks/useChronaDashboard'
 import { useChronaDevices } from '@/hooks/useChronaDevices'
+import { apiClient } from '@/lib/api'
 import {
   dayStringDaysAgo,
   formatDayLabel,
@@ -54,9 +56,11 @@ type DeviceRow = ChronaSummaryDevice & { id: string }
 
 export default function ChronaDashboardPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [fromDay, setFromDay] = useState(() => dayStringDaysAgo(13))
   const [toDay, setToDay] = useState(() => toDayString(new Date()))
   const [deviceId, setDeviceId] = useState<string>('all')
+  const [isExporting, setIsExporting] = useState(false)
 
   const summaryQuery = useChronaSummary({
     from: fromDay,
@@ -137,6 +141,31 @@ export default function ChronaDashboardPage() {
     [devices],
   )
 
+  const handleExportCSV = async () => {
+    setIsExporting(true)
+    try {
+      const { blob, filename } = await apiClient.exportChronaCSV({
+        from: fromDay,
+        to: toDay,
+        deviceId: deviceId === 'all' ? undefined : deviceId,
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      toast({
+        title: 'Export failed',
+        description: error instanceof Error ? error.message : 'CSV export failed.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const deviceColumns: ColumnDef<DeviceRow>[] = [
     {
       header: 'Device',
@@ -189,12 +218,27 @@ export default function ChronaDashboardPage() {
         title="Time Tracking"
         description="Hours synced from paired Chrona devices across your firm."
         actions={
-          <Button asChild variant="outline">
-            <Link href="/dashboard/analytics/chrona/devices">
-              <MonitorSmartphone className="mr-2 size-4" aria-hidden />
-              Manage devices
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleExportCSV}
+              disabled={isExporting || cells.length === 0}
+            >
+              {isExporting ? (
+                <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+              ) : (
+                <Download className="mr-2 size-4" aria-hidden />
+              )}
+              Export CSV
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/dashboard/analytics/chrona/devices">
+                <MonitorSmartphone className="mr-2 size-4" aria-hidden />
+                Manage devices
+              </Link>
+            </Button>
+          </div>
         }
       />
 
