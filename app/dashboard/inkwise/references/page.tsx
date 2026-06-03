@@ -133,10 +133,12 @@ export default function InkwiseReferencesPage() {
 
   return (
     <div className="space-y-6">
-      <InkwiseSourceImportPanel
-        title="References"
-        description="Build the reference library that powers document grounding, citation bubbles, grounded chat, and predictive writing."
-      />
+      <div data-tour="inkwise-import-panel">
+        <InkwiseSourceImportPanel
+          title="References"
+          description="Build the reference library that powers document grounding, citation bubbles, grounded chat, and predictive writing."
+        />
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card>
@@ -160,7 +162,7 @@ export default function InkwiseReferencesPage() {
       </div>
 
       <div className="grid gap-4">
-        <Card>
+        <Card data-tour="inkwise-source-library">
           <CardHeader className="pb-3">
             <CardTitle>Source Library</CardTitle>
             <CardDescription>Search your loaded Inkwise references and scroll through the library without stretching the page.</CardDescription>

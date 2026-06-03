@@ -1073,6 +1073,7 @@ export default function InkwiseDocumentPage() {
             <div className="min-w-0 flex-1 space-y-0.5">
               <Input
                 id="inkwise-title"
+                data-tour="inkwise-editor-title"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="Document title"
@@ -1144,7 +1145,7 @@ export default function InkwiseDocumentPage() {
       </section>
 
       <div className={cn('flex min-h-[72vh] flex-col gap-4 xl:flex-row', focusModeEnabled && 'relative z-10 min-h-0 flex-1')}>
-        <section className={cn('min-w-0 flex-1 rounded-3xl border bg-white shadow-sm', focusModeEnabled && 'flex min-h-0 flex-col border-transparent bg-transparent shadow-none')}>
+        <section className={cn('min-w-0 flex-1 rounded-3xl border bg-white shadow-sm', focusModeEnabled && 'flex min-h-0 flex-col border-transparent bg-transparent shadow-none')} data-tour="inkwise-editor-canvas">
           <div className={cn('flex items-center justify-between border-b px-5 py-4', focusModeEnabled && 'hidden')}>
               <div>
                 <div className="text-sm font-semibold text-slate-900">Write</div>
@@ -1263,15 +1264,15 @@ export default function InkwiseDocumentPage() {
               <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as 'chat' | 'references' | 'review')} className="flex min-h-[32rem] flex-col xl:min-h-0 xl:flex-1">
               <div className="border-b px-3 py-3">
                 <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-slate-100">
-                  <TabsTrigger value="chat" className="rounded-xl">
+                  <TabsTrigger value="chat" className="rounded-xl" data-tour="inkwise-sidebar-tab-chat">
                     <MessageSquareText className="mr-2 h-4 w-4" />
                     AI Chat
                   </TabsTrigger>
-                  <TabsTrigger value="references" className="rounded-xl">
+                  <TabsTrigger value="references" className="rounded-xl" data-tour="inkwise-sidebar-tab-references">
                     <LibraryBig className="mr-2 h-4 w-4" />
                     References
                   </TabsTrigger>
-                  <TabsTrigger value="review" className="rounded-xl">
+                  <TabsTrigger value="review" className="rounded-xl" data-tour="inkwise-sidebar-tab-review">
                     <Wand2 className="mr-2 h-4 w-4" />
                     Review
                   </TabsTrigger>

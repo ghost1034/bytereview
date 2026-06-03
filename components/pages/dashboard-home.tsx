@@ -11,6 +11,12 @@ import {
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { ActionCard } from '@/components/ui/action-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
@@ -78,15 +84,38 @@ export function DashboardHome() {
         description="Extract structured data from your documents with AI. Start a new job or continue where you left off."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={startTour}
-              data-tour="dashboard-tour-button"
-            >
-              <Sparkles className="mr-1.5 size-4" aria-hidden />
-              Take product tour
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  data-tour="dashboard-tour-button"
+                >
+                  <Sparkles className="mr-1.5 size-4" aria-hidden />
+                  Take product tour
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-72">
+                <DropdownMenuItem
+                  className="flex-col items-start gap-0.5"
+                  onClick={() => startTour('extraction')}
+                >
+                  <span className="font-medium">Extraction &amp; Form Fill</span>
+                  <span className="text-xs text-foreground-muted">
+                    Create a job, extract fields, and fill a document.
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="flex-col items-start gap-0.5"
+                  onClick={() => startTour('inkwise')}
+                >
+                  <span className="font-medium">Inkwise</span>
+                  <span className="text-xs text-foreground-muted">
+                    Grounded AI writing with references, chat, and review.
+                  </span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button asChild>
               <Link href="/dashboard/jobs">
                 <Plus className="mr-1.5 size-4" aria-hidden />

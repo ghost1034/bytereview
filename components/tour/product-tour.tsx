@@ -7,48 +7,55 @@ import { X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 
-const STORAGE_KEY = 'cpaautomation.product-tour.v1'
+const STORAGE_KEY = 'cpaautomation.product-tour.v2'
+const LEGACY_STORAGE_KEY = 'cpaautomation.product-tour.v1'
 
-type TourStepId =
-  | 'dashboard-intro'
-  | 'jobs-new-job'
-  | 'create-job-modal'
-  | 'upload-files'
-  | 'configure-fields'
-  | 'review-start'
-  | 'processing-status'
-  | 'results-form-fill'
-  | 'form-fill-source'
-  | 'form-fill-target'
-  | 'form-fill-run'
+export type TourId = 'extraction' | 'inkwise'
+
+type TourNextAction =
+  | { kind: 'navigate'; href: string }
+  | { kind: 'click'; selector: string }
+  | { kind: 'end' }
 
 interface TourStep {
-  id: TourStepId
+  id: string
   title: string
   body: string
   target?: string
   nextLabel?: string
   manual?: boolean
+  /** What clicking Next does, in addition to advancing to the next step. */
+  onNext?: TourNextAction
+  /** Selector polled while on this step; when it appears, the tour advances. */
+  advanceWhen?: string
+}
+
+interface TourDefinition {
+  id: TourId
+  steps: TourStep[]
+  getStepByRoute: (pathname: string) => string | null
 }
 
 interface StoredTourState {
+  tourId: TourId
   active: boolean
-  stepId: TourStepId
+  stepId: string
 }
 
 interface ProductTourContextValue {
-  startTour: () => void
+  startTour: (tourId?: TourId) => void
   endTour: () => void
   active: boolean
 }
 
-const TOUR_STEPS: TourStep[] = [
+const EXTRACTION_STEPS: TourStep[] = [
   {
     id: 'dashboard-intro',
     title: 'Start with an extraction job',
     body: 'This tour follows the complete CPAAutomation workflow: create an extraction job, run it, review results, then send a result into Form Fill.',
     target: '[data-tour="dashboard-tour-button"]',
     nextLabel: 'Go to jobs',
+    onNext: { kind: 'navigate', href: '/dashboard/jobs' },
   },
   {
     id: 'jobs-new-job',
@@ -56,6 +63,8 @@ const TOUR_STEPS: TourStep[] = [
     body: 'Jobs hold the documents, extraction fields, processing run, and results. Click New job to open the job setup dialog.',
     target: '[data-tour="jobs-new-job-button"]',
     nextLabel: 'Open dialog',
+    onNext: { kind: 'click', selector: '[data-tour="jobs-new-job-button"]' },
+    advanceWhen: '[data-tour="job-name-input"]',
   },
   {
     id: 'create-job-modal',
@@ -119,16 +128,11 @@ const TOUR_STEPS: TourStep[] = [
     body: 'Choose the output format and fill mode, then run Form Fill. CPAAutomation will prepare the filled document in the background.',
     target: '[data-tour="form-fill-run"]',
     nextLabel: 'Finish tour',
+    onNext: { kind: 'end' },
   },
 ]
 
-const ProductTourContext = React.createContext<ProductTourContextValue | null>(null)
-
-function getStepIndex(stepId: TourStepId) {
-  return TOUR_STEPS.findIndex((step) => step.id === stepId)
-}
-
-function getStepByRoute(pathname: string): TourStepId | null {
+function getExtractionStepByRoute(pathname: string): string | null {
   if (pathname === '/dashboard/form-fill') return 'form-fill-source'
   if (/^\/dashboard\/jobs\/[^/]+\/results$/.test(pathname)) return 'results-form-fill'
   if (/^\/dashboard\/jobs\/[^/]+\/processing$/.test(pathname)) return 'processing-status'
@@ -140,12 +144,135 @@ function getStepByRoute(pathname: string): TourStepId | null {
   return null
 }
 
+const INKWISE_STEPS: TourStep[] = [
+  {
+    id: 'inkwise-intro',
+    title: 'Meet Inkwise',
+    body: 'Inkwise is grounded AI writing. This tour walks through references, the writing canvas, the AI sidebar, and templates.',
+    target: '[data-tour="dashboard-tour-button"]',
+    nextLabel: 'Open Inkwise',
+    onNext: { kind: 'navigate', href: '/dashboard/inkwise/write' },
+  },
+  {
+    id: 'inkwise-module-nav',
+    title: 'Move around Inkwise',
+    body: 'Use these sections any time: Write for documents, References for your source library, Templates for reusable starters, and Help.',
+    target: '[data-tour="inkwise-module-nav"]',
+    nextLabel: 'See References',
+    onNext: { kind: 'navigate', href: '/dashboard/inkwise/references' },
+  },
+  {
+    id: 'inkwise-import-panel',
+    title: 'Add references',
+    body: 'Upload PDFs, DOCX, images, webpages, or Drive files here. Inkwise ingests each one into retrieval segments so it can ground your writing. You don’t need to upload anything now.',
+    target: '[data-tour="inkwise-import-panel"]',
+  },
+  {
+    id: 'inkwise-source-library',
+    title: 'Your source library',
+    body: 'Ingested references live here. Search them, edit citation metadata, or re-ingest. Ready sources can be bound to any document.',
+    target: '[data-tour="inkwise-source-library"]',
+    nextLabel: 'Back to Write',
+    onNext: { kind: 'navigate', href: '/dashboard/inkwise/write' },
+  },
+  {
+    id: 'inkwise-write-overview',
+    title: 'Organize your documents',
+    body: 'Folders keep drafts tidy on the left, and your documents show on the right. Let’s create one.',
+    target: '[data-tour="inkwise-document-grid"]',
+  },
+  {
+    id: 'inkwise-new-document',
+    title: 'Create a document',
+    body: 'Click New document, give it a title, and create it. The tour continues automatically once your document opens.',
+    target: '[data-tour="inkwise-new-document-button"]',
+    manual: true,
+  },
+  {
+    id: 'inkwise-editor-title',
+    title: 'Title and write',
+    body: 'Name your document here, then write in the canvas below. Inkwise offers inline predictions as you type.',
+    target: '[data-tour="inkwise-editor-title"]',
+  },
+  {
+    id: 'inkwise-editor-canvas',
+    title: 'The writing canvas',
+    body: 'This is your editor. Select text to get inline writing tools — rewrite, condense, expand, or humanize.',
+    target: '[data-tour="inkwise-editor-canvas"]',
+    nextLabel: 'Show AI Chat',
+    onNext: { kind: 'click', selector: '[data-tour="inkwise-sidebar-tab-chat"]' },
+  },
+  {
+    id: 'inkwise-sidebar-chat',
+    title: 'Chat with your sources',
+    body: 'The AI Chat tab answers from your bound references and can insert responses straight into the draft.',
+    target: '[data-tour="inkwise-sidebar-tab-chat"]',
+    nextLabel: 'Show References',
+    onNext: { kind: 'click', selector: '[data-tour="inkwise-sidebar-tab-references"]' },
+  },
+  {
+    id: 'inkwise-sidebar-references',
+    title: 'Bind references',
+    body: 'The References tab binds library sources to this document so chat and predictions can cite them.',
+    target: '[data-tour="inkwise-sidebar-tab-references"]',
+    nextLabel: 'Show Review',
+    onNext: { kind: 'click', selector: '[data-tour="inkwise-sidebar-tab-review"]' },
+  },
+  {
+    id: 'inkwise-sidebar-review',
+    title: 'Review changes',
+    body: 'The Review tab collects tracked changes and comments so you can accept, reject, or resolve them.',
+    target: '[data-tour="inkwise-sidebar-tab-review"]',
+    nextLabel: 'See Templates',
+    onNext: { kind: 'navigate', href: '/dashboard/inkwise/templates' },
+  },
+  {
+    id: 'inkwise-templates',
+    title: 'Reusable templates',
+    body: 'Save recurring document structures as templates, import DOCX, or browse system categories.',
+    target: '[data-tour="inkwise-templates"]',
+    nextLabel: 'Finish on Help',
+    onNext: { kind: 'navigate', href: '/dashboard/inkwise/help' },
+  },
+  {
+    id: 'inkwise-help',
+    title: 'You’re set',
+    body: 'Find guides, shortcuts, and answers any time on the Help page. That’s the Inkwise tour — happy writing!',
+    target: '[data-tour="inkwise-nav-help"]',
+    nextLabel: 'Finish tour',
+    onNext: { kind: 'end' },
+  },
+]
+
+function getInkwiseStepByRoute(pathname: string): string | null {
+  if (/^\/dashboard\/inkwise\/write\/[^/]+$/.test(pathname)) return 'inkwise-editor-title'
+  if (pathname === '/dashboard/inkwise/write') return 'inkwise-module-nav'
+  if (pathname === '/dashboard/inkwise/references') return 'inkwise-import-panel'
+  if (pathname === '/dashboard/inkwise/templates') return 'inkwise-templates'
+  if (pathname === '/dashboard/inkwise/help') return 'inkwise-help'
+  if (pathname === '/dashboard') return 'inkwise-intro'
+  return null
+}
+
+const TOUR_DEFINITIONS: Record<TourId, TourDefinition> = {
+  extraction: { id: 'extraction', steps: EXTRACTION_STEPS, getStepByRoute: getExtractionStepByRoute },
+  inkwise: { id: 'inkwise', steps: INKWISE_STEPS, getStepByRoute: getInkwiseStepByRoute },
+}
+
+const ProductTourContext = React.createContext<ProductTourContextValue | null>(null)
+
+function getStepIndex(definition: TourDefinition, stepId: string) {
+  return definition.steps.findIndex((step) => step.id === stepId)
+}
+
 function readStoredState(): StoredTourState | null {
   try {
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY)
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as StoredTourState
-    if (!parsed?.active || getStepIndex(parsed.stepId) === -1) return null
+    const definition = parsed?.tourId ? TOUR_DEFINITIONS[parsed.tourId] : undefined
+    if (!parsed?.active || !definition || getStepIndex(definition, parsed.stepId) === -1) return null
     return parsed
   } catch {
     return null
@@ -169,7 +296,7 @@ function clickTarget(selector: string) {
   target?.click()
 }
 
-function useTargetRect(selector?: string, stepId?: TourStepId) {
+function useTargetRect(selector?: string, stepId?: string) {
   const [rect, setRect] = React.useState<DOMRect | null>(null)
   const [found, setFound] = React.useState(false)
 
@@ -342,32 +469,39 @@ export function ProductTourProvider({ children }: { children: React.ReactNode })
   const pathname = usePathname() ?? ''
   const [mounted, setMounted] = React.useState(false)
   const [active, setActive] = React.useState(false)
-  const [stepId, setStepId] = React.useState<TourStepId>('dashboard-intro')
+  const [tourId, setTourId] = React.useState<TourId>('extraction')
+  const [stepId, setStepId] = React.useState<string>(EXTRACTION_STEPS[0].id)
 
-  const stepIndex = Math.max(0, getStepIndex(stepId))
-  const step = TOUR_STEPS[stepIndex]
+  const definition = TOUR_DEFINITIONS[tourId]
+  const stepIndex = Math.max(0, getStepIndex(definition, stepId))
+  const step = definition.steps[stepIndex]
 
-  const setStep = React.useCallback((nextStepId: TourStepId) => {
+  const setStep = React.useCallback((nextTourId: TourId, nextStepId: string) => {
     setStepId(nextStepId)
-    writeStoredState({ active: true, stepId: nextStepId })
+    writeStoredState({ tourId: nextTourId, active: true, stepId: nextStepId })
   }, [])
 
   const endTour = React.useCallback(() => {
     setActive(false)
-    setStepId('dashboard-intro')
+    setStepId(TOUR_DEFINITIONS[tourId].steps[0].id)
     writeStoredState(null)
-  }, [])
+  }, [tourId])
 
-  const startTour = React.useCallback(() => {
-    setActive(true)
-    setStep('dashboard-intro')
-    if (pathname !== '/dashboard') router.push('/dashboard')
-  }, [pathname, router, setStep])
+  const startTour = React.useCallback(
+    (nextTourId: TourId = 'extraction') => {
+      setTourId(nextTourId)
+      setActive(true)
+      setStep(nextTourId, TOUR_DEFINITIONS[nextTourId].steps[0].id)
+      if (pathname !== '/dashboard') router.push('/dashboard')
+    },
+    [pathname, router, setStep],
+  )
 
   React.useEffect(() => {
     setMounted(true)
     const stored = readStoredState()
     if (stored) {
+      setTourId(stored.tourId)
       setActive(true)
       setStepId(stored.stepId)
     }
@@ -375,32 +509,34 @@ export function ProductTourProvider({ children }: { children: React.ReactNode })
 
   React.useEffect(() => {
     if (!active) return
-    writeStoredState({ active: true, stepId })
-  }, [active, stepId])
+    writeStoredState({ tourId, active: true, stepId })
+  }, [active, stepId, tourId])
 
   React.useEffect(() => {
     if (!active) return
 
-    const routeStepId = getStepByRoute(pathname)
+    const routeStepId = definition.getStepByRoute(pathname)
     if (!routeStepId) return
 
-    const routeIndex = getStepIndex(routeStepId)
+    const routeIndex = getStepIndex(definition, routeStepId)
     if (routeIndex > stepIndex) {
-      setStep(routeStepId)
+      setStep(tourId, routeStepId)
     }
-  }, [active, pathname, setStep, stepIndex])
+  }, [active, definition, pathname, setStep, stepIndex, tourId])
 
   React.useEffect(() => {
-    if (!active || pathname !== '/dashboard/jobs') return
+    if (!active || !step?.advanceWhen) return
 
+    const selector = step.advanceWhen
     const interval = window.setInterval(() => {
-      if (document.querySelector('[data-tour="job-name-input"]') && stepId === 'jobs-new-job') {
-        setStep('create-job-modal')
+      if (document.querySelector(selector)) {
+        const nextStep = definition.steps[stepIndex + 1]
+        if (nextStep) setStep(tourId, nextStep.id)
       }
     }, 200)
 
     return () => window.clearInterval(interval)
-  }, [active, pathname, setStep, stepId])
+  }, [active, definition, setStep, step, stepIndex, tourId])
 
   React.useEffect(() => {
     if (!active) return
@@ -414,30 +550,31 @@ export function ProductTourProvider({ children }: { children: React.ReactNode })
 
   const goBack = React.useCallback(() => {
     if (stepIndex <= 0) return
-    setStep(TOUR_STEPS[stepIndex - 1].id)
-  }, [setStep, stepIndex])
+    setStep(tourId, definition.steps[stepIndex - 1].id)
+  }, [definition, setStep, stepIndex, tourId])
 
   const goNext = React.useCallback(() => {
-    if (step.id === 'dashboard-intro') {
-      setStep('jobs-new-job')
-      router.push('/dashboard/jobs')
-      return
-    }
-
-    if (step.id === 'jobs-new-job') {
-      clickTarget('[data-tour="jobs-new-job-button"]')
-      setStep('create-job-modal')
-      return
-    }
-
-    if (step.id === 'form-fill-run') {
+    const action = step?.onNext
+    if (action?.kind === 'end') {
       endTour()
       return
     }
 
-    const nextStep = TOUR_STEPS[stepIndex + 1]
-    if (nextStep) setStep(nextStep.id)
-  }, [endTour, router, setStep, step.id, stepIndex])
+    if (action?.kind === 'click') {
+      clickTarget(action.selector)
+    }
+
+    const nextStep = definition.steps[stepIndex + 1]
+    if (!nextStep) {
+      endTour()
+      return
+    }
+    setStep(tourId, nextStep.id)
+
+    if (action?.kind === 'navigate') {
+      router.push(action.href)
+    }
+  }, [definition, endTour, router, setStep, step, stepIndex, tourId])
 
   const contextValue = React.useMemo<ProductTourContextValue>(
     () => ({ startTour, endTour, active }),
@@ -451,7 +588,7 @@ export function ProductTourProvider({ children }: { children: React.ReactNode })
         <ProductTourOverlay
           step={step}
           stepIndex={stepIndex}
-          totalSteps={TOUR_STEPS.length}
+          totalSteps={definition.steps.length}
           onBack={goBack}
           onNext={goNext}
           onEnd={endTour}
@@ -464,11 +601,12 @@ export function ProductTourProvider({ children }: { children: React.ReactNode })
 export function useProductTour() {
   const context = React.useContext(ProductTourContext)
   if (!context) {
-    return {
+    const fallback: ProductTourContextValue = {
       active: false,
       startTour: () => {},
       endTour: () => {},
     }
+    return fallback
   }
   return context
 }

@@ -44,7 +44,7 @@ export function DocumentGrid({
   isLoading,
 }: DocumentGridProps) {
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" data-tour="inkwise-document-grid">
       {/* Toolbar */}
       <div className="flex items-center justify-between border-b px-6 py-4">
         <h2 className="text-lg font-semibold">{folderName}</h2>
@@ -61,7 +61,7 @@ export function DocumentGrid({
               <SelectItem value="created_at_asc">Oldest first</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={onCreateDocument} disabled={isCreating}>
+          <Button onClick={onCreateDocument} disabled={isCreating} data-tour="inkwise-new-document-button">
             {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
             New document
           </Button>

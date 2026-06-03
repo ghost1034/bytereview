@@ -17,7 +17,7 @@ export function InkwiseModuleNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="rounded-2xl border bg-slate-50/80 p-1.5 shadow-sm" aria-label="Inkwise sections">
+    <nav className="rounded-2xl border bg-slate-50/80 p-1.5 shadow-sm" aria-label="Inkwise sections" data-tour="inkwise-module-nav">
       <div className="flex flex-wrap gap-1">
         {items.map((item) => {
           const Icon = item.icon
@@ -27,6 +27,7 @@ export function InkwiseModuleNav() {
             <Link
               key={item.href}
               href={item.href}
+              data-tour={`inkwise-nav-${item.label.toLowerCase()}`}
               className={cn(
                 'inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors',
                 active

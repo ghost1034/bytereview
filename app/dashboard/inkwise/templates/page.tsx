@@ -67,7 +67,7 @@ export default function InkwiseTemplatesPage() {
   const systemItems = systemTemplates.data?.items ?? []
 
   return (
-    <Card>
+    <Card data-tour="inkwise-templates">
       <CardHeader>
         <div>
           <CardTitle>Templates</CardTitle>
