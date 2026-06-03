@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import {
   BarChart3,
   CalendarDays,
+  ChevronDown,
   Clock,
   Download,
   FileSpreadsheet,
@@ -13,6 +14,11 @@ import {
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 import { IconTile } from '@/components/ui/icon-tile'
 import {
   fadeInUp,
@@ -201,6 +207,54 @@ export default function ChronaShowcase() {
               Download for Windows
             </a>
           </Button>
+        </motion.div>
+
+        <motion.div
+          className="mx-auto mt-6 max-w-2xl"
+          variants={fadeInUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportOnce}
+        >
+          <Collapsible>
+            <CollapsibleTrigger className="group mx-auto flex items-center gap-1.5 text-sm text-marketing-hero-foreground-muted transition-colors hover:text-marketing-hero-foreground">
+              If you see that the app is &ldquo;damaged and can&rsquo;t be
+              opened&rdquo;
+              <ChevronDown
+                className="size-4 transition-transform group-data-[state=open]:rotate-180"
+                aria-hidden
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="mt-4 rounded-xl border border-marketing-hero-border bg-marketing-hero-from/30 p-5 text-left text-sm text-marketing-hero-foreground-muted backdrop-blur-sm">
+                <ol className="list-decimal space-y-3 pl-5">
+                  <li>Open Terminal</li>
+                  <li>
+                    Remove the quarantine flag
+                    <ul className="mt-2 list-disc space-y-2 pl-5">
+                      <li>
+                        Type (don&rsquo;t press Enter yet):
+                        <pre className="mt-2 overflow-x-auto rounded-lg bg-black/40 px-3 py-2 font-mono text-xs text-marketing-hero-foreground">
+                          {'sudo xattr -dr com.apple.quarantine '}
+                        </pre>
+                      </li>
+                      <li>
+                        Drag the damaged app into the Terminal window (this
+                        fills in the app&rsquo;s path).
+                      </li>
+                      <li>Press Enter.</li>
+                    </ul>
+                    <p className="mt-2">Example:</p>
+                    <pre className="mt-2 overflow-x-auto rounded-lg bg-black/40 px-3 py-2 font-mono text-xs text-marketing-hero-foreground">
+                      sudo xattr -dr com.apple.quarantine
+                      /Applications/Chrona.app
+                    </pre>
+                  </li>
+                  <li>Launch the app again</li>
+                </ol>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </motion.div>
 
         <motion.p
