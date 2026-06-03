@@ -49,8 +49,8 @@ export default function Home() {
       <FormFillShowcase />
       <InkwiseShowcase />
       <ChronaShowcase />
-      <AnalyticsShowcase />
       <ClawShowcase />
+      <AnalyticsShowcase />
       <RoadmapPreview />
       <Testimonials />
       <SecurityTrust />
