@@ -78,6 +78,7 @@ class User(Base):
         nullable=True,
     )
     title = Column(String(255), nullable=True)
+    welcome_tour_seen_at = Column(TIMESTAMP(timezone=True), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 

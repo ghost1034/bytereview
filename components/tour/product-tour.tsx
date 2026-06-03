@@ -297,6 +297,11 @@ function readStoredState(): StoredTourState | null {
   }
 }
 
+/** Whether a tour is in progress per localStorage (e.g. mid-tour page reload). */
+export function hasStoredTourState() {
+  return readStoredState() !== null
+}
+
 function writeStoredState(state: StoredTourState | null) {
   try {
     if (!state) {

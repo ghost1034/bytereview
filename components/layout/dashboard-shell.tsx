@@ -29,6 +29,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar } from './app-sidebar'
 import { DashboardTopbar } from './dashboard-topbar'
 import { ProductTourProvider } from '@/components/tour/product-tour'
+import { WelcomeTourDialog } from '@/components/tour/welcome-tour-dialog'
 
 interface DashboardShellProps {
   children: React.ReactNode
@@ -123,7 +124,10 @@ export function DashboardShell({
               isWideRoute ? 'max-w-none' : 'max-w-7xl',
             )}
           >
-            <ProductTourProvider>{children}</ProductTourProvider>
+            <ProductTourProvider>
+              <WelcomeTourDialog />
+              {children}
+            </ProductTourProvider>
           </div>
         </main>
       </SidebarInset>

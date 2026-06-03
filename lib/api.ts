@@ -115,6 +115,12 @@ export class ApiClient {
     })
   }
 
+  async markWelcomeTourSeen(): Promise<ApiResponse<ApiPaths['/api/users/me/welcome-tour-seen']['post']>> {
+    return this.request('/api/users/me/welcome-tour-seen', {
+      method: 'POST'
+    })
+  }
+
   async updateProfile(
     data: ApiRequest<ApiPaths['/api/users/me']['put']>
   ): Promise<ApiResponse<ApiPaths['/api/users/me']['put']>> {

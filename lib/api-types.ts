@@ -105,6 +105,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/users/me/welcome-tour-seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark Welcome Tour Seen
+         * @description Mark the one-time welcome tour dialog as seen for the current user (idempotent)
+         */
+        post: operations["mark_welcome_tour_seen_api_users_me_welcome_tour_seen_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/jobs/initiate": {
         parameters: {
             query?: never;
@@ -3429,12 +3449,21 @@ export interface components {
             macrsSystem?: string | null;
             /** Convention */
             convention?: string | null;
-            /** Section179election */
-            section179Election?: boolean;
-            /** Bonusdepreciationelection */
-            bonusDepreciationElection?: boolean;
-            /** Listedproperty */
-            listedProperty?: boolean;
+            /**
+             * Section179Election
+             * @default false
+             */
+            section179Election: boolean;
+            /**
+             * Bonusdepreciationelection
+             * @default false
+             */
+            bonusDepreciationElection: boolean;
+            /**
+             * Listedproperty
+             * @default false
+             */
+            listedProperty: boolean;
             /** Businessusepercentage */
             businessUsePercentage?: number | null;
         };
@@ -3857,6 +3886,8 @@ export interface components {
             automations_count: number;
             /** Overage Cents */
             overage_cents: number;
+            /** Tokens Used */
+            tokens_used?: number | null;
             /** Current Period Start */
             current_period_start: string | null;
             /** Current Period End */
@@ -6405,14 +6436,11 @@ export interface components {
             /** Instructions */
             instructions: string;
             /** Availablerules */
-            availableRules?: ({
-                /** Category */
-                category?: string;
-                /** Rules */
-                rules?: string[];
+            availableRules?: {
+                [key: string]: unknown;
             }[] | {
                 [key: string]: unknown;
-            });
+            };
         };
         /** ReconciliationAdditionalPassResponse */
         ReconciliationAdditionalPassResponse: {
@@ -6564,14 +6592,11 @@ export interface components {
             /** Headers */
             headers: string[];
             /** Availablerules */
-            availableRules?: ({
-                /** Category */
-                category?: string;
-                /** Rules */
-                rules?: string[];
+            availableRules?: {
+                [key: string]: unknown;
             }[] | {
                 [key: string]: unknown;
-            });
+            };
         };
         /** ReconciliationRulesGenerateResponse */
         ReconciliationRulesGenerateResponse: {
@@ -6826,6 +6851,11 @@ export interface components {
             pages_included: number;
             /** Pages Remaining */
             pages_remaining: number;
+            /**
+             * Tokens Used
+             * @default 0
+             */
+            tokens_used: number;
             /** Automations Count */
             automations_count: number;
             /** Automations Limit */
@@ -6865,6 +6895,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Welcome Tour Seen At */
+            welcome_tour_seen_at?: string | null;
         };
         /** UserSyncRequest */
         UserSyncRequest: {
@@ -6881,10 +6913,6 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
-            /** Input */
-            input?: unknown;
-            /** Context */
-            ctx?: Record<string, never>;
         };
         /** VarianceAnalyzeRequest */
         VarianceAnalyzeRequest: {
@@ -7175,6 +7203,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_welcome_tour_seen_api_users_me_welcome_tour_seen_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
                 };
             };
         };

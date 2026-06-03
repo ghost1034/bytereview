@@ -17,6 +17,7 @@ export interface UserProfile {
   photo_url?: string | null
   created_at: string
   updated_at: string
+  welcome_tour_seen_at?: string | null
   // Stripe fields will be added when billing is implemented
 }
 
@@ -79,6 +80,37 @@ export function useUpdateUserProfile() {
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: ['user-profile'] })
     },
+  })
+}
+
+/**
+ * Hook for marking the one-time welcome tour dialog as seen
+ */
+export function useMarkWelcomeTourSeen() {
+  const queryClient = useQueryClient()
+  const { user: firebaseUser } = useAuth()
+
+  return useMutation({
+    mutationFn: async () => {
+      return apiClient.markWelcomeTourSeen()
+    },
+    onMutate: async () => {
+      // Optimistically stamp the cached profile so the dialog never re-shows
+      // this session, even while the request is in flight.
+      const queryKey = ['user-profile', firebaseUser?.uid]
+      const previous = queryClient.getQueryData<UserProfile>(queryKey)
+      if (previous && !previous.welcome_tour_seen_at) {
+        queryClient.setQueryData<UserProfile>(queryKey, {
+          ...previous,
+          welcome_tour_seen_at: new Date().toISOString(),
+        })
+      }
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['user-profile', firebaseUser?.uid], data)
+    },
+    // No onError rollback: if the request fails, the dialog stays dismissed
+    // for this session and re-shows next session since the DB write didn't land.
   })
 }
 

@@ -29,6 +29,7 @@ class UserResponse(BaseModel):
     photo_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    welcome_tour_seen_at: Optional[datetime] = None
     # Stripe and usage fields will be added when billing is implemented  # Free tier limit
 
 class UserInDB(UserResponse):

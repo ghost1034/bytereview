@@ -68,6 +68,7 @@ class UserService:
             photo_url=pg_user.photo_url,
             created_at=pg_user.created_at,
             updated_at=pg_user.updated_at,
+            welcome_tour_seen_at=pg_user.welcome_tour_seen_at,
         )
 
     def _apply_verified_phone(self, pg_user: DBUser, phone_number: Optional[str], phone_verified_at: Optional[datetime] = None) -> None:
@@ -190,6 +191,28 @@ class UserService:
             raise
         except SQLAlchemyError as e:
             logger.error(f"Failed to update user {uid}: {e}")
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    async def mark_welcome_tour_seen(self, uid: str) -> Optional[UserResponse]:
+        """Mark the one-time welcome tour dialog as seen (idempotent)"""
+        db = self._get_session()
+        try:
+            pg_user = db.query(DBUser).filter(DBUser.id == uid).first()
+            if not pg_user:
+                return None
+
+            if pg_user.welcome_tour_seen_at is None:
+                pg_user.welcome_tour_seen_at = datetime.utcnow()
+                db.commit()
+                db.refresh(pg_user)
+
+            return self._to_response(pg_user)
+
+        except SQLAlchemyError as e:
+            logger.error(f"Failed to mark welcome tour seen for {uid}: {e}")
             db.rollback()
             raise
         finally:

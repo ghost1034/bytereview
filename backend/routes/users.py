@@ -104,6 +104,19 @@ async def update_current_user(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating user: {str(e)}")
 
+@router.post("/me/welcome-tour-seen", response_model=UserResponse)
+async def mark_welcome_tour_seen(token_data: dict = Depends(verify_firebase_token)):
+    """Mark the one-time welcome tour dialog as seen for the current user (idempotent)"""
+    try:
+        user = await user_service.mark_welcome_tour_seen(token_data["uid"])
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error marking welcome tour seen: {str(e)}")
+
 @router.delete("/me")
 async def delete_current_user(
     token_data: dict = Depends(verify_firebase_token)
