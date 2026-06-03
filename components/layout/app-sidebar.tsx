@@ -24,6 +24,7 @@ import {
   Plug,
   Search,
   Settings as SettingsIcon,
+  Timer,
   Users,
   Zap,
 } from 'lucide-react'
@@ -85,7 +86,7 @@ const PRODUCTS_GROUP: NavGroup = {
     },
     { name: 'Form Fill', href: '/dashboard/form-fill', icon: Files },
     { name: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
-    { name: 'Chrona', href: '/#chrona-showcase', icon: Clock },
+    { name: 'Chrona', href: '/#chrona-showcase', icon: Timer },
     { name: 'Time Tracking', href: '/dashboard/analytics/chrona', icon: Clock },
     { name: 'Chrona Devices', href: '/dashboard/analytics/chrona/devices', icon: MonitorSmartphone },
     {
