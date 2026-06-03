@@ -3191,6 +3191,153 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/chrona/pairing-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Pairing Codes Route */
+        get: operations["list_pairing_codes_route_api_chrona_pairing_codes_get"];
+        put?: never;
+        /** Create Pairing Code Route */
+        post: operations["create_pairing_code_route_api_chrona_pairing_codes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/chrona/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Devices Route */
+        get: operations["list_devices_route_api_chrona_devices_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/chrona/devices/{device_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Device Route */
+        delete: operations["revoke_device_route_api_chrona_devices__device_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename Device Route */
+        patch: operations["rename_device_route_api_chrona_devices__device_id__patch"];
+        trace?: never;
+    };
+    "/api/chrona/sync/pair": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pair Route
+         * @description Redeem a pairing code for a device token (returned once, never stored).
+         */
+        post: operations["pair_route_api_chrona_sync_pair_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/chrona/sync/cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync Cards Route
+         * @description Batch idempotent card ingest; unchanged cards are counted as skipped.
+         */
+        post: operations["sync_cards_route_api_chrona_sync_cards_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/chrona/sync/ping": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ping Route
+         * @description Heartbeat — proves the token is still valid and stamps last_seen_at.
+         */
+        get: operations["ping_route_api_chrona_sync_ping_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/chrona/dashboard/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chrona Summary Route */
+        get: operations["chrona_summary_route_api_chrona_dashboard_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/chrona/dashboard/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chrona Timeline Route */
+        get: operations["chrona_timeline_route_api_chrona_dashboard_timeline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3998,6 +4145,147 @@ export interface components {
         CheckoutSessionResponse: {
             /** Checkout Url */
             checkout_url: string;
+        };
+        /** ChronaDeviceListResponse */
+        ChronaDeviceListResponse: {
+            /** Devices */
+            devices: components["schemas"]["ChronaDeviceResponse"][];
+        };
+        /** ChronaDeviceResponse */
+        ChronaDeviceResponse: {
+            /** Id */
+            id: string;
+            /** Display Name */
+            display_name: string;
+            /** Token Prefix */
+            token_prefix: string;
+            /** Platform */
+            platform?: string | null;
+            /** App Version */
+            app_version?: string | null;
+            /** Last Seen At */
+            last_seen_at?: string | null;
+            /** Last Sync At */
+            last_sync_at?: string | null;
+            /** Sync Count */
+            sync_count: number;
+            /** Revoked */
+            revoked: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ChronaDeviceUpdateRequest */
+        ChronaDeviceUpdateRequest: {
+            /** Display Name */
+            display_name: string;
+        };
+        /**
+         * ChronaSummaryCell
+         * @description Hours for one (device, category, day) bucket.
+         *
+         *     Fully granular so the frontend can roll up by category, by day, or by
+         *     device without extra round-trips. ``day_key`` is the device-local day,
+         *     reported verbatim.
+         */
+        ChronaSummaryCell: {
+            /** Device Id */
+            device_id: string;
+            /** Category */
+            category: string;
+            /**
+             * Day Key
+             * Format: date
+             */
+            day_key: string;
+            /** Hours */
+            hours: number;
+            /** Card Count */
+            card_count: number;
+        };
+        /**
+         * ChronaSummaryDevice
+         * @description Per-device totals over the requested range (zero rows included).
+         */
+        ChronaSummaryDevice: {
+            /** Device Id */
+            device_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Total Hours */
+            total_hours: number;
+            /** Card Count */
+            card_count: number;
+            /** Revoked */
+            revoked: boolean;
+            /** Last Seen At */
+            last_seen_at?: string | null;
+            /** Last Sync At */
+            last_sync_at?: string | null;
+        };
+        /** ChronaSummaryResponse */
+        ChronaSummaryResponse: {
+            /**
+             * From Day
+             * Format: date
+             */
+            from_day: string;
+            /**
+             * To Day
+             * Format: date
+             */
+            to_day: string;
+            /** Cells */
+            cells: components["schemas"]["ChronaSummaryCell"][];
+            /** Devices */
+            devices: components["schemas"]["ChronaSummaryDevice"][];
+        };
+        /** ChronaTimelineCardResponse */
+        ChronaTimelineCardResponse: {
+            /** Id */
+            id: string;
+            /** Source Card Id */
+            source_card_id: number;
+            /** Title */
+            title: string;
+            /** Summary */
+            summary?: string | null;
+            /** Detailed Summary */
+            detailed_summary?: string | null;
+            /** Category */
+            category: string;
+            /** Subcategory */
+            subcategory?: string | null;
+            /** Start Ts */
+            start_ts: number;
+            /** End Ts */
+            end_ts: number;
+            /**
+             * Day Key
+             * Format: date
+             */
+            day_key: string;
+            /**
+             * Synced At
+             * Format: date-time
+             */
+            synced_at: string;
+        };
+        /** ChronaTimelineResponse */
+        ChronaTimelineResponse: {
+            /** Device Id */
+            device_id: string;
+            /** Display Name */
+            display_name: string;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Cards */
+            cards: components["schemas"]["ChronaTimelineCardResponse"][];
         };
         /** ClientCreateRequest */
         ClientCreateRequest: {
@@ -6412,6 +6700,55 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** PairRequest */
+        PairRequest: {
+            /** Code */
+            code: string;
+            /** Platform */
+            platform?: string | null;
+            /** App Version */
+            app_version?: string | null;
+        };
+        /**
+         * PairResponse
+         * @description ``device_token`` is the full plaintext token, returned exactly once
+         *     at pairing time (only its hash is stored server-side).
+         */
+        PairResponse: {
+            /** Device Id */
+            device_id: string;
+            /** Device Token */
+            device_token: string;
+            /** Display Name */
+            display_name: string;
+        };
+        /**
+         * PairingCodeCreateRequest
+         * @description Mint a pairing code; the device created from it inherits the name.
+         */
+        PairingCodeCreateRequest: {
+            /** Display Name */
+            display_name: string;
+        };
+        /** PairingCodeListResponse */
+        PairingCodeListResponse: {
+            /** Codes */
+            codes: components["schemas"]["PairingCodeResponse"][];
+        };
+        /** PairingCodeResponse */
+        PairingCodeResponse: {
+            /** Code */
+            code: string;
+            /** Display Name */
+            display_name: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Created At */
+            created_at?: string | null;
+        };
         /** PhoneAvailabilityResponse */
         PhoneAvailabilityResponse: {
             /** Available */
@@ -6746,6 +7083,74 @@ export interface components {
              * @description Unix timestamp of period end
              */
             current_period_end?: number | null;
+        };
+        /**
+         * SyncCard
+         * @description One timeline card as synced from a Chrona device.
+         *
+         *     Timestamps and ``day_key`` are stored verbatim — ``day_key`` is the
+         *     device-local day, never re-bucketed by UTC server-side.
+         */
+        SyncCard: {
+            /** Source Card Id */
+            source_card_id: number;
+            /** Content Hash */
+            content_hash: string;
+            /** Title */
+            title: string;
+            /** Summary */
+            summary?: string | null;
+            /** Detailed Summary */
+            detailed_summary?: string | null;
+            /** Category */
+            category: string;
+            /** Subcategory */
+            subcategory?: string | null;
+            /** Start Ts */
+            start_ts: number;
+            /** End Ts */
+            end_ts: number;
+            /**
+             * Day Key
+             * Format: date
+             */
+            day_key: string;
+            /**
+             * Is Deleted
+             * @default false
+             */
+            is_deleted: boolean;
+            /** Source Created At */
+            source_created_at?: string | null;
+        };
+        /** SyncCardsRequest */
+        SyncCardsRequest: {
+            /** Cards */
+            cards?: components["schemas"]["SyncCard"][];
+            /** Deleted Source Card Ids */
+            deleted_source_card_ids?: number[];
+        };
+        /** SyncCardsResponse */
+        SyncCardsResponse: {
+            /** Accepted */
+            accepted: number;
+            /** Skipped Unchanged */
+            skipped_unchanged: number;
+            /**
+             * Server Time
+             * Format: date-time
+             */
+            server_time: string;
+        };
+        /** SyncPingResponse */
+        SyncPingResponse: {
+            /** Ok */
+            ok: boolean;
+            /**
+             * Server Time
+             * Format: date-time
+             */
+            server_time: string;
         };
         /**
          * TaskInfo
@@ -13683,6 +14088,303 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResolveResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_pairing_codes_route_api_chrona_pairing_codes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PairingCodeListResponse"];
+                };
+            };
+        };
+    };
+    create_pairing_code_route_api_chrona_pairing_codes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PairingCodeCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PairingCodeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_devices_route_api_chrona_devices_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChronaDeviceListResponse"];
+                };
+            };
+        };
+    };
+    revoke_device_route_api_chrona_devices__device_id__delete: {
+        parameters: {
+            query?: {
+                /** @description Also delete this device's synced cards */
+                purge?: boolean;
+            };
+            header?: never;
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_device_route_api_chrona_devices__device_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChronaDeviceUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChronaDeviceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pair_route_api_chrona_sync_pair_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PairRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PairResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_cards_route_api_chrona_sync_cards_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncCardsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncCardsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ping_route_api_chrona_sync_ping_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPingResponse"];
+                };
+            };
+        };
+    };
+    chrona_summary_route_api_chrona_dashboard_summary_get: {
+        parameters: {
+            query: {
+                /** @description Start day (device-local), inclusive */
+                from: string;
+                /** @description End day (device-local), inclusive */
+                to: string;
+                /** @description Restrict to one device */
+                device_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChronaSummaryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chrona_timeline_route_api_chrona_dashboard_timeline_get: {
+        parameters: {
+            query: {
+                device_id: string;
+                /** @description Device-local day to list cards for */
+                day: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChronaTimelineResponse"];
                 };
             };
             /** @description Validation Error */

@@ -108,3 +108,60 @@ class SyncCardsResponse(BaseModel):
 class SyncPingResponse(BaseModel):
     ok: bool
     server_time: datetime
+
+
+# ---------------------------------------------------------------------------
+# Manager-facing: dashboard (read-only reporting)
+# ---------------------------------------------------------------------------
+
+class ChronaSummaryCell(BaseModel):
+    """Hours for one (device, category, day) bucket.
+
+    Fully granular so the frontend can roll up by category, by day, or by
+    device without extra round-trips. ``day_key`` is the device-local day,
+    reported verbatim.
+    """
+    device_id: str
+    category: str
+    day_key: date
+    hours: float
+    card_count: int
+
+
+class ChronaSummaryDevice(BaseModel):
+    """Per-device totals over the requested range (zero rows included)."""
+    device_id: str
+    display_name: str
+    total_hours: float
+    card_count: int
+    revoked: bool
+    last_seen_at: Optional[datetime] = None
+    last_sync_at: Optional[datetime] = None
+
+
+class ChronaSummaryResponse(BaseModel):
+    from_day: date
+    to_day: date
+    cells: List[ChronaSummaryCell]
+    devices: List[ChronaSummaryDevice]
+
+
+class ChronaTimelineCardResponse(BaseModel):
+    id: str
+    source_card_id: int
+    title: str
+    summary: Optional[str] = None
+    detailed_summary: Optional[str] = None
+    category: str
+    subcategory: Optional[str] = None
+    start_ts: int
+    end_ts: int
+    day_key: date
+    synced_at: datetime
+
+
+class ChronaTimelineResponse(BaseModel):
+    device_id: str
+    display_name: str
+    day: date
+    cards: List[ChronaTimelineCardResponse]

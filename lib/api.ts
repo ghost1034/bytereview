@@ -2018,6 +2018,69 @@ export class ApiClient {
     if (buffer.trim()) emit(buffer)
   }
 
+  // ===========================================================================
+  // Chrona — paired time-tracking devices + dashboard
+  // ===========================================================================
+
+  async listChronaDevices(): Promise<ApiResponse<ApiPaths['/api/chrona/devices']['get']>> {
+    return this.request('/api/chrona/devices')
+  }
+
+  async generateChronaPairingCode(
+    data: ApiRequest<ApiPaths['/api/chrona/pairing-codes']['post']>
+  ): Promise<ApiResponse<ApiPaths['/api/chrona/pairing-codes']['post']>> {
+    return this.request('/api/chrona/pairing-codes', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async listChronaPairingCodes(): Promise<
+    ApiResponse<ApiPaths['/api/chrona/pairing-codes']['get']>
+  > {
+    return this.request('/api/chrona/pairing-codes')
+  }
+
+  async renameChronaDevice(
+    deviceId: string,
+    data: ApiRequest<ApiPaths['/api/chrona/devices/{device_id}']['patch']>
+  ): Promise<ApiResponse<ApiPaths['/api/chrona/devices/{device_id}']['patch']>> {
+    return this.request(`/api/chrona/devices/${encodeURIComponent(deviceId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async revokeChronaDevice(
+    deviceId: string,
+    options?: { purge?: boolean }
+  ): Promise<ApiResponse<ApiPaths['/api/chrona/devices/{device_id}']['delete']>> {
+    const params = new URLSearchParams()
+    if (options?.purge) params.set('purge', 'true')
+    const qs = params.toString()
+    return this.request(`/api/chrona/devices/${encodeURIComponent(deviceId)}${qs ? `?${qs}` : ''}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getChronaSummary(options: {
+    from: string
+    to: string
+    deviceId?: string
+  }): Promise<ApiResponse<ApiPaths['/api/chrona/dashboard/summary']['get']>> {
+    const params = new URLSearchParams({ from: options.from, to: options.to })
+    if (options.deviceId) params.set('device_id', options.deviceId)
+    return this.request(`/api/chrona/dashboard/summary?${params.toString()}`)
+  }
+
+  async getChronaTimeline(options: {
+    deviceId: string
+    day: string
+  }): Promise<ApiResponse<ApiPaths['/api/chrona/dashboard/timeline']['get']>> {
+    const params = new URLSearchParams({ device_id: options.deviceId, day: options.day })
+    return this.request(`/api/chrona/dashboard/timeline?${params.toString()}`)
+  }
+
 }
 
 export interface AnalyticsStreamUsage {

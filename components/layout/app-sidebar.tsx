@@ -19,6 +19,7 @@ import {
   Home,
   KeyRound,
   LineChart,
+  MonitorSmartphone,
   PenTool,
   Plug,
   Search,
@@ -116,6 +117,8 @@ const ANALYTICS_GROUP: NavGroup = {
     { name: 'Waterfall', href: '/dashboard/analytics/waterfall', icon: Droplet },
     { name: 'IRS Researcher', href: '/dashboard/analytics/research/irs', icon: Search },
     { name: 'GAAP Researcher', href: '/dashboard/analytics/research/gaap', icon: BookOpen },
+    { name: 'Time Tracking', href: '/dashboard/analytics/chrona', icon: Clock },
+    { name: 'Chrona Devices', href: '/dashboard/analytics/chrona/devices', icon: MonitorSmartphone },
     { name: 'Settings', href: '/dashboard/analytics/settings', icon: SettingsIcon },
   ],
 }
@@ -123,6 +126,13 @@ const ANALYTICS_GROUP: NavGroup = {
 function isActiveHref(pathname: string, href: string) {
   if (href === '/dashboard') return pathname === '/dashboard'
   if (href === '/dashboard/analytics') return pathname === '/dashboard/analytics'
+  if (href === '/dashboard/analytics/chrona') {
+    // Device detail pages belong to Time Tracking; /devices is its own entry.
+    return (
+      pathname === href ||
+      (pathname.startsWith(`${href}/`) && !pathname.startsWith(`${href}/devices`))
+    )
+  }
   if (href.startsWith('/#')) return false
   return pathname === href || pathname.startsWith(`${href}/`)
 }
