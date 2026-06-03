@@ -100,9 +100,19 @@ export function DashboardHome() {
                   className="flex-col items-start gap-0.5"
                   onClick={() => startTour('extraction')}
                 >
-                  <span className="font-medium">Extraction &amp; Form Fill</span>
+                  <span className="font-medium">Extraction Jobs</span>
                   <span className="text-xs text-foreground-muted">
-                    Create a job, extract fields, and fill a document.
+                    Create a job, upload documents, extract fields, and review
+                    results.
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="flex-col items-start gap-0.5"
+                  onClick={() => startTour('form-fill')}
+                >
+                  <span className="font-medium">Form Fill</span>
+                  <span className="text-xs text-foreground-muted">
+                    Fill a PDF or DOCX target from uploaded or extracted data.
                   </span>
                 </DropdownMenuItem>
                 <DropdownMenuItem

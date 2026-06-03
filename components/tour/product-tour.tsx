@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 const STORAGE_KEY = 'cpaautomation.product-tour.v2'
 const LEGACY_STORAGE_KEY = 'cpaautomation.product-tour.v1'
 
-export type TourId = 'extraction' | 'inkwise'
+export type TourId = 'extraction' | 'form-fill' | 'inkwise'
 
 type TourNextAction =
   | { kind: 'navigate'; href: string }
@@ -52,7 +52,7 @@ const EXTRACTION_STEPS: TourStep[] = [
   {
     id: 'dashboard-intro',
     title: 'Start with an extraction job',
-    body: 'This tour follows the complete CPAAutomation workflow: create an extraction job, run it, review results, then send a result into Form Fill.',
+    body: 'This tour walks through extraction jobs: create a job, upload documents, configure fields, run it, and review results. Sending results to Form Fill has its own tour.',
     target: '[data-tour="dashboard-tour-button"]',
     nextLabel: 'Go to jobs',
     onNext: { kind: 'navigate', href: '/dashboard/jobs' },
@@ -102,16 +102,39 @@ const EXTRACTION_STEPS: TourStep[] = [
     manual: true,
   },
   {
-    id: 'results-form-fill',
-    title: 'Use extracted data',
-    body: 'Review and edit results, export CSV or Excel, or click Use in Form Fill on a selected result to fill a PDF or DOCX target with extracted values.',
+    id: 'results-overview',
+    title: 'Review your results',
+    body: 'Review and edit extracted values, then export to CSV or Excel. To fill a PDF or DOCX with these values, select a result and use Use in Form Fill — that flow is covered by the separate Form Fill tour.',
     target: '[data-tour="use-in-form-fill-button"]',
-    manual: true,
+    nextLabel: 'Finish tour',
+    onNext: { kind: 'end' },
+  },
+]
+
+function getExtractionStepByRoute(pathname: string): string | null {
+  if (/^\/dashboard\/jobs\/[^/]+\/results$/.test(pathname)) return 'results-overview'
+  if (/^\/dashboard\/jobs\/[^/]+\/processing$/.test(pathname)) return 'processing-status'
+  if (/^\/dashboard\/jobs\/[^/]+\/review$/.test(pathname)) return 'review-start'
+  if (/^\/dashboard\/jobs\/[^/]+\/fields$/.test(pathname)) return 'configure-fields'
+  if (/^\/dashboard\/jobs\/[^/]+\/upload$/.test(pathname)) return 'upload-files'
+  if (pathname === '/dashboard/jobs') return 'jobs-new-job'
+  if (pathname === '/dashboard') return 'dashboard-intro'
+  return null
+}
+
+const FORM_FILL_STEPS: TourStep[] = [
+  {
+    id: 'form-fill-intro',
+    title: 'Fill documents with Form Fill',
+    body: 'Form Fill takes source data and writes it into a PDF or DOCX target. You can upload source files directly, or send results in from an extraction job.',
+    target: '[data-tour="dashboard-tour-button"]',
+    nextLabel: 'Open Form Fill',
+    onNext: { kind: 'navigate', href: '/dashboard/form-fill' },
   },
   {
     id: 'form-fill-source',
-    title: 'Confirm the Form Fill source',
-    body: 'The selected extraction result is loaded as the source data. Review the preview before choosing the document you want to fill.',
+    title: 'Choose your source data',
+    body: 'Upload source files (CSV, XLSX, PDF, or DOCX) to pull values from. If you arrived here from a job’s results, the extraction data is preloaded as the source instead.',
     target: '[data-tour="form-fill-source"]',
     nextLabel: 'Show target',
   },
@@ -132,15 +155,9 @@ const EXTRACTION_STEPS: TourStep[] = [
   },
 ]
 
-function getExtractionStepByRoute(pathname: string): string | null {
+function getFormFillStepByRoute(pathname: string): string | null {
   if (pathname === '/dashboard/form-fill') return 'form-fill-source'
-  if (/^\/dashboard\/jobs\/[^/]+\/results$/.test(pathname)) return 'results-form-fill'
-  if (/^\/dashboard\/jobs\/[^/]+\/processing$/.test(pathname)) return 'processing-status'
-  if (/^\/dashboard\/jobs\/[^/]+\/review$/.test(pathname)) return 'review-start'
-  if (/^\/dashboard\/jobs\/[^/]+\/fields$/.test(pathname)) return 'configure-fields'
-  if (/^\/dashboard\/jobs\/[^/]+\/upload$/.test(pathname)) return 'upload-files'
-  if (pathname === '/dashboard/jobs') return 'jobs-new-job'
-  if (pathname === '/dashboard') return 'dashboard-intro'
+  if (pathname === '/dashboard') return 'form-fill-intro'
   return null
 }
 
@@ -256,6 +273,7 @@ function getInkwiseStepByRoute(pathname: string): string | null {
 
 const TOUR_DEFINITIONS: Record<TourId, TourDefinition> = {
   extraction: { id: 'extraction', steps: EXTRACTION_STEPS, getStepByRoute: getExtractionStepByRoute },
+  'form-fill': { id: 'form-fill', steps: FORM_FILL_STEPS, getStepByRoute: getFormFillStepByRoute },
   inkwise: { id: 'inkwise', steps: INKWISE_STEPS, getStepByRoute: getInkwiseStepByRoute },
 }
 
