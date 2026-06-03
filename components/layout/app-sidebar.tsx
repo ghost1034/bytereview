@@ -85,13 +85,7 @@ const PRODUCTS_GROUP: NavGroup = {
     },
     { name: 'Form Fill', href: '/dashboard/form-fill', icon: Files },
     { name: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
-    {
-      name: 'Chrona',
-      href: '/#chrona-showcase',
-      icon: Clock,
-      badge: 'Soon',
-      badgeTone: 'muted',
-    },
+    { name: 'Chrona', href: '/#chrona-showcase', icon: Clock },
     { name: 'Time Tracking', href: '/dashboard/analytics/chrona', icon: Clock },
     { name: 'Chrona Devices', href: '/dashboard/analytics/chrona/devices', icon: MonitorSmartphone },
     {

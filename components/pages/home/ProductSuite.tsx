@@ -70,7 +70,7 @@ const PRODUCTS: Product[] = [
       'Automatic time tracking that turns your screen into a structured daily timeline.',
     icon: Clock,
     tone: 'brand',
-    status: 'Coming Soon',
+    status: 'Available',
     href: '#chrona-showcase',
   },
   {

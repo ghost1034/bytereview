@@ -74,7 +74,6 @@ const PRODUCT_LINKS: ProductLink[] = [
     href: '/#chrona-showcase',
     description: 'AI time tracking',
     icon: Clock,
-    status: 'soon',
   },
   {
     label: 'Claw Series',

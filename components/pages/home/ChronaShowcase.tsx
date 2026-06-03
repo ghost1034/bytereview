@@ -81,7 +81,7 @@ export default function ChronaShowcase() {
               className="mb-4 rounded-full border-marketing-hero-border bg-marketing-hero-accent/10 text-marketing-hero-foreground-muted"
             >
               <Clock className="mr-1.5 size-3" aria-hidden />
-              Coming soon
+              Now available
             </Badge>
           </motion.div>
           <motion.h2
@@ -171,8 +171,7 @@ export default function ChronaShowcase() {
           whileInView="visible"
           viewport={viewportOnce}
         >
-          Desktop app available now. CPAAutomation dashboard integration coming
-          soon.
+          Desktop app and CPAAutomation dashboard integration available now.
         </motion.p>
       </div>
     </section>

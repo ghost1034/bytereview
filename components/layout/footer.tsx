@@ -70,7 +70,7 @@ export default function Footer() {
                 <FooterLink href="/dashboard/inkwise">Inkwise</FooterLink>
               </li>
               <li>
-                <ComingSoonItem label="Chrona" />
+                <FooterLink href="/#chrona-showcase">Chrona</FooterLink>
               </li>
               <li>
                 <FooterLink href="/claw">Claw Series</FooterLink>
