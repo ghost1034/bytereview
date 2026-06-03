@@ -332,9 +332,9 @@ export function AIAssistant() {
                               type="button"
                               onClick={() => handleExport('word')}
                               className="rounded p-1 text-[10px] font-bold text-foreground-muted hover:text-blue-600"
-                              title="Export Word"
+                              title="Export Word (.docx)"
                             >
-                              DOC
+                              DOCX
                             </button>
                             <button
                               type="button"

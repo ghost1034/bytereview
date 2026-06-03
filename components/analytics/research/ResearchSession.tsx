@@ -383,7 +383,7 @@ export function ResearchSession({ bot, client, sessionId, onBack }: ResearchSess
                 onClick={() => runExport(fmt)}
                 className="rounded-md px-3 py-1.5 text-xs font-bold text-foreground-muted transition-colors hover:bg-card hover:text-foreground"
               >
-                {fmt === 'excel' ? 'Excel' : fmt === 'word' ? 'Word' : 'PDF'}
+                {fmt === 'excel' ? 'Excel' : fmt === 'word' ? 'Word (.docx)' : 'PDF'}
               </button>
             ))}
           </div>
@@ -579,7 +579,7 @@ export function ResearchSession({ bot, client, sessionId, onBack }: ResearchSess
                           type="button"
                           onClick={() => runExport('word', [msg])}
                           className="rounded-md p-1.5 text-foreground-muted transition-colors hover:text-primary"
-                          title="Export this response to Word"
+                          title="Export this response to Word (.docx)"
                         >
                           <Download className="size-3.5" aria-hidden />
                         </button>

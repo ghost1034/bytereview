@@ -1,20 +1,13 @@
 // Chat-transcript and citation export for the research bots / AI assistant.
 // Ported from CPAAnalytics' ResearchBot `handleExport`:
 //   - PDF: jsPDF text layout (lazy-imported to stay out of the main bundle)
-//   - Word: HTML -> `.doc` blob, rendering markdown via the existing
-//     unified/remark/rehype pipeline (CPAAnalytics used `marked`; we reuse the
-//     deps already in this app instead of adding another markdown lib)
+//   - Word: markdown -> `.docx` via shared `exportMemoToWord`
 //   - Excel: Role / Message / Timestamp rows via `exportRows`
 //   - Markdown: plain `.md` download (port-only convenience format)
 //   - Citations: regex-extracted to a two-column Excel sheet via `exportRows`
 
-import rehypeStringify from 'rehype-stringify'
-import remarkGfm from 'remark-gfm'
-import remarkParse from 'remark-parse'
-import remarkRehype from 'remark-rehype'
-import { unified } from 'unified'
-
 import { exportRows } from '@/lib/analytics/exportData'
+import { exportMemoToWord } from '@/lib/analytics/memoExport'
 import type { AnalyticsChatMessage } from '@/lib/analytics/types'
 
 export type ChatTranscriptFormat = 'md' | 'pdf' | 'word' | 'excel'
@@ -46,16 +39,6 @@ function transcriptMarkdown(messages: AnalyticsChatMessage[], botLabel: string):
   return messages
     .map((m) => `### ${m.role === 'user' ? 'YOU' : botLabel}\n${m.content}`)
     .join('\n\n---\n\n')
-}
-
-function markdownToHtml(markdown: string): string {
-  return unified()
-    .use(remarkParse)
-    .use(remarkGfm)
-    .use(remarkRehype)
-    .use(rehypeStringify)
-    .processSync(markdown)
-    .toString()
 }
 
 /** Distinct citation strings found across all message contents. */
@@ -111,21 +94,10 @@ export async function exportTranscript(
   }
 
   if (format === 'word') {
-    const html = markdownToHtml(markdown)
-    const header =
-      "<html xmlns:o='urn:schemas-microsoft-com:office:office' " +
-      "xmlns:w='urn:schemas-microsoft-com:office:word' " +
-      "xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'>" +
-      '<title>Export</title><style>' +
-      "body { font-family: 'Calibri', 'Arial', sans-serif; font-size: 11pt; line-height: 1.5; color: #333; }" +
-      'h1, h2, h3 { color: #2C3E50; margin-top: 12pt; margin-bottom: 6pt; }' +
-      'p { margin-bottom: 10pt; }' +
-      'table { border-collapse: collapse; width: 100%; margin-bottom: 10pt; }' +
-      'th, td { border: 1px solid #ccc; padding: 6pt; text-align: left; }' +
-      'code { background: #f4f4f4; padding: 2px 4px; border-radius: 4px; font-family: monospace; }' +
-      '</style></head><body>'
-    const footer = '</body></html>'
-    downloadBlob(`${fileBase}.doc`, '﻿' + header + html + footer, 'application/msword')
+    await exportMemoToWord(markdown, fileBase, {
+      title: prefix.replace(/_/g, ' '),
+      generatedAt: new Date(),
+    })
     return
   }
 
