@@ -1,6 +1,6 @@
 """
-ARQ worker configuration and task definitions for ByteReview
-Background worker system for asynchronous job processing
+Background task definitions for ByteReview
+Executed via Cloud Run Tasks for asynchronous job processing
 """
 import os
 import asyncio
@@ -26,7 +26,6 @@ from pathlib import Path
 backend_dir = Path(__file__).parent.parent  # Go up to backend/ directory
 sys.path.insert(0, str(backend_dir))
 
-# ARQ imports removed - now using Cloud Run Tasks
 from sqlalchemy.orm import Session
 from sqlalchemy import text, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert, JSONB
@@ -115,8 +114,6 @@ def _is_final_extraction_attempt(ctx: Dict[str, Any]) -> bool:
         # Direct/non-Cloud-Tasks invocations should fail terminally instead of looping forever.
         return True
     return retry_count >= _extract_task_max_attempts() - 1
-
-# Redis configuration removed - using Cloud Run Tasks instead
 
 async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_run_id: str = None) -> Dict[str, Any]:
     """
@@ -1105,10 +1102,6 @@ async def schedule_gmail_watch_renewal(ctx: Dict[str, Any]) -> Dict[str, Any]:
         logger.error(f"Scheduled Gmail watch renewal failed: {e}")
         return {"success": False, "error": str(e)}
 
-# ARQ worker settings removed - using Cloud Run Tasks instead
-
-# ZipWorkerSettings removed - using Cloud Run Tasks instead
-
 # ===================================================================
 # Import Worker Functions (Drive, Gmail)
 # ===================================================================
@@ -1320,8 +1313,6 @@ async def _handle_zip_file(
         raise
 
 
-# ImportWorkerSettings removed - using Cloud Run Tasks instead
-
 # ===================================================================
 # Export Worker Functions (Google Drive, etc.)
 # ===================================================================
@@ -1528,8 +1519,6 @@ async def export_job_to_google_drive(
             
             raise
 
-
-# ExportWorkerSettings removed - using Cloud Run Tasks instead
 
 # ===================================================================
 # Automation Worker Functions
@@ -1816,8 +1805,6 @@ async def run_initializer_worker(
             raise
 
 
-# AutomationWorkerSettings removed - using Cloud Run Tasks instead
-
 async def main():
     """For testing the worker locally"""
     from services.cloud_run_task_service import cloud_run_task_service
@@ -1893,8 +1880,6 @@ async def _record_usage_for_task(db: Session, task: ExtractionTask, source_files
         # Don't re-raise for other errors to avoid failing the extraction task
 
 # Removed per-task limit checking - now handled at job start
-
-# All ARQ worker settings classes removed - using Cloud Run Tasks and Cloud Scheduler instead
 
 if __name__ == "__main__":
     asyncio.run(main())

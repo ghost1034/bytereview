@@ -281,7 +281,7 @@ def main():
     if success:
         logger.info("\n🎉 Central Gmail mailbox Pub/Sub setup completed successfully!")
         logger.info("\nNext steps:")
-        logger.info("1. Start the automation worker: python run_workers.py automation")
+        logger.info("1. Ensure the automation task service is running: python -m task_services.automation_task_service")
         logger.info("2. Test by sending an email to document@cpaautomation.ai")
         logger.info("3. Check webhook logs for processing")
         logger.info("4. Create automations via the API or frontend")

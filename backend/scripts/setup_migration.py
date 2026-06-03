@@ -124,8 +124,7 @@ def main():
     print("1. Update your .env file with actual configuration values")
     print("2. Install Python dependencies: cd backend && pip install -r requirements.txt")
     print("3. Start the FastAPI server: cd backend && python -m uvicorn main:app --reload")
-    print("4. Start the ARQ worker: cd backend && python -m arq worker.WorkerSettings --watch")
-    print("5. Start the Next.js frontend: npm run dev")
+    print("4. Start the Next.js frontend: npm run dev")
 
 if __name__ == "__main__":
     main()
