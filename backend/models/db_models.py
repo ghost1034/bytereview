@@ -814,6 +814,8 @@ class Firm(Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    chrona_devices = relationship("ChronaDevice", back_populates="firm", cascade="all, delete-orphan")
+    chrona_pairing_codes = relationship("ChronaPairingCode", back_populates="firm", cascade="all, delete-orphan")
 
 
 class FirmInviteCode(Base):
@@ -1017,6 +1019,107 @@ class AnalyticsAuditLog(Base):
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     firm = relationship("Firm", back_populates="audit_logs")
+
+
+# ===================================================================
+# Chrona Integration Models
+# ===================================================================
+
+class ChronaDevice(Base):
+    """A paired Chrona desktop install that syncs timeline cards into a firm.
+
+    Pairing flow: a manager mints a short-lived pairing code in the dashboard,
+    the Chrona user enters it, and the backend issues a long-lived scoped device
+    token (``chrona_dev_<random>``). Chrona users do NOT get Firebase accounts.
+
+    Token storage mirrors ActivationKey: only a SHA-256 hash is stored, with
+    ``token_lookup`` (a non-secret prefix of the random part) for an indexed
+    O(1) lookup and ``token_prefix`` as a masked display value. Setting
+    ``revoked_at`` immediately cuts the device off (lookup filters on it).
+    """
+    __tablename__ = "chrona_devices"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False, index=True)
+    paired_by_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    display_name = Column(String(255), nullable=False)
+    token_lookup = Column(String(16), nullable=False, unique=True)  # non-secret lookup handle
+    token_hash = Column(String(64), nullable=False)  # sha256 hex of the full token
+    token_prefix = Column(String(24), nullable=False)  # masked value for display, e.g. "chrona_dev_AbCd…"
+    platform = Column(String(32), nullable=True)  # 'darwin' | 'win32' | 'linux'
+    app_version = Column(String(32), nullable=True)
+    revoked_at = Column(TIMESTAMP(timezone=True), nullable=True)  # non-null => revoked
+    last_seen_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    last_sync_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    sync_count = Column(Integer, nullable=False, server_default="0")
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    firm = relationship("Firm", back_populates="chrona_devices")
+    timeline_cards = relationship("ChronaTimelineCard", back_populates="device", cascade="all, delete-orphan")
+
+
+class ChronaPairingCode(Base):
+    """Short-lived, single-use code that pairs a Chrona install to a firm.
+
+    Minted by a manager in the dashboard (with the device's display name),
+    valid for ~15 minutes, consumed exactly once by POST /api/chrona/sync/pair.
+    """
+    __tablename__ = "chrona_pairing_codes"
+
+    code = Column(String(8), primary_key=True)  # normalized (uppercase, no ambiguous chars)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_by_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    display_name = Column(String(255), nullable=False)  # the device created from this code inherits it
+    expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    consumed_at = Column(TIMESTAMP(timezone=True), nullable=True)  # non-null => used
+    consumed_device_id = Column(UUID(as_uuid=True), ForeignKey("chrona_devices.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    firm = relationship("Firm", back_populates="chrona_pairing_codes")
+
+
+class ChronaTimelineCard(Base):
+    """A timeline card synced from a Chrona device.
+
+    Chrona card ids are local SQLite autoincrement ints, unique only per device,
+    so ingestion UPSERTs on (device_id, source_card_id). ``content_hash`` lets
+    the server skip no-op writes when a device resends unchanged cards.
+    ``day_key`` is the device's LOCAL day, stored verbatim — never re-bucket by
+    UTC. Screenshots/videos never leave the device; text fields only.
+    """
+    __tablename__ = "chrona_timeline_cards"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    device_id = Column(UUID(as_uuid=True), ForeignKey("chrona_devices.id", ondelete="CASCADE"), nullable=False)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)  # denormalized for fast firm queries
+    source_card_id = Column(BigInteger, nullable=False)  # Chrona's local autoincrement id
+    content_hash = Column(String(64), nullable=False)  # sha256 of the synced content fields
+    title = Column(Text, nullable=False)
+    summary = Column(Text, nullable=True)
+    detailed_summary = Column(Text, nullable=True)
+    category = Column(String(64), nullable=False)
+    subcategory = Column(String(64), nullable=True)
+    start_ts = Column(BigInteger, nullable=False)  # epoch, stored verbatim from Chrona
+    end_ts = Column(BigInteger, nullable=False)
+    day_key = Column(Date(), nullable=False)  # device-local day, stored verbatim
+    is_deleted = Column(Boolean, nullable=False, default=False, server_default=expression.false())
+    source_created_at = Column(TIMESTAMP(timezone=True), nullable=True)  # card's created_at on the device
+    synced_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    device = relationship("ChronaDevice", back_populates="timeline_cards")
+
+    __table_args__ = (
+        Index("uq_chrona_cards_device_source", "device_id", "source_card_id", unique=True),
+        Index("ix_chrona_cards_firm_day", "firm_id", "day_key"),
+        Index(
+            "ix_chrona_cards_device_day_active",
+            "device_id",
+            "day_key",
+            postgresql_where=text("is_deleted = FALSE"),
+        ),
+        Index("ix_chrona_cards_firm_category", "firm_id", "category"),
+    )
 
 
 class AnalyticsComment(Base):

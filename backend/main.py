@@ -133,6 +133,7 @@ from routes import (
     analytics_firms, analytics_clients, analytics_research,
     analytics_assistant, analytics_waterfall, analytics_amortization,
     analytics_reconciliation, analytics_variance, analytics_comments, activation,
+    chrona_devices, chrona_sync,
 )
 from inkwise.router import router as inkwise_router
 
@@ -160,6 +161,8 @@ app.include_router(analytics_reconciliation.router)
 app.include_router(analytics_variance.router)
 app.include_router(analytics_comments.router)
 app.include_router(activation.router)
+app.include_router(chrona_devices.router)
+app.include_router(chrona_sync.router)
 
 # ---------- Dev entrypoint (Cloud Run ignores this; CMD in Dockerfile is used) ----------
 if __name__ == "__main__":
