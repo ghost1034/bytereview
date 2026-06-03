@@ -5,12 +5,14 @@ import {
   BarChart3,
   CalendarDays,
   Clock,
+  Download,
   FileSpreadsheet,
   MonitorSmartphone,
   ShieldCheck,
 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { IconTile } from '@/components/ui/icon-tile'
 import {
   fadeInUp,
@@ -18,6 +20,12 @@ import {
   staggerContainer,
   viewportOnce,
 } from '@/lib/animations'
+
+const DOWNLOADS = {
+  mac: 'https://github.com/ghost1034/chrona/releases/download/stable/Chrona-0.0.0-arm64.dmg',
+  windows:
+    'https://github.com/ghost1034/chrona/releases/download/stable/Chrona.Setup.0.0.0.exe',
+}
 
 const FEATURES = [
   {
@@ -164,6 +172,35 @@ export default function ChronaShowcase() {
               />
             </div>
           </div>
+        </motion.div>
+
+        <motion.div
+          className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row"
+          variants={fadeInUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportOnce}
+        >
+          <Button
+            asChild
+            size="lg"
+            className="w-full bg-marketing-hero-foreground px-8 text-marketing-hero-from hover:bg-marketing-hero-foreground/90 sm:w-auto"
+          >
+            <a href={DOWNLOADS.mac}>
+              <Download className="mr-2 size-4" aria-hidden />
+              Download for Mac
+            </a>
+          </Button>
+          <Button
+            asChild
+            size="lg"
+            className="w-full bg-marketing-hero-foreground px-8 text-marketing-hero-from hover:bg-marketing-hero-foreground/90 sm:w-auto"
+          >
+            <a href={DOWNLOADS.windows}>
+              <Download className="mr-2 size-4" aria-hidden />
+              Download for Windows
+            </a>
+          </Button>
         </motion.div>
 
         <motion.p
