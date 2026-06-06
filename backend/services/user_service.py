@@ -10,7 +10,7 @@ from core.database import db_config
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from datetime import datetime
-from typing import Optional, cast
+from typing import Callable, Optional, cast
 import logging
 import re
 
@@ -218,13 +218,14 @@ class UserService:
         finally:
             db.close()
 
-    async def get_or_create_user(self, uid: str, email: str, phone_number: Optional[str] = None, display_name: Optional[str] = None, photo_url: Optional[str] = None) -> UserResponse:
+    async def get_or_create_user(self, uid: str, email: str, resolve_phone_number: Optional[Callable[[], Optional[str]]] = None, display_name: Optional[str] = None, photo_url: Optional[str] = None) -> UserResponse:
         """Get existing user or create new one (does not update existing users)"""
         user = await self.get_user(uid)
         if user:
             return user
-        
-        # Create new user
+
+        # Create new user; resolve the verified phone lazily (Firebase Admin lookup)
+        phone_number = resolve_phone_number() if resolve_phone_number else None
         user_create = UserCreate(
             uid=uid,
             email=email,
@@ -235,14 +236,19 @@ class UserService:
         )
         return await self.create_user(user_create)
 
-    async def sync_user_profile(self, uid: str, email: str, phone_number: Optional[str] = None, display_name: Optional[str] = None, photo_url: Optional[str] = None) -> UserResponse:
+    async def sync_user_profile(self, uid: str, email: str, resolve_phone_number: Optional[Callable[[], Optional[str]]] = None, display_name: Optional[str] = None, photo_url: Optional[str] = None) -> UserResponse:
         """Sync user profile - creates user if doesn't exist, updates profile if it does"""
         user = await self.get_user(uid)
+        # Only resolve the phone (Firebase Admin lookup) when it isn't recorded yet,
+        # so steady-state syncs make zero extra Firebase calls
+        needs_phone = user is None or user.phone_number is None
+        phone_number = resolve_phone_number() if (needs_phone and resolve_phone_number) else None
         if user:
-            # Always update the profile during sync
+            # Always update the profile during sync; _apply_verified_phone owns the
+            # phone_verified_at stamp (first record / change only)
             user_update = UserUpdate(
                 phone_number=phone_number,
-                phone_verified_at=datetime.utcnow() if phone_number else None,
+                phone_verified_at=None,
                 display_name=display_name,
                 photo_url=photo_url
             )

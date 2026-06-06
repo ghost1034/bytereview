@@ -9,7 +9,7 @@ import logging
 from services.user_service import DuplicatePhoneNumberError, UserService
 from models.user import PhoneAvailabilityResponse, UserResponse, UserUpdate, UpdateProfileRequest
 # Usage tracking imports will be added when billing is implemented
-from dependencies.auth import verify_firebase_token
+from dependencies.auth import get_enrolled_mfa_phone_number, verify_firebase_token
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +39,11 @@ async def get_current_user(token_data: dict = Depends(verify_firebase_token)):
 
         # Just get or create user with minimal data from token
         # Frontend will call /me/sync with complete profile data
+        # MFA-enrolled phones aren't in token claims; resolved lazily via Firebase Admin
         user = await user_service.get_or_create_user(
             uid=token_data["uid"],
             email=email,
-            phone_number=token_data.get("phone_number"),
+            resolve_phone_number=lambda: get_enrolled_mfa_phone_number(token_data["uid"]),
             display_name=None,  # Will be updated via /me/sync
             photo_url=None
         )
@@ -50,6 +51,7 @@ async def get_current_user(token_data: dict = Depends(verify_firebase_token)):
     except HTTPException:
         raise
     except DuplicatePhoneNumberError as e:
+        logger.error(f"Verified phone for user {token_data.get('uid')} is already linked to another account")
         raise HTTPException(status_code=409, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting user: {str(e)}")
@@ -72,10 +74,11 @@ async def sync_user_profile(
         if not email:
             raise HTTPException(status_code=400, detail="User email not found in token")
 
+        # MFA-enrolled phones aren't in token claims; resolved lazily via Firebase Admin
         user = await user_service.sync_user_profile(
             uid=token_data["uid"],
             email=email,
-            phone_number=token_data.get("phone_number"),
+            resolve_phone_number=lambda: get_enrolled_mfa_phone_number(token_data["uid"]),
             display_name=sync_data.display_name,
             photo_url=sync_data.photo_url
         )
@@ -83,6 +86,7 @@ async def sync_user_profile(
     except HTTPException:
         raise
     except DuplicatePhoneNumberError as e:
+        logger.error(f"Verified phone for user {token_data.get('uid')} is already linked to another account")
         raise HTTPException(status_code=409, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error syncing user: {str(e)}")

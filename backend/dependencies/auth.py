@@ -50,6 +50,34 @@ def _normalize_email(email: Optional[str]) -> Optional[str]:
     return clean_email or None
 
 
+def get_enrolled_mfa_phone_number(uid: str) -> Optional[str]:
+    """
+    Return the user's verified phone number (account phone or first phone MFA factor), or None.
+
+    MFA-enrolled phone numbers are not present in Firebase ID token claims, so they must be
+    fetched via the Admin SDK. firebase_admin 7.0.0 exposes no public MFA accessor on
+    UserRecord, so the raw accounts:lookup payload (_data["mfaInfo"]) is read instead.
+
+    Never raises — logs and returns None on failure so a Firebase outage can't 500 requests.
+    """
+    try:
+        record = firebase_auth.get_user(uid)
+    except Exception as e:
+        logger.warning(f"Could not fetch Firebase user {uid} for MFA phone: {e}")
+        return None
+
+    phone = _normalize_phone_number(record.phone_number)  # phone-auth sign-in users
+    if phone:
+        return phone
+
+    mfa_info = getattr(record, "_data", {}).get("mfaInfo") or []
+    for factor in mfa_info:
+        phone = _normalize_phone_number(factor.get("phoneInfo"))
+        if phone:
+            return phone
+    return None
+
+
 def _is_phone_mfa_exempt(decoded_token: Dict) -> bool:
     normalized_email = _normalize_email(decoded_token.get("email"))
     return normalized_email in _PHONE_MFA_EXEMPT_EMAILS if normalized_email else False

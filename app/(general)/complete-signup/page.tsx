@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 
 import PhoneVerificationForm from '@/components/auth/PhoneVerificationForm'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,6 +13,7 @@ import { isPhoneMfaExemptEmail } from '@/lib/phone-mfa-exempt'
 function CompleteSignupContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const queryClient = useQueryClient()
   const { pendingEnrollmentPhoneNumber, user, loading, requiresMfaEnrollment } = useAuth()
 
   const redirectTo = normalizeAuthRedirectPath(searchParams.get('redirectTo'))
@@ -59,6 +61,10 @@ function CompleteSignupContent() {
             mode="enroll"
             initialPhoneNumber={pendingEnrollmentPhoneNumber ?? user.phoneNumber ?? ''}
             redirectTo={redirectTo}
+            onVerified={() => {
+              // Re-sync the backend profile so the freshly enrolled MFA phone is recorded
+              queryClient.invalidateQueries({ queryKey: ['user-profile'] })
+            }}
           />
         </CardContent>
       </Card>
