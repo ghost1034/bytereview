@@ -16,6 +16,7 @@ import {
   Download,
   HardDrive,
   KeyRound,
+  Monitor,
   ShieldCheck,
   Scale,
 } from 'lucide-react'
@@ -24,6 +25,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { IconTile } from '@/components/ui/icon-tile'
 import { Section } from '@/components/ui/section'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CTABanner } from '@/components/marketing/cta-banner'
 import { MarketingHero } from '@/components/marketing/marketing-hero'
 import { ShowcaseSection } from '@/components/marketing/showcase-section'
@@ -100,6 +102,47 @@ const NEXT_STEPS_COMMAND = [
 
 const HERMES_ALIAS_COMMAND =
   "alias hermes='docker exec -it accountingclaw hermes'"
+
+const HERMES_DESKTOP_DOWNLOADS = {
+  mac: 'https://hermes-assets.nousresearch.com/Hermes-Setup.dmg',
+  windows: 'https://hermes-assets.nousresearch.com/Hermes-Setup.exe',
+}
+
+const HERMES_LINUX_INSTALL_COMMAND =
+  'curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash'
+
+const DESKTOP_INSTALL_BASH_COMMAND =
+  'curl -fsSL https://cpaautomation.ai/install-accountingclaw.sh | CPAA_ACTIVATION_KEY="cpaa_live_..." bash'
+
+const DESKTOP_INSTALL_PS_COMMAND =
+  '$env:CPAA_ACTIVATION_KEY="cpaa_live_..."; iwr https://cpaautomation.ai/install-accountingclaw.ps1 -UseBasicParsing | iex'
+
+const DESKTOP_NOTES = [
+  {
+    icon: Monitor,
+    title: 'Official Hermes Desktop app',
+    detail:
+      'Runs on the native Hermes Desktop app for macOS, Windows, and Linux — same agent, chat UI included.',
+  },
+  {
+    icon: KeyRound,
+    title: 'Activation key required',
+    detail:
+      'The installer downloads the AccountingClaw skills only with a valid personal CPAA_ACTIVATION_KEY. Get your key from the Activation page.',
+  },
+  {
+    icon: HardDrive,
+    title: 'Local agent data',
+    detail:
+      'Skills, sessions, and config live in your Hermes home (~/.hermes on macOS/Linux, %LOCALAPPDATA%\\hermes on Windows).',
+  },
+  {
+    icon: BrainCircuit,
+    title: 'Model configured in-app',
+    detail:
+      'Hermes Desktop walks you through connecting your AI model provider during onboarding — no env vars needed.',
+  },
+]
 
 const DOWNLOAD_NOTES = [
   {
@@ -208,118 +251,250 @@ function CommandCard({ title, description, command }: CommandCardProps) {
   )
 }
 
-function DockerDownloadSection() {
+function NotesGrid({
+  notes,
+}: {
+  notes: Array<{
+    icon: React.ComponentType<{ className?: string }>
+    title: string
+    detail: string
+  }>
+}) {
   return (
-    <section id="docker-download" className="bg-background py-16 sm:py-20 lg:py-24">
-      <div className="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
-        <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-          <div className="space-y-4">
-            <Badge
-              variant="outline"
-              className="rounded-full border-primary/20 bg-primary-soft text-primary-soft-foreground"
-            >
-              <Download className="mr-1.5 size-3" aria-hidden />
-              Docker image
-            </Badge>
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {notes.map((item) => (
+        <div
+          key={item.title}
+          className="flex gap-3 rounded-xl border border-border bg-surface-muted p-3"
+        >
+          <IconTile icon={item.icon} tone="brand" size="sm" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              {item.title}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-foreground-muted">
+              {item.detail}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
-            <div className="space-y-3">
-              <h2 className="text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                Download AccountingClaw for Hermes Agent
-              </h2>
-              <p className="text-balance text-base text-foreground-muted sm:text-lg">
-                Pull the verified AccountingClaw Docker image and run it with
-                your personal CPAAutomation.ai activation key plus your
-                OpenRouter key. The image includes AccountingClaw skills
-                encrypted inside the container and installs them into your
-                persistent Hermes data volume on first startup.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <Button asChild>
-                <Link href="/dashboard/activation">
-                  Activate your image
-                  <ArrowRight className="ml-2 size-4" aria-hidden />
-                </Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/contact">Contact us for a code</Link>
-              </Button>
-            </div>
+function CloudWorkersTab() {
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+        <div className="space-y-4">
+          <div className="space-y-3">
+            <h3 className="text-balance text-2xl font-semibold tracking-tight text-foreground">
+              Run AccountingClaw in your cloud with Docker
+            </h3>
+            <p className="text-balance text-base text-foreground-muted">
+              Pull the verified AccountingClaw Docker image and run it with
+              your personal CPAAutomation.ai activation key plus your
+              OpenRouter key. The image includes AccountingClaw skills
+              encrypted inside the container and installs them into your
+              persistent Hermes data volume on first startup. Ideal for AWS,
+              GCP, Azure, or your own VPC.
+            </p>
           </div>
 
-          <div className="space-y-4">
-            <CommandCard
-              title="Pull the image"
-              description="Use the public AccountingClaw Hermes image. The platform flag supports Apple Silicon and other ARM hosts via Docker emulation."
-              command={PULL_COMMAND}
-            />
-            <CommandCard
-              title="Run locally or on your server"
-              description="Mount /opt/data so Hermes sessions and installed skills persist across container restarts. The API server is bound to localhost."
-              command={RUN_COMMAND}
-            />
-            <CommandCard
-              title="Use Hermes after it starts"
-              description="The hermes command runs inside the container. Use docker exec to verify the install, list skills, and open chat."
-              command={NEXT_STEPS_COMMAND}
-            />
-            <CommandCard
-              title="Optional host shortcut"
-              description="Add this shell alias if you want to type hermes from your host terminal while the container is running."
-              command={HERMES_ALIAS_COMMAND}
-            />
+          <div className="flex flex-wrap gap-3">
+            <Button asChild>
+              <Link href="/dashboard/activation">
+                Get your activation key
+                <ArrowRight className="ml-2 size-4" aria-hidden />
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/contact">Contact us for a code</Link>
+            </Button>
           </div>
         </div>
 
-        <div className="rounded-xl border border-primary/20 bg-primary-soft/50 p-4 text-sm leading-6 text-primary-soft-foreground">
-          <p className="font-semibold">What to do next</p>
-          <p className="mt-1">
-            After the container starts, run the commands above. If your terminal
-            says{' '}
-            <code className="rounded bg-background/70 px-1 py-0.5">
-              hermes: command not found
-            </code>{', '}
-            run Hermes through{' '}
-            <code className="rounded bg-background/70 px-1 py-0.5">
-              docker exec
-            </code>{' '}
-            or add the alias. The local API is available on{' '}
-            <code className="rounded bg-background/70 px-1 py-0.5">
-              http://127.0.0.1:8642
-            </code>{' '}
-            only when{' '}
-            <code className="rounded bg-background/70 px-1 py-0.5">
-              API_SERVER_ENABLED
-            </code>{', '}
-            <code className="rounded bg-background/70 px-1 py-0.5">
-              API_SERVER_HOST
-            </code>{', and '}
-            <code className="rounded bg-background/70 px-1 py-0.5">
-              API_SERVER_KEY
-            </code>{' '}
-            are set.
+        <div className="space-y-4">
+          <CommandCard
+            title="Pull the image"
+            description="Use the public AccountingClaw Hermes image. The platform flag supports Apple Silicon and other ARM hosts via Docker emulation."
+            command={PULL_COMMAND}
+          />
+          <CommandCard
+            title="Run locally or on your server"
+            description="Mount /opt/data so Hermes sessions and installed skills persist across container restarts. The API server is bound to localhost."
+            command={RUN_COMMAND}
+          />
+          <CommandCard
+            title="Use Hermes after it starts"
+            description="The hermes command runs inside the container. Use docker exec to verify the install, list skills, and open chat."
+            command={NEXT_STEPS_COMMAND}
+          />
+          <CommandCard
+            title="Optional host shortcut"
+            description="Add this shell alias if you want to type hermes from your host terminal while the container is running."
+            command={HERMES_ALIAS_COMMAND}
+          />
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-primary/20 bg-primary-soft/50 p-4 text-sm leading-6 text-primary-soft-foreground">
+        <p className="font-semibold">What to do next</p>
+        <p className="mt-1">
+          After the container starts, run the commands above. If your terminal
+          says{' '}
+          <code className="rounded bg-background/70 px-1 py-0.5">
+            hermes: command not found
+          </code>{', '}
+          run Hermes through{' '}
+          <code className="rounded bg-background/70 px-1 py-0.5">
+            docker exec
+          </code>{' '}
+          or add the alias. The local API is available on{' '}
+          <code className="rounded bg-background/70 px-1 py-0.5">
+            http://127.0.0.1:8642
+          </code>{' '}
+          only when{' '}
+          <code className="rounded bg-background/70 px-1 py-0.5">
+            API_SERVER_ENABLED
+          </code>{', '}
+          <code className="rounded bg-background/70 px-1 py-0.5">
+            API_SERVER_HOST
+          </code>{', and '}
+          <code className="rounded bg-background/70 px-1 py-0.5">
+            API_SERVER_KEY
+          </code>{' '}
+          are set.
+        </p>
+      </div>
+
+      <NotesGrid notes={DOWNLOAD_NOTES} />
+    </div>
+  )
+}
+
+function DesktopWorkersTab() {
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+        <div className="space-y-4">
+          <div className="space-y-3">
+            <h3 className="text-balance text-2xl font-semibold tracking-tight text-foreground">
+              Run AccountingClaw on your desktop
+            </h3>
+            <p className="text-balance text-base text-foreground-muted">
+              Install the official Hermes Desktop app, then add the
+              AccountingClaw skills with one command and your personal
+              activation key. Everything runs locally on your machine — no
+              Docker required.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Button asChild>
+              <a href={HERMES_DESKTOP_DOWNLOADS.mac}>
+                <Download className="mr-2 size-4" aria-hidden />
+                Hermes Desktop for Mac
+              </a>
+            </Button>
+            <Button asChild>
+              <a href={HERMES_DESKTOP_DOWNLOADS.windows}>
+                <Download className="mr-2 size-4" aria-hidden />
+                Hermes Desktop for Windows
+              </a>
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Button asChild variant="outline">
+              <Link href="/dashboard/activation">
+                Get your activation key
+                <ArrowRight className="ml-2 size-4" aria-hidden />
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/contact">Contact us for a code</Link>
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <CommandCard
+            title="1. Install Hermes Desktop"
+            description="Download the app for Mac or Windows with the buttons on the left. On Linux, install Hermes with the official terminal one-liner."
+            command={HERMES_LINUX_INSTALL_COMMAND}
+          />
+          <CommandCard
+            title="2. Install AccountingClaw (macOS / Linux)"
+            description="Replace cpaa_live_... with your personal activation key from the Activation page. The installer verifies and installs the skills into your local Hermes home."
+            command={DESKTOP_INSTALL_BASH_COMMAND}
+          />
+          <CommandCard
+            title="2. Install AccountingClaw (Windows PowerShell)"
+            description="Replace cpaa_live_... with your personal activation key from the Activation page, then run in PowerShell."
+            command={DESKTOP_INSTALL_PS_COMMAND}
+          />
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-primary/20 bg-primary-soft/50 p-4 text-sm leading-6 text-primary-soft-foreground">
+        <p className="font-semibold">What to do next</p>
+        <p className="mt-1">
+          Launch Hermes Desktop and complete its onboarding (it connects your
+          AI model provider in-app). Then open the Skills pane — the
+          AccountingClaw skills are ready to use. CLI check:{' '}
+          <code className="rounded bg-background/70 px-1 py-0.5">
+            hermes skills list
+          </code>
+          .
+        </p>
+      </div>
+
+      <NotesGrid notes={DESKTOP_NOTES} />
+    </div>
+  )
+}
+
+function InstallationOptionsSection() {
+  return (
+    <section id="install-options" className="bg-background py-16 sm:py-20 lg:py-24">
+      <div className="mx-auto max-w-7xl space-y-8 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl space-y-4 text-center">
+          <Badge
+            variant="outline"
+            className="rounded-full border-primary/20 bg-primary-soft text-primary-soft-foreground"
+          >
+            <Download className="mr-1.5 size-3" aria-hidden />
+            Installation options
+          </Badge>
+          <h2 className="text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            Deploy your digital workers — cloud or desktop
+          </h2>
+          <p className="text-balance text-base text-foreground-muted sm:text-lg">
+            Run AccountingClaw as a cloud digital worker with Docker, or as a
+            desktop digital worker on the Hermes Desktop app. Both unlock the
+            same skills with your personal activation key.
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {DOWNLOAD_NOTES.map((item) => (
-            <div
-              key={item.title}
-              className="flex gap-3 rounded-xl border border-border bg-surface-muted p-3"
-            >
-              <IconTile icon={item.icon} tone="brand" size="sm" />
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  {item.title}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-foreground-muted">
-                  {item.detail}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <Tabs defaultValue="cloud" className="space-y-6">
+          <TabsList className="mx-auto grid h-auto w-full max-w-xl grid-cols-2">
+            <TabsTrigger value="cloud" className="gap-2 py-2.5">
+              <Cloud className="size-4" aria-hidden />
+              Cloud digital workers
+            </TabsTrigger>
+            <TabsTrigger value="desktop" className="gap-2 py-2.5">
+              <Monitor className="size-4" aria-hidden />
+              Desktop digital workers
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="cloud">
+            <CloudWorkersTab />
+          </TabsContent>
+          <TabsContent value="desktop">
+            <DesktopWorkersTab />
+          </TabsContent>
+        </Tabs>
       </div>
     </section>
   )
@@ -345,7 +520,7 @@ export default function Claw() {
             </span>
           </>
         }
-        description="AccountingClaw, FinanceClaw, and LegalClaw run hundreds of pre-built skills autonomously, with guardrails built for accounting, finance, and legal workflows. Choose the cloud, model, and skills — or let us configure everything for you."
+        description="AccountingClaw, FinanceClaw, and LegalClaw run hundreds of pre-built skills autonomously, with guardrails built for accounting, finance, and legal workflows. Deploy in your cloud or on your desktop, pick the model and skills — or let us configure everything for you."
         ctas={
           <>
             <Button
@@ -364,8 +539,8 @@ export default function Claw() {
               variant="ghost"
               className="w-full border border-marketing-hero-border bg-transparent px-8 text-marketing-hero-foreground hover:bg-marketing-hero-foreground/10 hover:text-marketing-hero-foreground sm:w-auto"
             >
-              <a href="#docker-download">
-                Download Docker image
+              <a href="#install-options">
+                Install AccountingClaw
                 <Download className="ml-2 size-5" aria-hidden />
               </a>
             </Button>
@@ -373,7 +548,7 @@ export default function Claw() {
         }
       />
 
-      <DockerDownloadSection />
+      <InstallationOptionsSection />
 
       <ShowcaseSection
         surface="background"

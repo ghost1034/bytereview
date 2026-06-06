@@ -3191,6 +3191,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/activation/bundle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bundle
+         * @description Desktop-installer-only: exchange a valid activation key for a signed bundle URL.
+         *
+         *     Like /resolve, authenticated by possession of the activation key itself (NOT
+         *     Firebase). Instead of the decryption secret, returns a short-lived signed GET
+         *     URL to the plaintext AccountingClaw profile tarball in the private GCS bucket,
+         *     plus its sha256 for client-side verification. Generic 401 for all key failures.
+         */
+        post: operations["bundle_api_activation_bundle_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/chrona/pairing-codes": {
         parameters: {
             query?: never;
@@ -3417,6 +3442,8 @@ export interface components {
             created_at?: string | null;
             /** Last Resolved At */
             last_resolved_at?: string | null;
+            /** Last Resolved Install Type */
+            last_resolved_install_type?: string | null;
             /**
              * Revoked
              * @default false
@@ -4099,6 +4126,38 @@ export interface components {
             source_task_id?: string | null;
             /** Source Scope */
             source_scope?: string | null;
+        };
+        /**
+         * BundleRequest
+         * @description Desktop-installer exchange of a personal activation key for a signed bundle URL.
+         */
+        BundleRequest: {
+            /** Activation Key */
+            activation_key: string;
+            /** Fingerprint */
+            fingerprint?: string | null;
+            /**
+             * Install Type
+             * @default desktop
+             */
+            install_type: string | null;
+        };
+        /**
+         * BundleResponse
+         * @description A short-lived signed URL to the plaintext AccountingClaw profile tarball.
+         */
+        BundleResponse: {
+            /** Bundle Url */
+            bundle_url: string;
+            /** Sha256 */
+            sha256?: string | null;
+            /** Version */
+            version?: string | null;
+            /**
+             * Expires In Seconds
+             * @default 900
+             */
+            expires_in_seconds: number;
         };
         /** ChatMessage */
         ChatMessage: {
@@ -7017,6 +7076,11 @@ export interface components {
             activation_key: string;
             /** Fingerprint */
             fingerprint?: string | null;
+            /**
+             * Install Type
+             * @default docker
+             */
+            install_type: string | null;
         };
         /**
          * ResolveResponse
@@ -14108,6 +14172,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResolveResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bundle_api_activation_bundle_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BundleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BundleResponse"];
                 };
             };
             /** @description Validation Error */

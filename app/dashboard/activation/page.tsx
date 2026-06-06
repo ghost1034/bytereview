@@ -8,7 +8,7 @@ export default function ActivationPage() {
     <div className="space-y-8">
       <PageHeader
         title="AccountingClaw activation"
-        description="Activate the AccountingClaw Docker image with your personal key. The container exchanges this key for the encrypted skill bundle at startup."
+        description="Activate AccountingClaw with your personal key — run it as a cloud digital worker (Docker) or install it into the Hermes Desktop app. Your installation exchanges this key for the AccountingClaw skill bundle."
       />
       <div className="max-w-3xl">
         <ActivationForm />

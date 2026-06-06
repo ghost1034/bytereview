@@ -105,7 +105,9 @@ class ActivationKey(Base):
     A user redeems an activation code in the web app and is issued a personal,
     revocable key (``cpaa_live_<random>``). The AccountingClaw container exchanges
     this key at startup (POST /api/activation/resolve) for the real build-time
-    ``CPAA_BUNDLE_SECRET`` that decrypts the bundled skills.
+    ``CPAA_BUNDLE_SECRET`` that decrypts the bundled skills. Desktop installs
+    exchange the same key (POST /api/activation/bundle) for a short-lived signed
+    URL to the plaintext profile bundle instead.
 
     Only a SHA-256 hash of the full key is stored; the plaintext key is shown to
     the user exactly once at activation. ``key_lookup`` is a non-secret prefix of
@@ -122,6 +124,7 @@ class ActivationKey(Base):
     revoked_at = Column(TIMESTAMP(timezone=True), nullable=True)  # non-null => revoked
     last_resolved_at = Column(TIMESTAMP(timezone=True), nullable=True)
     last_resolved_fingerprint = Column(String(128), nullable=True)
+    last_resolved_install_type = Column(String(16), nullable=True)  # 'docker' | 'desktop'
     resolve_count = Column(Integer, nullable=False, server_default="0")
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())

@@ -77,6 +77,12 @@ API_TIMEOUT="${API_TIMEOUT:-900}"
 # ensure_bundle_secret) and wired into the API as a mounted secret.
 BUNDLE_SECRET_NAME="${BUNDLE_SECRET_NAME:-CPAA_BUNDLE_SECRET}"
 
+# AccountingClaw desktop bundle (non-secret): private GCS object that the
+# /api/activation/bundle endpoint serves via short-lived signed URLs to desktop
+# installs. Publish/update the object with scripts/publish-accountingclaw-bundle.sh.
+CPAA_BUNDLE_GCS_BUCKET="${CPAA_BUNDLE_GCS_BUCKET:-cpaa-accountingclaw-bundles}"
+CPAA_BUNDLE_GCS_OBJECT="${CPAA_BUNDLE_GCS_OBJECT:-accountingclaw/accountingclaw-profile.tar.gz}"
+
 SKIP_BUILD=false
 SKIP_MIGRATE=false
 ROTATE_TASK_TOKEN=false
@@ -510,6 +516,8 @@ BACKEND_BASE_ENV=(
   "FORM_FILL_OUTPUT_ENQUEUE_BATCH_DELAY_SECONDS=${FORM_FILL_OUTPUT_ENQUEUE_BATCH_DELAY_SECONDS}"
   "FORM_FILL_OUTPUT_ENQUEUE_MAX_DELAY_SECONDS=${FORM_FILL_OUTPUT_ENQUEUE_MAX_DELAY_SECONDS}"
   "FORM_FILL_OUTPUT_ENQUEUE_JITTER_SECONDS=${FORM_FILL_OUTPUT_ENQUEUE_JITTER_SECONDS}"
+  "CPAA_BUNDLE_GCS_BUCKET=${CPAA_BUNDLE_GCS_BUCKET}"
+  "CPAA_BUNDLE_GCS_OBJECT=${CPAA_BUNDLE_GCS_OBJECT}"
 )
 
 section "Checking prerequisites"

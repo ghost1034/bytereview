@@ -35,6 +35,7 @@ export interface ActivationStatus {
   key_prefix: string | null
   created_at: string | null
   last_resolved_at: string | null
+  last_resolved_install_type: string | null
   revoked: boolean
 }
 

@@ -635,6 +635,57 @@ class LocalStorageService:
         
         return deleted_count
 
+def _ensure_gcs_credentials() -> None:
+    """Point GOOGLE_APPLICATION_CREDENTIALS at the bundled service account if unset.
+
+    Mirrors the credential bootstrap in GCSService.__init__ so module-level
+    helpers can build their own client against buckets other than GCS_BUCKET_NAME.
+    """
+    if os.getenv('GOOGLE_APPLICATION_CREDENTIALS'):
+        return
+    service_account_file = Path(__file__).parent.parent / "service-account.json"
+    if service_account_file.exists():
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = str(service_account_file)
+        logger.info(f"Using service account file: {service_account_file}")
+
+
+def get_bundle_signed_url(
+    bucket_name: str,
+    object_name: str,
+    expiration_minutes: int = 15,
+) -> tuple[str, Optional[str], Optional[str]]:
+    """
+    Generate a short-lived signed GET URL for a bundle object in a private bucket.
+
+    Used by the AccountingClaw desktop install flow: the activation API exchanges
+    a validated activation key for this URL so the installer can download the
+    plaintext profile tarball. Returns (url, sha256, version), where sha256 and
+    version are read from the object's custom metadata (set at publish time by
+    scripts/publish-accountingclaw-bundle.sh) and may be None if absent.
+
+    V4 signing requires a service-account private key (service-account.json);
+    metadata-server credentials alone cannot sign URLs.
+    """
+    from datetime import timedelta
+
+    _ensure_gcs_credentials()
+    client = storage.Client()
+    blob = client.bucket(bucket_name).blob(object_name)
+    blob.reload()  # fetch custom metadata; raises NotFound if the object is missing
+
+    metadata = blob.metadata or {}
+    sha256 = metadata.get('cpaa-sha256')
+    version = metadata.get('cpaa-version')
+
+    url = blob.generate_signed_url(
+        version="v4",
+        expiration=timedelta(minutes=expiration_minutes),
+        method="GET",
+    )
+    logger.info(f"Generated signed bundle URL for gs://{bucket_name}/{object_name}")
+    return url, sha256, version
+
+
 # Global storage service instance
 _storage_service = None
 
