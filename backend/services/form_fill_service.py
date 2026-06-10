@@ -2461,11 +2461,111 @@ Rules:
                 self._replace_text_in_paragraph(paragraph, replacements)
         doc.save(output_path)
 
+    def _pdf_button_field_metadata(self, reader: Any) -> tuple[set[str], dict[str, set[str]]]:
+        """Inspect a PdfReader and return (button_field_names, valid_on_states).
+
+        ``button_field_names`` holds every widget leaf name that belongs to a
+        ``/Btn`` field (checkbox or radio). ``valid_on_states`` maps each such
+        name to the set of accepted on-state names (leading slash stripped),
+        derived from the widget's ``/AP`` ``/N`` appearance keys (excluding
+        ``/Off``). On-states cannot always be enumerated, so a name may be in
+        ``button_field_names`` without an entry in ``valid_on_states``.
+        """
+        button_fields: set[str] = set()
+        on_states: dict[str, set[str]] = {}
+        try:
+            fields = reader.get_fields() or {}
+        except Exception as exc:
+            logger.warning("Failed to read PDF form fields for sanitization: %s", exc)
+            fields = {}
+        for name, field in fields.items():
+            try:
+                if field.get("/FT") == "/Btn":
+                    button_fields.add(str(name))
+            except Exception:
+                continue
+
+        for page in reader.pages:
+            annots = page.get("/Annots")
+            if not annots:
+                continue
+            try:
+                annots = annots.get_object()
+            except Exception:
+                continue
+            for ref in annots:
+                try:
+                    obj = ref.get_object()
+                except Exception:
+                    continue
+                if obj.get("/Subtype") != "/Widget":
+                    continue
+                field_type = obj.get("/FT")
+                parent = obj.get("/Parent")
+                if field_type is None and parent is not None:
+                    try:
+                        field_type = parent.get_object().get("/FT")
+                    except Exception:
+                        field_type = None
+                if str(field_type) != "/Btn":
+                    continue
+                name = obj.get("/T")
+                if name is None and parent is not None:
+                    try:
+                        name = parent.get_object().get("/T")
+                    except Exception:
+                        name = None
+                if name is None:
+                    continue
+                name = str(name)
+                button_fields.add(name)
+                appearances = obj.get("/AP")
+                if not appearances:
+                    continue
+                try:
+                    normal = appearances.get_object().get("/N")
+                    keys = list(normal.get_object().keys()) if normal is not None else []
+                except Exception:
+                    keys = []
+                for key in keys:
+                    state = str(key).lstrip("/")
+                    if state and state.lower() != "off":
+                        on_states.setdefault(name, set()).add(state)
+        return button_fields, on_states
+
+    def _sanitize_pdf_field_values(self, reader: Any, field_values: dict[str, str], name_object: Any) -> dict[str, Any]:
+        """Drop or normalize checkbox/radio values so PyPDF2 never writes an
+        empty ``NameObject``.
+
+        PyPDF2 writes any ``/Btn`` value as a ``NameObject``; ``NameObject("")``
+        crashes ``writer.write()`` (``renumber`` does ``self[0]`` on an empty
+        string). For button fields we drop empty/``Off``/invalid values (leaving
+        the default ``/Off``) and normalize a valid on-state to ``/state``. Text
+        fields pass through unchanged.
+        """
+        button_fields, on_states = self._pdf_button_field_metadata(reader)
+        sanitized: dict[str, Any] = {}
+        for name, value in field_values.items():
+            key = str(name)
+            if key not in button_fields:
+                sanitized[name] = value
+                continue
+            text = ("" if value is None else str(value)).strip()
+            if not text or text.lower() == "off":
+                continue
+            candidate = text.lstrip("/")
+            valid = on_states.get(key)
+            if valid and candidate not in valid:
+                continue
+            sanitized[key] = name_object("/" + candidate)
+        return sanitized
+
     def _apply_fillable_pdf(self, local_target_path: str, field_values: dict[str, str], output_path: str) -> None:
         from PyPDF2 import PdfReader, PdfWriter
         from PyPDF2.generic import BooleanObject, NameObject
 
         reader = PdfReader(local_target_path)
+        field_values = self._sanitize_pdf_field_values(reader, field_values, NameObject)
         writer = PdfWriter()
         for page in reader.pages:
             writer.add_page(page)
@@ -3725,7 +3825,15 @@ Instructions:
             db.close()
             shutil.rmtree(temp_dir, ignore_errors=True)
 
-    async def process_run(self, run_id: str) -> dict[str, Any]:
+    async def process_run(
+        self,
+        run_id: str,
+        *,
+        task_retry_count: Optional[int] = None,
+        task_execution_count: Optional[int] = None,
+        task_queue_name: Optional[str] = None,
+        task_name: Optional[str] = None,
+    ) -> dict[str, Any]:
         db = self._get_session()
         temp_dir = tempfile.mkdtemp(prefix="form_fill_run_")
         try:
@@ -3820,7 +3928,15 @@ Instructions:
                     db.commit()
             except Exception:
                 db.rollback()
-            raise
+            if self._should_retry_output_error(
+                exc,
+                task_retry_count=task_retry_count,
+                task_execution_count=task_execution_count,
+            ):
+                raise
+            # Deterministic failure: recorded once above. Return a 2xx terminal
+            # result so Cloud Tasks does not retry (avoids re-calling Gemini).
+            return {"success": False, "run_id": str(run_id), "status": "failed", "terminal": True}
         finally:
             db.close()
             shutil.rmtree(temp_dir, ignore_errors=True)

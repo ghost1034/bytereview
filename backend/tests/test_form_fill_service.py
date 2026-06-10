@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from docx import Document
 from openpyxl import Workbook
-from PyPDF2 import PdfWriter
+from PyPDF2 import PdfReader, PdfWriter
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -1718,6 +1718,137 @@ class FormFillOutputRetryTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("INVALID_ARGUMENT", output.error_message)
         self.assertIsNotNone(output.completed_at)
         finalize.assert_awaited_once_with(str(self.run_id))
+
+
+FW9_PDF_PATH = Path(__file__).resolve().parents[2] / "examples" / "form-fill" / "fw9.pdf"
+
+
+@unittest.skipUnless(FW9_PDF_PATH.exists(), f"fixture not found: {FW9_PDF_PATH}")
+class FormFillFillablePdfCheckboxTests(unittest.TestCase):
+    """Regression tests for the PyPDF2 empty-NameObject crash on checkbox fields.
+
+    The IRS W-9 (fw9.pdf) has /Btn fields (c1_1[0..6], c1_2[0]) whose only valid
+    states are /Off or a single on-state (/1../7). Feeding PyPDF2 an empty string
+    for such a field produced NameObject("") which crashed writer.write() with
+    IndexError. See _sanitize_pdf_field_values in services/form_fill_service.py.
+    """
+
+    def setUp(self) -> None:
+        self.service = FormFillService()
+
+    def _apply(self, field_values: dict) -> str:
+        handle = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        handle.close()
+        self.addCleanup(os.unlink, handle.name)
+        self.service._apply_fillable_pdf(str(FW9_PDF_PATH), dict(field_values), handle.name)
+        return handle.name
+
+    @staticmethod
+    def _widget(path: str, name: str):
+        # Read widgets via /Annots; get_fields() trips on NeedAppearances output.
+        reader = PdfReader(path)
+        for page in reader.pages:
+            annots = page.get("/Annots")
+            if not annots:
+                continue
+            for ref in annots.get_object():
+                obj = ref.get_object()
+                if str(obj.get("/T")) == name:
+                    return obj
+        return None
+
+    def test_button_metadata_reads_on_states_from_fw9(self) -> None:
+        button_fields, on_states = self.service._pdf_button_field_metadata(PdfReader(str(FW9_PDF_PATH)))
+        self.assertIn("c1_1[0]", button_fields)
+        self.assertIn("c1_2[0]", button_fields)
+        self.assertEqual(on_states.get("c1_1[0]"), {"1"})
+        self.assertEqual(on_states.get("c1_1[6]"), {"7"})
+
+    def test_empty_checkbox_does_not_crash_and_stays_off(self) -> None:
+        out = self._apply({"f1_01[0]": "Acme LLC", "c1_1[0]": ""})
+        self.assertEqual(str(self._widget(out, "c1_1[0]").get("/AS")), "/Off")
+        self.assertEqual(str(self._widget(out, "f1_01[0]").get("/V")), "Acme LLC")
+
+    def test_valid_on_state_checks_box(self) -> None:
+        for value in ("1", "/1"):
+            with self.subTest(value=value):
+                out = self._apply({"c1_1[0]": value})
+                widget = self._widget(out, "c1_1[0]")
+                self.assertEqual(str(widget.get("/AS")), "/1")
+                self.assertEqual(str(widget.get("/V")), "/1")
+
+    def test_wrong_on_state_for_widget_is_dropped(self) -> None:
+        # "1" is the on-state for c1_1[0], not c1_1[1] (whose on-state is "2").
+        out = self._apply({"c1_1[1]": "1"})
+        self.assertEqual(str(self._widget(out, "c1_1[1]").get("/AS")), "/Off")
+
+    def test_off_value_is_dropped(self) -> None:
+        out = self._apply({"c1_1[0]": "Off"})
+        self.assertEqual(str(self._widget(out, "c1_1[0]").get("/AS")), "/Off")
+
+
+class FormFillProcessRunRetryTests(unittest.IsolatedAsyncioTestCase):
+    """process_run should record deterministic failures once (2xx, no Cloud Tasks
+    retry) while still re-raising transient errors so they retry."""
+
+    def setUp(self) -> None:
+        self.service = FormFillService()
+        self.run_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
+
+    def _run_and_db(self):
+        run = SimpleNamespace(
+            id=self.run_id,
+            user_id="user-id",
+            status="pending",
+            repeat_mode="all_sources",
+            target_filename="target.pdf",
+            target_gcs_object_name="target-object",
+            target_file_type="application/pdf",
+            target_page_count=2,
+            error_message=None,
+            completed_at=None,
+        )
+        query = MagicMock()
+        query.filter.return_value.first.return_value = run
+        db = MagicMock()
+        db.query.return_value = query
+        return run, db
+
+    async def _process_with_generate_error(self, exc: Exception, **task_kwargs):
+        run, db = self._run_and_db()
+        self.service._get_session = MagicMock(return_value=db)
+        with patch.object(self.service, "_download_to_local", new=AsyncMock()):
+            with patch.object(self.service, "_ensure_run_target_page_count", new=AsyncMock(return_value=2)):
+                with patch.object(self.service, "_check_usage_limit_or_raise"):
+                    with patch.object(self.service, "_build_tabular_source_context", new=AsyncMock(return_value=None)):
+                        with patch.object(self.service, "_build_source_context", new=AsyncMock(return_value=([], "source"))):
+                            with patch.object(self.service, "_generate_filled_document", new=AsyncMock(side_effect=exc)):
+                                return run, await self.service.process_run(str(self.run_id), **task_kwargs)
+
+    async def test_deterministic_failure_is_terminal_without_reraise(self) -> None:
+        run, result = await self._process_with_generate_error(
+            ValueError("bad mapping"), task_retry_count=0, task_execution_count=1
+        )
+        self.assertFalse(result["success"])
+        self.assertTrue(result["terminal"])
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(run.status, "failed")
+        self.assertEqual(run.error_message, "bad mapping")
+
+    async def test_transient_failure_reraises_before_final_attempt(self) -> None:
+        with self.assertRaises(RetryableGeminiInvalidArgument):
+            await self._process_with_generate_error(
+                RetryableGeminiInvalidArgument(), task_retry_count=0, task_execution_count=1
+            )
+
+    async def test_transient_failure_is_terminal_on_final_attempt(self) -> None:
+        run, result = await self._process_with_generate_error(
+            RetryableGeminiInvalidArgument(),
+            task_retry_count=self.service.output_max_attempts - 1,
+            task_execution_count=self.service.output_max_attempts,
+        )
+        self.assertTrue(result["terminal"])
+        self.assertEqual(run.status, "failed")
 
 
 if __name__ == "__main__":
