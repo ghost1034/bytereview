@@ -14,6 +14,21 @@ from docx import Document
 from openpyxl import Workbook
 from PyPDF2 import PdfReader, PdfWriter
 
+try:
+    import fitz
+
+    _HAS_FITZ = True
+except Exception:  # pragma: no cover - PyMuPDF is a declared dependency
+    _HAS_FITZ = False
+
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas as _reportlab_canvas
+
+    _HAS_REPORTLAB = True
+except Exception:  # pragma: no cover - reportlab is a declared dependency
+    _HAS_REPORTLAB = False
+
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -1725,12 +1740,12 @@ FW9_PDF_PATH = Path(__file__).resolve().parents[2] / "examples" / "form-fill" / 
 
 @unittest.skipUnless(FW9_PDF_PATH.exists(), f"fixture not found: {FW9_PDF_PATH}")
 class FormFillFillablePdfCheckboxTests(unittest.TestCase):
-    """Regression tests for the PyPDF2 empty-NameObject crash on checkbox fields.
+    """Checkbox fill behavior on the IRS W-9 (fw9.pdf).
 
-    The IRS W-9 (fw9.pdf) has /Btn fields (c1_1[0..6], c1_2[0]) whose only valid
-    states are /Off or a single on-state (/1../7). Feeding PyPDF2 an empty string
-    for such a field produced NameObject("") which crashed writer.write() with
-    IndexError. See _sanitize_pdf_field_values in services/form_fill_service.py.
+    fw9 has /Btn fields (c1_1[0..6], c1_2[0]) whose only valid states are /Off or
+    a single on-state (/1../7). These tests verify that a valid on-state checks
+    the box, an empty/Off/wrong-state value leaves it /Off, and that only the
+    targeted box is checked. See _apply_fillable_pdf in form_fill_service.py.
     """
 
     def setUp(self) -> None:
@@ -1745,7 +1760,7 @@ class FormFillFillablePdfCheckboxTests(unittest.TestCase):
 
     @staticmethod
     def _widget(path: str, name: str):
-        # Read widgets via /Annots; get_fields() trips on NeedAppearances output.
+        # Read the filled value/state directly off the widget annotation.
         reader = PdfReader(path)
         for page in reader.pages:
             annots = page.get("/Annots")
@@ -1784,6 +1799,11 @@ class FormFillFillablePdfCheckboxTests(unittest.TestCase):
 
     def test_off_value_is_dropped(self) -> None:
         out = self._apply({"c1_1[0]": "Off"})
+        self.assertEqual(str(self._widget(out, "c1_1[0]").get("/AS")), "/Off")
+
+    def test_setting_one_checkbox_leaves_others_off(self) -> None:
+        out = self._apply({"c1_1[2]": "3"})
+        self.assertEqual(str(self._widget(out, "c1_1[2]").get("/AS")), "/3")
         self.assertEqual(str(self._widget(out, "c1_1[0]").get("/AS")), "/Off")
 
 
@@ -1849,6 +1869,289 @@ class FormFillProcessRunRetryTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertTrue(result["terminal"])
         self.assertEqual(run.status, "failed")
+
+
+SS4_PDF_PATH = Path(__file__).resolve().parents[2] / "examples" / "form-fill" / "Approved SS-4.pdf"
+
+
+def _build_radio_pdf(path: str, *, selected: str | None = None) -> None:
+    """A single radio group ``entity_type`` with three mutually-exclusive options."""
+    c = _reportlab_canvas.Canvas(path, pagesize=letter)
+    form = c.acroForm
+    c.drawString(100, 720, "Federal tax classification:")
+    for value, label, y in (("individual", "Individual", 670), ("corp", "Corporation", 645), ("partnership", "Partnership", 620)):
+        form.radio(name="entity_type", value=value, selected=(value == selected), x=100, y=y, size=15, buttonStyle="check")
+        c.drawString(120, y + 2, label)
+    c.save()
+
+
+def _build_choice_pdf(path: str, *, multi: bool = False) -> None:
+    """A choice field ``state`` with (export, display) options."""
+    doc = fitz.open()
+    page = doc.new_page()
+    widget = fitz.Widget()
+    widget.field_name = "state"
+    widget.field_type = fitz.PDF_WIDGET_TYPE_LISTBOX if multi else fitz.PDF_WIDGET_TYPE_COMBOBOX
+    widget.rect = fitz.Rect(100, 100, 260, 170 if multi else 122)
+    widget.choice_values = [("AL", "Alabama"), ("SC", "South Carolina"), ("TX", "Texas")]
+    if multi:
+        widget.field_flags = 1 << 21
+    page.add_widget(widget)
+    doc.save(path)
+    doc.close()
+
+
+def _widget_by_name(path: str, name: str):
+    reader = PdfReader(path)
+    for page in reader.pages:
+        annots = page.get("/Annots")
+        if not annots:
+            continue
+        for ref in annots.get_object():
+            obj = ref.get_object()
+            if str(obj.get("/T")) == name:
+                return obj
+    return None
+
+
+def _fitz_field_value(path: str, leaf: str):
+    """Read a field's current value with an independent reader (PyMuPDF). For a
+    radio group this is the export of the selected option (or None if unset)."""
+    doc = fitz.open(path)
+    try:
+        selected = None
+        for page in doc:
+            for widget in page.widgets() or []:
+                if widget.field_name.split(".")[-1] != leaf:
+                    continue
+                value = str(widget.field_value)
+                if value and value.lower() != "off":
+                    selected = value
+        return selected
+    finally:
+        doc.close()
+
+
+def _mapping_response(items: list[dict]) -> SimpleNamespace:
+    return SimpleNamespace(
+        text=None,
+        parsed={"items": items, "warnings": []},
+        candidates=[SimpleNamespace(finish_reason="STOP")],
+        usage_metadata=SimpleNamespace(candidates_token_count=5),
+    )
+
+
+@unittest.skipUnless(FW9_PDF_PATH.exists(), f"fixture not found: {FW9_PDF_PATH}")
+class FormFillPdfFieldMetadataTests(unittest.TestCase):
+    """The fitz-based extractor must emit leaf names + type + valid values so the
+    LLM can fill non-text fields correctly."""
+
+    def setUp(self) -> None:
+        self.service = FormFillService()
+        self.metadata = self.service._extract_pdf_form_field_metadata(str(FW9_PDF_PATH))
+        self.by_name = {m["name"]: m for m in self.metadata}
+
+    def test_emits_leaf_names_that_join_to_write_path(self) -> None:
+        self.assertIn("c1_1[0]", self.by_name)
+        for meta in self.metadata:
+            # Must be the leaf name (no dotted prefix) to match PyPDF2 field keys.
+            self.assertNotIn(".", meta["name"])
+
+    def test_checkbox_type_and_on_states(self) -> None:
+        self.assertEqual(self.by_name["c1_1[0]"]["type"], "checkbox")
+        self.assertEqual(self.by_name["c1_1[0]"]["on_states"], ["1"])
+        self.assertEqual(self.by_name["c1_1[6]"]["on_states"], ["7"])
+
+    def test_text_fields_have_no_value_constraints(self) -> None:
+        text_fields = [m for m in self.metadata if m["type"] == "text"]
+        self.assertTrue(text_fields)
+        for meta in text_fields:
+            self.assertNotIn("on_states", meta)
+            self.assertNotIn("options", meta)
+
+    def test_label_is_first_line_without_bleed(self) -> None:
+        label = self.by_name["c1_1[0]"].get("label", "")
+        self.assertTrue(label.startswith("Individual/sole proprietor"))
+        self.assertNotIn("\n", label)
+        self.assertNotIn("C corporation", label)
+
+    @unittest.skipUnless(SS4_PDF_PATH.exists(), f"fixture not found: {SS4_PDF_PATH}")
+    def test_degrades_to_empty_on_non_form_pdf(self) -> None:
+        self.assertEqual(self.service._extract_pdf_form_field_metadata(str(SS4_PDF_PATH)), [])
+
+
+class FormFillMappingMetadataTests(unittest.TestCase):
+    """Field metadata must reach the mapping prompt, while the no-metadata path
+    stays byte-compatible with the previous behavior."""
+
+    def setUp(self) -> None:
+        self.service = FormFillService()
+
+    def test_prompt_renders_nontext_constraints(self) -> None:
+        meta = {
+            "cb": {"name": "cb", "type": "checkbox", "on_states": ["1"], "label": "Individual"},
+            "rd": {"name": "rd", "type": "radio", "on_states": ["a", "b"], "options": [{"export": "a", "label": "A"}, {"export": "b", "label": "B"}]},
+            "dd": {"name": "dd", "type": "combobox", "options": [{"export": "SC", "label": "South Carolina"}]},
+            "tx": {"name": "tx", "type": "text"},
+        }
+        prompt = self.service._build_mapping_prompt(
+            source_text="src",
+            mapping_items=list(meta),
+            mapping_label="Fields",
+            target_hint="fillable PDF form",
+            field_metadata=meta,
+        )
+        self.assertIn('to check this box set value to "1"', prompt)
+        self.assertIn('choose exactly one value: "a" = A; "b" = B', prompt)
+        self.assertIn('"SC" = South Carolina', prompt)
+        self.assertIn("never return the human-readable label", prompt)
+        self.assertIn("- tx", prompt)
+        self.assertNotIn("- tx\n    type", prompt)
+
+    def test_prompt_without_metadata_is_unchanged(self) -> None:
+        prompt = self.service._build_mapping_prompt(
+            source_text="src", mapping_items=["A", "B"], mapping_label="Fields", target_hint="t"
+        )
+        self.assertIn("- A\n- B", prompt)
+        self.assertNotIn("type:", prompt)
+        self.assertNotIn("never return the human-readable label", prompt)
+
+    def test_mapping_payload_applies_metadata_per_chunk(self) -> None:
+        self.service.mapping_chunk_size = 2
+        self.service.client = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=MagicMock(
+                    side_effect=[
+                        _mapping_response([{"name": "c1_1[0]", "value": "1"}, {"name": "X", "value": "y"}]),
+                        _mapping_response([{"name": "Z", "value": "z"}]),
+                    ]
+                )
+            )
+        )
+        meta = {"c1_1[0]": {"name": "c1_1[0]", "type": "checkbox", "on_states": ["1"], "label": "Individual"}}
+        self.service._generate_mapping_payload(
+            [],
+            source_text="src",
+            mapping_items=["c1_1[0]", "X", "Z"],
+            mapping_label="Fields",
+            target_hint="fillable PDF form",
+            label="m",
+            field_metadata=meta,
+        )
+        first_prompt = self.service.client.models.generate_content.call_args_list[0].kwargs["contents"][-1]
+        second_prompt = self.service.client.models.generate_content.call_args_list[1].kwargs["contents"][-1]
+        self.assertIn('to check this box set value to "1"', first_prompt)
+        self.assertNotIn("to check this box", second_prompt)
+
+
+@unittest.skipUnless(_HAS_REPORTLAB, "reportlab not installed")
+class FormFillRadioFieldTests(unittest.TestCase):
+    """Radio groups must group into one logical field and fill the chosen kid."""
+
+    def setUp(self) -> None:
+        self.service = FormFillService()
+        handle = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        handle.close()
+        self.addCleanup(os.unlink, handle.name)
+        self.path = handle.name
+        _build_radio_pdf(self.path)
+
+    def _apply(self, field_values: dict) -> str:
+        out = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        out.close()
+        self.addCleanup(os.unlink, out.name)
+        self.service._apply_fillable_pdf(self.path, dict(field_values), out.name)
+        return out.name
+
+    def test_metadata_groups_widgets_into_one_radio_field(self) -> None:
+        by_name = {m["name"]: m for m in self.service._extract_pdf_form_field_metadata(self.path)}
+        field = by_name["entity_type"]
+        self.assertEqual(field["type"], "radio")
+        self.assertEqual(set(field["on_states"]), {"individual", "corp", "partnership"})
+        self.assertEqual({opt["export"] for opt in field["options"]}, {"individual", "corp", "partnership"})
+
+    def test_selecting_option_sets_radio_value(self) -> None:
+        self.assertEqual(_fitz_field_value(self._apply({"entity_type": "corp"}), "entity_type"), "corp")
+
+    def test_invalid_option_leaves_radio_unset(self) -> None:
+        self.assertIsNone(_fitz_field_value(self._apply({"entity_type": "bogus"}), "entity_type"))
+
+
+@unittest.skipUnless(_HAS_FITZ, "PyMuPDF not installed")
+class FormFillChoiceFieldTests(unittest.TestCase):
+    """Dropdown / list-box values must be constrained to real option exports."""
+
+    def setUp(self) -> None:
+        self.service = FormFillService()
+        handle = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        handle.close()
+        self.addCleanup(os.unlink, handle.name)
+        self.path = handle.name
+        _build_choice_pdf(self.path)
+
+    def _apply_value(self, value, *, path: str | None = None):
+        out = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        out.close()
+        self.addCleanup(os.unlink, out.name)
+        self.service._apply_fillable_pdf(path or self.path, {"state": value}, out.name)
+        widget = _widget_by_name(out.name, "state")
+        value = None if widget is None else widget.get("/V")
+        return None if value is None else str(value)
+
+    def test_metadata_extracts_options(self) -> None:
+        by_name = {m["name"]: m for m in self.service._extract_pdf_form_field_metadata(self.path)}
+        self.assertEqual(by_name["state"]["type"], "combobox")
+        self.assertEqual(
+            [(opt["export"], opt["label"]) for opt in by_name["state"]["options"]],
+            [("AL", "Alabama"), ("SC", "South Carolina"), ("TX", "Texas")],
+        )
+
+    def test_export_value_is_written(self) -> None:
+        self.assertEqual(self._apply_value("SC"), "SC")
+
+    def test_display_value_maps_to_export(self) -> None:
+        self.assertEqual(self._apply_value("Texas"), "TX")
+
+    def test_value_not_in_options_is_dropped(self) -> None:
+        self.assertIsNone(self._apply_value("ZZ"))
+
+    def test_multi_select_uses_only_first_value(self) -> None:
+        handle = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        handle.close()
+        self.addCleanup(os.unlink, handle.name)
+        _build_choice_pdf(handle.name, multi=True)
+        self.assertEqual(self._apply_value("AL;TX", path=handle.name), "AL")
+
+
+@unittest.skipUnless(FW9_PDF_PATH.exists(), f"fixture not found: {FW9_PDF_PATH}")
+class FormFillNonTextEndToEndTests(unittest.TestCase):
+    """extract metadata -> mapping prompt -> (mocked) model -> write: the chosen
+    checkbox export value must actually check the box on fw9."""
+
+    def setUp(self) -> None:
+        self.service = FormFillService()
+
+    def test_mapped_checkbox_export_value_checks_the_box(self) -> None:
+        field_metadata = {m["name"]: m for m in self.service._extract_pdf_form_field_metadata(str(FW9_PDF_PATH))}
+        self.service.client = SimpleNamespace(
+            models=SimpleNamespace(generate_content=MagicMock(return_value=_mapping_response([{"name": "c1_1[2]", "value": "3"}])))
+        )
+        payload = self.service._generate_mapping_payload(
+            [],
+            source_text="The entity is an S corporation.",
+            mapping_items=["c1_1[2]"],
+            mapping_label="Fillable PDF field names",
+            target_hint="fillable PDF form",
+            label="m",
+            field_metadata=field_metadata,
+        )
+        field_values = {str(item["name"]): str(item["value"]) for item in payload["items"]}
+        out = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        out.close()
+        self.addCleanup(os.unlink, out.name)
+        self.service._apply_fillable_pdf(str(FW9_PDF_PATH), field_values, out.name)
+        self.assertEqual(str(_widget_by_name(out.name, "c1_1[2]").get("/AS")), "/3")
+        self.assertEqual(str(_widget_by_name(out.name, "c1_1[0]").get("/AS")), "/Off")
 
 
 if __name__ == "__main__":

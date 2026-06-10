@@ -1541,6 +1541,209 @@ class FormFillService:
         fields = reader.get_fields() or {}
         return [str(name) for name in fields.keys()]
 
+    def _extract_pdf_form_field_metadata(self, local_path: str) -> list[dict[str, Any]]:
+        """Return structured metadata for fillable PDF form fields, via PyMuPDF.
+
+        One dict per *logical* field with keys: ``name`` (leaf field name),
+        ``qualified_name`` (full dotted name), ``type`` (``text``/``checkbox``/
+        ``radio``/``combobox``/``listbox``), ``page``, optional ``label``, and
+        type-specific keys: ``on_states`` (checkbox/radio export values),
+        ``options`` (radio & choice ``{export, label}`` pairs), ``multi_select``
+        (choice fields).
+
+        ``name`` is the LEAF name (last dotted segment) because the PyPDF2 write
+        path (:func:`_apply_fillable_pdf`) keys on leaf names; if the two diverged
+        the metadata would never join to the fields actually being filled. Radio
+        widgets sharing one field name collapse into a single logical field.
+        Degrades to ``[]`` on any error so a malformed form falls back to the
+        name-only mapping path.
+        """
+        type_map = {
+            fitz.PDF_WIDGET_TYPE_CHECKBOX: "checkbox",
+            fitz.PDF_WIDGET_TYPE_RADIOBUTTON: "radio",
+            fitz.PDF_WIDGET_TYPE_COMBOBOX: "combobox",
+            fitz.PDF_WIDGET_TYPE_LISTBOX: "listbox",
+            fitz.PDF_WIDGET_TYPE_TEXT: "text",
+        }
+        try:
+            doc = fitz.open(local_path)
+        except Exception as exc:
+            logger.warning("Failed to open PDF for field metadata extraction: %s", exc)
+            return []
+
+        fields: dict[str, dict[str, Any]] = {}
+        order: list[str] = []
+        try:
+            for page_index, page in enumerate(doc, start=1):
+                try:
+                    widgets = list(page.widgets() or [])
+                except Exception:
+                    continue
+                for widget in widgets:
+                    try:
+                        self._merge_widget_metadata(
+                            widget=widget,
+                            page=page,
+                            page_index=page_index,
+                            row_widgets=widgets,
+                            type_map=type_map,
+                            fields=fields,
+                            order=order,
+                        )
+                    except Exception:
+                        continue
+        finally:
+            doc.close()
+        return [fields[name] for name in order]
+
+    def _merge_widget_metadata(
+        self,
+        *,
+        widget: Any,
+        page: Any,
+        page_index: int,
+        row_widgets: list[Any],
+        type_map: dict[int, str],
+        fields: dict[str, dict[str, Any]],
+        order: list[str],
+    ) -> None:
+        qualified = str(widget.field_name or "").strip()
+        if not qualified:
+            return
+        leaf = qualified.split(".")[-1] or qualified
+        field_type = type_map.get(widget.field_type, "text")
+
+        on_states: list[str] = []
+        if field_type in ("checkbox", "radio"):
+            try:
+                normal = (widget.button_states() or {}).get("normal") or []
+            except Exception:
+                normal = []
+            for state in normal:
+                value = str(state).lstrip("/")
+                if value and value.lower() != "off":
+                    on_states.append(value)
+
+        choice_options: list[dict[str, str]] = []
+        multi_select = False
+        if field_type in ("combobox", "listbox"):
+            try:
+                values = widget.choice_values or []
+            except Exception:
+                values = []
+            for entry in values:
+                if isinstance(entry, (list, tuple)) and len(entry) >= 2:
+                    export, display = str(entry[0]), str(entry[1])
+                else:
+                    export = display = str(entry)
+                choice_options.append({"export": export, "label": display})
+            multi_select = bool(int(getattr(widget, "field_flags", 0) or 0) & (1 << 21))
+
+        label = self._widget_label_hint(page, widget, row_widgets)
+
+        existing = fields.get(leaf)
+        if existing is None:
+            entry: dict[str, Any] = {
+                "name": leaf,
+                "qualified_name": qualified,
+                "type": field_type,
+                "page": page_index,
+            }
+            if label:
+                entry["label"] = label
+            if field_type == "checkbox":
+                entry["on_states"] = list(dict.fromkeys(on_states))
+            elif field_type == "radio":
+                entry["on_states"] = list(dict.fromkeys(on_states))
+                entry["options"] = [{"export": state, "label": label} for state in on_states]
+            elif field_type in ("combobox", "listbox"):
+                entry["options"] = choice_options
+                entry["multi_select"] = multi_select
+            fields[leaf] = entry
+            order.append(leaf)
+            return
+
+        # Merge another widget into an existing logical field: radio-group kids
+        # (each contributes one on-state) or a field repeated across pages.
+        if not existing.get("label") and label:
+            existing["label"] = label
+        if field_type in ("checkbox", "radio") and existing.get("type") in ("checkbox", "radio"):
+            merged = list(dict.fromkeys((existing.get("on_states") or []) + on_states))
+            existing["on_states"] = merged
+            if existing.get("type") == "radio" or field_type == "radio" or len(merged) > 1:
+                existing["type"] = "radio"
+                options = existing.setdefault("options", [])
+                known = {opt["export"] for opt in options}
+                for state in on_states:
+                    if state not in known:
+                        options.append({"export": state, "label": label})
+                        known.add(state)
+
+    def _widget_label_hint(self, page: Any, widget: Any, row_widgets: list[Any]) -> str:
+        """Best-effort human-readable label for a widget (a hint, not authoritative).
+
+        Reads the text band to the right of the widget, clipped at the next
+        widget on the same row, and returns its first line. Falls back to the
+        band on the left, then to ``""``. The multimodal PDF sent to the model is
+        the real disambiguator, so this never raises.
+        """
+        try:
+            rect = widget.rect
+            page_rect = page.rect
+        except Exception:
+            return ""
+        row_tol = 6.0
+        max_band = 240.0
+        clip_x = min(rect.x1 + max_band, page_rect.x1)
+        for other in row_widgets:
+            if other is widget:
+                continue
+            try:
+                other_rect = other.rect
+            except Exception:
+                continue
+            if other_rect.x0 > rect.x1 and abs(other_rect.y0 - rect.y0) <= row_tol:
+                clip_x = min(clip_x, other_rect.x0)
+        right = self._first_line_in_rect(page, fitz.Rect(rect.x1, rect.y0 - 2, clip_x, rect.y1 + 2))
+        if right:
+            return right
+        left_x0 = max(rect.x0 - max_band, page_rect.x0)
+        return self._first_line_in_rect(page, fitz.Rect(left_x0, rect.y0 - 2, rect.x0, rect.y1 + 2))
+
+    def _first_line_in_rect(self, page: Any, rect: Any) -> str:
+        try:
+            text = page.get_textbox(rect) or ""
+        except Exception:
+            return ""
+        first = text.strip().split("\n")[0].strip()
+        return first[:80]
+
+    def _align_pdf_field_metadata(
+        self, pdf_fields: list[str], metadata_list: list[dict[str, Any]]
+    ) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
+        """Join fitz-extracted metadata (keyed by leaf name) to the PyPDF2 field
+        names that drive filling.
+
+        Returns ``(mapping_metadata, context_fields)``: a dict keyed by the exact
+        ``pdf_fields`` strings (for the single-record mapping prompt) and a list
+        aligned to ``pdf_fields`` with ``name`` set to the PyPDF2 name (for the
+        tabular code-gen context). Fields without metadata default to text.
+        """
+        by_leaf = {meta["name"]: meta for meta in (metadata_list or [])}
+        mapping_metadata: dict[str, dict[str, Any]] = {}
+        context_fields: list[dict[str, Any]] = []
+        for field_name in pdf_fields:
+            key = str(field_name)
+            meta = by_leaf.get(key) or by_leaf.get(key.split(".")[-1])
+            if meta:
+                mapping_metadata[key] = meta
+                aligned = dict(meta)
+                aligned["name"] = key
+                context_fields.append(aligned)
+            else:
+                context_fields.append({"name": key, "type": "text"})
+        return mapping_metadata, context_fields
+
     def _extract_pdf_text(self, local_path: str, max_chars: int = 20000) -> str:
         doc = fitz.open(local_path)
         parts: list[str] = []
@@ -2533,55 +2736,122 @@ Rules:
                         on_states.setdefault(name, set()).add(state)
         return button_fields, on_states
 
-    def _sanitize_pdf_field_values(self, reader: Any, field_values: dict[str, str], name_object: Any) -> dict[str, Any]:
-        """Drop or normalize checkbox/radio values so PyPDF2 never writes an
-        empty ``NameObject``.
-
-        PyPDF2 writes any ``/Btn`` value as a ``NameObject``; ``NameObject("")``
-        crashes ``writer.write()`` (``renumber`` does ``self[0]`` on an empty
-        string). For button fields we drop empty/``Off``/invalid values (leaving
-        the default ``/Off``) and normalize a valid on-state to ``/state``. Text
-        fields pass through unchanged.
-        """
-        button_fields, on_states = self._pdf_button_field_metadata(reader)
-        sanitized: dict[str, Any] = {}
-        for name, value in field_values.items():
-            key = str(name)
-            if key not in button_fields:
-                sanitized[name] = value
-                continue
-            text = ("" if value is None else str(value)).strip()
-            if not text or text.lower() == "off":
-                continue
-            candidate = text.lstrip("/")
-            valid = on_states.get(key)
-            if valid and candidate not in valid:
-                continue
-            sanitized[key] = name_object("/" + candidate)
-        return sanitized
-
     def _apply_fillable_pdf(self, local_target_path: str, field_values: dict[str, str], output_path: str) -> None:
-        from PyPDF2 import PdfReader, PdfWriter
-        from PyPDF2.generic import BooleanObject, NameObject
+        """Fill a fillable PDF using PyMuPDF (fitz).
 
-        reader = PdfReader(local_target_path)
-        field_values = self._sanitize_pdf_field_values(reader, field_values, NameObject)
-        writer = PdfWriter()
-        for page in reader.pages:
-            writer.add_page(page)
-
-        for page in writer.pages:
-            writer.update_page_form_field_values(page, field_values)
-
+        fitz renders correct appearance streams for text, checkbox, radio, and
+        choice fields and—unlike PyPDF2—selects radio-group options reliably
+        (PyPDF2's update_page_form_field_values never sets a radio kid's /AS, and
+        its per-page cloning drops the radio parent's field name). Values are keyed
+        by leaf field name (matching ``_extract_pdf_form_fields``). Checkbox/radio
+        values are validated against the widget's on-states and choice values
+        against the field options; an unrecognized value leaves the field unset
+        rather than corrupting it.
+        """
+        doc = fitz.open(local_target_path)
         try:
-            if "/AcroForm" in reader.trailer["/Root"]:
-                writer._root_object.update({NameObject("/AcroForm"): reader.trailer["/Root"]["/AcroForm"]})
-                writer._root_object[NameObject("/AcroForm")].update({NameObject("/NeedAppearances"): BooleanObject(True)})
-        except Exception as exc:
-            logger.warning("Failed to copy AcroForm metadata: %s", exc)
+            for page in doc:
+                try:
+                    widgets = list(page.widgets() or [])
+                except Exception:
+                    continue
+                for widget in widgets:
+                    leaf = str(widget.field_name or "").split(".")[-1]
+                    if not leaf or leaf not in field_values:
+                        continue
+                    try:
+                        self._set_pdf_widget_value(widget, field_values[leaf])
+                    except Exception as exc:
+                        logger.warning("Failed to set PDF form field %s: %s", leaf, exc)
+            doc.save(output_path)
+        finally:
+            doc.close()
 
-        with open(output_path, "wb") as handle:
-            writer.write(handle)
+    def _set_pdf_widget_value(self, widget: Any, raw: Any) -> None:
+        field_type = widget.field_type
+        text = "" if raw is None else str(raw)
+        if field_type == fitz.PDF_WIDGET_TYPE_TEXT:
+            widget.field_value = text
+            widget.update()
+            return
+        if field_type == fitz.PDF_WIDGET_TYPE_CHECKBOX:
+            on_states = self._widget_on_states(widget)
+            candidate = text.strip().lstrip("/")
+            checked = bool(candidate) and candidate.lower() != "off" and (candidate in on_states if on_states else True)
+            widget.field_value = checked
+            widget.update()
+            return
+        if field_type == fitz.PDF_WIDGET_TYPE_RADIOBUTTON:
+            candidate = text.strip().lstrip("/")
+            # Set only the matching kid; fitz turns the rest of the group off.
+            if candidate and candidate in self._widget_on_states(widget):
+                widget.field_value = True
+                widget.update()
+            return
+        if field_type in (fitz.PDF_WIDGET_TYPE_COMBOBOX, fitz.PDF_WIDGET_TYPE_LISTBOX):
+            export = self._resolve_choice_value(widget, text)
+            if export is not None:
+                widget.field_value = export
+                widget.update()
+            return
+
+    @staticmethod
+    def _widget_on_states(widget: Any) -> list[str]:
+        """The widget's non-Off appearance states (checkbox/radio export values)."""
+        try:
+            normal = (widget.button_states() or {}).get("normal") or []
+        except Exception:
+            normal = []
+        states: list[str] = []
+        for state in normal:
+            value = str(state).lstrip("/")
+            if value and value.lower() != "off":
+                states.append(value)
+        return states
+
+    def _resolve_choice_value(self, widget: Any, text: str) -> Optional[str]:
+        """Resolve a value to a valid choice export, or None to leave it unset.
+
+        Accepts the export verbatim, maps a display label to its export, and falls
+        back to a case-insensitive match. Multi-select list boxes use a single
+        value (v1): extras are dropped with a warning.
+        """
+        text = (text or "").strip()
+        if not text:
+            return None
+        exports: list[str] = []
+        display_to_export: dict[str, str] = {}
+        try:
+            entries = list(widget.choice_values or [])
+        except Exception:
+            entries = []
+        for entry in entries:
+            if isinstance(entry, (list, tuple)) and len(entry) >= 2:
+                export, display = str(entry[0]), str(entry[1])
+            else:
+                export = display = str(entry)
+            exports.append(export)
+            display_to_export[display] = export
+        is_multi = bool(int(getattr(widget, "field_flags", 0) or 0) & (1 << 21))
+        if is_multi and re.search(r"[;\n]", text):
+            first = re.split(r"[;\n]", text)[0].strip()
+            logger.warning("Form Fill choice field %s is multi-select; only the first value %r is used", widget.field_name, first)
+            text = first
+        if not exports:
+            return text
+        if text in exports:
+            return text
+        if text in display_to_export:
+            return display_to_export[text]
+        lowered = text.lower()
+        for export in exports:
+            if export.lower() == lowered:
+                return export
+        for display, export in display_to_export.items():
+            if display.lower() == lowered:
+                return export
+        logger.warning("Form Fill choice field %s got value %r not in options %s; leaving unset", widget.field_name, text, exports)
+        return None
 
     def _pdf_overlay_schema(self) -> types.Schema:
         return types.Schema(
@@ -3146,6 +3416,31 @@ Instructions:
         doc.save(output_path)
         return warnings
 
+    def _render_field_descriptor(self, name: str, meta: Optional[dict[str, Any]]) -> str:
+        """Render one prompt bullet for a field, with type + allowed values when
+        the field is a checkbox/radio/dropdown. Text fields (and missing metadata)
+        render as a bare ``- {name}`` so the prompt is unchanged for them."""
+        if not isinstance(meta, dict) or (meta.get("type") or "text") == "text":
+            return f"- {name}"
+        ftype = meta.get("type")
+        label = meta.get("label")
+        header = f"- {name}\n    type: {ftype}"
+        if label:
+            header += f'; label: "{label}"'
+        if ftype == "checkbox":
+            states = meta.get("on_states") or []
+            if states:
+                header += f'\n    to check this box set value to "{states[0]}", or null to leave it unchecked'
+            return header
+        options = meta.get("options") or []
+        if options:
+            rendered = "; ".join(
+                f'"{opt.get("export")}"' + (f' = {opt.get("label")}' if opt.get("label") else "")
+                for opt in options
+            )
+            header += f"\n    choose exactly one value: {rendered}, or null"
+        return header
+
     def _build_mapping_prompt(
         self,
         *,
@@ -3153,9 +3448,21 @@ Instructions:
         mapping_items: list[str],
         mapping_label: str,
         target_hint: str,
+        field_metadata: Optional[dict[str, dict[str, Any]]] = None,
     ) -> str:
         source_block = source_text.strip() or "The source is provided as attached document(s)."
-        names = "\n".join(f"- {item}" for item in mapping_items)
+        if field_metadata:
+            names = "\n".join(
+                self._render_field_descriptor(str(item), field_metadata.get(str(item))) for item in mapping_items
+            )
+            nontext_rule = (
+                "\n- For checkbox, radio, and dropdown fields, the value MUST be exactly one of that field's "
+                "listed allowed values (copy it verbatim, case-sensitive) or null to leave it unset. Never "
+                "invent values and never return the human-readable label in place of the listed value."
+            )
+        else:
+            names = "\n".join(f"- {item}" for item in mapping_items)
+            nontext_rule = ""
         return f"""You are filling a {target_hint} using the provided source material.
 
 Source material summary:
@@ -3167,7 +3474,7 @@ Source material summary:
 Instructions:
 - Return one item for every provided name.
 - Keep the original name exactly as given.
-- Use null when the source does not clearly provide a value.
+- Use null when the source does not clearly provide a value.{nontext_rule}
 - Return concise values suitable for direct insertion into the target document.
 - Add any important caveats to warnings.
 """
@@ -3181,6 +3488,7 @@ Instructions:
         mapping_label: str,
         target_hint: str,
         label: str,
+        field_metadata: Optional[dict[str, dict[str, Any]]] = None,
     ) -> dict[str, Any]:
         all_items: list[dict[str, Any]] = []
         all_warnings: list[str] = []
@@ -3188,11 +3496,17 @@ Instructions:
 
         for start in range(0, len(mapping_items), chunk_size):
             chunk = mapping_items[start : start + chunk_size]
+            chunk_metadata = (
+                {str(item): field_metadata[str(item)] for item in chunk if str(item) in field_metadata}
+                if field_metadata
+                else None
+            )
             prompt = self._build_mapping_prompt(
                 source_text=source_text,
                 mapping_items=chunk,
                 mapping_label=mapping_label,
                 target_hint=target_hint,
+                field_metadata=chunk_metadata,
             )
             payload = self._generate_collection_json_response(
                 contents,
@@ -3245,16 +3559,23 @@ Instructions:
             pdf_fields = self._extract_pdf_form_fields(target_local_path)
             target_parts.append(self._part_from_uri(self.storage_service.construct_gcs_uri_for_object(run.target_gcs_object_name), PDF_MIME))
             if pdf_fields:
+                field_metadata, context_fields = self._align_pdf_field_metadata(
+                    pdf_fields, self._extract_pdf_form_field_metadata(target_local_path)
+                )
                 processing_strategy = "fillable_pdf"
                 if use_tabular_generation:
                     processing_strategy = "fillable_pdf_generated_code"
                     output_contract = (
                         "Return {'field_values': {field_name: value, ...}, 'warnings': [...]} using only the provided field names. "
-                        "Values must be strings ready for direct insertion."
+                        "Values must be strings ready for direct insertion. "
+                        "For checkbox, radio, and dropdown fields, emit one of that field's allowed values exactly as "
+                        "listed (copy it verbatim) or omit the field; never invent values and never emit the "
+                        "human-readable label. context['fields'] lists each field's type and allowed values."
                     )
                     code_context = {
                         "target_kind": "fillable PDF",
                         "field_names": pdf_fields,
+                        "fields": context_fields,
                         "source_columns": list((tabular_context or {}).get("columns") or []),
                         "source_files": list((tabular_context or {}).get("source_files") or []),
                         "output_contract": output_contract,
@@ -3296,6 +3617,7 @@ Instructions:
                         mapping_label="Fillable PDF field names",
                         target_hint="fillable PDF form",
                         label="fillable_pdf_mapping",
+                        field_metadata=field_metadata,
                     )
                     field_values = {
                         str(item.get("name")): "" if item.get("value") is None else str(item.get("value"))
