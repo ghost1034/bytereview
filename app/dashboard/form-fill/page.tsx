@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
@@ -157,6 +158,7 @@ export default function FormFillPage() {
   const [repeatMode, setRepeatMode] = useState<FillMode>('all_sources')
   const [creating, setCreating] = useState(false)
   const [downloadingRunId, setDownloadingRunId] = useState<string | null>(null)
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null)
   const [currentRunId, setCurrentRunId] = useState<string | null>(runIdParam || null)
 
   const { data: templatesData, refetch: refetchTemplates } = useQuery({
@@ -363,6 +365,39 @@ export default function FormFillPage() {
       })
     } finally {
       setDownloadingRunId(null)
+    }
+  }
+
+  const handleDownloadSourceFile = async (runId: string, fileId: string) => {
+    setDownloadingFileId(fileId)
+    try {
+      const { blob, filename } = await apiClient.downloadFormFillSourceFile(runId, fileId)
+      downloadBlob(blob, filename)
+    } catch (error) {
+      toast({
+        title: 'Download failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      })
+    } finally {
+      setDownloadingFileId(null)
+    }
+  }
+
+  const handleDownloadTarget = async (runId: string) => {
+    const key = `${runId}:target`
+    setDownloadingFileId(key)
+    try {
+      const { blob, filename } = await apiClient.downloadFormFillTarget(runId)
+      downloadBlob(blob, filename)
+    } catch (error) {
+      toast({
+        title: 'Download failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      })
+    } finally {
+      setDownloadingFileId(null)
     }
   }
 
@@ -744,6 +779,89 @@ export default function FormFillPage() {
                 <span className="text-foreground-muted">
                   {formatStrategy(currentRun.processing_strategy)}
                 </span>
+              </div>
+            )}
+            {currentRun && (
+              <div className="space-y-1.5">
+                <div className="font-medium text-foreground">Source</div>
+                {currentRun.source_mode === 'extraction_result' ? (
+                  <div className="rounded-md border border-border bg-surface-raised px-3 py-2 space-y-2">
+                    <div className="text-sm text-foreground">Extracted data</div>
+                    {((currentRun.source_payload?.source_files as string[] | undefined)?.length ?? 0) > 0 && (
+                      <ul className="list-disc pl-5 space-y-0.5 text-xs text-foreground-muted">
+                        {(currentRun.source_payload?.source_files as string[]).map((name, index) => (
+                          <li key={`${name}-${index}`} className="truncate">{name}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {currentRun.source_job_id && (
+                      <Link
+                        href={`/dashboard/jobs/${currentRun.source_job_id}/results${currentRun.source_run_id ? `?run_id=${currentRun.source_run_id}` : ''}`}
+                        className="inline-block text-sm text-primary hover:underline"
+                      >
+                        View extraction job
+                      </Link>
+                    )}
+                  </div>
+                ) : currentRun.source_files.length > 0 ? (
+                  <div className="rounded-md border border-border bg-surface-raised divide-y divide-border">
+                    {currentRun.source_files.map((file) => (
+                      <div
+                        key={file.id}
+                        className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-medium truncate text-foreground">
+                            {file.original_filename}
+                          </div>
+                          <div className="text-xs text-foreground-muted">
+                            {mimeToExtension(file.file_type)} · {formatBytes(file.file_size_bytes)}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={downloadingFileId === file.id}
+                          onClick={() => handleDownloadSourceFile(currentRun.id, file.id)}
+                        >
+                          {downloadingFileId === file.id ? 'Downloading…' : 'Download'}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-foreground-muted">No source files.</div>
+                )}
+              </div>
+            )}
+            {currentRun && (
+              <div className="space-y-1.5">
+                <div className="font-medium text-foreground">Target</div>
+                <div className="rounded-md border border-border bg-surface-raised px-3 py-2">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate text-foreground">
+                        {currentRun.target_filename}
+                      </div>
+                      <div className="text-xs text-foreground-muted">
+                        {mimeToExtension(currentRun.target_file_type)}
+                        {currentRun.target_page_count
+                          ? ` · ${currentRun.target_page_count} page${currentRun.target_page_count === 1 ? '' : 's'}`
+                          : ''}
+                        {' · '}
+                        {currentRun.target_mode === 'template' ? 'from template' : 'uploaded'}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={downloadingFileId === `${currentRun.id}:target`}
+                      onClick={() => handleDownloadTarget(currentRun.id)}
+                    >
+                      {downloadingFileId === `${currentRun.id}:target` ? 'Downloading…' : 'Download'}
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
             {warningGroups.length ? (

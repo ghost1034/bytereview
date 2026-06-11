@@ -837,6 +837,44 @@ export class ApiClient {
     return { blob, filename: filename.replace(/"/g, '') }
   }
 
+  async downloadFormFillSourceFile(runId: string, fileId: string): Promise<{ blob: Blob; filename: string }> {
+    const token = await this.getAuthToken()
+    const response = await fetch(`${this.baseURL}/api/form-fill/runs/${runId}/source-files/${fileId}/download`, {
+      method: 'GET',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Source file download failed' }))
+      throw new Error(error.detail || error.message || 'Source file download failed')
+    }
+
+    const blob = await response.blob()
+    const filename = response.headers.get('Content-Disposition')?.match(/filename=(.+)/)?.[1] || 'source-file'
+    return { blob, filename: filename.replace(/"/g, '') }
+  }
+
+  async downloadFormFillTarget(runId: string): Promise<{ blob: Blob; filename: string }> {
+    const token = await this.getAuthToken()
+    const response = await fetch(`${this.baseURL}/api/form-fill/runs/${runId}/target/download`, {
+      method: 'GET',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Target file download failed' }))
+      throw new Error(error.detail || error.message || 'Target file download failed')
+    }
+
+    const blob = await response.blob()
+    const filename = response.headers.get('Content-Disposition')?.match(/filename=(.+)/)?.[1] || 'target-document'
+    return { blob, filename: filename.replace(/"/g, '') }
+  }
+
   // ===================================================================
   // CPE Tracker endpoints
   // ===================================================================

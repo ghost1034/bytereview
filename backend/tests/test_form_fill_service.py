@@ -1772,13 +1772,6 @@ class FormFillFillablePdfCheckboxTests(unittest.TestCase):
                     return obj
         return None
 
-    def test_button_metadata_reads_on_states_from_fw9(self) -> None:
-        button_fields, on_states = self.service._pdf_button_field_metadata(PdfReader(str(FW9_PDF_PATH)))
-        self.assertIn("c1_1[0]", button_fields)
-        self.assertIn("c1_2[0]", button_fields)
-        self.assertEqual(on_states.get("c1_1[0]"), {"1"})
-        self.assertEqual(on_states.get("c1_1[6]"), {"7"})
-
     def test_empty_checkbox_does_not_crash_and_stays_off(self) -> None:
         out = self._apply({"f1_01[0]": "Acme LLC", "c1_1[0]": ""})
         self.assertEqual(str(self._widget(out, "c1_1[0]").get("/AS")), "/Off")
@@ -2152,6 +2145,97 @@ class FormFillNonTextEndToEndTests(unittest.TestCase):
         self.service._apply_fillable_pdf(str(FW9_PDF_PATH), field_values, out.name)
         self.assertEqual(str(_widget_by_name(out.name, "c1_1[2]").get("/AS")), "/3")
         self.assertEqual(str(_widget_by_name(out.name, "c1_1[0]").get("/AS")), "/Off")
+
+
+class FormFillServiceDownloadMetadataTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.service = FormFillService()
+
+    def _session_returning(self, query: MagicMock) -> MagicMock:
+        db = MagicMock()
+        db.query.return_value = query
+        self.service._get_session = MagicMock(return_value=db)
+        return db
+
+    def test_get_source_file_metadata_returns_owned_file(self) -> None:
+        source_file = SimpleNamespace(
+            id=uuid.uuid4(),
+            gcs_object_name="form-fill/u/runs/r/sources/1.pdf",
+            original_filename="source.pdf",
+            file_type="application/pdf",
+        )
+        query = MagicMock()
+        query.join.return_value.filter.return_value.first.return_value = source_file
+        db = self._session_returning(query)
+
+        result = self.service.get_source_file_metadata("user-id", str(uuid.uuid4()), str(source_file.id))
+
+        self.assertIs(result, source_file)
+        db.expunge.assert_called_once_with(source_file)
+        db.close.assert_called_once()
+
+    def test_get_source_file_metadata_raises_when_missing(self) -> None:
+        query = MagicMock()
+        query.join.return_value.filter.return_value.first.return_value = None
+        db = self._session_returning(query)
+
+        with self.assertRaises(ValueError):
+            self.service.get_source_file_metadata("user-id", str(uuid.uuid4()), str(uuid.uuid4()))
+        db.close.assert_called_once()
+
+    def test_get_source_file_metadata_raises_when_gcs_object_missing(self) -> None:
+        source_file = SimpleNamespace(
+            id=uuid.uuid4(),
+            gcs_object_name=None,
+            original_filename="source.pdf",
+            file_type="application/pdf",
+        )
+        query = MagicMock()
+        query.join.return_value.filter.return_value.first.return_value = source_file
+        self._session_returning(query)
+
+        with self.assertRaises(ValueError):
+            self.service.get_source_file_metadata("user-id", str(uuid.uuid4()), str(source_file.id))
+
+    def test_get_target_metadata_returns_owned_run(self) -> None:
+        run = SimpleNamespace(
+            id=uuid.uuid4(),
+            target_gcs_object_name="form-fill/u/runs/r/target.pdf",
+            target_filename="target.pdf",
+            target_file_type="application/pdf",
+        )
+        query = MagicMock()
+        query.filter.return_value.first.return_value = run
+        db = self._session_returning(query)
+
+        result = self.service.get_target_metadata("user-id", str(run.id))
+
+        self.assertIs(result, run)
+        db.expunge.assert_called_once_with(run)
+        db.close.assert_called_once()
+
+    def test_get_target_metadata_raises_when_run_missing(self) -> None:
+        query = MagicMock()
+        query.filter.return_value.first.return_value = None
+        db = self._session_returning(query)
+
+        with self.assertRaises(ValueError):
+            self.service.get_target_metadata("user-id", str(uuid.uuid4()))
+        db.close.assert_called_once()
+
+    def test_get_target_metadata_raises_when_target_object_missing(self) -> None:
+        run = SimpleNamespace(
+            id=uuid.uuid4(),
+            target_gcs_object_name=None,
+            target_filename="target.pdf",
+            target_file_type="application/pdf",
+        )
+        query = MagicMock()
+        query.filter.return_value.first.return_value = run
+        self._session_returning(query)
+
+        with self.assertRaises(ValueError):
+            self.service.get_target_metadata("user-id", str(run.id))
 
 
 if __name__ == "__main__":

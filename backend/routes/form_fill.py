@@ -143,3 +143,45 @@ async def download_form_fill_run(run_id: str, user_id: str = Depends(get_current
         raise HTTPException(status_code=404, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to download Form Fill result: {str(exc)}")
+
+
+@router.get("/runs/{run_id}/source-files/{file_id}/download")
+async def download_form_fill_source_file(
+    run_id: str, file_id: str, user_id: str = Depends(get_current_user_id)
+):
+    try:
+        source_file = form_fill_service.get_source_file_metadata(user_id, run_id, file_id)
+        suffix = os.path.splitext(source_file.original_filename or "download")[1] or ".bin"
+        handle = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        handle.close()
+        await form_fill_service._download_to_local(source_file.gcs_object_name, handle.name)
+        return FileResponse(
+            handle.name,
+            filename=source_file.original_filename,
+            media_type=source_file.file_type or "application/octet-stream",
+            background=BackgroundTask(os.unlink, handle.name),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to download Form Fill source file: {str(exc)}")
+
+
+@router.get("/runs/{run_id}/target/download")
+async def download_form_fill_target(run_id: str, user_id: str = Depends(get_current_user_id)):
+    try:
+        run = form_fill_service.get_target_metadata(user_id, run_id)
+        suffix = os.path.splitext(run.target_filename or "download")[1] or ".bin"
+        handle = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        handle.close()
+        await form_fill_service._download_to_local(run.target_gcs_object_name, handle.name)
+        return FileResponse(
+            handle.name,
+            filename=run.target_filename,
+            media_type=run.target_file_type or "application/octet-stream",
+            background=BackgroundTask(os.unlink, handle.name),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to download Form Fill target file: {str(exc)}")

@@ -1154,6 +1154,42 @@ class FormFillService:
         finally:
             db.close()
 
+    def get_source_file_metadata(self, user_id: str, run_id: str, file_id: str) -> FormFillSourceFile:
+        db = self._get_session()
+        try:
+            source_file = (
+                db.query(FormFillSourceFile)
+                .join(FormFillRun, FormFillSourceFile.run_id == FormFillRun.id)
+                .filter(
+                    FormFillSourceFile.id == uuid.UUID(str(file_id)),
+                    FormFillRun.id == uuid.UUID(str(run_id)),
+                    FormFillRun.user_id == user_id,
+                )
+                .first()
+            )
+            if not source_file or not source_file.gcs_object_name:
+                raise ValueError("Source file not found")
+            db.expunge(source_file)
+            return source_file
+        finally:
+            db.close()
+
+    def get_target_metadata(self, user_id: str, run_id: str) -> FormFillRun:
+        db = self._get_session()
+        try:
+            run = db.query(FormFillRun).filter(
+                FormFillRun.id == uuid.UUID(str(run_id)),
+                FormFillRun.user_id == user_id,
+            ).first()
+            if not run:
+                raise ValueError("Form Fill run not found")
+            if not run.target_gcs_object_name or not run.target_filename:
+                raise ValueError("Form Fill target file not found")
+            db.expunge(run)
+            return run
+        finally:
+            db.close()
+
     def _part_from_uri(self, uri: str, mime_type: str) -> Any:
         return types.Part.from_uri(file_uri=uri, mime_type=mime_type)
 
@@ -1534,13 +1570,6 @@ class FormFillService:
             all_warnings = self._filter_output_limit_warnings(all_warnings, label=label)
         return {collection_key: all_items, "warnings": all_warnings}
 
-    def _extract_pdf_form_fields(self, local_path: str) -> list[str]:
-        from PyPDF2 import PdfReader
-
-        reader = PdfReader(local_path)
-        fields = reader.get_fields() or {}
-        return [str(name) for name in fields.keys()]
-
     def _extract_pdf_form_field_metadata(self, local_path: str) -> list[dict[str, Any]]:
         """Return structured metadata for fillable PDF form fields, via PyMuPDF.
 
@@ -1551,12 +1580,11 @@ class FormFillService:
         ``options`` (radio & choice ``{export, label}`` pairs), ``multi_select``
         (choice fields).
 
-        ``name`` is the LEAF name (last dotted segment) because the PyPDF2 write
-        path (:func:`_apply_fillable_pdf`) keys on leaf names; if the two diverged
-        the metadata would never join to the fields actually being filled. Radio
-        widgets sharing one field name collapse into a single logical field.
-        Degrades to ``[]`` on any error so a malformed form falls back to the
-        name-only mapping path.
+        ``name`` is the LEAF name (last dotted segment); the fill path
+        (:func:`_apply_fillable_pdf`) matches widgets by leaf name, so callers key
+        field values by it. Radio widgets sharing one field name collapse into a
+        single logical field. Degrades to ``[]`` on any error so a malformed form
+        falls back to the name-only mapping path.
         """
         type_map = {
             fitz.PDF_WIDGET_TYPE_CHECKBOX: "checkbox",
@@ -1721,13 +1749,12 @@ class FormFillService:
     def _align_pdf_field_metadata(
         self, pdf_fields: list[str], metadata_list: list[dict[str, Any]]
     ) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
-        """Join fitz-extracted metadata (keyed by leaf name) to the PyPDF2 field
-        names that drive filling.
+        """Align field metadata to the field-name list that drives filling.
 
         Returns ``(mapping_metadata, context_fields)``: a dict keyed by the exact
         ``pdf_fields`` strings (for the single-record mapping prompt) and a list
-        aligned to ``pdf_fields`` with ``name`` set to the PyPDF2 name (for the
-        tabular code-gen context). Fields without metadata default to text.
+        aligned to ``pdf_fields`` (for the tabular code-gen context). Fields
+        without metadata default to text.
         """
         by_leaf = {meta["name"]: meta for meta in (metadata_list or [])}
         mapping_metadata: dict[str, dict[str, Any]] = {}
@@ -2664,88 +2691,15 @@ Rules:
                 self._replace_text_in_paragraph(paragraph, replacements)
         doc.save(output_path)
 
-    def _pdf_button_field_metadata(self, reader: Any) -> tuple[set[str], dict[str, set[str]]]:
-        """Inspect a PdfReader and return (button_field_names, valid_on_states).
-
-        ``button_field_names`` holds every widget leaf name that belongs to a
-        ``/Btn`` field (checkbox or radio). ``valid_on_states`` maps each such
-        name to the set of accepted on-state names (leading slash stripped),
-        derived from the widget's ``/AP`` ``/N`` appearance keys (excluding
-        ``/Off``). On-states cannot always be enumerated, so a name may be in
-        ``button_field_names`` without an entry in ``valid_on_states``.
-        """
-        button_fields: set[str] = set()
-        on_states: dict[str, set[str]] = {}
-        try:
-            fields = reader.get_fields() or {}
-        except Exception as exc:
-            logger.warning("Failed to read PDF form fields for sanitization: %s", exc)
-            fields = {}
-        for name, field in fields.items():
-            try:
-                if field.get("/FT") == "/Btn":
-                    button_fields.add(str(name))
-            except Exception:
-                continue
-
-        for page in reader.pages:
-            annots = page.get("/Annots")
-            if not annots:
-                continue
-            try:
-                annots = annots.get_object()
-            except Exception:
-                continue
-            for ref in annots:
-                try:
-                    obj = ref.get_object()
-                except Exception:
-                    continue
-                if obj.get("/Subtype") != "/Widget":
-                    continue
-                field_type = obj.get("/FT")
-                parent = obj.get("/Parent")
-                if field_type is None and parent is not None:
-                    try:
-                        field_type = parent.get_object().get("/FT")
-                    except Exception:
-                        field_type = None
-                if str(field_type) != "/Btn":
-                    continue
-                name = obj.get("/T")
-                if name is None and parent is not None:
-                    try:
-                        name = parent.get_object().get("/T")
-                    except Exception:
-                        name = None
-                if name is None:
-                    continue
-                name = str(name)
-                button_fields.add(name)
-                appearances = obj.get("/AP")
-                if not appearances:
-                    continue
-                try:
-                    normal = appearances.get_object().get("/N")
-                    keys = list(normal.get_object().keys()) if normal is not None else []
-                except Exception:
-                    keys = []
-                for key in keys:
-                    state = str(key).lstrip("/")
-                    if state and state.lower() != "off":
-                        on_states.setdefault(name, set()).add(state)
-        return button_fields, on_states
-
     def _apply_fillable_pdf(self, local_target_path: str, field_values: dict[str, str], output_path: str) -> None:
         """Fill a fillable PDF using PyMuPDF (fitz).
 
         fitz renders correct appearance streams for text, checkbox, radio, and
-        choice fields and—unlike PyPDF2—selects radio-group options reliably
-        (PyPDF2's update_page_form_field_values never sets a radio kid's /AS, and
-        its per-page cloning drops the radio parent's field name). Values are keyed
-        by leaf field name (matching ``_extract_pdf_form_fields``). Checkbox/radio
-        values are validated against the widget's on-states and choice values
-        against the field options; an unrecognized value leaves the field unset
+        choice fields and reliably selects radio-group options. Values are keyed
+        by leaf field name (matching :func:`_extract_pdf_form_field_metadata`).
+        Checkbox/radio values are validated against the widget's on-states and
+        choice values against the field options; an unrecognized value leaves the
+        field unset
         rather than corrupting it.
         """
         doc = fitz.open(local_target_path)
@@ -3556,12 +3510,11 @@ Instructions:
         use_tabular_generation = bool(tabular_rows)
 
         if run.target_file_type == PDF_MIME:
-            pdf_fields = self._extract_pdf_form_fields(target_local_path)
+            field_metadata_list = self._extract_pdf_form_field_metadata(target_local_path)
+            pdf_fields = [meta["name"] for meta in field_metadata_list]
             target_parts.append(self._part_from_uri(self.storage_service.construct_gcs_uri_for_object(run.target_gcs_object_name), PDF_MIME))
             if pdf_fields:
-                field_metadata, context_fields = self._align_pdf_field_metadata(
-                    pdf_fields, self._extract_pdf_form_field_metadata(target_local_path)
-                )
+                field_metadata, context_fields = self._align_pdf_field_metadata(pdf_fields, field_metadata_list)
                 processing_strategy = "fillable_pdf"
                 if use_tabular_generation:
                     processing_strategy = "fillable_pdf_generated_code"
