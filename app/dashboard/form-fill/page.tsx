@@ -440,7 +440,22 @@ export default function FormFillPage() {
                 type="file"
                 multiple
                 accept=".csv,.xlsx,.pdf,.docx"
-                onChange={(event) => setSourceFiles(Array.from(event.target.files || []))}
+                onChange={(event) => {
+                  const selected = Array.from(event.target.files || [])
+                  setSourceFiles((prev) => {
+                    const seen = new Set(
+                      prev.map((f) => `${f.name}-${f.size}-${f.lastModified}`)
+                    )
+                    const additions = selected.filter(
+                      (f) => !seen.has(`${f.name}-${f.size}-${f.lastModified}`)
+                    )
+                    return [...prev, ...additions]
+                  })
+                  // Reset the input so React state (not the native FileList) is the
+                  // source of truth: keeps the list in sync after removals and lets
+                  // a removed file be re-selected.
+                  event.target.value = ''
+                }}
               />
               <p className="text-xs text-foreground-muted">
                 Supported: CSV, XLSX, PDF, DOCX. Up to 100 source files, 1000 MB total. Multiple source files fill one form each.
