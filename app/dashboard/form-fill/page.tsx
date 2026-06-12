@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
@@ -146,6 +146,7 @@ export default function FormFillPage() {
   const [sourceMode, setSourceMode] = useState<'upload' | 'extraction'>(hasExtractionSource ? 'extraction' : 'upload')
   const [targetMode, setTargetMode] = useState<'upload' | 'template'>('upload')
   const [sourceFiles, setSourceFiles] = useState<File[]>([])
+  const sourceFileInputRef = useRef<HTMLInputElement>(null)
   const [targetFile, setTargetFile] = useState<File | null>(null)
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [saveAsTemplate, setSaveAsTemplate] = useState(false)
@@ -435,11 +436,27 @@ export default function FormFillPage() {
           {sourceMode === 'upload' ? (
             <div className="space-y-2">
               <Label htmlFor="source-files">Source files</Label>
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => sourceFileInputRef.current?.click()}
+                >
+                  Choose files
+                </Button>
+                <span className="text-sm text-foreground-muted">
+                  {sourceFiles.length === 0
+                    ? 'No files selected'
+                    : `${sourceFiles.length} file${sourceFiles.length === 1 ? '' : 's'} selected`}
+                </span>
+              </div>
               <Input
+                ref={sourceFileInputRef}
                 id="source-files"
                 type="file"
                 multiple
                 accept=".csv,.xlsx,.pdf,.docx"
+                className="hidden"
                 onChange={(event) => {
                   const selected = Array.from(event.target.files || [])
                   setSourceFiles((prev) => {
