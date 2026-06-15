@@ -2,17 +2,13 @@
 
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import dynamic from 'next/dynamic'
 import { motion, useInView } from 'framer-motion'
 import { ArrowRight, Check, Play } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { MarketingHero } from '@/components/marketing/marketing-hero'
+import { FlowLinesAccent } from '@/components/pages/home/three/FlowLinesAccent'
 import { fadeInUp } from '@/lib/animations'
-import { HeroPoster } from './three/HeroPoster'
-
-// The WebGL scene is client-only and code-split so it never blocks first paint or SSR.
-const HeroScene = dynamic(() => import('./three/HeroScene'), { ssr: false })
 
 function CountUp({
   target,
@@ -80,12 +76,16 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
       titleClassName="text-balance text-5xl tracking-tighter sm:text-6xl lg:text-7xl"
       background={
         <>
-          <HeroPoster />
-          <HeroScene />
-          {/* Scrim keeps headline contrast over the drifting documents */}
+          {/* Same backdrop as the closing CTA band: ambient auto-looping
+              data-flow particles over the hero gradient, lit by two soft glows */}
+          <FlowLinesAccent className="opacity-60" />
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(var(--marketing-hero-from)/0.45)_0%,hsl(var(--marketing-hero-from)/0.8)_70%)]"
+            className="pointer-events-none absolute -top-32 right-0 size-[420px] rounded-full bg-accent-blue-500/20 blur-3xl"
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -bottom-40 left-0 size-[320px] rounded-full bg-accent-blue-400/15 blur-3xl"
           />
           {/* Feather the hero into the page wash so it dissolves rather than
               stopping at a hard seam against the first section below */}
