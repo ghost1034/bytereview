@@ -27,9 +27,10 @@ export const staggerContainerSlow: Variants = {
 };
 
 // ── Stagger child (each item inside a stagger container) ──────────
+// Slide in only — no fade. Items translate up into place sequentially.
 export const staggerChild: Variants = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+  hidden: { y: 24 },
+  visible: { y: 0, transition: { duration: 0.5, ease: "easeOut" } },
 };
 
 // ── Scale on hover (cards, buttons) ───────────────────────────────
