@@ -38,45 +38,62 @@ export function ConsultingBanner() {
       role="region"
       aria-label="Forward-Deployed Consulting announcement"
       className={cn(
-        'relative z-30',
-        'border-b border-border bg-background/95 backdrop-blur',
-        'supports-[backdrop-filter]:bg-background/85',
-        'shadow-[0_4px_16px_-8px_rgba(0,0,0,0.12)]',
+        'relative z-30 overflow-hidden',
+        'border-b border-accent-blue-400/20 bg-surface/80 backdrop-blur',
+        'supports-[backdrop-filter]:bg-surface/60',
       )}
     >
-      <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 sm:py-3.5 lg:px-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <div className="flex items-start gap-3 sm:items-center">
+      {/* Ambient accent glow */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-accent-blue-400/50 to-transparent"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-24 top-1/2 size-48 -translate-y-1/2 rounded-full bg-accent-blue-500/10 blur-3xl"
+      />
+
+      <div className="relative mx-auto max-w-7xl px-4 py-2.5 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="flex items-center gap-3">
             <span
-              className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary-soft text-primary-soft-foreground ring-1 ring-inset ring-primary/10"
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent-blue-400/10 text-accent-blue-300 ring-1 ring-inset ring-accent-blue-400/20"
               aria-hidden
             >
               <Briefcase className="size-4" />
             </span>
-            <div className="min-w-0 space-y-0.5">
-              <p className="text-sm font-semibold text-foreground">
+            <p className="min-w-0 text-sm text-foreground-muted">
+              <span className="font-semibold text-foreground">
                 Need a custom AI build, not just a platform?
-              </p>
-              <p className="text-xs text-foreground-muted sm:text-sm">
+              </span>{' '}
+              <span className="hidden sm:inline">
                 Forward-Deployed Consulting — senior engineers and operators
                 who embed with your team.
-              </p>
-            </div>
+              </span>
+            </p>
           </div>
 
           <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
-            <Button asChild size="sm">
-              <Link href="/consulting" onClick={handleDismiss}>
-                Learn more
-                <ArrowRight className="ml-1 size-3.5" aria-hidden />
-              </Link>
-            </Button>
+            <Link
+              href="/consulting"
+              onClick={handleDismiss}
+              className={cn(
+                'group inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-semibold text-accent-blue-300 transition-colors hover:text-accent-blue-400',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              )}
+            >
+              Learn more
+              <ArrowRight
+                className="size-3.5 transition-transform group-hover:translate-x-0.5"
+                aria-hidden
+              />
+            </Link>
             <Button
               variant="ghost"
               size="icon"
               onClick={handleDismiss}
               aria-label="Dismiss consulting announcement"
-              className="size-8"
+              className="size-8 text-foreground-subtle hover:text-foreground"
             >
               <X className="size-4" aria-hidden />
             </Button>

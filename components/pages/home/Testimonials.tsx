@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Carousel,
@@ -13,6 +12,7 @@ import {
   CarouselPrevious,
 } from '@/components/ui/carousel'
 import { TestimonialCard } from '@/components/marketing/testimonial-card'
+import { SectionEyebrow } from '@/components/pages/home/shared/SectionEyebrow'
 import {
   fadeInUp,
   staggerChild,
@@ -46,21 +46,22 @@ const TESTIMONIALS = [
 
 export default function Testimonials() {
   return (
-    <section className="bg-gradient-to-br from-primary-soft/40 via-background to-primary-soft/30 py-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section className="relative isolate overflow-hidden bg-surface py-24">
+      {/* Ambient blue glow */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -top-40 left-1/2 size-[560px] -translate-x-1/2 rounded-full bg-accent-blue-500/10 blur-[140px]"
+      />
+
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <motion.div
-          className="mb-14 text-center"
+          className="mb-14 space-y-4 text-center"
           variants={fadeInUp}
           initial="hidden"
           whileInView="visible"
           viewport={viewportOnce}
         >
-          <Badge
-            variant="secondary"
-            className="mb-4 rounded-full bg-primary-soft px-3 py-1 text-xs text-primary-soft-foreground"
-          >
-            Testimonials
-          </Badge>
+          <SectionEyebrow>Testimonials</SectionEyebrow>
           <h2 className="text-balance text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
             What our customers are saying
           </h2>
@@ -77,7 +78,8 @@ export default function Testimonials() {
               {TESTIMONIALS.map((t) => (
                 <CarouselItem
                   key={t.company}
-                  className="pl-4 md:basis-1/2 lg:basis-1/3"
+                  /* Glass treatment + accent-blue star ratings on the dark card. */
+                  className="pl-4 md:basis-1/2 lg:basis-1/3 [&_figure]:glass-card [&_figure]:border-0 [&_[aria-label$='stars']]:text-accent-blue-400"
                 >
                   <TestimonialCard
                     quote={
@@ -117,18 +119,15 @@ export default function Testimonials() {
           viewport={viewportOnce}
         >
           <motion.div variants={staggerChild}>
-            <div className="relative h-full overflow-hidden rounded-xl bg-gradient-to-br from-marketing-hero-from to-marketing-hero-to p-10 text-marketing-hero-foreground shadow-xl">
+            <div className="relative h-full overflow-hidden rounded-2xl bg-gradient-to-br from-marketing-hero-from to-marketing-hero-to p-10 text-marketing-hero-foreground shadow-glow">
               <span
                 aria-hidden
                 className="pointer-events-none absolute -top-32 right-0 size-80 rounded-full bg-marketing-hero-accent/15 blur-3xl"
               />
-              <Badge
-                variant="outline"
-                className="relative mb-4 w-fit border-marketing-hero-border bg-marketing-hero-accent/15 text-marketing-hero-foreground-muted"
-              >
+              <span className="relative inline-flex w-fit items-center rounded-full border border-accent-blue-400/30 bg-accent-blue-400/10 px-3 py-1 text-xs font-medium uppercase tracking-wider text-accent-blue-300">
                 Case study
-              </Badge>
-              <h3 className="relative mb-4 text-2xl font-semibold tracking-tight">
+              </span>
+              <h3 className="relative mb-4 mt-4 text-2xl font-semibold tracking-tight">
                 A leading family office saves hundreds of hours per year
                 processing investment statements
               </h3>
@@ -140,7 +139,7 @@ export default function Testimonials() {
               </p>
               <Button
                 asChild
-                className="relative bg-marketing-hero-foreground font-semibold text-marketing-hero-from hover:bg-marketing-hero-foreground/90"
+                className="relative bg-accent-blue-500 font-semibold text-white hover:bg-accent-blue-500/90"
               >
                 <Link href="/case-study/LFO">Read the full case study →</Link>
               </Button>
@@ -152,7 +151,7 @@ export default function Testimonials() {
               <h3 className="mb-3 text-lg font-semibold text-foreground">
                 Watch our pitch
               </h3>
-              <div className="flex-1 overflow-hidden rounded-xl border border-border shadow-md">
+              <div className="flex-1 overflow-hidden rounded-2xl border border-border shadow-glow">
                 <div className="relative aspect-video bg-marketing-hero-from">
                   <iframe
                     className="absolute inset-0 h-full w-full border-0"

@@ -14,7 +14,6 @@ import {
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { IconTile } from '@/components/ui/icon-tile'
 import {
   fadeInUp,
   staggerChild,
@@ -62,8 +61,20 @@ const FEATURES = [
 
 export default function AnalyticsShowcase() {
   return (
-    <section id="analytics-showcase" className="bg-surface-muted py-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section
+      id="analytics-showcase"
+      className="relative isolate overflow-hidden bg-background py-24"
+    >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute left-1/4 top-12 size-[480px] -translate-x-1/2 rounded-full bg-accent-blue-500/10 blur-3xl"
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute bottom-0 right-1/5 size-[420px] rounded-full bg-accent-blue-400/10 blur-3xl"
+      />
+
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <motion.div
           className="mb-12 text-center"
           variants={staggerContainer}
@@ -74,7 +85,7 @@ export default function AnalyticsShowcase() {
           <motion.div variants={staggerChild}>
             <Badge
               variant="secondary"
-              className="mb-4 rounded-full bg-primary-soft px-3 py-1 text-xs font-medium text-primary-soft-foreground"
+              className="mb-4 rounded-full border border-accent-blue-400/30 bg-accent-blue-400/10 px-3 py-1 text-xs font-medium text-accent-blue-300"
             >
               <BarChart3 className="mr-1.5 size-3" aria-hidden />
               Now available
@@ -85,7 +96,7 @@ export default function AnalyticsShowcase() {
             variants={staggerChild}
           >
             Financial analysis,{' '}
-            <span className="bg-gradient-to-r from-primary to-marketing-hero-accent bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-accent-blue-300 to-accent-blue-500 bg-clip-text text-transparent">
               automated
             </span>
           </motion.h2>
@@ -111,10 +122,15 @@ export default function AnalyticsShowcase() {
             <motion.div
               key={f.label}
               variants={staggerChild}
-              className="rounded-xl border border-border bg-surface-raised p-5 shadow-xs"
+              className="glass-card rounded-2xl p-5 transition-colors hover:border-accent-blue-400/40"
             >
               <div className="flex items-start gap-3">
-                <IconTile icon={f.icon} tone="brand" size="md" />
+                <span
+                  className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent-blue-400/10 text-accent-blue-300 ring-1 ring-accent-blue-400/20"
+                  aria-hidden
+                >
+                  <f.icon className="size-5" />
+                </span>
                 <div>
                   <p className="text-sm font-semibold text-foreground">
                     {f.label}
@@ -135,7 +151,10 @@ export default function AnalyticsShowcase() {
           whileInView="visible"
           viewport={viewportOnce}
         >
-          <Button asChild>
+          <Button
+            asChild
+            className="bg-accent-blue-500 text-white hover:bg-accent-blue-500/90"
+          >
             <Link href="/dashboard/analytics">Open the Analytics Suite →</Link>
           </Button>
         </motion.div>

@@ -12,6 +12,11 @@ interface MarketingHeroProps {
   stats?: React.ReactNode
   /** Optional decorative content rendered to the right of the headline. */
   media?: React.ReactNode
+  /**
+   * Absolutely-positioned decorative layer rendered behind the content and the
+   * built-in glows (e.g. a 3D canvas + static poster). Sits below the headline.
+   */
+  background?: React.ReactNode
   /** "gradient" = decorative dark-blue hero. "plain" = light surface hero. */
   backdrop?: 'gradient' | 'plain'
   /** Constrain to "narrow" (centered story) or "wide" (default for product pages). */
@@ -26,6 +31,7 @@ export function MarketingHero({
   ctas,
   stats,
   media,
+  background,
   backdrop = 'gradient',
   width = 'wide',
   className,
@@ -43,8 +49,12 @@ export function MarketingHero({
       )}
       aria-labelledby="hero-title"
     >
-      {/* Decorative glows (gradient backdrop only) */}
-      {isGradient && (
+      {/* Custom decorative background layer (e.g. 3D canvas + poster) */}
+      {background}
+
+      {/* Built-in decorative glows (gradient backdrop only; skipped when a custom
+          background layer is supplied so the two don't stack) */}
+      {isGradient && !background && (
         <>
           <span
             aria-hidden

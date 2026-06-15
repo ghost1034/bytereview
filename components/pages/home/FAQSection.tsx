@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { HelpCircle } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FaqAccordion } from '@/components/marketing/faq-accordion'
+import { SectionShell } from '@/components/pages/home/shared/SectionShell'
 import { fadeInUp, viewportOnce } from '@/lib/animations'
 
 interface FAQSectionProps {
@@ -45,56 +46,44 @@ const FAQS = [
 
 export default function FAQSection({ onGetStarted }: FAQSectionProps) {
   return (
-    <section className="bg-background py-24">
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-        <motion.div
-          className="mb-12 text-center"
-          variants={fadeInUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={viewportOnce}
-        >
-          <Badge
-            variant="secondary"
-            className="mb-4 rounded-full bg-primary-soft px-3 py-1 text-xs font-medium text-primary-soft-foreground"
-          >
-            FAQ
-          </Badge>
-          <h2 className="text-balance text-4xl font-semibold tracking-tight text-foreground">
-            Frequently asked questions
-          </h2>
-          <p className="mt-3 text-lg text-foreground-muted">
-            Everything you need to know about CPAAutomation
-          </p>
-        </motion.div>
+    <SectionShell
+      surface="surface"
+      width="narrow"
+      eyebrow="FAQ"
+      eyebrowIcon={HelpCircle}
+      title="Frequently asked questions"
+      description="Everything you need to know about CPAAutomation"
+    >
+      <motion.div
+        variants={fadeInUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={viewportOnce}
+      >
+        <FaqAccordion
+          items={FAQS}
+          /* Dark glass accordion with an accent-blue active/open state. */
+          className="glass-card divide-y divide-border border-0 [&_[data-state=open]>button]:text-accent-blue-300 [&_button[data-state=open]>svg]:text-accent-blue-400"
+        />
+      </motion.div>
 
-        <motion.div
-          variants={fadeInUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={viewportOnce}
-        >
-          <FaqAccordion items={FAQS} />
-        </motion.div>
-
-        <motion.div
-          className="mt-12 text-center"
-          variants={fadeInUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={viewportOnce}
-        >
-          <p className="mb-6 text-foreground-muted">
-            Still have questions? We&apos;re here to help.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Button asChild variant="outline">
-              <Link href="/contact">Contact support</Link>
-            </Button>
-            <Button onClick={onGetStarted}>Start free plan →</Button>
-          </div>
-        </motion.div>
-      </div>
-    </section>
+      <motion.div
+        className="mt-12 text-center"
+        variants={fadeInUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={viewportOnce}
+      >
+        <p className="mb-6 text-foreground-muted">
+          Still have questions? We&apos;re here to help.
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Button asChild variant="outline">
+            <Link href="/contact">Contact support</Link>
+          </Button>
+          <Button onClick={onGetStarted}>Start free plan →</Button>
+        </div>
+      </motion.div>
+    </SectionShell>
   )
 }

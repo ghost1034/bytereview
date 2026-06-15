@@ -111,6 +111,19 @@ module.exports = {
           accent: "hsl(var(--marketing-hero-accent))",
           border: "hsl(var(--marketing-hero-border))",
         },
+        // Brand blue accent ramp for the dark homepage. Separate name from the shadcn
+        // `accent` token above to avoid collisions. Use 300/400 for large text/icons,
+        // 500 only as a solid button background (never as text on navy).
+        "accent-blue": {
+          50: "#EDF2FD",
+          100: "#DCE6FB",
+          200: "#BBCDF7",
+          300: "#9DB8F4",
+          400: "#6E97F7",
+          500: "#1980E6",
+          600: "#1668BD",
+          700: "#124F90",
+        },
       },
       boxShadow: {
         xs: "var(--shadow-xs)",
@@ -118,6 +131,7 @@ module.exports = {
         DEFAULT: "var(--shadow-sm)",
         md: "var(--shadow-md)",
         lg: "var(--shadow-lg)",
+        glow: "var(--shadow-glow)",
       },
       borderRadius: {
         lg: "var(--radius)",

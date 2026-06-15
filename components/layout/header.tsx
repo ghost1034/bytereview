@@ -132,6 +132,7 @@ export default function Header() {
   const router = useRouter()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
   const [isProductsOpen, setIsProductsOpen] = useState(false)
   const [isConsultingOpen, setIsConsultingOpen] = useState(false)
   const productsRef = useRef<HTMLDivElement>(null)
@@ -186,6 +187,17 @@ export default function Header() {
     }
   }, [isConsultingOpen])
 
+  // On the dark homepage the header floats transparent over the navy hero and
+  // solidifies once the user scrolls.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  const isHome = pathname === '/'
+
   const primaryAuthenticatedHref = requiresMfaEnrollment
     ? '/complete-signup'
     : '/dashboard'
@@ -216,7 +228,18 @@ export default function Header() {
 
   return (
     <nav
-      className="app-header fixed left-0 right-0 top-0 z-50 border-b border-border bg-background/85 backdrop-blur transition-transform duration-300 supports-[backdrop-filter]:bg-background/70"
+      className={cn(
+        'app-header fixed left-0 right-0 top-0 z-50 transition-[transform,background-color,border-color] duration-300',
+        isHome
+          ? cn(
+              // Flip header tokens to the dark navy theme over the homepage hero.
+              'dark marketing-dark',
+              scrolled
+                ? 'border-b border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70'
+                : 'border-b border-transparent bg-transparent',
+            )
+          : 'border-b border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70',
+      )}
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-[var(--header-height)] items-center justify-between">

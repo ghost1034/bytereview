@@ -183,6 +183,63 @@ body {
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
+
+  /*
+   * Marketing dark theme — scoped to the homepage subtree only.
+   * Applied as `<div className="dark marketing-dark">`. The `.dark` class flips all
+   * generic tokens to dark; `.marketing-dark` then overrides the surfaces + accent ramp
+   * to the exact brand navy (#0F1729 family) and glowing blue accent (#6E97F7 / #1980E6).
+   * Nothing else in the app applies `.dark`, so the dashboard/app stay light.
+   */
+  .marketing-dark {
+    /* Brand navy surfaces (#0F1729 family) */
+    --background: 222 43% 11%;        /* #0F1729 */
+    --surface: 221 47% 9%;            /* deeper alternating band */
+    --surface-muted: 221 40% 13%;
+    --surface-raised: 221 38% 15%;    /* glass card base */
+    --card: 221 38% 15%;
+    --card-foreground: 213 60% 96%;
+    --popover: 221 40% 13%;
+    --popover-foreground: 213 60% 96%;
+
+    /* Foreground hierarchy */
+    --foreground: 213 60% 97%;
+    --foreground-muted: 215 28% 75%;
+    --foreground-subtle: 215 22% 60%;
+
+    /* Primary = bright blue accent on dark */
+    --primary: 222 88% 70%;           /* #6E97F7 */
+    --primary-foreground: 222 47% 11%;
+    --primary-soft: 221 50% 20%;
+    --primary-soft-foreground: 222 90% 85%;
+
+    /* Secondary / muted / accent surfaces */
+    --secondary: 221 38% 17%;
+    --secondary-foreground: 213 60% 97%;
+    --muted: 221 38% 17%;
+    --muted-foreground: 215 28% 75%;
+    --accent: 221 38% 17%;
+    --accent-foreground: 213 60% 97%;
+
+    /* Borders / inputs / ring */
+    --border: 217 35% 22%;
+    --border-strong: 216 33% 30%;
+    --input: 217 35% 22%;
+    --ring: 222 90% 66%;
+
+    /* Marketing hero gradient retuned to exact brand navy */
+    --marketing-hero-from: 222 43% 11%;   /* #0F1729 */
+    --marketing-hero-to: 222 60% 18%;     /* #122349 */
+    --marketing-hero-text: 213 60% 97%;
+    --marketing-hero-text-muted: 215 28% 78%;
+    --marketing-hero-accent: 222 88% 70%; /* #6E97F7 */
+    --marketing-hero-border: 217 35% 26%;
+
+    /* Glow elevation (shadows are invisible on navy — use a blue glow instead) */
+    --shadow-glow: 0 0 0 1px hsl(var(--border)), 0 8px 40px -12px hsl(222 88% 50% / 0.35);
+
+    color-scheme: dark;
+  }
 }
 
 @layer base {
@@ -211,6 +268,31 @@ body {
     );
     background-size: 200% 100%;
     animation: shimmer 3s ease-in-out infinite;
+  }
+
+  /* Glassmorphism card for the dark marketing homepage. Use sparingly (GPU cost). */
+  .glass-card {
+    background: hsl(var(--surface-raised) / 0.6);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    border: 1px solid hsl(var(--border) / 0.8);
+    box-shadow: inset 0 1px 0 0 hsl(0 0% 100% / 0.06), var(--shadow-lg);
+  }
+
+  /* Slow ambient glow pulse for decorative accent orbs (CSS, not JS) */
+  @keyframes glow-pulse {
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 0.9; }
+  }
+  .animate-glow-pulse {
+    animation: glow-pulse 6s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn-shimmer,
+    .animate-glow-pulse {
+      animation: none;
+    }
   }
 
   .ProseMirror h1 {

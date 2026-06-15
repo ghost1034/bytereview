@@ -4,7 +4,6 @@ import { motion } from 'framer-motion'
 import { FolderKanban } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
-import { IconTile } from '@/components/ui/icon-tile'
 import {
   fadeInUp,
   staggerChild,
@@ -30,8 +29,16 @@ const MILESTONES = [
 
 export default function RoadmapPreview() {
   return (
-    <section id="roadmap" className="bg-background py-24">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+    <section
+      id="roadmap"
+      className="relative isolate overflow-hidden bg-surface py-24"
+    >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-0 size-[460px] -translate-x-1/2 rounded-full bg-accent-blue-500/10 blur-3xl"
+      />
+
+      <div className="relative mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <motion.div
           className="mb-14 text-center"
           variants={fadeInUp}
@@ -41,7 +48,7 @@ export default function RoadmapPreview() {
         >
           <Badge
             variant="secondary"
-            className="mb-4 rounded-full bg-primary-soft px-3 py-1 text-xs font-medium text-primary-soft-foreground"
+            className="mb-4 rounded-full border border-accent-blue-400/30 bg-accent-blue-400/10 px-3 py-1 text-xs font-medium uppercase tracking-wider text-accent-blue-300"
           >
             Roadmap
           </Badge>
@@ -63,21 +70,26 @@ export default function RoadmapPreview() {
         >
           {MILESTONES.length > 1 && (
             <div
-              className="absolute left-[23px] top-6 bottom-6 hidden w-px bg-gradient-to-b from-border-strong to-border md:block"
+              className="absolute left-[23px] top-6 bottom-6 hidden w-px bg-gradient-to-b from-accent-blue-400/50 to-border md:block"
               aria-hidden
             />
           )}
 
-          {MILESTONES.map((m, idx) => (
+          {MILESTONES.map((m) => (
             <motion.div
               key={m.title}
               className="relative flex items-start gap-6"
               variants={staggerChild}
             >
               <div className="relative z-10 shrink-0">
-                <IconTile icon={m.icon} tone={m.tone} size="lg" />
+                <span
+                  className="flex size-12 items-center justify-center rounded-xl bg-accent-blue-400/10 text-accent-blue-300 shadow-glow ring-1 ring-accent-blue-400/20"
+                  aria-hidden
+                >
+                  <m.icon className="size-5" />
+                </span>
               </div>
-              <div className="flex-1 rounded-xl border border-l-4 border-border bg-surface-muted p-6">
+              <div className="glass-card flex-1 rounded-2xl border-l-4 border-l-accent-blue-400/50 p-6">
                 <h3 className="mb-2 text-lg font-semibold text-foreground">
                   {m.title}
                 </h3>
@@ -86,7 +98,7 @@ export default function RoadmapPreview() {
                   {m.capabilities.map((cap) => (
                     <div key={cap} className="flex items-start gap-2 text-sm">
                       <span
-                        className="mt-1.5 inline-block size-1 shrink-0 rounded-full bg-foreground-subtle"
+                        className="mt-1.5 inline-block size-1.5 shrink-0 rounded-full bg-accent-blue-400"
                         aria-hidden
                       />
                       <span className="text-foreground-muted">{cap}</span>

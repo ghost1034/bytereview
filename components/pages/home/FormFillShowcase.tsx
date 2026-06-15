@@ -31,24 +31,24 @@ const TARGET_FIELDS = [
 
 function FormFillMockup() {
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-surface-raised shadow-xl">
-      <div className="flex items-center justify-between border-b border-border bg-surface-muted px-4 py-2.5">
+    <div className="glass-card overflow-hidden rounded-2xl shadow-glow">
+      <div className="flex items-center justify-between border-b border-border bg-surface-muted/60 px-4 py-2.5">
         <div className="flex items-center gap-1.5">
           <span className="size-3 rounded-full bg-foreground-subtle/40" aria-hidden />
           <span className="size-3 rounded-full bg-foreground-subtle/40" aria-hidden />
           <span className="size-3 rounded-full bg-foreground-subtle/40" aria-hidden />
           <span className="ml-2 text-xs text-foreground-subtle">Form Fill</span>
         </div>
-        <div className="flex items-center gap-1 text-foreground-muted">
-          <Sparkles className="size-3.5 text-primary" aria-hidden />
-          <span className="text-xs font-medium text-primary">Filling…</span>
+        <div className="flex items-center gap-1">
+          <Sparkles className="size-3.5 text-accent-blue-300" aria-hidden />
+          <span className="text-xs font-medium text-accent-blue-300">Filling…</span>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-0">
-        <div className="border-r border-border bg-surface-muted/40 p-4">
+        <div className="border-r border-border bg-surface/40 p-4">
           <div className="mb-3 flex items-center gap-1.5">
-            <Database className="size-3.5 text-foreground-muted" aria-hidden />
+            <Database className="size-3.5 text-accent-blue-300" aria-hidden />
             <span className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">
               Source data
             </span>
@@ -61,7 +61,7 @@ function FormFillMockup() {
               </div>
             ))}
           </div>
-          <div className="mt-4 inline-flex items-center gap-1 rounded-md border border-border bg-surface-raised px-2 py-1.5 text-[11px] text-foreground-muted">
+          <div className="mt-4 inline-flex items-center gap-1 rounded-md border border-accent-blue-400/20 bg-accent-blue-400/10 px-2 py-1.5 text-[11px] text-accent-blue-300">
             <FileText className="size-3" aria-hidden />
             Q4 Extraction Result.json
           </div>
@@ -69,7 +69,7 @@ function FormFillMockup() {
 
         <div className="p-4">
           <div className="mb-3 flex items-center gap-1.5">
-            <FileText className="size-3.5 text-primary" aria-hidden />
+            <FileText className="size-3.5 text-accent-blue-300" aria-hidden />
             <span className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">
               Target form
             </span>
@@ -81,8 +81,8 @@ function FormFillMockup() {
                 <div
                   className={
                     f.filled
-                      ? 'truncate rounded border border-primary/20 bg-primary-soft px-2 py-1 font-medium text-primary-soft-foreground'
-                      : 'rounded border border-dashed border-border bg-surface px-2 py-1 italic text-foreground-subtle'
+                      ? 'truncate rounded border border-accent-blue-400/30 bg-accent-blue-400/10 px-2 py-1 font-medium text-accent-blue-200'
+                      : 'rounded border border-dashed border-border-strong bg-surface px-2 py-1 italic text-foreground-subtle'
                   }
                 >
                   {f.filled ? f.value : '—'}
@@ -93,15 +93,15 @@ function FormFillMockup() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-t border-border bg-surface-muted px-4 py-3">
+      <div className="flex items-center justify-between border-t border-border bg-surface-muted/60 px-4 py-3">
         <div className="flex flex-wrap gap-2">
           {['Fillable PDF', 'PDF Overlay', 'DOCX Placeholders'].map((s, i) => (
             <span
               key={s}
               className={
                 i === 0
-                  ? 'rounded-md border border-primary/20 bg-primary-soft px-2 py-1 text-xs font-medium text-primary-soft-foreground'
-                  : 'rounded-md border border-border bg-surface-raised px-2 py-1 text-xs text-foreground-muted'
+                  ? 'rounded-md border border-accent-blue-400/30 bg-accent-blue-400/10 px-2 py-1 text-xs font-medium text-accent-blue-200'
+                  : 'rounded-md border border-border bg-surface px-2 py-1 text-xs text-foreground-muted'
               }
             >
               {s}
@@ -124,7 +124,7 @@ export default function FormFillShowcase() {
       eyebrow={
         <Badge
           variant="secondary"
-          className="rounded-full bg-primary-soft px-3 py-1 text-xs font-medium text-primary-soft-foreground"
+          className="rounded-full border border-accent-blue-400/30 bg-accent-blue-400/10 px-3 py-1 text-xs font-medium text-accent-blue-300"
         >
           <Files className="mr-1.5 size-3" aria-hidden />
           Available now
@@ -133,7 +133,7 @@ export default function FormFillShowcase() {
       title={
         <>
           Form Fill: auto-fill documents from{' '}
-          <span className="bg-gradient-to-r from-primary to-marketing-hero-accent bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-accent-blue-300 to-accent-blue-500 bg-clip-text text-transparent">
             your data
           </span>
         </>
@@ -141,7 +141,10 @@ export default function FormFillShowcase() {
       description="Upload supporting information and a PDF or DOCX target, or send one selected extraction result directly into Form Fill."
       features={HIGHLIGHTS}
       cta={
-        <Button asChild>
+        <Button
+          asChild
+          className="bg-accent-blue-500 text-white hover:bg-accent-blue-500/90"
+        >
           <Link href="/dashboard/form-fill">Try Form Fill →</Link>
         </Button>
       }

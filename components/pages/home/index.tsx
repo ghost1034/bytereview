@@ -39,7 +39,9 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen">
+    // `dark marketing-dark` scopes the immersive navy theme to the homepage only.
+    // Nothing else in the app applies `.dark`, so the dashboard/app stay light.
+    <div className="dark marketing-dark min-h-screen bg-background text-foreground">
       <ConsultingBanner />
 
       <HeroSection onGetStarted={handleGetStarted} />
