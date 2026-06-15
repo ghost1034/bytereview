@@ -3,9 +3,15 @@
 import Link from 'next/link'
 import { Database, FileText, Files, Sparkles } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ShowcaseSection } from '@/components/marketing/showcase-section'
+import { cn } from '@/lib/utils'
+import { SectionShell } from '@/components/pages/home/shared/SectionShell'
+import { FeatureList } from '@/components/pages/home/shared/FeatureList'
+import { BrowserFrame } from '@/components/pages/home/shared/BrowserFrame'
+import { accent } from '@/components/pages/home/shared/tones'
+
+const TONE = 'cyan'
+const a = accent(TONE)
 
 const HIGHLIGHTS = [
   { title: 'Fillable PDF, PDF overlay, and DOCX placeholder strategies' },
@@ -31,20 +37,15 @@ const TARGET_FIELDS = [
 
 function FormFillMockup() {
   return (
-    <div className="glass-card overflow-hidden rounded-2xl shadow-glow">
-      <div className="flex items-center justify-between border-b border-border bg-surface-muted/60 px-4 py-2.5">
-        <div className="flex items-center gap-1.5">
-          <span className="size-3 rounded-full bg-foreground-subtle/40" aria-hidden />
-          <span className="size-3 rounded-full bg-foreground-subtle/40" aria-hidden />
-          <span className="size-3 rounded-full bg-foreground-subtle/40" aria-hidden />
-          <span className="ml-2 text-xs text-foreground-subtle">Form Fill</span>
-        </div>
+    <BrowserFrame
+      label="Form Fill"
+      rightSlot={
         <div className="flex items-center gap-1">
           <Sparkles className="size-3.5 text-accent-blue-300" aria-hidden />
           <span className="text-xs font-medium text-accent-blue-300">Filling…</span>
         </div>
-      </div>
-
+      }
+    >
       <div className="grid grid-cols-2 gap-0">
         <div className="border-r border-border bg-surface/40 p-4">
           <div className="mb-3 flex items-center gap-1.5">
@@ -112,43 +113,38 @@ function FormFillMockup() {
           Output: <span className="font-medium text-foreground">PDF</span>
         </span>
       </div>
-    </div>
+    </BrowserFrame>
   )
 }
 
 export default function FormFillShowcase() {
   return (
-    <ShowcaseSection
+    <SectionShell
       id="form-fill-showcase"
       surface="surface"
-      eyebrow={
-        <Badge
-          variant="secondary"
-          className="rounded-full border border-accent-blue-400/30 bg-accent-blue-400/10 px-3 py-1 text-xs font-medium text-accent-blue-300"
-        >
-          <Files className="mr-1.5 size-3" aria-hidden />
-          Available now
-        </Badge>
-      }
+      eyebrow="Document automation"
+      eyebrowIcon={Files}
+      eyebrowTone={TONE}
       title={
         <>
           Form Fill: auto-fill documents from{' '}
-          <span className="bg-gradient-to-r from-accent-blue-300 to-accent-blue-500 bg-clip-text text-transparent">
+          <span className={cn('bg-gradient-to-r bg-clip-text text-transparent', a.gradient)}>
             your data
           </span>
         </>
       }
       description="Upload supporting information and a PDF or DOCX target, or send one selected extraction result directly into Form Fill."
-      features={HIGHLIGHTS}
-      cta={
+      media={<FormFillMockup />}
+    >
+      <FeatureList items={HIGHLIGHTS} tone={TONE} className="pt-1" />
+      <div className="pt-1">
         <Button
           asChild
-          className="bg-accent-blue-500 text-white hover:bg-accent-blue-500/90"
+          className="bg-accent-blue-500 text-white hover:bg-accent-blue-600"
         >
-          <Link href="/dashboard/form-fill">Try Form Fill →</Link>
+          <Link href="/dashboard/form-fill">Try Form Fill</Link>
         </Button>
-      }
-      media={<FormFillMockup />}
-    />
+      </div>
+    </SectionShell>
   )
 }

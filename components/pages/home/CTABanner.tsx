@@ -60,7 +60,7 @@ export default function CTABanner({ onGetStarted }: CTABannerProps) {
               <Button
                 onClick={onGetStarted}
                 size="lg"
-                className="btn-shimmer w-full bg-accent-blue-500 px-8 font-semibold text-white hover:bg-accent-blue-500/90 sm:w-auto"
+                className="btn-shimmer w-full bg-accent-blue-500 px-8 font-semibold text-white hover:bg-accent-blue-600 sm:w-auto"
               >
                 Get started free
                 <ArrowRight className="ml-2 size-5" aria-hidden />

@@ -140,7 +140,7 @@ export default function AutomationFlow({ onGetStarted }: AutomationFlowProps) {
               get processed in real-time.
             </p>
             <Button onClick={onGetStarted} className="px-6">
-              Try automation now →
+              Try automation now
             </Button>
           </div>
         </motion.div>

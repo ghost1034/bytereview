@@ -81,7 +81,7 @@ export default function FAQSection({ onGetStarted }: FAQSectionProps) {
           <Button asChild variant="outline">
             <Link href="/contact">Contact support</Link>
           </Button>
-          <Button onClick={onGetStarted}>Start free plan →</Button>
+          <Button onClick={onGetStarted}>Start free plan</Button>
         </div>
       </motion.div>
     </SectionShell>

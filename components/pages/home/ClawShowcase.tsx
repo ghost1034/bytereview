@@ -11,8 +11,10 @@ import {
   Scale,
 } from 'lucide-react'
 
+import { cn } from '@/lib/utils'
 import { SectionShell } from '@/components/pages/home/shared/SectionShell'
 import { GlassCard } from '@/components/pages/home/shared/GlassCard'
+import { accent } from '@/components/pages/home/shared/tones'
 import { DataCubeAccent } from '@/components/pages/home/three/DataCubeAccent'
 import { VideoCard } from '@/components/marketing/video-card'
 import {
@@ -21,6 +23,9 @@ import {
   staggerContainer,
   viewportOnce,
 } from '@/lib/animations'
+
+const TONE = 'amber'
+const a = accent(TONE)
 
 const CAPABILITIES = [
   { title: 'Automated bank reconciliations' },
@@ -75,10 +80,11 @@ export default function ClawShowcase() {
       surface="surface"
       eyebrow="Claw Series"
       eyebrowIcon={Bot}
+      eyebrowTone={TONE}
       title={
         <>
           Claw Series:{' '}
-          <span className="bg-gradient-to-r from-accent-blue-300 to-accent-blue-500 bg-clip-text text-transparent">
+          <span className={cn('bg-gradient-to-r bg-clip-text text-transparent', a.gradient)}>
             digital workers
           </span>{' '}
           for accounting, finance &amp; legal
@@ -92,11 +98,11 @@ export default function ClawShowcase() {
           <DataCubeAccent className="left-auto right-0 hidden w-1/2 opacity-50 md:block" />
           <span
             aria-hidden
-            className="pointer-events-none absolute -top-32 left-1/2 size-[520px] -translate-x-1/2 rounded-full bg-accent-blue-500/15 blur-[120px] animate-glow-pulse"
+            className="pointer-events-none absolute -top-32 left-1/2 size-[520px] -translate-x-1/2 rounded-full bg-amber-500/15 blur-[120px] animate-glow-pulse"
           />
           <span
             aria-hidden
-            className="pointer-events-none absolute bottom-0 right-[-10%] size-[420px] rounded-full bg-accent-blue-400/10 blur-[120px]"
+            className="pointer-events-none absolute bottom-0 right-[-10%] size-[420px] rounded-full bg-amber-400/10 blur-[120px]"
           />
         </>
       }
@@ -113,12 +119,17 @@ export default function ClawShowcase() {
           <motion.div key={worker.name} variants={staggerChild}>
             <GlassCard
               glow={idx === 0}
-              className="h-full p-8 transition-colors hover:border-accent-blue-400/40"
+              className={cn('h-full p-8 transition-colors', a.hoverBorder)}
             >
-              <span className="mb-6 inline-flex size-14 items-center justify-center rounded-2xl border border-accent-blue-400/30 bg-accent-blue-400/10 text-accent-blue-300 shadow-glow">
+              <span
+                className={cn(
+                  'mb-6 inline-flex size-14 items-center justify-center rounded-2xl shadow-glow',
+                  a.chip,
+                )}
+              >
                 <worker.icon className="size-7" aria-hidden />
               </span>
-              <p className="text-xs font-medium uppercase tracking-wider text-accent-blue-300">
+              <p className={cn('text-xs font-medium uppercase tracking-wider', a.text)}>
                 {worker.discipline}
               </p>
               <h3 className="mt-1 text-xl font-semibold tracking-tight text-foreground">
@@ -146,7 +157,7 @@ export default function ClawShowcase() {
             variants={staggerChild}
             className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-muted/60 px-4 py-2 text-sm text-foreground-muted backdrop-blur-sm"
           >
-            <CheckCircle2 className="size-4 shrink-0 text-accent-blue-400" aria-hidden />
+            <CheckCircle2 className={cn('size-4 shrink-0', a.text)} aria-hidden />
             {capability.title}
           </motion.li>
         ))}
@@ -177,7 +188,10 @@ export default function ClawShowcase() {
       >
         <Link
           href="/claw"
-          className="inline-flex items-center gap-2 rounded-full border border-accent-blue-400/40 bg-accent-blue-400/10 px-6 py-3 text-base font-medium text-accent-blue-300 transition-colors hover:bg-accent-blue-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          className={cn(
+            'inline-flex items-center gap-2 rounded-full border px-6 py-3 text-base font-medium transition-colors hover:bg-amber-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
+            a.pill,
+          )}
         >
           Learn more about Claw Series
           <ArrowRight className="size-4" aria-hidden />

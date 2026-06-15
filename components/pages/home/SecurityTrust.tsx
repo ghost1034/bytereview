@@ -112,7 +112,7 @@ export default function SecurityTrust() {
           requirements?
         </p>
         <Button asChild variant="outline">
-          <Link href="/contact">Contact security team →</Link>
+          <Link href="/contact">Contact security team</Link>
         </Button>
       </motion.div>
     </SectionShell>

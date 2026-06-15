@@ -3,9 +3,15 @@
 import Link from 'next/link'
 import { AlignLeft, Bold, Italic, List, PenTool, Sparkles } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ShowcaseSection } from '@/components/marketing/showcase-section'
+import { cn } from '@/lib/utils'
+import { SectionShell } from '@/components/pages/home/shared/SectionShell'
+import { FeatureList } from '@/components/pages/home/shared/FeatureList'
+import { BrowserFrame } from '@/components/pages/home/shared/BrowserFrame'
+import { accent } from '@/components/pages/home/shared/tones'
+
+const TONE = 'violet'
+const a = accent(TONE)
 
 const HIGHLIGHTS = [
   { title: 'Citation-backed drafting grounded in your documents' },
@@ -16,22 +22,15 @@ const HIGHLIGHTS = [
 
 function InkwiseMockup() {
   return (
-    <div className="glass-card overflow-hidden rounded-2xl shadow-glow">
-      <div className="flex items-center justify-between border-b border-border bg-surface-muted/60 px-4 py-2.5">
-        <div className="flex items-center gap-1.5">
-          <span className="size-3 rounded-full bg-foreground-subtle/40" aria-hidden />
-          <span className="size-3 rounded-full bg-foreground-subtle/40" aria-hidden />
-          <span className="size-3 rounded-full bg-foreground-subtle/40" aria-hidden />
-          <span className="ml-2 text-xs text-foreground-subtle">
-            Inkwise Editor
-          </span>
-        </div>
+    <BrowserFrame
+      label="Inkwise Editor"
+      rightSlot={
         <div className="flex items-center gap-1">
           <Sparkles className="size-3.5 text-accent-blue-300" aria-hidden />
           <span className="text-xs font-medium text-accent-blue-300">AI active</span>
         </div>
-      </div>
-
+      }
+    >
       <div className="flex items-center gap-3 border-b border-border px-4 py-2">
         {[Bold, Italic, List, AlignLeft].map((Icon, i) => (
           <span
@@ -103,45 +102,40 @@ function InkwiseMockup() {
           ))}
         </div>
       </div>
-    </div>
+    </BrowserFrame>
   )
 }
 
 export default function InkwiseShowcase() {
   return (
-    <ShowcaseSection
+    <SectionShell
       id="inkwise-showcase"
       surface="surface-muted"
       reverse
-      eyebrow={
-        <Badge
-          variant="secondary"
-          className="rounded-full border border-accent-blue-400/30 bg-accent-blue-400/10 px-3 py-1 text-xs font-medium text-accent-blue-300"
-        >
-          <PenTool className="mr-1.5 size-3" aria-hidden />
-          Available now
-        </Badge>
-      }
+      eyebrow="AI writing"
+      eyebrowIcon={PenTool}
+      eyebrowTone={TONE}
       title={
         <>
           AI writing grounded in{' '}
-          <span className="bg-gradient-to-r from-accent-blue-300 to-accent-blue-500 bg-clip-text text-transparent">
+          <span className={cn('bg-gradient-to-r bg-clip-text text-transparent', a.gradient)}>
             your documents
-          </span>
-          {' '}— meet Inkwise
+          </span>{' '}
+          — meet Inkwise
         </>
       }
       description="The first multimodal retrieval-based writing tool in the market. Draft memos, reports, and analyses with AI that cites your own source materials."
-      features={HIGHLIGHTS}
-      cta={
+      media={<InkwiseMockup />}
+    >
+      <FeatureList items={HIGHLIGHTS} tone={TONE} className="pt-1" />
+      <div className="pt-1">
         <Button
           asChild
-          className="bg-accent-blue-500 text-white hover:bg-accent-blue-500/90"
+          className="bg-accent-blue-500 text-white hover:bg-accent-blue-600"
         >
-          <Link href="/dashboard/inkwise">Try Inkwise →</Link>
+          <Link href="/dashboard/inkwise">Try Inkwise</Link>
         </Button>
-      }
-      media={<InkwiseMockup />}
-    />
+      </div>
+    </SectionShell>
   )
 }

@@ -2,19 +2,21 @@
 
 import { motion } from 'framer-motion'
 import {
+  Award,
   CloudUpload,
   Download,
   FileSearch,
   FileText,
   Grid3X3,
+  PlayCircle,
   Settings,
 } from 'lucide-react'
 import { FaFileExcel, FaGoogle } from 'react-icons/fa'
 
 import { Button } from '@/components/ui/button'
 import { FeatureCard } from '@/components/marketing/feature-card'
-import { SectionEyebrow } from '@/components/pages/home/shared/SectionEyebrow'
 import { SectionShell } from '@/components/pages/home/shared/SectionShell'
+import { BrowserFrame } from '@/components/pages/home/shared/BrowserFrame'
 import {
   fadeInUp,
   hoverLift,
@@ -216,24 +218,7 @@ export default function ExtractionFeatures({
         viewport={viewportOnce}
       >
         <div className="w-full max-w-2xl">
-          <div className="glass-card overflow-hidden rounded-2xl shadow-glow">
-            <div className="flex items-center gap-1.5 border-b border-border px-4 py-2.5">
-              <span
-                className="size-3 rounded-full bg-foreground-subtle/40"
-                aria-hidden
-              />
-              <span
-                className="size-3 rounded-full bg-foreground-subtle/40"
-                aria-hidden
-              />
-              <span
-                className="size-3 rounded-full bg-foreground-subtle/40"
-                aria-hidden
-              />
-              <span className="ml-2 text-xs text-foreground-subtle">
-                Investment statement extract
-              </span>
-            </div>
+          <BrowserFrame label="Investment statement extract">
             <div className="overflow-x-auto p-4">
               <div className="grid min-w-[480px] grid-cols-6 gap-1.5 text-xs">
                 {[
@@ -273,7 +258,7 @@ export default function ExtractionFeatures({
                 )}
               </div>
             </div>
-          </div>
+          </BrowserFrame>
         </div>
       </motion.div>
 
@@ -285,9 +270,6 @@ export default function ExtractionFeatures({
         viewport={viewportOnce}
       >
         <motion.div variants={staggerChild}>
-          <h3 className="mb-3 text-lg font-semibold text-foreground">
-            See it in action
-          </h3>
           <div className="glass-card overflow-hidden rounded-2xl p-1.5 shadow-glow">
             <div className="relative aspect-video overflow-hidden rounded-xl bg-surface">
               <iframe
@@ -303,7 +285,6 @@ export default function ExtractionFeatures({
           </div>
         </motion.div>
         <motion.div variants={staggerChild} className="space-y-4">
-          <SectionEyebrow>See it in action</SectionEyebrow>
           <h3 className="text-2xl font-semibold tracking-tight text-foreground">
             Invoice extraction &amp; contract review
           </h3>
@@ -312,49 +293,51 @@ export default function ExtractionFeatures({
             automatically. Custom fields let you pull exactly the data points
             your workflow requires.
           </p>
-          <Button onClick={onGetStarted}>Try it free →</Button>
+          <Button onClick={onGetStarted}>Try it free</Button>
         </motion.div>
       </motion.div>
 
+      {/* Free CPE-tracker bonus — slim callout instead of a second full video block */}
       <motion.div
-        className="mt-12 grid grid-cols-1 items-center gap-10 lg:grid-cols-2"
-        variants={staggerContainer}
+        className="mt-12"
+        variants={fadeInUp}
         initial="hidden"
         whileInView="visible"
         viewport={viewportOnce}
       >
-        <motion.div variants={staggerChild}>
-          <h3 className="mb-3 text-lg font-semibold text-foreground">
-            See a free bonus
-          </h3>
-          <div className="glass-card overflow-hidden rounded-2xl p-1.5 shadow-glow">
-            <div className="relative aspect-video overflow-hidden rounded-xl bg-surface">
-              <iframe
-                className="absolute inset-0 h-full w-full border-0"
-                loading="lazy"
-                src="https://www.youtube-nocookie.com/embed/gchB4SbxsJM?si=KlJMFOjH0nKP08yX"
-                title="Free CPE Tracker"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                referrerPolicy="strict-origin-when-cross-origin"
-                allowFullScreen
-              />
+        <div className="glass-card flex flex-col gap-4 rounded-2xl p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            <span
+              aria-hidden
+              className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent-blue-400/10 text-accent-blue-300 ring-1 ring-accent-blue-400/20"
+            >
+              <Award className="size-5" />
+            </span>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="font-semibold text-foreground">
+                  CPE tracker included
+                </h4>
+                <span className="rounded-full border border-accent-blue-400/30 bg-accent-blue-400/10 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider text-accent-blue-300">
+                  Free bonus
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-foreground-muted">
+                Automatically extract continuing-education credits from
+                certificates and organize them by state requirement.
+              </p>
             </div>
           </div>
-        </motion.div>
-        <motion.div variants={staggerChild} className="space-y-4">
-          <span className="inline-flex items-center gap-2 rounded-full border border-accent-blue-400/30 bg-accent-blue-400/10 px-3 py-1 text-xs font-medium uppercase tracking-wider text-accent-blue-300">
-            Free bonus
-          </span>
-          <h3 className="text-2xl font-semibold tracking-tight text-foreground">
-            CPE tracker included
-          </h3>
-          <p className="text-foreground-muted">
-            Automatically extract continuing education credits from
-            certificates. Upload your CPE documents and let AI organize your
-            credits by state requirements.
-          </p>
-          <Button onClick={onGetStarted}>Try it free →</Button>
-        </motion.div>
+          <a
+            href="https://www.youtube.com/watch?v=gchB4SbxsJM"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-accent-blue-300 transition-colors hover:text-accent-blue-200"
+          >
+            <PlayCircle className="size-4" aria-hidden />
+            Watch the demo
+          </a>
+        </div>
       </motion.div>
     </SectionShell>
   )

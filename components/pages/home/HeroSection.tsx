@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { motion, useInView, useScroll, useTransform } from 'framer-motion'
-import { Check, Play } from 'lucide-react'
+import { ArrowRight, Check, Play } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { MarketingHero } from '@/components/marketing/marketing-hero'
@@ -107,7 +107,8 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
                 size="lg"
                 className="btn-shimmer w-full bg-accent-blue-500 px-8 text-white hover:bg-accent-blue-600 sm:w-auto"
               >
-                Get Started Free →
+                Get started free
+                <ArrowRight className="ml-2 size-5" aria-hidden />
               </Button>
               <Button
                 asChild

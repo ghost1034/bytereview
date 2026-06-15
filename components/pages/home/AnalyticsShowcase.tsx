@@ -12,14 +12,19 @@ import {
   Sparkles,
 } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import { SectionShell } from '@/components/pages/home/shared/SectionShell'
+import { accent } from '@/components/pages/home/shared/tones'
 import {
   fadeInUp,
   staggerChild,
   staggerContainer,
   viewportOnce,
 } from '@/lib/animations'
+
+const TONE = 'sky'
+const a = accent(TONE)
 
 const FEATURES = [
   {
@@ -61,58 +66,39 @@ const FEATURES = [
 
 export default function AnalyticsShowcase() {
   return (
-    <section
+    <SectionShell
       id="analytics-showcase"
-      className="relative isolate overflow-hidden bg-background py-24"
+      surface="surface"
+      eyebrow="Financial analysis"
+      eyebrowIcon={BarChart3}
+      eyebrowTone={TONE}
+      title={
+        <>
+          Financial analysis,{' '}
+          <span className={cn('bg-gradient-to-r bg-clip-text text-transparent', a.gradient)}>
+            automated
+          </span>
+        </>
+      }
+      description="Variance and flux analysis, reconciliation, fixed assets, and distribution waterfalls — plus research bots and a context-aware assistant, all connected to your clients and built for accounting and finance teams."
+      background={
+        <span
+          aria-hidden
+          className="pointer-events-none absolute left-1/4 top-12 size-[480px] -translate-x-1/2 rounded-full bg-sky-500/10 blur-3xl"
+        />
+      }
     >
-      <span
-        aria-hidden
-        className="pointer-events-none absolute left-1/4 top-12 size-[480px] -translate-x-1/2 rounded-full bg-accent-blue-500/10 blur-3xl"
-      />
-      <span
-        aria-hidden
-        className="pointer-events-none absolute bottom-0 right-1/5 size-[420px] rounded-full bg-accent-blue-400/10 blur-3xl"
-      />
-
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      {/* Single consolidated panel (distinct from the card-grid sections above).
+          `gap-px` over a border-colored track draws clean hairline dividers. */}
+      <motion.div
+        className="overflow-hidden rounded-2xl border border-border shadow-glow"
+        variants={fadeInUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={viewportOnce}
+      >
         <motion.div
-          className="mb-12 text-center"
-          variants={staggerContainer}
-          initial="hidden"
-          whileInView="visible"
-          viewport={viewportOnce}
-        >
-          <motion.div variants={staggerChild}>
-            <Badge
-              variant="secondary"
-              className="mb-4 rounded-full border border-accent-blue-400/30 bg-accent-blue-400/10 px-3 py-1 text-xs font-medium text-accent-blue-300"
-            >
-              <BarChart3 className="mr-1.5 size-3" aria-hidden />
-              Now available
-            </Badge>
-          </motion.div>
-          <motion.h2
-            className="mb-4 text-balance text-4xl font-semibold tracking-tight text-foreground sm:text-5xl"
-            variants={staggerChild}
-          >
-            Financial analysis,{' '}
-            <span className="bg-gradient-to-r from-accent-blue-300 to-accent-blue-500 bg-clip-text text-transparent">
-              automated
-            </span>
-          </motion.h2>
-          <motion.p
-            className="mx-auto max-w-2xl text-balance text-lg text-foreground-muted"
-            variants={staggerChild}
-          >
-            Variance and flux analysis, reconciliation, fixed assets, and
-            distribution waterfalls — plus research bots and a context-aware
-            assistant, all connected to your clients and built for accounting
-            and finance teams.
-          </motion.p>
-        </motion.div>
-
-        <motion.div
-          className="mb-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2 lg:grid-cols-3"
           variants={staggerContainer}
           initial="hidden"
           whileInView="visible"
@@ -122,43 +108,44 @@ export default function AnalyticsShowcase() {
             <motion.div
               key={f.label}
               variants={staggerChild}
-              className="glass-card rounded-2xl p-5 transition-colors hover:border-accent-blue-400/40"
+              className="flex items-start gap-3 bg-surface-raised p-6 transition-colors hover:bg-surface-muted/60"
             >
-              <div className="flex items-start gap-3">
-                <span
-                  className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent-blue-400/10 text-accent-blue-300 ring-1 ring-accent-blue-400/20"
-                  aria-hidden
-                >
-                  <f.icon className="size-5" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    {f.label}
-                  </p>
-                  <p className="mt-0.5 text-xs text-foreground-muted">
-                    {f.detail}
-                  </p>
-                </div>
+              <span
+                className={cn(
+                  'flex size-10 shrink-0 items-center justify-center rounded-lg',
+                  a.chip,
+                )}
+                aria-hidden
+              >
+                <f.icon className="size-5" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  {f.label}
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-foreground-muted">
+                  {f.detail}
+                </p>
               </div>
             </motion.div>
           ))}
         </motion.div>
+      </motion.div>
 
-        <motion.div
-          className="text-center"
-          variants={fadeInUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={viewportOnce}
+      <motion.div
+        className="mt-10 text-center"
+        variants={fadeInUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={viewportOnce}
+      >
+        <Button
+          asChild
+          className="bg-accent-blue-500 text-white hover:bg-accent-blue-600"
         >
-          <Button
-            asChild
-            className="bg-accent-blue-500 text-white hover:bg-accent-blue-500/90"
-          >
-            <Link href="/dashboard/analytics">Open the Analytics Suite →</Link>
-          </Button>
-        </motion.div>
-      </div>
-    </section>
+          <Link href="/dashboard/analytics">Open the Analytics Suite</Link>
+        </Button>
+      </motion.div>
+    </SectionShell>
   )
 }
