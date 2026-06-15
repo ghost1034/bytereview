@@ -6,12 +6,7 @@ import { Bot, FolderOutput, Mail, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CodeBlock } from '@/components/marketing/code-block'
 import { SectionShell } from '@/components/pages/home/shared/SectionShell'
-import {
-  fadeInUp,
-  staggerChild,
-  staggerContainer,
-  viewportOnce,
-} from '@/lib/animations'
+import { fadeInUp, viewportOnce } from '@/lib/animations'
 
 interface AutomationFlowProps {
   onGetStarted: () => void
@@ -56,7 +51,7 @@ export default function AutomationFlow({ onGetStarted }: AutomationFlowProps) {
     >
       <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-2">
         <motion.div
-          variants={staggerContainer}
+          variants={fadeInUp}
           initial="hidden"
           whileInView="visible"
           viewport={viewportOnce}
@@ -66,10 +61,7 @@ export default function AutomationFlow({ onGetStarted }: AutomationFlowProps) {
               const Icon = step.icon
               return (
                 <li key={step.number}>
-                  <motion.div
-                    className="glass-card flex items-start gap-4 rounded-2xl p-5 transition-all duration-300 hover:border-accent-blue-400/40 hover:shadow-glow"
-                    variants={staggerChild}
-                  >
+                  <div className="glass-card flex items-start gap-4 rounded-2xl p-5 transition-all duration-300 hover:border-accent-blue-400/40 hover:shadow-glow">
                     <span
                       aria-hidden
                       className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent-blue-400/10 text-accent-blue-300 ring-1 ring-accent-blue-400/20"
@@ -87,24 +79,18 @@ export default function AutomationFlow({ onGetStarted }: AutomationFlowProps) {
                         {step.description}
                       </p>
                     </div>
-                  </motion.div>
+                  </div>
                   {i < STEPS.length - 1 && (
-                    <motion.div
-                      className="my-0 ml-9 flex justify-start"
-                      variants={staggerChild}
-                    >
+                    <div className="my-0 ml-9 flex justify-start">
                       <div className="h-6 w-px border-l-2 border-dashed border-accent-blue-400/30" />
-                    </motion.div>
+                    </div>
                   )}
                 </li>
               )
             })}
           </ol>
 
-          <motion.div
-            className="glass-card mt-6 rounded-2xl p-5"
-            variants={staggerChild}
-          >
+          <div className="glass-card mt-6 rounded-2xl p-5">
             <p className="mb-3 text-sm font-semibold text-foreground">
               Popular automation filters
             </p>
@@ -115,7 +101,7 @@ export default function AutomationFlow({ onGetStarted }: AutomationFlowProps) {
                 </CodeBlock>
               ))}
             </div>
-          </motion.div>
+          </div>
         </motion.div>
 
         <motion.div

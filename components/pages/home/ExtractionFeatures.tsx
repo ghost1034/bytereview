@@ -156,15 +156,12 @@ export default function ExtractionFeatures({
 
       <motion.div
         className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-2"
-        variants={staggerContainer}
+        variants={fadeInUp}
         initial="hidden"
         whileInView="visible"
         viewport={viewportOnce}
       >
-        <motion.div
-          variants={staggerChild}
-          className="glass-card flex items-start gap-4 rounded-2xl p-5 transition-all duration-300 hover:border-accent-blue-400/40 hover:shadow-glow"
-        >
+        <div className="glass-card flex items-start gap-4 rounded-2xl p-5 transition-all duration-300 hover:border-accent-blue-400/40 hover:shadow-glow">
           <span
             aria-hidden
             className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent-blue-400/10 text-accent-blue-300 ring-1 ring-accent-blue-400/20"
@@ -184,11 +181,8 @@ export default function ExtractionFeatures({
               attachments.
             </p>
           </div>
-        </motion.div>
-        <motion.div
-          variants={staggerChild}
-          className="glass-card flex items-start gap-4 rounded-2xl p-5 transition-all duration-300 hover:border-accent-blue-400/40 hover:shadow-glow"
-        >
+        </div>
+        <div className="glass-card flex items-start gap-4 rounded-2xl p-5 transition-all duration-300 hover:border-accent-blue-400/40 hover:shadow-glow">
           <span
             aria-hidden
             className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent-blue-400/10 text-accent-blue-300 ring-1 ring-accent-blue-400/20"
@@ -207,7 +201,7 @@ export default function ExtractionFeatures({
               Excel, CSV, Google Drive auto-delivery, or direct download.
             </p>
           </div>
-        </motion.div>
+        </div>
       </motion.div>
 
       <motion.div
