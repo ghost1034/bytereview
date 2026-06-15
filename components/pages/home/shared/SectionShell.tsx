@@ -4,7 +4,7 @@ import * as React from 'react'
 import { motion } from 'framer-motion'
 
 import { cn } from '@/lib/utils'
-import { fadeInUp, staggerContainer, viewportOnce } from '@/lib/animations'
+import { staggerChild, staggerContainer, viewportOnce } from '@/lib/animations'
 import { SectionEyebrow } from './SectionEyebrow'
 import type { Accent } from './tones'
 
@@ -108,7 +108,7 @@ export function SectionShell({
       )}
     >
       {eyebrow && (
-        <motion.div variants={fadeInUp}>
+        <motion.div variants={staggerChild}>
           <SectionEyebrow icon={eyebrowIcon} tone={eyebrowTone}>
             {eyebrow}
           </SectionEyebrow>
@@ -116,7 +116,7 @@ export function SectionShell({
       )}
       {title && (
         <motion.h2
-          variants={fadeInUp}
+          variants={staggerChild}
           className="text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl"
         >
           {title}
@@ -124,7 +124,7 @@ export function SectionShell({
       )}
       {description && (
         <motion.p
-          variants={fadeInUp}
+          variants={staggerChild}
           className="text-balance text-base leading-relaxed text-foreground-muted sm:text-lg"
         >
           {description}
