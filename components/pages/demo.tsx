@@ -2,15 +2,16 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, Check } from 'lucide-react'
+import { ArrowRight, Check, FileText, Sparkles } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { MarketingHero } from '@/components/marketing/marketing-hero'
 import { VideoCard } from '@/components/marketing/video-card'
+import { SectionShell } from '@/components/pages/home/shared/SectionShell'
+import { accent } from '@/components/pages/home/shared/tones'
 import AuthModal from '@/components/auth/AuthModal'
 import {
-  fadeInUp,
   staggerChild,
   staggerContainer,
   viewportOnce,
@@ -64,124 +65,108 @@ export default function Demo() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
 
   return (
-    <>
+    <div className="dark marketing-dark min-h-screen bg-background text-foreground">
       <MarketingHero
-        backdrop="plain"
+        backdrop="gradient"
         width="narrow"
         eyebrow="Demo"
-        title="See CPAAutomation in action"
+        title={
+          <>
+            See CPAAutomation{' '}
+            <span
+              className={cn(
+                'bg-gradient-to-r bg-clip-text text-transparent',
+                accent('blue').gradient,
+              )}
+            >
+              in action
+            </span>
+          </>
+        }
         description="Watch how our products work in real-world accounting, finance, and legal workflows."
       />
 
-      <section className="bg-surface-muted py-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="mb-10 text-center"
-            variants={fadeInUp}
-            initial="hidden"
-            whileInView="visible"
-            viewport={viewportOnce}
-          >
-            <Badge
-              variant="secondary"
-              className="mb-3 rounded-full bg-primary-soft px-3 py-1 text-xs font-medium text-primary-soft-foreground"
+      {/* Document analysis videos */}
+      <SectionShell
+        surface="surface"
+        eyebrow="Document analysis"
+        eyebrowIcon={FileText}
+        eyebrowTone="blue"
+        title="AI extraction, analysis, and automations"
+      >
+        <motion.div
+          className="flex flex-wrap justify-center gap-6"
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportOnce}
+        >
+          {ANALYSIS_VIDEOS.map((v) => (
+            <motion.div
+              key={v.title}
+              variants={staggerChild}
+              className="w-full md:w-[calc(50%-0.75rem)] lg:w-[calc(33.333%-1rem)]"
             >
-              Document Analysis
-            </Badge>
-            <h2 className="text-balance text-3xl font-semibold tracking-tight text-foreground">
-              AI extraction, analysis, and automations
-            </h2>
-          </motion.div>
+              <VideoCard
+                src={v.src}
+                title={v.title}
+                description={
+                  <span className="text-center font-semibold text-foreground">
+                    {v.title}
+                  </span>
+                }
+              />
+            </motion.div>
+          ))}
+        </motion.div>
+      </SectionShell>
 
-          <motion.div
-            className="flex flex-wrap justify-center gap-6"
-            variants={staggerContainer}
-            initial="hidden"
-            whileInView="visible"
-            viewport={viewportOnce}
-          >
-            {ANALYSIS_VIDEOS.map((v) => (
-              <motion.div
-                key={v.title}
-                variants={staggerChild}
-                className="w-full md:w-[calc(50%-0.75rem)] lg:w-[calc(33.333%-1rem)]"
-              >
-                <VideoCard
-                  src={v.src}
-                  title={v.title}
-                  description={
-                    <span className="text-center font-semibold text-foreground">
+      {/* Upcoming products */}
+      <SectionShell
+        surface="background"
+        eyebrow="Products to come"
+        eyebrowIcon={Sparkles}
+        eyebrowTone="emerald"
+        title="What we're building next"
+        description="Preview the next generation of tools coming to the CPAAutomation platform."
+      >
+        <motion.div
+          className="flex flex-wrap justify-center gap-6"
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportOnce}
+        >
+          {UPCOMING_VIDEOS.map((v) => (
+            <motion.div
+              key={v.title}
+              variants={staggerChild}
+              className="w-full md:w-[calc(50%-0.75rem)]"
+            >
+              <VideoCard
+                src={v.src}
+                title={v.title}
+                description={
+                  <>
+                    <span className="block font-semibold text-foreground">
                       {v.title}
                     </span>
-                  }
-                />
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
+                    <span className="mt-1 block text-foreground-muted">
+                      {v.description}
+                    </span>
+                  </>
+                }
+              />
+            </motion.div>
+          ))}
+        </motion.div>
+      </SectionShell>
 
-      <section className="bg-background py-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="mb-10 text-center"
-            variants={fadeInUp}
-            initial="hidden"
-            whileInView="visible"
-            viewport={viewportOnce}
-          >
-            <Badge
-              variant="outline"
-              className="mb-3 rounded-full border-success/20 bg-success-soft text-success"
-            >
-              Products to come
-            </Badge>
-            <h2 className="text-balance text-3xl font-semibold tracking-tight text-foreground">
-              What we&apos;re building next
-            </h2>
-            <p className="mx-auto mt-2 max-w-2xl text-foreground-muted">
-              Preview the next generation of tools coming to the CPAAutomation
-              platform.
-            </p>
-          </motion.div>
-
-          <motion.div
-            className="flex flex-wrap justify-center gap-6"
-            variants={staggerContainer}
-            initial="hidden"
-            whileInView="visible"
-            viewport={viewportOnce}
-          >
-            {UPCOMING_VIDEOS.map((v) => (
-              <motion.div
-                key={v.title}
-                variants={staggerChild}
-                className="w-full md:w-[calc(50%-0.75rem)]"
-              >
-                <VideoCard
-                  src={v.src}
-                  title={v.title}
-                  description={
-                    <>
-                      <span className="block font-semibold text-foreground">
-                        {v.title}
-                      </span>
-                      <span className="mt-1 block text-foreground-muted">
-                        {v.description}
-                      </span>
-                    </>
-                  }
-                />
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
+      {/* CTA */}
       <section className="py-16 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
-            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-marketing-hero-from to-marketing-hero-to px-6 py-16 text-center text-marketing-hero-foreground shadow-md sm:px-12"
+            className="relative overflow-hidden rounded-2xl border border-border-strong bg-gradient-to-br from-marketing-hero-from to-marketing-hero-to px-6 py-16 text-center text-marketing-hero-foreground shadow-glow sm:px-12"
             variants={staggerContainer}
             initial="hidden"
             whileInView="visible"
@@ -189,11 +174,11 @@ export default function Demo() {
           >
             <span
               aria-hidden
-              className="pointer-events-none absolute -top-32 right-0 size-[420px] rounded-full bg-marketing-hero-accent/15 blur-3xl"
+              className="pointer-events-none absolute -top-32 right-0 size-[420px] rounded-full bg-accent-blue-500/20 blur-3xl"
             />
             <span
               aria-hidden
-              className="pointer-events-none absolute -bottom-40 left-0 size-[320px] rounded-full bg-marketing-hero-accent/10 blur-3xl"
+              className="pointer-events-none absolute -bottom-40 left-0 size-[320px] rounded-full bg-accent-blue-400/15 blur-3xl"
             />
 
             <div className="relative mx-auto max-w-3xl space-y-5">
@@ -215,7 +200,7 @@ export default function Demo() {
                 <Button
                   onClick={() => setIsAuthModalOpen(true)}
                   size="lg"
-                  className="btn-shimmer bg-marketing-hero-foreground px-8 font-semibold text-marketing-hero-from hover:bg-marketing-hero-foreground/90"
+                  className="btn-shimmer bg-accent-blue-500 px-8 font-semibold text-white hover:bg-accent-blue-600"
                 >
                   Sign up for free
                   <ArrowRight className="ml-2 size-5" aria-hidden />
@@ -226,11 +211,11 @@ export default function Demo() {
                 variants={staggerChild}
               >
                 <span className="inline-flex items-center gap-1.5">
-                  <Check className="size-4 text-success" aria-hidden />
+                  <Check className="size-4 text-accent-blue-400" aria-hidden />
                   No credit card required
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <Check className="size-4 text-success" aria-hidden />
+                  <Check className="size-4 text-accent-blue-400" aria-hidden />
                   100 free pages/month
                 </span>
               </motion.div>
@@ -244,6 +229,6 @@ export default function Demo() {
         onClose={() => setIsAuthModalOpen(false)}
         defaultTab="signup"
       />
-    </>
+    </div>
   )
 }

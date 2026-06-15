@@ -19,17 +19,19 @@ import {
   Monitor,
   ShieldCheck,
   Scale,
+  Sparkles,
 } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { IconTile } from '@/components/ui/icon-tile'
-import { Section } from '@/components/ui/section'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 import { CTABanner } from '@/components/marketing/cta-banner'
 import { MarketingHero } from '@/components/marketing/marketing-hero'
-import { ShowcaseSection } from '@/components/marketing/showcase-section'
 import { VideoCard } from '@/components/marketing/video-card'
+import { SectionShell } from '@/components/pages/home/shared/SectionShell'
+import { GlassCard } from '@/components/pages/home/shared/GlassCard'
+import { FeatureList } from '@/components/pages/home/shared/FeatureList'
+import { accent, type Accent } from '@/components/pages/home/shared/tones'
 import {
   staggerChild,
   staggerContainer,
@@ -189,6 +191,35 @@ const SKILL_PACKAGES: Array<{
   },
 ]
 
+const SETUP_CARDS: Array<{
+  icon: React.ComponentType<{ className?: string }>
+  tone: Accent
+  title: string
+  description: string
+}> = [
+  {
+    icon: Cloud,
+    tone: 'sky',
+    title: 'Cloud provider',
+    description:
+      'Run Claw on the cloud you already use, or keep everything inside your own VPC.',
+  },
+  {
+    icon: BrainCircuit,
+    tone: 'violet',
+    title: 'AI model',
+    description:
+      'Pick the foundation model that fits your accuracy, latency, and data-residency requirements.',
+  },
+  {
+    icon: Bot,
+    tone: 'amber',
+    title: 'Skill packages',
+    description:
+      'Deploy one Claw or all three. Each comes with hundreds of domain-specific skills out of the box.',
+  },
+]
+
 function VideoStack() {
   return (
     <motion.div
@@ -223,7 +254,7 @@ function CommandCard({ title, description, command }: CommandCardProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-surface-raised shadow-sm">
+    <div className="glass-card overflow-hidden rounded-2xl">
       <div className="flex items-start justify-between gap-4 border-b border-border px-4 py-3 sm:px-5">
         <div>
           <h3 className="text-sm font-semibold text-foreground">{title}</h3>
@@ -233,7 +264,7 @@ function CommandCard({ title, description, command }: CommandCardProps) {
           type="button"
           variant="outline"
           size="sm"
-          className="shrink-0"
+          className="shrink-0 border-border-strong"
           onClick={copyCommand}
         >
           {copied ? (
@@ -244,7 +275,7 @@ function CommandCard({ title, description, command }: CommandCardProps) {
           {copied ? 'Copied' : 'Copy'}
         </Button>
       </div>
-      <pre className="whitespace-pre-wrap break-words bg-slate-950 px-4 py-4 text-xs leading-6 text-slate-100 sm:px-5">
+      <pre className="whitespace-pre-wrap break-words bg-surface px-4 py-4 text-xs leading-6 text-foreground sm:px-5">
         <code>{command}</code>
       </pre>
     </div>
@@ -260,24 +291,36 @@ function NotesGrid({
     detail: string
   }>
 }) {
+  const a = accent('blue')
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {notes.map((item) => (
-        <div
-          key={item.title}
-          className="flex gap-3 rounded-xl border border-border bg-surface-muted p-3"
-        >
-          <IconTile icon={item.icon} tone="brand" size="sm" />
-          <div>
-            <p className="text-sm font-semibold text-foreground">
-              {item.title}
-            </p>
-            <p className="mt-1 text-xs leading-5 text-foreground-muted">
-              {item.detail}
-            </p>
+      {notes.map((item) => {
+        const Icon = item.icon
+        return (
+          <div
+            key={item.title}
+            className="glass-card flex gap-3 rounded-xl p-3"
+          >
+            <span
+              aria-hidden
+              className={cn(
+                'inline-flex size-9 shrink-0 items-center justify-center rounded-lg',
+                a.chip,
+              )}
+            >
+              <Icon className="size-4" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                {item.title}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-foreground-muted">
+                {item.detail}
+              </p>
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -302,13 +345,13 @@ function CloudWorkersTab() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Button asChild>
+            <Button asChild className="bg-accent-blue-500 text-white hover:bg-accent-blue-600">
               <Link href="/dashboard/activation">
                 Get your activation key
                 <ArrowRight className="ml-2 size-4" aria-hidden />
               </Link>
             </Button>
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="border-border-strong">
               <Link href="/contact">Contact us for a code</Link>
             </Button>
           </div>
@@ -391,13 +434,13 @@ function DesktopWorkersTab() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Button asChild>
+            <Button asChild className="bg-accent-blue-500 text-white hover:bg-accent-blue-600">
               <a href={HERMES_DESKTOP_DOWNLOADS.mac}>
                 <Download className="mr-2 size-4" aria-hidden />
                 Hermes Desktop for Mac
               </a>
             </Button>
-            <Button asChild>
+            <Button asChild className="bg-accent-blue-500 text-white hover:bg-accent-blue-600">
               <a href={HERMES_DESKTOP_DOWNLOADS.windows}>
                 <Download className="mr-2 size-4" aria-hidden />
                 Hermes Desktop for Windows
@@ -406,13 +449,13 @@ function DesktopWorkersTab() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="border-border-strong">
               <Link href="/dashboard/activation">
                 Get your activation key
                 <ArrowRight className="ml-2 size-4" aria-hidden />
               </Link>
             </Button>
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="border-border-strong">
               <Link href="/contact">Contact us for a code</Link>
             </Button>
           </div>
@@ -455,54 +498,42 @@ function DesktopWorkersTab() {
   )
 }
 
-function InstallationOptionsSection() {
+function InstallationOptions() {
   return (
-    <section id="install-options" className="bg-background py-16 sm:py-20 lg:py-24">
-      <div className="mx-auto max-w-7xl space-y-8 px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl space-y-4 text-center">
-          <Badge
-            variant="outline"
-            className="rounded-full border-primary/20 bg-primary-soft text-primary-soft-foreground"
-          >
-            <Download className="mr-1.5 size-3" aria-hidden />
-            Installation options
-          </Badge>
-          <h2 className="text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            Deploy your digital workers — cloud or desktop
-          </h2>
-          <p className="text-balance text-base text-foreground-muted sm:text-lg">
-            Run AccountingClaw as a cloud digital worker with Docker, or as a
-            desktop digital worker on the Hermes Desktop app. Both unlock the
-            same skills with your personal activation key.
-          </p>
-        </div>
-
-        <Tabs defaultValue="cloud" className="space-y-6">
-          <TabsList className="mx-auto grid h-auto w-full max-w-xl grid-cols-2">
-            <TabsTrigger value="cloud" className="gap-2 py-2.5">
-              <Cloud className="size-4" aria-hidden />
-              Cloud digital workers
-            </TabsTrigger>
-            <TabsTrigger value="desktop" className="gap-2 py-2.5">
-              <Monitor className="size-4" aria-hidden />
-              Desktop digital workers
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="cloud">
-            <CloudWorkersTab />
-          </TabsContent>
-          <TabsContent value="desktop">
-            <DesktopWorkersTab />
-          </TabsContent>
-        </Tabs>
-      </div>
-    </section>
+    <SectionShell
+      id="install-options"
+      surface="background"
+      eyebrow="Installation options"
+      eyebrowIcon={Download}
+      eyebrowTone="blue"
+      title="Deploy your digital workers — cloud or desktop"
+      description="Run AccountingClaw as a cloud digital worker with Docker, or as a desktop digital worker on the Hermes Desktop app. Both unlock the same skills with your personal activation key."
+    >
+      <Tabs defaultValue="cloud" className="space-y-6">
+        <TabsList className="mx-auto grid h-auto w-full max-w-xl grid-cols-2">
+          <TabsTrigger value="cloud" className="gap-2 py-2.5">
+            <Cloud className="size-4" aria-hidden />
+            Cloud digital workers
+          </TabsTrigger>
+          <TabsTrigger value="desktop" className="gap-2 py-2.5">
+            <Monitor className="size-4" aria-hidden />
+            Desktop digital workers
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="cloud">
+          <CloudWorkersTab />
+        </TabsContent>
+        <TabsContent value="desktop">
+          <DesktopWorkersTab />
+        </TabsContent>
+      </Tabs>
+    </SectionShell>
   )
 }
 
 export default function Claw() {
   return (
-    <>
+    <div className="dark marketing-dark min-h-screen bg-background text-foreground">
       <MarketingHero
         backdrop="gradient"
         width="wide"
@@ -526,7 +557,7 @@ export default function Claw() {
             <Button
               asChild
               size="lg"
-              className="btn-shimmer w-full bg-marketing-hero-foreground px-8 text-marketing-hero-from hover:bg-marketing-hero-foreground/90 sm:w-auto"
+              className="btn-shimmer w-full bg-accent-blue-500 px-8 font-semibold text-white hover:bg-accent-blue-600 sm:w-auto"
             >
               <Link href="/contact">
                 Contact us to get started
@@ -548,179 +579,179 @@ export default function Claw() {
         }
       />
 
-      <InstallationOptionsSection />
+      <InstallationOptions />
 
-      <ShowcaseSection
-        surface="background"
-        eyebrow={
-          <Badge
-            variant="outline"
-            className="rounded-full border-primary/20 bg-primary-soft text-primary-soft-foreground"
-          >
-            <Bot className="mr-1.5 size-3" aria-hidden />
-            Claw Series
-          </Badge>
-        }
+      {/* Claw Series overview */}
+      <SectionShell
+        surface="surface"
+        eyebrow="Claw Series"
+        eyebrowIcon={Bot}
+        eyebrowTone="amber"
         title={
           <>
             Autonomous{' '}
-            <span className="bg-gradient-to-r from-primary to-marketing-hero-accent bg-clip-text text-transparent">
+            <span
+              className={cn(
+                'bg-gradient-to-r bg-clip-text text-transparent',
+                accent('amber').gradient,
+              )}
+            >
               digital workers
             </span>{' '}
             for accounting, finance &amp; legal
           </>
         }
         description="Not just tools you operate — digital workers you deploy. Each Claw runs hundreds of pre-built skills end-to-end, with guardrails designed for regulated environments."
-        features={CAPABILITIES}
         media={<VideoStack />}
-      />
+      >
+        <FeatureList items={CAPABILITIES} tone="amber" className="pt-1" />
+      </SectionShell>
 
-      <section id="setup-options" className="bg-surface-muted py-16 sm:py-20 lg:py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto mb-12 max-w-3xl text-center">
-            <p className="text-xs font-medium uppercase tracking-wider text-primary">
-              Personalized setup
-            </p>
-            <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-              Choose your stack, or let us choose it for you
-            </h2>
-            <p className="mt-4 text-balance text-base text-foreground-muted">
-              Tell us your preferences and we&apos;ll deploy AccountingClaw,
-              FinanceClaw, and LegalClaw on the infrastructure and models you
-              already trust.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-            <Section variant="card">
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <IconTile icon={Cloud} tone="brand" size="lg" />
-                  <h3 className="text-lg font-semibold text-foreground">
-                    Cloud provider
-                  </h3>
-                </div>
-                <p className="text-sm text-foreground-muted">
-                  Run Claw on the cloud you already use, or keep everything
-                  inside your own VPC.
-                </p>
-                <ul className="space-y-2">
-                  {CLOUD_OPTIONS.map((option) => (
-                    <li
-                      key={option}
-                      className="flex items-start gap-2 text-sm text-foreground"
+      {/* Personalized setup */}
+      <SectionShell
+        id="setup-options"
+        surface="surface-muted"
+        eyebrow="Personalized setup"
+        eyebrowIcon={Sparkles}
+        eyebrowTone="violet"
+        title="Choose your stack, or let us choose it for you"
+        description="Tell us your preferences and we'll deploy AccountingClaw, FinanceClaw, and LegalClaw on the infrastructure and models you already trust."
+      >
+        <motion.div
+          className="grid grid-cols-1 gap-5 md:grid-cols-3"
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportOnce}
+        >
+          {SETUP_CARDS.map((card) => {
+            const Icon = card.icon
+            const a = accent(card.tone)
+            const options =
+              card.title === 'Cloud provider' ? CLOUD_OPTIONS : MODEL_OPTIONS
+            return (
+              <motion.div key={card.title} variants={staggerChild}>
+                <GlassCard
+                  className={cn(
+                    'h-full space-y-4 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-glow',
+                    a.hoverBorder,
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      aria-hidden
+                      className={cn(
+                        'inline-flex size-11 items-center justify-center rounded-xl',
+                        a.chip,
+                      )}
                     >
-                      <span
-                        className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary"
-                        aria-hidden
-                      />
-                      {option}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </Section>
+                      <Icon className="size-5" />
+                    </span>
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {card.title}
+                    </h3>
+                  </div>
+                  <p className="text-sm text-foreground-muted">
+                    {card.description}
+                  </p>
+                  {card.title === 'Skill packages' ? (
+                    <ul className="space-y-3">
+                      {SKILL_PACKAGES.map((pkg) => {
+                        const PkgIcon = pkg.icon
+                        return (
+                          <li
+                            key={pkg.name}
+                            className="flex items-start gap-2 text-sm"
+                          >
+                            <PkgIcon
+                              className={cn('mt-0.5 size-4 shrink-0', a.text)}
+                              aria-hidden
+                            />
+                            <div>
+                              <p className="font-medium text-foreground">
+                                {pkg.name}
+                              </p>
+                              <p className="text-xs text-foreground-muted">
+                                {pkg.detail}
+                              </p>
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  ) : (
+                    <ul className="space-y-2">
+                      {options.map((option) => (
+                        <li
+                          key={option}
+                          className="flex items-start gap-2 text-sm text-foreground-muted"
+                        >
+                          <span
+                            className={cn(
+                              'mt-1.5 size-1.5 shrink-0 rounded-full',
+                              a.dot,
+                            )}
+                            aria-hidden
+                          />
+                          {option}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </GlassCard>
+              </motion.div>
+            )
+          })}
+        </motion.div>
 
-            <Section variant="card">
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <IconTile icon={BrainCircuit} tone="brand" size="lg" />
-                  <h3 className="text-lg font-semibold text-foreground">
-                    AI model
-                  </h3>
-                </div>
-                <p className="text-sm text-foreground-muted">
-                  Pick the foundation model that fits your accuracy, latency,
-                  and data-residency requirements.
-                </p>
-                <ul className="space-y-2">
-                  {MODEL_OPTIONS.map((option) => (
-                    <li
-                      key={option}
-                      className="flex items-start gap-2 text-sm text-foreground"
-                    >
-                      <span
-                        className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary"
-                        aria-hidden
-                      />
-                      {option}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </Section>
+        <p className="mx-auto mt-10 max-w-2xl text-center text-sm text-foreground-muted">
+          Don&apos;t see your preferred provider or model? Tell us in your
+          message — we can usually accommodate.
+        </p>
+      </SectionShell>
 
-            <Section variant="card">
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <IconTile icon={Bot} tone="brand" size="lg" />
-                  <h3 className="text-lg font-semibold text-foreground">
-                    Skill packages
-                  </h3>
-                </div>
-                <p className="text-sm text-foreground-muted">
-                  Deploy one Claw or all three. Each comes with hundreds of
-                  domain-specific skills out of the box.
-                </p>
-                <ul className="space-y-3">
-                  {SKILL_PACKAGES.map((pkg) => {
-                    const Icon = pkg.icon
-                    return (
-                      <li
-                        key={pkg.name}
-                        className="flex items-start gap-2 text-sm"
-                      >
-                        <Icon
-                          className="mt-0.5 size-4 shrink-0 text-primary"
-                          aria-hidden
-                        />
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {pkg.name}
-                          </p>
-                          <p className="text-xs text-foreground-muted">
-                            {pkg.detail}
-                          </p>
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            </Section>
-          </div>
-
-          <p className="mx-auto mt-10 max-w-2xl text-center text-sm text-foreground-muted">
-            Don&apos;t see your preferred provider or model? Tell us in your
-            message — we can usually accommodate.
-          </p>
-        </div>
-      </section>
-
-      <section className="bg-background py-16 sm:py-20 lg:py-24">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <Section
-            variant="card"
-            className="bg-surface-muted"
-            title={
-              <span className="inline-flex items-center gap-2 text-xl">
-                <IconTile icon={BookOpen} tone="brand" size="md" />
-                Prefer white-glove setup?
+      {/* White-glove */}
+      <SectionShell surface="background" width="narrow">
+        <motion.div
+          variants={staggerChild}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportOnce}
+        >
+          <GlassCard glow className="p-6 sm:p-8">
+            <div className="flex items-center gap-3">
+              <span
+                aria-hidden
+                className={cn(
+                  'inline-flex size-11 items-center justify-center rounded-xl',
+                  accent('blue').chip,
+                )}
+              >
+                <BookOpen className="size-5" />
               </span>
-            }
-            description="We'll pick the cloud, model, and skill mix based on your firm's size, compliance needs, and budget — then deploy, train your team, and stay on for ongoing tuning."
-          >
-            <div className="flex flex-wrap gap-3">
-              <Button asChild>
+              <h2 className="text-xl font-semibold text-foreground">
+                Prefer white-glove setup?
+              </h2>
+            </div>
+            <p className="mt-4 text-foreground-muted">
+              We&apos;ll pick the cloud, model, and skill mix based on your
+              firm&apos;s size, compliance needs, and budget — then deploy,
+              train your team, and stay on for ongoing tuning.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Button
+                asChild
+                className="bg-accent-blue-500 text-white hover:bg-accent-blue-600"
+              >
                 <Link href="/contact">Talk to our team</Link>
               </Button>
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" className="border-border-strong">
                 <Link href="/demo">View demo videos</Link>
               </Button>
             </div>
-          </Section>
-        </div>
-      </section>
+          </GlassCard>
+        </motion.div>
+      </SectionShell>
 
       <CTABanner
         tone="gradient"
@@ -731,7 +762,7 @@ export default function Claw() {
           <Button
             asChild
             size="lg"
-            className="btn-shimmer w-full bg-marketing-hero-foreground px-8 font-semibold text-marketing-hero-from hover:bg-marketing-hero-foreground/90 sm:w-auto"
+            className="btn-shimmer w-full bg-accent-blue-500 px-8 font-semibold text-white hover:bg-accent-blue-600 sm:w-auto"
           >
             <Link href="/contact">
               Contact us
@@ -750,6 +781,6 @@ export default function Claw() {
           </Button>
         }
       />
-    </>
+    </div>
   )
 }

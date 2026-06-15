@@ -2,12 +2,21 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { HelpCircle, Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { FaqAccordion } from '@/components/marketing/faq-accordion'
 import { MarketingHero } from '@/components/marketing/marketing-hero'
 import { PricingTier } from '@/components/marketing/pricing-tier'
+import { SectionShell } from '@/components/pages/home/shared/SectionShell'
+import { accent } from '@/components/pages/home/shared/tones'
+import {
+  staggerChild,
+  staggerContainer,
+  viewportOnce,
+} from '@/lib/animations'
 import { useAuth } from '@/contexts/AuthContext'
 import AuthModal from '@/components/auth/AuthModal'
 import {
@@ -138,12 +147,24 @@ export default function Pricing() {
   )
 
   return (
-    <>
+    <div className="dark marketing-dark min-h-screen bg-background text-foreground">
       <MarketingHero
-        backdrop="plain"
+        backdrop="gradient"
         width="narrow"
         eyebrow="Pricing"
-        title="Pricing for teams of every size"
+        title={
+          <>
+            Pricing for teams of{' '}
+            <span
+              className={cn(
+                'bg-gradient-to-r bg-clip-text text-transparent',
+                accent('blue').gradient,
+              )}
+            >
+              every size
+            </span>
+          </>
+        }
         description="All plans are available month-to-month and you can cancel at any time."
       />
 
@@ -155,10 +176,16 @@ export default function Pricing() {
               Loading plans…
             </div>
           ) : (
-            <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-3">
+            <motion.div
+              className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-3"
+              variants={staggerContainer}
+              initial="hidden"
+              whileInView="visible"
+              viewport={viewportOnce}
+            >
               {sortedPlans.map((plan) => (
+                <motion.div key={plan.code} variants={staggerChild}>
                 <PricingTier
-                  key={plan.code}
                   name={plan.display_name}
                   description={
                     PLAN_DESCRIPTIONS[plan.code] ?? 'Flexible plan'
@@ -176,6 +203,7 @@ export default function Pricing() {
                     plan.automations_limit,
                   )}
                   highlighted={plan.code === 'pro'}
+                  className={plan.code === 'pro' ? 'shadow-glow' : undefined}
                   badge={plan.code === 'pro' ? 'Most popular' : undefined}
                   cta={
                     <Button
@@ -197,26 +225,29 @@ export default function Pricing() {
                     </Button>
                   }
                 />
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
       </section>
 
-      <section className="bg-surface-muted py-20">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-          <h2 className="mb-10 text-balance text-center text-3xl font-semibold tracking-tight text-foreground">
-            Frequently asked questions
-          </h2>
-          <FaqAccordion items={FAQS} />
-        </div>
-      </section>
+      <SectionShell
+        surface="surface-muted"
+        width="narrow"
+        eyebrow="FAQ"
+        eyebrowIcon={HelpCircle}
+        eyebrowTone="blue"
+        title="Frequently asked questions"
+      >
+        <FaqAccordion items={FAQS} />
+      </SectionShell>
 
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         redirectTo={pendingPlan}
       />
-    </>
+    </div>
   )
 }
