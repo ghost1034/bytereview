@@ -149,7 +149,6 @@ export default function ProductSuite() {
                   'hover:-translate-y-0.5 hover:shadow-glow',
                   a.hoverBorder,
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                  product.featured && 'shadow-glow',
                 )}
               >
                 <div className="mb-5 flex items-start justify-between gap-3">

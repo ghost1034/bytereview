@@ -115,10 +115,9 @@ export default function ClawShowcase() {
         whileInView="visible"
         viewport={viewportOnce}
       >
-        {WORKERS.map((worker, idx) => (
+        {WORKERS.map((worker) => (
           <motion.div key={worker.name} variants={staggerChild}>
             <GlassCard
-              glow={idx === 0}
               className={cn('h-full p-8 transition-colors', a.hoverBorder)}
             >
               <span
