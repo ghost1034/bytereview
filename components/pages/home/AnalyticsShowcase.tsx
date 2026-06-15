@@ -68,7 +68,7 @@ export default function AnalyticsShowcase() {
   return (
     <SectionShell
       id="analytics-showcase"
-      surface="surface"
+      surface="tint"
       eyebrow="Financial analysis"
       eyebrowIcon={BarChart3}
       eyebrowTone={TONE}

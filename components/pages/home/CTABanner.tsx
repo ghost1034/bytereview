@@ -21,7 +21,7 @@ export default function CTABanner({ onGetStarted }: CTABannerProps) {
     <section className="py-16 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <motion.div
-          className="relative overflow-hidden rounded-2xl border border-border-strong bg-gradient-to-br from-marketing-hero-from to-marketing-hero-to px-6 py-16 text-center text-marketing-hero-foreground shadow-glow sm:px-12 sm:py-20"
+          className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-marketing-hero-from to-marketing-hero-to px-6 py-16 text-center text-marketing-hero-foreground shadow-glow sm:px-12 sm:py-20"
           variants={staggerContainer}
           initial="hidden"
           whileInView="visible"

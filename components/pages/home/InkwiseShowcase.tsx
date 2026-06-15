@@ -110,7 +110,7 @@ export default function InkwiseShowcase() {
   return (
     <SectionShell
       id="inkwise-showcase"
-      surface="surface-muted"
+      surface="transparent"
       reverse
       eyebrow="AI writing"
       eyebrowIcon={PenTool}

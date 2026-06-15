@@ -17,10 +17,26 @@ interface SectionShellProps {
   title?: React.ReactNode
   description?: React.ReactNode
   children?: React.ReactNode
-  /** Alternating navy band. */
-  surface?: 'background' | 'surface' | 'surface-muted'
+  /**
+   * Section banding over the continuous page background. `transparent` lets the
+   * page wash show through; `tint`/`tint-strong` lay down a feathered translucent
+   * band that cross-fades at its edges. The legacy `background`/`surface`/
+   * `surface-muted` names are kept as aliases.
+   */
+  surface?:
+    | 'transparent'
+    | 'tint'
+    | 'tint-strong'
+    | 'background'
+    | 'surface'
+    | 'surface-muted'
   align?: 'center' | 'left'
   className?: string
+  /**
+   * Let decorative accents bleed past the section edges (swaps `overflow-hidden`
+   * for `overflow-visible`). Off by default — most sections clip wide media.
+   */
+  bleed?: boolean
   /** Absolutely-positioned decorative layer (e.g. ambient 3D) behind content. */
   background?: React.ReactNode
   /** Constrain the inner content width. */
@@ -56,13 +72,23 @@ export function SectionShell({
   width = 'default',
   media,
   reverse,
+  bleed,
 }: SectionShellProps) {
+  // New immersive values (homepage): `transparent` shows the page wash through,
+  // `tint`/`tint-strong` lay a feathered translucent band. Legacy values keep
+  // their original opaque fills so the other marketing pages are unaffected.
   const surfaceClass =
-    surface === 'surface'
-      ? 'bg-surface'
-      : surface === 'surface-muted'
-        ? 'bg-surface-muted'
-        : 'bg-background'
+    surface === 'transparent'
+      ? ''
+      : surface === 'tint'
+        ? 'section-tint'
+        : surface === 'tint-strong'
+          ? 'section-tint-strong'
+          : surface === 'surface'
+            ? 'bg-surface'
+            : surface === 'surface-muted'
+              ? 'bg-surface-muted'
+              : 'bg-background'
 
   const isSplit = Boolean(media)
   // Split layouts always read left-aligned beside their media.
@@ -111,7 +137,8 @@ export function SectionShell({
     <section
       id={id}
       className={cn(
-        'relative isolate overflow-hidden py-20 sm:py-28',
+        'relative isolate py-20 sm:py-28',
+        bleed ? 'overflow-visible' : 'overflow-hidden',
         surfaceClass,
         className,
       )}

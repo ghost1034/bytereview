@@ -77,7 +77,7 @@ export default function ClawShowcase() {
   return (
     <SectionShell
       id="claw-showcase"
-      surface="surface"
+      surface="transparent"
       eyebrow="Claw Series"
       eyebrowIcon={Bot}
       eyebrowTone={TONE}

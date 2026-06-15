@@ -121,7 +121,7 @@ export default function FormFillShowcase() {
   return (
     <SectionShell
       id="form-fill-showcase"
-      surface="surface"
+      surface="tint"
       eyebrow="Document automation"
       eyebrowIcon={Files}
       eyebrowTone={TONE}

@@ -49,7 +49,7 @@ const COMPLIANCE = [
 export default function SecurityTrust() {
   return (
     <SectionShell
-      surface="background"
+      surface="transparent"
       width="narrow"
       eyebrow="Security & compliance"
       eyebrowIcon={ShieldCheck}

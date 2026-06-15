@@ -118,7 +118,7 @@ export default function ProductSuite() {
   return (
     <SectionShell
       id="product-suite"
-      surface="background"
+      surface="transparent"
       eyebrow="Full product suite"
       eyebrowIcon={LayoutGrid}
       title="One platform, every tool you need"

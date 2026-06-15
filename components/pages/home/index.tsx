@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthModal from "@/components/auth/AuthModal";
 import { ConsultingBanner } from "@/components/marketing/consulting-banner";
+import { HomeBackground } from "./shared/HomeBackground";
 
 // Above the fold — load immediately
 import HeroSection from "./HeroSection";
@@ -41,7 +42,8 @@ export default function Home() {
   return (
     // `dark marketing-dark` scopes the immersive navy theme to the homepage only.
     // Nothing else in the app applies `.dark`, so the dashboard/app stay light.
-    <div className="dark marketing-dark min-h-screen bg-background text-foreground">
+    <div className="dark marketing-dark relative min-h-screen bg-background text-foreground">
+      <HomeBackground />
       <ConsultingBanner />
 
       <HeroSection onGetStarted={handleGetStarted} />

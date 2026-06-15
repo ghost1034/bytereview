@@ -87,6 +87,12 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
             aria-hidden
             className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(var(--marketing-hero-from)/0.45)_0%,hsl(var(--marketing-hero-from)/0.8)_70%)]"
           />
+          {/* Feather the hero into the page wash so it dissolves rather than
+              stopping at a hard seam against the first section below */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-[hsl(222_43%_11%)]"
+          />
         </>
       }
       eyebrow={

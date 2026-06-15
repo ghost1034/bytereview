@@ -75,7 +75,7 @@ export default function ChronaShowcase() {
   return (
     <SectionShell
       id="chrona-showcase"
-      surface="background"
+      surface="tint"
       eyebrow="Time tracking"
       eyebrowIcon={Clock}
       eyebrowTone={TONE}

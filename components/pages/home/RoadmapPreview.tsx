@@ -26,7 +26,7 @@ export default function RoadmapPreview() {
   return (
     <SectionShell
       id="roadmap"
-      surface="surface"
+      surface="transparent"
       width="narrow"
       eyebrow="Roadmap"
       title="What's coming next"

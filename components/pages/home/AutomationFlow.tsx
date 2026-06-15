@@ -48,7 +48,7 @@ const FILTERS = [
 export default function AutomationFlow({ onGetStarted }: AutomationFlowProps) {
   return (
     <SectionShell
-      surface="surface"
+      surface="transparent"
       eyebrow="Automations"
       eyebrowIcon={Zap}
       title="Set it and forget it"

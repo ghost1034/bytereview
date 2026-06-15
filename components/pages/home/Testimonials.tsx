@@ -48,7 +48,7 @@ const TESTIMONIALS = [
 export default function Testimonials() {
   return (
     <SectionShell
-      surface="surface"
+      surface="tint"
       eyebrow="Testimonials"
       title="What our customers are saying"
       background={

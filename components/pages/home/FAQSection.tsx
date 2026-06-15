@@ -47,7 +47,7 @@ const FAQS = [
 export default function FAQSection({ onGetStarted }: FAQSectionProps) {
   return (
     <SectionShell
-      surface="surface"
+      surface="tint"
       width="narrow"
       eyebrow="FAQ"
       eyebrowIcon={HelpCircle}

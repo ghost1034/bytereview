@@ -88,7 +88,7 @@ export default function ExtractionFeatures({
   return (
     <SectionShell
       id="extraction-features"
-      surface="surface-muted"
+      surface="tint"
       eyebrow="Document Analysis"
       eyebrowIcon={FileSearch}
       title="Everything you need to extract data from any file"
