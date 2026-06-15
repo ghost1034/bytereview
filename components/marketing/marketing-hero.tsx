@@ -10,6 +10,11 @@ interface MarketingHeroProps {
   ctas?: React.ReactNode
   /** Stat row rendered below CTAs (e.g. "99% accuracy · 50ms latency"). */
   stats?: React.ReactNode
+  /**
+   * How the stats slot is wrapped. "grid" (default) lays children out as a 3-up card
+   * grid; "plain" renders them as-is so the caller can supply a custom inline row.
+   */
+  statsLayout?: 'grid' | 'plain'
   /** Optional decorative content rendered to the right of the headline. */
   media?: React.ReactNode
   /**
@@ -21,6 +26,8 @@ interface MarketingHeroProps {
   backdrop?: 'gradient' | 'plain'
   /** Constrain to "narrow" (centered story) or "wide" (default for product pages). */
   width?: 'narrow' | 'wide'
+  /** Extra classes merged onto the <h1> (e.g. a larger scale for a flagship hero). */
+  titleClassName?: string
   className?: string
 }
 
@@ -30,10 +37,12 @@ export function MarketingHero({
   description,
   ctas,
   stats,
+  statsLayout = 'grid',
   media,
   background,
   backdrop = 'gradient',
   width = 'wide',
+  titleClassName,
   className,
 }: MarketingHeroProps) {
   const isGradient = backdrop === 'gradient'
@@ -107,6 +116,7 @@ export function MarketingHero({
               className={cn(
                 'text-balance text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl',
                 isGradient ? 'text-marketing-hero-foreground' : 'text-foreground',
+                titleClassName,
               )}
             >
               {title}
@@ -131,7 +141,11 @@ export function MarketingHero({
             )}
             {stats && (
               <div className="pt-4">
-                <div className="grid gap-4 sm:grid-cols-3">{stats}</div>
+                {statsLayout === 'grid' ? (
+                  <div className="grid gap-4 sm:grid-cols-3">{stats}</div>
+                ) : (
+                  stats
+                )}
               </div>
             )}
           </div>

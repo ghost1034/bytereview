@@ -28,6 +28,14 @@ module.exports = {
           "Roboto",
           "sans-serif",
         ],
+        mono: [
+          "var(--font-ibm-plex-mono)",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Consolas",
+          "monospace",
+        ],
       },
       fontFeatureSettings: {
         "stripe-numerics": '"tnum","cv05","cv11","ss01"',

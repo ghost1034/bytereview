@@ -21,8 +21,12 @@ export interface SceneQuality {
   bloom: boolean
 }
 
-/** Per-quality tuning. 'low' (mobile / low-power) drops particles + bloom and shrinks the grid. */
+/**
+ * Per-quality tuning. The scene is intentionally a quiet ambient layer: no particles
+ * and no bloom on either tier, with a sparse sheet count so it stays atmosphere, not
+ * wallpaper. 'low' (mobile / low-power) shrinks the grid further.
+ */
 export const QUALITY: Record<'high' | 'low', SceneQuality> = {
-  high: { cols: 12, rows: 5, particles: 1600, bloom: true },
-  low: { cols: 8, rows: 4, particles: 0, bloom: false },
+  high: { cols: 9, rows: 4, particles: 0, bloom: false },
+  low: { cols: 6, rows: 3, particles: 0, bloom: false },
 }
