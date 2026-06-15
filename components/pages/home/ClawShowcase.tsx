@@ -15,7 +15,6 @@ import { cn } from '@/lib/utils'
 import { SectionShell } from '@/components/pages/home/shared/SectionShell'
 import { GlassCard } from '@/components/pages/home/shared/GlassCard'
 import { accent } from '@/components/pages/home/shared/tones'
-import { DataCubeAccent } from '@/components/pages/home/three/DataCubeAccent'
 import { VideoCard } from '@/components/marketing/video-card'
 import {
   fadeInUp,
@@ -92,10 +91,9 @@ export default function ClawShowcase() {
       }
       description="AccountingClaw, FinanceClaw, and LegalClaw are AI agents that work autonomously — not just tools you operate, but digital workers you deploy. Hundreds of pre-built skills with guardrails designed for regulated environments."
       background={
-        /* Ambient auto-looping wireframe data-cube on the right + decorative glow orbs.
-           The parent <section> is `relative isolate`, so these sit behind the content. */
+        /* Decorative glow orbs. The parent <section> is `relative isolate`,
+           so these sit behind the content. */
         <>
-          <DataCubeAccent className="left-auto right-0 hidden w-1/2 opacity-50 md:block" />
           <span
             aria-hidden
             className="pointer-events-none absolute -top-32 left-1/2 size-[520px] -translate-x-1/2 rounded-full bg-amber-500/15 blur-[120px] animate-glow-pulse"
