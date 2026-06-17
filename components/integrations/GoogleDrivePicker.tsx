@@ -431,7 +431,7 @@ export function GoogleDrivePicker({
                   setIsGoogleApiLoaded(false);
                   loadAttemptedRef.current = false; // Reset the ref
                   // Force re-trigger the useEffect
-                  setIsLoadingApis(false);
+                  setIsPickerLoading(false);
                 }}
               >
                 Retry

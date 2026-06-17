@@ -256,7 +256,7 @@ export function ReconciliationRulesStep({
     try {
       const result = await generateMutation.mutateAsync({
         headers,
-        availableRules,
+        availableRules: availableRules as unknown as Record<string, unknown>[],
       })
       const incoming = ((result.passes ?? []) as unknown as ReconciliationPass[]) ?? []
       // Make sure every pass and rule has an id — the LLM often omits them.
@@ -288,7 +288,7 @@ export function ReconciliationRulesStep({
     try {
       const result = await additionalMutation.mutateAsync({
         instructions: refineText.trim(),
-        availableRules,
+        availableRules: availableRules as unknown as Record<string, unknown>[],
       })
       const incoming = (result.pass ?? null) as unknown as ReconciliationPass | null
       if (!incoming) {
@@ -340,7 +340,7 @@ export function ReconciliationRulesStep({
         try {
           const result = await additionalMutation.mutateAsync({
             instructions: instruction,
-            availableRules: availableRulesRef.current,
+            availableRules: availableRulesRef.current as unknown as Record<string, unknown>[],
           })
           const incoming = (result.pass ?? null) as unknown as ReconciliationPass | null
           if (!incoming) {

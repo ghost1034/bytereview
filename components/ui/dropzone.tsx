@@ -174,7 +174,6 @@ export function Dropzone({
           type="file"
           // @ts-expect-error webkitdirectory is non-standard but widely supported
           webkitdirectory=""
-          // @ts-expect-error directory is the spec name
           directory=""
           multiple
           className="sr-only"

@@ -255,7 +255,7 @@ export function AmortizationForm({ initial, initialClientId, onDone }: Amortizat
       let taxSched = taxSchedule
       if (gaapSchedule.length === 0 && canGenerateSchedules(form)) {
         const generated = await generateAssetSchedules(form, (req) =>
-          scheduleMutation.mutateAsync(req),
+          scheduleMutation.mutateAsync(req) as unknown as Promise<{ schedule?: ScheduleRow[] }>,
         )
         gaapSchedule = generated.schedule
         taxSched = generated.taxSchedule

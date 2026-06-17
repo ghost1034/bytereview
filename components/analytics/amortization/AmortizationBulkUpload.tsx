@@ -123,6 +123,9 @@ export function AmortizationBulkUpload({ onBack }: AmortizationBulkUploadProps) 
             salvageValue: form.salvageValue,
             usefulLifeMonths: form.usefulLifeMonths,
             startDate: form.startDate,
+            section179Election: false,
+            bonusDepreciationElection: false,
+            listedProperty: false,
           })
           schedule = (res.schedule ?? []) as unknown as ScheduleRow[]
 

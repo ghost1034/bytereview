@@ -46,7 +46,7 @@ function scheduleDate(row: ScheduleRow): string {
 }
 
 function buildGaapScheduleSheet(rows: AnalyticsAmortization[], clients: AnalyticsClient[]): Row[] {
-  return rows.flatMap((r) => {
+  return rows.flatMap<Row>((r) => {
     const schedule = (r.schedule ?? []) as unknown as ScheduleRow[]
     if (schedule.length === 0) {
       return [
@@ -78,7 +78,7 @@ function buildGaapScheduleSheet(rows: AnalyticsAmortization[], clients: Analytic
 }
 
 function buildTaxScheduleSheet(rows: AnalyticsAmortization[], clients: AnalyticsClient[]): Row[] {
-  return rows.flatMap((r) => {
+  return rows.flatMap<Row>((r) => {
     const tax = (r.tax_schedule ?? []) as unknown as ScheduleRow[]
     const taxMethod = r.tax_method ?? ''
 
@@ -244,7 +244,9 @@ export function AmortizationReports({ rows, clients, onBack }: AmortizationRepor
     try {
       const needsSchedules = key !== 'asset_register' && key !== 'gain_loss_disposal'
       const resolved = needsSchedules
-        ? await resolveAssetsForReports(rows, (req) => scheduleMutation.mutateAsync(req))
+        ? await resolveAssetsForReports(rows, (req) =>
+            scheduleMutation.mutateAsync(req) as unknown as Promise<{ schedule?: ScheduleRow[] }>,
+          )
         : rows
 
       if (key === 'all_assets_schedule') {

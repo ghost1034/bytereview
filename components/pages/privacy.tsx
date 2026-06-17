@@ -13,7 +13,7 @@ import { useCookieConsent } from '@/hooks/useCookieConsent'
 const SECURITY_PILLARS = [
   {
     icon: Trash2,
-    tone: 'destructive' as const,
+    tone: 'warning' as const,
     title: 'Immediate file deletion',
     description:
       'If you choose not to keep your files stored for later use, they are permanently deleted from our servers immediately after processing is complete.',

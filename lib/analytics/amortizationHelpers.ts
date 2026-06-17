@@ -233,6 +233,9 @@ export function buildGaapScheduleRequest(
     salvageValue: form.salvageValue ?? 0,
     usefulLifeMonths: periods,
     startDate: form.startDate || undefined,
+    section179Election: !!form.section179Election,
+    bonusDepreciationElection: !!form.bonusDepreciationElection,
+    listedProperty: !!form.listedProperty,
     annualRate:
       form.interestRate != null
         ? form.interestRate / (form.interestRate > 1 ? 100 : 1)

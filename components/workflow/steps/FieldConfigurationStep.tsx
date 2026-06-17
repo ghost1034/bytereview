@@ -179,8 +179,10 @@ export default function FieldConfigurationStep({
   };
 
   // Helper function to convert template fields to JobFieldConfig format
-  const convertTemplateToJobFields = (template: any): JobFieldConfig[] => {
-    return template.fields.map((field, index) => ({
+  const convertTemplateToJobFields = (template: {
+    fields: { name: string; data_type: string; prompt: string }[]
+  }): JobFieldConfig[] => {
+    return template.fields.map((field, index: number) => ({
       field_name: field.name,
       data_type_id: field.data_type,
       ai_prompt: field.prompt,
