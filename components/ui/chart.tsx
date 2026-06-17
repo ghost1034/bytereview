@@ -5,6 +5,12 @@ import * as RechartsPrimitive from "recharts"
 
 import { cn } from "@/lib/utils"
 
+// recharts does not re-export these from its package root, so mirror its
+// internal `ValueType` / `NameType` definitions to satisfy the generic
+// constraints on `TooltipContentProps`.
+type RechartsValueType = number | string | Array<number | string>
+type RechartsNameType = number | string
+
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const
 
@@ -111,7 +117,12 @@ const ChartTooltipContent = React.forwardRef<
       indicator?: "line" | "dot" | "dashed"
       nameKey?: string
       labelKey?: string
-    }
+    } & Partial<
+      Pick<
+        RechartsPrimitive.TooltipContentProps<RechartsValueType, RechartsNameType>,
+        "payload" | "label"
+      >
+    >
 >(
   (
     {
@@ -261,9 +272,10 @@ const ChartLegend = RechartsPrimitive.Legend
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> &
-    Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+    Pick<RechartsPrimitive.LegendProps, "verticalAlign"> & {
       hideIcon?: boolean
       nameKey?: string
+      payload?: RechartsPrimitive.LegendPayload[]
     }
 >(
   (
