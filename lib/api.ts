@@ -1462,45 +1462,6 @@ export class ApiClient {
   }
 
   // ===========================================================================
-  // Analytics — projects
-  // ===========================================================================
-
-  async listAnalyticsProjects(): Promise<ApiResponse<ApiPaths['/api/analytics/projects']['get']>> {
-    return this.request('/api/analytics/projects')
-  }
-
-  async createAnalyticsProject(
-    data: ApiRequest<ApiPaths['/api/analytics/projects']['post']>
-  ): Promise<ApiResponse<ApiPaths['/api/analytics/projects']['post']>> {
-    return this.request('/api/analytics/projects', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-  }
-
-  async getAnalyticsProject(
-    projectId: string
-  ): Promise<ApiResponse<ApiPaths['/api/analytics/projects/{project_id}']['get']>> {
-    return this.request(`/api/analytics/projects/${encodeURIComponent(projectId)}`)
-  }
-
-  async updateAnalyticsProject(
-    projectId: string,
-    data: ApiRequest<ApiPaths['/api/analytics/projects/{project_id}']['put']>
-  ): Promise<ApiResponse<ApiPaths['/api/analytics/projects/{project_id}']['put']>> {
-    return this.request(`/api/analytics/projects/${encodeURIComponent(projectId)}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    })
-  }
-
-  async deleteAnalyticsProject(projectId: string): Promise<{ success: boolean }> {
-    return this.request(`/api/analytics/projects/${encodeURIComponent(projectId)}`, {
-      method: 'DELETE',
-    })
-  }
-
-  // ===========================================================================
   // Analytics — research (IRS / GAAP) chat sessions
   // ===========================================================================
 
