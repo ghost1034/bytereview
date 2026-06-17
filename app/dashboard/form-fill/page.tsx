@@ -101,14 +101,10 @@ function formatStrategy(strategy?: string | null) {
       return 'PDF Overlay Generated Code'
     case 'docx_placeholders':
       return 'DOCX Placeholder Replacement'
-    case 'docx_placeholders_generated_code':
-      return 'DOCX Placeholder Generated Code'
     case 'docx_edit_in_place':
       return 'DOCX Edited In Place'
     case 'docx_edit_generated_code':
       return 'DOCX Generated Code'
-    case 'docx_table_expansion_generated_code':
-      return 'DOCX Table Generated Code'
     default:
       return strategy || 'Unknown'
   }
