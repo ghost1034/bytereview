@@ -182,8 +182,6 @@ export default function JobFieldsPage() {
 
   const files =
     filesData?.files?.map((file: any) => ({
-      file_id: file.id,
-      filename: file.original_filename,
       original_filename: file.original_filename,
       original_path: file.original_path,
       size_bytes: file.file_size_bytes,
@@ -218,8 +216,8 @@ export default function JobFieldsPage() {
         <FieldConfigurationStep
           files={files}
           initialFields={job?.job_fields || []}
-          initialTaskDefinitions={job?.extraction_tasks || []}
-          initialTemplateId={job?.template_id}
+          initialTaskDefinitions={(job?.extraction_tasks as unknown as TaskDefinition[]) || []}
+          initialTemplateId={job?.template_id ?? undefined}
           initialDescription={(job as any)?.description}
           onFieldsSaved={handleFieldsSaved}
           onContinue={handleContinue}

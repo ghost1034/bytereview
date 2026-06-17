@@ -3,7 +3,7 @@ import { useRouter } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useUpdateConfigStep, useSubmitJob } from '@/hooks/useJobs'
-import { apiClient } from '@/lib/api'
+import { apiClient, TaskDefinition } from '@/lib/api'
 
 interface Job {
   id: string
@@ -18,6 +18,8 @@ interface Job {
   version?: number
   source_files?: any[]
   job_fields?: any[]
+  extraction_tasks?: TaskDefinition[]
+  template_id?: string
 }
 
 export interface WorkflowState {
@@ -114,8 +116,6 @@ export function useJobWorkflow(jobId: string, initialStep?: string | null) {
       
       // Convert JobFileInfo to UploadedFile format expected by components
       const uploadedFiles = filesData.files.map((file: any) => ({
-        file_id: file.id,
-        filename: file.original_filename,
         original_filename: file.original_filename,
         original_path: file.original_path,
         size_bytes: file.file_size_bytes,
@@ -344,8 +344,8 @@ export function useJobWorkflow(jobId: string, initialStep?: string | null) {
       }
     } else {
       // Processing progress
-      const percentage = jobData.tasks_total > 0 
-        ? (jobData.tasks_completed / jobData.tasks_total) * 100 
+      const percentage = (jobData.tasks_total ?? 0) > 0
+        ? ((jobData.tasks_completed ?? 0) / (jobData.tasks_total ?? 0)) * 100
         : 0
       return {
         type: 'processing',
@@ -353,7 +353,7 @@ export function useJobWorkflow(jobId: string, initialStep?: string | null) {
         completed: jobData.tasks_completed,
         total: jobData.tasks_total,
         failed: jobData.tasks_failed,
-        can_resume: jobData.is_resumable
+        can_resume: jobData.is_resumable ?? true
       }
     }
   }, [])

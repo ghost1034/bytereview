@@ -2174,6 +2174,7 @@ export type FileUploadInfo = components['schemas']['FileUploadInfo']
 export type TaskDefinition = {
   path: string
   mode: ProcessingMode
+  file_count?: number
 }
 
 export type JobFieldConfig = {
@@ -2214,13 +2215,11 @@ export interface FrontendUploadFile {
   error?: string
 }
 
-// Backend file structure (what we get from API)
+// Backend file structure (what the workflow maps from backend JobFileInfo).
 export interface UploadedFile {
-  id: string
-  filename: string
+  original_filename: string
   original_path: string
-  file_type: string
-  file_size: number
+  size_bytes: number
   status: 'ready' | 'extracting' | 'extracted' | 'failed'
 }
 

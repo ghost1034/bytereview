@@ -22,6 +22,7 @@ interface FieldConfigurationEditorProps {
   dataTypes: DataType[];
   mode?: 'template' | 'job';
   className?: string;
+  readOnly?: boolean;
 }
 
 export default function FieldConfigurationEditor({
@@ -29,7 +30,8 @@ export default function FieldConfigurationEditor({
   onFieldsChange,
   dataTypes,
   mode = 'job',
-  className = ''
+  className = '',
+  readOnly = false
 }: FieldConfigurationEditorProps) {
   
   const addField = () => {
@@ -70,7 +72,7 @@ export default function FieldConfigurationEditor({
             </p>
           )}
         </div>
-        <Button type="button" onClick={addField} size="sm" variant="outline">
+        <Button type="button" onClick={addField} size="sm" variant="outline" disabled={readOnly}>
           <Plus className="w-4 h-4 mr-2" />
           Add Field
         </Button>
@@ -88,6 +90,7 @@ export default function FieldConfigurationEditor({
                       value={field.name}
                       onChange={(e) => updateField(index, { name: e.target.value })}
                       placeholder="e.g., invoice_number"
+                      disabled={readOnly}
                     />
                   </div>
                   
@@ -96,6 +99,7 @@ export default function FieldConfigurationEditor({
                     <Select
                       value={field.data_type}
                       onValueChange={(value) => updateField(index, { data_type: value })}
+                      disabled={readOnly}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select type" />
@@ -123,6 +127,7 @@ export default function FieldConfigurationEditor({
                       placeholder="Extract the invoice number (optional)"
                       rows={2}
                       maxLength={1500}
+                      disabled={readOnly}
                     />
                     <div className="flex justify-between items-center">
                       {mode === 'job' ? (
@@ -149,6 +154,7 @@ export default function FieldConfigurationEditor({
                       size="sm"
                       onClick={() => moveField(index, index - 1)}
                       title="Move up"
+                      disabled={readOnly}
                     >
                       ↑
                     </Button>
@@ -160,6 +166,7 @@ export default function FieldConfigurationEditor({
                       size="sm"
                       onClick={() => moveField(index, index + 1)}
                       title="Move down"
+                      disabled={readOnly}
                     >
                       ↓
                     </Button>
@@ -169,7 +176,7 @@ export default function FieldConfigurationEditor({
                     variant="ghost"
                     size="sm"
                     onClick={() => removeField(index)}
-                    disabled={fields.length === 1}
+                    disabled={readOnly || fields.length === 1}
                     title="Remove field"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -184,7 +191,7 @@ export default function FieldConfigurationEditor({
       {fields.length === 0 && (
         <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
           <p className="text-gray-500 mb-4">No fields defined yet</p>
-          <Button onClick={addField} variant="outline">
+          <Button onClick={addField} variant="outline" disabled={readOnly}>
             <Plus className="w-4 h-4 mr-2" />
             Add Your First Field
           </Button>

@@ -133,8 +133,6 @@ export default function JobReviewPage() {
 
   const files =
     filesData?.files?.map((file: any) => ({
-      file_id: file.id,
-      filename: file.original_filename,
       original_filename: file.original_filename,
       original_path: file.original_path,
       size_bytes: file.file_size_bytes || 0,
