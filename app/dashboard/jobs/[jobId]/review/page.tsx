@@ -65,7 +65,7 @@ export default function JobReviewPage() {
       if (!selectedRunId) throw new Error('No run selected')
 
       if (jobName && jobName !== job?.name) {
-        await (apiClient as any).request(`/api/jobs/${jobId}`, {
+        await apiClient.request<void>(`/api/jobs/${jobId}`, {
           method: 'PATCH',
           body: JSON.stringify({ name: jobName }),
         })

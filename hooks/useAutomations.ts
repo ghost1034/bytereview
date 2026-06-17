@@ -76,8 +76,8 @@ export function useAutomations() {
   return useQuery({
     queryKey: ['automations'],
     queryFn: async () => {
-      const response = await apiClient.request('/api/automations')
-      return response.automations as Automation[]
+      const response = await apiClient.request<{ automations: Automation[] }>('/api/automations')
+      return response.automations
     },
   })
 }
@@ -86,8 +86,8 @@ export function useAutomation(automationId: string) {
   return useQuery({
     queryKey: ['automation', automationId],
     queryFn: async () => {
-      const response = await apiClient.request(`/api/automations/${automationId}`)
-      return response as Automation
+      const response = await apiClient.request<Automation>(`/api/automations/${automationId}`)
+      return response
     },
     enabled: !!automationId,
   })
@@ -97,8 +97,8 @@ export function useAutomationRuns(automationId: string) {
   return useQuery({
     queryKey: ['automation-runs', automationId],
     queryFn: async () => {
-      const response = await apiClient.request(`/api/automations/${automationId}/runs`)
-      return response.runs as AutomationRun[]
+      const response = await apiClient.request<{ runs: AutomationRun[] }>(`/api/automations/${automationId}/runs`)
+      return response.runs
     },
     enabled: !!automationId,
   })
@@ -110,11 +110,11 @@ export function useCreateAutomation() {
 
   return useMutation({
     mutationFn: async (data: CreateAutomationData) => {
-      const response = await apiClient.request('/api/automations', {
+      const response = await apiClient.request<Automation>('/api/automations', {
         method: 'POST',
         body: JSON.stringify(data),
       })
-      return response as Automation
+      return response
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['automations'] })
@@ -139,11 +139,11 @@ export function useUpdateAutomation() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: UpdateAutomationData }) => {
-      const response = await apiClient.request(`/api/automations/${id}`, {
+      const response = await apiClient.request<Automation>(`/api/automations/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       })
-      return response as Automation
+      return response
     },
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['automations'] })
@@ -169,7 +169,7 @@ export function useDeleteAutomation() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      await apiClient.request(`/api/automations/${id}`, {
+      await apiClient.request<void>(`/api/automations/${id}`, {
         method: 'DELETE',
       })
     },
@@ -196,10 +196,10 @@ export function useToggleAutomation() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiClient.request(`/api/automations/${id}/toggle`, {
+      const response = await apiClient.request<Automation>(`/api/automations/${id}/toggle`, {
         method: 'POST',
       })
-      return response as Automation
+      return response
     },
     onSuccess: (automation) => {
       queryClient.invalidateQueries({ queryKey: ['automations'] })

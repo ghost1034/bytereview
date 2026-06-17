@@ -293,8 +293,8 @@ export function GoogleDrivePicker({
 
       // Only call the API if we don't have a valid cached token
       console.log('Fetching fresh access token from backend');
-      const response = await apiClient.request('/api/integrations/google/picker-token');
-      
+      const response = await apiClient.request<{ access_token: string }>('/api/integrations/google/picker-token');
+
       // Cache the new token (assume 1-hour expiry if not specified)
       const expiresAt = now + (55 * 60 * 1000); // 55 minutes from now (5-minute buffer)
       setCachedToken({

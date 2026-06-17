@@ -240,7 +240,7 @@ export function GoogleDriveFolderPicker({
   // Get access token from backend using apiClient
   const getAccessToken = async (): Promise<string | null> => {
     try {
-      const response = await apiClient.request('/api/integrations/google/picker-token');
+      const response = await apiClient.request<{ access_token: string }>('/api/integrations/google/picker-token');
       return response.access_token;
     } catch (error) {
       console.error('Failed to get access token for folder picker:', error);

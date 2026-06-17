@@ -64,7 +64,7 @@ export class ApiClient {
     return await user.getIdToken()
   }
 
-  private async request<T>(
+  async request<T>(
     path: string,
     options: RequestInit = {}
   ): Promise<T> {
