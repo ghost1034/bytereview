@@ -142,8 +142,8 @@ export default function FieldConfigurationStep({
 
   // Combine user and public templates
   const allTemplates = [
-    ...(userTemplates?.templates || []),
-    ...(publicTemplates?.templates || []),
+    ...((userTemplates as any)?.templates || []),
+    ...((publicTemplates as any)?.templates || []),
   ].filter((t: any) => (t?.template_type ?? 'extraction') === 'extraction');
 
   const [selectedTemplate, setSelectedTemplate] = useState<string>(initialTemplateId || "");

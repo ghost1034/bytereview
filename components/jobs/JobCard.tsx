@@ -38,7 +38,7 @@ import { getJobNavigationPath } from '@/lib/utils/jobNavigation'
 interface JobCardProps {
   job: {
     id: string
-    name?: string
+    name?: string | null
     config_step?: string
     status: string
     progress_percentage?: number

@@ -89,13 +89,6 @@ export function useJobs(limit = 25, offset = 0, status?: string) {
     staleTime: 0, // TODO: Implement proper staleTime and invalidation
     refetchOnWindowFocus: true, // Refresh when user returns to tab
     refetchOnMount: true, // Always refetch when component mounts
-    onSuccess: (data) => {
-      const activeJobs = data?.jobs?.filter(job => job.status === 'in_progress') || []
-      console.log(`[JOBS] Data loaded: ${data?.jobs?.length || 0} total, ${activeJobs.length} active`)
-    },
-    onError: (error) => {
-      console.error('[JOBS] API error:', error)
-    }
   })
 }
 
@@ -115,12 +108,6 @@ export function useJobsForAutomation(limit = 100, offset = 0) {
     staleTime: 0, // TODO: Implement proper staleTime and invalidation
     refetchOnWindowFocus: false, // Don't refetch on focus for modal usage
     refetchOnMount: true,
-    onSuccess: (data) => {
-      console.log('[JOBS] Automation jobs API response received:', data)
-    },
-    onError: (error) => {
-      console.error('[JOBS] Automation jobs API error:', error)
-    }
   })
 }
 

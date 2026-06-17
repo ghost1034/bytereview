@@ -65,7 +65,7 @@ export function useDataTypes() {
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - data types don't change often
-    cacheTime: 10 * 60 * 1000, // 10 minutes - keep in cache longer
+    gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache longer
     refetchOnWindowFocus: false, // Don't refetch when window regains focus
     retry: 2, // Retry failed requests twice
   })
