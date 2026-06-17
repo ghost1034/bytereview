@@ -22,6 +22,7 @@ import JobCard from '@/components/jobs/JobCard'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LoadingState } from '@/components/ui/loading-state'
 import { PageHeader } from '@/components/ui/page-header'
+import { ProductTourButton } from '@/components/tour/product-tour-button'
 import { Section } from '@/components/ui/section'
 import { useJobs } from '@/hooks/useJobs'
 import { useToast } from '@/hooks/use-toast'
@@ -70,6 +71,7 @@ export function JobsPage() {
         description="Manage your document extraction jobs across this workspace."
         actions={
           <>
+            <ProductTourButton tourId="extraction" size="sm" />
             <Button
               variant="outline"
               size="sm"

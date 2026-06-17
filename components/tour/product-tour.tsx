@@ -512,10 +512,18 @@ export function ProductTourProvider({ children }: { children: React.ReactNode })
 
   const startTour = React.useCallback(
     (nextTourId: TourId = 'extraction') => {
+      const def = TOUR_DEFINITIONS[nextTourId]
       setTourId(nextTourId)
       setActive(true)
-      setStep(nextTourId, TOUR_DEFINITIONS[nextTourId].steps[0].id)
-      if (pathname !== '/dashboard') router.push('/dashboard')
+      const routeStepId = def.getStepByRoute(pathname)
+      if (routeStepId) {
+        // The current page maps to a step in this tour — start in place.
+        setStep(nextTourId, routeStepId)
+      } else {
+        // Otherwise start at the intro step on the dashboard.
+        setStep(nextTourId, def.steps[0].id)
+        if (pathname !== '/dashboard') router.push('/dashboard')
+      }
     },
     [pathname, router, setStep],
   )

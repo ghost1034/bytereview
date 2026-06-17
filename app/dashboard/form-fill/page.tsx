@@ -18,6 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/ui/page-header'
+import { ProductTourButton } from '@/components/tour/product-tour-button'
 import { Section } from '@/components/ui/section'
 import {
   Select,
@@ -407,6 +408,7 @@ export default function FormFillPage() {
       <PageHeader
         title="Form Fill"
         description="Drop in supporting information and a PDF or DOCX target — the AI fills it out for you."
+        actions={<ProductTourButton tourId="form-fill" />}
       />
 
       <Section

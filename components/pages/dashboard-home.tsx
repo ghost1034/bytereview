@@ -88,7 +88,7 @@ export function DashboardHome() {
               <DropdownMenuTrigger asChild>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="tour"
                   data-tour="dashboard-tour-button"
                 >
                   <Sparkles className="mr-1.5 size-4" aria-hidden />

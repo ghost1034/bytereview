@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { InkwiseModuleNav } from '@/components/inkwise/inkwise-module-nav'
+import { ProductTourButton } from '@/components/tour/product-tour-button'
 
 export default function InkwiseLayout({ children }: { children: ReactNode }) {
   return (
@@ -16,7 +17,10 @@ export default function InkwiseLayout({ children }: { children: ReactNode }) {
               <p className="text-sm text-slate-500">Multimodal AI-assisted writing</p>
             </div>
           </div>
-          <InkwiseModuleNav />
+          <div className="flex flex-wrap items-center gap-3">
+            <ProductTourButton tourId="inkwise" />
+            <InkwiseModuleNav />
+          </div>
         </div>
       </section>
 
