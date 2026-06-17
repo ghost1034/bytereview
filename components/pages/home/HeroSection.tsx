@@ -7,7 +7,7 @@ import { ArrowRight, Check, Play } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { MarketingHero } from '@/components/marketing/marketing-hero'
-import { FlowLinesAccent } from '@/components/pages/home/three/FlowLinesAccent'
+import { GlobeBackground } from '@/components/pages/home/three/GlobeBackground'
 import { fadeInUp } from '@/lib/animations'
 
 function CountUp({
@@ -76,9 +76,9 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
       titleClassName="text-balance text-5xl tracking-tighter sm:text-6xl lg:text-7xl"
       background={
         <>
-          {/* Same backdrop as the closing CTA band: ambient auto-looping
-              data-flow particles over the hero gradient, lit by two soft glows */}
-          <FlowLinesAccent className="opacity-60" />
+          {/* A 3D globe rising from the bottom edge over the hero gradient, slowly
+              auto-rotating and lit by two soft glows. Cropped by the section's overflow. */}
+          <GlobeBackground />
           <span
             aria-hidden
             className="pointer-events-none absolute -top-32 right-0 size-[420px] rounded-full bg-accent-blue-500/20 blur-3xl"
