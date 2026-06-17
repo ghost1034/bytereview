@@ -1990,6 +1990,8 @@ export class ApiClient {
           handlers.onUsage?.(parsed.usage as AnalyticsStreamUsage)
         } else if (parsed?.session) {
           handlers.onSession?.(parsed.session as AnalyticsStreamSession)
+        } else if (parsed?.grounding) {
+          handlers.onGrounding?.(parsed.grounding as AnalyticsStreamGrounding)
         } else if (parsed?.error) {
           handlers.onError?.(String(parsed.error))
         }
@@ -2124,11 +2126,18 @@ export interface AnalyticsStreamSession {
 
 export type AnalyticsUploadedDoc = components['schemas']['UploadedDoc']
 
+/** Web search grounding metadata (e.g. Google Search sources backing a response). */
+export interface AnalyticsStreamGrounding {
+  sources: { domain?: string; title?: string; url?: string }[]
+}
+
 export interface AnalyticsStreamHandlers {
   onChunk?: (text: string) => void
   onUsage?: (usage: AnalyticsStreamUsage) => void
   /** Fired once after persistence with the session id (+ generated title). */
   onSession?: (session: AnalyticsStreamSession) => void
+  /** Fired when the stream emits web-search grounding sources. */
+  onGrounding?: (grounding: AnalyticsStreamGrounding) => void
   onError?: (message: string) => void
 }
 
