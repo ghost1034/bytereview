@@ -81,7 +81,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
     reset,
     control,
     formState: { errors, isValid, isDirty }
-  } = useForm<AutomationFormData>({
+  } = useForm<z.input<typeof automationSchema>, unknown, z.output<typeof automationSchema>>({
     resolver: zodResolver(automationSchema),
     defaultValues: {
       is_enabled: true,
@@ -122,7 +122,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
       is_enabled: automation.is_enabled,
       processing_mode: (automation.processing_mode as any) || "individual",
       append_results: (automation as any)?.append_results ?? false,
-      dest_type: automation.dest_type || "none",
+      dest_type: (automation.dest_type || "none") as AutomationFormData['dest_type'],
       folder_id: automation.export_config?.folder_id || "",
       to_email: automation.export_config?.to_email || "",
       file_type: (automation.export_config?.file_type as any) || "csv",
@@ -165,7 +165,7 @@ export function AutomationModal({ open, onOpenChange, automationId }: Automation
         trigger_type: data.trigger_type === "gmail" ? "gmail_attachment" : data.trigger_type,
         trigger_config: data.trigger_type === "gmail" && data.gmail_query ? {
           query: data.gmail_query
-        } : {},
+        } : { query: "" },
         job_id: data.job_id,
         processing_mode: data.processing_mode,
         append_results: data.append_results, 
