@@ -11,7 +11,3 @@ This is page 1 of the Universal Document Analysis documentation. Replace this bo
 ## Section 1
 
 Placeholder copy for the first section of this page. Real content will land here soon.
-
-## Section 2
-
-Placeholder copy for the second section of this page. Real content will land here soon.

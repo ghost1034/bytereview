@@ -11,7 +11,3 @@ This is page 1 of the Chrona documentation. Replace this body, the frontmatter `
 ## Section 1
 
 Placeholder copy for the first section of this page. Real content will land here soon.
-
-## Section 2
-
-Placeholder copy for the second section of this page. Real content will land here soon.
