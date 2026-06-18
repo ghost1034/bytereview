@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BookOpen, FileText, LibraryBig, PenSquare } from 'lucide-react'
+import { FileText, LibraryBig, PenSquare } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
@@ -10,7 +10,6 @@ const items = [
   { href: '/dashboard/inkwise/write', label: 'Write', icon: PenSquare },
   { href: '/dashboard/inkwise/references', label: 'References', icon: LibraryBig },
   { href: '/dashboard/inkwise/templates', label: 'Templates', icon: FileText },
-  { href: '/dashboard/inkwise/help', label: 'Help', icon: BookOpen },
 ]
 
 export function InkwiseModuleNav() {

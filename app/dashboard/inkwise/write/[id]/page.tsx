@@ -2,10 +2,9 @@
 
 import type { Editor as TiptapEditor, JSONContent } from '@tiptap/core'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, Cloud, Download, History, LibraryBig, Loader2, Maximize2, MessageSquareText, Minimize2, MoreHorizontal, PanelRightClose, PanelRightOpen, Save, Settings2, Trash2, Unplug, Volume2, VolumeX, Wand2 } from 'lucide-react'
+import { Cloud, Download, History, LibraryBig, Loader2, Maximize2, MessageSquareText, Minimize2, MoreHorizontal, PanelRightClose, PanelRightOpen, Save, Settings2, Trash2, Unplug, Volume2, VolumeX, Wand2 } from 'lucide-react'
 
 import { ChatPanel } from '@/components/inkwise/chat-panel'
 import { InkwiseEditor, type InkwiseEditorReviewState } from '@/components/inkwise/inkwise-editor'
@@ -1117,12 +1116,6 @@ export default function InkwiseDocumentPage() {
                   <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
                     <History className="mr-2 h-4 w-4" />
                     Version history
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard/inkwise/help">
-                      <BookOpen className="mr-2 h-4 w-4" />
-                      Help
-                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem

@@ -173,7 +173,7 @@ const INKWISE_STEPS: TourStep[] = [
   {
     id: 'inkwise-module-nav',
     title: 'Move around Inkwise',
-    body: 'Use these sections any time: Write for documents, References for your source library, Templates for reusable starters, and Help.',
+    body: 'Use these sections any time: Write for documents, References for your source library, and Templates for reusable starters.',
     target: '[data-tour="inkwise-module-nav"]',
     nextLabel: 'See References',
     onNext: { kind: 'navigate', href: '/dashboard/inkwise/references' },
@@ -246,16 +246,8 @@ const INKWISE_STEPS: TourStep[] = [
   {
     id: 'inkwise-templates',
     title: 'Reusable templates',
-    body: 'Save recurring document structures as templates, import DOCX, or browse system categories.',
+    body: 'Save recurring document structures as templates, import DOCX, or browse system categories. That’s the Inkwise tour — happy writing!',
     target: '[data-tour="inkwise-templates"]',
-    nextLabel: 'Finish on Help',
-    onNext: { kind: 'navigate', href: '/dashboard/inkwise/help' },
-  },
-  {
-    id: 'inkwise-help',
-    title: 'You’re set',
-    body: 'Find guides, shortcuts, and answers any time on the Help page. That’s the Inkwise tour — happy writing!',
-    target: '[data-tour="inkwise-nav-help"]',
     nextLabel: 'Finish tour',
     onNext: { kind: 'end' },
   },
@@ -266,7 +258,6 @@ function getInkwiseStepByRoute(pathname: string): string | null {
   if (pathname === '/dashboard/inkwise/write') return 'inkwise-module-nav'
   if (pathname === '/dashboard/inkwise/references') return 'inkwise-import-panel'
   if (pathname === '/dashboard/inkwise/templates') return 'inkwise-templates'
-  if (pathname === '/dashboard/inkwise/help') return 'inkwise-help'
   if (pathname === '/dashboard') return 'inkwise-intro'
   return null
 }
