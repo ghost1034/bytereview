@@ -191,8 +191,8 @@ def get_inkwise_settings() -> InkwiseSettings:
         media_max_clips_per_source=max(1, _env_int("INKWISE_MEDIA_MAX_CLIPS_PER_SOURCE", 256)),
         grounded_model=os.getenv("INKWISE_GROUNDED_MODEL", default_model),
         grounded_chat_history_enabled=_env_bool("INKWISE_GROUNDED_CHAT_HISTORY_ENABLED", True),
-        grounded_chat_max_history_messages=_env_int("INKWISE_GROUNDED_CHAT_MAX_HISTORY_MESSAGES", 6),
-        grounded_chat_max_history_chars=_env_int("INKWISE_GROUNDED_CHAT_MAX_HISTORY_CHARS", 3500),
+        grounded_chat_max_history_messages=_env_int("INKWISE_GROUNDED_CHAT_MAX_HISTORY_MESSAGES", 100),
+        grounded_chat_max_history_chars=_env_int("INKWISE_GROUNDED_CHAT_MAX_HISTORY_CHARS", 200000),
         prediction_timeout_seconds=max(5.0, _env_float("INKWISE_PREDICTION_TIMEOUT_SECONDS", 60.0)),
         prediction_thinking_level=_env_choice(
             "INKWISE_PREDICTION_THINKING_LEVEL",
