@@ -62,7 +62,7 @@ interface NavGroup {
 
 const UDA_GROUP: NavGroup = {
   key: 'uda',
-  label: 'Document Analysis',
+  label: 'Universal Document Analysis',
   items: [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Jobs', href: '/dashboard/jobs', icon: Briefcase },
