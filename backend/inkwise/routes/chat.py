@@ -281,14 +281,19 @@ async def _stream_chat_attempt(
         for debug_chunk in _debug_sse(debug_enabled, retrieval_start_event):
             yield debug_chunk
         if reuse_retrieval_run_id is not None and not fresh_retrieval:
-            retrieval_run, evidence = retrieval_service.get_retrieval_run_for_user(
+            # Run synchronous retrieval off the event loop: it performs blocking
+            # LLM (query rewrite/rerank), embedding, and DB calls. Keeping it on
+            # the loop would stall every other request sharing this worker.
+            retrieval_run, evidence = await asyncio.to_thread(
+                retrieval_service.get_retrieval_run_for_user,
                 db,
                 user_id=user_id,
                 retrieval_run_id=reuse_retrieval_run_id,
             )
             retrieval_run_id = reuse_retrieval_run_id
         else:
-            retrieval_run, evidence = retrieval_service.run_retrieval(
+            retrieval_run, evidence = await asyncio.to_thread(
+                retrieval_service.run_retrieval,
                 db,
                 user_id=user_id,
                 document_id=thread_document_id,

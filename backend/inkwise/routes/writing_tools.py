@@ -117,14 +117,18 @@ async def _stream_writing_tool_attempt(
     if scoped_sources and document is not None:
         try:
             if reuse_retrieval_run_id is not None and not fresh_retrieval:
-                _run, evidence = retrieval_service.get_retrieval_run_for_user(
+                # Offload synchronous retrieval (blocking LLM/embedding/DB work)
+                # to a thread so it does not stall the worker's event loop.
+                _run, evidence = await asyncio.to_thread(
+                    retrieval_service.get_retrieval_run_for_user,
                     db,
                     user_id=user_id,
                     retrieval_run_id=reuse_retrieval_run_id,
                 )
                 retrieval_run_id = reuse_retrieval_run_id
             else:
-                retrieval_run, evidence = retrieval_service.run_retrieval(
+                retrieval_run, evidence = await asyncio.to_thread(
+                    retrieval_service.run_retrieval,
                     db,
                     user_id=user_id,
                     document_id=document.id,
@@ -314,7 +318,10 @@ async def create_prediction(
         await _raise_if_prediction_disconnected(request)
         if ready_bound_sources:
             try:
-                retrieval_run, evidence = retrieval_service.run_retrieval(
+                # Offload synchronous retrieval (blocking LLM/embedding/DB work)
+                # to a thread so it does not stall the worker's event loop.
+                retrieval_run, evidence = await asyncio.to_thread(
+                    retrieval_service.run_retrieval,
                     db,
                     user_id=token_data["uid"],
                     document_id=document_id,

@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -194,7 +195,12 @@ async def capture_webpage_source(
             email=token_data.get("email"),
             phone_number=token_data.get("phone_number"),
         )
-        source = source_service.capture_webpage_snapshot(db, user_id=user_id, body=body)
+        # Offload to a thread: capture performs a blocking external HTTP fetch
+        # (requests, up to a 30s timeout) plus PDF rendering, which would
+        # otherwise freeze the worker's event loop for the full duration.
+        source = await asyncio.to_thread(
+            source_service.capture_webpage_snapshot, db, user_id=user_id, body=body
+        )
         return InkwiseSourceOut.model_validate(source)
     except ValueError as exc:
         db.rollback()
