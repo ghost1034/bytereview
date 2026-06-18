@@ -1,6 +1,7 @@
 ---
 title: "Page 3"
 description: "Placeholder page 3 for the Universal Document Analysis documentation."
+order: 3
 ---
 
 > 📝 **Documentation coming soon.** This is a placeholder page for the Universal Document Analysis docs. The interface, navigation, and search are already in place — written content (and a real title) will follow.

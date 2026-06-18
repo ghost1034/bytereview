@@ -2,15 +2,18 @@ import type { ComponentType } from 'react'
 import { BarChart3, Bot, Clock, FileText, Files, PenTool } from 'lucide-react'
 
 /**
- * Documentation navigation manifest. This holds only the *structure* — section
- * metadata (title, icon, blurb) and the ordered list of page slugs. Each page's
- * own title/description are the source of truth in its markdown frontmatter
- * (parsed with gray-matter in `lib/docs/content.ts`).
+ * Documentation navigation manifest. This holds only the *section* structure —
+ * section metadata (title, icon, blurb) and their order. The pages within a
+ * section, their slugs, and their order are the source of truth on disk:
+ * markdown files under `content/docs/<section>/`, scanned at build time by
+ * `loadDocsTree()` in `lib/docs/content.ts`. Each page's title/description come
+ * from its frontmatter; its order comes from the frontmatter `order` field.
  *
- * This module is client-safe (data + lucide icons only, no `fs`), so the docs
- * sidebar/search import it directly for structure and icons, while page
- * titles/descriptions are passed down from the server as a serializable map
- * (icons can't cross the RSC boundary, so they stay an import — not a prop).
+ * This module is client-safe (data + lucide icons + pure functions, no `fs`),
+ * so the docs sidebar/search import it directly for section icons. The page
+ * tree (plain, serializable data — no icons) is loaded on the server and passed
+ * down as a prop; icons can't cross the RSC boundary, so they stay an import,
+ * looked up by section slug via `findSection`.
  *
  * Mirrors the NavItem/NavGroup pattern in `components/layout/app-sidebar.tsx`
  * and reuses the product names + icons from `PRODUCT_LINKS` in
@@ -24,7 +27,6 @@ export interface DocSectionConfig {
   title: string
   icon: ComponentType<{ className?: string }>
   description: string
-  pageSlugs: string[]
 }
 
 /** Page metadata resolved from markdown frontmatter. */
@@ -33,50 +35,59 @@ export interface DocMeta {
   description?: string
 }
 
-// Slugs are intentionally generic ("page-1") for now —
-// rename them per product when the real structure is decided.
+/** A single page within a section, resolved from its markdown file. */
+export interface DocPageEntry {
+  slug: string
+  title: string
+  description?: string
+}
+
+/** A section plus its ordered, file-derived pages — the serializable runtime tree. */
+export interface DocsTreeSection {
+  slug: string
+  title: string
+  description: string
+  pages: DocPageEntry[]
+}
+
+export type DocsTree = DocsTreeSection[]
+
 export const DOCS_SECTIONS: DocSectionConfig[] = [
   {
     slug: 'universal-document-analysis',
     title: 'Universal Document Analysis',
     icon: FileText,
     description: 'AI extraction & automations',
-    pageSlugs: ['page-1', 'page-2', 'page-3', 'page-4'],
   },
   {
     slug: 'form-fill',
     title: 'Form Fill',
     icon: Files,
     description: 'AI form filling from your documents',
-    pageSlugs: ['page-1', 'page-2', 'page-3'],
   },
   {
     slug: 'inkwise',
     title: 'Inkwise',
     icon: PenTool,
     description: 'AI writing with citations',
-    pageSlugs: ['page-1', 'page-2', 'page-3', 'page-4', 'page-5'],
   },
   {
     slug: 'chrona',
     title: 'Chrona',
     icon: Clock,
     description: 'AI time tracking',
-    pageSlugs: ['page-1', 'page-2', 'page-3', 'page-4'],
   },
   {
     slug: 'claw-series',
     title: 'Claw Series',
     icon: Bot,
     description: 'AI digital workers',
-    pageSlugs: ['page-1', 'page-2', 'page-3', 'page-4'],
   },
   {
     slug: 'ai-analytics-suite',
     title: 'AI Analytics Suite',
     icon: BarChart3,
     description: 'Variance, reconciliation, fixed assets & research bots',
-    pageSlugs: ['page-1', 'page-2', 'page-3', 'page-4'],
   },
 ]
 
@@ -93,26 +104,33 @@ export interface DocSlugPair {
   pageSlug: string
 }
 
-/** Ordered [section, page] pairs — drives generateStaticParams and adjacency. */
-export function allDocSlugPairs(): DocSlugPair[] {
-  return DOCS_SECTIONS.flatMap((section) =>
-    section.pageSlugs.map((pageSlug) => ({ sectionSlug: section.slug, pageSlug })),
+/**
+ * Ordered [section, page] pairs from the loaded tree — drives
+ * generateStaticParams and the on-page pager's adjacency.
+ */
+export function allDocSlugPairs(tree: DocsTree): DocSlugPair[] {
+  return tree.flatMap((section) =>
+    section.pages.map((page) => ({ sectionSlug: section.slug, pageSlug: page.slug })),
   )
 }
 
-/** Validate a route slug against the manifest structure. */
-export function isValidDocPath(slug: string[] | undefined): slug is [string, string] {
+/** Validate a route slug against the loaded tree structure. */
+export function isValidDocPath(
+  tree: DocsTree,
+  slug: string[] | undefined,
+): slug is [string, string] {
   if (!slug || slug.length !== 2) return false
-  const section = findSection(slug[0])
-  return Boolean(section && section.pageSlugs.includes(slug[1]))
+  const section = tree.find((s) => s.slug === slug[0])
+  return Boolean(section && section.pages.some((page) => page.slug === slug[1]))
 }
 
-/** Previous/next page slugs in flat manifest order, for the on-page pager. */
+/** Previous/next page slugs in flat tree order, for the on-page pager. */
 export function getAdjacentSlugPairs(
+  tree: DocsTree,
   sectionSlug: string,
   pageSlug: string,
 ): { prev: DocSlugPair | null; next: DocSlugPair | null } {
-  const all = allDocSlugPairs()
+  const all = allDocSlugPairs(tree)
   const index = all.findIndex(
     (pair) => pair.sectionSlug === sectionSlug && pair.pageSlug === pageSlug,
   )
@@ -128,11 +146,22 @@ export interface DocCrumb {
   href?: string
 }
 
-/** Breadcrumb trail: Docs → <Product> → <Page>. */
-export function getBreadcrumbs(section: DocSectionConfig, pageTitle: string): DocCrumb[] {
+/**
+ * Breadcrumb trail: Docs → <Product> → <Page>. The product crumb links to the
+ * section's first page; if the section has no pages it links to the section
+ * root instead.
+ */
+export function getBreadcrumbs(
+  section: DocSectionConfig,
+  firstPageSlug: string | undefined,
+  pageTitle: string,
+): DocCrumb[] {
+  const sectionHref = firstPageSlug
+    ? docHref(section.slug, firstPageSlug)
+    : `${DOCS_BASE}/${section.slug}`
   return [
     { label: 'Docs', href: DOCS_BASE },
-    { label: section.title, href: docHref(section.slug, section.pageSlugs[0]!) },
+    { label: section.title, href: sectionHref },
     { label: pageTitle },
   ]
 }

@@ -1,9 +1,9 @@
 import { PageHeader } from '@/components/ui/page-header'
 import { ProductCard } from '@/components/marketing/product-card'
-import { DOCS_SECTIONS, docHref } from '@/lib/docs/navigation'
+import { type DocsTree, DOCS_BASE, docHref, findSection } from '@/lib/docs/navigation'
 
 /** The /docs landing page: a card grid linking into each product's docs. */
-export function DocsIndex() {
+export function DocsIndex({ sections }: { sections: DocsTree }) {
   return (
     <div>
       <PageHeader
@@ -12,15 +12,23 @@ export function DocsIndex() {
         description="Guides and reference for every product in the CPAAutomation suite. Pick a product to get started."
       />
       <div className="grid gap-3 sm:grid-cols-2">
-        {DOCS_SECTIONS.map((section) => (
-          <ProductCard
-            key={section.slug}
-            icon={section.icon}
-            name={section.title}
-            description={section.description}
-            href={docHref(section.slug, section.pageSlugs[0]!)}
-          />
-        ))}
+        {sections.map((section) => {
+          const config = findSection(section.slug)
+          if (!config) return null
+          const firstPage = section.pages[0]
+          const href = firstPage
+            ? docHref(section.slug, firstPage.slug)
+            : `${DOCS_BASE}/${section.slug}`
+          return (
+            <ProductCard
+              key={section.slug}
+              icon={config.icon}
+              name={section.title}
+              description={section.description}
+              href={href}
+            />
+          )
+        })}
       </div>
     </div>
   )

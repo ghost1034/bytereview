@@ -1,25 +1,32 @@
 import { promises as fs } from 'fs'
 import path from 'path'
+import { cache } from 'react'
 
 import matter from 'gray-matter'
 import GithubSlugger from 'github-slugger'
 
 import {
   type DocMeta,
+  type DocsTree,
+  type DocPageEntry,
   DOCS_SECTIONS,
-  docHref,
 } from './navigation'
 
 /**
  * Server-only loaders for docs markdown (the `fs` import keeps this module
  * server-side). Markdown lives at `content/docs/<section>/<page>.md` with
- * gray-matter frontmatter (`title`, `description`) followed by the body.
+ * gray-matter frontmatter (`title`, `description`, `order`) followed by the
+ * body. A page's slug is its file name (minus `.md`); its order within the
+ * section comes from the `order` frontmatter field.
  *
  * Pages are statically generated, so files are read at build time (no runtime
  * fs).
  */
 
 const CONTENT_DIR = path.join(process.cwd(), 'content', 'docs')
+
+// Numeric-aware comparison so "page-2" sorts before "page-10".
+const collator = new Intl.Collator(undefined, { numeric: true })
 
 export interface DocPageContent {
   meta: DocMeta
@@ -58,23 +65,70 @@ export async function readDocPage(
   }
 }
 
-/**
- * Build the page-metadata map (keyed by href) the client nav/search need. Reads
- * frontmatter for every page in the manifest. Runs at build time during static
- * generation.
- */
-export async function loadDocsPageMeta(): Promise<Record<string, DocMeta>> {
-  const entries = await Promise.all(
-    DOCS_SECTIONS.flatMap((section) =>
-      section.pageSlugs.map(async (pageSlug) => {
-        const href = docHref(section.slug, pageSlug)
-        const page = await readDocPage(section.slug, pageSlug)
-        return [href, page?.meta ?? { title: humanizeSlug(pageSlug) }] as const
-      }),
-    ),
-  )
-  return Object.fromEntries(entries)
+interface ScannedPage extends DocPageEntry {
+  /** Sort key: frontmatter `order`, or +Infinity when absent (sorts last). */
+  order: number
 }
+
+/**
+ * Scan a section's directory for `.md` files and resolve each into an ordered
+ * page entry. Slug = file name minus `.md`; title/description/order come from
+ * frontmatter (title falls back to a humanized slug). Pages are ordered by the
+ * `order` field, with a numeric-aware file-name tiebreak; pages without `order`
+ * sort last. A missing/empty directory yields no pages (never throws).
+ */
+async function listSectionPages(sectionSlug: string): Promise<DocPageEntry[]> {
+  const dir = path.join(CONTENT_DIR, sectionSlug)
+  let entries
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true })
+  } catch {
+    return []
+  }
+
+  const files = entries.filter(
+    (entry) => entry.isFile() && !entry.name.startsWith('.') && /\.md$/i.test(entry.name),
+  )
+
+  const pages: ScannedPage[] = await Promise.all(
+    files.map(async (file) => {
+      const slug = file.name.replace(/\.md$/i, '')
+      const { data } = matter(await fs.readFile(path.join(dir, file.name), 'utf8'))
+      return {
+        slug,
+        title: typeof data.title === 'string' ? data.title : humanizeSlug(slug),
+        description: typeof data.description === 'string' ? data.description : undefined,
+        order: typeof data.order === 'number' ? data.order : Number.POSITIVE_INFINITY,
+      }
+    }),
+  )
+
+  pages.sort((a, b) => {
+    if (a.order !== b.order) return a.order - b.order
+    // Tiebreak on slug (= file name minus `.md`), numeric-aware.
+    return collator.compare(a.slug, b.slug)
+  })
+
+  // Strip the sort-only `order` key from the serializable entry.
+  return pages.map(({ slug, title, description }) => ({ slug, title, description }))
+}
+
+/**
+ * Build the docs tree: section metadata (title/blurb/order) from the manifest,
+ * each with its ordered, file-derived pages. Plain serializable data (no icons)
+ * so it can cross the RSC boundary as a prop. Wrapped in React `cache()` so the
+ * repeated calls across layout/page/metadata dedupe within a build.
+ */
+export const loadDocsTree = cache(async (): Promise<DocsTree> => {
+  return Promise.all(
+    DOCS_SECTIONS.map(async (section) => ({
+      slug: section.slug,
+      title: section.title,
+      description: section.description,
+      pages: await listSectionPages(section.slug),
+    })),
+  )
+})
 
 export interface DocHeading {
   id: string

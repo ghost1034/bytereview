@@ -1,3 +1,37 @@
+const fs = require('fs')
+const path = require('path')
+
+/**
+ * Enumerate documentation routes from the filesystem — the same source of truth
+ * the /docs route uses (`content/docs/<section>/<page>.md`, slug = file name).
+ * next-sitemap doesn't reliably expand the `[[...slug]]` catch-all, so docs URLs
+ * are listed explicitly here. Returns ['/docs', '/docs/<section>/<page>', ...].
+ */
+function getDocsPaths() {
+  const docsRoot = path.join(__dirname, 'content', 'docs')
+  const paths = ['/docs']
+  let sections
+  try {
+    sections = fs.readdirSync(docsRoot, { withFileTypes: true })
+  } catch {
+    return paths
+  }
+  for (const section of sections) {
+    if (!section.isDirectory()) continue
+    let files
+    try {
+      files = fs.readdirSync(path.join(docsRoot, section.name))
+    } catch {
+      continue
+    }
+    for (const file of files) {
+      if (file.startsWith('.') || !/\.md$/i.test(file)) continue
+      paths.push(`/docs/${section.name}/${file.replace(/\.md$/i, '')}`)
+    }
+  }
+  return paths
+}
+
 /** @type {import('next-sitemap').IConfig} */
 module.exports = {
   siteUrl: process.env.SITE_URL || 'https://cpaautomation.ai',
@@ -14,17 +48,21 @@ module.exports = {
     '/integrations*',
     '/subscribe*'
   ],
-  additionalPaths: async (config) => [
-    await config.transform(config, '/'),
-    await config.transform(config, '/about'),
-    await config.transform(config, '/pricing'),
-    await config.transform(config, '/features'),
-    await config.transform(config, '/demo'),
-    await config.transform(config, '/contact'),
-    await config.transform(config, '/privacy'),
-    await config.transform(config, '/terms'),
-    await config.transform(config, '/case-study/LFO'),
-  ],
+  additionalPaths: async (config) => {
+    const staticPaths = [
+      '/',
+      '/about',
+      '/pricing',
+      '/features',
+      '/demo',
+      '/contact',
+      '/privacy',
+      '/terms',
+      '/case-study/LFO',
+    ]
+    const allPaths = [...staticPaths, ...getDocsPaths()]
+    return Promise.all(allPaths.map((p) => config.transform(config, p)))
+  },
   transform: async (config, path) => {
     // Custom priority and changefreq for different pages
     const customConfig = {

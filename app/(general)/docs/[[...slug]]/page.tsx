@@ -16,7 +16,7 @@ import { DocsContent } from '@/components/docs/docs-content'
 import { DocsIndex } from '@/components/docs/docs-index'
 import { DocsPager, type PagerLink } from '@/components/docs/docs-pager'
 import { DocsToc } from '@/components/docs/docs-toc'
-import { extractHeadings, readDocPage } from '@/lib/docs/content'
+import { extractHeadings, loadDocsTree, readDocPage } from '@/lib/docs/content'
 import {
   type DocSlugPair,
   allDocSlugPairs,
@@ -31,17 +31,19 @@ interface DocsPageProps {
   params: Promise<{ slug?: string[] }>
 }
 
-// Statically pre-render the index (empty slug) plus every page in the manifest.
-export function generateStaticParams() {
+// Statically pre-render the index (empty slug) plus every page found on disk.
+export async function generateStaticParams() {
+  const tree = await loadDocsTree()
   return [
     { slug: [] as string[] },
-    ...allDocSlugPairs().map((pair) => ({ slug: [pair.sectionSlug, pair.pageSlug] })),
+    ...allDocSlugPairs(tree).map((pair) => ({ slug: [pair.sectionSlug, pair.pageSlug] })),
   ]
 }
 
 export async function generateMetadata({ params }: DocsPageProps): Promise<Metadata> {
   const { slug } = await params
-  if (!isValidDocPath(slug)) {
+  const tree = await loadDocsTree()
+  if (!isValidDocPath(tree, slug)) {
     return {
       title: 'Documentation — CPAAutomation',
       description: 'Guides and reference for the CPAAutomation product suite.',
@@ -73,22 +75,24 @@ async function toPagerLink(pair: DocSlugPair | null): Promise<PagerLink | null> 
 
 export default async function DocsPage({ params }: DocsPageProps) {
   const { slug } = await params
+  const tree = await loadDocsTree()
 
   // Index route: /docs
   if (!slug || slug.length === 0) {
-    return <DocsIndex />
+    return <DocsIndex sections={tree} />
   }
 
-  if (!isValidDocPath(slug)) notFound()
+  if (!isValidDocPath(tree, slug)) notFound()
   const [sectionSlug, pageSlug] = slug
 
   const section = findSection(sectionSlug)!
   const page = await readDocPage(sectionSlug, pageSlug)
   if (!page) notFound()
 
+  const firstPageSlug = tree.find((s) => s.slug === sectionSlug)?.pages[0]?.slug
   const headings = extractHeadings(page.body)
-  const crumbs = getBreadcrumbs(section, page.meta.title)
-  const adjacent = getAdjacentSlugPairs(sectionSlug, pageSlug)
+  const crumbs = getBreadcrumbs(section, firstPageSlug, page.meta.title)
+  const adjacent = getAdjacentSlugPairs(tree, sectionSlug, pageSlug)
   const [prev, next] = await Promise.all([
     toPagerLink(adjacent.prev),
     toPagerLink(adjacent.next),

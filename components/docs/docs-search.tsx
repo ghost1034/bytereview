@@ -12,22 +12,23 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { type DocMeta, DOCS_SECTIONS, docHref } from '@/lib/docs/navigation'
+import { type DocsTree, docHref, findSection } from '@/lib/docs/navigation'
 import { cn } from '@/lib/utils'
 
 interface DocsSearchProps {
-  /** Page metadata keyed by href, resolved from frontmatter on the server. */
-  pageMeta: Record<string, DocMeta>
+  /** Ordered, file-derived sections + pages, resolved on the server. */
+  sections: DocsTree
   className?: string
 }
 
 /**
  * Cmd/Ctrl+K documentation search. Self-contained: renders both the trigger
- * button and the command palette. Structure + icons come from the manifest;
- * page titles/descriptions come from frontmatter via `pageMeta`. cmdk handles
- * the fuzzy filtering. Mirrors the workspace palette in `dashboard-shell.tsx`.
+ * button and the command palette. Section icons come from the manifest; the
+ * page tree (titles/descriptions/order) is file-derived and passed in via
+ * `sections`. cmdk handles the fuzzy filtering. Mirrors the workspace palette
+ * in `dashboard-shell.tsx`.
  */
-export function DocsSearch({ pageMeta, className }: DocsSearchProps) {
+export function DocsSearch({ sections, className }: DocsSearchProps) {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
 
@@ -71,26 +72,24 @@ export function DocsSearch({ pageMeta, className }: DocsSearchProps) {
         <CommandInput placeholder="Search documentation…" />
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
-          {DOCS_SECTIONS.map((section) => {
-            const Icon = section.icon
+          {sections.map((section) => {
+            const Icon = findSection(section.slug)?.icon
             return (
               <CommandGroup key={section.slug} heading={section.title}>
-                {section.pageSlugs.map((pageSlug) => {
-                  const href = docHref(section.slug, pageSlug)
-                  const meta = pageMeta[href]
-                  const title = meta?.title ?? pageSlug
+                {section.pages.map((page) => {
+                  const href = docHref(section.slug, page.slug)
                   return (
                     <CommandItem
                       key={href}
-                      value={`${section.title} ${title} ${meta?.description ?? ''}`}
+                      value={`${section.title} ${page.title} ${page.description ?? ''}`}
                       onSelect={() => go(href)}
                     >
-                      <Icon className="mr-2 size-4 text-foreground-muted" />
+                      {Icon && <Icon className="mr-2 size-4 text-foreground-muted" />}
                       <span className="flex flex-col">
-                        <span>{title}</span>
-                        {meta?.description && (
+                        <span>{page.title}</span>
+                        {page.description && (
                           <span className="text-xs text-foreground-subtle">
-                            {meta.description}
+                            {page.description}
                           </span>
                         )}
                       </span>

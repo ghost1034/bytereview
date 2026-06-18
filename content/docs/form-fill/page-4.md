@@ -1,6 +1,7 @@
 ---
 title: "Page 4"
 description: "Placeholder page 4 for the Form Fill documentation."
+order: 4
 ---
 
 > 📝 **Documentation coming soon.** This is a placeholder page for the Form Fill docs. The interface, navigation, and search are already in place — written content (and a real title) will follow.

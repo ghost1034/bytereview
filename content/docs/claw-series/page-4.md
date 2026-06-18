@@ -1,6 +1,7 @@
 ---
 title: "Page 4"
 description: "Placeholder page 4 for the Claw Series documentation."
+order: 4
 ---
 
 > 📝 **Documentation coming soon.** This is a placeholder page for the Claw Series docs. The interface, navigation, and search are already in place — written content (and a real title) will follow.
