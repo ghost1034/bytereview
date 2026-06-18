@@ -97,6 +97,9 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2 text-sm">
               <li>
+                <FooterLink href="/docs">Documentation</FooterLink>
+              </li>
+              <li>
                 <FooterLink href="/demo">Demo</FooterLink>
               </li>
               <li>

@@ -123,6 +123,7 @@ const NAV_LINKS: NavLink[] = [
     ],
   },
   { href: '/pricing', label: 'Pricing' },
+  { href: '/docs', label: 'Docs' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
 ]
