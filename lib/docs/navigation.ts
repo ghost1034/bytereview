@@ -33,54 +33,50 @@ export interface DocMeta {
   description?: string
 }
 
-// Generic placeholder pages, in order. Slugs and titles are intentionally
-// neutral ("page-1" → "Page 1") so the docs aren't locked into specific topic
-// names; rename slugs here and update each page's frontmatter title when the
-// real structure is decided.
-const STANDARD_PAGE_SLUGS = ['page-1', 'page-2', 'page-3', 'page-4']
-
+// Slugs are intentionally generic ("page-1") for now —
+// rename them per product when the real structure is decided.
 export const DOCS_SECTIONS: DocSectionConfig[] = [
   {
     slug: 'universal-document-analysis',
     title: 'Universal Document Analysis',
     icon: FileText,
     description: 'AI extraction & automations',
-    pageSlugs: STANDARD_PAGE_SLUGS,
+    pageSlugs: ['page-1', 'page-2', 'page-3', 'page-4'],
   },
   {
     slug: 'form-fill',
     title: 'Form Fill',
     icon: Files,
     description: 'AI form filling from your documents',
-    pageSlugs: STANDARD_PAGE_SLUGS,
+    pageSlugs: ['page-1', 'page-2', 'page-3'],
   },
   {
     slug: 'inkwise',
     title: 'Inkwise',
     icon: PenTool,
     description: 'AI writing with citations',
-    pageSlugs: STANDARD_PAGE_SLUGS,
+    pageSlugs: ['page-1', 'page-2', 'page-3', 'page-4', 'page-5'],
   },
   {
     slug: 'chrona',
     title: 'Chrona',
     icon: Clock,
     description: 'AI time tracking',
-    pageSlugs: STANDARD_PAGE_SLUGS,
+    pageSlugs: ['page-1', 'page-2', 'page-3', 'page-4'],
   },
   {
     slug: 'claw-series',
     title: 'Claw Series',
     icon: Bot,
     description: 'AI digital workers',
-    pageSlugs: STANDARD_PAGE_SLUGS,
+    pageSlugs: ['page-1', 'page-2', 'page-3', 'page-4'],
   },
   {
     slug: 'ai-analytics-suite',
     title: 'AI Analytics Suite',
     icon: BarChart3,
     description: 'Variance, reconciliation, fixed assets & research bots',
-    pageSlugs: STANDARD_PAGE_SLUGS,
+    pageSlugs: ['page-1', 'page-2', 'page-3', 'page-4'],
   },
 ]
 
