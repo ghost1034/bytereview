@@ -3,10 +3,11 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies for extraction, OCR, Office conversion, and media chunking
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
+    ffmpeg \
     ghostscript \
     qpdf \
     tesseract-ocr \

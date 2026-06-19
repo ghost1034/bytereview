@@ -76,7 +76,7 @@ class InkwiseSettingsTests(TestCase):
         self.assertEqual(settings.video_max_upload_mb, 1500)
 
     def test_deploy_script_defaults_match_backend_setting(self) -> None:
-        script_path = Path(__file__).resolve().parents[2] / "scripts" / "deploy-inkwise.sh"
+        script_path = Path(__file__).resolve().parents[2] / "scripts" / "deploy-services.sh"
         script = script_path.read_text(encoding="utf-8")
 
         self.assertIn('INKWISE_MAX_UPLOAD_MB="${INKWISE_MAX_UPLOAD_MB:-100}"', script)

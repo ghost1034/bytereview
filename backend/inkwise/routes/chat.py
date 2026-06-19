@@ -7,6 +7,7 @@ import time
 import uuid
 from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -66,6 +67,22 @@ _STREAM_HEADERS = {
     "Connection": "keep-alive",
     "X-Accel-Buffering": "no",
 }
+
+
+def _run_retrieval_with_new_session(work):
+    db = db_config.get_session()
+    try:
+        run, evidence = work(db)
+        return SimpleNamespace(
+            id=run.id,
+            meta=dict(getattr(run, "meta", None) or {}),
+            strategy_version=getattr(run, "strategy_version", None),
+        ), evidence
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
 def _now_iso() -> str:
@@ -285,23 +302,27 @@ async def _stream_chat_attempt(
             # LLM (query rewrite/rerank), embedding, and DB calls. Keeping it on
             # the loop would stall every other request sharing this worker.
             retrieval_run, evidence = await asyncio.to_thread(
-                retrieval_service.get_retrieval_run_for_user,
-                db,
-                user_id=user_id,
-                retrieval_run_id=reuse_retrieval_run_id,
+                _run_retrieval_with_new_session,
+                lambda thread_db: retrieval_service.get_retrieval_run_for_user(
+                    thread_db,
+                    user_id=user_id,
+                    retrieval_run_id=reuse_retrieval_run_id,
+                ),
             )
             retrieval_run_id = reuse_retrieval_run_id
         else:
             retrieval_run, evidence = await asyncio.to_thread(
-                retrieval_service.run_retrieval,
-                db,
-                user_id=user_id,
-                document_id=thread_document_id,
-                thread_id=thread_db_id,
-                query=prompt_question,
-                bound_sources=bound_sources,
-                history_messages=history_messages,
-                draft_selection_text=draft_text,
+                _run_retrieval_with_new_session,
+                lambda thread_db: retrieval_service.run_retrieval(
+                    thread_db,
+                    user_id=user_id,
+                    document_id=thread_document_id,
+                    thread_id=thread_db_id,
+                    query=prompt_question,
+                    bound_sources=bound_sources,
+                    history_messages=history_messages,
+                    draft_selection_text=draft_text,
+                ),
             )
             retrieval_run_id = cast(uuid.UUID, retrieval_run.id)
         retrieval_meta = cast(dict[str, Any], getattr(retrieval_run, "meta", {}) or {})

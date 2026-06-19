@@ -2,6 +2,7 @@
 Google Cloud Storage service for temporary file storage
 """
 import os
+import asyncio
 import uuid
 import time
 import logging
@@ -346,7 +347,8 @@ class GCSService:
             blob = self.bucket.blob(gcs_object_name)
             
             # Generate a signed URL for PUT operations
-            url = blob.generate_signed_url(
+            url = await asyncio.to_thread(
+                blob.generate_signed_url,
                 version="v4",
                 expiration=timedelta(minutes=expiration_minutes),
                 method="PUT",
@@ -369,7 +371,7 @@ class GCSService:
             
         try:
             blob = self.bucket.blob(gcs_object_name)
-            blob.download_to_filename(local_path)
+            await asyncio.to_thread(blob.download_to_filename, local_path)
             logger.info(f"Downloaded {gcs_object_name} to {local_path}")
             
         except Exception as e:
@@ -385,7 +387,7 @@ class GCSService:
             
         try:
             blob = self.bucket.blob(gcs_object_name)
-            blob.upload_from_filename(local_path)
+            await asyncio.to_thread(blob.upload_from_filename, local_path)
             logger.info(f"Uploaded {local_path} to {gcs_object_name}")
             
         except Exception as e:
@@ -401,7 +403,7 @@ class GCSService:
             
         try:
             blob = self.bucket.blob(gcs_object_name)
-            blob.upload_from_string(file_content)
+            await asyncio.to_thread(blob.upload_from_string, file_content)
             logger.info(f"Uploaded content to {gcs_object_name}")
             
         except Exception as e:
@@ -417,7 +419,7 @@ class GCSService:
             
         try:
             blob = self.bucket.blob(gcs_object_name)
-            blob.delete()
+            await asyncio.to_thread(blob.delete)
             logger.info(f"Deleted {gcs_object_name} from GCS")
             
         except Exception as e:

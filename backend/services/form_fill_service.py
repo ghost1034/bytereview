@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import asyncio
 import csv
 import hashlib
 import json
@@ -787,11 +788,15 @@ class FormFillService:
     ) -> int:
         normalized_mime = (mime_type or "").lower()
         if normalized_mime == PDF_MIME:
-            page_count = page_counting_service.count_pages_from_file_path(local_path, filename)
+            page_count = await asyncio.to_thread(page_counting_service.count_pages_from_file_path, local_path, filename)
         elif normalized_mime == DOCX_MIME:
             converter = get_document_conversion_service()
             pdf_path = await converter.convert_docx_local_to_pdf_local(local_path, out_dir=temp_dir)
-            page_count = page_counting_service.count_pages_from_file_path(pdf_path, f"{Path(filename).stem}.pdf")
+            page_count = await asyncio.to_thread(
+                page_counting_service.count_pages_from_file_path,
+                pdf_path,
+                f"{Path(filename).stem}.pdf",
+            )
         else:
             raise ValueError("Target file must be a PDF or DOCX")
 
@@ -802,7 +807,7 @@ class FormFillService:
     async def _count_target_pages_from_bytes(self, *, content: bytes, filename: str, mime_type: str) -> int:
         normalized_mime = (mime_type or "").lower()
         if normalized_mime == PDF_MIME:
-            page_count = page_counting_service.count_pages_from_content(content, filename)
+            page_count = await asyncio.to_thread(page_counting_service.count_pages_from_content, content, filename)
             if page_count is None or page_count <= 0:
                 raise ValueError("Could not determine target page count")
             return int(page_count)
@@ -1015,11 +1020,13 @@ class FormFillService:
                 target_mime = (target_file.content_type or _guess_mime_type(target_filename)).lower()
                 if target_mime not in SUPPORTED_TARGET_MIME_TYPES:
                     raise ValueError("Target file must be a PDF or DOCX")
-                target_page_count = await self._count_target_pages_from_bytes(
-                    content=target_bytes,
-                    filename=target_filename,
-                    mime_type=target_mime,
-                )
+                target_page_count = None
+                if target_mime == PDF_MIME:
+                    target_page_count = await self._count_target_pages_from_bytes(
+                        content=target_bytes,
+                        filename=target_filename,
+                        mime_type=target_mime,
+                    )
 
                 target_object_name = f"form-fill/{user_id}/runs/{run.id}/target{_safe_ext(target_filename, '.bin')}"
                 await self._upload_bytes(target_object_name, target_bytes)

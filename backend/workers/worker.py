@@ -1532,6 +1532,81 @@ async def automation_shutdown(ctx: Dict[str, Any]) -> None:
     """Cleanup automation worker resources"""
     logger.info("Automation worker shutting down...")
 
+async def process_gmail_push_notification(
+    ctx: Dict[str, Any],
+    notification_data: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
+    """Process Gmail Pub/Sub history and enqueue matching automation triggers."""
+    notification_data = notification_data or {}
+    logger.info(
+        "Processing Gmail push notification history: email=%s history_id=%s",
+        notification_data.get("email_address"),
+        notification_data.get("history_id"),
+    )
+
+    try:
+        from services.gmail_pubsub_service import gmail_pubsub_service
+
+        def fetch_new_messages():
+            with next(get_db()) as history_db:
+                return gmail_pubsub_service.process_history_with_cursor(history_db)
+
+        new_messages = await asyncio.to_thread(fetch_new_messages)
+        logger.info(f"Gmail Pub/Sub service returned {len(new_messages)} new messages")
+
+        for i, msg in enumerate(new_messages):
+            logger.info(f"Message {i + 1}: {msg}")
+
+        if not new_messages:
+            logger.info("No new messages found in history")
+            return {"status": "ignored", "reason": "No new messages"}
+
+        with next(get_db()) as db:
+            processed_messages = []
+            for message in new_messages:
+                logger.info(f"Processing message: {message}")
+                sender_email = message.get("sender_email")
+                if not sender_email:
+                    logger.warning("No sender email found in message")
+                    continue
+
+                user_id = gmail_pubsub_service.get_user_id_from_sender_email(db, sender_email)
+                if not user_id:
+                    logger.info(f"No user found for sender email {sender_email}, ignoring message")
+                    continue
+
+                logger.info(f"Triggering automations for user {user_id} with message data: {message}")
+                trigger_result = await gmail_pubsub_service.trigger_automations_for_email(
+                    db, user_id, message
+                )
+
+                processed_messages.append({
+                    "sender_email": sender_email,
+                    "user_id": user_id,
+                    "trigger_result": trigger_result,
+                })
+
+            if not processed_messages:
+                return {"status": "ignored", "reason": "No messages matched any users"}
+
+            successful_triggers = [m for m in processed_messages if m["trigger_result"].get("success")]
+            result = {
+                "processed_count": len(processed_messages),
+                "successful_count": len(successful_triggers),
+                "messages": processed_messages,
+            }
+
+            if successful_triggers:
+                logger.info(f"Successfully processed {result['successful_count']} messages")
+                return {"status": "success", **result}
+
+            logger.error(f"Failed to trigger any automations from {result['processed_count']} messages")
+            return {"status": "partial_success", **result}
+
+    except Exception as e:
+        logger.error(f"Gmail push notification processing failed: {e}")
+        raise
+
 async def automation_trigger_worker(
     ctx: Dict[str, Any],
     user_id: str,

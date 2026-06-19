@@ -1,15 +1,17 @@
 """
 Webhook endpoints for external service integrations
 """
+import asyncio
 import logging
 import os
 import stripe
 from fastapi import APIRouter, Request, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 
-from core.database import get_db
+from core.database import db_config, get_db
 from services.gmail_pubsub_service import gmail_pubsub_service
 from services.billing_service import get_billing_service
+from services.cloud_run_task_service import cloud_run_task_service
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +19,17 @@ router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 
 # Stripe webhook endpoint secret
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+
+
+def _run_with_new_session(work):
+    db = db_config.get_session()
+    try:
+        return work(db)
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 async def verify_pubsub_request(request: Request):
     """
@@ -50,7 +63,6 @@ async def verify_pubsub_request(request: Request):
 @router.post("/stripe")
 async def stripe_webhook(
     request: Request,
-    db: Session = Depends(get_db)
 ):
     """Handle Stripe webhook events for billing and subscription management"""
     payload = await request.body()
@@ -71,31 +83,33 @@ async def stripe_webhook(
         logger.error(f"Invalid Stripe webhook signature: {e}")
         raise HTTPException(status_code=400, detail="Invalid signature")
     
-    billing_service = get_billing_service(db)
-    
     try:
-        # Handle the event
-        if event['type'] == 'checkout.session.completed':
-            logger.info(f"Processing checkout.session.completed: {event['data']['object']['id']}")
-            session = event['data']['object']
-            billing_service.handle_checkout_completed(session)
-            
-        elif event['type'] in {'customer.subscription.created', 'customer.subscription.updated'}:
-            logger.info(f"Processing {event['type']}: {event['data']['object']['id']}")
-            subscription = event['data']['object']
-            billing_service.handle_subscription_updated(subscription)
-            
-        elif event['type'] == 'customer.subscription.deleted':
-            logger.info(f"Processing customer.subscription.deleted: {event['data']['object']['id']}")
-            subscription = event['data']['object']
-            billing_service.handle_subscription_deleted(subscription)
-            
-        elif event['type'] == 'invoice.finalized':
-            logger.info(f"Processing invoice.finalized: {event['data']['object']['id']}")
-            # Optional: Add reconciliation logic here
-            pass
-        else:
-            logger.info(f"Unhandled Stripe event type: {event['type']}")
+        def handle_event(db: Session):
+            billing_service = get_billing_service(db)
+            # Handle the event
+            if event['type'] == 'checkout.session.completed':
+                logger.info(f"Processing checkout.session.completed: {event['data']['object']['id']}")
+                session = event['data']['object']
+                billing_service.handle_checkout_completed(session)
+
+            elif event['type'] in {'customer.subscription.created', 'customer.subscription.updated'}:
+                logger.info(f"Processing {event['type']}: {event['data']['object']['id']}")
+                subscription = event['data']['object']
+                billing_service.handle_subscription_updated(subscription)
+
+            elif event['type'] == 'customer.subscription.deleted':
+                logger.info(f"Processing customer.subscription.deleted: {event['data']['object']['id']}")
+                subscription = event['data']['object']
+                billing_service.handle_subscription_deleted(subscription)
+
+            elif event['type'] == 'invoice.finalized':
+                logger.info(f"Processing invoice.finalized: {event['data']['object']['id']}")
+                # Optional: Add reconciliation logic here
+                pass
+            else:
+                logger.info(f"Unhandled Stripe event type: {event['type']}")
+
+        await asyncio.to_thread(_run_with_new_session, handle_event)
         
         return {"status": "success"}
         
@@ -110,7 +124,6 @@ async def stripe_webhook(
 @router.post("/gmail-push")
 async def gmail_push_webhook(
     request: Request,
-    db: Session = Depends(get_db),
     _: None = Depends(verify_pubsub_request)
 ):
     """
@@ -138,73 +151,14 @@ async def gmail_push_webhook(
             logger.warning("Failed to process push notification data")
             return {"status": "ignored", "reason": "Invalid notification data"}
         
-        # Process Gmail history using stored cursor (proper Gmail Pub/Sub pattern)
-        logger.info("Calling gmail_pubsub_service.process_history_with_cursor()")
-        new_messages = gmail_pubsub_service.process_history_with_cursor(db)
-        logger.info(f"Gmail Pub/Sub service returned {len(new_messages)} new messages")
-        
-        # Debug: log each message
-        for i, msg in enumerate(new_messages):
-            logger.info(f"Message {i+1}: {msg}")
-        
-        if not new_messages:
-            logger.info("No new messages found in history")
-            return {"status": "ignored", "reason": "No new messages"}
-        
-        # Process each new message
-        processed_messages = []
-        for message in new_messages:
-            logger.info(f"Processing message: {message}")
-            sender_email = message.get('sender_email')
-            if not sender_email:
-                logger.warning("No sender email found in message")
-                continue
-            
-            # Get user ID from sender email
-            user_id = gmail_pubsub_service.get_user_id_from_sender_email(db, sender_email)
-            if not user_id:
-                logger.info(f"No user found for sender email {sender_email}, ignoring message")
-                continue
-            
-            logger.info(f"Triggering automations for user {user_id} with message data: {message}")
-            # Trigger automations for the user
-            trigger_result = await gmail_pubsub_service.trigger_automations_for_email(
-                db, user_id, message
-            )
-            
-            processed_messages.append({
-                'sender_email': sender_email,
-                'user_id': user_id,
-                'trigger_result': trigger_result
-            })
-        
-        if not processed_messages:
-            return {"status": "ignored", "reason": "No messages matched any users"}
-        
-        # Return summary of processed messages
-        successful_triggers = [m for m in processed_messages if m['trigger_result']['success']]
-        trigger_result = {
-            'success': len(successful_triggers) > 0,
-            'processed_count': len(processed_messages),
-            'successful_count': len(successful_triggers)
+        task_name = await cloud_run_task_service.enqueue_gmail_history_processing_task(notification_data)
+        logger.info(f"Enqueued Gmail push notification processing task: {task_name}")
+
+        return {
+            "status": "accepted",
+            "task_name": task_name,
+            "history_id": notification_data.get("history_id"),
         }
-        
-        if trigger_result['success']:
-            logger.info(f"Successfully processed {trigger_result['successful_count']} messages")
-            return {
-                "status": "success",
-                "processed_messages": trigger_result['processed_count'],
-                "successful_triggers": trigger_result['successful_count'],
-                "messages": processed_messages
-            }
-        else:
-            logger.error(f"Failed to trigger any automations from {trigger_result['processed_count']} messages")
-            return {
-                "status": "partial_success",
-                "processed_messages": trigger_result['processed_count'],
-                "successful_triggers": trigger_result['successful_count'],
-                "messages": processed_messages
-            }
         
     except HTTPException:
         raise

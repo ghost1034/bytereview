@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import sys
 import unittest
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -24,6 +25,38 @@ class FakeRequest:
 
 
 class ExtractTaskServiceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_process_inkwise_source_ingestion_executes_service(self) -> None:
+        ingestion_id = "11111111-1111-1111-1111-111111111111"
+        request = FakeRequest(
+            {
+                "task_type": "process_inkwise_source_ingestion",
+                "ingestion_id": ingestion_id,
+            },
+            {},
+        )
+        db = MagicMock()
+        ingestion = SimpleNamespace(id=uuid.UUID(ingestion_id), status="completed")
+
+        with patch("task_services.extract_task_service.db_config.get_session", return_value=db):
+            with patch("task_services.extract_task_service.inkwise_ingestion_service") as service:
+                service.process_source_ingestion_once.return_value = ingestion
+
+                result = await execute_task(request)
+
+        self.assertEqual(
+            result,
+            {
+                "success": True,
+                "result": {
+                    "ok": True,
+                    "ingestion_id": ingestion_id,
+                    "status": "completed",
+                },
+            },
+        )
+        service.process_source_ingestion_once.assert_called_once_with(db, ingestion_id=uuid.UUID(ingestion_id))
+        db.close.assert_called_once()
+
     async def test_process_form_fill_output_passes_cloud_tasks_retry_headers(self) -> None:
         request = FakeRequest(
             {

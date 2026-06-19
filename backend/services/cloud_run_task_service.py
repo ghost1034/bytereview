@@ -3,6 +3,7 @@ Cloud Run Tasks service to replace ARQ workers
 Handles task creation and execution coordination
 """
 import os
+import asyncio
 import json
 import logging
 import hashlib
@@ -195,6 +196,21 @@ class CloudRunTaskService:
             dispatch_deadline_seconds=self.extract_dispatch_deadline_seconds,
         )
 
+    async def enqueue_inkwise_ingestion_task(self, ingestion_id: str, delay_seconds: int = 0) -> str:
+        """Enqueue Inkwise source ingestion on task-extract."""
+        task_data = {
+            "task_type": "process_inkwise_source_ingestion",
+            "ingestion_id": str(ingestion_id) if ingestion_id is not None else None,
+        }
+
+        return await self._create_cloud_task(
+            queue_name=self.queue_names["extract"],
+            service_url=f"{self.task_services['extract']}/execute",
+            task_data=task_data,
+            delay_seconds=delay_seconds,
+            dispatch_deadline_seconds=self.extract_dispatch_deadline_seconds,
+        )
+
     async def enqueue_zip_unpack_task(
         self, 
         source_file_id: str, 
@@ -285,6 +301,24 @@ class CloudRunTaskService:
             task_data=task_data
         )
 
+    async def enqueue_gmail_history_processing_task(
+        self,
+        notification_data: Dict[str, Any],
+        delay_seconds: int = 0,
+    ) -> str:
+        """Enqueue Gmail Pub/Sub history processing on task-automation."""
+        task_data = {
+            "task_type": "process_gmail_push_notification",
+            "notification_data": notification_data or {},
+        }
+
+        return await self._create_cloud_task(
+            queue_name=self.queue_names["automation"],
+            service_url=f"{self.task_services['automation']}/execute",
+            task_data=task_data,
+            delay_seconds=delay_seconds,
+        )
+
     async def enqueue_maintenance_task(
         self,
         task_type: str,  # Any of the maintenance functions
@@ -357,7 +391,10 @@ class CloudRunTaskService:
                 task=task
             )
             
-            response = self.tasks_client.create_task(request=request)
+            def create_task():
+                return self.tasks_client.create_task(request=request)
+
+            response = await asyncio.to_thread(create_task)
             task_name = response.name
             
             logger.info(f"Created Cloud Task: {task_name}")

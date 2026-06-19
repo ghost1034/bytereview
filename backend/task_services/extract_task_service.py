@@ -4,6 +4,8 @@ Replaces worker-extract ARQ worker
 """
 import os
 import logging
+import asyncio
+import uuid
 from fastapi import FastAPI, Request, HTTPException
 from contextlib import asynccontextmanager
 import uvicorn
@@ -15,9 +17,12 @@ backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
 
 from workers.worker import process_extraction_task
+from core.database import db_config
+from inkwise.services.ingestion_service import InkwiseIngestionService
 from services.form_fill_service import form_fill_service
 
 logger = logging.getLogger(__name__)
+inkwise_ingestion_service = InkwiseIngestionService()
 
 
 def _header_int(request: Request, name: str) -> int | None:
@@ -113,6 +118,35 @@ async def execute_task(request: Request):
                 task_name=request.headers.get("X-CloudTasks-TaskName"),
             )
             logger.info(f"Form Fill output {output_id} completed: {result}")
+            return {"success": True, "result": result}
+
+        elif task_type == "process_inkwise_source_ingestion":
+            ingestion_id_raw = task_data.get("ingestion_id")
+            if not ingestion_id_raw:
+                raise HTTPException(status_code=400, detail="ingestion_id is required")
+
+            try:
+                ingestion_id = uuid.UUID(str(ingestion_id_raw))
+            except Exception as exc:
+                raise HTTPException(status_code=400, detail="Invalid ingestion_id") from exc
+
+            logger.info(f"Executing Inkwise source ingestion: {ingestion_id}")
+
+            def process_ingestion() -> dict:
+                db = db_config.get_session()
+                try:
+                    ingestion = inkwise_ingestion_service.process_source_ingestion_once(db, ingestion_id=ingestion_id)
+                    return {
+                        "ok": True,
+                        "ingestion_id": str(ingestion.id),
+                        "status": ingestion.status,
+                    }
+                finally:
+                    db.close()
+
+            result = await asyncio.to_thread(process_ingestion)
+
+            logger.info(f"Inkwise source ingestion {ingestion_id} completed: {result}")
             return {"success": True, "result": result}
 
         else:

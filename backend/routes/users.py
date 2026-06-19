@@ -5,6 +5,7 @@ PostgreSQL-only implementation
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
 from typing import Optional
+import asyncio
 import logging
 from services.user_service import DuplicatePhoneNumberError, UserService
 from models.user import PhoneAvailabilityResponse, UserResponse, UserUpdate, UpdateProfileRequest
@@ -43,7 +44,7 @@ async def get_current_user(token_data: dict = Depends(verify_firebase_token)):
         user = await user_service.get_or_create_user(
             uid=token_data["uid"],
             email=email,
-            resolve_phone_number=lambda: get_enrolled_mfa_phone_number(token_data["uid"]),
+            resolve_phone_number=lambda: asyncio.to_thread(get_enrolled_mfa_phone_number, token_data["uid"]),
             display_name=None,  # Will be updated via /me/sync
             photo_url=None
         )
@@ -78,7 +79,7 @@ async def sync_user_profile(
         user = await user_service.sync_user_profile(
             uid=token_data["uid"],
             email=email,
-            resolve_phone_number=lambda: get_enrolled_mfa_phone_number(token_data["uid"]),
+            resolve_phone_number=lambda: asyncio.to_thread(get_enrolled_mfa_phone_number, token_data["uid"]),
             display_name=sync_data.display_name,
             photo_url=sync_data.photo_url
         )

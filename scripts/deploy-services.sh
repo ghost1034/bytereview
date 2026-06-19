@@ -266,9 +266,9 @@ ensure_base_services() {
       --port=8000 \
       --memory=2Gi \
       --cpu=2 \
-      --min-instances=1 \
+      --min-instances=0 \
       --max-instances=10 \
-      --concurrency=80 \
+      --concurrency=40 \
       --timeout="$API_TIMEOUT" \
       --add-cloudsql-instances="$CLOUD_SQL_INSTANCE" \
       --vpc-connector="$VPC_CONNECTOR" \
@@ -290,7 +290,7 @@ ensure_base_services() {
       --port=3000 \
       --memory=1Gi \
       --cpu=1 \
-      --min-instances=1 \
+      --min-instances=0 \
       --max-instances=5 \
       --concurrency=100 \
       --timeout=60 \
@@ -356,6 +356,8 @@ deploy_api() {
   gcloud run services update "$service_name" \
     --region="$REGION" \
     --image="$image_url" \
+    --min-instances=0 \
+    --concurrency=40 \
     --timeout="${API_TIMEOUT}" \
     --update-env-vars="$env_vars" \
     --update-secrets="$secrets" \
@@ -371,6 +373,7 @@ deploy_web() {
   gcloud run services update "$service_name" \
     --region="$REGION" \
     --image="$image_url" \
+    --min-instances=0 \
     --update-env-vars="NODE_ENV=production" \
     >/dev/null
 

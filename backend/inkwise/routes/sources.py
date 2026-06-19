@@ -1,10 +1,10 @@
 import asyncio
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from core.database import get_db
+from core.database import db_config, get_db
 from dependencies.auth import verify_firebase_token
 from inkwise.schemas import (
     InkwiseAssetPreviewRequest,
@@ -27,13 +27,24 @@ from inkwise.schemas import (
 )
 from inkwise.services.ingestion_service import InkwiseIngestionService
 from inkwise.services.source_service import InkwisePlanRestrictionError, InkwiseSourceService
-from inkwise.services.task_service import enqueue_ingestion_task
 from inkwise.settings import get_inkwise_settings
+from services.cloud_run_task_service import cloud_run_task_service
 from services.user_service import DuplicatePhoneNumberError
 
 router = APIRouter(prefix="/sources", tags=["inkwise-sources"])
 source_service = InkwiseSourceService()
 ingestion_service = InkwiseIngestionService()
+
+
+def _run_with_new_session(work):
+    db = db_config.get_session()
+    try:
+        return work(db)
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
 @router.get("", response_model=InkwisePaginatedSources)
@@ -144,19 +155,22 @@ async def delete_source(
 async def init_source_upload(
     body: InkwiseSourceUploadInitRequest,
     token_data: dict = Depends(verify_firebase_token),
-    db: Session = Depends(get_db),
 ) -> InkwiseSourceUploadInitResponse:
     user_id = token_data["uid"]
     try:
-        source_service.ensure_user_record(
-            db,
-            user_id=user_id,
-            email=token_data.get("email"),
-            phone_number=token_data.get("phone_number"),
-        )
-        source, upload = source_service.init_upload(db, user_id=user_id, body=body)
+        def init_upload(db: Session):
+            source_service.ensure_user_record(
+                db,
+                user_id=user_id,
+                email=token_data.get("email"),
+                phone_number=token_data.get("phone_number"),
+            )
+            source, upload = source_service.init_upload(db, user_id=user_id, body=body)
+            return InkwiseSourceOut.model_validate(source), upload
+
+        source, upload = await asyncio.to_thread(_run_with_new_session, init_upload)
         return InkwiseSourceUploadInitResponse(
-            source=InkwiseSourceOut.model_validate(source),
+            source=source,
             upload=InkwiseUploadInfo(
                 method="PUT",
                 url=upload.url,
@@ -165,19 +179,14 @@ async def init_source_upload(
             ),
         )
     except ValueError as exc:
-        db.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except InkwisePlanRestrictionError as exc:
-        db.rollback()
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except DuplicatePhoneNumberError as exc:
-        db.rollback()
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except RuntimeError as exc:
-        db.rollback()
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:
-        db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to initialize upload: {exc}") from exc
 
 
@@ -185,34 +194,27 @@ async def init_source_upload(
 async def capture_webpage_source(
     body: InkwiseWebpageCaptureRequest,
     token_data: dict = Depends(verify_firebase_token),
-    db: Session = Depends(get_db),
 ) -> InkwiseSourceOut:
     user_id = token_data["uid"]
     try:
-        source_service.ensure_user_record(
-            db,
-            user_id=user_id,
-            email=token_data.get("email"),
-            phone_number=token_data.get("phone_number"),
-        )
-        # Offload to a thread: capture performs a blocking external HTTP fetch
-        # (requests, up to a 30s timeout) plus PDF rendering, which would
-        # otherwise freeze the worker's event loop for the full duration.
-        source = await asyncio.to_thread(
-            source_service.capture_webpage_snapshot, db, user_id=user_id, body=body
-        )
-        return InkwiseSourceOut.model_validate(source)
+        def capture(db: Session):
+            source_service.ensure_user_record(
+                db,
+                user_id=user_id,
+                email=token_data.get("email"),
+                phone_number=token_data.get("phone_number"),
+            )
+            return InkwiseSourceOut.model_validate(source_service.capture_webpage_snapshot(db, user_id=user_id, body=body))
+
+        source = await asyncio.to_thread(_run_with_new_session, capture)
+        return source
     except ValueError as exc:
-        db.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except DuplicatePhoneNumberError as exc:
-        db.rollback()
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except RuntimeError as exc:
-        db.rollback()
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:
-        db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to capture webpage: {exc}") from exc
 
 
@@ -220,33 +222,34 @@ async def capture_webpage_source(
 async def import_drive_sources(
     body: InkwiseDriveImportRequest,
     token_data: dict = Depends(verify_firebase_token),
-    db: Session = Depends(get_db),
 ) -> InkwiseSourceImportResponse:
     user_id = token_data["uid"]
     try:
-        source_service.ensure_user_record(
-            db,
-            user_id=user_id,
-            email=token_data.get("email"),
-            phone_number=token_data.get("phone_number"),
-        )
-        imported = source_service.import_drive_files(db, user_id=user_id, file_ids=body.file_ids)
+        def import_files(db: Session):
+            source_service.ensure_user_record(
+                db,
+                user_id=user_id,
+                email=token_data.get("email"),
+                phone_number=token_data.get("phone_number"),
+            )
+            return [
+                InkwiseSourceOut.model_validate(item)
+                for item in source_service.import_drive_files(db, user_id=user_id, file_ids=body.file_ids)
+            ]
+
+        imported = await asyncio.to_thread(_run_with_new_session, import_files)
         return InkwiseSourceImportResponse(
-            sources=[InkwiseSourceOut.model_validate(item) for item in imported],
+            sources=imported,
             expanded_archives=sum(1 for item in imported if (item.external_meta or {}).get("archive_entry_path")),
             message=f"Imported {len(imported)} reference{'s' if len(imported) != 1 else ''} from Google Drive",
         )
     except ValueError as exc:
-        db.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except InkwisePlanRestrictionError as exc:
-        db.rollback()
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except DuplicatePhoneNumberError as exc:
-        db.rollback()
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except Exception as exc:
-        db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to import Google Drive sources: {exc}") from exc
 
 
@@ -255,18 +258,23 @@ async def complete_source_upload(
     source_id: uuid.UUID,
     body: InkwiseSourceUploadCompleteRequest | None = None,
     token_data: dict = Depends(verify_firebase_token),
-    db: Session = Depends(get_db),
 ) -> InkwiseSourceImportResponse:
     user_id = token_data["uid"]
     try:
-        imported_sources = source_service.complete_upload(
-            db,
-            user_id=user_id,
-            source_id=source_id,
-            checksum_sha256=body.checksum_sha256 if body else None,
+        imported_sources = await asyncio.to_thread(
+            _run_with_new_session,
+            lambda db: [
+                InkwiseSourceOut.model_validate(item)
+                for item in source_service.complete_upload(
+                    db,
+                    user_id=user_id,
+                    source_id=source_id,
+                    checksum_sha256=body.checksum_sha256 if body else None,
+                )
+            ],
         )
         return InkwiseSourceImportResponse(
-            sources=[InkwiseSourceOut.model_validate(item) for item in imported_sources],
+            sources=imported_sources,
             expanded_archives=(
                 1
                 if imported_sources and any((item.external_meta or {}).get("archive_entry_path") for item in imported_sources)
@@ -279,17 +287,13 @@ async def complete_source_upload(
             ),
         )
     except FileNotFoundError as exc:
-        db.rollback()
         status_code = 404 if str(exc) == "Source not found" else 400
         raise HTTPException(status_code=status_code, detail=str(exc)) from exc
     except InkwisePlanRestrictionError as exc:
-        db.rollback()
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
-        db.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to finalize upload: {exc}") from exc
 
 
@@ -297,11 +301,13 @@ async def complete_source_upload(
 async def preview_source(
     source_id: uuid.UUID,
     token_data: dict = Depends(verify_firebase_token),
-    db: Session = Depends(get_db),
 ) -> InkwiseSignedUrlResponse:
     user_id = token_data["uid"]
     try:
-        signed = source_service.signed_preview(db, user_id=user_id, source_id=source_id)
+        signed = await asyncio.to_thread(
+            _run_with_new_session,
+            lambda db: source_service.signed_preview(db, user_id=user_id, source_id=source_id),
+        )
         return InkwiseSignedUrlResponse(url=signed.url, expires_at=signed.expires_at)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -314,11 +320,13 @@ async def preview_source_asset(
     source_id: uuid.UUID,
     body: InkwiseAssetPreviewRequest,
     token_data: dict = Depends(verify_firebase_token),
-    db: Session = Depends(get_db),
 ) -> InkwiseSignedUrlResponse:
     user_id = token_data["uid"]
     try:
-        signed = source_service.signed_preview_asset(db, user_id=user_id, source_id=source_id, body=body)
+        signed = await asyncio.to_thread(
+            _run_with_new_session,
+            lambda db: source_service.signed_preview_asset(db, user_id=user_id, source_id=source_id, body=body),
+        )
         return InkwiseSignedUrlResponse(url=signed.url, expires_at=signed.expires_at)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -332,11 +340,13 @@ async def preview_source_asset(
 async def download_source(
     source_id: uuid.UUID,
     token_data: dict = Depends(verify_firebase_token),
-    db: Session = Depends(get_db),
 ) -> InkwiseSignedUrlResponse:
     user_id = token_data["uid"]
     try:
-        signed = source_service.signed_download(db, user_id=user_id, source_id=source_id)
+        signed = await asyncio.to_thread(
+            _run_with_new_session,
+            lambda db: source_service.signed_download(db, user_id=user_id, source_id=source_id),
+        )
         return InkwiseSignedUrlResponse(url=signed.url, expires_at=signed.expires_at)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -347,7 +357,6 @@ async def download_source(
 @router.post("/{source_id}/ingest", response_model=InkwiseSourceIngestionOut, status_code=202)
 async def enqueue_source_ingestion(
     source_id: uuid.UUID,
-    request: Request,
     token_data: dict = Depends(verify_firebase_token),
     db: Session = Depends(get_db),
 ) -> InkwiseSourceIngestionOut:
@@ -355,33 +364,38 @@ async def enqueue_source_ingestion(
     try:
         ingestion = ingestion_service.enqueue_ingestion(db, user_id=user_id, source_id=source_id)
         settings = get_inkwise_settings()
-        enqueued = enqueue_ingestion_task(
-            settings=settings,
-            ingestion_id=str(ingestion.id),
-            delay_seconds=0,
-            service_url=str(request.base_url).rstrip("/"),
-        )
-        if not enqueued.created:
+        try:
+            await cloud_run_task_service.enqueue_inkwise_ingestion_task(str(ingestion.id))
+        except Exception as enqueue_exc:
             if settings.inline_ingest_fallback_enabled:
                 ingestion_id = uuid.UUID(str(ingestion.id))
-                ingestion = ingestion_service.process_source_ingestion_once(db, ingestion_id=ingestion_id)
+                ingestion = await asyncio.to_thread(
+                    _run_with_new_session,
+                    lambda thread_db: InkwiseSourceIngestionOut.model_validate(
+                        ingestion_service.process_source_ingestion_once(thread_db, ingestion_id=ingestion_id)
+                    ),
+                )
             else:
                 ingestion = ingestion_service.mark_enqueue_failed(
                     db,
                     ingestion_id=uuid.UUID(str(ingestion.id)),
                     message=(
-                        "Inkwise Cloud Tasks ingestion is not configured. "
-                        "Set CLOUD_TASKS_PROJECT, CLOUD_TASKS_LOCATION, CLOUD_TASKS_QUEUE_INGEST, and CLOUD_TASKS_SERVICE_URL."
+                        "Inkwise task-extract ingestion enqueue failed. "
+                        f"Error: {enqueue_exc}"
                     ),
                 )
                 raise HTTPException(
                     status_code=503,
                     detail=(
-                        "Inkwise ingestion queue is not configured in this environment. "
-                        "Deployment must set CLOUD_TASKS_PROJECT, CLOUD_TASKS_LOCATION, CLOUD_TASKS_QUEUE_INGEST, and CLOUD_TASKS_SERVICE_URL."
+                        "Inkwise ingestion queue is not available in this environment. "
+                        "Deployment must configure task-extract Cloud Tasks dispatch."
                     ),
                 )
+        if isinstance(ingestion, InkwiseSourceIngestionOut):
+            return ingestion
         return InkwiseSourceIngestionOut.model_validate(ingestion)
+    except HTTPException:
+        raise
     except FileNotFoundError as exc:
         db.rollback()
         raise HTTPException(status_code=404, detail=str(exc)) from exc
