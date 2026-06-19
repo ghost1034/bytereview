@@ -423,7 +423,7 @@ export function InlineWritingTools({
   const hasSelection = Boolean(visibleTarget?.hasSelection)
 
   const panel = (
-    <div className="flex max-h-[min(80vh,42rem)] w-[min(32rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card p-3 shadow-sm">
+    <div className="flex max-h-[min(86vh,50rem)] w-[min(44rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card p-3 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -616,7 +616,7 @@ export function InlineWritingTools({
                       : 'Running without grounded evidence'}
               </div>
             ) : null}
-            <div className="mt-3 max-h-56 overflow-auto text-sm">
+            <div className="mt-3 max-h-72 overflow-auto text-sm">
               {outputMd ? (
                 <InkwiseMarkdownView
                   markdown={outputWithCitations || outputMd}
@@ -687,7 +687,7 @@ export function InlineWritingTools({
         shouldShow={({ editor }) => shouldShowBubbleWritingTools(editor)}
         tippyOptions={{
           duration: 120,
-          maxWidth: 560,
+          maxWidth: 736,
           placement: 'bottom',
           appendTo: () => document.body,
           interactive: true,
@@ -707,7 +707,7 @@ export function InlineWritingTools({
         shouldShow={({ editor }) => shouldShowFloatingWritingTools(editor)}
         tippyOptions={{
           duration: 120,
-          maxWidth: 560,
+          maxWidth: 736,
           placement: 'bottom',
           appendTo: () => document.body,
           interactive: true,
