@@ -14,7 +14,7 @@ PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presen
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 CSV_MIME = "text/csv"
 
-OFFICE_PDF_CONVERSION_MIME_TYPES = {DOCX_MIME, PPTX_MIME}
+OFFICE_PDF_CONVERSION_MIME_TYPES = {DOCX_MIME, PPTX_MIME, XLSX_MIME}
 SUPPORTED_EXTRACTION_MIME_TYPES = {
     PDF_MIME,
     DOCX_MIME,
@@ -85,7 +85,7 @@ class DocumentConversionService:
             raise FileNotFoundError(f"Input Office document not found: {input_path}")
 
         extension = os.path.splitext(input_path)[1].lower()
-        if extension not in {".docx", ".pptx"}:
+        if extension not in {".docx", ".pptx", ".xlsx"}:
             raise ValueError(f"Unsupported Office document for PDF conversion: {extension or 'unknown'}")
 
         soffice_path = shutil.which(self.soffice_binary)
@@ -170,6 +170,10 @@ class DocumentConversionService:
     async def convert_pptx_local_to_pdf_local(self, pptx_path: str, out_dir: Optional[str] = None) -> str:
         """Convert a local PPTX file to a local PDF using headless LibreOffice."""
         return await self.convert_office_local_to_pdf_local(pptx_path, out_dir=out_dir)
+
+    async def convert_xlsx_local_to_pdf_local(self, xlsx_path: str, out_dir: Optional[str] = None) -> str:
+        """Convert a local XLSX file to a local PDF using headless LibreOffice."""
+        return await self.convert_office_local_to_pdf_local(xlsx_path, out_dir=out_dir)
 
     async def convert_docx_gcs_to_pdf_gcs(self, storage_service, gcs_input_object_name: str, gcs_output_object_name: str) -> Tuple[str, int]:
         """

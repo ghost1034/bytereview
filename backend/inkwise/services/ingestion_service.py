@@ -92,7 +92,7 @@ class InkwiseIngestionService:
                 db,
                 ingestion_id=ingestion_id,
                 code="unsupported_type",
-                message="Only PDF, DOCX, webpage, image, audio, and video sources are supported",
+                message="Only PDF, DOCX, PPTX, XLSX, webpage, image, audio, and video sources are supported",
             )
             return self._get_ingestion_or_404(db, ingestion_id)
 
@@ -695,6 +695,10 @@ class InkwiseIngestionService:
             return True
         if content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
             return True
+        if content_type == "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+            return True
+        if content_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+            return True
         if content_type == "text/html":
             return True
         if content_type in {
@@ -716,6 +720,8 @@ class InkwiseIngestionService:
             (
                 ".pdf",
                 ".docx",
+                ".pptx",
+                ".xlsx",
                 ".html",
                 ".htm",
                 ".jpg",

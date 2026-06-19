@@ -45,6 +45,8 @@ _HTML_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOT
 _UPLOAD_KIND_TO_CONTENT_TYPE = {
     "pdf": "application/pdf",
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "zip": "application/zip",
     "image_jpeg": "image/jpeg",
     "image_png": "image/png",
@@ -56,6 +58,8 @@ _UPLOAD_KIND_TO_CONTENT_TYPE = {
 _UPLOAD_KIND_TO_EXTENSION = {
     "pdf": ".pdf",
     "docx": ".docx",
+    "pptx": ".pptx",
+    "xlsx": ".xlsx",
     "zip": ".zip",
     "image_jpeg": ".jpg",
     "image_png": ".png",
@@ -67,6 +71,8 @@ _UPLOAD_KIND_TO_EXTENSION = {
 _SUPPORTED_UPLOAD_MIME_TYPES = {
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/zip",
     "application/x-zip-compressed",
     "image/jpeg",
@@ -894,7 +900,7 @@ class InkwiseSourceService:
 
         upload_kind = self._detect_upload_kind(filename=filename, content_type=content_type)
         if upload_kind is None:
-            raise ValueError("Only PDF, DOCX, image, audio, video, and ZIP uploads are currently supported")
+            raise ValueError("Only PDF, DOCX, PPTX, XLSX, image, audio, video, and ZIP uploads are currently supported")
         self._assert_size_within_limit(
             size_bytes=int(body.size_bytes),
             upload_kind=upload_kind,
@@ -963,6 +969,10 @@ class InkwiseSourceService:
             return "pdf"
         if lowered_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or lowered_filename.endswith(".docx"):
             return "docx"
+        if lowered_type == "application/vnd.openxmlformats-officedocument.presentationml.presentation" or lowered_filename.endswith(".pptx"):
+            return "pptx"
+        if lowered_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" or lowered_filename.endswith(".xlsx"):
+            return "xlsx"
         if lowered_type in {"application/zip", "application/x-zip-compressed"} or lowered_filename.endswith(".zip"):
             return "zip"
         if lowered_type in {"image/jpeg", "image/jpg"} or lowered_filename.endswith((".jpg", ".jpeg")):

@@ -6,6 +6,25 @@ from unittest.mock import patch
 
 from inkwise.services.ingestion_service import IngestionError, InkwiseIngestionService
 
+_PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+_XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+class InkwiseIngestionSupportedSourceTests(unittest.TestCase):
+    def test_office_documents_supported_by_content_type(self) -> None:
+        service = InkwiseIngestionService()
+        pptx = SimpleNamespace(content_type=_PPTX_MIME, original_filename="deck.bin")
+        xlsx = SimpleNamespace(content_type=_XLSX_MIME, original_filename="book.bin")
+        self.assertTrue(service._is_supported_source(pptx))
+        self.assertTrue(service._is_supported_source(xlsx))
+
+    def test_office_documents_supported_by_filename(self) -> None:
+        service = InkwiseIngestionService()
+        pptx = SimpleNamespace(content_type="application/octet-stream", original_filename="deck.pptx")
+        xlsx = SimpleNamespace(content_type="application/octet-stream", original_filename="book.xlsx")
+        self.assertTrue(service._is_supported_source(pptx))
+        self.assertTrue(service._is_supported_source(xlsx))
+
 
 class InkwiseIngestionUsageTests(unittest.TestCase):
     def test_documents_meter_by_page_count(self) -> None:

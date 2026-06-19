@@ -200,6 +200,8 @@ export function InkwiseSourceImportPanel({
           mimeTypes={[
             'application/pdf',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'application/zip',
             'application/x-zip-compressed',
             'image/jpeg',
@@ -240,6 +242,8 @@ function inferSourceContentType(file: File): string {
   if (explicit) return explicit
   const filename = file.name.toLowerCase()
   if (filename.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  if (filename.endsWith('.pptx')) return 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+  if (filename.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   if (filename.endsWith('.zip')) return 'application/zip'
   if (filename.endsWith('.pdf')) return 'application/pdf'
   if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) return 'image/jpeg'
@@ -260,6 +264,8 @@ function buildAcceptedSourceTypes(allowRichMedia: boolean): string {
   return [
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/zip',
     'application/x-zip-compressed',
     'image/jpeg',
@@ -267,6 +273,8 @@ function buildAcceptedSourceTypes(allowRichMedia: boolean): string {
     ...(allowRichMedia ? ['audio/mp3', 'audio/mpeg', 'audio/wav', 'video/mp4', 'video/mpeg'] : []),
     '.pdf',
     '.docx',
+    '.pptx',
+    '.xlsx',
     '.zip',
     '.jpg',
     '.jpeg',
@@ -291,6 +299,8 @@ function isSupportedSourceFile(file: File, allowRichMedia: boolean): boolean {
   return (
     filename.endsWith('.pdf') ||
     filename.endsWith('.docx') ||
+    filename.endsWith('.pptx') ||
+    filename.endsWith('.xlsx') ||
     filename.endsWith('.zip') ||
     filename.endsWith('.jpg') ||
     filename.endsWith('.jpeg') ||

@@ -73,7 +73,7 @@ export default function InkwiseReferencesPage() {
         window.open(result.url, '_blank', 'noopener,noreferrer')
         return
       }
-      if (isDocxSource(source)) {
+      if (isOfficeSourceRequiringConversion(source)) {
         throw new Error('PDF preview will be available after ingestion completes.')
       }
       const result = await apiClient.previewInkwiseSource(source.id)
@@ -441,14 +441,21 @@ function buildBibliographicMetadata(form: MetadataFormState): InkwiseBibliograph
   }
 }
 
-function isDocxSource(source: InkwiseSource): boolean {
-  return (source.content_type || '').toLowerCase() === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+function isOfficeSourceRequiringConversion(source: InkwiseSource): boolean {
+  const contentType = (source.content_type || '').toLowerCase()
+  return (
+    contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+    contentType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+    contentType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  )
 }
 
 function sourceTypeLabel(type: string, contentType: string): string {
   if (type === 'webpage') return 'webpage'
   if (contentType === 'application/zip') return 'zip'
   if (contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx'
+  if (contentType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') return 'pptx'
+  if (contentType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') return 'xlsx'
   if (contentType === 'application/pdf') return 'pdf'
   if (contentType === 'image/jpeg') return 'image'
   if (contentType === 'image/png') return 'image'

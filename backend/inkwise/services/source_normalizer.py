@@ -12,7 +12,13 @@ from typing import Any
 from inkwise.services.ocrmypdf_service import OCRmyPDFError, OCRmyPDFService
 from inkwise.services.pdf_extract import ExtractedPage, extract_pdf_pages_text
 from inkwise.settings import get_inkwise_settings
-from services.document_conversion_service import DOCX_MIME, get_document_conversion_service
+from services.document_conversion_service import (
+    DOCX_MIME,
+    PPTX_MIME,
+    XLSX_MIME,
+    get_document_conversion_service,
+)
+from services.spreadsheet_extraction_service import spreadsheet_extraction_service
 
 
 PDF_MIME = "application/pdf"
@@ -27,6 +33,7 @@ VIDEO_MP4_MIME = "video/mp4"
 VIDEO_MPEG_MIME = "video/mpeg"
 VIDEO_MIME_TYPES = {VIDEO_MP4_MIME, VIDEO_MPEG_MIME}
 _HTML_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+_XLSX_SHEET_HEADER_RE = re.compile(r"^Sheet (\d+): (.*)$", re.MULTILINE)
 
 
 class SourceNormalizationError(RuntimeError):
@@ -93,6 +100,10 @@ class InkwiseSourceNormalizer:
             return self._normalize_pdf(local_path=path, title=resolved_title)
         if detected_mime == DOCX_MIME:
             return self._normalize_docx(local_path=path, title=resolved_title)
+        if detected_mime == PPTX_MIME:
+            return self._normalize_pptx(local_path=path, title=resolved_title)
+        if detected_mime == XLSX_MIME:
+            return self._normalize_xlsx(local_path=path, title=resolved_title)
         if detected_mime == HTML_MIME:
             return self._normalize_webpage(local_path=path, title=resolved_title, source_url=source_url)
         if detected_mime in IMAGE_MIME_TYPES:
@@ -167,6 +178,132 @@ class InkwiseSourceNormalizer:
                 "normalization": "docx_to_pdf",
             },
         )
+
+    def _normalize_pptx(self, *, local_path: str, title: str) -> NormalizedSource:
+        converter = get_document_conversion_service()
+        try:
+            canonical_pdf_path = self._run_async(converter.convert_pptx_local_to_pdf_local(local_path, out_dir=os.path.dirname(local_path)))
+        except Exception as exc:
+            raise SourceNormalizationError(f"PPTX conversion failed: {exc}") from exc
+
+        pages, resolved_canonical_pdf_path, metadata = self._extract_pdf_pages_with_optional_ocr(local_path=canonical_pdf_path)
+        blocks = self._pages_to_blocks(pages)
+        assets = [
+            NormalizedAsset(kind="original_pptx", mime_type=PPTX_MIME, local_path=local_path),
+            NormalizedAsset(
+                kind="canonical_pdf",
+                mime_type=PDF_MIME,
+                local_path=resolved_canonical_pdf_path,
+                page_start=1 if pages else None,
+                page_end=len(pages) if pages else None,
+                meta={"page_count": len(pages)},
+            ),
+        ]
+        return NormalizedSource(
+            source_kind="pptx",
+            title=title,
+            original_local_path=local_path,
+            original_mime_type=PPTX_MIME,
+            canonical_local_path=resolved_canonical_pdf_path,
+            canonical_mime_type=PDF_MIME,
+            text_blocks=blocks,
+            assets=assets,
+            metadata={
+                "page_count": len(pages),
+                **metadata,
+                "normalization": "pptx_to_pdf",
+            },
+        )
+
+    def _normalize_xlsx(self, *, local_path: str, title: str) -> NormalizedSource:
+        converter = get_document_conversion_service()
+        try:
+            canonical_pdf_path = self._run_async(converter.convert_xlsx_local_to_pdf_local(local_path, out_dir=os.path.dirname(local_path)))
+        except Exception as exc:
+            raise SourceNormalizationError(f"XLSX conversion failed: {exc}") from exc
+
+        pages, resolved_canonical_pdf_path, pdf_metadata = self._extract_pdf_pages_with_optional_ocr(local_path=canonical_pdf_path)
+        pdf_page_count = len(pages)
+
+        # Embed higher-fidelity text rendered directly from the workbook (openpyxl),
+        # rather than the layout-clipped text PyMuPDF reads off the converted PDF.
+        try:
+            rendered_text = spreadsheet_extraction_service.render_xlsx_local_to_text(local_path, filename=title)
+        except ValueError as exc:
+            raise SourceNormalizationError("Spreadsheet has no readable content") from exc
+        except Exception as exc:
+            raise SourceNormalizationError(f"XLSX text extraction failed: {exc}") from exc
+
+        sheet_sections = self._split_xlsx_sheets(rendered_text)
+        sheet_count = len(sheet_sections)
+        blocks: list[NormalizedTextBlock] = []
+        for idx, section in enumerate(sheet_sections):
+            if pdf_page_count <= 0:
+                page_number = None
+            elif sheet_count == pdf_page_count:
+                page_number = idx + 1
+            else:
+                page_number = min(idx + 1, pdf_page_count)
+            blocks.append(
+                NormalizedTextBlock(
+                    order_index=idx,
+                    text=section["text"],
+                    page_number=page_number,
+                    meta={
+                        "char_count": len(section["text"]),
+                        "sheet_index": section["sheet_index"],
+                        "sheet_title": section["sheet_title"],
+                    },
+                )
+            )
+
+        assets = [
+            NormalizedAsset(kind="original_xlsx", mime_type=XLSX_MIME, local_path=local_path),
+            NormalizedAsset(
+                kind="canonical_pdf",
+                mime_type=PDF_MIME,
+                local_path=resolved_canonical_pdf_path,
+                page_start=1 if pages else None,
+                page_end=pdf_page_count if pages else None,
+                meta={"page_count": pdf_page_count},
+            ),
+        ]
+        return NormalizedSource(
+            source_kind="xlsx",
+            title=title,
+            original_local_path=local_path,
+            original_mime_type=XLSX_MIME,
+            canonical_local_path=resolved_canonical_pdf_path,
+            canonical_mime_type=PDF_MIME,
+            text_blocks=blocks,
+            assets=assets,
+            metadata={
+                "page_count": pdf_page_count,
+                **pdf_metadata,
+                "normalization": "xlsx_to_pdf_with_text",
+                "sheet_count": sheet_count,
+            },
+        )
+
+    def _split_xlsx_sheets(self, rendered_text: str) -> list[dict[str, Any]]:
+        """Split the workbook render produced by SpreadsheetExtractionService into per-sheet blocks."""
+        matches = list(_XLSX_SHEET_HEADER_RE.finditer(rendered_text))
+        if not matches:
+            return [{"sheet_index": 1, "sheet_title": "", "text": rendered_text.strip()}]
+        sections: list[dict[str, Any]] = []
+        for i, match in enumerate(matches):
+            start = match.start()
+            end = matches[i + 1].start() if i + 1 < len(matches) else len(rendered_text)
+            sheet_index = int(match.group(1))
+            sheet_title = match.group(2).split(" (dimension=")[0].strip()
+            sections.append(
+                {
+                    "sheet_index": sheet_index,
+                    "sheet_title": sheet_title,
+                    "text": rendered_text[start:end].strip(),
+                }
+            )
+        return sections
 
     def _normalize_webpage(self, *, local_path: str, title: str, source_url: str | None) -> NormalizedSource:
         try:
@@ -329,7 +466,7 @@ class InkwiseSourceNormalizer:
 
     def _detect_mime_type(self, *, filename: str, content_type: str | None) -> str:
         clean_content_type = (content_type or "").strip().lower()
-        if clean_content_type in {PDF_MIME, DOCX_MIME, HTML_MIME}:
+        if clean_content_type in {PDF_MIME, DOCX_MIME, PPTX_MIME, XLSX_MIME, HTML_MIME}:
             return clean_content_type
         if clean_content_type in {"image/jpeg", "image/jpg"}:
             return IMAGE_JPEG_MIME
@@ -348,6 +485,10 @@ class InkwiseSourceNormalizer:
             return PDF_MIME
         if lowered.endswith(".docx"):
             return DOCX_MIME
+        if lowered.endswith(".pptx"):
+            return PPTX_MIME
+        if lowered.endswith(".xlsx"):
+            return XLSX_MIME
         if lowered.endswith(".html") or lowered.endswith(".htm"):
             return HTML_MIME
         if lowered.endswith((".jpg", ".jpeg")):

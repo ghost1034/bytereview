@@ -82,7 +82,31 @@ class _QueryStub:
         return self._result
 
 
+_PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+_XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
 class InkwiseSourceServiceTests(unittest.TestCase):
+    def test_detect_upload_kind_accepts_office_documents(self) -> None:
+        service = InkwiseSourceService()
+        self.assertEqual(service._detect_upload_kind(filename="deck.pptx", content_type=_PPTX_MIME), "pptx")
+        self.assertEqual(service._detect_upload_kind(filename="book.xlsx", content_type=_XLSX_MIME), "xlsx")
+        # Extension-only detection (the ZIP import path passes an empty content_type).
+        self.assertEqual(service._detect_upload_kind(filename="deck.pptx", content_type=""), "pptx")
+        self.assertEqual(service._detect_upload_kind(filename="book.xlsx", content_type=""), "xlsx")
+
+    def test_office_documents_allowed_for_all_plans(self) -> None:
+        service = InkwiseSourceService()
+        # Unlike audio/video, office documents must not raise for non-pro plans.
+        service._assert_upload_kind_allowed_for_plan(upload_kind="pptx", filename="deck.pptx", plan_code="free")
+        service._assert_upload_kind_allowed_for_plan(upload_kind="xlsx", filename="book.xlsx", plan_code="free")
+
+    def test_validate_upload_request_accepts_office_documents(self) -> None:
+        service = InkwiseSourceService()
+        for filename, content_type in (("deck.pptx", _PPTX_MIME), ("book.xlsx", _XLSX_MIME)):
+            request = SimpleNamespace(original_filename=filename, content_type=content_type, size_bytes=1024)
+            service._validate_upload_request(request)  # should not raise
+
     def test_validate_upload_request_allows_video_up_to_video_limit(self) -> None:
         service = InkwiseSourceService()
         request = SimpleNamespace(
