@@ -194,7 +194,10 @@ async def _stream_writing_tool_attempt(
             stream = generate_content_stream(
                 model=settings.gemini_model,
                 contents=multimodal_bundle.contents,
-                generation_config={"temperature": 0.3},
+                generation_config={
+                    "temperature": 0.3,
+                    "thinking_config": {"thinking_level": settings.writing_tool_thinking_level},
+                },
                 timeout_seconds=60,
             )
         else:
@@ -202,6 +205,7 @@ async def _stream_writing_tool_attempt(
                 model=settings.gemini_model,
                 prompt=current_prompt,
                 temperature=0.3,
+                generation_config={"thinking_config": {"thinking_level": settings.writing_tool_thinking_level}},
                 timeout_seconds=60,
             )
         async for chunk in stream:

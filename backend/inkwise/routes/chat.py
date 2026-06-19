@@ -504,6 +504,7 @@ async def _stream_chat_attempt(
                 generation_config={
                     "temperature": 0.2,
                     "max_output_tokens": 65536,
+                    "thinking_config": {"thinking_level": settings.chat_thinking_level},
                 },
                 timeout_seconds=120,
             )
@@ -513,6 +514,7 @@ async def _stream_chat_attempt(
                 prompt=prompt,
                 temperature=0.2,
                 max_output_tokens=65536,
+                generation_config={"thinking_config": {"thinking_level": settings.chat_thinking_level}},
                 timeout_seconds=120,
             )
         generation_start_event, generation_started, generation_started_at = _stage_start(

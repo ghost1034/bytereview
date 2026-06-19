@@ -119,6 +119,8 @@ class InkwiseSettings:
     grounded_chat_max_history_chars: int
     prediction_timeout_seconds: float
     prediction_thinking_level: str
+    chat_thinking_level: str
+    writing_tool_thinking_level: str
     query_rewrite_model: str
     query_rewrite_enabled: bool
     query_rewrite_max_history_messages: int
@@ -196,7 +198,17 @@ def get_inkwise_settings() -> InkwiseSettings:
         prediction_timeout_seconds=max(5.0, _env_float("INKWISE_PREDICTION_TIMEOUT_SECONDS", 60.0)),
         prediction_thinking_level=_env_choice(
             "INKWISE_PREDICTION_THINKING_LEVEL",
-            "MINIMAL",
+            "LOW",
+            {"MINIMAL", "LOW", "MEDIUM", "HIGH"},
+        ),
+        chat_thinking_level=_env_choice(
+            "INKWISE_CHAT_THINKING_LEVEL",
+            "LOW",
+            {"MINIMAL", "LOW", "MEDIUM", "HIGH"},
+        ),
+        writing_tool_thinking_level=_env_choice(
+            "INKWISE_WRITING_TOOL_THINKING_LEVEL",
+            "LOW",
             {"MINIMAL", "LOW", "MEDIUM", "HIGH"},
         ),
         query_rewrite_model=os.getenv("INKWISE_QUERY_REWRITE_MODEL", default_model),
