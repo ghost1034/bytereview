@@ -1137,8 +1137,8 @@ export default function InkwiseDocumentPage() {
           </div>
       </section>
 
-      <div className={cn('flex min-h-[72vh] flex-col gap-4 xl:flex-row', focusModeEnabled && 'relative z-10 min-h-0 flex-1')}>
-        <section className={cn('min-w-0 flex-1 rounded-3xl border bg-white shadow-sm', focusModeEnabled && 'flex min-h-0 flex-col border-transparent bg-transparent shadow-none')} data-tour="inkwise-editor-canvas">
+      <div className={cn('flex min-h-[72vh] flex-col gap-4 xl:h-[calc(100svh-22rem)] xl:min-h-0 xl:overflow-hidden xl:flex-row', focusModeEnabled && 'relative z-10 h-auto min-h-0 flex-1 xl:h-auto')}>
+        <section className={cn('flex min-h-0 min-w-0 flex-1 flex-col rounded-3xl border bg-white shadow-sm', focusModeEnabled && 'border-transparent bg-transparent shadow-none')} data-tour="inkwise-editor-canvas">
           <div className={cn('flex items-center justify-between border-b px-5 py-4', focusModeEnabled && 'hidden')}>
               <div>
                 <div className="text-sm font-semibold text-slate-900">Write</div>
@@ -1146,7 +1146,7 @@ export default function InkwiseDocumentPage() {
               </div>
           </div>
 
-          <div className={cn('space-y-4 px-4 py-4 sm:px-5', focusModeEnabled && 'mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-5 px-0 py-4 sm:px-0')}>
+          <div className={cn('flex min-h-0 flex-1 flex-col gap-4 px-4 py-4 sm:px-5', focusModeEnabled && 'mx-auto w-full max-w-7xl gap-5 px-0 py-4 sm:px-0')}>
 
             <InlineWritingTools
               editor={editor}
@@ -1210,7 +1210,7 @@ export default function InkwiseDocumentPage() {
                 }
               }}
               focusMode={focusModeEnabled}
-              className={cn('max-h-[75vh] min-h-[65vh] border-0 shadow-none', focusModeEnabled && 'min-h-0 max-h-none flex-1')}
+              className={cn('h-[65vh] max-h-[75vh] border-0 shadow-none xl:h-auto xl:min-h-0 xl:max-h-none xl:flex-1', focusModeEnabled && 'h-auto min-h-0 max-h-none flex-1')}
             />
 
             <div className={cn('rounded-2xl px-4 py-3 text-xs', focusModeEnabled ? 'hidden' : 'bg-slate-50 text-slate-500')}>
@@ -1232,7 +1232,7 @@ export default function InkwiseDocumentPage() {
 
         <aside
             className={cn(
-              'rounded-3xl border bg-white shadow-sm transition-all duration-200 xl:sticky xl:top-20 xl:flex xl:h-[calc(100vh-6rem)] xl:flex-col xl:self-start xl:overflow-hidden',
+              'rounded-3xl border bg-white shadow-sm transition-all duration-200 xl:flex xl:h-full xl:flex-col xl:self-stretch xl:overflow-hidden',
               sidebarOpen ? 'w-full xl:w-[25rem]' : 'w-full xl:w-[5.5rem]',
               focusModeEnabled && 'hidden'
             )}
