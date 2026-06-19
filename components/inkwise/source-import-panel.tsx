@@ -131,7 +131,7 @@ export function InkwiseSourceImportPanel({
     <Card>
         <CardHeader className={compact ? 'p-4' : undefined}>
           <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
+          {description ? <CardDescription>{description}</CardDescription> : null}
           {!allowRichMedia ? (
             <p className="text-sm text-slate-500">Audio and video references require the Pro plan.</p>
           ) : null}

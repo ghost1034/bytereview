@@ -1142,7 +1142,6 @@ export default function InkwiseDocumentPage() {
           <div className={cn('flex items-center justify-between border-b px-5 py-4', focusModeEnabled && 'hidden')}>
               <div>
                 <div className="text-sm font-semibold text-slate-900">Write</div>
-                <div className="text-xs text-slate-500">The editor is central while chat and references are in the sidebar.</div>
               </div>
           </div>
 
@@ -1210,16 +1209,16 @@ export default function InkwiseDocumentPage() {
                 }
               }}
               focusMode={focusModeEnabled}
-              className={cn('h-[65vh] max-h-[75vh] border-0 shadow-none xl:h-auto xl:min-h-0 xl:max-h-none xl:flex-1', focusModeEnabled && 'h-auto min-h-0 max-h-none flex-1')}
+              className={cn('min-h-[65vh] flex-1 border-0 shadow-none xl:min-h-0', focusModeEnabled && 'h-auto min-h-0 max-h-none')}
             />
 
-            <div className={cn('rounded-2xl px-4 py-3 text-xs', focusModeEnabled ? 'hidden' : 'bg-slate-50 text-slate-500')}>
-              {predictionLoading
-                ? 'Inkwise is drafting the next suggestion...'
-                : predictionState?.grounded
-                ? `Press Tab to accept the grounded inline prediction. Using ${predictionState.evidence.length} evidence ${predictionState.evidence.length === 1 ? 'segment' : 'segments'}.`
-                : 'Press Tab to accept inline predictions when they appear.'}
-            </div>
+            {predictionLoading || predictionState?.grounded ? (
+              <div className={cn('rounded-2xl px-4 py-3 text-xs', focusModeEnabled ? 'hidden' : 'bg-slate-50 text-slate-500')}>
+                {predictionLoading || !predictionState
+                  ? 'Inkwise is drafting the next suggestion...'
+                  : `Press Tab to accept the grounded inline prediction. Using ${predictionState.evidence.length} evidence ${predictionState.evidence.length === 1 ? 'segment' : 'segments'}.`}
+              </div>
+            ) : null}
 
             {predictionState?.grounded && predictionState.evidence.length ? (
               <div className={cn('rounded-2xl border px-4 py-3', focusModeEnabled ? 'border-emerald-200/50 bg-emerald-100/15 text-white shadow-lg backdrop-blur-xl' : 'border-emerald-200 bg-emerald-50/50')}>
@@ -1317,7 +1316,7 @@ export default function InkwiseDocumentPage() {
                       <InkwiseSourceImportPanel
                         compact
                         title="Add and bind references"
-                        description="Import new references without leaving the write workspace. New references are bound to this document automatically."
+                        description=""
                         onImported={async (sources) => {
                           if (!sources.length) return
                           await bindSources.mutateAsync(sources.map((source) => source.id))
