@@ -86,19 +86,18 @@ const PRODUCTS_GROUP: NavGroup = {
     },
     { name: 'Form Fill', href: '/dashboard/form-fill', icon: Files },
     { name: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
+  ],
+}
+
+const PRIVATE_DEPLOYMENT_GROUP: NavGroup = {
+  key: 'private-deployment',
+  label: 'Private Deployment',
+  items: [
     { name: 'Chrona', href: '/#chrona-showcase', icon: Timer },
     { name: 'Time Tracking', href: '/dashboard/analytics/chrona', icon: Clock },
     { name: 'Chrona Devices', href: '/dashboard/analytics/chrona/devices', icon: MonitorSmartphone },
-    {
-      name: 'Claw Series',
-      href: '/claw',
-      icon: Bot,
-    },
-    {
-      name: 'Claw Activation',
-      href: '/dashboard/activation',
-      icon: KeyRound,
-    },
+    { name: 'Claw Series', href: '/claw', icon: Bot },
+    { name: 'Claw Activation', href: '/dashboard/activation', icon: KeyRound },
   ],
 }
 
@@ -214,6 +213,8 @@ export function AppSidebar() {
         <NavGroupBlock group={UDA_GROUP} />
         <SidebarSeparator />
         <NavGroupBlock group={PRODUCTS_GROUP} />
+        <SidebarSeparator />
+        <NavGroupBlock group={PRIVATE_DEPLOYMENT_GROUP} />
         <SidebarSeparator />
         <NavGroupBlock group={ANALYTICS_GROUP} />
       </SidebarContent>
