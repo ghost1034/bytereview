@@ -84,6 +84,15 @@ export function InlineWritingTools({
   const rangeRef = useRef<InkwiseEditorTarget | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const promptRef = useRef<HTMLTextAreaElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  // The tiptap menu plugins register once and capture the first render's closures,
+  // so anything read inside shouldShow/tippyOptions must live in a ref.
+  const panelOpenRef = useRef(false)
+
+  const setPanelOpenTracked = useCallback((open: boolean) => {
+    panelOpenRef.current = open
+    setPanelOpen(open)
+  }, [])
 
   // Auto-grow the prompt composer as the instruction changes (typed input or preset population).
   useEffect(() => {
@@ -118,23 +127,6 @@ export function InlineWritingTools({
   }, [readySources])
 
   useEffect(() => {
-    if (!editor) return
-    const onSelection = () => {
-      clearWritingSelectionHighlight(editor)
-      if (!busy) {
-        clearRunState()
-        setDraftAction(null)
-        setPanelOpen(false)
-        rangeRef.current = null
-      }
-    }
-    editor.on('selectionUpdate', onSelection)
-    return () => {
-      editor.off('selectionUpdate', onSelection)
-    }
-  }, [editor, busy])
-
-  useEffect(() => {
     return () => {
       clearWritingSelectionHighlight(editor)
     }
@@ -164,7 +156,7 @@ export function InlineWritingTools({
   function openPanel() {
     const target = activeTarget()
     if (!target) return
-    setPanelOpen(true)
+    setPanelOpenTracked(true)
     if (target.hasSelection) {
       setDraftAction(null)
     } else {
@@ -184,7 +176,7 @@ export function InlineWritingTools({
     if (!target || busy) return
 
     clearRunState()
-    setPanelOpen(true)
+    setPanelOpenTracked(true)
     setDraftAction(action)
     rangeRef.current = target
     if (target.hasSelection) setWritingSelectionHighlight(editor, target)
@@ -206,7 +198,7 @@ export function InlineWritingTools({
     clearRunState()
     setBusy(true)
     setLastAction(action)
-    setPanelOpen(true)
+    setPanelOpenTracked(true)
     rangeRef.current = selection
     if (selection.hasSelection) setWritingSelectionHighlight(editor, selection)
 
@@ -300,7 +292,7 @@ export function InlineWritingTools({
             }
           : null,
       })
-      if (inserted) clearWritingSelectionHighlight(editor)
+      if (inserted) closePanel()
     } finally {
       setInserting(null)
     }
@@ -322,10 +314,10 @@ export function InlineWritingTools({
     setGroundingState(null)
     setAttemptId(null)
     setDraftAction(null)
-    setPanelOpen(false)
+    setPanelOpenTracked(false)
     rangeRef.current = null
     clearWritingSelectionHighlight(editor)
-  }, [editor])
+  }, [editor, setPanelOpenTracked])
 
   useEffect(() => {
     if (!panelOpen) return
@@ -340,9 +332,25 @@ export function InlineWritingTools({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [panelOpen, closePanel])
 
+  // Close only on an explicit click/tap outside the panel — never on editor
+  // selection changes, which also fire for programmatic transactions (autosave
+  // content sync, collaborative updates) while the user is mid-composition.
+  useEffect(() => {
+    if (!panelOpen) return
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target
+      if (target instanceof Node && panelRef.current?.contains(target)) return
+      closePanel()
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown, { capture: true })
+    return () => document.removeEventListener('pointerdown', handlePointerDown, { capture: true })
+  }, [panelOpen, closePanel])
+
   function shouldShowBubbleWritingTools(currentEditor: Editor | null): boolean {
     if (!currentEditor) return false
-    return Boolean(selectionTarget(currentEditor)?.hasSelection || (panelOpen && rangeRef.current?.hasSelection))
+    return Boolean(selectionTarget(currentEditor)?.hasSelection || (panelOpenRef.current && rangeRef.current?.hasSelection))
   }
 
   function shouldShowFloatingWritingTools(currentEditor: Editor | null): boolean {
@@ -350,7 +358,7 @@ export function InlineWritingTools({
     const currentTarget = selectionTarget(currentEditor)
     return Boolean(
       (currentEditor.isFocused && currentTarget && !currentTarget.hasSelection) ||
-        (panelOpen && rangeRef.current && !rangeRef.current.hasSelection),
+        (panelOpenRef.current && rangeRef.current && !rangeRef.current.hasSelection),
     )
   }
 
@@ -362,7 +370,7 @@ export function InlineWritingTools({
     setOutputMd('')
     setOutputWithCitations(null)
     setGroundingState(null)
-    setPanelOpen(true)
+    setPanelOpenTracked(true)
 
     abortRef.current?.abort()
     const controller = new AbortController()
@@ -423,7 +431,10 @@ export function InlineWritingTools({
   const hasSelection = Boolean(visibleTarget?.hasSelection)
 
   const panel = (
-    <div className="flex max-h-[min(86vh,50rem)] w-[min(44rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card p-3 shadow-sm">
+    <div
+      ref={panelRef}
+      className="flex max-h-[min(86vh,50rem)] w-[min(44rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card p-3 shadow-sm"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -691,6 +702,10 @@ export function InlineWritingTools({
           placement: 'bottom',
           appendTo: () => document.body,
           interactive: true,
+          // The menu plugin hides the tippy directly on editor blur; keep the
+          // panel up until it is dismissed explicitly (close button, Escape,
+          // or a click outside).
+          onHide: () => (panelOpenRef.current ? false : undefined),
           popperOptions: {
             modifiers: [
               { name: 'flip', options: { fallbackPlacements: ['top', 'bottom'] } },
@@ -711,6 +726,7 @@ export function InlineWritingTools({
           placement: 'bottom',
           appendTo: () => document.body,
           interactive: true,
+          onHide: () => (panelOpenRef.current ? false : undefined),
           popperOptions: {
             modifiers: [
               { name: 'flip', options: { fallbackPlacements: ['top', 'bottom'] } },
