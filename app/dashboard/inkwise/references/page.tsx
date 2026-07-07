@@ -16,20 +16,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { useInkwiseSourceIngestions, useInkwiseSources } from '@/hooks/useInkwise'
 import { apiClient, InkwiseBibliographicMetadata, InkwiseSource, InkwiseSourceIngestion } from '@/lib/api'
-import { INKWISE_SOURCE_POLL_INTERVAL_MS, isInkwiseIngestionActiveStatus, isInkwiseSourceActiveStatus } from '@/lib/inkwise-source-status'
+import { INKWISE_SOURCE_POLL_INTERVAL_MS, isInkwiseIngestionActiveStatus } from '@/lib/inkwise-source-status'
 import { compareNaturalText } from '@/lib/utils'
 
 export default function InkwiseReferencesPage() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const [sourceSearch, setSourceSearch] = useState('')
-  const sources = useInkwiseSources(1, 50, {
-    refetchInterval: (query) => {
-      const data = query.state.data as { items?: Array<{ status?: string | null }> } | undefined
-      return data?.items?.some((source) => isInkwiseSourceActiveStatus(source.status)) ? INKWISE_SOURCE_POLL_INTERVAL_MS : false
-    },
-    refetchOnWindowFocus: true,
-  })
+  const sources = useInkwiseSources()
   const ingestions = useInkwiseSourceIngestions(undefined, {
     refetchInterval: (query) => {
       const data = query.state.data as { ingestions?: Array<{ status?: string | null }> } | undefined
@@ -249,6 +243,12 @@ export default function InkwiseReferencesPage() {
                   </CardContent>
                 </Card>
               )}
+              {sources.isFetchingNextPage || sources.hasNextPage ? (
+                <div className="flex items-center justify-center gap-2 py-2 text-xs text-slate-400">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Loading more references… ({sources.data?.items.length ?? 0} of {sources.data?.total ?? 0})
+                </div>
+              ) : null}
             </div>
           </ScrollArea>
         ) : (

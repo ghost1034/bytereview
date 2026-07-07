@@ -168,13 +168,7 @@ export default function InkwiseDocumentPage() {
   const pendingAutoNameThreadsRef = useRef<Record<string, number>>({})
 
   const documentQuery = useInkwiseDocument(documentId)
-  const sourcesQuery = useInkwiseSources(1, 100, {
-    refetchInterval: (query) => {
-      const data = query.state.data as { items?: Array<{ status?: string | null }> } | undefined
-      return data?.items?.some((source) => isInkwiseSourceActiveStatus(source.status)) ? INKWISE_SOURCE_POLL_INTERVAL_MS : false
-    },
-    refetchOnWindowFocus: true,
-  })
+  const sourcesQuery = useInkwiseSources()
   const bindingsQuery = useInkwiseDocumentSources(documentId, {
     refetchInterval: (query) => {
       const data = query.state.data as { sources?: Array<{ source?: { status?: string | null } | null }> } | undefined
@@ -1399,6 +1393,12 @@ export default function InkwiseDocumentPage() {
                               Everything in your source library is already bound to this document.
                             </div>
                           )}
+                          {sourcesQuery.isFetchingNextPage || sourcesQuery.hasNextPage ? (
+                            <div className="flex items-center justify-center gap-2 py-1 text-xs text-slate-400">
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              Loading more references…
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     </div>

@@ -1,6 +1,7 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 
 import {
   apiClient,
@@ -9,11 +10,13 @@ import {
   InkwiseDocumentFolderListResponse,
   InkwiseDocumentRevisionListResponse,
   InkwisePaginatedSources,
+  InkwiseSource,
   InkwiseSourceIngestionListResponse,
   InkwisePaginatedTemplates,
   InkwiseSystemTemplate,
   InkwiseSystemTemplateCategory,
 } from '@/lib/api'
+import { INKWISE_SOURCE_POLL_INTERVAL_MS, isInkwiseSourceActiveStatus } from '@/lib/inkwise-source-status'
 
 type InkwiseQueryOptions = {
   enabled?: boolean
@@ -51,14 +54,45 @@ export function useInkwiseDocumentRevisions(documentId: string) {
   })
 }
 
-export function useInkwiseSources(page = 1, limit = 50, options?: InkwiseQueryOptions) {
-  return useQuery<InkwisePaginatedSources>({
-    queryKey: ['inkwise', 'sources', page, limit],
-    queryFn: () => apiClient.listInkwiseSources({ page, limit }),
+// The backend caps the sources listing at 100 items per page. We page through
+// every page and accumulate the results so a user's reference library is never
+// truncated, no matter how many references they have.
+const INKWISE_SOURCES_PAGE_SIZE = 100
+
+export type InkwiseSourcesResult = {
+  items: InkwiseSource[]
+  total: number
+}
+
+export function useInkwiseSources(options?: { enabled?: boolean }) {
+  const query = useInfiniteQuery({
+    queryKey: ['inkwise', 'sources'],
+    queryFn: ({ pageParam }) => apiClient.listInkwiseSources({ page: pageParam, limit: INKWISE_SOURCES_PAGE_SIZE }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage.page * lastPage.limit < lastPage.total ? lastPage.page + 1 : undefined),
     enabled: options?.enabled,
-    refetchInterval: options?.refetchInterval,
-    refetchOnWindowFocus: options?.refetchOnWindowFocus,
+    refetchOnWindowFocus: true,
+    refetchInterval: (activeQuery) => {
+      const data = activeQuery.state.data as { pages?: InkwisePaginatedSources[] } | undefined
+      const hasActive = data?.pages?.some((page) => page.items.some((source) => isInkwiseSourceActiveStatus(source.status)))
+      return hasActive ? INKWISE_SOURCE_POLL_INTERVAL_MS : false
+    },
+    select: (data): InkwiseSourcesResult => ({
+      items: data.pages.flatMap((page) => page.items),
+      total: data.pages[data.pages.length - 1]?.total ?? 0,
+    }),
   })
+
+  // Automatically request the next page until the whole library is loaded, so
+  // consumers can search and sort across every reference the user owns.
+  const { hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage } = query
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage && !isFetchNextPageError) {
+      void fetchNextPage()
+    }
+  }, [hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage])
+
+  return query
 }
 
 export function useInkwiseSourceIngestions(sourceId?: string, options?: InkwiseQueryOptions) {
