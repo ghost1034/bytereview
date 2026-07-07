@@ -2,6 +2,7 @@
 
 import type { Editor, JSONContent } from '@tiptap/core'
 import Placeholder from '@tiptap/extension-placeholder'
+import { TextSelection } from '@tiptap/pm/state'
 import { EditorContent, useEditor } from '@tiptap/react'
 import { useEffect, useMemo, useRef } from 'react'
 
@@ -169,7 +170,18 @@ export function InkwiseEditor({
       return
     }
 
+    // setContent replaces the whole doc, which collapses the selection to the
+    // document start; restore it so caret-anchored UI (inline writing tools,
+    // bubble/floating menus) doesn't jump when a save round-trip syncs
+    // equivalent content back in.
+    const { from, to } = editor.state.selection
     editor.commands.setContent(incoming, false)
+    const { doc } = editor.state
+    const selection = TextSelection.between(
+      doc.resolve(Math.min(from, doc.content.size)),
+      doc.resolve(Math.min(to, doc.content.size)),
+    )
+    editor.view.dispatch(editor.state.tr.setSelection(selection))
     lastExternalSetRef.current = signature
   }, [editor, incoming, contentJson, contentHtml, allowExternalSetContent])
 

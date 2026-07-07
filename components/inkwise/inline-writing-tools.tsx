@@ -1,6 +1,7 @@
 'use client'
 
-import type { Editor } from '@tiptap/core'
+import { posToDOMRect, type Editor } from '@tiptap/core'
+import type { Transaction } from '@tiptap/pm/state'
 import { BubbleMenu, FloatingMenu } from '@tiptap/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowUp, ChevronDown, Copy, Library, Loader2, RotateCcw, Sparkles, Square, Wand2, X } from 'lucide-react'
@@ -88,10 +89,26 @@ export function InlineWritingTools({
   // The tiptap menu plugins register once and capture the first render's closures,
   // so anything read inside shouldShow/tippyOptions must live in a ref.
   const panelOpenRef = useRef(false)
+  const editorRef = useRef(editor)
+  editorRef.current = editor
 
   const setPanelOpenTracked = useCallback((open: boolean) => {
     panelOpenRef.current = open
     setPanelOpen(open)
+  }, [])
+
+  // While the panel is open, anchor it to the stored target range instead of
+  // the live selection: programmatic transactions (autosave content sync,
+  // collaborative updates) can move or reset the selection, and the menu
+  // plugins would otherwise reposition the panel to wherever it landed.
+  const menuReferenceClientRect = useCallback(() => {
+    const view = editorRef.current?.view
+    if (!view) return new DOMRect()
+    const target = panelOpenRef.current ? rangeRef.current : null
+    const max = view.state.doc.content.size
+    const from = Math.min(target?.from ?? view.state.selection.from, max)
+    const to = Math.min(target?.to ?? view.state.selection.to, max)
+    return posToDOMRect(view, from, to)
   }, [])
 
   // Auto-grow the prompt composer as the instruction changes (typed input or preset population).
@@ -347,6 +364,25 @@ export function InlineWritingTools({
     document.addEventListener('pointerdown', handlePointerDown, { capture: true })
     return () => document.removeEventListener('pointerdown', handlePointerDown, { capture: true })
   }, [panelOpen, closePanel])
+
+  // Programmatic doc replacements (autosave content sync) collapse the mapped
+  // highlight decoration; re-apply it from the stored target while the panel
+  // is open. User edits can't land here: clicking back into the editor closes
+  // the panel first.
+  useEffect(() => {
+    if (!editor || !panelOpen) return
+
+    function reapplyHighlight({ transaction }: { transaction: Transaction }) {
+      if (!transaction.docChanged) return
+      const target = rangeRef.current
+      if (target?.hasSelection) setWritingSelectionHighlight(editor, target)
+    }
+
+    editor.on('transaction', reapplyHighlight)
+    return () => {
+      editor.off('transaction', reapplyHighlight)
+    }
+  }, [editor, panelOpen])
 
   function shouldShowBubbleWritingTools(currentEditor: Editor | null): boolean {
     if (!currentEditor) return false
@@ -706,6 +742,7 @@ export function InlineWritingTools({
           // panel up until it is dismissed explicitly (close button, Escape,
           // or a click outside).
           onHide: () => (panelOpenRef.current ? false : undefined),
+          getReferenceClientRect: menuReferenceClientRect,
           popperOptions: {
             modifiers: [
               { name: 'flip', options: { fallbackPlacements: ['top', 'bottom'] } },
@@ -727,6 +764,7 @@ export function InlineWritingTools({
           appendTo: () => document.body,
           interactive: true,
           onHide: () => (panelOpenRef.current ? false : undefined),
+          getReferenceClientRect: menuReferenceClientRect,
           popperOptions: {
             modifiers: [
               { name: 'flip', options: { fallbackPlacements: ['top', 'bottom'] } },
