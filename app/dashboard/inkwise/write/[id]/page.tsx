@@ -80,7 +80,7 @@ import { markdownToSafeHtml } from '@/lib/inkwise-markdown'
 import { INKWISE_SOURCE_POLL_INTERVAL_MS, isInkwiseSourceActiveStatus } from '@/lib/inkwise-source-status'
 import { cn, compareNaturalText } from '@/lib/utils'
 
-const MAX_PREDICTION_DOCUMENT_PREFIX_TEXT = 4000
+const MAX_PREDICTION_DOCUMENT_PREFIX_TEXT = 1000
 const PREDICTION_DEBOUNCE_MS = 1000
 const FOCUS_MODE_MUTE_STORAGE_KEY = 'cpaa_inkwise_focus_mode_muted_v1'
 const FOCUS_MODE_AUDIO_SRC = '/audio/inkwise-white-noise-loop.mp3'
