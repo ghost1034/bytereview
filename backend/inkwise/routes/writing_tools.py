@@ -7,13 +7,14 @@ import json
 import logging
 import uuid
 from collections.abc import AsyncGenerator
+from types import SimpleNamespace
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from starlette.responses import StreamingResponse
 
-from core.database import get_db
+from core.database import db_config, get_db
 from dependencies.auth import verify_firebase_token
 from inkwise.schemas import (
     InkwisePredictionRequest,
@@ -52,6 +53,18 @@ _STREAM_HEADERS = {
     "Connection": "keep-alive",
     "X-Accel-Buffering": "no",
 }
+
+
+def _run_retrieval_with_new_session(work):
+    db = db_config.get_session()
+    try:
+        run, evidence = work(db)
+        return SimpleNamespace(id=run.id), evidence
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
 def _sse(event: str, data: object) -> bytes:
@@ -115,27 +128,32 @@ async def _stream_writing_tool_attempt(
 
     current_prompt = build_writing_tool_prompt(body=body, document=document)
     if scoped_sources and document is not None:
+        retrieval_document_id = cast(uuid.UUID, document.id)
         try:
             if reuse_retrieval_run_id is not None and not fresh_retrieval:
                 # Offload synchronous retrieval (blocking LLM/embedding/DB work)
                 # to a thread so it does not stall the worker's event loop.
                 _run, evidence = await asyncio.to_thread(
-                    retrieval_service.get_retrieval_run_for_user,
-                    db,
-                    user_id=user_id,
-                    retrieval_run_id=reuse_retrieval_run_id,
+                    _run_retrieval_with_new_session,
+                    lambda thread_db: retrieval_service.get_retrieval_run_for_user(
+                        thread_db,
+                        user_id=user_id,
+                        retrieval_run_id=reuse_retrieval_run_id,
+                    ),
                 )
                 retrieval_run_id = reuse_retrieval_run_id
             else:
                 retrieval_run, evidence = await asyncio.to_thread(
-                    retrieval_service.run_retrieval,
-                    db,
-                    user_id=user_id,
-                    document_id=document.id,
-                    thread_id=None,
-                    query=build_writing_tool_retrieval_query(body=body),
-                    bound_sources=scoped_sources,
-                    draft_selection_text=body.surrounding_text,
+                    _run_retrieval_with_new_session,
+                    lambda thread_db: retrieval_service.run_retrieval(
+                        thread_db,
+                        user_id=user_id,
+                        document_id=retrieval_document_id,
+                        thread_id=None,
+                        query=build_writing_tool_retrieval_query(body=body),
+                        bound_sources=scoped_sources,
+                        draft_selection_text=body.surrounding_text,
+                    ),
                 )
                 retrieval_run_id = cast(uuid.UUID, retrieval_run.id)
         except Exception as exc:
@@ -322,19 +340,23 @@ async def create_prediction(
         await _raise_if_prediction_disconnected(request)
         if ready_bound_sources:
             try:
+                prediction_retrieval_query = build_grounded_prediction_retrieval_query(body=body, document=document)
+                prediction_document_id = uuid.UUID(str(document_id))
                 # Offload synchronous retrieval (blocking LLM/embedding/DB work)
                 # to a thread so it does not stall the worker's event loop.
                 retrieval_run, evidence = await asyncio.to_thread(
-                    retrieval_service.run_retrieval,
-                    db,
-                    user_id=token_data["uid"],
-                    document_id=document_id,
-                    thread_id=None,
-                    query=build_grounded_prediction_retrieval_query(body=body, document=document),
-                    bound_sources=ready_bound_sources,
-                    draft_selection_text=body.document_prefix_text.strip() or None,
-                    max_evidence=8,
-                    max_total_chars=12000,
+                    _run_retrieval_with_new_session,
+                    lambda thread_db: retrieval_service.run_retrieval(
+                        thread_db,
+                        user_id=token_data["uid"],
+                        document_id=prediction_document_id,
+                        thread_id=None,
+                        query=prediction_retrieval_query,
+                        bound_sources=ready_bound_sources,
+                        draft_selection_text=body.document_prefix_text.strip() or None,
+                        max_evidence=8,
+                        max_total_chars=12000,
+                    ),
                 )
                 retrieval_run_id = cast(uuid.UUID, retrieval_run.id)
                 if evidence:

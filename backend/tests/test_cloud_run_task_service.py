@@ -4,7 +4,7 @@ import os
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -70,6 +70,43 @@ class CloudRunTaskServiceStaggerTests(unittest.TestCase):
             self.assertEqual(first, second)
             self.assertGreaterEqual(first, 15)
             self.assertLessEqual(first, 20)
+
+
+class CloudRunTaskServiceQueueTests(unittest.IsolatedAsyncioTestCase):
+    async def test_enqueue_gmail_history_processing_targets_automation_service(self) -> None:
+        service = CloudRunTaskService()
+        service.task_services["automation"] = "https://task-automation.example.run.app"
+        notification_data = {"email_address": "ianstewart@cpaautomation.ai", "history_id": "123"}
+
+        with patch.object(service, "_create_cloud_task", new=AsyncMock(return_value="task-name")) as create_task:
+            result = await service.enqueue_gmail_history_processing_task(notification_data, delay_seconds=3)
+
+        self.assertEqual(result, "task-name")
+        create_task.assert_awaited_once_with(
+            queue_name=service.queue_names["automation"],
+            service_url="https://task-automation.example.run.app/execute",
+            task_data={
+                "task_type": "process_gmail_push_notification",
+                "notification_data": notification_data,
+            },
+            delay_seconds=3,
+        )
+
+    async def test_enqueue_inkwise_ingestion_targets_extract_service(self) -> None:
+        service = CloudRunTaskService()
+        service.task_services["extract"] = "https://task-extract.example.run.app"
+
+        with patch.object(service, "_create_cloud_task", new=AsyncMock(return_value="task-name")) as create_task:
+            result = await service.enqueue_inkwise_ingestion_task("ingestion-id", delay_seconds=7)
+
+        self.assertEqual(result, "task-name")
+        create_task.assert_awaited_once_with(
+            queue_name=service.queue_names["extract"],
+            service_url="https://task-extract.example.run.app/execute",
+            task_data={"task_type": "process_inkwise_source_ingestion", "ingestion_id": "ingestion-id"},
+            delay_seconds=7,
+            dispatch_deadline_seconds=service.extract_dispatch_deadline_seconds,
+        )
 
 
 if __name__ == "__main__":

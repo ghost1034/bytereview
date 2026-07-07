@@ -119,20 +119,21 @@ else
     echo -e "${YELLOW}⏭️  Skipping image build${NC}"
 fi
 
-# Deploy services (API + frontend) followed by the Cloud Run task services.
+# Deploy task services before API/frontend so new task types are available before
+# cpa-api starts enqueueing them.
 # Together these two steps replace the previous manual sequence of running
 # `./scripts/deploy-services.sh && ./scripts/deploy-cloud-run-tasks.sh`.
 if [ "$SKIP_DEPLOY" = false ]; then
-    print_section "Deploying Services (API + Frontend)"
-    # Images were already built above (or intentionally skipped), so tell
-    # deploy-services.sh to reuse them rather than rebuild.
-    ./scripts/deploy-services.sh --image-tag "$GIT_HASH" --environment "$ENVIRONMENT" --skip-build
-
     print_section "Deploying Cloud Run Task Services"
     # Worker/task handlers (extract, io, automation, maintenance). This script
     # builds and pushes its own task-* images from backend/task_services, so it
     # runs regardless of the backend/frontend image build above.
     ./scripts/deploy-cloud-run-tasks.sh "$GIT_HASH" "$ENVIRONMENT"
+
+    print_section "Deploying Services (API + Frontend)"
+    # Images were already built above (or intentionally skipped), so tell
+    # deploy-services.sh to reuse them rather than rebuild.
+    ./scripts/deploy-services.sh --image-tag "$GIT_HASH" --environment "$ENVIRONMENT" --skip-build
 else
     echo -e "${YELLOW}⏭️  Skipping service deployment${NC}"
 fi

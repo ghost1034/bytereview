@@ -5,6 +5,7 @@ from fastapi import HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from firebase_admin import auth as firebase_auth, credentials, initialize_app
 from typing import Dict, Optional
+import asyncio
 import logging
 import os
 
@@ -106,7 +107,7 @@ async def verify_firebase_token(credentials: HTTPAuthorizationCredentials = Depe
     try:
         logger.info(f"Verifying token: {credentials.credentials[:20]}...")
         # Verify the ID token using Firebase Admin SDK
-        decoded_token = firebase_auth.verify_id_token(credentials.credentials)
+        decoded_token = await asyncio.to_thread(firebase_auth.verify_id_token, credentials.credentials)
         uid = decoded_token.get("uid")
         if not uid:
             raise HTTPException(status_code=401, detail="User ID not found in token")
@@ -146,7 +147,7 @@ async def verify_token_string(token: str) -> str:
     """
     try:
         logger.info(f"Attempting to verify token: {token[:20]}...")
-        decoded_token = firebase_auth.verify_id_token(token)
+        decoded_token = await asyncio.to_thread(firebase_auth.verify_id_token, token)
         user_id = decoded_token.get('uid')
         if not user_id:
             logger.error("User ID not found in decoded token")

@@ -4,13 +4,14 @@ Integration routes for OAuth providers (Google, Microsoft, etc.)
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.orm import Session
 from typing import Optional
+import asyncio
 import os
 import secrets
 import logging
 from datetime import datetime, timedelta, timezone
 import urllib.parse
 
-from core.database import get_db
+from core.database import db_config, get_db
 from dependencies.auth import get_current_user_id
 from models.db_models import User, IntegrationAccount
 from services.encryption_service import encryption_service
@@ -29,6 +30,17 @@ except ImportError:
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 logger = logging.getLogger(__name__)
+
+
+def _run_with_new_session(work):
+    db = db_config.get_session()
+    try:
+        return work(db)
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 # Google OAuth configuration - loaded dynamically to ensure .env is loaded first
 def get_google_config():
@@ -167,17 +179,21 @@ async def exchange_google_code(
             "redirect_uri": config['redirect_uri']
         }
         
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             "https://oauth2.googleapis.com/token",
-            data=token_data
+            data=token_data,
+            timeout=15,
         )
         response.raise_for_status()
         tokens = response.json()
         
         # Get user info to verify the token
-        user_info_response = requests.get(
+        user_info_response = await asyncio.to_thread(
+            requests.get,
             "https://www.googleapis.com/oauth2/v2/userinfo",
-            headers={"Authorization": f"Bearer {tokens['access_token']}"}
+            headers={"Authorization": f"Bearer {tokens['access_token']}"},
+            timeout=15,
         )
         user_info_response.raise_for_status()
         user_info = user_info_response.json()
@@ -318,8 +334,10 @@ async def disconnect_google_integration(
         access_token = account.get_access_token()
         if access_token:
             import requests
-            requests.post(
-                f"https://oauth2.googleapis.com/revoke?token={access_token}"
+            await asyncio.to_thread(
+                requests.post,
+                f"https://oauth2.googleapis.com/revoke?token={access_token}",
+                timeout=10,
             )
     except Exception as e:
         logger.warning(f"Failed to revoke Google token: {e}")
@@ -365,8 +383,11 @@ async def refresh_google_token(
             detail="No refresh token available. Please re-authorize."
         )
     
-    # Use centralized refresh logic
-    success = google_service.refresh_user_token(db, current_user_id, account)
+    # Use centralized refresh logic off the event loop with a thread-local session.
+    success = await asyncio.to_thread(
+        _run_with_new_session,
+        lambda thread_db: google_service.refresh_user_token(thread_db, current_user_id),
+    )
     
     if not success:
         raise HTTPException(
@@ -374,7 +395,7 @@ async def refresh_google_token(
             detail="Failed to refresh token. Please re-authorize."
         )
     
-    # Refresh the account object to get updated data
+    # Refresh the request-scoped account object to get updated data
     db.refresh(account)
     
     return {
@@ -391,15 +412,18 @@ async def get_google_picker_token(
     Get Google access token for use with Google Picker API.
     Token refresh is handled automatically by GoogleService._get_credentials().
     """
-    # Use GoogleService to get credentials - this automatically handles refresh
-    creds = google_service._get_credentials(db, current_user_id)
+    # Use GoogleService to get credentials off the event loop; it may refresh tokens and commit.
+    creds = await asyncio.to_thread(
+        _run_with_new_session,
+        lambda thread_db: (google_service._get_credentials(thread_db, current_user_id) or None),
+    )
     
     if not creds:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Google integration not found or token unavailable. Please re-authorize."
         )
-    
+
     if not creds.token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -437,8 +461,15 @@ async def get_gmail_attachments(
         mime_type_list = [mt.strip() for mt in mimeTypes.split(',') if mt.strip()] if mimeTypes else []
         
         # Get Gmail attachments using the Google service
-        attachments = google_service.get_gmail_attachments(
-            db, current_user_id, query, mime_type_list, limit
+        attachments = await asyncio.to_thread(
+            _run_with_new_session,
+            lambda thread_db: google_service.get_gmail_attachments(
+                thread_db,
+                current_user_id,
+                query,
+                mime_type_list,
+                limit,
+            ),
         )
         
         return {

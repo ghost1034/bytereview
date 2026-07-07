@@ -2,6 +2,7 @@
 Job service for ByteReview
 Handles job lifecycle, file management, and task orchestration
 """
+import asyncio
 import os
 import uuid
 import logging
@@ -1777,7 +1778,11 @@ class JobService:
                 
                 # Count pages in the file
                 from services.page_counting_service import page_counting_service
-                page_count = page_counting_service.count_pages_from_content(file_content, file.filename or "unknown")
+                page_count = await asyncio.to_thread(
+                    page_counting_service.count_pages_from_content,
+                    file_content,
+                    file.filename or "unknown",
+                )
                 
                 # Create SourceFile record (always start as ready, ZIP detection will update if needed)
                 filename = file.filename or "unknown"
@@ -1980,11 +1985,11 @@ class JobService:
                     continue
 
                 blob = bucket.blob(source_file.gcs_object_name)
-                if not blob.exists():
+                if not await asyncio.to_thread(blob.exists):
                     raise HTTPException(status_code=409, detail=f"Upload not found for file {source_file.original_filename}")
 
                 try:
-                    blob.reload()
+                    await asyncio.to_thread(blob.reload)
                 except Exception:
                     # If reload fails, still attempt to use current metadata
                     pass
@@ -1997,7 +2002,7 @@ class JobService:
                     db.commit()
                     # Best-effort cleanup to avoid storing oversized uploads
                     try:
-                        blob.delete()
+                        await asyncio.to_thread(blob.delete)
                     except Exception:
                         pass
                     raise HTTPException(
@@ -2017,7 +2022,8 @@ class JobService:
 
                     is_zip = self._is_zip_file(source_file.file_type or "", source_file.original_filename or "")
                     if not is_zip:
-                        page_count = page_counting_service.count_pages_from_file_path(
+                        page_count = await asyncio.to_thread(
+                            page_counting_service.count_pages_from_file_path,
                             tmp_path,
                             source_file.original_filename or "unknown",
                         )
@@ -2410,6 +2416,10 @@ class JobService:
 
     async def get_job_results(self, user_id: str, job_id: str, limit: int = 1000, offset: int = 0, run_id: str = None) -> JobResultsResponse:
         """Get extraction results for a completed job run"""
+        return await asyncio.to_thread(self._get_job_results_sync, user_id, job_id, limit, offset, run_id)
+
+    def _get_job_results_sync(self, user_id: str, job_id: str, limit: int = 1000, offset: int = 0, run_id: str = None) -> JobResultsResponse:
+        """Get extraction results using a session local to the worker thread."""
         db = self._get_session()
         try:
             # Get the target run (latest if not specified)

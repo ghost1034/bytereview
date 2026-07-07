@@ -99,6 +99,60 @@ class FormFillOutputEnqueueTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["enqueued_outputs"], 5)
 
 
+class FormFillCreateRunTests(unittest.IsolatedAsyncioTestCase):
+    async def test_create_run_defers_docx_target_page_count(self) -> None:
+        service = FormFillService()
+        added: list[object] = []
+        run_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
+
+        db = MagicMock()
+        db.add.side_effect = added.append
+
+        def flush() -> None:
+            for item in added:
+                if item.__class__.__name__ == "FormFillRun" and getattr(item, "id", None) is None:
+                    item.id = run_id
+
+        db.flush.side_effect = flush
+
+        class Upload:
+            filename = "target.docx"
+            content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+            async def read(self) -> bytes:
+                return b"docx-bytes"
+
+        with patch.object(service, "_get_session", return_value=db), patch.object(
+            service,
+            "_load_extraction_source_payload",
+            return_value={"kind": "extraction_result", "columns": ["Name"], "rows": [["Acme"]], "source_files": []},
+        ), patch.object(
+            service,
+            "_count_target_pages_from_bytes",
+            new=AsyncMock(side_effect=AssertionError("DOCX page counting should be deferred")),
+        ) as count_pages, patch.object(
+            service,
+            "_upload_bytes",
+            new=AsyncMock(),
+        ), patch.object(
+            service,
+            "_serialize_run",
+            side_effect=lambda run: {"id": str(run.id), "target_page_count": run.target_page_count},
+        ), patch("services.form_fill_service.cloud_run_task_service.enqueue_form_fill_task", new_callable=AsyncMock):
+            result = await service.create_run(
+                user_id="user-id",
+                target_file=Upload(),
+                source_job_id="22222222-2222-2222-2222-222222222222",
+                source_run_id="33333333-3333-3333-3333-333333333333",
+                source_task_id="44444444-4444-4444-4444-444444444444",
+            )
+
+        count_pages.assert_not_awaited()
+        run = next(item for item in added if item.__class__.__name__ == "FormFillRun")
+        self.assertIsNone(run.target_page_count)
+        self.assertEqual(result["target_page_count"], None)
+
+
 class FormFillServiceDocxEditPlanTests(unittest.TestCase):
     def setUp(self) -> None:
         self.service = FormFillService()

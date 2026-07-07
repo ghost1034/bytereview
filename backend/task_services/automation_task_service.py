@@ -16,6 +16,7 @@ sys.path.insert(0, str(backend_dir))
 
 from workers.worker import (
     automation_trigger_worker,
+    process_gmail_push_notification,
     run_initializer_worker
 )
 
@@ -68,6 +69,26 @@ async def execute_task(request: Request):
                 logger.error(f"automation_trigger_worker failed: {e}")
                 return {"success": False, "error": str(e)}
             
+        elif task_type == "process_gmail_push_notification":
+            notification_data = task_data.get("notification_data", {})
+
+            if not notification_data:
+                # Permanent error; don't retry
+                logger.warning("process_gmail_push_notification missing notification_data")
+                return {"success": False, "error": "notification_data is required"}
+
+            logger.info(
+                "Executing Gmail push notification processing: history_id=%s",
+                notification_data.get("history_id"),
+            )
+            try:
+                result = await process_gmail_push_notification(ctx, notification_data)
+                logger.info(f"Automation task {task_type} completed: {result}")
+                return {"success": True, "result": result}
+            except Exception as e:
+                logger.error(f"process_gmail_push_notification failed: {e}")
+                return {"success": False, "error": str(e)}
+
         elif task_type == "run_initializer_worker":
             job_id = task_data.get("job_id")
             automation_run_id = task_data.get("automation_run_id")

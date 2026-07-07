@@ -4,13 +4,16 @@ Clean implementation without Firestore dependencies
 """
 # pyright: reportArgumentType=false, reportAssignmentType=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false, reportOptionalMemberAccess=false, reportReturnType=false
 
+import asyncio
+
 from models.user import UserCreate, UserUpdate, UserResponse
 from models.db_models import User as DBUser
 from core.database import db_config
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from datetime import datetime
-from typing import Callable, Optional, cast
+from typing import Awaitable, Callable, Optional, cast
+import inspect
 import logging
 import re
 
@@ -218,14 +221,25 @@ class UserService:
         finally:
             db.close()
 
-    async def get_or_create_user(self, uid: str, email: str, resolve_phone_number: Optional[Callable[[], Optional[str]]] = None, display_name: Optional[str] = None, photo_url: Optional[str] = None) -> UserResponse:
+    async def _resolve_optional_phone(
+        self,
+        resolve_phone_number: Optional[Callable[[], Optional[str] | Awaitable[Optional[str]]]],
+    ) -> Optional[str]:
+        if not resolve_phone_number:
+            return None
+        phone_number = resolve_phone_number()
+        if inspect.isawaitable(phone_number):
+            return await phone_number
+        return phone_number
+
+    async def get_or_create_user(self, uid: str, email: str, resolve_phone_number: Optional[Callable[[], Optional[str] | Awaitable[Optional[str]]]] = None, display_name: Optional[str] = None, photo_url: Optional[str] = None) -> UserResponse:
         """Get existing user or create new one (does not update existing users)"""
         user = await self.get_user(uid)
         if user:
             return user
 
         # Create new user; resolve the verified phone lazily (Firebase Admin lookup)
-        phone_number = resolve_phone_number() if resolve_phone_number else None
+        phone_number = await self._resolve_optional_phone(resolve_phone_number)
         user_create = UserCreate(
             uid=uid,
             email=email,
@@ -236,13 +250,13 @@ class UserService:
         )
         return await self.create_user(user_create)
 
-    async def sync_user_profile(self, uid: str, email: str, resolve_phone_number: Optional[Callable[[], Optional[str]]] = None, display_name: Optional[str] = None, photo_url: Optional[str] = None) -> UserResponse:
+    async def sync_user_profile(self, uid: str, email: str, resolve_phone_number: Optional[Callable[[], Optional[str] | Awaitable[Optional[str]]]] = None, display_name: Optional[str] = None, photo_url: Optional[str] = None) -> UserResponse:
         """Sync user profile - creates user if doesn't exist, updates profile if it does"""
         user = await self.get_user(uid)
         # Only resolve the phone (Firebase Admin lookup) when it isn't recorded yet,
         # so steady-state syncs make zero extra Firebase calls
         needs_phone = user is None or user.phone_number is None
-        phone_number = resolve_phone_number() if (needs_phone and resolve_phone_number) else None
+        phone_number = await self._resolve_optional_phone(resolve_phone_number) if needs_phone else None
         if user:
             # Always update the profile during sync; _apply_verified_phone owns the
             # phone_verified_at stamp (first record / change only)
@@ -267,6 +281,10 @@ class UserService:
             return await self.create_user(user_create)
 
     async def delete_user_account(self, uid: str) -> bool:
+        """Permanently delete user account and all associated data."""
+        return await asyncio.to_thread(self._delete_user_account_sync, uid)
+
+    def _delete_user_account_sync(self, uid: str) -> bool:
         """
         Permanently delete user account and all associated data
         This includes:

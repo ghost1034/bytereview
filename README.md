@@ -625,7 +625,7 @@ Step-by-step GCP setup (high level)
   - Create jobs that POST to the task-maintenance service `/execute` with task_type payloads (see service code)
 9) OAuth and integrations
   - Create Google OAuth client: set redirect URI to https://<frontend>/integrations/google/callback and local http://localhost:3000/integrations/google/callback
-  - Stripe: configure products/prices and webhook endpoint `/api/stripe/webhook` with STRIPE_WEBHOOK_SECRET
+  - Stripe: configure products/prices and webhook endpoint `/api/webhooks/stripe` with STRIPE_WEBHOOK_SECRET
 
 Migrations in CI/CD
 - Use Alembic: `alembic upgrade head` during deploy or via a short-lived Cloud Run job

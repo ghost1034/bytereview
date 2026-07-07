@@ -25,6 +25,7 @@ import hmac
 import logging
 import os
 import secrets
+import asyncio
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -301,7 +302,12 @@ async def bundle(req: BundleRequest, request: Request):
 
         expiration_minutes = 15
         try:
-            url, sha256, version = get_bundle_signed_url(bucket, obj, expiration_minutes=expiration_minutes)
+            url, sha256, version = await asyncio.to_thread(
+                get_bundle_signed_url,
+                bucket,
+                obj,
+                expiration_minutes=expiration_minutes,
+            )
         except Exception as e:
             logger.error("Failed to sign bundle URL for gs://%s/%s: %s", bucket, obj, e)
             raise HTTPException(status_code=503, detail="Activation is not currently available.")

@@ -466,7 +466,7 @@ async def download_job_file(
             raise HTTPException(status_code=500, detail="Storage backend does not support downloads")
 
         blob = bucket.blob(source_file.gcs_object_name)
-        if not blob.exists():
+        if not await asyncio.to_thread(blob.exists):
             raise HTTPException(status_code=404, detail="File not found in storage")
 
         filename = _safe_download_filename(source_file.original_filename)
@@ -514,6 +514,16 @@ async def download_job_files_zip(
         if not_ready:
             raise HTTPException(status_code=409, detail="One or more files are not ready for download")
 
+        file_snapshots = [
+            {
+                "gcs_object_name": sf.gcs_object_name,
+                "original_path": sf.original_path,
+                "original_filename": sf.original_filename,
+            }
+            for sf in source_files
+        ]
+        base_name = f"{(job.name or str(job.id))}_files"
+
         storage_service = get_storage_service()
         if not getattr(storage_service, "is_available", lambda: False)():
             raise HTTPException(status_code=500, detail="Storage is not available")
@@ -523,27 +533,28 @@ async def download_job_files_zip(
             raise HTTPException(status_code=500, detail="Storage backend does not support downloads")
 
         tmp = tempfile.SpooledTemporaryFile(max_size=50 * 1024 * 1024)
-        used_names: set[str] = set()
 
-        with zipfile.ZipFile(tmp, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
-            for sf in source_files:
-                blob = bucket.blob(sf.gcs_object_name)
-                if not blob.exists():
-                    raise HTTPException(status_code=404, detail="File not found in storage")
+        def build_zip_archive() -> None:
+            used_names: set[str] = set()
+            with zipfile.ZipFile(tmp, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+                for sf in file_snapshots:
+                    blob = bucket.blob(sf["gcs_object_name"])
+                    if not blob.exists():
+                        raise HTTPException(status_code=404, detail="File not found in storage")
 
-                entry_name = _safe_zip_entry_name(sf.original_path, sf.original_filename)
-                entry_name = _dedupe_zip_name(entry_name, used_names)
+                    entry_name = _safe_zip_entry_name(sf["original_path"], sf["original_filename"])
+                    entry_name = _dedupe_zip_name(entry_name, used_names)
 
-                with blob.open("rb") as src, zf.open(entry_name, "w") as dest:
-                    while True:
-                        chunk = src.read(1024 * 1024)
-                        if not chunk:
-                            break
-                        dest.write(chunk)
+                    with blob.open("rb") as src, zf.open(entry_name, "w") as dest:
+                        while True:
+                            chunk = src.read(1024 * 1024)
+                            if not chunk:
+                                break
+                            dest.write(chunk)
+            tmp.seek(0)
 
-        tmp.seek(0)
+        await asyncio.to_thread(build_zip_archive)
 
-        base_name = f"{(job.name or str(job.id))}_files"
         zip_filename = generate_export_filename(base_name, datetime.utcnow(), "zip")
         headers = {"Content-Disposition": f'attachment; filename="{zip_filename}"'}
 
@@ -878,7 +889,7 @@ async def export_job_results_csv(
         results_response = await job_service.get_job_results(current_user_id, job_id, run_id=run_id)
         
         # Generate CSV content using helper function
-        csv_content = generate_csv_content(results_response)
+        csv_content = await asyncio.to_thread(generate_csv_content, results_response)
         
         # Build filename using job name and export timestamp
         job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id, ExtractionJob.user_id == current_user_id).first()
@@ -912,7 +923,7 @@ async def export_job_results_excel(
         results_response = await job_service.get_job_results(current_user_id, job_id, run_id=run_id)
         
         # Generate Excel content using helper function
-        excel_content = generate_excel_content(results_response)
+        excel_content = await asyncio.to_thread(generate_excel_content, results_response)
         
         # Build filename using job name and export timestamp
         job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id, ExtractionJob.user_id == current_user_id).first()

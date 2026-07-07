@@ -7,13 +7,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app \
     HOME=/tmp
 
-# System deps
+# System deps kept small for the API. Heavy document tooling lives in task-extract.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc g++ libpq-dev \
-    ffmpeg \
-    ghostscript qpdf tesseract-ocr tesseract-ocr-eng \
-    libreoffice-writer libreoffice-impress libreoffice-calc libreoffice-core libreoffice-common \
-    fonts-dejavu-core fonts-liberation \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -32,4 +28,4 @@ USER app
 EXPOSE 8000
 
 # Default command for API service
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "3"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
