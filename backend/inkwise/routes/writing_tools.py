@@ -298,7 +298,7 @@ async def create_prediction(
         kind="prediction",
         document_id=document_id,
         request_json={
-            "current_block_prefix_text_len": len(body.current_block_prefix_text),
+            "document_prefix_text_len": len(body.document_prefix_text),
             "source_ids": [str(source_id) for source_id, _title in ready_bound_sources],
         },
         provider="vertex_ai",
@@ -332,7 +332,7 @@ async def create_prediction(
                     thread_id=None,
                     query=build_grounded_prediction_retrieval_query(body=body, document=document),
                     bound_sources=ready_bound_sources,
-                    draft_selection_text=body.current_block_prefix_text.strip() or None,
+                    draft_selection_text=body.document_prefix_text.strip() or None,
                     max_evidence=8,
                     max_total_chars=12000,
                 )

@@ -143,20 +143,20 @@ def build_grounded_writing_tool_prompt(
 
 
 def build_prediction_prompt(*, body: InkwisePredictionRequest, document: InkwiseDocument) -> str:
-    current_block_prefix = body.current_block_prefix_text.strip()
+    document_prefix = body.document_prefix_text.strip()
 
     parts: list[str] = []
     parts.append("You are Inkwise Autocomplete.")
     parts.append("Return only the exact text that should be inserted at the cursor.")
     parts.append("")
     parts.append("Rules:")
-    parts.append("- Continue the current block text naturally from the cursor position.")
+    parts.append("- Continue the document text naturally from the cursor position.")
     parts.append("- Match the draft's language, tone, and formatting.")
-    parts.append("- Extend exactly from where the current block text stops.")
+    parts.append("- Extend exactly from where the document text stops.")
     parts.append("- The completion may be several sentences when that is the natural continuation, but keep it focused and directly relevant.")
     parts.append("- Include any needed leading space or punctuation.")
     parts.append("- Do not repeat text that is already before the cursor.")
-    parts.append("- Do not rewrite earlier parts of the block or start a new section unless the current block clearly calls for it.")
+    parts.append("- Do not rewrite earlier parts of the document or start a new section unless the text clearly calls for it.")
     parts.append("- Do not add markdown, code fences, notes, bullets, headings, or quotation marks unless the draft already requires them.")
     parts.append("- Do not explain your answer.")
     parts.append("")
@@ -168,19 +168,19 @@ def build_prediction_prompt(*, body: InkwisePredictionRequest, document: Inkwise
 
     parts.append(f"Document title: {document.title}")
     parts.append("")
-    parts.append("Current block text before cursor:")
-    parts.append(current_block_prefix)
+    parts.append("Document text before cursor:")
+    parts.append(document_prefix)
 
     return "\n".join(parts).strip() + "\n"
 
 
 def build_grounded_prediction_retrieval_query(*, body: InkwisePredictionRequest, document: InkwiseDocument) -> str:
     parts: list[str] = []
-    current_block_prefix = body.current_block_prefix_text.strip()
+    document_prefix = body.document_prefix_text.strip()
 
     if document.init_prompt:
         parts.append(document.init_prompt.strip())
-    parts.append(current_block_prefix)
+    parts.append(document_prefix)
 
     return "\n\n".join(part for part in parts if part).strip()
 
@@ -191,20 +191,20 @@ def build_grounded_prediction_prompt(
     document: InkwiseDocument,
     evidence_pack: str,
 ) -> str:
-    current_block_prefix = body.current_block_prefix_text.strip()
+    document_prefix = body.document_prefix_text.strip()
 
     parts: list[str] = []
     parts.append("You are Inkwise Autocomplete.")
     parts.append("Return only the exact text that should be inserted at the cursor.")
     parts.append("")
     parts.append("Rules:")
-    parts.append("- Continue the current block text naturally from the cursor position.")
+    parts.append("- Continue the document text naturally from the cursor position.")
     parts.append("- Use the grounded evidence when it is relevant to the next text.")
-    parts.append("- Extend exactly from where the current block text stops.")
+    parts.append("- Extend exactly from where the document text stops.")
     parts.append("- The completion may be several sentences when that is the natural continuation, but keep it focused and directly relevant.")
     parts.append("- Include any needed leading space or punctuation.")
     parts.append("- Do not repeat text that is already before the cursor.")
-    parts.append("- Do not rewrite earlier parts of the block or start a new section unless the current block clearly calls for it.")
+    parts.append("- Do not rewrite earlier parts of the document or start a new section unless the text clearly calls for it.")
     parts.append("- If the completion relies on grounded evidence, append the supporting evidence IDs immediately after the supported clause, like [E01] or [E01][E02].")
     parts.append("- Only cite IDs that appear in the grounded evidence below.")
     parts.append("- Evidence headers include modality and segment_type metadata.")
@@ -220,8 +220,8 @@ def build_grounded_prediction_prompt(
 
     parts.append(f"Document title: {document.title}")
     parts.append("")
-    parts.append("Current block text before cursor:")
-    parts.append(current_block_prefix)
+    parts.append("Document text before cursor:")
+    parts.append(document_prefix)
 
     parts.append("")
     parts.append("Grounded evidence:")
@@ -242,9 +242,9 @@ def normalize_prediction_result(*, raw_text: str, body: InkwisePredictionRequest
     if not suggestion:
         return NormalizedPredictionResult(text="", reason="empty_first_line")
 
-    current_block_prefix_tail = body.current_block_prefix_text[-200:].strip()
-    if current_block_prefix_tail and suggestion.strip() == current_block_prefix_tail:
-        return NormalizedPredictionResult(text="", reason="duplicate_current_block_prefix")
+    document_prefix_tail = body.document_prefix_text[-200:].strip()
+    if document_prefix_tail and suggestion.strip() == document_prefix_tail:
+        return NormalizedPredictionResult(text="", reason="duplicate_document_prefix")
 
     return NormalizedPredictionResult(text=suggestion, reason=None)
 

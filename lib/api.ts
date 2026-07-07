@@ -2836,7 +2836,7 @@ export interface InkwiseRetryRequest {
 }
 
 export interface InkwisePredictionRequest {
-  current_block_prefix_text: string
+  document_prefix_text: string
 }
 
 export interface InkwisePredictionResponse {

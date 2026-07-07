@@ -113,7 +113,7 @@ class GroundedPromptMarkerTests(unittest.TestCase):
 
     def test_grounded_prediction_prompt_requests_inline_markers(self) -> None:
         prompt = build_grounded_prediction_prompt(
-            body=SimpleNamespace(current_block_prefix_text="Before"),
+            body=SimpleNamespace(document_prefix_text="Before"),
             document=SimpleNamespace(language="English", init_prompt="Be precise", title="Lease"),
             evidence_pack="[E01] Evidence block",
         )

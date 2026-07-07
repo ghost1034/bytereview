@@ -80,7 +80,7 @@ import { markdownToSafeHtml } from '@/lib/inkwise-markdown'
 import { INKWISE_SOURCE_POLL_INTERVAL_MS, isInkwiseSourceActiveStatus } from '@/lib/inkwise-source-status'
 import { cn, compareNaturalText } from '@/lib/utils'
 
-const MAX_PREDICTION_BLOCK_PREFIX_TEXT = 4000
+const MAX_PREDICTION_DOCUMENT_PREFIX_TEXT = 4000
 const PREDICTION_DEBOUNCE_MS = 1000
 const FOCUS_MODE_MUTE_STORAGE_KEY = 'cpaa_inkwise_focus_mode_muted_v1'
 const FOCUS_MODE_AUDIO_SRC = '/audio/inkwise-white-noise-loop.mp3'
@@ -98,7 +98,7 @@ type PredictionState = {
 }
 
 type PredictionContext = {
-  beforeCursorInBlock: string
+  beforeCursorInDocument: string
 }
 
 type DriveFolderSelection = {
@@ -954,7 +954,7 @@ export default function InkwiseDocumentPage() {
     }
 
     const context = getPredictionContext(editor)
-    if (!context.beforeCursorInBlock.trim()) {
+    if (!context.beforeCursorInDocument.trim()) {
       setPredictionLoading(false)
       setPredictionState(null)
       return
@@ -1807,17 +1807,16 @@ function stripHtml(value?: string | null): string {
 function getPredictionContext(editor: TiptapEditor): PredictionContext {
   const { state } = editor
   const { from } = state.selection
-  const blockStart = state.selection.$from.start()
-  const beforeCursorInBlock = state.doc.textBetween(blockStart, from, '\n', '\n')
+  const beforeCursorInDocument = state.doc.textBetween(0, from, '\n', '\n')
 
   return {
-    beforeCursorInBlock,
+    beforeCursorInDocument,
   }
 }
 
 function buildPredictionRequest(context: PredictionContext): InkwisePredictionRequest {
   return {
-    current_block_prefix_text: context.beforeCursorInBlock.slice(-MAX_PREDICTION_BLOCK_PREFIX_TEXT),
+    document_prefix_text: context.beforeCursorInDocument.slice(-MAX_PREDICTION_DOCUMENT_PREFIX_TEXT),
   }
 }
 

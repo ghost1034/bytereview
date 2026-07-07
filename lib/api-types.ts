@@ -5705,8 +5705,8 @@ export interface components {
         };
         /** InkwisePredictionRequest */
         InkwisePredictionRequest: {
-            /** Current Block Prefix Text */
-            current_block_prefix_text: string;
+            /** Document Prefix Text */
+            document_prefix_text: string;
         };
         /** InkwisePredictionResponse */
         InkwisePredictionResponse: {

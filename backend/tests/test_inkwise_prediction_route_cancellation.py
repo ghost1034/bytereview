@@ -30,7 +30,7 @@ class PredictionRouteCancellationTests(unittest.IsolatedAsyncioTestCase):
     async def test_disconnect_before_retrieval_skips_retrieval_and_generation(self) -> None:
         document_id = uuid.uuid4()
         attempt_id = uuid.uuid4()
-        body = InkwisePredictionRequest(current_block_prefix_text="The lease renews unless terminated.")
+        body = InkwisePredictionRequest(document_prefix_text="The lease renews unless terminated.")
         request = _FakeRequest([True])
 
         with patch(
@@ -68,7 +68,7 @@ class PredictionRouteCancellationTests(unittest.IsolatedAsyncioTestCase):
         attempt_id = uuid.uuid4()
         retrieval_run_id = uuid.uuid4()
         source_id = uuid.uuid4()
-        body = InkwisePredictionRequest(current_block_prefix_text="The lease renews unless terminated.")
+        body = InkwisePredictionRequest(document_prefix_text="The lease renews unless terminated.")
         request = _FakeRequest([False, True])
 
         with patch(
@@ -109,7 +109,7 @@ class PredictionRouteCancellationTests(unittest.IsolatedAsyncioTestCase):
     async def test_cancelled_generation_marks_attempt_cancelled(self) -> None:
         document_id = uuid.uuid4()
         attempt_id = uuid.uuid4()
-        body = InkwisePredictionRequest(current_block_prefix_text="The lease renews unless terminated.")
+        body = InkwisePredictionRequest(document_prefix_text="The lease renews unless terminated.")
         request = _FakeRequest([False, False, False])
         multimodal_bundle = SimpleNamespace(has_attachments=False, contents=[], attached_evidence_ids=[])
 
@@ -148,7 +148,7 @@ class PredictionRouteCancellationTests(unittest.IsolatedAsyncioTestCase):
     async def test_provider_error_marks_attempt_failed(self) -> None:
         document_id = uuid.uuid4()
         attempt_id = uuid.uuid4()
-        body = InkwisePredictionRequest(current_block_prefix_text="The lease renews unless terminated.")
+        body = InkwisePredictionRequest(document_prefix_text="The lease renews unless terminated.")
         request = _FakeRequest([False, False, False])
         multimodal_bundle = SimpleNamespace(has_attachments=False, contents=[], attached_evidence_ids=[])
 
@@ -188,7 +188,7 @@ class PredictionRouteCancellationTests(unittest.IsolatedAsyncioTestCase):
     async def test_post_generation_error_marks_attempt_failed(self) -> None:
         document_id = uuid.uuid4()
         attempt_id = uuid.uuid4()
-        body = InkwisePredictionRequest(current_block_prefix_text="The lease renews unless terminated.")
+        body = InkwisePredictionRequest(document_prefix_text="The lease renews unless terminated.")
         request = _FakeRequest([False, False, False, False])
         multimodal_bundle = SimpleNamespace(has_attachments=False, contents=[], attached_evidence_ids=[])
 

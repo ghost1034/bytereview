@@ -21,7 +21,7 @@ class PredictionRouteThinkingTests(unittest.IsolatedAsyncioTestCase):
     async def test_prediction_passes_thinking_level_to_text_generation(self) -> None:
         document_id = uuid.uuid4()
         attempt_id = uuid.uuid4()
-        body = InkwisePredictionRequest(current_block_prefix_text="The lease renews unless terminated.")
+        body = InkwisePredictionRequest(document_prefix_text="The lease renews unless terminated.")
         multimodal_bundle = SimpleNamespace(has_attachments=False, contents=[], attached_evidence_ids=[])
 
         with patch(
@@ -68,7 +68,7 @@ class PredictionRouteThinkingTests(unittest.IsolatedAsyncioTestCase):
     async def test_prediction_passes_thinking_level_to_multimodal_generation(self) -> None:
         document_id = uuid.uuid4()
         attempt_id = uuid.uuid4()
-        body = InkwisePredictionRequest(current_block_prefix_text="The lease renews unless terminated.")
+        body = InkwisePredictionRequest(document_prefix_text="The lease renews unless terminated.")
         multimodal_bundle = SimpleNamespace(
             has_attachments=True,
             contents=[{"role": "user", "parts": [{"text": "Continue this sentence"}]}],

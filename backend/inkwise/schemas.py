@@ -529,7 +529,7 @@ class InkwiseWritingToolRequest(BaseModel):
 
 
 class InkwisePredictionRequest(BaseModel):
-    current_block_prefix_text: str = Field(min_length=1, max_length=4000)
+    document_prefix_text: str = Field(min_length=1, max_length=4000)
 
 
 class InkwisePredictionResponse(BaseModel):
