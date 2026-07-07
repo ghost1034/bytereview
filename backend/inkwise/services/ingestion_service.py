@@ -37,6 +37,11 @@ class IngestionError(RuntimeError):
 logger = logging.getLogger(__name__)
 
 
+def _strip_nul(text: str | None) -> str:
+    """Remove NUL (0x00) characters, which PostgreSQL TEXT columns reject."""
+    return str(text or "").replace("\x00", "")
+
+
 @dataclass(frozen=True)
 class IngestionUsageMeasurement:
     basis: str
@@ -310,8 +315,8 @@ class InkwiseIngestionService:
                 segment_type=draft.segment_type,
                 modality=draft.modality,
                 order_index=draft.order_index,
-                title=draft.title,
-                text_content=draft.text_content,
+                title=_strip_nul(draft.title) or None,
+                text_content=_strip_nul(draft.text_content),
                 char_count=draft.char_count,
                 token_count=draft.token_count,
                 page_start=draft.page_start,
@@ -371,7 +376,7 @@ class InkwiseIngestionService:
                     segment.preview_bucket = ingestion.canonical_pdf_gcs_bucket
                     segment.preview_object = ingestion.canonical_pdf_gcs_object
                 embedding_result = self.embedding_service.embed_document_text_sync(
-                    draft.text_content or "",
+                    segment.text_content or "",
                     output_dimensionality=settings.embedding_dimension,
                 )
 
@@ -429,7 +434,7 @@ class InkwiseIngestionService:
         db.query(InkwiseSourcePage).filter(InkwiseSourcePage.source_id == source.id).delete()
         page_blocks = [block for block in normalized.text_blocks if block.page_number is not None]
         for block in page_blocks:
-            text = str(block.text or "")
+            text = _strip_nul(block.text)
             db.add(
                 InkwiseSourcePage(
                     source_id=source.id,

@@ -28,7 +28,9 @@ def extract_pdf_pages_text(*, pdf_path: str, is_ocr: bool = False) -> list[Extra
     try:
         for idx in range(len(doc)):
             page = doc.load_page(idx)
-            text = page.get_text("text") or ""
+            # PyMuPDF can emit NUL characters from broken font encodings; PostgreSQL
+            # TEXT columns reject them, so strip before the text enters the pipeline.
+            text = (page.get_text("text") or "").replace("\x00", "")
             text = "\n".join([line.rstrip() for line in text.splitlines()]).strip()
             out.append(ExtractedPage(page_number=idx + 1, text=text, is_ocr=bool(is_ocr)))
     finally:
