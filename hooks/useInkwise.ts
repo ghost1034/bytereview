@@ -54,9 +54,9 @@ export function useInkwiseDocumentRevisions(documentId: string) {
   })
 }
 
-// The backend caps the sources listing at 100 items per page. We page through
-// every page and accumulate the results so a user's reference library is never
-// truncated, no matter how many references they have.
+// The backend caps the sources listing at 100 items per page. Pages are
+// fetched on demand (via fetchNextPage) and accumulated, so consumers render
+// a single growing list with no cap on library size.
 const INKWISE_SOURCES_PAGE_SIZE = 100
 
 export type InkwiseSourcesResult = {
@@ -64,7 +64,7 @@ export type InkwiseSourcesResult = {
   total: number
 }
 
-export function useInkwiseSources(options?: { enabled?: boolean }) {
+export function useInkwiseSources(options?: { enabled?: boolean; loadAll?: boolean }) {
   const query = useInfiniteQuery({
     queryKey: ['inkwise', 'sources'],
     queryFn: ({ pageParam }) => apiClient.listInkwiseSources({ page: pageParam, limit: INKWISE_SOURCES_PAGE_SIZE }),
@@ -83,14 +83,16 @@ export function useInkwiseSources(options?: { enabled?: boolean }) {
     }),
   })
 
-  // Automatically request the next page until the whole library is loaded, so
-  // consumers can search and sort across every reference the user owns.
+  // Search is filtered client-side, so while loadAll is set (e.g. a search is
+  // active) we keep paging until the whole library is loaded; otherwise pages
+  // load on demand as the consumer requests them.
+  const loadAll = options?.loadAll ?? false
   const { hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage } = query
   useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage && !isFetchNextPageError) {
+    if (loadAll && hasNextPage && !isFetchingNextPage && !isFetchNextPageError) {
       void fetchNextPage()
     }
-  }, [hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage])
+  }, [loadAll, hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage])
 
   return query
 }

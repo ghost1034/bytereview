@@ -9,6 +9,7 @@ import { Cloud, Download, History, LibraryBig, Loader2, Maximize2, MessageSquare
 import { ChatPanel } from '@/components/inkwise/chat-panel'
 import { InkwiseEditor, type InkwiseEditorReviewState } from '@/components/inkwise/inkwise-editor'
 import { InkwiseSourceImportPanel } from '@/components/inkwise/source-import-panel'
+import { InkwiseSourceListLoadMore } from '@/components/inkwise/source-list-load-more'
 import { InlineWritingTools } from '@/components/inkwise/inline-writing-tools'
 import { InkwiseChatDebugSheet } from '@/components/inkwise/chat-debug-sheet'
 import { InkwiseCitationBubbles } from '@/components/inkwise/citation-bubbles'
@@ -168,7 +169,9 @@ export default function InkwiseDocumentPage() {
   const pendingAutoNameThreadsRef = useRef<Record<string, number>>({})
 
   const documentQuery = useInkwiseDocument(documentId)
-  const sourcesQuery = useInkwiseSources()
+  const [referenceSearch, setReferenceSearch] = useState('')
+  // Search filters client-side, so load the full library while a query is active.
+  const sourcesQuery = useInkwiseSources({ loadAll: Boolean(referenceSearch.trim()) })
   const bindingsQuery = useInkwiseDocumentSources(documentId, {
     refetchInterval: (query) => {
       const data = query.state.data as { sources?: Array<{ source?: { status?: string | null } | null }> } | undefined
@@ -221,7 +224,6 @@ export default function InkwiseDocumentPage() {
   const [sidebarTab, setSidebarTab] = useState<'chat' | 'references' | 'review'>('chat')
   const [chatSourceChecked, setChatSourceChecked] = useState<Record<string, boolean>>({})
   const [chatSourceSearch, setChatSourceSearch] = useState('')
-  const [referenceSearch, setReferenceSearch] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [driveExportOpen, setDriveExportOpen] = useState(false)
@@ -1393,12 +1395,11 @@ export default function InkwiseDocumentPage() {
                               Everything in your source library is already bound to this document.
                             </div>
                           )}
-                          {sourcesQuery.isFetchingNextPage || sourcesQuery.hasNextPage ? (
-                            <div className="flex items-center justify-center gap-2 py-1 text-xs text-slate-400">
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              Loading more references…
-                            </div>
-                          ) : null}
+                          <InkwiseSourceListLoadMore
+                            hasNextPage={sourcesQuery.hasNextPage}
+                            isFetchingNextPage={sourcesQuery.isFetchingNextPage}
+                            onLoadMore={() => sourcesQuery.fetchNextPage()}
+                          />
                         </div>
                       </div>
                     </div>

@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { BookOpenText, Eye, Loader2, RefreshCw, Trash2 } from 'lucide-react'
 
 import { InkwiseSourceImportPanel } from '@/components/inkwise/source-import-panel'
+import { InkwiseSourceListLoadMore } from '@/components/inkwise/source-list-load-more'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -23,7 +24,8 @@ export default function InkwiseReferencesPage() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const [sourceSearch, setSourceSearch] = useState('')
-  const sources = useInkwiseSources()
+  // Search filters client-side, so load the full library while a query is active.
+  const sources = useInkwiseSources({ loadAll: Boolean(sourceSearch.trim()) })
   const ingestions = useInkwiseSourceIngestions(undefined, {
     refetchInterval: (query) => {
       const data = query.state.data as { ingestions?: Array<{ status?: string | null }> } | undefined
@@ -243,12 +245,13 @@ export default function InkwiseReferencesPage() {
                   </CardContent>
                 </Card>
               )}
-              {sources.isFetchingNextPage || sources.hasNextPage ? (
-                <div className="flex items-center justify-center gap-2 py-2 text-xs text-slate-400">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Loading more references… ({sources.data?.items.length ?? 0} of {sources.data?.total ?? 0})
-                </div>
-              ) : null}
+              <InkwiseSourceListLoadMore
+                hasNextPage={sources.hasNextPage}
+                isFetchingNextPage={sources.isFetchingNextPage}
+                onLoadMore={() => sources.fetchNextPage()}
+                loadedCount={sources.data?.items.length}
+                totalCount={sources.data?.total}
+              />
             </div>
           </ScrollArea>
         ) : (
