@@ -83,6 +83,14 @@ BUNDLE_SECRET_NAME="${BUNDLE_SECRET_NAME:-CPAA_BUNDLE_SECRET}"
 CPAA_BUNDLE_GCS_BUCKET="${CPAA_BUNDLE_GCS_BUCKET:-cpaa-accountingclaw-bundles}"
 CPAA_BUNDLE_GCS_OBJECT="${CPAA_BUNDLE_GCS_OBJECT:-accountingclaw/accountingclaw-profile.tar.gz}"
 
+# LegalClaw bundle decryption secret (Secret Manager) and desktop bundle object
+# (same private bucket as AccountingClaw). The secret must match the value the
+# LegalClaw image was built with (scripts/build-legalclaw-image.sh); the object
+# is published with scripts/publish-legalclaw-bundle.sh. Both are optional until
+# LegalClaw is rolled out: the secret is mounted only when it exists.
+LEGALCLAW_BUNDLE_SECRET_NAME="${LEGALCLAW_BUNDLE_SECRET_NAME:-CPAA_LEGALCLAW_BUNDLE_SECRET}"
+CPAA_LEGALCLAW_BUNDLE_GCS_OBJECT="${CPAA_LEGALCLAW_BUNDLE_GCS_OBJECT:-legalclaw/legalclaw-profile.tar.gz}"
+
 SKIP_BUILD=false
 SKIP_MIGRATE=false
 ROTATE_TASK_TOKEN=false
@@ -226,6 +234,34 @@ ensure_bundle_secret() {
 
   printf '%s' "$value" | gcloud secrets create "$BUNDLE_SECRET_NAME" --data-file=- >/dev/null
   ok "Created secret ${BUNDLE_SECRET_NAME} from backend/.env"
+}
+
+# Ensure the LegalClaw bundle secret exists in Secret Manager, seeded from
+# CPAA_LEGALCLAW_BUNDLE_SECRET in backend/.env. Unlike the AccountingClaw
+# secret this is optional: if it isn't configured yet we warn and the API is
+# deployed without it (LegalClaw /resolve then returns 503 until it's set).
+ensure_legalclaw_bundle_secret() {
+  if secret_exists "$LEGALCLAW_BUNDLE_SECRET_NAME"; then
+    ok "Secret ${LEGALCLAW_BUNDLE_SECRET_NAME} already exists (left unchanged)"
+    return
+  fi
+
+  local env_file="$ROOT_DIR/backend/.env"
+  local value=""
+  if [ -f "$env_file" ]; then
+    value="$(grep -E '^CPAA_LEGALCLAW_BUNDLE_SECRET=' "$env_file" | head -n1 | cut -d= -f2-)"
+    value="${value%\"}"; value="${value#\"}"
+    value="${value%\'}"; value="${value#\'}"
+    value="$(printf '%s' "$value" | tr -d '[:space:]')"
+  fi
+
+  if [ -z "$value" ] || [ "$value" = "replace-with-the-build-time-bundle-secret" ]; then
+    warn "Skipping ${LEGALCLAW_BUNDLE_SECRET_NAME}: set CPAA_LEGALCLAW_BUNDLE_SECRET in backend/.env (matching the LegalClaw image build) to enable LegalClaw activation."
+    return
+  fi
+
+  printf '%s' "$value" | gcloud secrets create "$LEGALCLAW_BUNDLE_SECRET_NAME" --data-file=- >/dev/null
+  ok "Created secret ${LEGALCLAW_BUNDLE_SECRET_NAME} from backend/.env"
 }
 
 ensure_queue() {
@@ -521,6 +557,7 @@ BACKEND_BASE_ENV=(
   "FORM_FILL_OUTPUT_ENQUEUE_JITTER_SECONDS=${FORM_FILL_OUTPUT_ENQUEUE_JITTER_SECONDS}"
   "CPAA_BUNDLE_GCS_BUCKET=${CPAA_BUNDLE_GCS_BUCKET}"
   "CPAA_BUNDLE_GCS_OBJECT=${CPAA_BUNDLE_GCS_OBJECT}"
+  "CPAA_LEGALCLAW_BUNDLE_GCS_OBJECT=${CPAA_LEGALCLAW_BUNDLE_GCS_OBJECT}"
 )
 
 section "Checking prerequisites"
@@ -545,6 +582,12 @@ fi
 
 section "Preparing infrastructure (secrets + queue)"
 ensure_bundle_secret
+ensure_legalclaw_bundle_secret
+# Mount the LegalClaw bundle secret only once it exists, so deploys keep
+# working before LegalClaw is rolled out.
+if secret_exists "$LEGALCLAW_BUNDLE_SECRET_NAME"; then
+  BACKEND_BASE_SECRETS+=",${LEGALCLAW_BUNDLE_SECRET_NAME}=${LEGALCLAW_BUNDLE_SECRET_NAME}:latest"
+fi
 ensure_secret_value "$TASK_TOKEN_SECRET" "$ROTATE_TASK_TOKEN"
 ensure_queue "$QUEUE_NAME"
 

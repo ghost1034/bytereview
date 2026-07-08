@@ -1,5 +1,5 @@
 ---
-title: "Skills catalog"
+title: "AccountingClaw skills catalog"
 description: "The accounting skills AccountingClaw ships with, grouped by area, plus a deep-dive on how any one of them works end-to-end."
 order: 6
 ---

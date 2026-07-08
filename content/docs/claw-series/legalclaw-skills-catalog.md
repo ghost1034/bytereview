@@ -1,0 +1,1374 @@
+---
+title: "LegalClaw skills catalog"
+description: "All 1,251 legal skills LegalClaw ships with, grouped into 24 practice areas, and how the skills pattern works."
+order: 8
+---
+
+LegalClaw ships with **1,251 legal skills across 24 practice areas** out of the box. You don't invoke them by name — you describe the matter in [chat](/docs/claw-series/using-legalclaw) and LegalClaw routes it to the right skill. Every skill encodes how to work one class of legal matter: the failure modes to avoid, the legal frameworks and market conventions that apply, the shape of the deliverable, and a self-audit it runs before handing anything back. To see the installed skills at any time, run `hermes skills list`.
+
+## Practice areas at a glance
+
+| Practice area | Skills |
+| --- | ---: |
+| [Corporate M&A](#corporate-ma-161) | 161 |
+| [Intellectual Property](#intellectual-property-147) | 147 |
+| [Corporate Governance](#corporate-governance-97) | 97 |
+| [Trusts, Estates & Private Client](#trusts-estates--private-client-77) | 77 |
+| [Funds & Asset Management](#funds--asset-management-66) | 66 |
+| [Litigation & Dispute Resolution](#litigation--dispute-resolution-52) | 52 |
+| [Data Privacy & Cybersecurity](#data-privacy--cybersecurity-44) | 44 |
+| [Environmental & ESG](#environmental--esg-44) | 44 |
+| [Real Estate](#real-estate-44) | 44 |
+| [Emerging Companies & Venture Capital](#emerging-companies--venture-capital-43) | 43 |
+| [Healthcare & Life Sciences](#healthcare--life-sciences-43) | 43 |
+| [International Trade & Sanctions](#international-trade--sanctions-41) | 41 |
+| [Employment & Labor](#employment--labor-39) | 39 |
+| [Banking & Finance](#banking--finance-37) | 37 |
+| [International Arbitration & Dispute Resolution](#international-arbitration--dispute-resolution-37) | 37 |
+| [Bankruptcy & Restructuring](#bankruptcy--restructuring-36) | 36 |
+| [Capital Markets](#capital-markets-35) | 35 |
+| [Tax](#tax-34) | 34 |
+| [Antitrust & Competition](#antitrust--competition-33) | 33 |
+| [Energy & Natural Resources](#energy--natural-resources-31) | 31 |
+| [Insurance](#insurance-31) | 31 |
+| [Structured Finance & Securitization](#structured-finance--securitization-31) | 31 |
+| [Immigration](#immigration-27) | 27 |
+| [White Collar Defense & Investigations](#white-collar-defense--investigations-21) | 21 |
+
+## Every skill, by practice area
+
+Skill names below are the task each skill works. Where a task ships multiple scenario variants, each variant is its own skill.
+
+### Antitrust & Competition (33)
+
+- Antitrust Compliance Gap Analysis
+- Antitrust Compliance Training Materials
+- Antitrust Consent Decree Drafting
+- Antitrust HSR Strategy Analysis
+- Antitrust Pricing Analysis from Document Production
+- Antitrust Transaction Structure Analysis
+- CID Issues Memorandum
+- CID Response Drafting (Three Deliverables)
+- Competitor NDA Antitrust Review
+- Custodian Identification Report
+- DOJ Leniency Application Drafting
+- Defense-Side Antitrust Complaint Issue Memorandum
+- EU Merger Commitments Proposal
+- European Competition Decision Extraction and Appeal Analysis
+- Expert Economic Report Critique
+- Expert Market Share Discrepancy Analysis
+- Federal Antitrust Complaint Drafting
+- Full Antitrust Risk Assessment Package
+- HSR Pre-Notification Briefing Paper — framing-only ablation
+- Joint Venture Antitrust Issues Identification
+- Joint Venture Competitive Overlap Analysis
+- Market Definition Analysis Memorandum
+- Market Share Data Extraction and Antitrust Risk Analysis (Scenario 02) (scenario 02)
+- Market Share Data Extraction and Antitrust Risk Analysis (scenario 01)
+- Merger Remedies Deviation Assessment
+- Merger Remedies Package Issues Memorandum
+- Motion to Dismiss Antitrust Claims
+- Multi-Jurisdiction Leniency Program Comparison
+- Pre-Notification Antitrust Briefing Paper
+- Precedent Market Definition Application
+- Protective Order Counterparty Markup Analysis
+- Protective Order Markup (Respondent Side)
+- Second Request Response Strategy Memorandum
+
+### Banking & Finance (37)
+
+- Acquisition Financing Commitment Letter Drafting with Issues Memo
+- Board Resolution Drafting — Senior Secured Credit Facility Authorization
+- Borrower Disclosure vs. Due Diligence Discrepancy Memorandum
+- Borrower Financial Statement Extraction and Compliance Certificate Reconciliation
+- Borrower Financial Statements Issues Memo — Compliance Certificate Verification
+- Borrower Markup Change Analysis Memo (Senior Secured Credit Agreement)
+- Borrower's Counsel Credit Agreement Markup Memo (LBO Financing)
+- Borrower-Side Annotated Term Sheet Markup Memo
+- Borrower-Side Closing Legal Opinion with Issues Memo
+- Closing Checklist Issues Memo — Revolving Credit Facility
+- Commercial Real Estate Loan Covenant Extraction — Portfolio Compliance Summary
+- Commitment Letter Issues Memo — Sponsor Perspective
+- Compliance Certificate Deviation Analysis — Independent Recalculation
+- Compliance Certificate Issues Memo — Independent Verification
+- Conditions Precedent Checklist and Gap Analysis
+- Conditions Precedent Gap Memorandum (Real Estate Secured Facility)
+- Corporate Authorization Deficiency Memo — Senior Secured Credit Facility
+- Counterparty Markup Deviation Analysis (Senior Secured Credit Facility Term Sheet)
+- Covenant Deviation Report — Independent Recalculation
+- Credit Agreement Amendment Drafting — Standard Form with Issues Memo
+- Credit Agreement Covenant Extraction Memo — Acquisition Diligence
+- Credit Agreement Issue-Spotting Memo — LBO Financing (Borrower Side)
+- Credit Agreement vs. Commitment Letter Deviation Report (LBO Financing)
+- Credit Agreement vs. Term Sheet Deviation Report
+- Default Trigger Extraction Report — Credit Agreement Risk Review
+- Fee Letter Drafting with Issues Memo (Senior Secured Credit Facility)
+- Financial Covenant Extraction Memo — Multi-Agreement Acquisition Due Diligence
+- First Lien / Second Lien Intercreditor Agreement Drafting (First-Lien Favorable)
+- Forbearance Agreement Drafting with Issues Memo
+- Intercreditor Agreement Term Extraction — Chapter 11 Debtor Context
+- Lien Search Summary Report — Secured Credit Facility
+- Officer's Certificate Issues Memo — Conditions Precedent to Initial Funding
+- Parent Guaranty Agreement Drafting with Cover Memo
+- Quarterly Compliance Certificate Preparation — Complete Covenant Package
+- Reporting Obligations Matrix and Compliance Calendar
+- Restructuring Closing Documents Gap Report
+- Term Sheet Issues Memo — Leveraged Acquisition Financing (Borrower/Sponsor Side)
+
+### Bankruptcy & Restructuring (36)
+
+- Analyze Counterparty Markup of Plan of Reorganization — Deviation Report
+- Analyze Counterparty Markup of Restructuring Support Agreement
+- Analyze Counterparty Plan Objection for Meritorious and Deficient Arguments
+- Compare Competing Bid Terms Against Stalking Horse APA
+- Compare Distribution Amounts Against Plan Requirements
+- Compare Plan Feasibility Projections Against Historical Financials
+- Cross-Class Plan Treatment Comparison Memo
+- Draft Bid Procedures Motion
+- Draft Cash Collateral Stipulation
+- Draft Chapter 11 Disclosure Statement
+- Draft Chapter 11 Plan of Reorganization
+- Draft Cure Notice Objection Response
+- Draft DIP Financing Motion
+- Draft Final Decree Motion
+- Draft First-Day Motions Package
+- Draft First-Day Motions Package
+- Draft Markup of Chapter 11 Plan of Reorganization on Behalf of Unsecured Creditors' Committee
+- Draft Plan Effective Date Conditions Precedent Checklist
+- Draft Proposed Confirmation Order
+- Draft Restructuring Support Agreement
+- Draft Voluntary Chapter 11 Petition and Schedules
+- Extract Ballot Tallies from Voting Report
+- Extract Critical Vendor Terms from Supply Contracts
+- Extract Intercreditor Agreement Key Terms
+- Extract Loan Agreement Terms — Restructuring Strategy Development (scenario 01)
+- Extract Loan Agreement Terms — Restructuring Strategy Purposes (Scenario 02) (scenario 02)
+- Identify Issues in Chapter 11 Plan of Reorganization
+- Identify Issues in Counterparty Confirmation Objection
+- Identify Issues in Counterparty Sale Objection
+- Identify Issues in Counterparty's Proposed Asset Purchase Agreement
+- Identify Issues in DIP Credit Agreement
+- Identify Issues in Preference Exposure Analysis
+- Identify Issues in Stalking Horse Asset Purchase Agreement
+- Identify Issues in a Restructuring Support Agreement
+- Review Distressed Credit Facility — Issue Identification Memorandum (Scenario 02) (scenario 02)
+- Review Distressed Credit Facility — Issue Identification Memorandum (scenario 01)
+
+### Capital Markets (35)
+
+- Analyze Counterparty Markup of Underwriting Agreement
+- Compare Charter Against Offering Documents — Deviation Report
+- Compare Closing Documents Against Closing Checklist — Discrepancy Report
+- Compare Registration Statement Against Prior Filings — Deviation and Consistency Report
+- Draft Annual Report on Form 10-K
+- Draft Comfort Letter Request to Auditor
+- Draft Current Report on Form 8-K
+- Draft DEF 14A Proxy Statement Disclosure
+- Draft Definitive Proxy Statement (DEF 14A)
+- Draft Equity Incentive Plan
+- Draft Indenture for Senior Secured Notes Offering
+- Draft Internal Controls over Financial Reporting Policy
+- Draft Legal Opinion Letter for Rule 144A / Regulation S High-Yield Offering
+- Draft Markup of Senior Secured Notes Indenture — Purchaser's Perspective
+- Draft Markup of Underwriting Agreement — Issuer's Perspective
+- Draft Quarterly Report on Form 10-Q
+- Draft Registration Statement on Form S-1
+- Draft SEC Comment Letter Response
+- Draft Underwriting Agreement for IPO
+- Extract Issuer Financial Statements — Offering Memorandum Cross-Reference (scenario 01)
+- Extract Issuer Financial Statements — Scenario 02 (Including Offering Terms) (scenario 02)
+- Extract Key Terms from Section 16 Filings
+- Extract Key Terms from Underwriting Agreement — Term Sheet Summary
+- Form Check on SEC Form S-1 Registration Statement
+- Identify Issues in DD Request List — Pre-IPO Due Diligence (Scenario 02) (scenario 02)
+- Identify Issues in DD Request List — Pre-IPO Due Diligence (scenario 01)
+- Identify Issues in High-Yield Indenture — Dividend Recapitalization
+- Identify Issues in Underwriting Agreement — Issue Memorandum
+- Review Annual Report (Form 10-K) Filing for Form Compliance
+- Review Corporate Insider Trading Policy for Compliance Gaps
+- Review Draft Form 10-Q for SEC Filing Deficiencies
+- Review Draft Form 8-K for SEC Compliance Deficiencies
+- Review Proxy Statement for SEC Form Compliance
+- Review Quarterly Report for SEC Compliance — Form 10-Q
+- Year-over-Year Annual Report Comparison Memo
+
+### Corporate Governance (97)
+
+- AI Disclosure Requirements Across Jurisdictions Comparison
+- AI Regulatory Impact on AI Product Portfolio
+- Activism Response Memorandum for Board of Directors
+- Annual Good Standing and Foreign Qualification Compliance Gap Report — Multi-Jurisdiction Review
+- Audit Committee Charter Update for New SEC Requirements
+- Audit Findings Memorandum for SEC Examination Deficiency Letter
+- BOI Compliance Gap Analysis — Beneficial Ownership Reporting Across Corporate Entity Structure
+- Batch NDA Generation from Master Template
+- Board Meeting Minutes for Special Meeting of Digital Health Company
+- Board Meeting Minutes — Special Meeting Approving Acquisition, Financing, and Officer Appointments
+- Board Minutes for Quarterly Meeting with Governance Issues Memo
+- Board Resolution for Senior Secured Revolving Credit Facility
+- CFPB Section 1033 Open Banking Rule Impact on Data Sharing Agreements
+- Cannabis Dispensary Permit Compliance Requirements Matrix
+- Code of Business Conduct and Ethics for Newly Public Biopharmaceutical Company
+- Company vs. Dissident Proxy Statement Comparative Analysis
+- Compliance Findings Memorandum from a BSA/AML Internal Audit Record
+- Comprehensive Corporate Code of Conduct for Recently Public Biopharmaceutical Company
+- Comprehensive Data Retention and Destruction Policy for Cross-Border Company
+- Corporate Bylaws vs. Best Practice Governance Guidelines
+- Corporate Bylaws vs. Best Practice Governance Guidelines Gap Analysis
+- Corrective Action Plan in Response to Regulatory Examination Deficiency Letter
+- Cybersecurity Disclosure Rule Impact on Incident Response Procedures
+- D&O Insurance Policy Coverage Assessment — Risk Identification Memorandum
+- D&O Insurance Policy vs. Indemnification Agreement Coverage Gap Analysis
+- DOL Independent Contractor Rule — Executive Summary Memorandum
+- Data-Transfer Adequacy Decision Impact on Cross-Border Transfer Framework
+- Defensive Advisory Memorandum — Identifying Issues in a Dissident Proxy Statement
+- Delaware Corporation Bylaws for Post-Series A Company
+- Delaware Corporation Formation — Action by Incorporator
+- Document Production Gap Analysis vs. Discovery Request Specifications
+- EU AI Act High-Risk Requirements Gap Analysis
+- EU AI Act High-Risk System Gap Analysis — Product Documentation Review
+- Emerging Fintech Lending Regulations — Executive Memorandum
+- Employee Statement vs. Documentary Evidence Inconsistency Analysis
+- Employment Agreement Triage for Noncompete Rule Exposure — Risk Assessment Memorandum
+- Entity Compliance Checklist Deviation Report — Pre-Financing Due Diligence
+- Extract Key Allegations from a Government Inquiry Letter — Structured Allegation Extraction Report
+- Extract and Map Fiduciary Duty Provisions Across Fund Governing Documents (scenario 01)
+- Extract and Map Fiduciary Duty Provisions Across Fund Governing Documents (scenario 02)
+- FDA Device Registration Rule Gap Analysis — Proposed vs. Current Requirements
+- FLSA Overtime Rule Gap Analysis Against Employee Classifications
+- Fiduciary Duty Analysis for a Conflicted-Controller Acquisition — Audit Committee Memorandum
+- Formal Regulatory Comment Letter Responding to a Proposed Agency Rule
+- Governance Compliance Matrix for a Bank Holding Company
+- Governance Summary Memorandum — Shareholder Proposals and Proxy Materials Review
+- HIPAA Security Rule Gap Analysis — Policy vs. Regulation
+- Healthcare Data Privacy Compliance Program Gap Analysis
+- Identify Governance Deficiencies in a Prior Year Proxy Statement — Issues Memorandum for Proxy Season Preparation
+- Identify Issues in a Draft Litigation Hold Preservation Notice — Review Memorandum
+- Identify Issues in an Expert Damages Report — Defense Perspective Memorandum
+- Identify Regulatory Compliance Gaps in Updated Financial Institution Policies
+- Indemnification Agreement for Incoming Independent Director
+- Indemnification Provisions Summary Memorandum — Litigation Readiness Analysis
+- Initial Assessment Memorandum for FDA Warning Letter Response — Pharmaceutical Manufacturer
+- Initial Response Framework Memorandum for FTC Civil Investigative Demand
+- Internal AI Acceptable Use Policy
+- Issues Memorandum for a Counterparty Settlement Agreement — Audit Committee Review
+- Litigation Hold Notice and Preservation Action-Items Memo
+- Markup and Commentary Memo for a Proposed Regulatory Settlement Agreement
+- Multi-Entity Annual Compliance Checklist Review
+- Multi-State Consumer Privacy Law Gap Analysis
+- Multi-State Paid Leave Requirements Compliance Analysis
+- Multi-State Paid Leave Requirements for Multi-State Expansion
+- NDA Playbook Review — Multi-Agreement Triage and Deviation Report
+- Noncompete Restriction Impact on Employment Agreements
+- Position Letter Responding to a State Insurance Market Conduct Examination Report
+- Privacy Enforcement Priorities — Executive Briefing Memorandum
+- Privileged Internal Investigation Report for an Audit Committee
+- Proxy Statement Disclosures vs. SEC Regulatory Requirements
+- Regional Anti-Corruption Compliance Gap Analysis for Newly Acquired Subsidiary
+- Regulatory Approval Memo for a New Fintech Direct-to-Consumer Lending Subsidiary
+- Regulatory Impact Assessment Memorandum for a Proposed Banking Rule
+- Regulatory Impact Summary for a Proposed SEC Rule — Private Fund Adviser
+- Remediation Plan for SEC Examination Deficiency Findings — Investment Adviser
+- Review Board Resolutions — Comprehensive Governance Issues Report (scenario 01)
+- Review Board Resolutions — Governance Issues Report (scenario 02)
+- Review Memorandum for Civil Investigative Demand Response — Privilege Log and Production Gap Analysis
+- Risk-Based Internal Audit Work Plan for a Bank Holding Company
+- SEC Beneficial Ownership Rule Changes — Board Memorandum
+- SEC Climate Disclosure Rule Compliance Gap Analysis
+- SEC Human Capital Disclosure Readiness Gap Analysis — Reg S-K Item 101(c)
+- SEC Reporting Requirements Compliance Timeline Assessment
+- Security Rule Update Impact on BAA Portfolio
+- Settlement vs. Initial Allegations Comparative Analysis
+- State AI Governance Bill Summary — Plain-Language Executive Memo for Product and Engineering Teams
+- State Consumer Data Privacy Law Compliance Timeline
+- State Insurance License Renewal Submission Package
+- State Pay Transparency Law Compliance Gap Analysis
+- State Privacy Law Impact on Multi-State Data Analytics Operations
+- State Wage Theft Prevention Act Compliance Timeline
+- Statute of Limitations Analysis for Breach of Contract Claims
+- Subsidiary Board Resolutions for Intercompany Loan, IP License, and Guaranty
+- Unanimous Written Consent for Officer Appointment
+- Updated Corporate Code of Business Conduct and Ethics
+- Vendor AI Contracts Triage — EU AI Liability Directive Compliance Gap Analysis
+- Witness Interview Memorandum for an Internal FCPA Investigation
+
+### Corporate M&A (161)
+
+- Acquisition Consent Diligence Analysis (scenario 01)
+- Acquisition Consent Diligence Analysis (scenario 02)
+- Acquisition Term Sheet Drafting (scenario 01)
+- Acquisition Term Sheet Drafting (scenario 02)
+- Analyze / Synthesize DD Summary Memo
+- Analyze CIM / Deal Teaser — Buy-Side Memo (Scenario 01) (scenario 01)
+- Analyze CIM / Deal Teaser — Buy-Side Memo (scenario 02)
+- Analyze Change of Control Provisions Across Target's Material Contracts
+- Analyze Counterparty SPA Markup
+- Analyze Credit Agreement Markup
+- Analyze Disclosure Schedule Markup Against Merger Agreement
+- Analyze Environmental Liability Exposure in Target's Operations
+- Analyze Escrow Agreement Markup
+- Analyze QoE Reconciliation and PPA
+- Analyze Responses to DDRL (Scenario 01) (scenario 01)
+- Analyze Responses to DDRL (Scenario 02) (scenario 02)
+- Analyze Seller's Counsel Markup of Stock Purchase Agreement
+- Analyze Term Sheet Markup (Scenario 01) (scenario 01)
+- Analyze Term Sheet Markup (Scenario 02) (scenario 02)
+- Analyze Transaction Restrictions (Scenario 01) (scenario 01)
+- Analyze Transaction Restrictions (Scenario 02) (scenario 02)
+- Analyze Transition Services Agreement Markup
+- Assess Litigation and Regulatory Risk from Target's Pending Matters
+- Bilateral M&A NDA Drafting (scenario 01)
+- Bilateral M&A NDA Drafting (scenario 02)
+- Build Deal Points Library (Scenario 01) (scenario 01)
+- Build Deal Points Library (Scenario 02) (scenario 02)
+- Build LOI / Term Sheet Precedent Library (Scenario 02) (scenario 02)
+- Build LOI / Term Sheet Precedent Library (scenario 01)
+- Buyer-Favorable SPA Drafting from LOI and Diligence
+- Buyer-Side Disclosure Schedule Gap Analysis
+- Buyer-Side NDA Markup (Auction Process) (scenario 01)
+- Buyer-Side NDA Markup in a Competitive Auction (scenario 02)
+- Buyer-Side SPA Issue Identification
+- Buyer-Side TSA Markup Against Playbook and APA
+- Buyer-Side Term Sheet Markup with Explanatory Memo (scenario 02)
+- Change-of-Control Provision Extraction and Risk Assessment
+- Closing Conditions Extraction and Status Matrix
+- Commercial Contracts Due Diligence Review (SaaS Target Acquisition) (scenario 02)
+- Commercial Contracts Due Diligence Review (SaaS Target) (scenario 01)
+- Compare Acquisition Agreement Indemnification Provisions Against Precedent Database
+- Compare Auction NDAs (scenario 01)
+- Compare Auction NDAs (scenario 02)
+- Compare Closing Checklist Against M&A Agreement
+- Compare Closing Documents Against Exit Agreement Requirements
+- Compare Closing Documents Against Transaction Requirements
+- Compare Credit Agreement to Commitment Letter Deviation Report
+- Compare DDRL to VDR Index (Scenario 02) (scenario 02)
+- Compare DDRL to VDR Index (scenario 01)
+- Compare Final Working Capital Against Target Working Capital
+- Compare Fund Term Sheet Against Side Letter Terms
+- Compare Matter Plan Against Engagement Letter
+- Compare Merger Control Thresholds
+- Compare Merger Filing Requirements Across Multiple Jurisdictions
+- Compare Post-Closing Working Capital Dispute
+- Compare Proposed Acquisition Structure Against Precedent Transaction Summaries
+- Compare Purchase Agreement vs. Commitment Letter
+- Compare Target Representations vs. Diligence
+- Comprehensive SPA Drafting from Term Sheet and Diligence
+- Conduct Targeted Environmental & Regulatory Diligence for Chemical Manufacturing Acquisition
+- Credit Agreement Covenant Extraction for Acquisition Diligence
+- Data Room Red Flag Review
+- Disclosure Schedule Completeness Gap Analysis
+- Disclosure Schedule Issues Identification
+- Disclosure Schedule Obligation Mapping Checklist
+- Disclosure Schedule and Diligence Findings Gap Analysis (Pharma)
+- Draft APA Ancillaries
+- Draft Acquisition Agreement Provisions from Precedent and Term Sheet
+- Draft Acquisition Due Diligence Memo
+- Draft Asset Purchase Agreement and Ancillary Documents for a Carve-Out Acquisition (scenario 01)
+- Draft Board Deck
+- Draft Board and Stockholder Consent Resolutions for Acquisition of Target Company
+- Draft Buyer-Side Redline of Counterparty Acquisition Agreement
+- Draft Closing Checklist
+- Draft Confidential Information Memorandum
+- Draft Data Room Population Plan (Scenario 01) (scenario 01)
+- Draft Data Room Population Plan (Scenario 02) (scenario 02)
+- Draft Diligence Summary Memo
+- Draft Disclosure Schedule Preparation
+- Draft Disclosure Schedules
+- Draft Distribution Waterfall Memorandum
+- Draft Due Diligence Request List (Scenario 01) (scenario 01)
+- Draft Due Diligence Request List (Scenario 02) (scenario 02)
+- Draft Due Diligence Summary Memo
+- Draft Engagement Letter
+- Draft Equity Commitment Letter
+- Draft Exit Closing Checklist
+- Draft Fund Term Sheet vs. Side Letter Deviation Analysis
+- Draft Industry Summary Memo for Diagnostics Acquisition (scenario 02)
+- Draft Industry Summary Memo for Diagnostics Acquisition Evaluation (scenario 01)
+- Draft Issues List for Acquisition Agreement
+- Draft Issues List for Escrow Agreement
+- Draft Issues List for Restrictive Covenant Agreement
+- Draft Issues List for Transition Services Agreement (TSA)
+- Draft Limited Partnership Agreement
+- Draft M&A Agreement from Precedent (Scenario 01) (scenario 01)
+- Draft M&A Agreement from Precedent (scenario 02)
+- Draft Management Rollover Agreement
+- Draft Markup of Engagement Letter
+- Draft Markup of Escrow Agreement
+- Draft Markup of Restrictive Covenant Agreement
+- Draft Markup of Stock Purchase Agreement (Seller-Side)
+- Draft Markup of Stock Purchase Agreement Provisions (Buyer-Side)
+- Draft PE Acquisition Financing Commitment Letter
+- Due Diligence Checklist Generation for Technology / Robotics Acquisition
+- Due Diligence Memorandum from Data Room Review
+- Earnout Calculation Notice Review
+- Employment Agreement Due Diligence Review (scenario 01)
+- Employment Agreement Due Diligence Review (scenario 02)
+- Enterprise SaaS Agreement Review (Healthcare)
+- Full SPA Drafting from Data Room (Buyer Side)
+- HSR Premerger Notification Filing
+- IP Representation Disclosure Schedule Preparation
+- Internal M&A Engagement Staffing Memorandum
+- Investor-Side LPA Issue Identification (Public Pension)
+- Invoice Scope-Creep Analysis and Dispute Memo
+- LP Side Letter Drafting — Strategic Limited Partner
+- M&A Governance Due Diligence Memorandum (scenario 01)
+- M&A Governance Due Diligence Memorandum (scenario 02)
+- M&A Invoice Billing Deviation Report
+- Management Rollover Agreement Issue Identification
+- Management-Side Rollover Agreement Markup
+- Material Contract Review — Risk Assessment and Discrepancy Log
+- Material Contracts Change-of-Control Review
+- Merger Agreement Summary for Stockholder Materials
+- Merger Closing Document Review and Correction
+- Outside Counsel Engagement Letter Review
+- PE Acquisition Target Contract Key Terms Extraction
+- PE Acquisition Target Contract Review Issue Identification
+- PE Bolt-On SPA Issue Identification
+- PE Fund PPM Issue Identification
+- PE Fund Term Sheet Key Terms Extraction for Institutional Investor
+- Payoff and Release Requirements for Acquisition Closing
+- Portfolio Company Contract Diligence Issue Identification
+- Post-Closing Obligation Extraction and Compliance Tracker
+- Post-Closing Purchase Price Adjustment Memorandum
+- Post-Closing Restrictive Covenant Agreement Drafting
+- Pre-Acquisition Tax Due Diligence Issue Identification
+- Pre-Closing Target Organizational Document Review
+- Pre-LOI Issue Identification Memorandum (scenario 01)
+- Pre-LOI Issue Identification Memorandum (scenario 02)
+- Proposed Acquisition NDA Review (Buyer Side) (scenario 01)
+- Proposed Acquisition NDA Review (Buyer Side) (scenario 02)
+- RWI Policy Gap Analysis
+- Real Estate Portfolio Due Diligence Memorandum
+- Sell-Side Due Diligence Response Matrix (scenario 01)
+- Sell-Side Due Diligence Response Matrix (scenario 02)
+- Sell-Side Vendor Due Diligence Report
+- Seller-Side APA Markup
+- Seller-Side TSA Markup
+- Seller-Side Term Sheet Issue Identification (scenario 01)
+- Seller-Side Term Sheet Issue Identification (scenario 02)
+- Seller-Side Term Sheet Markup with Commentary (scenario 01)
+- Sponsor-Side Commitment Letter Issue Identification
+- TSA Issue Identification for Service Recipient
+- Target Diligence Profile for Investment Committee (scenario 01)
+- Target Diligence Profile for Investment Committee (scenario 02)
+- Third-Party Consent Tracking and Request Letters
+- Third-Party Consent Tracking and Request Letters
+- Transition Services Agreement Drafting (Carve-Out)
+- Vendor Due Diligence Memorandum (Procurement)
+
+### Data Privacy & Cybersecurity (44)
+
+- Analyze Counterparty Markup of Cross-Border Data Transfer Agreement — Deviation Report
+- Analyze Counterparty Markup of Data Processing Agreement — Deviation Report
+- Analyze GDPR Amendment Impact on Data Processing Agreement Portfolio — Regulatory Gap Analysis Memorandum
+- Analyze Privacy Law Compliance Gaps Against Current Privacy Program — Gap Analysis Memorandum
+- Assess Breach Notification Obligations Across Affected Jurisdictions — Incident Response Memorandum
+- Assess CPRA Regulatory Impact on Data Broker Relationships — Regulatory Impact Memorandum
+- Compare Vendor Data Processing Agreement Against Internal Privacy Standards — Deviation Report
+- Draft Affected Individual Notification Letter for Healthcare Data Breach
+- Draft Cybersecurity Incident Response Policy for Public Medical Device Manufacturer
+- Draft Data Breach Remediation Plan Memorandum for Telehealth Platform
+- Draft External Privacy Notice for Digital Health Platform
+- Draft GDPR Article 33 Breach Notification to Bavarian Data Protection Authority (BayLDA) for Ransomware Incident Involving Health Data
+- Draft GDPR-Compliant Data Processing Agreement for Cross-Border Health Data Analytics Engagement
+- Draft Markup of Cross-Border Data Transfer Agreement for Clinical Trial Data Processing
+- Draft Markup of Data Processing Agreement with Redline and Commentary Memorandum for Pharma Controller
+- Draft Response to California AG Formal Inquiry Letter on Health Data Sharing Practices
+- Draft Standard Contractual Clauses Addendum for Cross-Border Data Processing Agreement
+- Draft Updated Privacy Policy for AI-Powered Mental Health Screening Tool Launch
+- Extract Data Flow Details from Processing Records — Data Mapping Report
+- Extract Incident Details from Breach Notification Report into Structured Incident Summary Memorandum
+- Extract Key Compliance Obligations from New State Data Privacy Regulations — Obligation Matrix
+- Extract Privacy Compliance Obligations from Multi-Jurisdictional Statutes for Health-Tech Platform — Compliance Obligation Matrix
+- Extract and Categorize Document Requests into a Unified Regulatory Response Tracker
+- Gap Analysis Memorandum: Breach Notification Report vs. Internal Threshold Guidance for Healthcare Data Breach
+- Gap Analysis Memorandum: Breach Notification Schedule vs. Multi-Jurisdiction Regulatory Guidance
+- Gap Analysis Memorandum: Privacy Impact Assessment vs. Regulatory DPIA Guidance for an AI Health Platform
+- Gap Analysis Report: Privacy Notice vs. CCPA/CPRA, HIPAA, and GDPR Disclosure Requirements for Digital Health Company
+- Gap Analysis Report: Privacy Program Documentation vs. Applicable Data Protection Regulations
+- Gap Analysis: Data Protection Remediation Plan vs. Regulatory Undertaking Commitments
+- Identify Issues in State Attorney General Data Breach Inquiry — Issue Memorandum
+- Identify Issues in Transfer Impact Assessment for Cross-Border EU Data Transfers
+- Identify Legal, Regulatory, and Operational Deficiencies in Healthcare Organization's Data Breach Incident Response Plan
+- Identify Privacy and Data Protection Issues in Counterparty Data Transfer Agreement — Issue Memorandum
+- Map GDPR Data Subject Rights Requirements to Existing Internal Controls — Gap Analysis Report
+- Map Regulatory Notification Deadlines for Multi-Jurisdiction Data Breach — Deadline Matrix and Action Plan
+- Multi-State Privacy Compliance Obligation Extraction and Statutory Analysis Memorandum
+- Privacy Policy Compliance Audit — Issue Identification Memorandum for Fintech App (scenario 01)
+- Privacy Policy Compliance Audit — Issue Identification Memorandum for Fintech App (scenario 02)
+- Research Data Localization Requirements for Planned Market Expansion into Brazil, Indonesia, Turkey, Nigeria, and Vietnam
+- Review Counterparty Data Processing Agreement — Issue Identification Memorandum
+- Review Incident Response Plan Against Regulatory Requirements and Industry Standards — Issue Identification Memorandum
+- Summarize New GDPR Enforcement Guidance — Executive Regulatory Brief for SaaS Workforce Analytics Company
+- Triage Service Provider Contracts for CPRA Compliance Gaps — Regulatory Compliance Report
+- Triage Vendor Contracts for GDPR Cross-Border Transfer Exposure — Risk Assessment Memorandum
+
+### Emerging Companies & Venture Capital (43)
+
+- Analyze Counterparty Markup of Bridge Loan Agreement
+- Analyze Counterparty Markup of Investors' Rights Agreement
+- Analyze Counterparty Markup of Stock Purchase Agreement
+- Compare Term Sheet Against Stock Purchase Agreement
+- Draft Amended and Restated Certificate of Incorporation
+- Draft Board Consent Resolutions
+- Draft Certificate of Incorporation
+- Draft Convertible Note Purchase Agreement
+- Draft Convertible Note Purchase Agreement for Bridge Financing
+- Draft Escrow Agreement
+- Draft Fintech Lending Platform Compliance Policy Manual
+- Draft IP Assignment Agreement for Early-Stage Biotech Financing
+- Draft Investors' Rights Agreement
+- Draft Legal Opinion for Series B Preferred Stock Financing
+- Draft Markup of Bridge Loan Agreement
+- Draft Markup of Investors’ Rights Agreement
+- Draft Markup of Merger Agreement
+- Draft Markup of Series B Preferred Stock Purchase Agreement
+- Draft Merger Agreement
+- Draft Officers' Closing Certificate
+- Draft Post-Money SAFE Package
+- Draft Right of First Refusal and Co-Sale Agreement
+- Draft Right-of-First-Refusal Waiver
+- Draft Series Seed Founders' Stock Purchase Agreement
+- Draft Stock Option Grant Notice
+- Draft Stock Transfer Agreement
+- Draft Stockholder Consent Resolutions
+- Draft Stockholder Written Consent
+- Draft Subordination Agreement
+- Draft Voting Agreement
+- Extract Economic Terms from Convertible Notes
+- Extract Key Terms from Cap Table
+- Extract Key Terms from Investors' Rights Agreement
+- Extract Key Terms from Merger Agreement
+- Extract Key Terms from Stockholder Agreement
+- Extract Transfer Restrictions from Stockholder Agreements
+- Identify Governance Issues in Stockholder Agreement
+- Identify Issues in Bridge Loan Agreement
+- Identify Issues in Investors' Rights Agreement
+- Identify Issues in Merger Agreement
+- Identify Issues in Stock Transfer Agreement
+- Identify SPA Issues — Scenario 01 (scenario 01)
+- Identify SPA Issues — Scenario 02 (scenario 02)
+
+### Employment & Labor (39)
+
+- Analyze Counterparty Markup of Executive Employment Agreement
+- Analyze Reasonable Accommodation Request Under ADA Requirements
+- Assess Legal Risk of Proposed Employee Termination
+- Assess Worker Classification for Proposed Engineering Engagement
+- Compare Employee Handbook Against State Employment Law Requirements
+- Compare Employment Discrimination Complaint Against Personnel File Records
+- Compare Non-Compete Agreements Against State Enforceability Standards
+- Compare Settlement Terms Against Policy Limits — Coverage Gap Analysis
+- Draft Complete Employment Agreement from Executed Offer Letter
+- Draft Comprehensive Workplace Investigation Report
+- Draft EEOC Position Statement
+- Draft Investigation Plan for Workplace Harassment and Retaliation Complaint
+- Draft Markup of Executive Employment Agreement
+- Draft Memorandum of Law in Opposition to Motion to Compel Arbitration
+- Draft Multi-State Employee Handbook for Cannabis Company
+- Draft Non-Solicitation Agreement for Executive Hire from Competitor
+- Draft Privileged RIF Selection Memorandum
+- Draft Redlined Markup of Employment Settlement Agreement
+- Draft Separation Agreement and General Release
+- Draft Settlement Agreement and General Release for Employment Discrimination Matter
+- Draft Updated Multi-State Anti-Harassment Policy
+- Draft Workplace Policy Memorandum on Return-to-Office and Remote Work Compliance
+- Extract Compliance Obligations from Consent Decree into Obligation Tracker
+- Extract Key Allegations from Employment Discrimination Complaint
+- Extract Restrictive Covenant Terms from Executive Employment Agreement
+- Extract and Categorize Key Allegations from Multi-Plaintiff Employment Complaint
+- Gap Analysis — Separation Agreement vs. Compensation Survey Benchmarks
+- Identify Compliance Issues in WARN Act Notice Package
+- Identify Enforceability Issues in Non-Compete Agreement
+- Identify Issues in Counterparty Discovery Responses
+- Identify Issues in Counterparty Settlement Proposal
+- Identify Issues in Counterparty WARN Act Motion Brief
+- Identify Issues in Executive Separation Agreement
+- Identify Issues in Multi-Claim Employment Complaint
+- Identify Legal Issues and Compliance Gaps in Multi-State Employee Handbook
+- Research Non-Compete Enforceability Under Colorado Law
+- Research Wage and Hour Classification for New Job Role
+- Review Counterparty CEO Employment Agreement for Acquisition Target
+- Review Counterparty Employment Agreement for Acquisition Target's Key Executive
+
+### Energy & Natural Resources (31)
+
+- Analyze Counterparty Markup of Concession Agreement — Redline Review Memorandum
+- Analyze Counterparty Markup of Credit Agreement — Redline Analysis Memorandum
+- Analyze Counterparty Markup of Engineering Procurement Construction Contract — Redline Analysis Memorandum
+- Analyze Counterparty Markup of Intercreditor Agreement — Deviation Memorandum
+- Analyze Counterparty Markup of Power Purchase Agreement — Deviation Report
+- Compare Power Purchase Agreement Against Term Sheet — Deviation Report
+- Compare Site Lease Against Market Terms — Deviation Report for Renewable Energy Ground Lease
+- Draft Build-Operate-Transfer Concession Agreement for Utility-Scale Renewable Energy Project
+- Draft EPC Contract for Utility-Scale Solar Project with Issues Memo
+- Draft Large Generator Interconnection Application for Hybrid Solar-Plus-Storage Facility
+- Draft Markup of Concession Agreement with Commentary — Project Company Perspective
+- Draft Markup of Intercreditor Agreement from Second Lien Lenders' Perspective
+- Draft Markup of Power Purchase Agreement — Buyer-Side Redline with Commentary
+- Draft Owner's Redline Markup of Contractor-Favorable EPC Agreement for Solar Project
+- Draft Power Purchase Agreement — Seller-Side for Solar-Plus-Storage Project
+- Draft Senior Secured Credit Agreement for Energy Infrastructure Acquisition Financing
+- Environmental Site Assessment Review — Energy Infrastructure Acquisition
+- Extract Key Terms from Land Option Agreement for Wind Farm Project
+- Extract Key Terms from Land Option Agreement — Term Sheet Summary for Solar Project
+- Extract Key Terms from Offtake Agreement — Term Sheet Summary for Project Acquisition
+- Extract Key Terms from Tax Equity Flip Partnership Agreement — Term Sheet Summary
+- Extract Permit Conditions from Regulatory Approvals — Compliance Tracking Matrix
+- Identify Issues in EPC Contract — Issue Memorandum for Utility-Scale Solar Project
+- Identify Issues in Intercreditor Agreement for Mezzanine Lender in Project Finance Transaction
+- Identify Issues in Large Generator Interconnection Agreement — Issue Memorandum
+- Identify Issues in Operations and Maintenance Agreement — Issue Memorandum for Power Plant Acquisition
+- Identify Issues in Power Purchase Agreement — Solar + BESS Project, Seller's Perspective
+- Identify Issues in Security Agreement — Senior Secured Lender's Perspective
+- Identify Issues in Tax Equity Flip Partnership Agreement — Renewable Energy
+- Identify Issues in Toll Road Concession Agreement — Acquisition Due Diligence
+- Wind Farm Title Commitment Review — Issue Identification Memorandum
+
+### Environmental & ESG (44)
+
+- Analyze Counterparty Markup of Administrative Settlement Agreement — Redline Analysis Memorandum
+- Analyze Counterparty Markup of Environmental Indemnity Agreement — Redline Analysis Memorandum
+- Analyze Counterparty Markup of Settlement Agreement — Redline Review Memorandum
+- Assess Recall and Reporting Obligations for Product Safety Issue — Incident Response Memorandum
+- Compare Facility Operations against Permit Limits — Compliance Gap Analysis Memorandum
+- Compare Permit Conditions against Regulatory Requirements — Compliance Gap Analysis Memorandum
+- Compare Remedial Action Work Plan Against Record of Decision Requirements — Compliance Gap Analysis Memorandum
+- Compliance Gap Analysis Memorandum — Compare Site Assessment Reports Against Applicable Regulatory Cleanup Standards
+- Draft Brownfield Redevelopment Air Quality Permit Application Narrative (PA DEP Plan Approval) (scenario 02)
+- Draft Brownfield Redevelopment Air Quality Permit Application Narrative (scenario 01)
+- Draft Buyer-Side Markup of Environmental Indemnity Agreement for Industrial Property Portfolio Acquisition
+- Draft Comment Letter on Proposed NPDES Permit
+- Draft Comment Letter on Proposed Remedial Plan
+- Draft ESG Disclosure Narrative for Inaugural Sustainability Report
+- Draft Environmental Compliance Audit Memorandum for Pre-Acquisition Due Diligence
+- Draft Federal Court Complaint for CERCLA Cost Recovery Action
+- Draft Markup of Environmental Litigation Settlement Agreement (Consent Decree)
+- Draft Permit Renewal Application Narrative
+- Draft Public Comment Letter Opposing Proposed NPDES Permit Reissuance
+- Draft Redline Markup with Comment Annotations of Administrative Settlement Agreement for Prospective Purchaser
+- Draft Response Letter to Agency Notice of Violation
+- Draft Response to EPA RCRA Compliance Order
+- ESG Disclosure Gap Analysis Memorandum
+- Environmental Site Assessment Review — Issue Identification Memorandum for a Compressor Station Portfolio Acquisition
+- Extract Contamination Evidence from Site Investigation Reports — Evidence Summary Memorandum
+- Extract Cost Recovery Obligations from Settlement Agreement — Obligation Matrix
+- Extract Disclosure Requirements and Prepare Compliance Gap Analysis Memorandum for Environmental Reporting Framework
+- Extract Environmental Liabilities from Target Disclosure Schedules — Environmental Liability Summary Memo
+- Extract Indemnification Terms from Environmental Settlement Agreement — Indemnification Summary Memorandum
+- Extract Reporting Obligations from Consent Decree — Build Compliance Calendar and Obligation Register
+- Extract Response Action Obligations from Record of Decision — Compliance Obligation Matrix
+- Identify Environmental Issues in Preliminary Assessment Report — Issue Memorandum
+- Identify Issues in Counterparty CERCLA Contribution Claim — Issue Memorandum
+- Identify Issues in Draft ESG Disclosure — Issue Memorandum
+- Identify Issues in Draft NPDES Permit Conditions for Pulp Mill Discharge
+- Identify Issues in Draft NPDES Permit Conditions for Recycling Facility
+- Identify Issues in Draft Title V Permit Application for Specialty Plastics Manufacturing Facility
+- Identify Issues in EPA Expert Remediation Report for CERCLA Cost Recovery Defense
+- Identify Issues in Environmental Impact Statement for Utility-Scale Solar Project
+- Identify Issues in Notice of Violation — Issue Memorandum for Industrial Recycling Facility
+- Identify Issues in Phase One Environmental Site Assessment for Industrial Acquisition
+- Identify Issues in State Environmental Compliance Order — Issue Memorandum
+- Issue Identification Memorandum for Contested EPA Multi-Media Inspection of Chemical Manufacturing Facility (scenario 01)
+- Issue Identification Memorandum for Contested EPA Multi-Media Inspection of Chemical Manufacturing Facility (scenario 02)
+
+### Funds & Asset Management (66)
+
+- Analyze Counterparty Markup of Investment Advisory Agreement
+- Analyze Counterparty Markup of LP Interest Transfer Agreement
+- Analyze Counterparty Markup of Limited Partnership Agreement
+- Analyze Counterparty Markup of Side Letter
+- Client-Protective Redline of Investment Advisory Agreement
+- Compare Form ADV Against Compliance Manual
+- Compare Side Letter Provisions Against LPA
+- Compliance Manual Regulatory Deficiency Review
+- Draft Capital Call and Distribution Notices
+- Draft Code of Ethics for Registered Investment Adviser
+- Draft Credit / Venture Debt Fund LPA from Equity Precedent (scenario 06)
+- Draft Credit Fund LPA — Equity Precedent Adaptation (scenario 17)
+- Draft Digital Asset / Crypto Fund LPA (scenario 10)
+- Draft Digital Asset Fund LPA — Valuation, Staking, and Closing Mechanics (scenario 21)
+- Draft Form ADV Part 2A Brochure
+- Draft Fund Private Placement Memorandum
+- Draft Fund Term Sheet with Issues Memo (scenario 01)
+- Draft Fund Term Sheet with Issues Memo (scenario 02)
+- Draft GP Closing Certificate
+- Draft GP-Led Secondary Transaction Structuring Memorandum
+- Draft Healthcare Fund LPA (scenario 04)
+- Draft Investment Advisory Agreement
+- Draft LPA from Data Room — Three-Deliverable Structure
+- Draft LPA from Precedent with Priority Changes (scenario 12)
+- Draft LPA from Prior Fund Precedent with Parallel Fund Structure (scenario 02)
+- Draft LPA with Complex Multi-Source Conflicts (scenario 05)
+- Draft LPA with ERISA REOC Exemption (scenario 03)
+- Draft Limited Partnership Agreement
+- Draft Limited Partnership Agreement from Precedent (scenario 01)
+- Draft Master Fund LPA for a Mauritius Master Fund and Cayman Feeder Structure (scenario 19)
+- Draft Master Fund LPA with International Anti-Corruption Provisions (scenario 08)
+- Draft Minority-Stake Fund LPA — Strategy-Driven Precedent Adaptation (scenario 15)
+- Draft Multi-LP Side Letter Campaign with MFN Disclosure Schedule
+- Draft Private Placement Memorandum
+- Draft RIA Compliance Manual
+- Draft SBIC Fund LPA (scenario 09)
+- Draft SBIC Fund LPA — Regulatory Overlay on Standard Equity Fund Precedent (scenario 20)
+- Draft Seller-Protective LP Interest Transfer Agreement
+- Draft Side Letters with MFN Cascade Analysis
+- Draft Subscription Agreement for Public Pension Plan Investor with Issues Memo
+- Draft Successor Fund LPA — Multi-Tier Carry, ESG Integration, and Formula Corrections (scenario 16)
+- Draft Successor Fund LPA — Parallel Fund Structure and Fee Basis Inconsistency (scenario 13)
+- Draft Successor Fund LPA — Plan-Asset Exemption, Real Estate Valuation, and Multi-Source Conflicts (scenario 14)
+- Draft Successor Fund LPA — Reference Rate Transition, Waterfall Correction, and Equalization (scenario 18)
+- Draft Sustainable Agriculture / Impact Fund LPA (scenario 11)
+- Draft Sustainable Agriculture Impact Fund LPA — ESG KPIs, Negative Screens, and Service Provider Designations (scenario 22)
+- Draft limited partnership agreement for successor fund (scenario 07)
+- Extract Pricing Terms from LP Interest Transfer Documents
+- Form ADV Part 2A Regulatory Deficiency Review
+- Form ADV Part 2A Regulatory and Disclosure Review
+- Fund Economics Comparison Analysis
+- Fund-Sponsor-Perspective Subscription Agreement Issues Review
+- GP Counsel Issues Review of LP Interest Transfer Agreement
+- GP Counsel Response Memo for LP Comment Packages
+- GP Counsel Response to LP Comment Memo
+- Issues Identification in Investment Advisory Agreement
+- Key Term Extraction from Subscription Documents
+- LP Comment Response Memo
+- LP-Perspective LPA Issues Review
+- LP-Protective LPA Redline with Section-by-Section Commentary
+- LP-Protective Side Letter Redline with Negotiation Cover Memo
+- MFN Waterfall Analysis — Comprehensive Final-Closing Memo
+- MFN Waterfall Analysis — GP Recommendation Memo
+- Seller-Protective Redline of LP Interest Transfer Agreement
+- Systematic Reporting Obligation Extraction and Issue Identification
+- Term Sheet to LPA Conforming Markup
+
+### Healthcare & Life Sciences (43)
+
+- Analyze Counterparty Markup of Clinical Trial Agreement
+- Analyze Counterparty Markup of Merger Agreement
+- Clinical Trial Agreement Issue Identification — Scenario 01 (scenario 01)
+- Clinical Trial Agreement Issue Identification — Scenario 02 (scenario 02)
+- Clinical Trial Protocol vs. FDA Regulatory Requirements Gap Analysis
+- Compare Closing Certificate Against Agreement Covenants
+- Compare Privacy Policy Against HIPAA Requirements
+- Draft Clinical Trial Agreement for Multi-Center Study
+- Draft Comprehensive Compliance Training Manual Under Corporate Integrity Agreement
+- Draft Comprehensive Data Privacy Compliance Policy Manual for Digital Health Company
+- Draft Corporate Integrity Agreement Implementation Plan and Board Resolution
+- Draft Corrective Action Response to FDA Warning Letter
+- Draft Definitive Healthcare Merger Agreement — Reverse Triangular Merger
+- Draft Enterprise SaaS Vendor Onboarding Due Diligence Questionnaire (Healthcare)
+- Draft FDA Prior Approval Supplement Cover Letter
+- Draft Healthcare Asset Purchase Agreement for Ambulatory Surgery Center
+- Draft Healthcare Management Services Agreement
+- Draft Healthcare SaaS Vendor Onboarding Questionnaire
+- Draft Markup of Clinical Trial Agreement
+- Draft Markup of Healthcare Merger Agreement with Regulatory Commentary
+- Draft Privacy Impact Assessment for AI-Powered Healthcare Platform
+- Draft Response to Civil Investigative Demand — FCA Investigation
+- Extract Closing Conditions from Merger Agreement into Structured Closing Conditions Matrix
+- Extract Commitments and Compliance Obligations from FDA Warning Materials
+- Extract Key Terms from Informed Consent Form — FDA Regulatory Compliance
+- Extract Pharmaceutical Digital Health Platform Data Privacy Compliance Obligations
+- Extract Regulatory Compliance Obligations for Telehealth Platform Launch
+- Extract and Catalog Regulatory Permits from Healthcare Acquisition Diligence Documents
+- Extract and Catalog Reimbursement Terms from Managed Care Payor Contract
+- HIPAA Security Rule Gap Analysis — Policy vs. Regulation
+- Healthcare Data Privacy Compliance Program Gap Analysis
+- Healthcare Medical Director Compensation Arrangement Issue Identification
+- Identify Compliance Issues in Medicare Enrollment Application Package
+- Identify Issues in FDA Pre-Submission Package for Novel Thrombectomy Device
+- Identify Issues in Government Subpoena — Healthcare Provider
+- Identify Issues in HIPAA Privacy Policy
+- Identify Issues in Healthcare Facility License Transfer Agreement
+- Identify Issues in Healthcare Management Services Agreement
+- Identify Issues in Healthcare Merger Agreement
+- Identify Issues in Stark Law Compliance Program
+- Payor Contract Deviation Analysis Against Benchmarks
+- Stark Law Compliance Program Review — Issue Identification
+- Vendor Cloud Infrastructure Proposal vs. Internal Procurement Requirements
+
+### Immigration (27)
+
+- Compare Draft EB-1A Petition Against Filing Checklist
+- Compare Employer Corrective Action Plans Against ICE Regulatory Standards
+- Compare I-9 Records Against Employee Roster
+- Compare Job Requirements Against Candidate Credentials
+- Compare PERM Requirements Against Beneficiary Credentials
+- Compare USCIS Filing Receipt Against Original Petition Submission
+- Draft BIA Appeal Brief Challenging Asylum Denial
+- Draft Corrective Action Memorandum for I-9 Compliance Remediation
+- Draft Employer Compliance Certification for Multi-Worker Sponsorship
+- Draft Expert Opinion Letter for EB-1A Extraordinary Ability Petition
+- Draft Labor Condition Application Preparation Package
+- Draft Motion to Reopen Removal Proceedings
+- Draft PERM Recruitment Report
+- Draft Response to ICE Notice of Inspection
+- Draft USCIS RFE Response Package
+- Extract Deficiencies from Internal Audit Report
+- Extract Eligibility Requirements from Visa Category Regulations
+- Extract Filing Requirements from Regulatory Guidance
+- Extract Key Terms from Foreign Credential Evaluations
+- Extract and Analyze Penalty Calculations from Fine Notice
+- H-1B Qualification Review — Issue Identification Memorandum
+- H-1B RFE Issue Identification Memorandum (scenario 01)
+- H-1B RFE Issue Identification Memorandum (scenario 02)
+- Identify Compliance Issues in Employee I-9 Forms
+- Identify Deficiencies and Grounds for Challenge in ICE I-9 Fine Notice
+- Identify Issues in Consular Processing Packet
+- Identify Issues in Employer Support Documentation for H-1B Petition
+
+### Insurance (31)
+
+- Analyze Counterparty Markup of Reinsurance Treaty — Redline Review Memorandum
+- Analyze Property Damage Claim Against Commercial Policy Exclusions — Coverage Determination Memorandum
+- Compare Commercial Insurance Policy Terms Against Coverage Specifications — Gap Analysis Memorandum
+- Compare Commercial Property Policy Form Against State Regulatory Requirements — Compliance Gap Analysis
+- Compare Manufacturing Facility Claim Against Property Policy Exclusions — Coverage Analysis Memorandum
+- Compliance Gap Analysis — Insurance Product Filing Against State Regulatory Requirements
+- Draft Buyer-Side Markup of Stock Purchase Agreement for P&C Insurance Company Acquisition
+- Draft Coverage Opinion Letter — CGL Policy Analysis for Toxic Tort Claim
+- Draft Coverage Position Memorandum for Latent Disease Mass Tort Claim
+- Draft Form A Change of Control Application for Insurance Department Filing
+- Draft Markup of Quota Share Reinsurance Treaty — Redlined Agreement with Commentary
+- Draft Regulatory Compliance Memorandum — Insurance Holding Company System Act Compliance
+- Draft Reservation of Rights Letter for CGL Insurance Coverage Dispute
+- Draft Stock Purchase Agreement for Acquisition of Property and Casualty Insurer
+- Extract Key Terms from Insurance Company Acquisition Closing Documents into Structured Term Sheet Summary
+- Extract Key Terms from Insurance Company Financials — Term Sheet Summary for Surplus Note Due Diligence
+- Extract Key Terms from Reinsurance Treaty — Term Sheet Summary
+- Extract Key Terms from Reservation of Rights Letter — Structured Term Sheet
+- Gap Analysis Memorandum — Reinsurance Treaty vs. Underlying Commercial Property Policy
+- Identify Compliance Issues in Commercial Property Insurance Policy Form Filing — Regulatory Issue Memorandum
+- Identify Compliance Issues in State Insurance Regulatory Consent Order — Issue Memorandum
+- Identify Coverage Gaps and Policy Conflicts in Commercial Insurance Portfolio — Issue Memorandum
+- Identify Insurance-Related Issues in Acquisition Agreements
+- Identify Issues in Insurance Coverage Denial Letter — Coverage Analysis Memorandum
+- Identify Issues in Regulatory Consent Order — Issue Memorandum for Board
+- Identify Issues in Reinsurance Treaty — Issue Memorandum
+- Insurance Coverage Gap Analysis — Proposed Policy Package vs. Coverage Specifications
+- Insurance Policy Key Term Extraction — Coverage Analysis Memorandum for Acquisition Due Diligence
+- Insurance Renewal Analysis — Specialty Chemicals Client
+- Reserve Adequacy Assessment Memo — Compare Loss Reserves Against Industry Benchmarks
+- Review Construction Project Insurance Against Lender Requirements
+
+### Intellectual Property (147)
+
+- Analyze Counterparty Markup of API Supply Agreement
+- Analyze Counterparty Markup of Contract Amendment
+- Analyze Counterparty Markup of IP Assignment Agreement
+- Analyze Counterparty Markup of Joint Development Agreement
+- Analyze Counterparty Markup of Master Services Agreement
+- Analyze Counterparty Markup of SaaS Agreement
+- Analyze Counterparty Markup of SaaS Subscription Agreement
+- Analyze Counterparty Markup of Technology License Agreement
+- Analyze MSA Limitation of Liability Clause
+- Analyze Restrictive Covenant Enforceability Across Multiple Jurisdictions
+- Analyze Restrictive Covenant Enforceability Across Six Employment Agreements
+- Assess MSA Renewal Terms Against Historical Business Performance
+- Assess SaaS Renewal Pricing and SLA Changes
+- Compare Asserted Patent Claims Against Accused Product
+- Compare Executed Software License Agreement Against Last Pre-Execution Draft
+- Compare Executed Supply Agreement Against Approved Template
+- Compare Executed Technology License Agreement Against Last Negotiation Draft
+- Compare Executed Vendor Agreement Against Approved Template
+- Compare Expert Opinions Against Trial Record
+- Compare IP & Tech Transaction Term Sheet Against Engagement Letter
+- Compare Multi-Jurisdiction Employment Agreements for Consistency
+- Compare Mutual and Unilateral NDA Versions Against Corporate Playbook
+- Compare Proposed Claim Constructions Against Patent Specification
+- Compare Renewed MSA Against Expiring Version
+- Compare SaaS Agreement Service Level Provisions Against Internal Standards
+- Compare SaaS Renewal Proposal Against Current Agreement
+- Compare Software License Agreement Against Negotiation Playbook
+- Compare Source Code Documentation Against Patent Claims
+- Compare Vendor-Redlined MSA Against Approved Template
+- Conform Employment Agreement Template to New Jurisdiction Requirements
+- Draft Answer and Counterclaims to Patent Infringement Complaint
+- Draft Bilateral NDA from Deal Parameters
+- Draft Buyer-Favorable Markup of IP Assignment Agreement
+- Draft Claim Construction Brief
+- Draft Closing Checklist Memorandum for IP & Technology Asset Purchase
+- Draft Contract Amendment for Cloud Infrastructure Services Agreement
+- Draft Data Processing Addendum
+- Draft Daubert Motion to Exclude Plaintiff's Damages Expert
+- Draft Employment Agreement from Offer Letter Terms
+- Draft Enterprise SaaS Agreement from Deal Points Memo
+- Draft Enterprise SaaS Subscription Agreement for Healthcare
+- Draft Federal Complaint for Trade Secret Misappropriation
+- Draft Federal Patent Infringement Complaint
+- Draft First Discovery Requests in Patent Infringement Action
+- Draft IP Assignment Agreement for Technology Acquisition
+- Draft ITC Section 337 Complaint
+- Draft Intellectual Property Assignment Agreement — Startup Founder IP Assignment
+- Draft Joint Development Agreement
+- Draft Markup of Counterparty Contract Amendment
+- Draft Markup of Counterparty Data Processing Addendum
+- Draft Markup of Counterparty Master Services Agreement
+- Draft Markup of Counterparty SaaS Agreement
+- Draft Markup of Counterparty Supply Agreement
+- Draft Markup of Joint Development Agreement
+- Draft Markup of SaaS Subscription Agreement with Commentary
+- Draft Markup of Technology License Agreement
+- Draft Master Services Agreement for Healthcare Data Analytics
+- Draft Master Services Agreement from Term Sheet and Deal Points
+- Draft Motion for Enhanced Damages
+- Draft Motion in Limine
+- Draft Motion to Compel Production of Source Code and Technical Documents
+- Draft Motion to Dismiss Federal Trade Secret Misappropriation Complaint
+- Draft Motion to Dismiss Patent Infringement Complaint — Alice/Mayo § 101
+- Draft Open Source Software Compliance Policy
+- Draft Opposition to Summary Judgment in Patent Infringement Litigation
+- Draft Order Form for Enterprise SaaS Platform Renewal
+- Draft Order Form for Enterprise SaaS Procurement
+- Draft Post-Trial Brief (Proposed Findings of Fact and Conclusions of Law)
+- Draft Proposed Claim Construction Order (Markman Order)
+- Draft Responses to Discovery Requests in Patent Infringement Litigation
+- Draft Source Code Escrow Agreement
+- Draft Statement of Work for Enterprise Cloud Migration Services
+- Draft Technology License Agreement
+- Draft Vendor Onboarding Questionnaire
+- Extract Disputed Claim Terms from Joint Construction Statement
+- Extract Domestic Industry Facts from Domestic Industry Exhibits
+- Extract Filing Dates from Patent Schedule
+- Extract Key Obligations from Executed Master Services Agreement
+- Extract Key Terms from IP/Tech Transaction Documents
+- Extract Key Terms from Patent Specification for Claim Construction
+- Extract Key Terms from Technical Patent Specifications
+- Extract Key Terms from Technology Licensing Term Sheet
+- Extract Key Terms from Trial Exhibit List
+- Extract Key Terms from Vendor Proposal
+- Extract License Grant Terms from Executed Agreements
+- Extract License Grant Terms from Executed Technology Agreements
+- Extract Open Source License Obligations from Target's Disclosure Schedule
+- Extract Open Source License Obligations from Target's Software Disclosure Schedule
+- Extract Renewal and Termination Dates from Contract Portfolio
+- IP License Renewal Analysis
+- Identify Accused Product Issues
+- Identify Errors and Vulnerabilities in Counterparty's Post-Trial Brief
+- Identify IP Litigation Issues in IPR Defense
+- Identify Issues in Counterparty Data Processing Addendum
+- Identify Issues in Counterparty Discovery Requests
+- Identify Issues in Counterparty Financial Statements
+- Identify Issues in Counterparty Master Services Agreement
+- Identify Issues in Counterparty Supply Agreement
+- Identify Issues in Counterparty's Proposed Jury Instructions
+- Identify Issues in IP Assignment Agreement
+- Identify Issues in IP Ownership Opinion Letter
+- Identify Issues in Joint Development Agreement
+- Identify Issues in Proposed Contract Amendment
+- Identify Issues in SaaS Subscription Agreement
+- Identify Issues in Technology Licensing Term Sheet
+- Identify Issues in Vendor Cloud Infrastructure Proposal
+- Identify Prior Art Deficiencies in Patent Infringement Defense
+- Identify Tech License Term Sheet Issues
+- Identify Technology License Agreement Issues (Licensee Perspective) (scenario 01)
+- Identify Technology License Agreement Issues — Licensee Perspective (scenario 02)
+- Identify Weaknesses in Counterparty's Summary Judgment Brief
+- Identify Weaknesses in Counterparty's Summary Judgment Motion
+- Identify Weaknesses in Opposing Expert’s Damages Report
+- Identify Weaknesses in Opposing Party's Claim Construction Brief
+- MSA Playbook Deviation Review
+- Prepare Claim-by-Claim Comparison Chart for Patent Infringement
+- Regulatory Approval Requirements for Business Expansion
+- Research Fair Use Defense for Proposed Marketing Use of Third-Party Content
+- Research Trade Secret Protections for Departing Employee
+- Review Business Unit MSAs Against Corporate Template
+- Review Commercial Lease Against Company Playbook
+- Review Counterparty DPA and Mark Up Toward Company Positions
+- Review Counterparty Redlines to Standard NDA Template
+- Review Counterparty SaaS Agreement and Mark Up Toward Company Positions
+- Review DPA Template Against EU and US Requirements
+- Review Data Processing Agreement Against Company Data Protection Playbook
+- Review Employment Agreement and Prepare Company-Favorable Redline Memorandum
+- Review Employment Agreement and Prepare Markup Toward Company Positions
+- Review Enterprise SaaS Agreement
+- Review Enterprise SaaS Agreement Against Company Playbook
+- Review Executive Employment Agreement Against Company Playbook
+- Review Inbound NDA Against Company Playbook
+- Review MSA Playbook Deviation Review
+- Review Master Services Agreement for Contract Risk Issues
+- Review Master Services Agreement for Regulatory Compliance
+- Review Patent and IP Complaint — Defense Perspective
+- Review Regional NDA Variants Against Master Template
+- Review SaaS Agreement Against Company Playbook
+- Review SaaS Template and Produce Jurisdiction-Specific Conformance Memorandum
+- Review and Mark Up Counterparty Master Services Agreement
+- Review and Update Employment Agreement Template for New State Labor Regulations
+- SaaS Subscription Renewal Analysis
+- Triage Counterparty Redlines to Company DPA Template
+- Triage Counterparty Redlines to Company MSA Template
+- Triage Counterparty Redlines to Company SaaS Template
+- Triage Counterparty Redlines to Executive Employment Agreement Template
+- Update DPA Template for Updated Adequacy Framework
+
+### International Arbitration & Dispute Resolution (37)
+
+- Arbitral Award Summary Memorandum
+- Arbitration Agreement Markup
+- Arbitration Agreement Markup Analysis
+- Arbitration Agreement Markup Preparation
+- Arbitration Clause vs. Institutional Rules Compliance Audit
+- Arbitration Document Production Objections
+- Arbitration Procedural Compliance Checklist
+- Arbitration Provisions Issue Identification (Multi-Document)
+- Arbitrator Candidate Evaluation
+- Arbitrator Disclosure Statement Issues Memorandum
+- Claimant-Side Defense Analysis Memorandum
+- Construction Delay and Damages Expert Report
+- Counterparty Arbitration Agreement Redline Analysis
+- Defense-Side Statement of Claim Issues Memorandum
+- Dispute Summary Issues Memorandum (MFN and Board Consent Variant) (scenario 02)
+- Dispute Summary Issues Memorandum (scenario 01)
+- Document Production Request Issues Memorandum
+- FAA Petition to Vacate Arbitration Award
+- ICC Arbitrator Challenge Submission
+- ICC Arbitrator Nomination Letter
+- ICC Emergency Arbitrator Application (IP and Non-Compete)
+- ICC Emergency Interim Measures
+- ICC Emergency Interim Measures Application (LC Restraint and Continued Supply)
+- ICC International Arbitration Cost Submission Drafting
+- ICC Request for Arbitration / Statement of Claim
+- ICC Terms of Reference
+- ICDR Notice of Arbitration (Cloud Services SLA Breach) (scenario 02)
+- ICDR Notice of Arbitration (scenario 01)
+- Interim Order Markup (Respondent Side)
+- New York Convention Enforcement Defense Analysis
+- Procedural Order Counterparty Markup Analysis
+- Procedural Order Markup (Respondent Side)
+- Procedural Timetable vs. Institutional Rules Compliance Review
+- Redfern Schedule Gap Analysis
+- Respondent Response to Emergency Interim Measures Application
+- Statement of Defense and Counterclaim
+- Witness Statement Drafting
+
+### International Trade & Sanctions (41)
+
+- Analyze Counterparty Markup of CFIUS National Security Agreement
+- Analyze Cross-Border Distribution Agreement for Regulatory and Commercial Risks
+- Analyze OFAC Investigative Demand and Related Transaction Records
+- Compare AML Ownership Structure Against Sanctioned Parties Lists
+- Compare Country of Origin Declarations Against Trade Preference Rules
+- Compare Entity Details Against Export Control Classification Lists
+- Compare Entity Details Against OFAC Sanctions List
+- Compare OFAC Pre-Penalty Notice Factors Against Enforcement Guidelines for Sanctions Violation Response
+- Compare Product Specifications Against Commerce Control List
+- Compare Transaction Records Against Sanctioned Parties List
+- Draft Antidumping Duty Scope Ruling Request
+- Draft BIS Export License Application
+- Draft CFIUS Joint Voluntary Notice
+- Draft Comprehensive Trade Compliance Policy Manual
+- Draft Initial Voluntary Self-Disclosure to BIS
+- Draft Markup of CFIUS National Security Agreement
+- Draft OFAC Specific License Application
+- Draft Response to BIS Export Control Charging Letter
+- Draft Response to OFAC Pre-Penalty Notice
+- Draft Restricted Party Screening Procedures Manual Chapter
+- Draft Sanctions Compliance Program Framework
+- Draft Trade Compliance Policy for International Sales Operations
+- Extract Entity Details for Sanctions Screening
+- Extract Entity Details from International Trade and Sanctions Transaction Request
+- Extract National Security Risk Factors for CFIUS Assessment
+- Extract Ownership Structure from Corporate Records for Sanctions Compliance
+- Extract Penalty Factors from OFAC Pre-Penalty Notice
+- Extract Product Specifications from Technical Data Sheet for Export Classification
+- Extract Tariff Classifications from Product Documentation
+- Gap Analysis — Compare Draft CFIUS Mitigation Agreement Against National Security Terms
+- Gap Analysis — Sanctions Compliance Program vs. Compliance Framework
+- Identify Compliance and Substantive Deficiencies in a Draft CFIUS Voluntary Notice
+- Identify Issues in a CFIUS Mandatory Declaration
+- Identify Issues in a Customs Entry Filing
+- Identify Issues in a Draft OFAC Specific License Application
+- Identify Issues in a Trade Compliance Policy Manual
+- Identify Issues in an End-Use Certificate
+- Identify Issues in an Export License Application
+- Review Draft Voluntary Self-Disclosure for Completeness, Accuracy, and Strategic Concerns
+- Review Technology Control Plan for ITAR Compliance Gaps and Deficiencies (scenario 01)
+- Review Technology Control Plan for ITAR Compliance Gaps and Deficiencies (scenario 02)
+
+### Litigation & Dispute Resolution (52)
+
+- Analyze Counterparty Motion to Dismiss — Issue Identification Memorandum
+- Analyze Counterparty Requests for Production for Objectionable and Overbroad Discovery Demands — Issue Identification Memorandum
+- Analyze Counterparty's Motion for Summary Judgment — Issue Identification Memorandum
+- Assess Litigation Hold Scope for Custodian Identification — Custodian Recommendation Memorandum
+- Assess Reasonableness of Staffing Levels on Litigation Invoice
+- Assess Settlement Value Range for Product Liability Crush Injury Case — Litigation Settlement Memorandum
+- Build Litigation Case Timeline — Chronological Event Summary for Breach of Contract and Fraud Defense
+- Categorize Document Production Set by Relevance and Privilege — Privilege Log and Relevance Classification Report
+- Compare Document Production Against Discovery Requests — Discovery Gap Analysis Memorandum
+- Draft Answer with Affirmative Defenses to Breach of Contract Complaint
+- Draft Case Assessment Memorandum for Defective Industrial Equipment Product Liability Claim
+- Draft Case Assessment Memorandum — Litigation Risk Analysis for Distribution Agreement Dispute
+- Draft Conflict Check Memorandum for Litigation Engagement Clearance
+- Draft Counterclaim Against Plaintiff for Breach of Joint Development Agreement
+- Draft Deposition Outline for Supervisor in Employment Discrimination and Retaliation Case
+- Draft Direct and Cross-Examination Outlines for Key Fact Witness in Breach of Contract and Fraud Action
+- Draft Discovery Plan Memorandum for Breach of Contract and Fraud Defense
+- Draft Discovery Responses and Objections to RFAs and RFPs in Breach of Supply Agreement Litigation
+- Draft Federal Complaint for Trade Secret Misappropriation and Breach of Employment Agreement
+- Draft Federal Rule 37(a) Motion to Compel Discovery Responses in Commercial Litigation
+- Draft First Set of Interrogatories to Defendant in a Trade Secret Misappropriation Case
+- Draft Litigation Hold Notice for New Product Liability Class Action (Medical Device)
+- Draft Memorandum of Law in Support of Motion for Preliminary Injunction — Trade Secret Misappropriation and Non-Compete Enforcement
+- Draft Motion for Summary Judgment — Breach of Contract, Fraudulent Inducement, and Negligent Misrepresentation in Failed ERP Implementation
+- Draft Motion in Limine to Exclude Expert Testimony and Prejudicial Evidence in Commercial Breach of Contract Case
+- Draft Opposition to Motion for Summary Judgment in BSA/AML Whistleblower Retaliation Case
+- Draft Opposition to Motion to Dismiss — Memorandum of Law in Opposition (Restrictive Covenant, Trade Secrets, Tortious Interference)
+- Draft Plaintiff's First Set of Requests for Production of Documents in Breach of Contract and Trade Secret Misappropriation Action
+- Draft Plaintiff's Portion of Joint Pretrial Statement in Breach of Contract and Fraudulent Inducement Action
+- Draft Proposed Jury Instructions for Title VII Retaliation, Ohio Whistleblower, and Implied Contract Claims
+- Draft Responses and Objections to Requests for Production in Breach of Contract and Fraud Litigation
+- Draft Rule 12(b)(6) Motion to Dismiss Brief — Commercial Software Licensing Dispute
+- Draft Verified Responses and Objections to Plaintiff's First Set of Interrogatories in Commercial Breach of Contract and Fraud Action
+- Extract Key Admissions from Deposition Transcript — Admission Summary Memorandum
+- Extract Key Obligations from Litigation Hold and Document Preservation Notice — Obligation Summary Memorandum
+- Extract Key Terms from Counterparty Complaint — Litigation Summary Memorandum
+- Extract Privileged Communications from Production Set — Privilege Log and Clawback Memorandum
+- Extract Scope Terms from Matter Plan — Structured Extraction Report
+- Federal Complaint Drafting — Breach of Contract and Fiduciary Duty
+- Government Subpoena Issue Identification — Memorandum to Partner on Grand Jury Subpoena for Insider Trading Investigation
+- Identify Excessive or Duplicative Research Charges in Litigation Invoice
+- Identify Issues in Counterparty Complaint — Issue Identification Memorandum
+- Identify Issues in Counterparty Interrogatories — Objection and Strategy Memorandum
+- Identify Issues in Litigation Matter Budget Proposal
+- Privilege Log Review and Clawback Analysis — Deficiency Memo and Clawback Candidate List
+- Research Corporate Veil Piercing Standards Across Target Jurisdictions — In-House Legal Memorandum
+- Research UCC Warranty Disclaimer Requirements for New Product Launch
+- Review Counterparty's Proposed Jury Instructions — Issue Memorandum for Trade Secrets Trial
+- Review Document Production Set for Attorney-Client Privilege Designations — Privilege Log and Recommendation Memo
+- Review Litigation Invoice Against Outside Counsel Billing Guidelines — Compliance Deviation Report
+- Review Outside Counsel Engagement Letter for Problematic Terms — Issue Identification Memorandum
+- Verify Disbursement Charges Against Outside Counsel Billing Guidelines — Compliance Report
+
+### Real Estate (44)
+
+- Analyze Counterparty Markup of Commercial Lease Agreement — Redline Review Memorandum
+- Analyze Counterparty Markup of Commercial Real Estate Loan Agreement — Redline Analysis Memorandum
+- Analyze Counterparty Markup of Construction Contract — Redline Review Memorandum
+- Analyze Seller's Counsel Markup of Purchase and Sale Agreement — Prepare Issues Memorandum
+- Commercial Lease Negotiation — Tenant Representation
+- Commercial Lease Renewal Assessment — Market Rate Deviation Report
+- Commercial Lease Review — Issues List for Tenant Representation
+- Compare Closing Documents against Purchase and Sale Agreement — Deviation Report
+- Compare Property Tax Records against Seller Disclosure Statement — Discrepancy Report for Mixed-Use Portfolio Acquisition
+- Construction Project Insurance Gap Analysis — Issue Identification Memorandum
+- Draft AIA-Style Modified Construction Agreement for Mixed-Use Development
+- Draft Assignment and Assumption of Lease for Commercial Office Space Transfer
+- Draft Commercial Real Estate Construction Loan Agreement for Mixed-Use Development
+- Draft Commercial Real Estate Construction-to-Permanent Loan Agreement for Mixed-Use Development
+- Draft Comprehensive Closing Checklist for Commercial Real Estate Acquisition
+- Draft General Warranty Deed for Commercial Property Conveyance
+- Draft Long-Term Commercial Ground Lease for Mixed-Use Development — Tenant Representation
+- Draft Markup of Counterparty Construction Contract — Redlined GMP Agreement
+- Draft Markup of Counterparty Lease Agreement — Redlined Lease with Commentary
+- Draft Markup of Counterparty Loan Agreement — Borrower-Side Redline
+- Draft Markup of Counterparty Purchase and Sale Agreement — Redline Markup with Commentary
+- Draft Mixed-Use Transit-Oriented Development Agreement for Municipal Public-Private Project
+- Draft Mortgage and Security Agreement for Commercial Real Estate Loan
+- Draft Purchase and Sale Agreement for Commercial Office Building Acquisition
+- Draft Settlement Statement for Commercial Property Closing with Prorations, Lien Payoffs, and Assumed Lease
+- Draft Tenant Notification Letter for Building Ownership Change, Renovation, and Lease Modifications
+- Draft Triple-Net Commercial Lease Agreement for Mixed-Use Retail/Office Space in Historic Building
+- Extract Conditions from Zoning Approval into Compliance Tracking Matrix
+- Extract Encumbrances from Title Survey — Encumbrance Summary Report for Wind Farm Acquisition
+- Extract Key Terms from Commercial Property Purchase and Sale Agreement (scenario 01)
+- Extract Key Terms from Commercial Property Purchase and Sale Agreement (scenario 02)
+- Extract Lease Terms from Existing Lease Portfolio — Lease Abstraction Report for Portfolio Acquisition
+- Identify Issues in ALTA/NSPS Land Title Survey — Issue Memorandum for Mixed-Use Acquisition
+- Identify Issues in Counterparty Construction Contract for Multifamily Acquisition
+- Identify Issues in Counterparty Construction Loan Agreement — Issue Memorandum
+- Identify Issues in Counterparty Purchase and Sale Agreement — Issue Memorandum for Commercial Office Acquisition
+- Identify Issues in Counterparty's Proposed Commercial Real Estate Loan Agreement — Issue Memorandum
+- Identify Issues in Counterparty's Proposed Office Lease Agreement — Issue Memorandum
+- Identify Issues in Environmental Site Assessment — Issue Memorandum for Mixed-Use Redevelopment Acquisition
+- Identify Issues in Tenant Estoppel Certificates for Office Building Acquisition
+- Identify Issues in Title Commitment — Issue Memorandum for Land Acquisition
+- Identify Issues in Zoning Compliance Report for Mixed-Use Acquisition Site
+- Real Estate Portfolio Due Diligence Memorandum for Industrial Portfolio Acquisition
+- Title Commitment Issue Identification for Industrial Portfolio Acquisition
+
+### Structured Finance & Securitization (31)
+
+- Analyze Counterparty Markup of CLO Indenture — Redline Review Memorandum
+- Analyze Counterparty Markup of Pooling and Servicing Agreement — Redline Analysis Memorandum
+- Compare CLO Collateral Tape Against Eligibility Criteria and Prepare Deviation Report
+- Compare Closing Checklist Against Transaction Documents — Discrepancy Report for Auto Loan Securitization
+- Compare Offering Memorandum Against Indenture — Discrepancy Report for Auto Loan ABS
+- Compare Representations and Warranties Against Precedent Indenture — Deviation Report for Auto ABS Deal
+- Compare Term Sheet Against Engagement Letter — Deviation Report for ABS Securitization
+- Draft Account Control Agreement for ABS Transaction
+- Draft Due Diligence Summary Memorandum for Residential Transition Loan ABS Transaction
+- Draft First Lien / Second Lien Intercreditor Agreement
+- Draft Markup of Pooling and Servicing Agreement for RMBS Transaction
+- Draft Officer's Certificate for Auto Loan ABS Closing
+- Draft Pooling and Servicing Agreement for Auto Loan ABS
+- Draft Sale and Contribution Agreement for Auto Loan Receivables Securitization
+- Draft Security Agreement for Whole Business Securitization Collateral Perfection
+- Draft Structural Overview Memorandum for Auto Loan Securitization
+- Draft Trust Indenture for Auto Loan ABS Transaction
+- Extract Asset Pool Characteristics from Collateral Tape — RMBS Stratification Report
+- Extract Conditions Precedent from Indenture and Prepare Closing Compliance Checklist
+- Extract Key Terms from Auto Loan ABS Term Sheet and Flag Inconsistencies
+- Extract Key Terms from Warehouse Credit Facility Term Sheet — Structured Extraction Memo
+- Extract R&Ws from Sale and Contribution Agreement — Compliance Matrix
+- Identify Issues in ABS Term Sheet — Issue Memorandum for Consumer Loan Securitization
+- Identify Issues in Credit Agreement — Issue Spotting Memorandum for Acquisition Financing
+- Identify Issues in Draft Indenture for Equipment Lease Receivables Securitization (Scenario 01) (scenario 01)
+- Identify Issues in Draft Indenture for Equipment Lease Receivables Securitization (Scenario 02) (scenario 02)
+- Identify Issues in Draft Sale and Contribution Agreement for Auto Loan Securitization
+- Identify Issues in Pooling and Servicing Agreement — Issue Memorandum for RMBS Investment
+- Identify Issues in Preliminary Offering Memorandum for CRE CLO Transaction
+- Identify Issues in Servicer Compliance Certificate — Issue Memorandum for RMBS Trustee
+- Portfolio Company Credit Agreement Markup — Borrower's Counsel Draft Markup for LBO Financing
+
+### Tax (34)
+
+- Analyze IRS Counter-Markup of Tax Closing Agreement
+- Analyze IRS Counterparty Markup of Proposed Stipulation of Facts
+- Analyze IRS Information Document Request for Completeness and Risk Issues
+- Compare Assessed Tax Positions Against Filed Returns
+- Compare Corporate Tax Positions Against IRS Revenue Rulings
+- Compare Current-Year Filing Positions Against Prior-Year Returns
+- Compare Proposed Settlement Against Original Assessment
+- Draft Cross-Border Acquisition Tax Memo
+- Draft Federal Income Tax Opinion Letter — Section 355 Spin-Off
+- Draft Internal Tax Compliance Memorandum for Corporate Restructuring
+- Draft Markup of IRS Closing Agreement
+- Draft Markup of Proposed Stipulation of Facts
+- Draft Response to IRS Information Document Request
+- Draft Response to IRS Notice of Deficiency
+- Draft Response to Information Document Request (Multi-Issue Examination)
+- Draft Settlement Memorandum
+- Draft Tax Due Diligence Report
+- Draft Tax Structure Memorandum — PE Acquisition of S-Corporation
+- Draft Transfer Pricing Documentation Review Memorandum
+- Draft United States Tax Court Petition
+- Extract Assessed Items from Tax Authority Notice
+- Extract Key Terms from Intercompany Agreements for Transfer Pricing Compliance
+- Extract Tax Attributes from Audited Financial Statements
+- Extract and Consolidate Document Requests from Tax-Authority Summonses
+- Identify Issues in Annual Tax Compliance Report
+- Identify Issues in IRS Closing Agreement
+- Identify Issues in Nonprofit Tax Exemption Application
+- Identify Issues in Notice of Deficiency
+- Identify Issues in Section 409A Valuation Report
+- Identify Issues in Tax Transaction Structure Memorandum
+- Identify Issues in Transfer Pricing Documentation Review
+- Identify Tax Issues in IRS Opposition Brief
+- Identify Tax Issues in IRS Summary Judgment Brief
+- Section 382 Ownership Change Analysis
+
+### Trusts, Estates & Private Client (77)
+
+- Analyze Counterparty Markup of Parenting Plan — Redline Analysis Memorandum
+- Analyze Counterparty Markup of Postnuptial Agreement — Redline Review Memorandum
+- Analyze Counterparty Markup of Prenuptial Agreement — Redline Analysis Memorandum
+- Compare Charitable Trust Structures against Client Goals — Trust Structure Recommendation Memorandum
+- Compare Creditor Claims Against Estate Assets — Claims Reconciliation Memorandum
+- Compare Estate Plan Against Federal Tax Exemption Schedules — Tax Exposure Memorandum
+- Compare Final Decree of Divorce Against Mediated Settlement Agreement — Discrepancy Report
+- Compare Financial Declaration Against Tax Returns — Discrepancy Analysis Memorandum
+- Compare Gift Tax Return Against Annual Exclusion Limits — Deviation Report
+- Compare Settlement Proposal Against Temporary Orders — Deviation Analysis Memorandum
+- Compare Trust Distributions against Trust Instrument — Compliance Memorandum
+- Compare Trust Documents Against Client Instructions — Deviation Report
+- Compliance Gap Analysis: Proposed Parenting Plan vs. Governing Statutory Requirements
+- Contested Divorce Financial Discovery — Issue Identification Memorandum
+- Draft Advance Health Care Directive for Client with Early-Stage Alzheimer's Diagnosis
+- Draft Charitable Lead Annuity Trust (CLAT) Agreement with Special Needs Provisions
+- Draft Charitable Remainder Unitrust Agreement with Mixed Asset Funding and Joint-Life Income Beneficiaries
+- Draft Completed Colorado Child Support Guideline Worksheet (Form JDF 1820)
+- Draft Comprehensive Parenting Plan Under Washington State Law (RCW 26.09)
+- Draft Consent to Adoption Document for Biological Mother in Maryland Independent Adoption
+- Draft Durable Power of Attorney for Elderly Principal with Complex Family Dynamics and Multi-State Assets
+- Draft Formal Estate Inventory and Appraisal for Probate Court Filing Under Oregon Law
+- Draft Formal Judicial Accounting Report (First and Final Account) for Surrogate's Court Submission
+- Draft Formal Trustee Annual Accounting
+- Draft Gift and Estate Tax Planning Memorandum for High-Net-Worth Widow
+- Draft Grantor Retained Annuity Trust (GRAT) Agreement for Biotech Executive's Private Company Shares
+- Draft Irrevocable Life Insurance Trust Agreement for Blended Family with Crummey Powers and GST Planning
+- Draft Last Will and Testament for High-Net-Worth Client with Complex Family Dynamics
+- Draft Marital Settlement Agreement — Property Division, Custody, and Support
+- Draft Markup of Counterparty Postnuptial Agreement with Attorney Commentary
+- Draft Markup of Counterparty Prenuptial Agreement with Commentary
+- Draft Markup of Counterparty's Proposed Parenting Plan in Contested Custody Dispute
+- Draft Motion for Temporary Orders in High-Conflict Divorce with Child Custody, Spousal Support, and Asset Restraining Provisions
+- Draft Notice to Creditors for Probate Filing — New York Surrogate's Court
+- Draft Opposition Brief to Motion to Modify Custody and Child Support
+- Draft Petition for Final Distribution — Arizona Probate Court Filing
+- Draft Petition for Probate of Will and Qualification of Personal Representative — Complex Virginia Estate
+- Draft Postnuptial Agreement for Kowalski Couple Under Illinois Law
+- Draft Pour-Over Will Coordinating with Revocable Living Trust for Blended Family Estate
+- Draft Prenuptial Agreement
+- Draft Private Family Foundation Bylaws
+- Draft Qualified Domestic Relations Orders (QDROs)
+- Draft Redline Markup of Opposing Counsel's Proposed Marital Settlement Agreement with Marginal Commentary
+- Draft Revocable Living Trust Agreement
+- Draft Stepparent Adoption Petition for Circuit Court Filing
+- Draft Trial Brief for Contested Dissolution Proceeding
+- Estate Planning Asset Extraction — Comprehensive Asset Schedule
+- Extract Client Intake Facts — Divorce/Family Law Scenario (Variant) (scenario 02)
+- Extract Client Intake Facts — Divorce/Family Law Scenario (scenario 01)
+- Extract Comprehensive Asset Inventory from Decedent Financial Records
+- Extract Distribution Requirements from Trust Agreement
+- Extract Key Exhibits from Document Production — Exhibit Summary Memorandum
+- Extract Key Financial Facts from Client Intake Questionnaire and Supporting Documents
+- Extract Obligations from Executed Marital Settlement Agreement
+- Extract Signing Requirements from Estate Plan Documents — Signing Ceremony Checklist
+- Extract and Categorize Assets from Financial Disclosure Schedules
+- Extract and Categorize Custody Factors from Evaluation Report
+- Extract and Reconcile Assets from Contested Divorce Financial Affidavit
+- Extract and Reconcile Assets from Opposing Party's Financial Declaration
+- Extract and Reconcile Beneficiary Designations from Multiple Account Forms
+- Extract and Reconcile Client Assets from Financial Statements for Estate Planning
+- Extract and Summarize Creditor Claims from Estate Correspondence
+- Identify Issues in Adoption Home Study Report
+- Identify Issues in Counterparty Postnuptial Agreement
+- Identify Issues in Counterparty's Draft Prenuptial Agreement
+- Identify Issues in Counterparty's Motion Brief
+- Identify Issues in Counterparty's Proposed Parenting Plan
+- Identify Issues in Discovery Responses — Deficiency Memorandum
+- Identify Issues in Divorce Settlement Proposal (Variant) (scenario 02)
+- Identify Issues in Divorce Settlement Proposal (scenario 01)
+- Identify Issues in Draft Irrevocable Dynasty Trust Agreement
+- Identify Issues in Last Will and Testament
+- Identify Issues in Opposing Party's Filing
+- Identify Issues in Probate Court Filing
+- Identify Issues in Proposed Decree of Dissolution
+- Review Multigenerational Estate Plan (scenario 01)
+- Review Multigenerational Estate Plan (scenario 02)
+
+### White Collar Defense & Investigations (21)
+
+- Analyze Government Counter-Markup of Deferred Prosecution Agreement
+- Compare Employee Communications Against SEC Referral Notice — Defense-Side Gap Analysis
+- Compare Proposed Settlement Terms Against Precedent Resolutions — Environmental Enforcement
+- Draft Internal FCPA Investigation Plan Memorandum
+- Draft Markup of Government DPA — Defense Counsel
+- Draft Proffer Agreement and Cover Memorandum — Cooperating Witness
+- Draft Response to SEC Wells Notice — Investment Adviser Wells Submission
+- Extract Key Allegations from SEC Enforcement Referral Notice
+- Extract Obligations from Government Preservation Notice — Compliance Gap Report
+- Extract Relevant Transactions from Accounting Records — Forensic Transaction Summary
+- Extract Remedial Obligations from FCPA Settlement — Compliance Obligation Matrix
+- Gap Analysis — Document Production Set vs. Grand Jury Subpoena Request Categories
+- Gap Analysis — Grand Jury Subpoena vs. Corporate Document Retention Policy
+- Identify Inconsistencies and Vulnerabilities in Prior Witness Testimony — Impeachment Memorandum
+- Identify Issues in Custodian Production Set — Issues Memorandum
+- Identify Issues in Draft Deferred Prosecution Agreement — Issue Memorandum
+- Identify Issues in Grand Jury Subpoena — Issue Memorandum for Lead Partner
+- Identify Issues in Proposed Environmental Consent Decree — Board-Level Issue Memorandum
+- Identify Issues in Whistleblower Complaint — Issue-Spotting Memorandum
+- Identify Suspicious Patterns in Financial Transaction Records — Issue Memorandum
+- Statutory Gap Analysis of an Internal Investigation Memorandum
+
+## The pattern every skill follows
+
+Each skill is a procedural playbook, not a canned answer. When LegalClaw routes your matter to a skill, the skill supplies:
+
+1. **Failure modes it corrects** — the mistakes a generic draft or review typically makes on that task (missed consent triggers, overbroad MAE definitions, uncoordinated remedies, and so on).
+2. **Legal frameworks and domain conventions** — the doctrines, statutes, and market-standard drafting norms the work product must track.
+3. **Deliverable shape** — what the memo, markup, issue list, or draft should contain so a partner can review it quickly.
+4. **A self-audit** — checks LegalClaw runs on its own output (cross-document consistency, bracketed open items, unsupported assertions) before it hands the work back.
+
+LegalClaw prepares the work product; **an attorney reviews and signs it**. To start, see [Working with LegalClaw](/docs/claw-series/using-legalclaw).

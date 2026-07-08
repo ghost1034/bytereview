@@ -1,12 +1,12 @@
 ---
 title: "Overview"
-description: "What the Claw Series is, how AccountingClaw is activated and deployed, and how to get your first digital worker running."
+description: "What the Claw Series is, how AccountingClaw and LegalClaw are activated and deployed, and how to get your first digital worker running."
 order: 1
 ---
 
-The Claw Series is a family of **AI digital workers** — autonomous agents you deploy, not tools you operate. Each Claw runs hundreds of pre-built skills end-to-end, with guardrails designed for regulated accounting, finance, and legal work. You point a Claw at your data, tell it what you need in plain language, and it prepares review-ready workpapers for you to check and sign off.
+The Claw Series is a family of **AI digital workers** — autonomous agents you deploy, not tools you operate. Each Claw runs hundreds of pre-built skills end-to-end, with guardrails designed for regulated accounting, finance, and legal work. You point a Claw at your data, tell it what you need in plain language, and it prepares review-ready deliverables for you to check and sign off.
 
-This documentation covers **AccountingClaw**, the digital worker available for self-service today. FinanceClaw and LegalClaw are offered through white-glove setup — [contact us](/contact) and we'll deploy and tune them for your firm.
+Two digital workers are available for self-service today: **AccountingClaw** and **LegalClaw**. FinanceClaw is offered through white-glove setup — [contact us](/contact) and we'll deploy and tune it for your firm.
 
 ## What AccountingClaw does
 
@@ -14,9 +14,15 @@ AccountingClaw helps accountants **prepare, review, reconcile, and document** ac
 
 It is built to assist a CPA, not replace one. AccountingClaw never invents balances or tax rates, drafts journal entries but never posts them, and escalates material judgment back to you. Final CPA sign-off, management approval, and required tax review always stay with the human professional.
 
+## What LegalClaw does
+
+LegalClaw helps legal professionals **analyze, draft, review, and document** legal work product. It ships with **1,251 legal skills across 24 practice areas** — from Corporate M&A, Capital Markets, and Funds to IP, Employment, Real Estate, Tax, Immigration, and Litigation. Each skill encodes how to work a class of legal matter: the legal frameworks that apply, the failure modes to avoid, the shape of the deliverable, and a self-audit before it hands anything back. You brief it like a junior associate; it produces memo- and markup-style work product with open items flagged in bracketed comments for attorney review.
+
+It is built to assist an attorney, not replace one. LegalClaw never invents statutes, citations, or contract terms, does not provide legal advice, and escalates judgment-heavy questions of law and strategy back to you. Attorney review and partner sign-off always stay with the human professional. See the full [LegalClaw skills catalog](/docs/claw-series/legalclaw-skills-catalog).
+
 ## Two ways to deploy
 
-AccountingClaw runs the same skills whether you deploy it in the cloud or on your own machine. Both unlock the skills with your personal activation key.
+Every Claw runs the same skills whether you deploy it in the cloud or on your own machine. Both unlock with your personal activation key — and **one key unlocks both products**.
 
 | | Cloud digital worker | Desktop digital worker |
 | --- | --- | --- |
@@ -27,7 +33,7 @@ AccountingClaw runs the same skills whether you deploy it in the cloud or on you
 
 ## What activation is
 
-Before you can run AccountingClaw, you activate it once. You redeem a six-digit code (we provide it) for a **personal activation key** that looks like `cpaa_live_…`. That key unlocks the encrypted AccountingClaw skills on first start, whether you deploy in the cloud or on the desktop. The key is shown to you exactly once, so you save it and reuse it for every install. See [Activating AccountingClaw](/docs/claw-series/activation).
+Before you can run a Claw, you activate once. You redeem a six-digit code (we provide it) for a **personal activation key** that looks like `cpaa_live_…`. That key unlocks the encrypted skills of both AccountingClaw and LegalClaw on first start, whether you deploy in the cloud or on the desktop. The key is shown to you exactly once, so you save it and reuse it for every install. See [Activating your Claw](/docs/claw-series/activation).
 
 ## Where to find it
 
@@ -37,7 +43,7 @@ Before you can run AccountingClaw, you activate it once. You redeem a six-digit 
 
 ## Get started in four steps
 
-1. [Activate AccountingClaw](/docs/claw-series/activation) — redeem your six-digit code and save the personal key.
-2. Deploy it [in the cloud with Docker](/docs/claw-series/deploy-cloud) **or** [on your desktop](/docs/claw-series/deploy-desktop).
-3. [Work with AccountingClaw](/docs/claw-series/using-accountingclaw) — brief it in chat and let it produce your workpapers.
-4. Explore everything it can do in the [Skills catalog](/docs/claw-series/skills-catalog).
+1. [Activate](/docs/claw-series/activation) — redeem your six-digit code and save the personal key.
+2. Deploy AccountingClaw or LegalClaw [in the cloud with Docker](/docs/claw-series/deploy-cloud) **or** [on your desktop](/docs/claw-series/deploy-desktop).
+3. Brief your worker in chat — see [Working with AccountingClaw](/docs/claw-series/using-accountingclaw) or [Working with LegalClaw](/docs/claw-series/using-legalclaw).
+4. Explore everything they can do in the [AccountingClaw skills catalog](/docs/claw-series/skills-catalog) and the [LegalClaw skills catalog](/docs/claw-series/legalclaw-skills-catalog).

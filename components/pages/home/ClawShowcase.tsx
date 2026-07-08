@@ -53,7 +53,7 @@ const WORKERS = [
     name: 'LegalClaw',
     discipline: 'Legal',
     description:
-      'Extracts clauses, flags risk, and reviews contracts against your policy guardrails.',
+      'Drafts, reviews, and analyzes legal work product with 1,251 skills across 24 practice areas.',
   },
 ]
 

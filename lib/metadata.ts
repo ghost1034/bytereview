@@ -113,13 +113,15 @@ export const pageMetadata = {
   },
   claw: {
     title: 'Claw Series - Personalized AI Digital Workers for Accounting, Finance & Legal',
-    description: 'Download the AccountingClaw Docker image or request personalized setup for Claw Series AI digital workers deployed on the cloud and model of your choice.',
+    description: 'Download the AccountingClaw or LegalClaw Docker image or request personalized setup for Claw Series AI digital workers deployed on the cloud and model of your choice.',
     canonical: 'https://cpaautomation.ai/claw',
     keywords: [
       'AccountingClaw',
       'AccountingClaw Docker image',
       'FinanceClaw',
       'LegalClaw',
+      'LegalClaw Docker image',
+      'AI legal skills',
       'AI digital workers',
       'AI agents for accounting',
       'Hermes Agent accounting skills',

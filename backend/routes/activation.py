@@ -1,15 +1,19 @@
 """
-AccountingClaw activation routes.
+Claw Series activation routes (AccountingClaw + LegalClaw).
 
 Flow:
   - POST /api/activation/activate  (Firebase-authed): user redeems the universal
-    six-digit code and is issued a personal, revocable key (shown once).
+    six-digit code and is issued a personal, revocable key (shown once). One key
+    unlocks every self-service Claw product.
   - GET  /api/activation/me        (Firebase-authed): activation status for the UI.
-  - POST /api/activation/resolve   (key-authed, NOT Firebase): the AccountingClaw
-    container exchanges its key for the real build-time CPAA_BUNDLE_SECRET.
+  - POST /api/activation/resolve   (key-authed, NOT Firebase): a Claw container
+    exchanges its key for the real build-time bundle secret of the requested
+    product (CPAA_BUNDLE_SECRET for AccountingClaw, CPAA_LEGALCLAW_BUNDLE_SECRET
+    for LegalClaw).
   - POST /api/activation/bundle    (key-authed, NOT Firebase): the desktop installer
-    exchanges its key for a short-lived signed URL to the plaintext profile bundle
-    in the private GCS bucket (no client-side decryption needed).
+    exchanges its key for a short-lived signed URL to the requested product's
+    plaintext profile bundle in the private GCS bucket (no client-side decryption
+    needed).
 
 Only a SHA-256 hash of each key is stored. ``key_lookup`` (a non-secret prefix of
 the random part) gives an indexed lookup; the full key is then verified with a
@@ -53,6 +57,22 @@ router = APIRouter(prefix="/api/activation", tags=["activation"])
 
 KEY_PREFIX = "cpaa_live_"
 LOOKUP_LEN = 12
+
+# Per-product bundle configuration. ``secret_env`` is returned by /resolve to
+# decrypt the product's Docker image; ``object_env``/``default_object`` locate
+# the product's plaintext desktop bundle in the private GCS bucket for /bundle.
+PRODUCTS = {
+    "accountingclaw": {
+        "secret_env": "CPAA_BUNDLE_SECRET",
+        "object_env": "CPAA_BUNDLE_GCS_OBJECT",
+        "default_object": "accountingclaw/accountingclaw-profile.tar.gz",
+    },
+    "legalclaw": {
+        "secret_env": "CPAA_LEGALCLAW_BUNDLE_SECRET",
+        "object_env": "CPAA_LEGALCLAW_BUNDLE_GCS_OBJECT",
+        "default_object": "legalclaw/legalclaw-profile.tar.gz",
+    },
+}
 
 
 def _hash_key(full_key: str) -> str:
@@ -257,15 +277,19 @@ async def resolve(req: ResolveRequest, request: Request):
     try:
         row = _validate_key(db, req.activation_key, ip)
 
-        bundle_secret = os.getenv("CPAA_BUNDLE_SECRET")
+        secret_env = PRODUCTS[req.product]["secret_env"]
+        bundle_secret = os.getenv(secret_env)
         if not bundle_secret:
-            logger.error("CPAA_BUNDLE_SECRET is not configured on the backend")
+            logger.error("%s is not configured on the backend", secret_env)
             raise HTTPException(status_code=503, detail="Activation is not currently available.")
 
         _stamp_resolution(row, req.fingerprint, req.install_type, default_type="docker")
         db.commit()
 
-        logger.info("Resolved bundle for key_lookup=%s user_id=%s ip=%s", row.key_lookup, row.user_id, ip)
+        logger.info(
+            "Resolved %s bundle for key_lookup=%s user_id=%s ip=%s",
+            req.product, row.key_lookup, row.user_id, ip,
+        )
         return ResolveResponse(bundle_secret=bundle_secret)
     except HTTPException:
         raise
@@ -283,8 +307,9 @@ async def bundle(req: BundleRequest, request: Request):
 
     Like /resolve, authenticated by possession of the activation key itself (NOT
     Firebase). Instead of the decryption secret, returns a short-lived signed GET
-    URL to the plaintext AccountingClaw profile tarball in the private GCS bucket,
-    plus its sha256 for client-side verification. Generic 401 for all key failures.
+    URL to the requested product's plaintext profile tarball in the private GCS
+    bucket, plus its sha256 for client-side verification. Generic 401 for all key
+    failures.
     """
     ip = _client_ip(request)
     if not rate_limiter.check("bundle_ip", ip, limit=20, window_seconds=60):
@@ -294,8 +319,9 @@ async def bundle(req: BundleRequest, request: Request):
     try:
         row = _validate_key(db, req.activation_key, ip)
 
+        product = PRODUCTS[req.product]
         bucket = os.getenv("CPAA_BUNDLE_GCS_BUCKET")
-        obj = os.getenv("CPAA_BUNDLE_GCS_OBJECT", "accountingclaw/accountingclaw-profile.tar.gz")
+        obj = os.getenv(product["object_env"], product["default_object"])
         if not bucket:
             logger.error("CPAA_BUNDLE_GCS_BUCKET is not configured on the backend")
             raise HTTPException(status_code=503, detail="Activation is not currently available.")
@@ -316,7 +342,8 @@ async def bundle(req: BundleRequest, request: Request):
         db.commit()
 
         logger.info(
-            "Issued bundle URL for key_lookup=%s user_id=%s ip=%s", row.key_lookup, row.user_id, ip
+            "Issued %s bundle URL for key_lookup=%s user_id=%s ip=%s",
+            req.product, row.key_lookup, row.user_id, ip,
         )
         return BundleResponse(
             bundle_url=url,

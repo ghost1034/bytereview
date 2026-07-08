@@ -127,3 +127,6 @@ sitemap-0.xml
 
 # AccountingClaw local Hermes data
 .accountingclaw-data/
+
+# LegalClaw local Hermes data
+.legalclaw-data/

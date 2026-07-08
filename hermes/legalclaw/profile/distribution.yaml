@@ -1,0 +1,22 @@
+name: legalclaw
+display_name: LegalClaw
+description: CPAAutomation.ai legal agent profile with 1,251 bundled legal skills
+version: 0.1.0
+publisher: CPAAutomation.ai
+license: Commercial
+
+required_environment_variables:
+  - name: CPAA_BUNDLE_SECRET
+    prompt: CPAAutomation.ai bundle decryption secret
+    required_for: decrypting bundled LegalClaw skills
+  - name: OPENROUTER_API_KEY
+    prompt: OpenRouter API key
+    required_for: Hermes model access with the default OpenRouter provider
+
+# skills/ bundles all 1,251 LegalClaw skills (one SKILL.md per skill, across 24
+# practice areas), regenerated from the upstream source by
+# scripts/import-legalclaw-skills.py — do not hand-edit individual skills.
+contents:
+  - SOUL.md
+  - config.yaml
+  - skills/

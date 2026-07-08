@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# Builds the LegalClaw Hermes image with encrypted bundled skills.
+
+set -euo pipefail
+
+PROJECT_ID="${PROJECT_ID:-ace-rider-383100}"
+REGION="${REGION:-us-central1}"
+ARTIFACT_REGISTRY_REPO="${ARTIFACT_REGISTRY_REPO:-cpa-docker}"
+ARTIFACT_REGISTRY_URL="${ARTIFACT_REGISTRY_URL:-${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}}"
+IMAGE_NAME="${LEGALCLAW_IMAGE_NAME:-legalclaw-hermes}"
+DOCKERHUB_NAMESPACE="${DOCKERHUB_NAMESPACE:-cpaautomation}"
+TAG="${1:-$(git rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)}"
+CONTEXT_DIR="hermes/legalclaw"
+PLATFORM="${LEGALCLAW_PLATFORM:-linux/amd64}"
+PUSH="${PUSH:-false}"
+PUSH_TARGET="${PUSH_TARGET:-artifact-registry}"
+
+# CPAA_LEGALCLAW_BUNDLE_SECRET encrypts the bundle at build time. The SAME value
+# must be set as CPAA_LEGALCLAW_BUNDLE_SECRET in the backend environment, because
+# the activation resolve endpoint returns it to containers (product=legalclaw)
+# to decrypt this image. If the two diverge, activated containers will fail to
+# decrypt the bundle.
+if [ -z "${CPAA_LEGALCLAW_BUNDLE_SECRET:-}" ]; then
+  echo "CPAA_LEGALCLAW_BUNDLE_SECRET is required to encrypt the LegalClaw bundle."
+  exit 64
+fi
+
+if ! docker info >/dev/null 2>&1; then
+  echo "Docker is not running."
+  exit 69
+fi
+
+local_tag="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}:${TAG}"
+local_latest="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}:latest"
+artifact_registry_tag="${ARTIFACT_REGISTRY_URL}/${IMAGE_NAME}:${TAG}"
+artifact_registry_latest="${ARTIFACT_REGISTRY_URL}/${IMAGE_NAME}:latest"
+dockerhub_tag="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}:${TAG}"
+dockerhub_latest="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}:latest"
+
+output_flag="--load"
+tags=(-t "$local_tag" -t "$local_latest")
+
+if [ "$PUSH" = "true" ]; then
+  output_flag="--push"
+  case "$PUSH_TARGET" in
+    artifact-registry)
+      gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+      tags=(-t "$artifact_registry_tag" -t "$artifact_registry_latest")
+      ;;
+    dockerhub)
+      tags=(-t "$dockerhub_tag" -t "$dockerhub_latest")
+      ;;
+    *)
+      echo "Unsupported PUSH_TARGET: $PUSH_TARGET. Use artifact-registry or dockerhub."
+      exit 64
+      ;;
+  esac
+fi
+
+docker buildx build \
+  --platform "$PLATFORM" \
+  -f "${CONTEXT_DIR}/Dockerfile" \
+  --secret id=cpaa_bundle_secret,env=CPAA_LEGALCLAW_BUNDLE_SECRET \
+  "${tags[@]}" \
+  "$output_flag" \
+  "$CONTEXT_DIR"
+
+if [ "$PUSH" = "true" ]; then
+  if [ "$PUSH_TARGET" = "dockerhub" ]; then
+    echo "Built and pushed ${dockerhub_tag} and ${dockerhub_latest}."
+  else
+    echo "Built and pushed ${artifact_registry_tag} and ${artifact_registry_latest}."
+  fi
+else
+  echo "Built ${local_tag} and ${local_latest}."
+fi

@@ -1,10 +1,10 @@
 ---
-title: "Activating AccountingClaw"
-description: "Redeem your six-digit code for a personal activation key, save it safely, and understand key status and recovery."
+title: "Activating your Claw"
+description: "Redeem your six-digit code for a personal activation key that unlocks AccountingClaw and LegalClaw, save it safely, and understand key status and recovery."
 order: 2
 ---
 
-Activation is a one-time step that turns a six-digit code into your **personal activation key**. That key — it looks like `cpaa_live_…` — is what unlocks the encrypted AccountingClaw skills when you deploy, in the cloud or on your desktop. You'll do this once, save the key, and reuse it for every install.
+Activation is a one-time step that turns a six-digit code into your **personal activation key**. That key — it looks like `cpaa_live_…` — is what unlocks the encrypted skills when you deploy, in the cloud or on your desktop. **One key unlocks both AccountingClaw and LegalClaw.** You'll do this once, save the key, and reuse it for every install.
 
 ## Step 1 — Get a six-digit activation code
 
@@ -19,7 +19,7 @@ In the CPAAutomation sidebar, open **Claw Activation** (`/dashboard/activation`)
 1. Type your six digits into the boxes.
 2. Click **Activate**.
 
-If the code is valid, AccountingClaw issues your personal key right away.
+If the code is valid, your personal key is issued right away.
 
 > **Note:** If you mistype the code you'll see *"Invalid activation code."* — double-check the six digits. If you try too many times in a row you'll be asked to *wait a few minutes and try again* (activation is rate-limited to protect your account).
 
@@ -31,10 +31,10 @@ After a successful activation, a **Your personal activation key** panel appears 
 
 Click **Copy key** and store it somewhere safe — a password manager is ideal. You'll paste this key into your deployment:
 
-- **Cloud (Docker):** pass it as the `CPAA_ACTIVATION_KEY` environment variable.
-- **Desktop:** run the installer with it to add AccountingClaw to Hermes Desktop.
+- **Cloud (Docker):** pass it as the `CPAA_ACTIVATION_KEY` environment variable when you run the AccountingClaw or LegalClaw image.
+- **Desktop:** run the AccountingClaw or LegalClaw installer with it to add the skills to Hermes Desktop.
 
-The same panel gives you ready-to-run **Cloud (Docker)** and **Desktop** commands with your key already filled in, so you can jump straight to deployment. Continue to [Deploy in the cloud](/docs/claw-series/deploy-cloud) or [Deploy on your desktop](/docs/claw-series/deploy-desktop).
+The same panel gives you ready-to-run **Cloud (Docker)** and **Desktop** commands for each product with your key already filled in, so you can jump straight to deployment. Continue to [Deploy in the cloud](/docs/claw-series/deploy-cloud) or [Deploy on your desktop](/docs/claw-series/deploy-desktop).
 
 ## Checking your activation status
 
@@ -42,14 +42,14 @@ When you return to the Activation page later, it reflects your current state ins
 
 | What you see | What it means |
 | --- | --- |
-| **AccountingClaw activated**, with a key shown as `cpaa_live_AbCd…` | You have an active key. Only the prefix is displayed — the full key is never shown again. |
+| **Claw Series activated**, with a key shown as `cpaa_live_AbCd…` | You have an active key. Only the prefix is displayed — the full key is never shown again. |
 | **Last used by your cloud (Docker) install** / **your desktop install**, with a date | The most recent time a deployment used your key, and how it was deployed. |
 | A red **Your activation key was revoked** banner | Your previous key is no longer valid. Enter a code to issue a new one. |
 
-You can hold **one active key at a time**. If you activate again while you already have an active key, AccountingClaw simply confirms you're already activated rather than minting a second key.
+You can hold **one active key at a time**. If you activate again while you already have an active key, the page simply confirms you're already activated rather than minting a second key. There's no separate key per product — the same key works for every Claw install you run.
 
 ## If you lose your key
 
-Because the full key is only ever shown once, there's no way to look it up later. If you lose it, [contact us](/contact) to **revoke** the old key, then return to the Activation page and **re-activate** with a code to issue a fresh one. Revoking immediately stops the lost key from working anywhere.
+Because the full key is only ever shown once, there's no way to look it up later. If you lose it, [contact us](/contact) to **revoke** the old key, then return to the Activation page and **re-activate** with a code to issue a fresh one. Revoking immediately stops the lost key from working anywhere — for all products.
 
 Once you have your key, head to [Deploy in the cloud (Docker)](/docs/claw-series/deploy-cloud) or [Deploy on your desktop](/docs/claw-series/deploy-desktop).

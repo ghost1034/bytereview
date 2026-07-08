@@ -74,36 +74,79 @@ const MODEL_OPTIONS = [
   'Open-source (Llama, Mistral)',
 ]
 
-const ACCOUNTINGCLAW_IMAGE =
-  process.env.NEXT_PUBLIC_ACCOUNTINGCLAW_IMAGE ||
-  'cpaautomation/accountingclaw-hermes:latest'
+interface ClawProduct {
+  key: string
+  name: string
+  /** Skills tagline used in product-specific copy. */
+  skillsBlurb: string
+  image: string
+  containerName: string
+  volume: string
+  /** Host port for the local API (distinct per product so both can run side by side). */
+  hostPort: number
+  installerBasename: string
+}
 
-const PULL_COMMAND = `docker pull --platform linux/amd64 ${ACCOUNTINGCLAW_IMAGE}`
+const CLAW_PRODUCTS: ClawProduct[] = [
+  {
+    key: 'accountingclaw',
+    name: 'AccountingClaw',
+    skillsBlurb: 'two dozen accounting skills',
+    image:
+      process.env.NEXT_PUBLIC_ACCOUNTINGCLAW_IMAGE ||
+      'cpaautomation/accountingclaw-hermes:latest',
+    containerName: 'accountingclaw',
+    volume: '~/.accountingclaw',
+    hostPort: 8642,
+    installerBasename: 'install-accountingclaw',
+  },
+  {
+    key: 'legalclaw',
+    name: 'LegalClaw',
+    skillsBlurb: '1,251 legal skills across 24 practice areas',
+    image:
+      process.env.NEXT_PUBLIC_LEGALCLAW_IMAGE ||
+      'cpaautomation/legalclaw-hermes:latest',
+    containerName: 'legalclaw',
+    volume: '~/.legalclaw',
+    hostPort: 8643,
+    installerBasename: 'install-legalclaw',
+  },
+]
 
-const RUN_COMMAND = [
-  'docker run -d \\',
-  '  --platform linux/amd64 \\',
-  '  --name accountingclaw \\',
-  '  --restart unless-stopped \\',
-  '  -v ~/.accountingclaw:/opt/data \\',
-  '  -e CPAA_ACTIVATION_KEY="cpaa_live_..." \\',
-  '  -e OPENROUTER_API_KEY="sk-or-..." \\',
-  '  -e API_SERVER_ENABLED=true \\',
-  '  -e API_SERVER_HOST=0.0.0.0 \\',
-  '  -e API_SERVER_KEY="change-this-api-key" \\',
-  '  -p 127.0.0.1:8642:8642 \\',
-  `  ${ACCOUNTINGCLAW_IMAGE} gateway run`,
-].join('\n')
+function pullCommand(product: ClawProduct): string {
+  return `docker pull --platform linux/amd64 ${product.image}`
+}
 
-const NEXT_STEPS_COMMAND = [
-  'docker logs -f accountingclaw',
-  'docker exec -it accountingclaw hermes status',
-  'docker exec -it accountingclaw hermes skills list',
-  'docker exec -it accountingclaw hermes chat',
-].join('\n')
+function runCommand(product: ClawProduct): string {
+  return [
+    'docker run -d \\',
+    '  --platform linux/amd64 \\',
+    `  --name ${product.containerName} \\`,
+    '  --restart unless-stopped \\',
+    `  -v ${product.volume}:/opt/data \\`,
+    '  -e CPAA_ACTIVATION_KEY="cpaa_live_..." \\',
+    '  -e OPENROUTER_API_KEY="sk-or-..." \\',
+    '  -e API_SERVER_ENABLED=true \\',
+    '  -e API_SERVER_HOST=0.0.0.0 \\',
+    '  -e API_SERVER_KEY="change-this-api-key" \\',
+    `  -p 127.0.0.1:${product.hostPort}:8642 \\`,
+    `  ${product.image} gateway run`,
+  ].join('\n')
+}
 
-const HERMES_ALIAS_COMMAND =
-  "alias hermes='docker exec -it accountingclaw hermes'"
+function nextStepsCommand(product: ClawProduct): string {
+  return [
+    `docker logs -f ${product.containerName}`,
+    `docker exec -it ${product.containerName} hermes status`,
+    `docker exec -it ${product.containerName} hermes skills list`,
+    `docker exec -it ${product.containerName} hermes chat`,
+  ].join('\n')
+}
+
+function hermesAliasCommand(product: ClawProduct): string {
+  return `alias hermes='docker exec -it ${product.containerName} hermes'`
+}
 
 const HERMES_DESKTOP_DOWNLOADS = {
   mac: 'https://hermes-assets.nousresearch.com/Hermes-Setup.dmg',
@@ -113,11 +156,13 @@ const HERMES_DESKTOP_DOWNLOADS = {
 const HERMES_LINUX_INSTALL_COMMAND =
   'curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash'
 
-const DESKTOP_INSTALL_BASH_COMMAND =
-  'curl -fsSL https://cpaautomation.ai/install-accountingclaw.sh | CPAA_ACTIVATION_KEY="cpaa_live_..." bash'
+function desktopInstallBashCommand(product: ClawProduct): string {
+  return `curl -fsSL https://cpaautomation.ai/${product.installerBasename}.sh | CPAA_ACTIVATION_KEY="cpaa_live_..." bash`
+}
 
-const DESKTOP_INSTALL_PS_COMMAND =
-  '$env:CPAA_ACTIVATION_KEY="cpaa_live_..."; iwr https://cpaautomation.ai/install-accountingclaw.ps1 -UseBasicParsing | iex'
+function desktopInstallPsCommand(product: ClawProduct): string {
+  return `$env:CPAA_ACTIVATION_KEY="cpaa_live_..."; iwr https://cpaautomation.ai/${product.installerBasename}.ps1 -UseBasicParsing | iex`
+}
 
 const DESKTOP_NOTES = [
   {
@@ -130,7 +175,7 @@ const DESKTOP_NOTES = [
     icon: KeyRound,
     title: 'Activation key required',
     detail:
-      'The installer downloads the AccountingClaw skills only with a valid personal CPAA_ACTIVATION_KEY. Get your key from the Activation page.',
+      'The installer downloads the skills only with a valid personal CPAA_ACTIVATION_KEY. The same key unlocks AccountingClaw and LegalClaw — get it from the Activation page.',
   },
   {
     icon: HardDrive,
@@ -150,12 +195,12 @@ const DOWNLOAD_NOTES = [
   {
     icon: ShieldCheck,
     title: 'Encrypted skills included',
-    detail: 'AccountingClaw skills ship inside the public linux/amd64 image as an encrypted bundle.',
+    detail: 'Each Claw ships its skills inside the public linux/amd64 image as an encrypted bundle.',
   },
   {
     icon: KeyRound,
     title: 'Activation key required',
-    detail: 'The encrypted AccountingClaw profile installs only when your personal CPAA_ACTIVATION_KEY is provided. Get your key from the Activation page.',
+    detail: 'The encrypted profile installs only when your personal CPAA_ACTIVATION_KEY is provided. The same key unlocks AccountingClaw and LegalClaw — get it from the Activation page.',
   },
   {
     icon: HardDrive,
@@ -187,7 +232,7 @@ const SKILL_PACKAGES: Array<{
   {
     icon: Scale,
     name: 'LegalClaw',
-    detail: 'Contract clause review, redlines, compliance checks',
+    detail: '1,251 legal skills across 24 practice areas — drafting, review, diligence, compliance',
   },
 ]
 
@@ -325,19 +370,19 @@ function NotesGrid({
   )
 }
 
-function CloudWorkersTab() {
+function CloudWorkersTab({ product }: { product: ClawProduct }) {
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
         <div className="space-y-4">
           <div className="space-y-3">
             <h3 className="text-balance text-2xl font-semibold tracking-tight text-foreground">
-              Run AccountingClaw in your cloud with Docker
+              Run {product.name} in your cloud with Docker
             </h3>
             <p className="text-balance text-base text-foreground-muted">
-              Pull the verified AccountingClaw Docker image and run it with
+              Pull the verified {product.name} Docker image and run it with
               your personal CPAAutomation.ai activation key plus your
-              OpenRouter key. The image includes AccountingClaw skills
+              OpenRouter key. The image includes {product.skillsBlurb}{' '}
               encrypted inside the container and installs them into your
               persistent Hermes data volume on first startup. Ideal for AWS,
               GCP, Azure, or your own VPC.
@@ -360,23 +405,23 @@ function CloudWorkersTab() {
         <div className="space-y-4">
           <CommandCard
             title="Pull the image"
-            description="Use the public AccountingClaw Hermes image. The platform flag supports Apple Silicon and other ARM hosts via Docker emulation."
-            command={PULL_COMMAND}
+            description={`Use the public ${product.name} Hermes image. The platform flag supports Apple Silicon and other ARM hosts via Docker emulation.`}
+            command={pullCommand(product)}
           />
           <CommandCard
             title="Run locally or on your server"
             description="Mount /opt/data so Hermes sessions and installed skills persist across container restarts. The API server is bound to localhost."
-            command={RUN_COMMAND}
+            command={runCommand(product)}
           />
           <CommandCard
             title="Use Hermes after it starts"
             description="The hermes command runs inside the container. Use docker exec to verify the install, list skills, and open chat."
-            command={NEXT_STEPS_COMMAND}
+            command={nextStepsCommand(product)}
           />
           <CommandCard
             title="Optional host shortcut"
             description="Add this shell alias if you want to type hermes from your host terminal while the container is running."
-            command={HERMES_ALIAS_COMMAND}
+            command={hermesAliasCommand(product)}
           />
         </div>
       </div>
@@ -395,7 +440,7 @@ function CloudWorkersTab() {
           </code>{' '}
           or add the alias. The local API is available on{' '}
           <code className="rounded bg-background/70 px-1 py-0.5">
-            http://127.0.0.1:8642
+            {`http://127.0.0.1:${product.hostPort}`}
           </code>{' '}
           only when{' '}
           <code className="rounded bg-background/70 px-1 py-0.5">
@@ -416,18 +461,18 @@ function CloudWorkersTab() {
   )
 }
 
-function DesktopWorkersTab() {
+function DesktopWorkersTab({ product }: { product: ClawProduct }) {
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
         <div className="space-y-4">
           <div className="space-y-3">
             <h3 className="text-balance text-2xl font-semibold tracking-tight text-foreground">
-              Run AccountingClaw on your desktop
+              Run {product.name} on your desktop
             </h3>
             <p className="text-balance text-base text-foreground-muted">
-              Install the official Hermes Desktop app, then add the
-              AccountingClaw skills with one command and your personal
+              Install the official Hermes Desktop app, then add the{' '}
+              {product.name} skills with one command and your personal
               activation key. Everything runs locally on your machine — no
               Docker required.
             </p>
@@ -468,14 +513,14 @@ function DesktopWorkersTab() {
             command={HERMES_LINUX_INSTALL_COMMAND}
           />
           <CommandCard
-            title="2. Install AccountingClaw (macOS / Linux)"
+            title={`2. Install ${product.name} (macOS / Linux)`}
             description="Replace cpaa_live_... with your personal activation key from the Activation page. The installer verifies and installs the skills into your local Hermes home."
-            command={DESKTOP_INSTALL_BASH_COMMAND}
+            command={desktopInstallBashCommand(product)}
           />
           <CommandCard
-            title="2. Install AccountingClaw (Windows PowerShell)"
+            title={`2. Install ${product.name} (Windows PowerShell)`}
             description="Replace cpaa_live_... with your personal activation key from the Activation page, then run in PowerShell."
-            command={DESKTOP_INSTALL_PS_COMMAND}
+            command={desktopInstallPsCommand(product)}
           />
         </div>
       </div>
@@ -484,8 +529,8 @@ function DesktopWorkersTab() {
         <p className="font-semibold">What to do next</p>
         <p className="mt-1">
           Launch Hermes Desktop and complete its onboarding (it connects your
-          AI model provider in-app). Then open the Skills pane — the
-          AccountingClaw skills are ready to use. CLI check:{' '}
+          AI model provider in-app). Then open the Skills pane — the{' '}
+          {product.name} skills are ready to use. CLI check:{' '}
           <code className="rounded bg-background/70 px-1 py-0.5">
             hermes skills list
           </code>
@@ -507,25 +552,43 @@ function InstallationOptions() {
       eyebrowIcon={Download}
       eyebrowTone="blue"
       title="Deploy your digital workers — cloud or desktop"
-      description="Run AccountingClaw as a cloud digital worker with Docker, or as a desktop digital worker on the Hermes Desktop app. Both unlock the same skills with your personal activation key."
+      description="Run AccountingClaw or LegalClaw as a cloud digital worker with Docker, or as a desktop digital worker on the Hermes Desktop app. All installs unlock with the same personal activation key."
     >
-      <Tabs defaultValue="cloud" className="space-y-6">
-        <TabsList className="mx-auto grid h-auto w-full max-w-xl grid-cols-2">
-          <TabsTrigger value="cloud" className="gap-2 py-2.5">
-            <Cloud className="size-4" aria-hidden />
-            Cloud digital workers
-          </TabsTrigger>
-          <TabsTrigger value="desktop" className="gap-2 py-2.5">
-            <Monitor className="size-4" aria-hidden />
-            Desktop digital workers
-          </TabsTrigger>
+      <Tabs defaultValue={CLAW_PRODUCTS[0].key} className="space-y-6">
+        <TabsList className="mx-auto grid h-auto w-full max-w-md grid-cols-2">
+          {CLAW_PRODUCTS.map((product) => (
+            <TabsTrigger key={product.key} value={product.key} className="gap-2 py-2.5">
+              {product.key === 'legalclaw' ? (
+                <Scale className="size-4" aria-hidden />
+              ) : (
+                <Calculator className="size-4" aria-hidden />
+              )}
+              {product.name}
+            </TabsTrigger>
+          ))}
         </TabsList>
-        <TabsContent value="cloud">
-          <CloudWorkersTab />
-        </TabsContent>
-        <TabsContent value="desktop">
-          <DesktopWorkersTab />
-        </TabsContent>
+        {CLAW_PRODUCTS.map((product) => (
+          <TabsContent key={product.key} value={product.key}>
+            <Tabs defaultValue="cloud" className="space-y-6">
+              <TabsList className="mx-auto grid h-auto w-full max-w-xl grid-cols-2">
+                <TabsTrigger value="cloud" className="gap-2 py-2.5">
+                  <Cloud className="size-4" aria-hidden />
+                  Cloud digital workers
+                </TabsTrigger>
+                <TabsTrigger value="desktop" className="gap-2 py-2.5">
+                  <Monitor className="size-4" aria-hidden />
+                  Desktop digital workers
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="cloud">
+                <CloudWorkersTab product={product} />
+              </TabsContent>
+              <TabsContent value="desktop">
+                <DesktopWorkersTab product={product} />
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+        ))}
       </Tabs>
     </SectionShell>
   )
@@ -551,7 +614,7 @@ export default function Claw() {
             </span>
           </>
         }
-        description="AccountingClaw, FinanceClaw, and LegalClaw run hundreds of pre-built skills autonomously, with guardrails built for accounting, finance, and legal workflows. Deploy in your cloud or on your desktop, pick the model and skills — or let us configure everything for you."
+        description="AccountingClaw, FinanceClaw, and LegalClaw run hundreds of pre-built skills autonomously, with guardrails built for accounting, finance, and legal workflows. AccountingClaw and LegalClaw are available self-service today — deploy in your cloud or on your desktop, pick the model and skills, or let us configure everything for you."
         ctas={
           <>
             <Button
@@ -571,7 +634,7 @@ export default function Claw() {
               className="w-full border border-marketing-hero-border bg-transparent px-8 text-marketing-hero-foreground hover:bg-marketing-hero-foreground/10 hover:text-marketing-hero-foreground sm:w-auto"
             >
               <a href="#install-options">
-                Install AccountingClaw
+                Install a digital worker
                 <Download className="ml-2 size-5" aria-hidden />
               </a>
             </Button>

@@ -26,38 +26,70 @@ import { useToast } from '@/hooks/use-toast'
 import { apiClient, ApiError } from '@/lib/api'
 import type { ActivationStatus } from '@/lib/api'
 
-const ACCOUNTINGCLAW_IMAGE =
-  process.env.NEXT_PUBLIC_ACCOUNTINGCLAW_IMAGE ||
-  'cpaautomation/accountingclaw-hermes:latest'
+interface ClawProduct {
+  key: string
+  name: string
+  image: string
+  containerName: string
+  volume: string
+  /** Host port for the local API (distinct per product so both can run side by side). */
+  hostPort: number
+  installerBasename: string
+}
+
+const CLAW_PRODUCTS: ClawProduct[] = [
+  {
+    key: 'accountingclaw',
+    name: 'AccountingClaw',
+    image:
+      process.env.NEXT_PUBLIC_ACCOUNTINGCLAW_IMAGE ||
+      'cpaautomation/accountingclaw-hermes:latest',
+    containerName: 'accountingclaw',
+    volume: '~/.accountingclaw',
+    hostPort: 8642,
+    installerBasename: 'install-accountingclaw',
+  },
+  {
+    key: 'legalclaw',
+    name: 'LegalClaw',
+    image:
+      process.env.NEXT_PUBLIC_LEGALCLAW_IMAGE ||
+      'cpaautomation/legalclaw-hermes:latest',
+    containerName: 'legalclaw',
+    volume: '~/.legalclaw',
+    hostPort: 8643,
+    installerBasename: 'install-legalclaw',
+  },
+]
 
 const HERMES_DESKTOP_DOWNLOADS = {
   mac: 'https://hermes-assets.nousresearch.com/Hermes-Setup.dmg',
   windows: 'https://hermes-assets.nousresearch.com/Hermes-Setup.exe',
 }
 
-function runCommand(activationKey: string): string {
+function runCommand(product: ClawProduct, activationKey: string): string {
   return [
     'docker run -d \\',
     '  --platform linux/amd64 \\',
-    '  --name accountingclaw \\',
+    `  --name ${product.containerName} \\`,
     '  --restart unless-stopped \\',
-    '  -v ~/.accountingclaw:/opt/data \\',
+    `  -v ${product.volume}:/opt/data \\`,
     `  -e CPAA_ACTIVATION_KEY="${activationKey}" \\`,
     '  -e OPENROUTER_API_KEY="sk-or-..." \\',
     '  -e API_SERVER_ENABLED=true \\',
     '  -e API_SERVER_HOST=0.0.0.0 \\',
     '  -e API_SERVER_KEY="change-this-api-key" \\',
-    '  -p 127.0.0.1:8642:8642 \\',
-    `  ${ACCOUNTINGCLAW_IMAGE} gateway run`,
+    `  -p 127.0.0.1:${product.hostPort}:8642 \\`,
+    `  ${product.image} gateway run`,
   ].join('\n')
 }
 
-function desktopInstallBashCommand(activationKey: string): string {
-  return `curl -fsSL https://cpaautomation.ai/install-accountingclaw.sh | CPAA_ACTIVATION_KEY="${activationKey}" bash`
+function desktopInstallBashCommand(product: ClawProduct, activationKey: string): string {
+  return `curl -fsSL https://cpaautomation.ai/${product.installerBasename}.sh | CPAA_ACTIVATION_KEY="${activationKey}" bash`
 }
 
-function desktopInstallPsCommand(activationKey: string): string {
-  return `$env:CPAA_ACTIVATION_KEY="${activationKey}"; iwr https://cpaautomation.ai/install-accountingclaw.ps1 -UseBasicParsing | iex`
+function desktopInstallPsCommand(product: ClawProduct, activationKey: string): string {
+  return `$env:CPAA_ACTIVATION_KEY="${activationKey}"; iwr https://cpaautomation.ai/${product.installerBasename}.ps1 -UseBasicParsing | iex`
 }
 
 function installTypeLabel(installType: string | null | undefined): string {
@@ -185,7 +217,7 @@ export function ActivationForm() {
           title={
             <span className="inline-flex items-center gap-2">
               <ShieldCheck className="size-4 text-success" aria-hidden />
-              AccountingClaw activated
+              Claw Series activated
             </span>
           }
         >
@@ -195,14 +227,14 @@ export function ActivationForm() {
               <p className="font-mono text-sm text-foreground">{status?.key_prefix}</p>
             </div>
             <p className="text-sm text-foreground-muted">
-              For security, the full key is only shown once at activation. If you saved it, pass
-              it to your Docker container as{' '}
+              For security, the full key is only shown once at activation. The same key unlocks
+              AccountingClaw and LegalClaw. If you saved it, pass it to your Docker container as{' '}
               <code className="rounded bg-surface-muted px-1 py-0.5 text-xs">
                 CPAA_ACTIVATION_KEY
               </code>{' '}
-              (cloud digital worker), or run the desktop installer with it to add
-              AccountingClaw to Hermes Desktop (desktop digital worker). If you lost it, revoke
-              this key (contact us) and re-activate to issue a new one.
+              (cloud digital worker), or run the desktop installer with it to add the skills to
+              Hermes Desktop (desktop digital worker). If you lost it, revoke this key (contact
+              us) and re-activate to issue a new one.
             </p>
             {status?.last_resolved_at && (
               <p className="text-xs text-foreground-subtle">
@@ -221,7 +253,7 @@ export function ActivationForm() {
               Enter your activation code
             </span>
           }
-          description="Contact us to receive a six-digit activation code, then enter it below to issue your personal AccountingClaw key."
+          description="Contact us to receive a six-digit activation code, then enter it below to issue your personal Claw Series key — one key unlocks AccountingClaw and LegalClaw."
         >
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
@@ -283,84 +315,102 @@ export function ActivationForm() {
 
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-foreground-muted">
-                Run AccountingClaw
+                Run your digital workers
               </Label>
-              <Tabs defaultValue="cloud">
+              <Tabs defaultValue={CLAW_PRODUCTS[0].key}>
                 <TabsList className="grid h-auto w-full grid-cols-2">
-                  <TabsTrigger value="cloud" className="gap-2 py-2">
-                    <Cloud className="size-4" aria-hidden />
-                    Cloud (Docker)
-                  </TabsTrigger>
-                  <TabsTrigger value="desktop" className="gap-2 py-2">
-                    <Monitor className="size-4" aria-hidden />
-                    Desktop
-                  </TabsTrigger>
+                  {CLAW_PRODUCTS.map((product) => (
+                    <TabsTrigger key={product.key} value={product.key} className="gap-2 py-2">
+                      {product.name}
+                    </TabsTrigger>
+                  ))}
                 </TabsList>
 
-                <TabsContent value="cloud" className="space-y-2">
-                  <div className="flex items-center justify-between gap-4">
-                    <p className="text-xs text-foreground-muted">
-                      Run the AccountingClaw Docker image with your key on any server or cloud.
-                    </p>
-                    <CopyButton value={runCommand(issuedKey)} label="Copy command" />
-                  </div>
-                  <pre className="overflow-x-auto rounded-md border border-border bg-slate-950 px-3 py-3 text-xs leading-6 text-slate-100">
-                    <code>{runCommand(issuedKey)}</code>
-                  </pre>
-                </TabsContent>
+                {CLAW_PRODUCTS.map((product) => (
+                  <TabsContent key={product.key} value={product.key}>
+                    <Tabs defaultValue="cloud">
+                      <TabsList className="grid h-auto w-full grid-cols-2">
+                        <TabsTrigger value="cloud" className="gap-2 py-2">
+                          <Cloud className="size-4" aria-hidden />
+                          Cloud (Docker)
+                        </TabsTrigger>
+                        <TabsTrigger value="desktop" className="gap-2 py-2">
+                          <Monitor className="size-4" aria-hidden />
+                          Desktop
+                        </TabsTrigger>
+                      </TabsList>
 
-                <TabsContent value="desktop" className="space-y-4">
-                  <div className="space-y-2">
-                    <p className="text-xs text-foreground-muted">
-                      First install the Hermes Desktop app, then run the installer for your
-                      platform — your key is already filled in.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild variant="outline" size="sm">
-                        <a href={HERMES_DESKTOP_DOWNLOADS.mac}>
-                          <Download className="mr-1.5 size-4" aria-hidden />
-                          Hermes Desktop for Mac
-                        </a>
-                      </Button>
-                      <Button asChild variant="outline" size="sm">
-                        <a href={HERMES_DESKTOP_DOWNLOADS.windows}>
-                          <Download className="mr-1.5 size-4" aria-hidden />
-                          Hermes Desktop for Windows
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
+                      <TabsContent value="cloud" className="space-y-2">
+                        <div className="flex items-center justify-between gap-4">
+                          <p className="text-xs text-foreground-muted">
+                            Run the {product.name} Docker image with your key on any server or
+                            cloud.
+                          </p>
+                          <CopyButton
+                            value={runCommand(product, issuedKey)}
+                            label="Copy command"
+                          />
+                        </div>
+                        <pre className="overflow-x-auto rounded-md border border-border bg-slate-950 px-3 py-3 text-xs leading-6 text-slate-100">
+                          <code>{runCommand(product, issuedKey)}</code>
+                        </pre>
+                      </TabsContent>
 
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-4">
-                      <Label className="text-xs font-medium text-foreground-muted">
-                        macOS / Linux
-                      </Label>
-                      <CopyButton
-                        value={desktopInstallBashCommand(issuedKey)}
-                        label="Copy command"
-                      />
-                    </div>
-                    <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-md border border-border bg-slate-950 px-3 py-3 text-xs leading-6 text-slate-100">
-                      <code>{desktopInstallBashCommand(issuedKey)}</code>
-                    </pre>
-                  </div>
+                      <TabsContent value="desktop" className="space-y-4">
+                        <div className="space-y-2">
+                          <p className="text-xs text-foreground-muted">
+                            First install the Hermes Desktop app, then run the {product.name}{' '}
+                            installer for your platform — your key is already filled in.
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            <Button asChild variant="outline" size="sm">
+                              <a href={HERMES_DESKTOP_DOWNLOADS.mac}>
+                                <Download className="mr-1.5 size-4" aria-hidden />
+                                Hermes Desktop for Mac
+                              </a>
+                            </Button>
+                            <Button asChild variant="outline" size="sm">
+                              <a href={HERMES_DESKTOP_DOWNLOADS.windows}>
+                                <Download className="mr-1.5 size-4" aria-hidden />
+                                Hermes Desktop for Windows
+                              </a>
+                            </Button>
+                          </div>
+                        </div>
 
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-4">
-                      <Label className="text-xs font-medium text-foreground-muted">
-                        Windows (PowerShell)
-                      </Label>
-                      <CopyButton
-                        value={desktopInstallPsCommand(issuedKey)}
-                        label="Copy command"
-                      />
-                    </div>
-                    <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-md border border-border bg-slate-950 px-3 py-3 text-xs leading-6 text-slate-100">
-                      <code>{desktopInstallPsCommand(issuedKey)}</code>
-                    </pre>
-                  </div>
-                </TabsContent>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-4">
+                            <Label className="text-xs font-medium text-foreground-muted">
+                              macOS / Linux
+                            </Label>
+                            <CopyButton
+                              value={desktopInstallBashCommand(product, issuedKey)}
+                              label="Copy command"
+                            />
+                          </div>
+                          <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-md border border-border bg-slate-950 px-3 py-3 text-xs leading-6 text-slate-100">
+                            <code>{desktopInstallBashCommand(product, issuedKey)}</code>
+                          </pre>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-4">
+                            <Label className="text-xs font-medium text-foreground-muted">
+                              Windows (PowerShell)
+                            </Label>
+                            <CopyButton
+                              value={desktopInstallPsCommand(product, issuedKey)}
+                              label="Copy command"
+                            />
+                          </div>
+                          <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-md border border-border bg-slate-950 px-3 py-3 text-xs leading-6 text-slate-100">
+                            <code>{desktopInstallPsCommand(product, issuedKey)}</code>
+                          </pre>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </TabsContent>
+                ))}
               </Tabs>
             </div>
           </div>

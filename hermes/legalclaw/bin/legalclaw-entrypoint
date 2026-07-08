@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DATA_DIR="${HERMES_DATA_DIR:-/opt/data}"
+BUNDLE_PATH="${LEGALCLAW_BUNDLE:-/opt/cpaa/legalclaw-profile.tar.gz.enc}"
+MARKER_FILE="$DATA_DIR/.cpaa/legalclaw-installed"
+ACTIVATION_URL="${CPAA_ACTIVATION_URL:-https://api.cpaautomation.ai/api/activation/resolve}"
+
+mkdir -p "$DATA_DIR/.cpaa" "$DATA_DIR/skills"
+
+if [ ! -s "$MARKER_FILE" ]; then
+  if [ ! -s "$BUNDLE_PATH" ]; then
+    echo "LegalClaw encrypted bundle not found at $BUNDLE_PATH."
+    exit 66
+  fi
+
+  tmp_dir="$(mktemp -d)"
+  cleanup() {
+    rm -rf "$tmp_dir"
+  }
+  trap cleanup EXIT
+
+  # The decryption secret is written to a root-only file and passed to openssl
+  # via -pass file: so it never appears in the process argument list. The temp
+  # dir (mode 0700) is removed on exit by the trap above.
+  secret_file="$tmp_dir/bundle.pass"
+
+  if [ -n "${CPAA_BUNDLE_SECRET:-}" ]; then
+    # Dev / back-compat escape hatch: decrypt directly with a known secret,
+    # skipping the activation server entirely.
+    ( umask 077; printf '%s' "$CPAA_BUNDLE_SECRET" > "$secret_file" )
+  else
+    # Runtime activation: exchange the personal key for the bundle secret.
+    if [ -z "${CPAA_ACTIVATION_KEY:-}" ]; then
+      echo "LegalClaw activation required."
+      echo "Set CPAA_ACTIVATION_KEY (get yours at https://cpaautomation.ai/dashboard/activation),"
+      echo "or set CPAA_BUNDLE_SECRET directly for local development."
+      exit 64
+    fi
+
+    fingerprint="$(cat /etc/machine-id 2>/dev/null || hostname 2>/dev/null || echo unknown)"
+
+    # No -f: a rejected key returns an HTTP error body we want to inspect, while
+    # a genuine connection failure makes curl exit non-zero (handled as exit 75).
+    if ! response="$(curl -sS -X POST "$ACTIVATION_URL" \
+        -H 'Content-Type: application/json' \
+        --data "$(jq -nc --arg k "$CPAA_ACTIVATION_KEY" --arg f "$fingerprint" \
+                  '{activation_key:$k,fingerprint:$f,product:"legalclaw"}')")"; then
+      echo "Activation server unreachable: $ACTIVATION_URL"
+      exit 75
+    fi
+
+    # `|| true` so a malformed/non-JSON response yields the friendly exit 77
+    # below (via the empty-file check) instead of aborting under `set -e`.
+    ( umask 077; printf '%s' "$response" | jq -r '.bundle_secret // empty' > "$secret_file" ) || true
+    if [ ! -s "$secret_file" ]; then
+      echo "Activation failed: invalid or revoked CPAA_ACTIVATION_KEY."
+      exit 77
+    fi
+  fi
+
+  if command -v sha256sum >/dev/null 2>&1 && [ -s "${BUNDLE_PATH}.sha256" ]; then
+    (
+      cd "$(dirname "$BUNDLE_PATH")"
+      sha256sum -c "$(basename "${BUNDLE_PATH}.sha256")" >/dev/null
+    )
+  fi
+
+  openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -md sha256 \
+    -in "$BUNDLE_PATH" \
+    -out "$tmp_dir/legalclaw-profile.tar.gz" \
+    -pass file:"$secret_file"
+
+  tar -tzf "$tmp_dir/legalclaw-profile.tar.gz" >/dev/null
+  tar -xzf "$tmp_dir/legalclaw-profile.tar.gz" -C "$DATA_DIR"
+
+  date -u +%Y-%m-%dT%H:%M:%SZ > "$MARKER_FILE"
+fi
+
+# Hand off to the base image's real entrypoint so the container starts the
+# way the upstream Hermes image intends: s6-overlay's /init runs the
+# cont-init bootstrap (UID/GID remap, volume chown, config seed, skills sync,
+# per-profile gateway reconcile) AND then launches the CMD via main-wrapper.sh.
+#
+# The pre-s6 Hermes image exposed docker/entrypoint.sh as an entrypoint that
+# set up state and then exec'd the CMD. Under s6-overlay that path is now a
+# DEPRECATED SHIM that runs the cont-init bootstrap only and never execs the
+# CMD — so deferring to it would run setup and then exit without ever starting
+# Hermes/the gateway. Defer to /init instead. main-wrapper.sh routes our CMD
+# ("gateway run") to `hermes gateway run`.
+if [ -x /init ] && [ -x /opt/hermes/docker/main-wrapper.sh ]; then
+  exec /init /opt/hermes/docker/main-wrapper.sh "$@"
+fi
+
+# Fallbacks for older / non-s6 base images.
+if [ -x /opt/hermes/docker/entrypoint.sh ]; then
+  exec /opt/hermes/docker/entrypoint.sh "$@"
+fi
+
+if [ -x /opt/hermes/.venv/bin/hermes ]; then
+  exec /opt/hermes/.venv/bin/hermes "$@"
+fi
+
+if command -v hermes >/dev/null 2>&1; then
+  exec hermes "$@"
+fi
+
+exec "$@"

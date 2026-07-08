@@ -1,5 +1,6 @@
 """
-Pydantic request/response models for the AccountingClaw activation flow.
+Pydantic request/response models for the Claw Series activation flow
+(AccountingClaw and LegalClaw share one personal key per user).
 """
 from pydantic import BaseModel, Field
 from typing import Optional
@@ -42,10 +43,11 @@ class ResolveRequest(BaseModel):
     activation_key: str = Field(..., min_length=12, max_length=120)
     fingerprint: Optional[str] = Field(default=None, max_length=128)
     install_type: Optional[str] = Field(default="docker", pattern=r"^(docker|desktop)$")
+    product: str = Field(default="accountingclaw", pattern=r"^(accountingclaw|legalclaw)$")
 
 
 class ResolveResponse(BaseModel):
-    """The real build-time bundle secret that decrypts the AccountingClaw image."""
+    """The real build-time bundle secret that decrypts the requested Claw image."""
     bundle_secret: str
 
 
@@ -54,6 +56,7 @@ class BundleRequest(BaseModel):
     activation_key: str = Field(..., min_length=12, max_length=120)
     fingerprint: Optional[str] = Field(default=None, max_length=128)
     install_type: Optional[str] = Field(default="desktop", pattern=r"^(docker|desktop)$")
+    product: str = Field(default="accountingclaw", pattern=r"^(accountingclaw|legalclaw)$")
 
 
 class BundleResponse(BaseModel):

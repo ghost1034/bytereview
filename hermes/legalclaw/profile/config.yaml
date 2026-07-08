@@ -1,0 +1,14 @@
+name: LegalClaw
+description: CPAAutomation.ai Hermes profile for legal operations
+version: 0.1.0
+
+profile:
+  product: LegalClaw
+  vendor: CPAAutomation.ai
+  category: legal
+
+skills:
+  directory: skills
+
+runtime:
+  data_dir: /opt/data
