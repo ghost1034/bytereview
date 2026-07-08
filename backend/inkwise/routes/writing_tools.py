@@ -340,7 +340,7 @@ async def create_prediction(
         await _raise_if_prediction_disconnected(request)
         if ready_bound_sources:
             try:
-                prediction_retrieval_query = build_grounded_prediction_retrieval_query(body=body, document=document)
+                prediction_retrieval_query = build_grounded_prediction_retrieval_query(body=body)
                 prediction_document_id = uuid.UUID(str(document_id))
                 # Offload synchronous retrieval (blocking LLM/embedding/DB work)
                 # to a thread so it does not stall the worker's event loop.

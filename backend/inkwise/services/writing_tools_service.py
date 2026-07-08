@@ -174,15 +174,8 @@ def build_prediction_prompt(*, body: InkwisePredictionRequest, document: Inkwise
     return "\n".join(parts).strip() + "\n"
 
 
-def build_grounded_prediction_retrieval_query(*, body: InkwisePredictionRequest, document: InkwiseDocument) -> str:
-    parts: list[str] = []
-    document_prefix = body.document_prefix_text.strip()
-
-    if document.init_prompt:
-        parts.append(document.init_prompt.strip())
-    parts.append(document_prefix)
-
-    return "\n\n".join(part for part in parts if part).strip()
+def build_grounded_prediction_retrieval_query(*, body: InkwisePredictionRequest) -> str:
+    return body.document_prefix_text.strip()
 
 
 def build_grounded_prediction_prompt(
