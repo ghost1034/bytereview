@@ -384,6 +384,26 @@ export function InlineWritingTools({
     }
   }, [editor, panelOpen])
 
+  // Popper only repositions on scroll/resize, so a panel that grows while
+  // output streams in can extend past the viewport edge. Re-run positioning
+  // whenever the panel's size changes.
+  useEffect(() => {
+    if (!panelOpen) return
+    const panelEl = panelRef.current
+    if (!panelEl) return
+
+    const tippyRoot = panelEl.closest('[data-tippy-root]') as
+      | (Element & { _tippy?: { popperInstance?: { update: () => void } | null } })
+      | null
+    if (!tippyRoot) return
+
+    const observer = new ResizeObserver(() => {
+      tippyRoot._tippy?.popperInstance?.update()
+    })
+    observer.observe(panelEl)
+    return () => observer.disconnect()
+  }, [panelOpen])
+
   function shouldShowBubbleWritingTools(currentEditor: Editor | null): boolean {
     if (!currentEditor) return false
     return Boolean(selectionTarget(currentEditor)?.hasSelection || (panelOpenRef.current && rangeRef.current?.hasSelection))
@@ -746,7 +766,10 @@ export function InlineWritingTools({
           popperOptions: {
             modifiers: [
               { name: 'flip', options: { fallbackPlacements: ['top', 'bottom'] } },
-              { name: 'preventOverflow', options: { padding: 8 } },
+              // altAxis + tether keep the panel fully inside the viewport even
+              // when it fits neither below nor above the selection (it may then
+              // overlap the selection, which beats being clipped off screen).
+              { name: 'preventOverflow', options: { padding: 8, altAxis: true, tether: false } },
             ],
           },
         }}
@@ -768,7 +791,7 @@ export function InlineWritingTools({
           popperOptions: {
             modifiers: [
               { name: 'flip', options: { fallbackPlacements: ['top', 'bottom'] } },
-              { name: 'preventOverflow', options: { padding: 8 } },
+              { name: 'preventOverflow', options: { padding: 8, altAxis: true, tether: false } },
             ],
           },
         }}
