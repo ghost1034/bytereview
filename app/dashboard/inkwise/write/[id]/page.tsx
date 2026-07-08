@@ -533,10 +533,14 @@ export default function InkwiseDocumentPage() {
   const deleteThread = useMutation({
     mutationFn: (threadId: string) => apiClient.deleteInkwiseChatThread(threadId),
     onSuccess: async (_data, threadId) => {
-      if (selectedThreadId === threadId) {
-        setSelectedThreadId(undefined)
-      }
+      // Refetch before touching the selection: clearing it first lets the
+      // auto-select effect re-pick the deleted thread from the stale list.
       await queryClient.invalidateQueries({ queryKey: ['inkwise', 'chat-threads', documentId] })
+      setSelectedThreadId((current) => {
+        if (current !== threadId) return current
+        const data = queryClient.getQueryData<InkwiseChatThreadsResponse>(['inkwise', 'chat-threads', documentId])
+        return data?.threads.find((thread) => thread.id !== threadId)?.id
+      })
     },
     onError: (error: Error) => {
       toast({ title: 'Could not delete thread', description: error.message, variant: 'destructive' })
