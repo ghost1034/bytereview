@@ -197,8 +197,10 @@ export default function InkwiseDocumentPage() {
 
       return activeThreadIds.some((threadId) => {
         const thread = data.threads.find((item) => item.id === threadId)
-        if (!thread) return false
-        return !hasInkwiseThreadTitle(thread?.title)
+        // Threads created mid-send aren't in the cached list until the
+        // post-stream refetch lands; keep polling (bounded by the timeout).
+        if (!thread) return true
+        return !hasInkwiseThreadTitle(thread.title)
       })
         ? INKWISE_THREAD_AUTO_NAME_POLL_INTERVAL_MS
         : false
@@ -320,10 +322,12 @@ export default function InkwiseDocumentPage() {
         return false
       }
       const thread = threadsQuery.data?.threads.find((item) => item.id === threadId)
-      if (threadsQuery.data && !thread) {
-        return false
+      // Threads created mid-send aren't in the cached list until the
+      // post-stream refetch lands; keep the pending entry until the timeout.
+      if (!thread) {
+        return true
       }
-      return !hasInkwiseThreadTitle(thread?.title)
+      return !hasInkwiseThreadTitle(thread.title)
     })
 
     if (nextEntries.length === entries.length) return
