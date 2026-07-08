@@ -7,6 +7,11 @@ html {
   overflow-y: scroll;
 }
 
+/* Inkwise focus mode covers the viewport; drop the forced scrollbar track */
+html:has(body.inkwise-focus-mode-active) {
+  overflow-y: hidden;
+}
+
 /* Prevent main content from shifting when dropdowns open */
 body {
   width: 100%;
@@ -365,13 +370,6 @@ body {
 
   .inkwise-focus-backdrop {
     background: hsl(var(--marketing-hero-from));
-  }
-
-  /* Focus mode is a fixed viewport overlay with its own internal scroll pane.
-     Lock document scrolling so the body-appended inline-tools tippy can't grow
-     the document and summon a scrollbar that shifts the popup off its anchor. */
-  body.inkwise-focus-mode-active {
-    overflow: hidden;
   }
 
   body.inkwise-focus-mode-active .app-header {
