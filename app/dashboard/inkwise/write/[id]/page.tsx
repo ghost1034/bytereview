@@ -243,6 +243,7 @@ export default function InkwiseDocumentPage() {
   const predictionSeqRef = useRef(0)
   const predictionAbortRef = useRef<AbortController | null>(null)
   const citationSheetOpenRef = useRef(false)
+  const documentHydratedRef = useRef(false)
   const focusModeEnabledRef = useRef(false)
   const fullscreenWasActiveRef = useRef(false)
   const { syncFocusAudio, cleanup: cleanupFocusAudio } = useGaplessAudioLoop(FOCUS_MODE_AUDIO_SRC, 0.18)
@@ -286,6 +287,12 @@ export default function InkwiseDocumentPage() {
 
   useEffect(() => {
     if (!documentQuery.data) return
+    // Hydrate local editing state from the server exactly once. Refetches
+    // (window focus, post-save invalidation) must not overwrite the editor:
+    // by the time they land the user may have inserted chat output, pasted,
+    // or kept typing, and re-applying the fetched copy erases those edits.
+    if (documentHydratedRef.current) return
+    documentHydratedRef.current = true
     clearPrediction()
     setTitle(documentQuery.data.title || 'Untitled document')
     setInitPrompt(documentQuery.data.init_prompt || '')
@@ -461,11 +468,10 @@ export default function InkwiseDocumentPage() {
       })
     },
     onSuccess: async (updated) => {
-      setTitle(updated.title || 'Untitled document')
-      setInitPrompt(updated.init_prompt || '')
-      setCitationStyle(updated.citation_style || 'default')
-      setContentHtml(updated.content_html || '')
-      setContentJson((updated.content_json as JSONContent | null) ?? null)
+      // Only take the new version. The rest of the response echoes what was
+      // sent, and the user may have edited (typed, pasted, inserted chat
+      // output) while the request was in flight — writing the echo back
+      // would revert those edits.
       setVersion(updated.version)
       await queryClient.invalidateQueries({ queryKey: ['inkwise', 'document', documentId] })
       await queryClient.invalidateQueries({ queryKey: ['inkwise', 'document-revisions', documentId] })
