@@ -367,6 +367,13 @@ body {
     background: hsl(var(--marketing-hero-from));
   }
 
+  /* Focus mode is a fixed viewport overlay with its own internal scroll pane.
+     Lock document scrolling so the body-appended inline-tools tippy can't grow
+     the document and summon a scrollbar that shifts the popup off its anchor. */
+  body.inkwise-focus-mode-active {
+    overflow: hidden;
+  }
+
   body.inkwise-focus-mode-active .app-header {
     transform: translateY(-120%);
     opacity: 0;

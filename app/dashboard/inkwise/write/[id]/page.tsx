@@ -600,6 +600,13 @@ export default function InkwiseDocumentPage() {
               citations: event.data?.citations,
               attemptId: event.data?.attempt_id,
             }))
+          } else if (event.event === 'meta' && Array.isArray(event.data?.evidence) && event.data.evidence.length) {
+            // Retrieval meta arrives before tokens; seed citations from the
+            // evidence pack so inline bubbles render while streaming.
+            setStreamState((current) => ({
+              ...(current ?? { text: '' }),
+              citations: current?.citations?.length ? current.citations : event.data.evidence,
+            }))
           }
           if (event.event === 'done') {
             setStreamState((current) => ({ ...(current ?? { text: '' }), retrievalRunId: event.data?.retrieval_run_id, attemptId: event.data?.attempt_id }))
@@ -659,6 +666,13 @@ export default function InkwiseDocumentPage() {
               retrievalRunId: event.data?.retrieval_run_id,
               citations: event.data?.citations,
               attemptId: event.data?.attempt_id,
+            }))
+          } else if (event.event === 'meta' && Array.isArray(event.data?.evidence) && event.data.evidence.length) {
+            // Retrieval meta arrives before tokens; seed citations from the
+            // evidence pack so inline bubbles render while streaming.
+            setStreamState((current) => ({
+              ...(current ?? { text: '' }),
+              citations: current?.citations?.length ? current.citations : event.data.evidence,
             }))
           }
           if (event.event === 'done') {
