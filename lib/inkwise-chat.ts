@@ -12,7 +12,7 @@ export type StreamState = {
 export type ChatInsertMode = 'insert' | 'replace' | 'append'
 
 export const assistantMarkdownClassName =
-  'prose prose-sm max-w-none break-words text-slate-700 prose-headings:text-slate-900 prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-blockquote:border-slate-300 prose-blockquote:text-slate-600 prose-pre:bg-slate-950 prose-pre:text-slate-50 prose-pre:overflow-x-auto prose-code:text-slate-800 prose-a:text-sky-700'
+  'prose prose-sm max-w-none break-words text-slate-700 prose-headings:text-slate-900 prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-blockquote:border-slate-300 prose-blockquote:text-slate-600 prose-pre:bg-slate-950 prose-pre:text-slate-50 prose-pre:overflow-x-auto prose-inline-code:text-slate-800 prose-a:text-sky-700'
 
 export function messageCitations(message: InkwiseChatMessage): InkwiseCitation[] {
   const raw = message.citations_json?.citations

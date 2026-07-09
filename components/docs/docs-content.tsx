@@ -29,7 +29,8 @@ export function DocsContent({ markdown, className }: DocsContentProps) {
         'prose-headings:scroll-mt-28 prose-headings:font-semibold prose-headings:tracking-tight',
         'prose-a:font-medium prose-a:text-primary hover:prose-a:text-primary',
         'prose-blockquote:border-l-primary prose-blockquote:bg-surface-muted prose-blockquote:py-1 prose-blockquote:not-italic prose-blockquote:text-foreground-muted',
-        'prose-code:rounded prose-code:bg-surface-muted prose-code:px-1 prose-code:py-0.5 prose-code:font-mono prose-code:text-[0.85em] prose-code:before:content-none prose-code:after:content-none',
+        'prose-inline-code:rounded prose-inline-code:bg-surface-muted prose-inline-code:px-1 prose-inline-code:py-0.5 prose-inline-code:font-mono prose-inline-code:text-[0.85em] prose-inline-code:before:content-none prose-inline-code:after:content-none',
+        'prose-pre:font-mono',
         className,
       )}
     >
