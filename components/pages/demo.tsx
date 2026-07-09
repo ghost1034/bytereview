@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, Check, FileText, Sparkles } from 'lucide-react'
+import { ArrowRight, Check, FileText, PenTool, Sparkles } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -37,6 +37,21 @@ const ANALYSIS_VIDEOS = [
   {
     title: 'Email and Google Drive Automations',
     src: 'https://www.youtube-nocookie.com/embed/R0ubnn4ggGA?si=XZ6cP69kg5JqebIT',
+  },
+]
+
+const WRITING_VIDEOS = [
+  {
+    title: 'Write a Professional Investor Report in Minutes with AI',
+    src: 'https://www.youtube-nocookie.com/embed/OaloCO7Bh28?si=sx0_nt3OfuYFJL5u',
+  },
+  {
+    title: 'Write a Legal Complaint Faster with AI',
+    src: 'https://www.youtube-nocookie.com/embed/pNpDUlNZuuU?si=AHTVSvVUEriqK6db',
+  },
+  {
+    title: 'Write a Robust Academic Article with 70+ References Using AI',
+    src: 'https://www.youtube-nocookie.com/embed/qmFBxibcals?si=-Sq1Lr-AgZDPg5pC',
   },
 ]
 
@@ -121,9 +136,44 @@ export default function Demo() {
         </motion.div>
       </SectionShell>
 
-      {/* Upcoming products */}
+      {/* AI writing videos */}
       <SectionShell
         surface="background"
+        eyebrow="AI writing"
+        eyebrowIcon={PenTool}
+        eyebrowTone="violet"
+        title="Draft polished documents with Inkwise"
+      >
+        <motion.div
+          className="flex flex-wrap justify-center gap-6"
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportOnce}
+        >
+          {WRITING_VIDEOS.map((v) => (
+            <motion.div
+              key={v.title}
+              variants={staggerChild}
+              className="w-full md:w-[calc(50%-0.75rem)] lg:w-[calc(33.333%-1rem)]"
+            >
+              <VideoCard
+                src={v.src}
+                title={v.title}
+                description={
+                  <span className="text-center font-semibold text-foreground">
+                    {v.title}
+                  </span>
+                }
+              />
+            </motion.div>
+          ))}
+        </motion.div>
+      </SectionShell>
+
+      {/* Upcoming products */}
+      <SectionShell
+        surface="surface"
         eyebrow="Products to come"
         eyebrowIcon={Sparkles}
         eyebrowTone="emerald"
