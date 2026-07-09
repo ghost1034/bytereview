@@ -302,6 +302,7 @@ ensure_base_services() {
       --port=8000 \
       --memory=2Gi \
       --cpu=2 \
+      --cpu-boost \
       --min-instances=0 \
       --max-instances=10 \
       --concurrency=40 \
@@ -326,6 +327,7 @@ ensure_base_services() {
       --port=3000 \
       --memory=1Gi \
       --cpu=1 \
+      --cpu-boost \
       --min-instances=0 \
       --max-instances=5 \
       --concurrency=100 \
@@ -392,6 +394,7 @@ deploy_api() {
   gcloud run services update "$service_name" \
     --region="$REGION" \
     --image="$image_url" \
+    --cpu-boost \
     --min-instances=0 \
     --concurrency=40 \
     --timeout="${API_TIMEOUT}" \
@@ -409,6 +412,7 @@ deploy_web() {
   gcloud run services update "$service_name" \
     --region="$REGION" \
     --image="$image_url" \
+    --cpu-boost \
     --min-instances=0 \
     --update-env-vars="NODE_ENV=production" \
     >/dev/null
