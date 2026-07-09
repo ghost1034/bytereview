@@ -14,7 +14,7 @@ const TONE = 'cyan'
 const a = accent(TONE)
 
 const HIGHLIGHTS = [
-  { title: 'Fillable PDF, PDF overlay, and DOCX placeholder strategies' },
+  { title: 'Supports fillable PDFs, non-fillable PDFs, or any DOCX file' },
   { title: 'Use extraction results as a structured data source' },
   { title: 'Save and reuse Form Fill templates' },
   { title: 'Output as PDF or DOCX' },
@@ -133,7 +133,7 @@ export default function FormFillShowcase() {
           </span>
         </>
       }
-      description="Upload supporting information and a PDF or DOCX target, or send one selected extraction result directly into Form Fill."
+      description="Upload supporting information and a PDF or DOCX target, and watch AI fill your form intelligently."
       media={<FormFillMockup />}
     >
       <FeatureList items={HIGHLIGHTS} tone={TONE} className="pt-1" />

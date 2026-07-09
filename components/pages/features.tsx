@@ -32,7 +32,7 @@ const FEATURES: FeatureBlock[] = [
     icon: FileText,
     tone: 'blue',
     eyebrow: 'Extraction',
-    title: 'Data extractor',
+    title: 'Data extraction',
     description: (
       <>
         Intelligently extract and structure key information from any document
@@ -53,13 +53,13 @@ const FEATURES: FeatureBlock[] = [
     imageSrc:
       'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?ixlib=rb-4.0.3&w=600&h=400&fit=crop',
     imageAlt: 'Data extraction example showing invoice processing',
-    frameLabel: 'Data extractor',
+    frameLabel: 'Data extraction',
   },
   {
     icon: Grid3X3,
     tone: 'sky',
     eyebrow: 'Tables',
-    title: 'Table extractor',
+    title: 'Table extraction',
     description: (
       <>
         Advanced table recognition that captures complex layouts and preserves
@@ -76,7 +76,7 @@ const FEATURES: FeatureBlock[] = [
     imageSrc:
       'https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&w=600&h=400&fit=crop',
     imageAlt: 'Table extraction example showing spreadsheet with highlighted table',
-    frameLabel: 'Table extractor',
+    frameLabel: 'Table extraction',
     reverse: true,
   },
   {

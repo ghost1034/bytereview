@@ -86,6 +86,6 @@ The number of automations you can enable depends on your plan, along with a mont
 | --- | --- | --- |
 | Free | 1 | 100 |
 | Basic | 5 | 500 |
-| Pro | 25 | 5,000 |
+| Pro | 50 | 5,000 |
 
 If you reach your automation limit, disable or delete one before enabling another, or upgrade your plan. Check your billing settings for current limits and pricing.

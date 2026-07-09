@@ -33,7 +33,7 @@ const FEATURES = [
   {
     icon: FileText,
     tone: 'brand' as const,
-    title: 'Data Extractor',
+    title: 'Data Extraction',
     description:
       'Intelligently extract and structure key information from any document type with precision.',
     bullets: [
@@ -46,7 +46,7 @@ const FEATURES = [
   {
     icon: Grid3X3,
     tone: 'brand' as const,
-    title: 'Table Extractor',
+    title: 'Table Extraction',
     description:
       'Advanced table recognition that captures complex layouts and preserves data relationships.',
     bullets: [
@@ -212,7 +212,7 @@ export default function ExtractionFeatures({
         viewport={viewportOnce}
       >
         <div className="w-full max-w-2xl">
-          <BrowserFrame label="Investment statement extract">
+          <BrowserFrame label="Investment statement extraction">
             <div className="overflow-x-auto p-4">
               <div className="grid min-w-[480px] grid-cols-6 gap-1.5 text-xs">
                 {[

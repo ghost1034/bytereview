@@ -16,7 +16,7 @@ const a = accent(TONE)
 const HIGHLIGHTS = [
   { title: 'Citation-backed drafting grounded in your documents' },
   { title: 'PDF and Word document references' },
-  { title: 'Image, video & audio support coming soon' },
+  { title: 'Image, video & audio references' },
   { title: 'Accounting, finance & legal templates included' },
 ]
 
