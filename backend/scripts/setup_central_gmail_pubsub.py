@@ -106,17 +106,21 @@ def setup_pubsub_infrastructure():
                 raise e
         
         # Create subscription if it doesn't exist
+        # ack_deadline_seconds=60: the default 10s is shorter than a cold start of
+        # the cpa-api Cloud Run service (min-instances=0), causing redeliveries.
+        ack_deadline_seconds = 60
         try:
             # Configure push endpoint
             webhook_url = os.getenv('GMAIL_WEBHOOK_URL')
-            
+
             push_config = pubsub_v1.types.PushConfig(push_endpoint=webhook_url)
-            
+
             subscriber.create_subscription(
                 request={
                     "name": subscription_path,
                     "topic": topic_path,
                     "push_config": push_config,
+                    "ack_deadline_seconds": ack_deadline_seconds,
                 }
             )
             logger.info(f"✅ Created Pub/Sub subscription: {subscription_name}")
@@ -124,6 +128,18 @@ def setup_pubsub_infrastructure():
         except Exception as e:
             if "already exists" in str(e).lower():
                 logger.info(f"✅ Pub/Sub subscription already exists: {subscription_name}")
+                # Ensure the existing subscription uses the desired ack deadline
+                from google.protobuf import field_mask_pb2
+                subscriber.update_subscription(
+                    request={
+                        "subscription": {
+                            "name": subscription_path,
+                            "ack_deadline_seconds": ack_deadline_seconds,
+                        },
+                        "update_mask": field_mask_pb2.FieldMask(paths=["ack_deadline_seconds"]),
+                    }
+                )
+                logger.info(f"✅ Updated ack deadline to {ack_deadline_seconds}s: {subscription_name}")
             else:
                 raise e
         
