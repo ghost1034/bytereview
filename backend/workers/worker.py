@@ -1956,5 +1956,29 @@ async def _record_usage_for_task(db: Session, task: ExtractionTask, source_files
 
 # Removed per-task limit checking - now handled at job start
 
+# ============================================================================
+# E-Signature Workers
+# ============================================================================
+
+async def process_envelope_seal(ctx: Dict[str, Any], envelope_id: str) -> Dict[str, Any]:
+    """Flatten, certify, and PAdES-seal a fully signed e-sign envelope.
+
+    Idempotent under duplicate Cloud Tasks delivery: the sealing service takes
+    a per-envelope Postgres advisory lock and skips already-sealed envelopes.
+    """
+    from services.esign.sealing_service import esign_sealing_service
+
+    logger.info(f"Processing envelope seal for {envelope_id}")
+    return await esign_sealing_service.process_envelope_seal(envelope_id)
+
+
+async def run_esign_maintenance(ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """Hourly e-sign sweep: expire overdue envelopes, send auto-reminders."""
+    from services.esign.maintenance_service import esign_maintenance_service
+
+    logger.info("Running e-sign maintenance")
+    return await esign_maintenance_service.run()
+
+
 if __name__ == "__main__":
     asyncio.run(main())

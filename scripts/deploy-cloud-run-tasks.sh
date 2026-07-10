@@ -18,6 +18,8 @@ ARTIFACT_REGISTRY_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/cpa-docker"
 SERVICE_ACCOUNT="cpaautomation-runner@${PROJECT_ID}.iam.gserviceaccount.com"
 VPC_CONNECTOR="cpa-svpc"
 CLOUD_SQL_INSTANCE="${PROJECT_ID}:${REGION}:cpaautomation-db"
+ESIGN_KMS_SIGNING_KEY_VERSION="${ESIGN_KMS_SIGNING_KEY_VERSION:-projects/${PROJECT_ID}/locations/${REGION}/keyRings/esign/cryptoKeys/esign-seal/cryptoKeyVersions/2}"
+ESIGN_SIGNING_CERT_SECRET="${ESIGN_SIGNING_CERT_SECRET:-esign-signing-cert}"
 TASK_EXTRACT_MAX_CONCURRENT_DISPATCHES=${TASK_EXTRACT_MAX_CONCURRENT_DISPATCHES:-20}
 TASK_EXTRACT_MAX_DISPATCHES_PER_SECOND=${TASK_EXTRACT_MAX_DISPATCHES_PER_SECOND:-10}
 # Cloud Tasks caps HTTP dispatch deadlines at 1800s. The Cloud Run request timeout
@@ -217,8 +219,8 @@ deploy_service \
      --vpc-egress=private-ranges-only \
      --service-account=$SERVICE_ACCOUNT \
      --no-cpu-throttling \
-     --set-secrets=DATABASE_URL=DATABASE_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
+     --set-secrets=DATABASE_URL=DATABASE_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,ESIGN_SIGNING_CERT_PEM=$ESIGN_SIGNING_CERT_SECRET:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
+     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GCS_TEMP_FOLDER=temp_uploads,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION,ESIGN_KMS_SIGNING_KEY_VERSION=$ESIGN_KMS_SIGNING_KEY_VERSION"
 
 # Deploy Automation Task Service
 echo -e "${BLUE}=== Deploying Automation Task Service ===${NC}"

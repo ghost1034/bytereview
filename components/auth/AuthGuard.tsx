@@ -31,7 +31,12 @@ export default function AuthGuard({
       : `${window.location.pathname}${window.location.search}`
 
     if (requireAuth && !user) {
-      // User must be authenticated but isn't
+      // User must be authenticated but isn't. Persist the destination so
+      // deep links (e.g. e-sign signing emails) land back here after
+      // login + MFA — sign-in methods consume 'post-auth-redirect'.
+      if (typeof window !== 'undefined' && currentPath && currentPath !== '/') {
+        sessionStorage.setItem('post-auth-redirect', currentPath)
+      }
       router.push(redirectTo || '/')
     } else if (requireAuth && requireMfaEnrollment && user && requiresMfaEnrollment) {
       router.push(buildMfaEnrollmentRedirect(currentPath))

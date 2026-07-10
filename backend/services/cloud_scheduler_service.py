@@ -24,7 +24,15 @@ class CloudSchedulerService:
         self.scheduler_client = scheduler_v1.CloudSchedulerClient()
         
         # Maintenance task service URL
-        self.maintenance_service_url = f"https://task-maintenance-{self.project_id}.{self.region}.run.app/execute"
+        maintenance_service_url = os.getenv(
+            "TASK_MAINTENANCE_URL",
+            f"https://task-maintenance-{self.project_id}.{self.region}.run.app",
+        ).rstrip("/")
+        self.maintenance_service_url = (
+            maintenance_service_url
+            if maintenance_service_url.endswith("/execute")
+            else f"{maintenance_service_url}/execute"
+        )
         
         # Location path for scheduler
         self.location_path = f"projects/{self.project_id}/locations/{self.region}"
@@ -56,7 +64,7 @@ class CloudSchedulerService:
                 "task_type": "run_usage_counter_cleanup"
             },
             {
-                "name": "abandoned-job-cleanup",
+                "name": "abandoned-cleanup",
                 "description": "Clean up abandoned jobs",
                 "schedule": "0 1 * * *",  # Daily at 01:00 UTC
                 "timezone": "UTC",
@@ -70,18 +78,25 @@ class CloudSchedulerService:
                 "task_type": "run_artifact_cleanup"
             },
             {
-                "name": "opt-out-data-cleanup",
+                "name": "opt-out-cleanup",
                 "description": "Clean up opt-out user data",
                 "schedule": "0 4 * * 6",  # Weekly on Saturdays at 04:00 UTC
                 "timezone": "UTC",
                 "task_type": "run_opt_out_cleanup"
             },
             {
-                "name": "gmail-watch-renewal", 
+                "name": "gmail-watch-renewal",
                 "description": "Renew Gmail watch subscriptions",
                 "schedule": "45 6 * * *",  # Daily at 06:45 UTC
                 "timezone": "UTC",
                 "task_type": "run_gmail_watch_renewal"
+            },
+            {
+                "name": "esign-maintenance",
+                "description": "Expire overdue e-sign envelopes and send signer reminders",
+                "schedule": "20 * * * *",  # Hourly at :20
+                "timezone": "UTC",
+                "task_type": "run_esign_maintenance"
             }
         ]
         

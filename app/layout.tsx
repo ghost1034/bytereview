@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { IBM_Plex_Sans, IBM_Plex_Mono } from 'next/font/google'
+import { IBM_Plex_Sans, IBM_Plex_Mono, Dancing_Script } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
 
@@ -16,6 +16,14 @@ const ibmPlexMono = IBM_Plex_Mono({
   subsets: ['latin'],
   weight: ['400', '500', '600'],
   variable: '--font-ibm-plex-mono',
+  display: 'swap',
+})
+
+// Cursive face for the e-signature "type your signature" adoption flow.
+const dancingScript = Dancing_Script({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-signature',
   display: 'swap',
 })
 
@@ -99,7 +107,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${ibmPlexSans.variable} ${ibmPlexMono.variable}`}>
+    <html lang="en" className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} ${dancingScript.variable}`}>
       <body className="font-sans antialiased">
         <script
           type="application/ld+json"

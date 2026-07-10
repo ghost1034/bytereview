@@ -21,7 +21,8 @@ from workers.worker import (
     run_free_user_period_reset,
     run_stripe_usage_reconciliation,
     run_usage_counter_cleanup,
-    run_gmail_watch_renewal
+    run_gmail_watch_renewal,
+    run_esign_maintenance
 )
 
 logger = logging.getLogger(__name__)
@@ -81,7 +82,11 @@ async def execute_task(request: Request):
         elif task_type == "run_gmail_watch_renewal":
             logger.info("Executing Gmail watch renewal")
             result = await run_gmail_watch_renewal(ctx)
-            
+
+        elif task_type == "run_esign_maintenance":
+            logger.info("Executing e-sign maintenance (expiration + reminders)")
+            result = await run_esign_maintenance(ctx)
+
         else:
             raise HTTPException(status_code=400, detail=f"Unknown task type: {task_type}")
         

@@ -13,6 +13,7 @@ import {
   Clock,
   Droplet,
   Files,
+  FileSignature,
   FileText,
   GitMerge,
   GraduationCap,
@@ -85,6 +86,7 @@ const PRODUCTS_GROUP: NavGroup = {
       badgeTone: 'success',
     },
     { name: 'Form Fill', href: '/dashboard/form-fill', icon: Files },
+    { name: 'E-Signature', href: '/dashboard/esign', icon: FileSignature },
     { name: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
   ],
 }

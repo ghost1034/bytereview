@@ -18,7 +18,8 @@ from workers.worker import (
     import_drive_files,
     import_gmail_attachments,
     export_job_to_google_drive,
-    unpack_zip_file_task
+    unpack_zip_file_task,
+    process_envelope_seal
 )
 
 logger = logging.getLogger(__name__)
@@ -90,6 +91,15 @@ async def execute_task(request: Request):
             logger.info(f"Executing Google Drive export: job={job_id}, type={file_type}")
             result = await export_job_to_google_drive(ctx, job_id, user_id, file_type, folder_id, automation_run_id, run_id)
             
+        elif task_type == "process_envelope_seal":
+            envelope_id = task_data.get("envelope_id")
+
+            if not envelope_id:
+                raise HTTPException(status_code=400, detail="envelope_id is required")
+
+            logger.info(f"Executing envelope seal: envelope={envelope_id}")
+            result = await process_envelope_seal(ctx, envelope_id)
+
         elif task_type == "unpack_zip_file_task":
             source_file_id = task_data.get("source_file_id")
             automation_run_id = task_data.get("automation_run_id")

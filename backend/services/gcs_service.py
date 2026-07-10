@@ -362,6 +362,58 @@ class GCSService:
             logger.error(f"Failed to generate pre-signed URL for {gcs_object_name}: {e}")
             raise
 
+    async def generate_presigned_get_url(
+        self,
+        gcs_object_name: str,
+        expiration_minutes: int = 15,
+        download_filename: str | None = None,
+    ) -> str:
+        """
+        Generate a pre-signed URL for GET operations (file downloads).
+        Symmetric with generate_presigned_put_url.
+        """
+        if not self.is_available():
+            raise Exception("GCS not available")
+
+        try:
+            from datetime import timedelta
+
+            blob = self.bucket.blob(gcs_object_name)
+
+            kwargs = {}
+            if download_filename:
+                safe_name = download_filename.replace('"', "")
+                kwargs["response_disposition"] = f'attachment; filename="{safe_name}"'
+
+            url = await asyncio.to_thread(
+                lambda: blob.generate_signed_url(
+                    version="v4",
+                    expiration=timedelta(minutes=expiration_minutes),
+                    method="GET",
+                    **kwargs,
+                )
+            )
+
+            logger.info(f"Generated pre-signed GET URL for: {gcs_object_name}")
+            return url
+
+        except Exception as e:
+            logger.error(f"Failed to generate pre-signed GET URL for {gcs_object_name}: {e}")
+            raise
+
+    async def copy_object(self, source_object_name: str, dest_object_name: str) -> None:
+        """Copy an object within this service's bucket."""
+        if not self.is_available():
+            raise Exception("GCS not available")
+
+        try:
+            source_blob = self.bucket.blob(source_object_name)
+            await asyncio.to_thread(self.bucket.copy_blob, source_blob, self.bucket, dest_object_name)
+            logger.info(f"Copied {source_object_name} -> {dest_object_name}")
+        except Exception as e:
+            logger.error(f"Failed to copy {source_object_name} to {dest_object_name}: {e}")
+            raise
+
     async def download_file(self, gcs_object_name: str, local_path: str) -> None:
         """
         Download a file from GCS to local path
@@ -543,6 +595,17 @@ class LocalStorageService:
         gcs_object_name: str,
         expiration_minutes: int = 60,
         content_type: str | None = "application/octet-stream",
+    ) -> str:
+        """
+        Local storage doesn't support pre-signed URLs, raise an error
+        """
+        raise Exception("Pre-signed URLs not supported with local storage fallback")
+
+    async def generate_presigned_get_url(
+        self,
+        gcs_object_name: str,
+        expiration_minutes: int = 15,
+        download_filename: str | None = None,
     ) -> str:
         """
         Local storage doesn't support pre-signed URLs, raise an error

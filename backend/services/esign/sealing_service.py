@@ -1,0 +1,367 @@
+"""Async sealing pipeline for completed e-sign envelopes.
+
+Runs on the io-tasks queue after the last signer submits:
+1. Advisory lock + idempotency guard (Cloud Tasks may deliver twice).
+2. Flatten all field values into each PDF with PyMuPDF (single pass).
+3. Generate the certificate of completion and append it to the combined PDF
+   *before* sealing so it is covered by the seal.
+4. Apply the PAdES digital signature via Cloud KMS (pyHanko).
+5. Store hashes, mark completed, write sealed+completed audit events, email
+   all parties.
+
+The envelope is never marked completed unless the sealed object is durably
+uploaded — a KMS/GCS failure raises and Cloud Tasks retries.
+"""
+
+from __future__ import annotations
+
+import io
+import logging
+import uuid
+from datetime import datetime, timezone
+from typing import Any, Optional
+
+import fitz
+from sqlalchemy.orm import Session, joinedload
+
+from core.database import db_config
+from models.db_models import (
+    EsignConsentRecord,
+    EsignDocument,
+    EsignEnvelope,
+    EsignEnvelopeStatus,
+    EsignEvent,
+    EsignEventType,
+    EsignField,
+    EsignFieldType,
+    EsignRecipient,
+    EsignRecipientRole,
+    EsignRecipientStatus,
+    EsignSignatureRecord,
+    EsignSignatureType,
+)
+from services.esign import audit_service
+from services.esign.certificate_service import build_certificate_pdf
+from services.esign.envelope_service import sha256_hex
+from services.esign.signing_service import acquire_envelope_lock
+from services.gcs_service import get_storage_service
+
+logger = logging.getLogger(__name__)
+
+SEAL_FIELD_NAME = "CPAAutomationSeal"
+
+# PyMuPDF base-14 font aliases
+_FONT_TEXT = "helv"
+_FONT_SIGNATURE = "tiit"  # Times-Italic — cursive-adjacent, embeds cleanly
+
+
+def _display_rect(page: fitz.Page, pos_x: float, pos_y: float, width: float, height: float) -> fitz.Rect:
+    """Fraction coords (top-left origin, rotation-aware display space) -> the
+    unrotated rect PyMuPDF insert_* methods expect.
+
+    Convention locked by test (see tests/test_esign_coordinates.py):
+    page.rect is rotation-aware; insert_textbox/insert_image take unrotated
+    coordinates plus rotate=page.rotation to keep content upright.
+    """
+    pw, ph = page.rect.width, page.rect.height
+    rect = fitz.Rect(pos_x * pw, pos_y * ph, (pos_x + width) * pw, (pos_y + height) * ph)
+    target = rect * page.derotation_matrix
+    target.normalize()
+    return target
+
+
+def _fit_textbox(
+    page: fitz.Page,
+    rect: fitz.Rect,
+    text: str,
+    *,
+    fontname: str,
+    rotate: int,
+    max_fontsize: float,
+) -> None:
+    """Insert text shrinking the font until it fits the box."""
+    fontsize = max_fontsize
+    while fontsize >= 4:
+        leftover = page.insert_textbox(
+            rect,
+            text,
+            fontname=fontname,
+            fontsize=fontsize,
+            rotate=rotate,
+            align=fitz.TEXT_ALIGN_LEFT,
+        )
+        if leftover >= 0:
+            return
+        fontsize -= 1
+    # Last resort: insert at minimum size even if it overflows slightly.
+    page.insert_textbox(rect, text, fontname=fontname, fontsize=4, rotate=rotate)
+
+
+def _initials_from_name(name: str) -> str:
+    parts = [p for p in (name or "").split() if p]
+    return "".join(p[0].upper() for p in parts[:3]) or "??"
+
+
+def _stamp_field(
+    page: fitz.Page,
+    field: EsignField,
+    recipient: Optional[EsignRecipient],
+    signature_record: Optional[EsignSignatureRecord],
+    image_bytes: Optional[bytes],
+) -> None:
+    rect = _display_rect(page, float(field.pos_x), float(field.pos_y), float(field.width), float(field.height))
+    rotate = page.rotation
+    # Field height as seen by the user (display space, rotation-aware page.rect).
+    display_height = float(field.height) * page.rect.height
+
+    if field.field_type in (EsignFieldType.SIGNATURE, EsignFieldType.INITIALS):
+        if field.field_type == EsignFieldType.INITIALS:
+            text = _initials_from_name(recipient.name if recipient else "")
+            _fit_textbox(page, rect, text, fontname=_FONT_SIGNATURE, rotate=rotate, max_fontsize=display_height * 0.8)
+        elif signature_record is not None and signature_record.signature_type == EsignSignatureType.DRAWN and image_bytes:
+            page.insert_image(rect, stream=image_bytes, rotate=rotate, keep_proportion=True)
+        elif signature_record is not None:
+            text = signature_record.typed_text or (recipient.name if recipient else "")
+            _fit_textbox(page, rect, text, fontname=_FONT_SIGNATURE, rotate=rotate, max_fontsize=display_height * 0.7)
+    elif field.field_type == EsignFieldType.CHECKBOX:
+        if (field.value or "").lower() == "true":
+            _fit_textbox(page, rect, "X", fontname=_FONT_TEXT, rotate=rotate, max_fontsize=display_height * 0.9)
+    else:  # date_signed / text
+        if field.value:
+            _fit_textbox(page, rect, str(field.value), fontname=_FONT_TEXT, rotate=rotate, max_fontsize=display_height * 0.7)
+
+
+class EsignSealingService:
+    def __init__(self) -> None:
+        self.storage = get_storage_service()
+
+    def _get_session(self) -> Session:
+        return db_config.get_session()
+
+    async def _flatten_document(
+        self,
+        document: EsignDocument,
+        fields: list[EsignField],
+        recipients_by_id: dict[str, EsignRecipient],
+        signature_records_by_id: dict[str, EsignSignatureRecord],
+    ) -> bytes:
+        """Download the original PDF and stamp all field values in one pass."""
+        import asyncio
+
+        original = io.BytesIO()
+        blob_bytes = await asyncio.to_thread(self._download_bytes, document.gcs_object_name)
+        original.write(blob_bytes)
+
+        image_cache: dict[str, bytes] = {}
+
+        with fitz.open(stream=original.getvalue(), filetype="pdf") as pdf:
+            for field in fields:
+                if str(field.document_id) != str(document.id):
+                    continue
+                page_index = int(field.page_number)
+                if page_index < 0 or page_index >= pdf.page_count:
+                    logger.warning(
+                        "Skipping field %s: page %s out of range for document %s",
+                        field.id, page_index, document.id,
+                    )
+                    continue
+                page = pdf[page_index]
+                recipient = recipients_by_id.get(str(field.recipient_id))
+                signature_record = None
+                image_bytes = None
+                if field.field_type in (EsignFieldType.SIGNATURE, EsignFieldType.INITIALS) and field.value:
+                    signature_record = signature_records_by_id.get(str(field.value))
+                    if (
+                        signature_record is not None
+                        and signature_record.signature_type == EsignSignatureType.DRAWN
+                        and signature_record.image_gcs_object_name
+                    ):
+                        cache_key = signature_record.image_gcs_object_name
+                        if cache_key not in image_cache:
+                            image_cache[cache_key] = await asyncio.to_thread(
+                                self._download_bytes, cache_key
+                            )
+                        image_bytes = image_cache[cache_key]
+                _stamp_field(page, field, recipient, signature_record, image_bytes)
+            return pdf.tobytes(deflate=True, garbage=3)
+
+    def _download_bytes(self, object_name: str) -> bytes:
+        blob = self.storage.bucket.blob(object_name)
+        return blob.download_as_bytes()
+
+    def _seal_pdf(self, pdf_bytes: bytes, envelope: EsignEnvelope) -> tuple[bytes, dict[str, Any]]:
+        """Apply the PAdES seal; returns (sealed_bytes, evidence_details).
+
+        pyHanko's sign_pdf spins up its own event loop, so this must run in a
+        worker thread when called from async code (see process_envelope_seal).
+        """
+        from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
+        from pyhanko.sign import signers
+        from pyhanko.sign.fields import SigSeedSubFilter
+
+        from services.esign.kms_signer import build_seal_signer
+
+        signer, evidence = build_seal_signer()
+        buffer = io.BytesIO(pdf_bytes)
+        writer = IncrementalPdfFileWriter(buffer)
+        meta = signers.PdfSignatureMetadata(
+            field_name=SEAL_FIELD_NAME,
+            reason=f"CPAAutomation e-signature completion seal (envelope {envelope.id})",
+            location="CPAAutomation",
+            subfilter=SigSeedSubFilter.PADES,
+            md_algorithm="sha256",
+        )
+        output = signers.sign_pdf(writer, meta, signer=signer)
+        return output.getvalue(), evidence
+
+    async def process_envelope_seal(self, envelope_id: str) -> dict[str, Any]:
+        db = self._get_session()
+        try:
+            acquire_envelope_lock(db, envelope_id)
+
+            envelope = (
+                db.query(EsignEnvelope)
+                .options(
+                    joinedload(EsignEnvelope.documents),
+                    joinedload(EsignEnvelope.recipients),
+                    joinedload(EsignEnvelope.fields),
+                )
+                .filter(EsignEnvelope.id == uuid.UUID(str(envelope_id)))
+                .first()
+            )
+            if not envelope:
+                return {"status": "not_found", "envelope_id": envelope_id}
+
+            # Idempotency: duplicate Cloud Tasks delivery.
+            if envelope.status == EsignEnvelopeStatus.COMPLETED and envelope.sealed_gcs_object_name:
+                return {"status": "already_sealed", "envelope_id": envelope_id}
+            if envelope.status not in (EsignEnvelopeStatus.IN_PROGRESS, EsignEnvelopeStatus.SENT):
+                return {"status": f"skipped_status_{envelope.status.value}", "envelope_id": envelope_id}
+
+            signers_list = [r for r in envelope.recipients if r.role == EsignRecipientRole.SIGNER]
+            unsigned = [r for r in signers_list if r.status != EsignRecipientStatus.SIGNED]
+            if unsigned:
+                return {
+                    "status": "not_ready",
+                    "envelope_id": envelope_id,
+                    "unsigned": [r.email for r in unsigned],
+                }
+
+            recipients_by_id = {str(r.id): r for r in envelope.recipients}
+            signature_records = (
+                db.query(EsignSignatureRecord)
+                .filter(EsignSignatureRecord.envelope_id == envelope.id)
+                .all()
+            )
+            signature_records_by_id = {str(s.id): s for s in signature_records}
+            consent_records = (
+                db.query(EsignConsentRecord)
+                .filter(EsignConsentRecord.envelope_id == envelope.id)
+                .all()
+            )
+            events = (
+                db.query(EsignEvent)
+                .filter(EsignEvent.envelope_id == envelope.id)
+                .order_by(EsignEvent.created_at.asc())
+                .all()
+            )
+            sender_email = envelope.user.email if envelope.user else ""
+
+            documents = sorted(envelope.documents, key=lambda d: d.display_order)
+            fields = list(envelope.fields or [])
+
+            # 1) Flatten each document and record flattened hashes.
+            flattened: list[tuple[EsignDocument, bytes]] = []
+            flattened_hashes: dict[str, str] = {}
+            for document in documents:
+                flat_bytes = await self._flatten_document(
+                    document, fields, recipients_by_id, signature_records_by_id
+                )
+                digest = sha256_hex(flat_bytes)
+                object_name = f"esign/{envelope.user_id}/{envelope.id}/flattened/{document.id}.pdf"
+                await self.storage.upload_file_content(flat_bytes, object_name)
+                document.flattened_gcs_object_name = object_name
+                document.flattened_sha256 = digest
+                flattened_hashes[str(document.id)] = digest
+                flattened.append((document, flat_bytes))
+
+            # 2) Certificate of completion (also stored standalone for download).
+            certificate_bytes = build_certificate_pdf(
+                envelope=envelope,
+                documents=documents,
+                recipients=envelope.recipients,
+                consent_records=consent_records,
+                signature_records=signature_records,
+                events=events,
+                sender_email=sender_email,
+                flattened_hashes=flattened_hashes,
+            )
+            certificate_object = f"esign/{envelope.user_id}/{envelope.id}/certificate.pdf"
+            await self.storage.upload_file_content(certificate_bytes, certificate_object)
+
+            # 3) Combine flattened docs + certificate into the final PDF.
+            combined = fitz.open()
+            for _document, flat_bytes in flattened:
+                with fitz.open(stream=flat_bytes, filetype="pdf") as part:
+                    combined.insert_pdf(part)
+            with fitz.open(stream=certificate_bytes, filetype="pdf") as cert_pdf:
+                combined.insert_pdf(cert_pdf)
+            combined_bytes = combined.tobytes(deflate=True, garbage=3)
+            combined.close()
+
+            # 4) PAdES seal — the final byte-altering operation.
+            import asyncio
+
+            sealed_bytes, seal_evidence = await asyncio.to_thread(
+                self._seal_pdf, combined_bytes, envelope
+            )
+            sealed_sha = sha256_hex(sealed_bytes)
+            sealed_object = f"esign/{envelope.user_id}/{envelope.id}/sealed.pdf"
+            await self.storage.upload_file_content(sealed_bytes, sealed_object)
+
+            # 5) Mark completed + audit. Only after the sealed object is durable.
+            now = datetime.now(timezone.utc)
+            envelope.sealed_gcs_object_name = sealed_object
+            envelope.sealed_sha256 = sealed_sha
+            envelope.certificate_gcs_object_name = certificate_object
+            envelope.status = EsignEnvelopeStatus.COMPLETED
+            envelope.completed_at = now
+
+            audit_service.record_event(
+                db,
+                envelope_id=envelope.id,
+                event_type=EsignEventType.SEALED,
+                details={
+                    **seal_evidence,
+                    "sealed_sha256": sealed_sha,
+                    "flattened_sha256": flattened_hashes,
+                    "seal_field_name": SEAL_FIELD_NAME,
+                },
+            )
+            audit_service.record_event(
+                db,
+                envelope_id=envelope.id,
+                event_type=EsignEventType.COMPLETED,
+                details={"completed_at": now.isoformat()},
+            )
+            db.commit()
+            logger.info("Sealed envelope %s (sha256=%s)", envelope_id, sealed_sha)
+        except Exception:
+            db.rollback()
+            logger.exception("Failed to seal envelope %s", envelope_id)
+            raise
+        finally:
+            db.close()
+
+        # Best-effort notifications after commit.
+        try:
+            from services.esign.signing_service import esign_signing_service
+
+            await esign_signing_service.send_completion_emails(envelope_id)
+        except Exception:
+            logger.exception("Completion emails failed for envelope %s", envelope_id)
+
+        return {"status": "sealed", "envelope_id": envelope_id, "sealed_sha256": sealed_sha}
+
+
+esign_sealing_service = EsignSealingService()

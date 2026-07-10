@@ -1,0 +1,1020 @@
+"""Sender-side envelope CRUD, template management, and downloads for e-sign."""
+
+from __future__ import annotations
+
+import hashlib
+import logging
+import os
+import uuid
+from datetime import datetime, timezone
+from typing import Any, Optional
+
+import fitz
+from sqlalchemy.orm import Session, joinedload
+
+from core.database import db_config
+from models.db_models import (
+    EsignConsentRecord,
+    EsignDocument,
+    EsignEnvelope,
+    EsignEnvelopeStatus,
+    EsignEvent,
+    EsignEventType,
+    EsignField,
+    EsignFieldType,
+    EsignRecipient,
+    EsignRecipientRole,
+    EsignRecipientStatus,
+    EsignSigningType,
+    EsignTemplate,
+    EsignTemplateDocument,
+    EsignTemplateField,
+)
+from models.esign import (
+    EsignAuditTrailResponse,
+    EsignDocumentResponse,
+    EsignDownloadResponse,
+    EsignEnvelopeListItem,
+    EsignEnvelopeListResponse,
+    EsignEnvelopeResponse,
+    EsignEnvelopeUpdateRequest,
+    EsignEventResponse,
+    EsignFieldInput,
+    EsignFieldResponse,
+    EsignRecipientInput,
+    EsignRecipientResponse,
+    EsignTemplateDocumentResponse,
+    EsignTemplateFieldInput,
+    EsignTemplateFieldResponse,
+    EsignTemplateResponse,
+    EsignTemplateRoleInput,
+)
+from services.esign import audit_service
+from services.esign.audit_service import EsignRequestMeta
+from services.gcs_service import get_storage_service
+
+logger = logging.getLogger(__name__)
+
+MAX_DOCUMENTS_PER_ENVELOPE = int(os.getenv("ESIGN_MAX_DOCUMENTS", "10"))
+MAX_DOCUMENT_BYTES = int(os.getenv("ESIGN_MAX_DOCUMENT_BYTES", str(25 * 1024 * 1024)))
+MAX_RECIPIENTS = int(os.getenv("ESIGN_MAX_RECIPIENTS", "20"))
+DOWNLOAD_URL_MINUTES = int(os.getenv("ESIGN_DOWNLOAD_URL_MINUTES", "15"))
+DEFAULT_EXPIRES_DAYS = int(os.getenv("ESIGN_DEFAULT_EXPIRES_DAYS", "30"))
+
+# ESIGN/UETA consent-to-electronic-records disclosure. Snapshotted onto every
+# envelope at creation so consent records always reference the exact text the
+# signer saw, even if this default changes later.
+DEFAULT_CONSENT_DISCLOSURE = (
+    "Consent to Use Electronic Records and Signatures\n\n"
+    "By selecting \"I agree\", you consent to receive, review, and sign the "
+    "documents in this envelope electronically, and you agree that your "
+    "electronic signature is the legal equivalent of your handwritten "
+    "signature, as provided by the U.S. Electronic Signatures in Global and "
+    "National Commerce Act (ESIGN) and the Uniform Electronic Transactions "
+    "Act (UETA).\n\n"
+    "To access and retain these records you need a device with a current web "
+    "browser, an internet connection, and either a printer or sufficient "
+    "storage to keep copies. You may download and print the documents during "
+    "signing and after completion.\n\n"
+    "You may decline to sign electronically by choosing \"Decline\" and "
+    "contacting the sender to arrange paper signing. Declining electronic "
+    "signing will not prevent you from doing business with the sender on "
+    "paper. You may also request paper copies of completed documents from the "
+    "sender.\n\n"
+    "Your identity is verified through your CPAAutomation account, which "
+    "requires SMS phone verification (multi-factor authentication) at every "
+    "login. The date, time, network address, and verification method of each "
+    "action you take are recorded in a tamper-evident audit trail."
+)
+
+ACTIVE_STATUSES = (EsignEnvelopeStatus.SENT, EsignEnvelopeStatus.IN_PROGRESS)
+
+
+class EsignError(ValueError):
+    """Domain error mapped to 400 by routes."""
+
+
+class EsignNotFound(LookupError):
+    """Mapped to 404 by routes."""
+
+
+class EsignConflict(RuntimeError):
+    """Mapped to 409 by routes."""
+
+
+def sha256_hex(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()
+
+
+def _validate_pdf(content: bytes, filename: str) -> int:
+    """Validate that content is a readable, non-encrypted PDF; return page count."""
+    try:
+        with fitz.open(stream=content, filetype="pdf") as doc:
+            if doc.needs_pass:
+                raise EsignError(f"'{filename}' is password-protected; remove the password first")
+            page_count = doc.page_count
+    except EsignError:
+        raise
+    except Exception as exc:
+        raise EsignError(f"'{filename}' is not a valid PDF: {exc}")
+    if page_count < 1:
+        raise EsignError(f"'{filename}' has no pages")
+    return page_count
+
+
+def _normalize_email(email: str) -> str:
+    return (email or "").strip().lower()
+
+
+class EsignEnvelopeService:
+    def __init__(self) -> None:
+        self.storage = get_storage_service()
+
+    def _get_session(self) -> Session:
+        return db_config.get_session()
+
+    # ------------------------------------------------------------------
+    # Serialization
+    # ------------------------------------------------------------------
+
+    def _serialize_field(self, field: EsignField) -> EsignFieldResponse:
+        return EsignFieldResponse(
+            id=str(field.id),
+            envelope_id=str(field.envelope_id),
+            document_id=str(field.document_id),
+            recipient_id=str(field.recipient_id),
+            field_type=field.field_type.value if hasattr(field.field_type, "value") else str(field.field_type),
+            page_number=int(field.page_number),
+            pos_x=float(field.pos_x),
+            pos_y=float(field.pos_y),
+            width=float(field.width),
+            height=float(field.height),
+            required=bool(field.required),
+            label=field.label,
+            value=field.value,
+        )
+
+    def _serialize_recipient(self, recipient: EsignRecipient) -> EsignRecipientResponse:
+        return EsignRecipientResponse(
+            id=str(recipient.id),
+            email=recipient.email,
+            name=recipient.name,
+            role=recipient.role.value if hasattr(recipient.role, "value") else str(recipient.role),
+            routing_order=int(recipient.routing_order),
+            status=recipient.status.value if hasattr(recipient.status, "value") else str(recipient.status),
+            viewed_at=recipient.viewed_at,
+            consented_at=recipient.consented_at,
+            signed_at=recipient.signed_at,
+            declined_at=recipient.declined_at,
+            declined_reason=recipient.declined_reason,
+        )
+
+    def _serialize_document(self, document: EsignDocument) -> EsignDocumentResponse:
+        return EsignDocumentResponse(
+            id=str(document.id),
+            display_order=int(document.display_order or 0),
+            original_filename=document.original_filename,
+            original_sha256=document.original_sha256,
+            flattened_sha256=document.flattened_sha256,
+            page_count=int(document.page_count or 0),
+            file_size_bytes=int(document.file_size_bytes or 0),
+        )
+
+    def _serialize_envelope(self, envelope: EsignEnvelope) -> EsignEnvelopeResponse:
+        return EsignEnvelopeResponse(
+            id=str(envelope.id),
+            title=envelope.title,
+            message=envelope.message,
+            status=envelope.status.value if hasattr(envelope.status, "value") else str(envelope.status),
+            signing_type=envelope.signing_type.value if hasattr(envelope.signing_type, "value") else str(envelope.signing_type),
+            current_routing_order=envelope.current_routing_order,
+            consent_disclosure_text=envelope.consent_disclosure_text,
+            expires_at=envelope.expires_at,
+            reminder_interval_hours=envelope.reminder_interval_hours,
+            last_reminder_at=envelope.last_reminder_at,
+            voided_reason=envelope.voided_reason,
+            sealed_sha256=envelope.sealed_sha256,
+            has_sealed_document=bool(envelope.sealed_gcs_object_name),
+            has_certificate=bool(envelope.certificate_gcs_object_name),
+            sent_at=envelope.sent_at,
+            completed_at=envelope.completed_at,
+            voided_at=envelope.voided_at,
+            created_at=envelope.created_at,
+            updated_at=envelope.updated_at,
+            documents=[self._serialize_document(d) for d in (envelope.documents or [])],
+            recipients=[self._serialize_recipient(r) for r in (envelope.recipients or [])],
+            fields=[self._serialize_field(f) for f in (envelope.fields or [])],
+        )
+
+    def _serialize_event(self, event: EsignEvent) -> EsignEventResponse:
+        return EsignEventResponse(
+            id=str(event.id),
+            event_type=event.event_type.value if hasattr(event.event_type, "value") else str(event.event_type),
+            actor_email=event.actor_email,
+            recipient_id=str(event.recipient_id) if event.recipient_id else None,
+            ip_address=event.ip_address,
+            user_agent=event.user_agent,
+            mfa_verified=event.mfa_verified,
+            mfa_method=event.mfa_method,
+            details=event.details if isinstance(event.details, dict) else None,
+            created_at=event.created_at,
+        )
+
+    # ------------------------------------------------------------------
+    # Loading helpers
+    # ------------------------------------------------------------------
+
+    def _load_envelope(self, db: Session, user_id: str, envelope_id: str) -> EsignEnvelope:
+        try:
+            env_uuid = uuid.UUID(str(envelope_id))
+        except ValueError:
+            raise EsignNotFound("Envelope not found")
+        envelope = (
+            db.query(EsignEnvelope)
+            .options(
+                joinedload(EsignEnvelope.documents),
+                joinedload(EsignEnvelope.recipients),
+                joinedload(EsignEnvelope.fields),
+            )
+            .filter(EsignEnvelope.id == env_uuid, EsignEnvelope.user_id == user_id)
+            .first()
+        )
+        if not envelope:
+            raise EsignNotFound("Envelope not found")
+        return envelope
+
+    def _require_draft(self, envelope: EsignEnvelope) -> None:
+        if envelope.status != EsignEnvelopeStatus.DRAFT:
+            raise EsignConflict("Envelope is no longer a draft and cannot be edited")
+
+    # ------------------------------------------------------------------
+    # Envelope CRUD
+    # ------------------------------------------------------------------
+
+    async def create_envelope(
+        self,
+        *,
+        user_id: str,
+        user_email: str,
+        title: Optional[str],
+        message: Optional[str],
+        signing_type: Optional[str],
+        files: list[tuple[str, bytes]],
+        template_id: Optional[str],
+        expires_in_days: Optional[int],
+        reminder_interval_hours: Optional[int],
+        meta: EsignRequestMeta,
+    ) -> EsignEnvelopeResponse:
+        if not files and not template_id:
+            raise EsignError("Provide at least one PDF or a template_id")
+        if files and template_id:
+            raise EsignError("Provide either PDFs or a template_id, not both")
+
+        db = self._get_session()
+        try:
+            envelope = EsignEnvelope(
+                id=uuid.uuid4(),
+                user_id=user_id,
+                title=(title or "Untitled envelope").strip()[:255],
+                message=message,
+                status=EsignEnvelopeStatus.DRAFT,
+                signing_type=EsignSigningType(signing_type) if signing_type else EsignSigningType.SEQUENTIAL,
+                consent_disclosure_text=DEFAULT_CONSENT_DISCLOSURE,
+                reminder_interval_hours=reminder_interval_hours,
+            )
+            if expires_in_days:
+                from datetime import timedelta
+
+                envelope.expires_at = datetime.now(timezone.utc) + timedelta(days=int(expires_in_days))
+            db.add(envelope)
+            db.flush()
+
+            if template_id:
+                await self._materialize_template(db, user_id, template_id, envelope)
+            else:
+                await self._attach_documents(db, user_id, envelope, files)
+
+            audit_service.record_event(
+                db,
+                envelope_id=envelope.id,
+                event_type=EsignEventType.CREATED,
+                actor_user_id=user_id,
+                actor_email=user_email,
+                meta=meta,
+                details={"template_id": template_id} if template_id else None,
+            )
+            db.commit()
+            db.refresh(envelope)
+            return self._serialize_envelope(envelope)
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    async def _attach_documents(
+        self, db: Session, user_id: str, envelope: EsignEnvelope, files: list[tuple[str, bytes]]
+    ) -> None:
+        if len(files) > MAX_DOCUMENTS_PER_ENVELOPE:
+            raise EsignError(f"At most {MAX_DOCUMENTS_PER_ENVELOPE} documents per envelope")
+        for order, (filename, content) in enumerate(files):
+            if len(content) > MAX_DOCUMENT_BYTES:
+                raise EsignError(f"'{filename}' exceeds the {MAX_DOCUMENT_BYTES // (1024 * 1024)}MB limit")
+            page_count = _validate_pdf(content, filename)
+            digest = sha256_hex(content)
+            object_name = f"esign/{user_id}/{envelope.id}/original/{uuid.uuid4()}_{os.path.basename(filename)}"
+            await self.storage.upload_file_content(content, object_name)
+            db.add(
+                EsignDocument(
+                    id=uuid.uuid4(),
+                    envelope_id=envelope.id,
+                    display_order=order,
+                    original_filename=os.path.basename(filename),
+                    gcs_object_name=object_name,
+                    original_sha256=digest,
+                    page_count=page_count,
+                    file_size_bytes=len(content),
+                )
+            )
+        db.flush()
+
+    async def _materialize_template(
+        self, db: Session, user_id: str, template_id: str, envelope: EsignEnvelope
+    ) -> None:
+        template = self._load_template(db, user_id, template_id)
+        if template.title and (not envelope.title or envelope.title == "Untitled envelope"):
+            envelope.title = template.title
+        if template.message and not envelope.message:
+            envelope.message = template.message
+        envelope.signing_type = template.signing_type
+
+        # Copy template documents into the envelope's own GCS prefix so the
+        # envelope's originals stay immutable even if the template changes.
+        doc_id_map: dict[str, EsignDocument] = {}
+        for tdoc in template.documents or []:
+            object_name = f"esign/{user_id}/{envelope.id}/original/{uuid.uuid4()}_{os.path.basename(tdoc.original_filename)}"
+            await self.storage.copy_object(tdoc.gcs_object_name, object_name)
+            doc = EsignDocument(
+                id=uuid.uuid4(),
+                envelope_id=envelope.id,
+                display_order=tdoc.display_order,
+                original_filename=tdoc.original_filename,
+                gcs_object_name=object_name,
+                original_sha256=tdoc.sha256,
+                page_count=tdoc.page_count,
+                file_size_bytes=tdoc.file_size_bytes,
+            )
+            db.add(doc)
+            doc_id_map[str(tdoc.id)] = doc
+        db.flush()
+
+        # Template fields are bound to recipient role indices; they are
+        # materialized to concrete recipients when recipients are set
+        # (see replace_recipients), so stash the mapping in envelope details
+        # by keeping template fields in memory here is not possible across
+        # requests — instead the route materializes fields after recipients
+        # are provided via instantiate_template_fields().
+
+    def instantiate_template_fields(
+        self, db: Session, envelope: EsignEnvelope, template: EsignTemplate
+    ) -> None:
+        """Materialize template fields onto envelope recipients by role index.
+
+        Recipients must already exist, ordered to match template.recipient_roles.
+        Documents are matched by display_order.
+        """
+        recipients = sorted(envelope.recipients or [], key=lambda r: (r.routing_order, r.created_at))
+        docs_by_order = {d.display_order: d for d in (envelope.documents or [])}
+        tdocs_by_id = {str(td.id): td for td in (template.documents or [])}
+
+        for tfield in template.fields or []:
+            if tfield.recipient_index >= len(recipients):
+                raise EsignError(
+                    f"Template needs {tfield.recipient_index + 1} recipients; only {len(recipients)} provided"
+                )
+            tdoc = tdocs_by_id.get(str(tfield.template_document_id))
+            if not tdoc:
+                continue
+            doc = docs_by_order.get(tdoc.display_order)
+            if not doc:
+                continue
+            db.add(
+                EsignField(
+                    id=uuid.uuid4(),
+                    envelope_id=envelope.id,
+                    document_id=doc.id,
+                    recipient_id=recipients[tfield.recipient_index].id,
+                    field_type=tfield.field_type,
+                    page_number=tfield.page_number,
+                    pos_x=tfield.pos_x,
+                    pos_y=tfield.pos_y,
+                    width=tfield.width,
+                    height=tfield.height,
+                    required=tfield.required,
+                    label=tfield.label,
+                )
+            )
+        db.flush()
+
+    def update_envelope(
+        self, user_id: str, envelope_id: str, payload: EsignEnvelopeUpdateRequest
+    ) -> EsignEnvelopeResponse:
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            self._require_draft(envelope)
+            if payload.title is not None:
+                envelope.title = payload.title.strip()[:255] or envelope.title
+            if payload.message is not None:
+                envelope.message = payload.message
+            if payload.signing_type is not None:
+                envelope.signing_type = EsignSigningType(payload.signing_type)
+            if payload.expires_at is not None:
+                envelope.expires_at = payload.expires_at
+            if payload.reminder_interval_hours is not None:
+                envelope.reminder_interval_hours = payload.reminder_interval_hours
+            db.commit()
+            db.refresh(envelope)
+            return self._serialize_envelope(envelope)
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    def replace_recipients(
+        self, user_id: str, envelope_id: str, recipients: list[EsignRecipientInput],
+        template_id: Optional[str] = None,
+    ) -> EsignEnvelopeResponse:
+        if not recipients:
+            raise EsignError("At least one recipient is required")
+        if len(recipients) > MAX_RECIPIENTS:
+            raise EsignError(f"At most {MAX_RECIPIENTS} recipients per envelope")
+
+        emails = [_normalize_email(r.email) for r in recipients]
+        if len(set(emails)) != len(emails):
+            raise EsignError("Duplicate recipient emails are not allowed")
+        if not any(r.role == EsignRecipientRole.SIGNER.value for r in recipients):
+            raise EsignError("At least one recipient must be a signer")
+
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            self._require_draft(envelope)
+
+            # Replacing recipients drops existing fields (they reference recipients).
+            db.query(EsignField).filter(EsignField.envelope_id == envelope.id).delete()
+            db.query(EsignRecipient).filter(EsignRecipient.envelope_id == envelope.id).delete()
+            db.flush()
+
+            for r in recipients:
+                if r.role not in (EsignRecipientRole.SIGNER.value, EsignRecipientRole.CC.value):
+                    raise EsignError(f"Invalid recipient role: {r.role}")
+                db.add(
+                    EsignRecipient(
+                        id=uuid.uuid4(),
+                        envelope_id=envelope.id,
+                        email=_normalize_email(r.email),
+                        name=r.name.strip()[:255],
+                        role=EsignRecipientRole(r.role),
+                        routing_order=int(r.routing_order),
+                        status=EsignRecipientStatus.PENDING,
+                    )
+                )
+            db.flush()
+            db.expire(envelope, ["recipients", "fields"])
+
+            if template_id:
+                template = self._load_template(db, user_id, template_id)
+                self.instantiate_template_fields(db, envelope, template)
+                db.expire(envelope, ["fields"])
+
+            db.commit()
+            db.refresh(envelope)
+            return self._serialize_envelope(envelope)
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    def replace_fields(
+        self, user_id: str, envelope_id: str, fields: list[EsignFieldInput]
+    ) -> EsignEnvelopeResponse:
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            self._require_draft(envelope)
+
+            doc_ids = {str(d.id): d for d in envelope.documents or []}
+            recipient_ids = {str(r.id): r for r in envelope.recipients or []}
+
+            db.query(EsignField).filter(EsignField.envelope_id == envelope.id).delete()
+            db.flush()
+
+            for f in fields:
+                doc = doc_ids.get(str(f.document_id))
+                if not doc:
+                    raise EsignError(f"Unknown document_id: {f.document_id}")
+                recipient = recipient_ids.get(str(f.recipient_id))
+                if not recipient:
+                    raise EsignError(f"Unknown recipient_id: {f.recipient_id}")
+                if recipient.role == EsignRecipientRole.CC:
+                    raise EsignError("Fields cannot be assigned to CC recipients")
+                if f.field_type not in {t.value for t in EsignFieldType}:
+                    raise EsignError(f"Invalid field type: {f.field_type}")
+                if f.page_number >= (doc.page_count or 0):
+                    raise EsignError(
+                        f"Field page {f.page_number + 1} is beyond '{doc.original_filename}' ({doc.page_count} pages)"
+                    )
+                if f.pos_x + f.width > 1.0001 or f.pos_y + f.height > 1.0001:
+                    raise EsignError("Field extends beyond the page bounds")
+                db.add(
+                    EsignField(
+                        id=uuid.uuid4(),
+                        envelope_id=envelope.id,
+                        document_id=doc.id,
+                        recipient_id=recipient.id,
+                        field_type=EsignFieldType(f.field_type),
+                        page_number=f.page_number,
+                        pos_x=f.pos_x,
+                        pos_y=f.pos_y,
+                        width=f.width,
+                        height=f.height,
+                        required=f.required,
+                        label=f.label,
+                    )
+                )
+            db.commit()
+            db.expire(envelope, ["fields"])
+            db.refresh(envelope)
+            return self._serialize_envelope(envelope)
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    def list_envelopes(
+        self, user_id: str, *, limit: int = 25, offset: int = 0, status: Optional[str] = None
+    ) -> EsignEnvelopeListResponse:
+        db = self._get_session()
+        try:
+            query = db.query(EsignEnvelope).filter(EsignEnvelope.user_id == user_id)
+            if status:
+                try:
+                    query = query.filter(EsignEnvelope.status == EsignEnvelopeStatus(status))
+                except ValueError:
+                    raise EsignError(f"Invalid status filter: {status}")
+            total = query.count()
+            envelopes = (
+                query.options(joinedload(EsignEnvelope.recipients), joinedload(EsignEnvelope.documents))
+                .order_by(EsignEnvelope.created_at.desc())
+                .limit(limit)
+                .offset(offset)
+                .all()
+            )
+            items = []
+            for env in envelopes:
+                signers = [r for r in (env.recipients or []) if r.role == EsignRecipientRole.SIGNER]
+                items.append(
+                    EsignEnvelopeListItem(
+                        id=str(env.id),
+                        title=env.title,
+                        status=env.status.value if hasattr(env.status, "value") else str(env.status),
+                        signing_type=env.signing_type.value if hasattr(env.signing_type, "value") else str(env.signing_type),
+                        recipient_count=len(signers),
+                        signed_count=len([r for r in signers if r.status == EsignRecipientStatus.SIGNED]),
+                        document_count=len(env.documents or []),
+                        expires_at=env.expires_at,
+                        sent_at=env.sent_at,
+                        completed_at=env.completed_at,
+                        created_at=env.created_at,
+                        updated_at=env.updated_at,
+                    )
+                )
+            return EsignEnvelopeListResponse(envelopes=items, total=total, limit=limit, offset=offset)
+        finally:
+            db.close()
+
+    def get_envelope(self, user_id: str, envelope_id: str) -> EsignEnvelopeResponse:
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            return self._serialize_envelope(envelope)
+        finally:
+            db.close()
+
+    def get_audit_trail(self, user_id: str, envelope_id: str) -> EsignAuditTrailResponse:
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            events = (
+                db.query(EsignEvent)
+                .filter(EsignEvent.envelope_id == envelope.id)
+                .order_by(EsignEvent.created_at.asc())
+                .all()
+            )
+            return EsignAuditTrailResponse(
+                envelope_id=str(envelope.id),
+                events=[self._serialize_event(e) for e in events],
+            )
+        finally:
+            db.close()
+
+    # ------------------------------------------------------------------
+    # Downloads
+    # ------------------------------------------------------------------
+
+    async def get_document_download(
+        self, user_id: str, envelope_id: str, document_id: str
+    ) -> EsignDownloadResponse:
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            document = next((d for d in envelope.documents if str(d.id) == str(document_id)), None)
+            if not document:
+                raise EsignNotFound("Document not found")
+            url = await self.storage.generate_presigned_get_url(
+                document.gcs_object_name,
+                expiration_minutes=DOWNLOAD_URL_MINUTES,
+                download_filename=document.original_filename,
+            )
+            return EsignDownloadResponse(
+                url=url,
+                filename=document.original_filename,
+                sha256=document.original_sha256,
+                expires_in_minutes=DOWNLOAD_URL_MINUTES,
+            )
+        finally:
+            db.close()
+
+    async def get_sealed_download(self, user_id: str, envelope_id: str) -> EsignDownloadResponse:
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            if not envelope.sealed_gcs_object_name:
+                raise EsignNotFound("Envelope has not been sealed yet")
+            filename = f"{envelope.title or 'envelope'} - signed.pdf"
+            url = await self.storage.generate_presigned_get_url(
+                envelope.sealed_gcs_object_name,
+                expiration_minutes=DOWNLOAD_URL_MINUTES,
+                download_filename=filename,
+            )
+            return EsignDownloadResponse(
+                url=url, filename=filename, sha256=envelope.sealed_sha256,
+                expires_in_minutes=DOWNLOAD_URL_MINUTES,
+            )
+        finally:
+            db.close()
+
+    async def get_certificate_download(self, user_id: str, envelope_id: str) -> EsignDownloadResponse:
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            if not envelope.certificate_gcs_object_name:
+                raise EsignNotFound("Certificate of completion is not available yet")
+            filename = f"{envelope.title or 'envelope'} - certificate of completion.pdf"
+            url = await self.storage.generate_presigned_get_url(
+                envelope.certificate_gcs_object_name,
+                expiration_minutes=DOWNLOAD_URL_MINUTES,
+                download_filename=filename,
+            )
+            return EsignDownloadResponse(
+                url=url, filename=filename, sha256=None, expires_in_minutes=DOWNLOAD_URL_MINUTES,
+            )
+        finally:
+            db.close()
+
+    # ------------------------------------------------------------------
+    # Templates
+    # ------------------------------------------------------------------
+
+    def _load_template(self, db: Session, user_id: str, template_id: str) -> EsignTemplate:
+        try:
+            tid = uuid.UUID(str(template_id))
+        except ValueError:
+            raise EsignNotFound("Template not found")
+        template = (
+            db.query(EsignTemplate)
+            .options(joinedload(EsignTemplate.documents), joinedload(EsignTemplate.fields))
+            .filter(EsignTemplate.id == tid, EsignTemplate.user_id == user_id)
+            .first()
+        )
+        if not template:
+            raise EsignNotFound("Template not found")
+        return template
+
+    def _serialize_template(self, template: EsignTemplate) -> EsignTemplateResponse:
+        return EsignTemplateResponse(
+            id=str(template.id),
+            name=template.name,
+            description=template.description,
+            title=template.title,
+            message=template.message,
+            signing_type=template.signing_type.value if hasattr(template.signing_type, "value") else str(template.signing_type),
+            recipient_roles=template.recipient_roles if isinstance(template.recipient_roles, list) else [],
+            documents=[
+                EsignTemplateDocumentResponse(
+                    id=str(d.id),
+                    display_order=int(d.display_order or 0),
+                    original_filename=d.original_filename,
+                    sha256=d.sha256,
+                    page_count=int(d.page_count or 0),
+                    file_size_bytes=int(d.file_size_bytes or 0),
+                )
+                for d in (template.documents or [])
+            ],
+            fields=[
+                EsignTemplateFieldResponse(
+                    id=str(f.id),
+                    template_document_id=str(f.template_document_id),
+                    recipient_index=int(f.recipient_index),
+                    field_type=f.field_type.value if hasattr(f.field_type, "value") else str(f.field_type),
+                    page_number=int(f.page_number),
+                    pos_x=float(f.pos_x),
+                    pos_y=float(f.pos_y),
+                    width=float(f.width),
+                    height=float(f.height),
+                    required=bool(f.required),
+                    label=f.label,
+                )
+                for f in (template.fields or [])
+            ],
+            created_at=template.created_at,
+            updated_at=template.updated_at,
+        )
+
+    async def create_template(
+        self,
+        *,
+        user_id: str,
+        name: str,
+        description: Optional[str],
+        title: Optional[str],
+        message: Optional[str],
+        signing_type: Optional[str],
+        recipient_roles: list[EsignTemplateRoleInput],
+        files: list[tuple[str, bytes]],
+    ) -> EsignTemplateResponse:
+        if not name or not name.strip():
+            raise EsignError("Template name is required")
+        if not files:
+            raise EsignError("At least one PDF is required")
+        if not recipient_roles:
+            recipient_roles = [EsignTemplateRoleInput(label="Signer 1", role="signer", routing_order=1)]
+
+        db = self._get_session()
+        try:
+            template = EsignTemplate(
+                id=uuid.uuid4(),
+                user_id=user_id,
+                name=name.strip()[:255],
+                description=description,
+                title=title,
+                message=message,
+                signing_type=EsignSigningType(signing_type) if signing_type else EsignSigningType.SEQUENTIAL,
+                recipient_roles=[r.model_dump() for r in recipient_roles],
+            )
+            db.add(template)
+            db.flush()
+
+            for order, (filename, content) in enumerate(files):
+                if len(content) > MAX_DOCUMENT_BYTES:
+                    raise EsignError(f"'{filename}' exceeds the {MAX_DOCUMENT_BYTES // (1024 * 1024)}MB limit")
+                page_count = _validate_pdf(content, filename)
+                object_name = f"esign_templates/{user_id}/{template.id}/{uuid.uuid4()}_{os.path.basename(filename)}"
+                await self.storage.upload_file_content(content, object_name)
+                db.add(
+                    EsignTemplateDocument(
+                        id=uuid.uuid4(),
+                        template_id=template.id,
+                        display_order=order,
+                        original_filename=os.path.basename(filename),
+                        gcs_object_name=object_name,
+                        sha256=sha256_hex(content),
+                        page_count=page_count,
+                        file_size_bytes=len(content),
+                    )
+                )
+            db.commit()
+            db.refresh(template)
+            return self._serialize_template(template)
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    def update_template(
+        self,
+        user_id: str,
+        template_id: str,
+        *,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        title: Optional[str] = None,
+        message: Optional[str] = None,
+        signing_type: Optional[str] = None,
+        recipient_roles: Optional[list[EsignTemplateRoleInput]] = None,
+        fields: Optional[list[EsignTemplateFieldInput]] = None,
+    ) -> EsignTemplateResponse:
+        db = self._get_session()
+        try:
+            template = self._load_template(db, user_id, template_id)
+            if name is not None:
+                template.name = name.strip()[:255] or template.name
+            if description is not None:
+                template.description = description
+            if title is not None:
+                template.title = title
+            if message is not None:
+                template.message = message
+            if signing_type is not None:
+                template.signing_type = EsignSigningType(signing_type)
+            if recipient_roles is not None:
+                template.recipient_roles = [r.model_dump() for r in recipient_roles]
+
+            if fields is not None:
+                doc_ids = {str(d.id) for d in template.documents or []}
+                role_count = len(template.recipient_roles or [])
+                db.query(EsignTemplateField).filter(EsignTemplateField.template_id == template.id).delete()
+                db.flush()
+                for f in fields:
+                    if str(f.template_document_id) not in doc_ids:
+                        raise EsignError(f"Unknown template document: {f.template_document_id}")
+                    if f.recipient_index >= role_count:
+                        raise EsignError("Field recipient_index exceeds recipient roles")
+                    if f.field_type not in {t.value for t in EsignFieldType}:
+                        raise EsignError(f"Invalid field type: {f.field_type}")
+                    db.add(
+                        EsignTemplateField(
+                            id=uuid.uuid4(),
+                            template_id=template.id,
+                            template_document_id=uuid.UUID(str(f.template_document_id)),
+                            recipient_index=f.recipient_index,
+                            field_type=EsignFieldType(f.field_type),
+                            page_number=f.page_number,
+                            pos_x=f.pos_x,
+                            pos_y=f.pos_y,
+                            width=f.width,
+                            height=f.height,
+                            required=f.required,
+                            label=f.label,
+                        )
+                    )
+            db.commit()
+            db.expire(template, ["fields"])
+            db.refresh(template)
+            return self._serialize_template(template)
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    def list_templates(self, user_id: str) -> list[EsignTemplateResponse]:
+        db = self._get_session()
+        try:
+            templates = (
+                db.query(EsignTemplate)
+                .options(joinedload(EsignTemplate.documents), joinedload(EsignTemplate.fields))
+                .filter(EsignTemplate.user_id == user_id)
+                .order_by(EsignTemplate.updated_at.desc())
+                .all()
+            )
+            return [self._serialize_template(t) for t in templates]
+        finally:
+            db.close()
+
+    def get_template(self, user_id: str, template_id: str) -> EsignTemplateResponse:
+        db = self._get_session()
+        try:
+            return self._serialize_template(self._load_template(db, user_id, template_id))
+        finally:
+            db.close()
+
+    async def get_template_document_download(
+        self, user_id: str, template_id: str, document_id: str
+    ) -> EsignDownloadResponse:
+        db = self._get_session()
+        try:
+            template = self._load_template(db, user_id, template_id)
+            document = next((d for d in template.documents if str(d.id) == str(document_id)), None)
+            if not document:
+                raise EsignNotFound("Template document not found")
+            url = await self.storage.generate_presigned_get_url(
+                document.gcs_object_name,
+                expiration_minutes=DOWNLOAD_URL_MINUTES,
+                download_filename=document.original_filename,
+            )
+            return EsignDownloadResponse(
+                url=url,
+                filename=document.original_filename,
+                sha256=document.sha256,
+                expires_in_minutes=DOWNLOAD_URL_MINUTES,
+            )
+        finally:
+            db.close()
+
+    def delete_template(self, user_id: str, template_id: str) -> None:
+        db = self._get_session()
+        try:
+            template = self._load_template(db, user_id, template_id)
+            db.delete(template)
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    async def save_envelope_as_template(
+        self, user_id: str, envelope_id: str, *, name: str, description: Optional[str] = None
+    ) -> EsignTemplateResponse:
+        """Snapshot a draft/sent envelope's documents + field layout as a template."""
+        if not name or not name.strip():
+            raise EsignError("Template name is required")
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            recipients = sorted(
+                [r for r in (envelope.recipients or [])],
+                key=lambda r: (r.routing_order, r.created_at),
+            )
+            recipient_index_by_id = {str(r.id): idx for idx, r in enumerate(recipients)}
+            roles = [
+                {
+                    "label": r.name or f"Signer {idx + 1}",
+                    "role": r.role.value if hasattr(r.role, "value") else str(r.role),
+                    "routing_order": int(r.routing_order),
+                }
+                for idx, r in enumerate(recipients)
+            ]
+
+            template = EsignTemplate(
+                id=uuid.uuid4(),
+                user_id=user_id,
+                name=name.strip()[:255],
+                description=description,
+                title=envelope.title,
+                message=envelope.message,
+                signing_type=envelope.signing_type,
+                recipient_roles=roles,
+            )
+            db.add(template)
+            db.flush()
+
+            tdoc_by_envelope_doc: dict[str, EsignTemplateDocument] = {}
+            for doc in envelope.documents or []:
+                object_name = (
+                    f"esign_templates/{user_id}/{template.id}/{uuid.uuid4()}_{os.path.basename(doc.original_filename)}"
+                )
+                # Template shares bytes with the envelope original; copy within GCS
+                # before committing so a failed copy aborts the whole save.
+                await self.storage.copy_object(doc.gcs_object_name, object_name)
+                tdoc = EsignTemplateDocument(
+                    id=uuid.uuid4(),
+                    template_id=template.id,
+                    display_order=doc.display_order,
+                    original_filename=doc.original_filename,
+                    gcs_object_name=object_name,
+                    sha256=doc.original_sha256,
+                    page_count=doc.page_count,
+                    file_size_bytes=doc.file_size_bytes,
+                )
+                db.add(tdoc)
+                tdoc_by_envelope_doc[str(doc.id)] = tdoc
+            db.flush()
+
+            for field in envelope.fields or []:
+                idx = recipient_index_by_id.get(str(field.recipient_id))
+                tdoc = tdoc_by_envelope_doc.get(str(field.document_id))
+                if idx is None or tdoc is None:
+                    continue
+                db.add(
+                    EsignTemplateField(
+                        id=uuid.uuid4(),
+                        template_id=template.id,
+                        template_document_id=tdoc.id,
+                        recipient_index=idx,
+                        field_type=field.field_type,
+                        page_number=field.page_number,
+                        pos_x=field.pos_x,
+                        pos_y=field.pos_y,
+                        width=field.width,
+                        height=field.height,
+                        required=field.required,
+                        label=field.label,
+                    )
+                )
+            db.commit()
+            db.refresh(template)
+            return self._serialize_template(template)
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+esign_envelope_service = EsignEnvelopeService()

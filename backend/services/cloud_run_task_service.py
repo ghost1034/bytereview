@@ -211,6 +211,20 @@ class CloudRunTaskService:
             dispatch_deadline_seconds=self.extract_dispatch_deadline_seconds,
         )
 
+    async def enqueue_envelope_seal_task(self, envelope_id: str, delay_seconds: int = 0) -> str:
+        """Enqueue e-sign envelope sealing (flatten + certificate + PAdES seal)."""
+        task_data = {
+            "task_type": "process_envelope_seal",
+            "envelope_id": str(envelope_id) if envelope_id is not None else None,
+        }
+
+        return await self._create_cloud_task(
+            queue_name=self.queue_names["io"],
+            service_url=f"{self.task_services['io']}/execute",
+            task_data=task_data,
+            delay_seconds=delay_seconds,
+        )
+
     async def enqueue_zip_unpack_task(
         self, 
         source_file_id: str, 

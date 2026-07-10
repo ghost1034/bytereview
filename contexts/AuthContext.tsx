@@ -90,6 +90,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return
     }
 
+    // Don't clobber a deep link stashed by AuthGuard (e.g. an e-sign signing
+    // page the user opened from an email while logged out) with the default
+    // destination when the sign-in method wasn't given an explicit target.
+    if (!redirectTo && sessionStorage.getItem(POST_AUTH_REDIRECT_STORAGE_KEY)) {
+      return
+    }
+
     sessionStorage.setItem(
       POST_AUTH_REDIRECT_STORAGE_KEY,
       normalizeAuthRedirectPath(redirectTo),

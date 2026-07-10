@@ -129,7 +129,7 @@ async def on_shutdown():
 # ---------- Routers (import after app/init so import errors are logged nicely) ----------
 from routes import (
     users, jobs, stripe_routes, templates,
-    data_types, integrations, automations, webhooks, admin, billing, contact, cpe, form_fill,
+    data_types, integrations, automations, webhooks, admin, billing, contact, cpe, form_fill, esign,
     analytics_firms, analytics_clients, analytics_research,
     analytics_assistant, analytics_waterfall, analytics_amortization,
     analytics_reconciliation, analytics_variance, analytics_comments, activation,
@@ -150,6 +150,7 @@ app.include_router(webhooks.router)
 app.include_router(admin.router)
 app.include_router(contact.router)
 app.include_router(form_fill.router, prefix="/api/form-fill", tags=["form-fill"])
+app.include_router(esign.router, prefix="/api/esign", tags=["esign"])
 app.include_router(inkwise_router, prefix="/api/inkwise")
 app.include_router(analytics_firms.router)
 app.include_router(analytics_clients.router)

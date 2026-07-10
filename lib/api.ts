@@ -2109,6 +2109,216 @@ export class ApiClient {
     return { blob, filename: filename.replace(/"/g, '') }
   }
 
+  // ==========================================================================
+  // E-Signature endpoints
+  // ==========================================================================
+
+  private async requestMultipart<T>(path: string, formData: FormData): Promise<T> {
+    const token = await this.getAuthToken()
+    const response = await fetch(`${this.baseURL}${path}`, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      let body: any = null
+      let message = `HTTP ${response.status}`
+      try {
+        body = await response.json()
+        message = body?.detail || body?.message || message
+      } catch {
+        try {
+          const text = await response.text()
+          if (text) message = text
+        } catch {
+          // ignore
+        }
+      }
+      throw new ApiError(response.status, message, body)
+    }
+
+    return response.json()
+  }
+
+  async createEsignEnvelope(params: {
+    title?: string
+    message?: string
+    signingType?: string
+    expiresInDays?: number
+    reminderIntervalHours?: number
+    templateId?: string
+    files?: File[]
+  }): Promise<EsignEnvelopeCreateResponse> {
+    const formData = new FormData()
+    if (params.title) formData.append('title', params.title)
+    if (params.message) formData.append('message', params.message)
+    if (params.signingType) formData.append('signing_type', params.signingType)
+    if (params.expiresInDays !== undefined) formData.append('expires_in_days', String(params.expiresInDays))
+    if (params.reminderIntervalHours !== undefined) {
+      formData.append('reminder_interval_hours', String(params.reminderIntervalHours))
+    }
+    if (params.templateId) formData.append('template_id', params.templateId)
+    params.files?.forEach((file) => formData.append('files', file))
+    return this.requestMultipart('/api/esign/envelopes', formData)
+  }
+
+  async listEsignEnvelopes(limit = 25, offset = 0, status?: string): Promise<EsignEnvelopeListResponse> {
+    const searchParams = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+    if (status) searchParams.set('status', status)
+    return this.request(`/api/esign/envelopes?${searchParams.toString()}`)
+  }
+
+  async getEsignEnvelope(envelopeId: string): Promise<EsignEnvelopeResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}`)
+  }
+
+  async updateEsignEnvelope(envelopeId: string, payload: EsignEnvelopeUpdateRequest): Promise<EsignEnvelopeResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async replaceEsignRecipients(
+    envelopeId: string,
+    recipients: EsignRecipientInput[],
+    templateId?: string
+  ): Promise<EsignEnvelopeResponse> {
+    const query = templateId ? `?template_id=${encodeURIComponent(templateId)}` : ''
+    return this.request(`/api/esign/envelopes/${envelopeId}/recipients${query}`, {
+      method: 'PUT',
+      body: JSON.stringify({ recipients }),
+    })
+  }
+
+  async replaceEsignFields(envelopeId: string, fields: EsignFieldInput[]): Promise<EsignEnvelopeResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/fields`, {
+      method: 'PUT',
+      body: JSON.stringify({ fields }),
+    })
+  }
+
+  async sendEsignEnvelope(envelopeId: string): Promise<EsignEnvelopeResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/send`, { method: 'POST', body: '{}' })
+  }
+
+  async voidEsignEnvelope(envelopeId: string, reason: string): Promise<EsignEnvelopeResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/void`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    })
+  }
+
+  async remindEsignEnvelope(envelopeId: string): Promise<{ reminded: string[] }> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/remind`, { method: 'POST', body: '{}' })
+  }
+
+  async saveEsignEnvelopeAsTemplate(
+    envelopeId: string,
+    name: string,
+    description?: string
+  ): Promise<EsignTemplateResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/save-as-template`, {
+      method: 'POST',
+      body: JSON.stringify({ name, description }),
+    })
+  }
+
+  async getEsignAuditTrail(envelopeId: string): Promise<EsignAuditTrailResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/audit`)
+  }
+
+  async getEsignDocumentDownload(envelopeId: string, documentId: string): Promise<EsignDownloadResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/documents/${documentId}/download`)
+  }
+
+  async getEsignSealedDownload(envelopeId: string): Promise<EsignDownloadResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/sealed/download`)
+  }
+
+  async getEsignCertificateDownload(envelopeId: string): Promise<EsignDownloadResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/certificate/download`)
+  }
+
+  async getEsignInbox(): Promise<EsignInboxResponse> {
+    return this.request('/api/esign/inbox')
+  }
+
+  async getEsignSigningSession(envelopeId: string): Promise<EsignSigningSessionResponse> {
+    return this.request(`/api/esign/sign/${envelopeId}`)
+  }
+
+  async recordEsignConsent(envelopeId: string): Promise<EsignConsentResponse> {
+    return this.request(`/api/esign/sign/${envelopeId}/consent`, { method: 'POST', body: '{}' })
+  }
+
+  async submitEsignSignature(envelopeId: string, payload: EsignSubmitRequest): Promise<EsignSubmitResponse> {
+    return this.request(`/api/esign/sign/${envelopeId}/submit`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async declineEsignEnvelope(envelopeId: string, reason: string): Promise<EsignSubmitResponse> {
+    return this.request(`/api/esign/sign/${envelopeId}/decline`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    })
+  }
+
+  async verifyEsignDocument(params: { envelopeId?: string; file?: File }): Promise<EsignVerifyResponse> {
+    const formData = new FormData()
+    if (params.envelopeId) formData.append('envelope_id', params.envelopeId)
+    if (params.file) formData.append('file', params.file)
+    return this.requestMultipart('/api/esign/verify', formData)
+  }
+
+  async createEsignTemplate(params: {
+    name: string
+    description?: string
+    title?: string
+    message?: string
+    signingType?: string
+    recipientRoles?: EsignTemplateRoleInput[]
+    files: File[]
+  }): Promise<EsignTemplateResponse> {
+    const formData = new FormData()
+    formData.append('name', params.name)
+    if (params.description) formData.append('description', params.description)
+    if (params.title) formData.append('title', params.title)
+    if (params.message) formData.append('message', params.message)
+    if (params.signingType) formData.append('signing_type', params.signingType)
+    if (params.recipientRoles) formData.append('recipient_roles', JSON.stringify(params.recipientRoles))
+    params.files.forEach((file) => formData.append('files', file))
+    return this.requestMultipart('/api/esign/templates', formData)
+  }
+
+  async listEsignTemplates(): Promise<EsignTemplateListResponse> {
+    return this.request('/api/esign/templates')
+  }
+
+  async getEsignTemplate(templateId: string): Promise<EsignTemplateResponse> {
+    return this.request(`/api/esign/templates/${templateId}`)
+  }
+
+  async updateEsignTemplate(templateId: string, payload: EsignTemplateUpdateRequest): Promise<EsignTemplateResponse> {
+    return this.request(`/api/esign/templates/${templateId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async deleteEsignTemplate(templateId: string): Promise<{ message: string }> {
+    return this.request(`/api/esign/templates/${templateId}`, { method: 'DELETE' })
+  }
+
+  async getEsignTemplateDocumentDownload(templateId: string, documentId: string): Promise<EsignDownloadResponse> {
+    return this.request(`/api/esign/templates/${templateId}/documents/${documentId}/download`)
+  }
+
 }
 
 export interface AnalyticsStreamUsage {
@@ -2140,6 +2350,39 @@ export interface AnalyticsStreamHandlers {
   onGrounding?: (grounding: AnalyticsStreamGrounding) => void
   onError?: (message: string) => void
 }
+
+// ---------------------------------------------------------------------------
+// E-Signature types (from generated OpenAPI schemas)
+// ---------------------------------------------------------------------------
+import type { components as apiComponents } from './api-types'
+
+export type EsignEnvelopeResponse = apiComponents['schemas']['EsignEnvelopeResponse']
+export type EsignEnvelopeCreateResponse = apiComponents['schemas']['EsignEnvelopeCreateResponse']
+export type EsignEnvelopeListResponse = apiComponents['schemas']['EsignEnvelopeListResponse']
+export type EsignEnvelopeListItem = apiComponents['schemas']['EsignEnvelopeListItem']
+export type EsignEnvelopeUpdateRequest = apiComponents['schemas']['EsignEnvelopeUpdateRequest']
+export type EsignRecipientInput = apiComponents['schemas']['EsignRecipientInput']
+export type EsignRecipientResponse = apiComponents['schemas']['EsignRecipientResponse']
+export type EsignFieldInput = apiComponents['schemas']['EsignFieldInput']
+export type EsignFieldResponse = apiComponents['schemas']['EsignFieldResponse']
+export type EsignDocumentResponse = apiComponents['schemas']['EsignDocumentResponse']
+export type EsignAuditTrailResponse = apiComponents['schemas']['EsignAuditTrailResponse']
+export type EsignEventResponse = apiComponents['schemas']['EsignEventResponse']
+export type EsignDownloadResponse = apiComponents['schemas']['EsignDownloadResponse']
+export type EsignInboxResponse = apiComponents['schemas']['EsignInboxResponse']
+export type EsignInboxItem = apiComponents['schemas']['EsignInboxItem']
+export type EsignSigningSessionResponse = apiComponents['schemas']['EsignSigningSessionResponse']
+export type EsignSigningDocument = apiComponents['schemas']['EsignSigningDocument']
+export type EsignConsentResponse = apiComponents['schemas']['EsignConsentResponse']
+export type EsignSubmitRequest = apiComponents['schemas']['EsignSubmitRequest']
+export type EsignSubmitResponse = apiComponents['schemas']['EsignSubmitResponse']
+export type EsignSignatureInput = apiComponents['schemas']['EsignSignatureInput']
+export type EsignVerifyResponse = apiComponents['schemas']['EsignVerifyResponse']
+export type EsignTemplateResponse = apiComponents['schemas']['EsignTemplateResponse']
+export type EsignTemplateListResponse = apiComponents['schemas']['EsignTemplateListResponse']
+export type EsignTemplateRoleInput = apiComponents['schemas']['EsignTemplateRoleInput']
+export type EsignTemplateUpdateRequest = apiComponents['schemas']['EsignTemplateUpdateRequest']
+export type EsignTemplateFieldInput = apiComponents['schemas']['EsignTemplateFieldInput']
 
 export const apiClient = new ApiClient()
 

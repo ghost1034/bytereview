@@ -1125,6 +1125,383 @@ class ChronaTimelineCard(Base):
     )
 
 
+# ===================================================================
+# E-Signature (esign) enums
+# ===================================================================
+
+
+class EsignEnvelopeStatus(str, enum.Enum):
+    DRAFT = "draft"
+    SENT = "sent"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    DECLINED = "declined"
+    VOIDED = "voided"
+    EXPIRED = "expired"
+
+
+class EsignSigningType(str, enum.Enum):
+    SEQUENTIAL = "sequential"
+    PARALLEL = "parallel"
+
+
+class EsignRecipientRole(str, enum.Enum):
+    SIGNER = "signer"
+    CC = "cc"
+
+
+class EsignRecipientStatus(str, enum.Enum):
+    PENDING = "pending"
+    NOTIFIED = "notified"
+    VIEWED = "viewed"
+    CONSENTED = "consented"
+    SIGNED = "signed"
+    DECLINED = "declined"
+
+
+class EsignFieldType(str, enum.Enum):
+    SIGNATURE = "signature"
+    INITIALS = "initials"
+    DATE_SIGNED = "date_signed"
+    TEXT = "text"
+    CHECKBOX = "checkbox"
+
+
+class EsignSignatureType(str, enum.Enum):
+    DRAWN = "drawn"
+    TYPED = "typed"
+
+
+class EsignEventType(str, enum.Enum):
+    CREATED = "created"
+    SENT = "sent"
+    VIEWED = "viewed"
+    CONSENT_GIVEN = "consent_given"
+    SIGNED = "signed"
+    DECLINED = "declined"
+    VOIDED = "voided"
+    COMPLETED = "completed"
+    REMINDER_SENT = "reminder_sent"
+    SEALED = "sealed"
+    EXPIRED = "expired"
+
+
+def _esign_enum(enum_cls, type_name: str):
+    return Enum(
+        enum_cls,
+        name=type_name,
+        create_type=False,
+        values_callable=lambda x: [e.value for e in x],
+    )
+
+
+# ===================================================================
+# E-Signature (esign) models
+# ===================================================================
+
+
+class EsignEnvelope(Base):
+    """An e-signature envelope: one or more PDFs sent for signing.
+
+    Envelopes are never hard-deleted (void instead) — the append-only
+    esign_events audit trail references them with ondelete=RESTRICT, which is
+    the legally correct retention behavior for signed documents.
+    """
+    __tablename__ = "esign_envelopes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    title = Column(String(255), nullable=False)
+    message = Column(Text, nullable=True)
+    status = Column(
+        _esign_enum(EsignEnvelopeStatus, "esign_envelope_status"),
+        nullable=False,
+        server_default=EsignEnvelopeStatus.DRAFT.value,
+    )
+    signing_type = Column(
+        _esign_enum(EsignSigningType, "esign_signing_type"),
+        nullable=False,
+        server_default=EsignSigningType.SEQUENTIAL.value,
+    )
+    current_routing_order = Column(Integer, nullable=True)  # set when sent
+    # Snapshot of the ESIGN/UETA consent disclosure shown to signers; immutable
+    # per envelope so consent records can be tied to the exact text.
+    consent_disclosure_text = Column(Text, nullable=False)
+    expires_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    reminder_interval_hours = Column(Integer, nullable=True)
+    last_reminder_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    voided_reason = Column(Text, nullable=True)
+    sealed_gcs_object_name = Column(Text, nullable=True)
+    sealed_sha256 = Column(String(64), nullable=True)
+    certificate_gcs_object_name = Column(Text, nullable=True)
+    sent_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    voided_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+    documents = relationship(
+        "EsignDocument",
+        back_populates="envelope",
+        cascade="all, delete-orphan",
+        order_by="EsignDocument.display_order",
+    )
+    recipients = relationship(
+        "EsignRecipient",
+        back_populates="envelope",
+        cascade="all, delete-orphan",
+        order_by="EsignRecipient.routing_order",
+    )
+    fields = relationship("EsignField", back_populates="envelope", cascade="all, delete-orphan")
+    events = relationship(
+        "EsignEvent",
+        back_populates="envelope",
+        order_by="EsignEvent.created_at",
+    )
+
+    __table_args__ = (
+        Index("ix_esign_envelopes_user_created", "user_id", "created_at"),
+    )
+
+
+class EsignDocument(Base):
+    """A single PDF within an envelope. The original object is immutable."""
+    __tablename__ = "esign_documents"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="CASCADE"), nullable=False)
+    display_order = Column(Integer, nullable=False, default=0)
+    original_filename = Column(Text, nullable=False)
+    gcs_object_name = Column(Text, unique=True, nullable=False)
+    original_sha256 = Column(String(64), nullable=False)
+    flattened_gcs_object_name = Column(Text, nullable=True)
+    flattened_sha256 = Column(String(64), nullable=True)
+    page_count = Column(Integer, nullable=False)
+    file_size_bytes = Column(BigInteger, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    envelope = relationship("EsignEnvelope", back_populates="documents")
+    fields = relationship("EsignField", back_populates="document", cascade="all, delete-orphan")
+
+
+class EsignRecipient(Base):
+    """A signer or CC party on an envelope, keyed by lowercased email."""
+    __tablename__ = "esign_recipients"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="CASCADE"), nullable=False)
+    email = Column(String(255), nullable=False)  # always lowercased
+    name = Column(String(255), nullable=False)
+    # Resolved lazily on the recipient's first authenticated access.
+    recipient_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    role = Column(
+        _esign_enum(EsignRecipientRole, "esign_recipient_role"),
+        nullable=False,
+        server_default=EsignRecipientRole.SIGNER.value,
+    )
+    routing_order = Column(Integer, nullable=False, default=1)
+    status = Column(
+        _esign_enum(EsignRecipientStatus, "esign_recipient_status"),
+        nullable=False,
+        server_default=EsignRecipientStatus.PENDING.value,
+    )
+    viewed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    consented_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    signed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    declined_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    declined_reason = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    envelope = relationship("EsignEnvelope", back_populates="recipients")
+    fields = relationship("EsignField", back_populates="recipient", cascade="all, delete-orphan")
+    signature_records = relationship("EsignSignatureRecord", back_populates="recipient")
+    consent_records = relationship("EsignConsentRecord", back_populates="recipient")
+
+    __table_args__ = (
+        Index("uq_esign_recipients_envelope_email", "envelope_id", "email", unique=True),
+        Index("ix_esign_recipients_email", "email"),
+    )
+
+
+class EsignField(Base):
+    """A placed input field. Coordinates are fractions of page size (0..1),
+    top-left origin; page_number is a 0-based page index within the document."""
+    __tablename__ = "esign_fields"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="CASCADE"), nullable=False)
+    document_id = Column(UUID(as_uuid=True), ForeignKey("esign_documents.id", ondelete="CASCADE"), nullable=False)
+    recipient_id = Column(UUID(as_uuid=True), ForeignKey("esign_recipients.id", ondelete="CASCADE"), nullable=False)
+    field_type = Column(_esign_enum(EsignFieldType, "esign_field_type"), nullable=False)
+    page_number = Column(Integer, nullable=False)  # 0-based page index
+    pos_x = Column(Numeric(12, 10), nullable=False)
+    pos_y = Column(Numeric(12, 10), nullable=False)
+    width = Column(Numeric(12, 10), nullable=False)
+    height = Column(Numeric(12, 10), nullable=False)
+    required = Column(Boolean, nullable=False, default=True, server_default=expression.true())
+    label = Column(String(255), nullable=True)
+    value = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    envelope = relationship("EsignEnvelope", back_populates="fields")
+    document = relationship("EsignDocument", back_populates="fields")
+    recipient = relationship("EsignRecipient", back_populates="fields")
+
+    __table_args__ = (
+        CheckConstraint("pos_x >= 0 AND pos_x <= 1", name="ck_esign_fields_pos_x"),
+        CheckConstraint("pos_y >= 0 AND pos_y <= 1", name="ck_esign_fields_pos_y"),
+        CheckConstraint("width > 0 AND width <= 1", name="ck_esign_fields_width"),
+        CheckConstraint("height > 0 AND height <= 1", name="ck_esign_fields_height"),
+        CheckConstraint("page_number >= 0", name="ck_esign_fields_page_number"),
+        Index("ix_esign_fields_envelope", "envelope_id"),
+    )
+
+
+class EsignSignatureRecord(Base):
+    """The 'Adopt and Sign' artifact for one signer. Never updated/deleted."""
+    __tablename__ = "esign_signature_records"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="RESTRICT"), nullable=False)
+    recipient_id = Column(UUID(as_uuid=True), ForeignKey("esign_recipients.id", ondelete="RESTRICT"), nullable=False)
+    signature_type = Column(_esign_enum(EsignSignatureType, "esign_signature_type"), nullable=False)
+    image_gcs_object_name = Column(Text, nullable=True)
+    image_sha256 = Column(String(64), nullable=True)
+    typed_text = Column(Text, nullable=True)
+    typed_font = Column(String(100), nullable=True)
+    adopted_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    recipient = relationship("EsignRecipient", back_populates="signature_records")
+
+
+class EsignConsentRecord(Base):
+    """ESIGN/UETA consent-to-electronic-records record. Never updated/deleted."""
+    __tablename__ = "esign_consent_records"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="RESTRICT"), nullable=False)
+    recipient_id = Column(UUID(as_uuid=True), ForeignKey("esign_recipients.id", ondelete="RESTRICT"), nullable=False)
+    consent_text_sha256 = Column(String(64), nullable=False)
+    ip_address = Column(String(64), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    consented_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    recipient = relationship("EsignRecipient", back_populates="consent_records")
+
+
+class EsignEvent(Base):
+    """Append-only audit trail. A Postgres trigger (migration 039) raises on
+    any UPDATE or DELETE; envelope FK is RESTRICT so envelopes with history
+    can never be hard-deleted."""
+    __tablename__ = "esign_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="RESTRICT"), nullable=False)
+    event_type = Column(_esign_enum(EsignEventType, "esign_event_type"), nullable=False)
+    actor_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    actor_email = Column(String(255), nullable=True)  # denormalized snapshot
+    recipient_id = Column(UUID(as_uuid=True), ForeignKey("esign_recipients.id", ondelete="SET NULL"), nullable=True)
+    ip_address = Column(String(64), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    mfa_verified = Column(Boolean, nullable=True)
+    mfa_method = Column(String(32), nullable=True)
+    mfa_phone_last4 = Column(String(4), nullable=True)
+    details = Column(JSONB, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    envelope = relationship("EsignEnvelope", back_populates="events")
+
+    __table_args__ = (
+        Index("ix_esign_events_envelope_created", "envelope_id", "created_at"),
+    )
+
+
+class EsignTemplate(Base):
+    """Reusable envelope layout. Fields bind to a recipient role index which is
+    materialized to concrete recipients when an envelope is instantiated."""
+    __tablename__ = "esign_templates"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    title = Column(String(255), nullable=True)  # default envelope title
+    message = Column(Text, nullable=True)  # default envelope message
+    signing_type = Column(
+        _esign_enum(EsignSigningType, "esign_signing_type"),
+        nullable=False,
+        server_default=EsignSigningType.SEQUENTIAL.value,
+    )
+    # Ordered list of recipient roles: [{"label": "Client", "role": "signer", "routing_order": 1}, ...]
+    recipient_roles = Column(JSONB, nullable=False, default=list, server_default=expression.text("'[]'::jsonb"))
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+    documents = relationship(
+        "EsignTemplateDocument",
+        back_populates="template",
+        cascade="all, delete-orphan",
+        order_by="EsignTemplateDocument.display_order",
+    )
+    fields = relationship("EsignTemplateField", back_populates="template", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_esign_templates_user", "user_id"),
+    )
+
+
+class EsignTemplateDocument(Base):
+    __tablename__ = "esign_template_documents"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    template_id = Column(UUID(as_uuid=True), ForeignKey("esign_templates.id", ondelete="CASCADE"), nullable=False)
+    display_order = Column(Integer, nullable=False, default=0)
+    original_filename = Column(Text, nullable=False)
+    gcs_object_name = Column(Text, unique=True, nullable=False)
+    sha256 = Column(String(64), nullable=False)
+    page_count = Column(Integer, nullable=False)
+    file_size_bytes = Column(BigInteger, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    template = relationship("EsignTemplate", back_populates="documents")
+    fields = relationship("EsignTemplateField", back_populates="document", cascade="all, delete-orphan")
+
+
+class EsignTemplateField(Base):
+    """Template field bound to recipient_index into EsignTemplate.recipient_roles."""
+    __tablename__ = "esign_template_fields"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    template_id = Column(UUID(as_uuid=True), ForeignKey("esign_templates.id", ondelete="CASCADE"), nullable=False)
+    template_document_id = Column(UUID(as_uuid=True), ForeignKey("esign_template_documents.id", ondelete="CASCADE"), nullable=False)
+    recipient_index = Column(Integer, nullable=False)
+    field_type = Column(_esign_enum(EsignFieldType, "esign_field_type"), nullable=False)
+    page_number = Column(Integer, nullable=False)  # 0-based page index
+    pos_x = Column(Numeric(12, 10), nullable=False)
+    pos_y = Column(Numeric(12, 10), nullable=False)
+    width = Column(Numeric(12, 10), nullable=False)
+    height = Column(Numeric(12, 10), nullable=False)
+    required = Column(Boolean, nullable=False, default=True, server_default=expression.true())
+    label = Column(String(255), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    template = relationship("EsignTemplate", back_populates="fields")
+    document = relationship("EsignTemplateDocument", back_populates="fields")
+
+    __table_args__ = (
+        CheckConstraint("pos_x >= 0 AND pos_x <= 1", name="ck_esign_template_fields_pos_x"),
+        CheckConstraint("pos_y >= 0 AND pos_y <= 1", name="ck_esign_template_fields_pos_y"),
+        CheckConstraint("width > 0 AND width <= 1", name="ck_esign_template_fields_width"),
+        CheckConstraint("height > 0 AND height <= 1", name="ck_esign_template_fields_height"),
+        CheckConstraint("page_number >= 0", name="ck_esign_template_fields_page_number"),
+        CheckConstraint("recipient_index >= 0", name="ck_esign_template_fields_recipient_index"),
+    )
+
+
 class AnalyticsComment(Base):
     """Generic comment thread keyed by (firm_id, entity_type, entity_id).
 
