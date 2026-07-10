@@ -305,7 +305,7 @@ ensure_base_services() {
       --memory=2Gi \
       --cpu=2 \
       --cpu-boost \
-      --min-instances=0 \
+      --min-instances="$API_MIN_INSTANCES" \
       --max-instances=10 \
       --concurrency=40 \
       --timeout="$API_TIMEOUT" \
@@ -330,7 +330,7 @@ ensure_base_services() {
       --memory=1Gi \
       --cpu=1 \
       --cpu-boost \
-      --min-instances=0 \
+      --min-instances="$WEB_MIN_INSTANCES" \
       --max-instances=5 \
       --concurrency=100 \
       --timeout=60 \
@@ -397,7 +397,7 @@ deploy_api() {
     --region="$REGION" \
     --image="$image_url" \
     --cpu-boost \
-    --min-instances=0 \
+    --min-instances="$API_MIN_INSTANCES" \
     --concurrency=40 \
     --timeout="${API_TIMEOUT}" \
     --update-env-vars="$env_vars" \
@@ -415,7 +415,7 @@ deploy_web() {
     --region="$REGION" \
     --image="$image_url" \
     --cpu-boost \
-    --min-instances=0 \
+    --min-instances="$WEB_MIN_INSTANCES" \
     --update-env-vars="NODE_ENV=production" \
     >/dev/null
 
@@ -514,12 +514,16 @@ WEB_SERVICE="cpa-web"
 QUEUE_NAME="inkwise-ingest"
 TASK_TOKEN_SECRET="INKWISE_TASKS_TOKEN"
 MIGRATION_JOB_NAME="cpa-inkwise-migrate"
+API_MIN_INSTANCES=1
+WEB_MIN_INSTANCES=1
 if [ "$ENVIRONMENT" = "staging" ]; then
   API_SERVICE="cpa-api-staging"
   WEB_SERVICE="cpa-web-staging"
   QUEUE_NAME="inkwise-ingest-staging"
   TASK_TOKEN_SECRET="INKWISE_TASKS_TOKEN_STAGING"
   MIGRATION_JOB_NAME="cpa-inkwise-migrate-staging"
+  API_MIN_INSTANCES=0
+  WEB_MIN_INSTANCES=0
 fi
 
 BACKEND_IMAGE="${ARTIFACT_REGISTRY_URL}/backend:${IMAGE_TAG}"
