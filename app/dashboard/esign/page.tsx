@@ -218,7 +218,7 @@ export default function EsignDashboardPage() {
                       onClick={() =>
                         router.push(
                           envelope.status === 'draft'
-                            ? `/dashboard/esign/${envelope.id}/edit`
+                            ? `/dashboard/esign/${envelope.id}/documents`
                             : `/dashboard/esign/${envelope.id}`,
                         )
                       }

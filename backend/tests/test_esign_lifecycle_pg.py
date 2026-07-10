@@ -75,6 +75,9 @@ class _FakeStorage:
     async def generate_presigned_get_url(self, object_name: str, **_kw) -> str:
         return f"https://fake.local/{object_name}"
 
+    async def delete_file(self, object_name: str) -> None:
+        self.objects.pop(object_name, None)
+
 
 def _make_pdf(pages: int = 2) -> bytes:
     import fitz
@@ -278,6 +281,95 @@ class EsignLifecyclePgTests(unittest.TestCase):
             signature_type="drawn",
             image_data_url="data:image/png;base64," + base64.b64encode(png).decode(),
         )
+
+    def test_draft_document_add_and_remove(self) -> None:
+        from models.esign import EsignFieldInput, EsignRecipientInput
+        from services.esign.envelope_service import EsignConflict, EsignError
+
+        envelope = self._run(
+            self.envelope_service.create_envelope(
+                user_id=self.sender_uid,
+                user_email=self.sender_email,
+                title="PG document add/remove test",
+                message=None,
+                signing_type="sequential",
+                files=[("first.pdf", _make_pdf(1))],
+                template_id=None,
+                expires_in_days=10,
+                reminder_interval_hours=None,
+                meta=self.meta,
+            )
+        )
+        self.__class__._created_envelope_ids.append(envelope.id)
+
+        # The only document cannot be removed.
+        with self.assertRaises(EsignError):
+            self._run(
+                self.envelope_service.delete_document(
+                    self.sender_uid, envelope.id, envelope.documents[0].id
+                )
+            )
+
+        envelope = self._run(
+            self.envelope_service.add_documents(
+                self.sender_uid, envelope.id, [("second.pdf", _make_pdf(2))]
+            )
+        )
+        self.assertEqual(len(envelope.documents), 2)
+        self.assertEqual([d.display_order for d in envelope.documents], [0, 1])
+        second = next(d for d in envelope.documents if d.original_filename == "second.pdf")
+        self.assertEqual(second.page_count, 2)
+        self.assertIn(
+            second.original_sha256,
+            {__import__("hashlib").sha256(v).hexdigest() for v in self.storage.objects.values()},
+        )
+
+        # A field on the removed document goes with it; other fields survive.
+        envelope = self.envelope_service.replace_recipients(
+            self.sender_uid,
+            envelope.id,
+            [EsignRecipientInput(email=self.signer1_email, name="Signer One", routing_order=1)],
+        )
+        first = next(d for d in envelope.documents if d.original_filename == "first.pdf")
+        recipient_id = envelope.recipients[0].id
+        self.envelope_service.replace_fields(
+            self.sender_uid,
+            envelope.id,
+            [
+                EsignFieldInput(
+                    document_id=first.id, recipient_id=recipient_id,
+                    field_type="signature", page_number=0,
+                    pos_x=0.1, pos_y=0.7, width=0.3, height=0.05,
+                ),
+                EsignFieldInput(
+                    document_id=second.id, recipient_id=recipient_id,
+                    field_type="signature", page_number=1,
+                    pos_x=0.1, pos_y=0.7, width=0.3, height=0.05,
+                ),
+            ],
+        )
+
+        envelope = self._run(
+            self.envelope_service.delete_document(self.sender_uid, envelope.id, second.id)
+        )
+        self.assertEqual([d.original_filename for d in envelope.documents], ["first.pdf"])
+        self.assertEqual(len(envelope.fields), 1)
+        self.assertEqual(envelope.fields[0].document_id, first.id)
+
+        # Once sent, documents are locked.
+        sent = self._run(
+            self.signing_service.send_envelope(
+                user_id=self.sender_uid, user_email=self.sender_email,
+                envelope_id=envelope.id, meta=self.meta,
+            )
+        )
+        self.assertEqual(sent.status, "sent")
+        with self.assertRaises(EsignConflict):
+            self._run(
+                self.envelope_service.add_documents(
+                    self.sender_uid, envelope.id, [("third.pdf", _make_pdf(1))]
+                )
+            )
 
     def test_full_sequential_lifecycle_with_seal_and_verify(self) -> None:
         from services.esign.envelope_service import EsignConflict, EsignError

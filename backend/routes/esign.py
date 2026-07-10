@@ -251,6 +251,34 @@ async def update_envelope(
         _raise_http(exc)
 
 
+@router.post("/envelopes/{envelope_id}/documents", response_model=EsignEnvelopeResponse)
+async def add_documents(
+    envelope_id: str,
+    files: list[UploadFile] = File(...),
+    token: dict = Depends(verify_firebase_token),
+):
+    """Attach additional PDFs to a draft envelope."""
+    try:
+        return await esign_envelope_service.add_documents(
+            _uid(token), envelope_id, await _read_uploads(files)
+        )
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.delete("/envelopes/{envelope_id}/documents/{document_id}", response_model=EsignEnvelopeResponse)
+async def delete_document(
+    envelope_id: str,
+    document_id: str,
+    token: dict = Depends(verify_firebase_token),
+):
+    """Remove a document (and any fields placed on it) from a draft envelope."""
+    try:
+        return await esign_envelope_service.delete_document(_uid(token), envelope_id, document_id)
+    except Exception as exc:
+        _raise_http(exc)
+
+
 @router.put("/envelopes/{envelope_id}/recipients", response_model=EsignEnvelopeResponse)
 async def replace_recipients(
     envelope_id: str,

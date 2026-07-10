@@ -113,6 +113,22 @@ export function useUpdateEnvelope(envelopeId: string) {
   })
 }
 
+export function useAddDocuments(envelopeId: string) {
+  const invalidate = useInvalidateEnvelope()
+  return useMutation({
+    mutationFn: (files: File[]) => apiClient.addEsignDocuments(envelopeId, files),
+    onSuccess: () => invalidate(envelopeId),
+  })
+}
+
+export function useDeleteDocument(envelopeId: string) {
+  const invalidate = useInvalidateEnvelope()
+  return useMutation({
+    mutationFn: (documentId: string) => apiClient.deleteEsignDocument(envelopeId, documentId),
+    onSuccess: () => invalidate(envelopeId),
+  })
+}
+
 export function useReplaceRecipients(envelopeId: string) {
   const invalidate = useInvalidateEnvelope()
   return useMutation({

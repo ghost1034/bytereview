@@ -2182,6 +2182,18 @@ export class ApiClient {
     })
   }
 
+  async addEsignDocuments(envelopeId: string, files: File[]): Promise<EsignEnvelopeResponse> {
+    const formData = new FormData()
+    files.forEach((file) => formData.append('files', file))
+    return this.requestMultipart(`/api/esign/envelopes/${envelopeId}/documents`, formData)
+  }
+
+  async deleteEsignDocument(envelopeId: string, documentId: string): Promise<EsignEnvelopeResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/documents/${documentId}`, {
+      method: 'DELETE',
+    })
+  }
+
   async replaceEsignRecipients(
     envelopeId: string,
     recipients: EsignRecipientInput[],

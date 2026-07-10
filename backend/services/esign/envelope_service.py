@@ -416,6 +416,91 @@ class EsignEnvelopeService:
             )
         db.flush()
 
+    async def add_documents(
+        self, user_id: str, envelope_id: str, files: list[tuple[str, bytes]]
+    ) -> EsignEnvelopeResponse:
+        if not files:
+            raise EsignError("Provide at least one PDF")
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            self._require_draft(envelope)
+
+            existing = envelope.documents or []
+            if len(existing) + len(files) > MAX_DOCUMENTS_PER_ENVELOPE:
+                raise EsignError(f"At most {MAX_DOCUMENTS_PER_ENVELOPE} documents per envelope")
+
+            next_order = max((int(d.display_order or 0) for d in existing), default=-1) + 1
+            for offset, (filename, content) in enumerate(files):
+                if len(content) > MAX_DOCUMENT_BYTES:
+                    raise EsignError(f"'{filename}' exceeds the {MAX_DOCUMENT_BYTES // (1024 * 1024)}MB limit")
+                page_count = _validate_pdf(content, filename)
+                digest = sha256_hex(content)
+                object_name = f"esign/{user_id}/{envelope.id}/original/{uuid.uuid4()}_{os.path.basename(filename)}"
+                await self.storage.upload_file_content(content, object_name)
+                db.add(
+                    EsignDocument(
+                        id=uuid.uuid4(),
+                        envelope_id=envelope.id,
+                        display_order=next_order + offset,
+                        original_filename=os.path.basename(filename),
+                        gcs_object_name=object_name,
+                        original_sha256=digest,
+                        page_count=page_count,
+                        file_size_bytes=len(content),
+                    )
+                )
+            db.commit()
+            db.expire(envelope, ["documents"])
+            db.refresh(envelope)
+            return self._serialize_envelope(envelope)
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    async def delete_document(
+        self, user_id: str, envelope_id: str, document_id: str
+    ) -> EsignEnvelopeResponse:
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            self._require_draft(envelope)
+
+            document = next(
+                (d for d in envelope.documents or [] if str(d.id) == str(document_id)), None
+            )
+            if not document:
+                raise EsignNotFound("Document not found")
+            if len(envelope.documents or []) <= 1:
+                raise EsignError("An envelope needs at least one document; add another before removing this one")
+
+            # Fields placed on this document go with it. display_order values of
+            # the remaining documents are kept as-is: template field
+            # materialization matches documents by display_order, so compacting
+            # would rebind template fields to the wrong document.
+            db.query(EsignField).filter(EsignField.document_id == document.id).delete()
+            gcs_object_name = document.gcs_object_name
+            db.delete(document)
+            db.commit()
+
+            try:
+                await self.storage.delete_file(gcs_object_name)
+            except Exception:
+                logger.warning(
+                    "Failed to delete GCS object %s for removed draft document", gcs_object_name
+                )
+
+            db.expire(envelope, ["documents", "fields"])
+            db.refresh(envelope)
+            return self._serialize_envelope(envelope)
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
     def update_envelope(
         self, user_id: str, envelope_id: str, payload: EsignEnvelopeUpdateRequest
     ) -> EsignEnvelopeResponse:

@@ -1714,6 +1714,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/esign/envelopes/{envelope_id}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Documents
+         * @description Attach additional PDFs to a draft envelope.
+         */
+        post: operations["add_documents_api_esign_envelopes__envelope_id__documents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/envelopes/{envelope_id}/documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Document
+         * @description Remove a document (and any fields placed on it) from a draft envelope.
+         */
+        delete: operations["delete_document_api_esign_envelopes__envelope_id__documents__document_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/esign/envelopes/{envelope_id}/recipients": {
         parameters: {
             query?: never;
@@ -4497,6 +4537,11 @@ export interface components {
             stripe_customer_id: string | null;
             /** Stripe Subscription Id */
             stripe_subscription_id: string | null;
+        };
+        /** Body_add_documents_api_esign_envelopes__envelope_id__documents_post */
+        Body_add_documents_api_esign_envelopes__envelope_id__documents_post: {
+            /** Files */
+            files: string[];
         };
         /** Body_add_files_to_job_api_jobs__job_id__files_post */
         Body_add_files_to_job_api_jobs__job_id__files_post: {
@@ -11696,6 +11741,73 @@ export interface operations {
                 "application/json": components["schemas"]["EsignEnvelopeUpdateRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignEnvelopeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_documents_api_esign_envelopes__envelope_id__documents_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_add_documents_api_esign_envelopes__envelope_id__documents_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignEnvelopeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_document_api_esign_envelopes__envelope_id__documents__document_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

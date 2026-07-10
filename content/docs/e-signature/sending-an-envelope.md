@@ -4,9 +4,9 @@ description: "Create an envelope, add recipients, place signature fields, and se
 order: 2
 ---
 
-Sending an envelope is a three-part workflow: create the draft, prepare its recipients and fields, then review and send it.
+Sending an envelope starts with creating a draft, then walks through a four-step wizard: **Documents**, **Recipients**, **Fields**, and **Review**. Each step is its own page; the step indicator at the top shows your progress and lets you return to a completed step.
 
-## Step 1: Create the draft
+## Create the draft
 
 From **E-Signature**, click **New envelope**. Complete the available settings:
 
@@ -20,7 +20,13 @@ From **E-Signature**, click **New envelope**. Complete the available settings:
 | **Expires in (days)** | How long the request remains active. The default is 30 days. |
 | **Remind every (hours)** | The interval after which CPAAutomation can send another reminder. The default is 72 hours. |
 
-Click **Create & add recipients** when the documents and settings are ready.
+Click **Create & add recipients** when the documents and settings are ready. Envelopes started from a template open at the **Recipients** step; envelopes with uploaded PDFs open at **Documents**.
+
+> **Note:** The expiration date is set when you create the draft. If a draft sits unsent for several days, those days count toward the selected expiration period.
+
+## Step 1: Documents
+
+The **Documents** step lists the PDFs attached to the draft. You can drop in additional PDFs or remove one you no longer need — removing a document also removes any fields already placed on it. An envelope always keeps at least one document.
 
 ### PDF requirements
 
@@ -28,7 +34,7 @@ Click **Create & add recipients** when the documents and settings are ready.
 - Each PDF can be up to **25 MB**.
 - PDFs must contain at least one page and cannot be password-protected.
 
-> **Note:** The expiration date is set when you create the draft. If a draft sits unsent for several days, those days count toward the selected expiration period.
+Click **Continue to recipients** when the document list is complete.
 
 ## Step 2: Add recipients
 
@@ -36,7 +42,7 @@ Enter a **Name**, **Email**, and **Role** for each recipient.
 
 - Choose **Signer** for someone who must complete fields.
 - Choose **CC** for someone who should be copied on notifications but does not sign.
-- For sequential signing, set each signer's **Order**. Signers with the same order are eligible at the same time; the next order begins after all signers in the current order finish.
+- For sequential signing, **drag recipients by the grip handle** to arrange the signing order. The number badge on each signer shows their position in the sequence; each signer is notified only after the one before them finishes.
 - You can add up to **20 recipients** in total. Every email must be unique, and at least one recipient must be a signer.
 
 Use the exact email address the signer will use for their CPAAutomation account. A signer cannot open the request while signed in with a different address.
@@ -80,7 +86,7 @@ You can also click **Save as template** to preserve this document layout for fut
 Click **Send for signature** to start the request:
 
 - With **Any order**, all signers are eligible and notified.
-- With **Sequential** signing, only signers at the first routing order are initially eligible and notified.
-- As each sequential group finishes, CPAAutomation advances to and notifies the next group.
+- With **Sequential** signing, only the first signer is initially eligible and notified.
+- As each signer finishes, CPAAutomation advances to and notifies the next one in the order you arranged.
 
 After sending, the envelope and its recipients can no longer be edited. Follow it from the detail page as described in [Managing and Verifying Envelopes](/docs/e-signature/managing-and-verifying).

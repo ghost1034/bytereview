@@ -98,7 +98,7 @@ export default function EnvelopeDetailPage() {
 
   React.useEffect(() => {
     if (envelope && envelope.status === 'draft') {
-      router.replace(`/dashboard/esign/${envelope.id}/edit`)
+      router.replace(`/dashboard/esign/${envelope.id}/documents`)
     }
   }, [envelope, router])
 
