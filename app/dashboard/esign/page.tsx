@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { FileSignature, Inbox, Plus, ShieldCheck } from 'lucide-react'
+import { FileSignature, Inbox, Plus, Scale, ShieldCheck } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -59,6 +59,11 @@ export default function EsignDashboardPage() {
         description="Send documents for legally defensible electronic signature — MFA-verified signers, append-only audit trail, and a tamper-evident digital seal."
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/dashboard/esign/legal">
+                <Scale className="mr-1.5 size-4" /> Legal basis
+              </Link>
+            </Button>
             <Button variant="outline" asChild>
               <Link href="/dashboard/esign/verify">
                 <ShieldCheck className="mr-1.5 size-4" /> Verify

@@ -66,16 +66,16 @@ export const DOCS_SECTIONS: DocSectionConfig[] = [
     description: 'AI form filling from your documents',
   },
   {
-    slug: 'e-signature',
-    title: 'E-Signature',
-    icon: FileSignature,
-    description: 'Send, sign, and verify documents',
-  },
-  {
     slug: 'inkwise',
     title: 'Inkwise',
     icon: PenTool,
     description: 'AI writing with citations',
+  },
+  {
+    slug: 'e-signature',
+    title: 'E-Signature (beta)',
+    icon: FileSignature,
+    description: 'Send, sign, and verify documents',
   },
   {
     slug: 'chrona',

@@ -72,3 +72,7 @@ The result reports:
 | **Computed SHA-256** | The fingerprint calculated from the document being checked. |
 
 A valid result indicates that the digital seal validates and the document has not been modified in a way that invalidates it. An invalid seal or hash mismatch means the file should not be treated as the same completed document. Verification checks document integrity; it is not a legal opinion about the underlying agreement.
+
+## Legal basis
+
+Open **E-Signature** and click **Legal basis** to review how the product's consent, signer-intent, authentication, record-association, tamper-evidence, retention, audit, and verification controls map to core ESIGN, UETA, and New York ESRA requirements. This technical compliance summary is not legal advice, and document-specific or agency-specific acceptance rules still apply.

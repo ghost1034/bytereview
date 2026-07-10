@@ -15,6 +15,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   settings: 'Settings',
   'cpe-tracker': 'CPE Tracker',
   'form-fill': 'Form Fill',
+  esign: 'E-Signature',
   inkwise: 'Inkwise',
   upload: 'Upload',
   fields: 'Fields',
