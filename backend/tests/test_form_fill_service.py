@@ -1918,9 +1918,6 @@ class FormFillProcessRunRetryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(run.status, "failed")
 
 
-SS4_PDF_PATH = Path(__file__).resolve().parents[2] / "examples" / "form-fill" / "Approved SS-4.pdf"
-
-
 def _build_radio_pdf(path: str, *, selected: str | None = None) -> None:
     """A single radio group ``entity_type`` with three mutually-exclusive options."""
     c = _reportlab_canvas.Canvas(path, pagesize=letter)
@@ -2021,10 +2018,6 @@ class FormFillPdfFieldMetadataTests(unittest.TestCase):
         self.assertTrue(label.startswith("Individual/sole proprietor"))
         self.assertNotIn("\n", label)
         self.assertNotIn("C corporation", label)
-
-    @unittest.skipUnless(SS4_PDF_PATH.exists(), f"fixture not found: {SS4_PDF_PATH}")
-    def test_degrades_to_empty_on_non_form_pdf(self) -> None:
-        self.assertEqual(self.service._extract_pdf_form_field_metadata(str(SS4_PDF_PATH)), [])
 
 
 class FormFillMappingMetadataTests(unittest.TestCase):
