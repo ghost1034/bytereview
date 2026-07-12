@@ -7,8 +7,10 @@ All data is fictional; TINs use invalid ranges (900-xx SSNs, 98-xxxxxxx EINs).
 
 | File | Strategy demonstrated |
 | --- | --- |
-| `fw9.pdf` | **Fillable PDF** — an AcroForm W-9; Form Fill detects the form fields and fills them directly. |
+| `targets/fw9.pdf` | **Fillable PDF** — an AcroForm W-9; Form Fill detects the form fields and fills them directly. |
+| `targets/vendor-setup-sheet.pdf` | **PDF overlay** — a flat PDF with no form fields; Form Fill overlays text onto the underscore blanks next to each label. |
 | `targets/schedule-of-business-expenses.docx` | **DOCX edit in place** — a blank expense workpaper with no placeholder tokens. Its table has only 3 blank entry rows plus a Total row, so it needs table expansion for realistic data sets. |
+| `targets/w9-request-letter.docx` | **DOCX placeholders** — a vendor letter with `{{...}}` tokens (plus one `[[...]]` to show the alternate syntax) named after the `contractors.csv` columns, so each token resolves directly from the source row. |
 
 ## Sources
 
@@ -26,8 +28,10 @@ both routes side by side.
 
 ## Suggested demo runs
 
-1. **Fillable PDF, per row** — Source: `contractors.csv` · Target: `fw9.pdf` · Mode: fill once per row.
-2. **Fillable PDF, all files** — Source: both `willow-creek/` files · Target: `fw9.pdf` · Mode: fill once for all files.
-3. **Fillable PDF, per file** — Source: all three `clients/` profiles · Target: `fw9.pdf` · Mode: fill once per file.
+1. **Fillable PDF, per row** — Source: `contractors.csv` · Target: `targets/fw9.pdf` · Mode: fill once per row.
+2. **Fillable PDF, all files** — Source: both `willow-creek/` files · Target: `targets/fw9.pdf` · Mode: fill once for all files.
+3. **Fillable PDF, per file** — Source: all three `clients/` profiles · Target: `targets/fw9.pdf` · Mode: fill once per file.
 4. **DOCX edit in place** — Source: `expenses-2025.csv` · Target: `schedule-of-business-expenses.docx` · Mode: fill once for all files · Options: "Fill entries in chronological order" and "Allow AI to add new rows or columns" enabled.
 5. **Extraction → Form Fill** — Extract from `receipts/`, then repeat run 4 using the extraction results as the source.
+6. **PDF overlay** — Source: any one `clients/` profile (or both `willow-creek/` files) · Target: `targets/vendor-setup-sheet.pdf` · Mode: fill once for all files. Also works per file with all three client profiles → three setup sheets.
+7. **DOCX placeholders, per row** — Source: `contractors.csv` · Target: `targets/w9-request-letter.docx` · Mode: fill once per row → five personalized W-9 request letters.
