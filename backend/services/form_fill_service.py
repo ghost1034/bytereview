@@ -60,6 +60,7 @@ logger = logging.getLogger(__name__)
 PDF_MIME = "application/pdf"
 DOCX_PLACEHOLDER_RE = re.compile(r"(\{\{[^{}]+\}\}|\[\[[^\[\]]+\]\]|<<[^<>]+>>)")
 DOCX_BLOCK_TEXT_LIMIT = 30000
+PDF_FIELD_LABEL_MAX_CHARS = 512
 SUPPORTED_SOURCE_MIME_TYPES = {
     "application/pdf",
     DOCX_MIME,
@@ -1687,7 +1688,9 @@ class FormFillService:
             tooltip = str(widget.field_label or "").strip()
         except Exception:
             tooltip = ""
-        label = tooltip[:120] or self._widget_label_hint(page, widget, row_widgets, label_lines=label_lines)
+        label = tooltip[:PDF_FIELD_LABEL_MAX_CHARS] or self._widget_label_hint(
+            page, widget, row_widgets, label_lines=label_lines
+        )
 
         rect_values: Optional[list[float]] = None
         try:
@@ -1784,7 +1787,7 @@ class FormFillService:
         candidates = (right, left, above) if is_button else (left, above, right)
         for candidate in candidates:
             if candidate:
-                return candidate[:120]
+                return candidate[:PDF_FIELD_LABEL_MAX_CHARS]
         return ""
 
     def _same_row_label(self, rect: Any, row_widgets: list[Any], label_lines: list[dict[str, Any]], *, side: str) -> str:
@@ -2562,6 +2565,8 @@ Output contract:
 Rules:
 - The code must process every relevant row algorithmically.
 - Do not hard-code only the sample rows.
+- Treat the target's printed labels and instructions as authoritative business rules.
+- Generate conditional logic when a target instruction makes field selection depend on another source value; do not map fields solely by source-column name similarity.
 - Keep operations deterministic and minimal.
 - Add ambiguous or missing data issues to warnings.{chronological_rule}
 {repair_block}
@@ -3583,6 +3588,8 @@ Instructions:
 - Return one item for every provided name.
 - Keep the original name exactly as given.
 - Use null when the source does not clearly provide a value.{nontext_rule}
+- Treat the target's printed labels and instructions as authoritative business rules.
+- Apply conditional instructions using all source values; do not map fields solely by source-name similarity.
 - Return concise values suitable for direct insertion into the target document.
 - Add any important caveats to warnings.
 """

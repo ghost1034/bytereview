@@ -1385,6 +1385,12 @@ class FormFillServiceContinuationTests(unittest.TestCase):
         self.assertIn("no date column exists", prompt)
         self.assertIn("do not emit the literal token DATE_COL", prompt)
 
+    def test_generated_code_prompt_requires_target_driven_conditional_mapping(self) -> None:
+        prompt = self._generated_code_prompt(fill_chronologically=False)
+        self.assertIn("printed labels and instructions as authoritative business rules", prompt)
+        self.assertIn("Generate conditional logic when a target instruction makes field selection depend", prompt)
+        self.assertIn("do not map fields solely by source-column name similarity", prompt)
+
     def test_generated_code_prompt_omits_chronological_instruction_when_disabled(self) -> None:
         prompt = self._generated_code_prompt(fill_chronologically=False)
         self.assertNotIn("chronologically", prompt)
@@ -1900,7 +1906,7 @@ class FormFillFinalizeLockContentionTests(unittest.IsolatedAsyncioTestCase):
         )
 
 
-FW9_PDF_PATH = Path(__file__).resolve().parents[2] / "examples" / "form-fill" / "fw9.pdf"
+FW9_PDF_PATH = Path(__file__).resolve().parents[2] / "examples" / "form-fill" / "targets" / "fw9.pdf"
 
 
 @unittest.skipUnless(FW9_PDF_PATH.exists(), f"fixture not found: {FW9_PDF_PATH}")
@@ -2156,6 +2162,8 @@ class FormFillMappingMetadataTests(unittest.TestCase):
         self.assertIn('choose exactly one value: "a" = A; "b" = B', prompt)
         self.assertIn('"SC" = South Carolina', prompt)
         self.assertIn("never return the human-readable label", prompt)
+        self.assertIn("printed labels and instructions as authoritative business rules", prompt)
+        self.assertIn("do not map fields solely by source-name similarity", prompt)
         self.assertIn("- tx", prompt)
         self.assertNotIn("- tx\n    type", prompt)
 
@@ -2396,7 +2404,10 @@ class FormFillServiceDownloadMetadataTests(unittest.TestCase):
             self.service.get_target_metadata("user-id", str(run.id))
 
 
-_W9_EXAMPLE_PATH = Path(__file__).resolve().parents[2] / "examples" / "form-fill" / "targets" / "fw9.pdf"
+_W9_EXAMPLE_PATH = FW9_PDF_PATH
+_FORM_FILL_EXAMPLE_DIR = FW9_PDF_PATH.parent.parent
+_CONTRACTORS_EXAMPLE_PATH = _FORM_FILL_EXAMPLE_DIR / "sources" / "contractors.csv"
+_W9_REQUEST_LETTER_PATH = _FORM_FILL_EXAMPLE_DIR / "targets" / "w9-request-letter.docx"
 
 
 @unittest.skipUnless(_HAS_FITZ, "PyMuPDF is required for PDF field metadata tests")
@@ -2433,6 +2444,11 @@ class FormFillFieldLabelHintTests(unittest.TestCase):
         self.assertIn("employer identification", label("f1_15[0]"))
         self.assertIn("individual/sole proprietor", label("c1_1[0]"))
         self.assertIn("trust/estate", label("c1_1[4]"))
+
+        line_one = label("f1_01[0]")
+        self.assertIn("name of entity/individual", line_one)
+        self.assertIn("business/disregarded", line_one)
+        self.assertIn("line 2", line_one)
 
     @unittest.skipUnless(_W9_EXAMPLE_PATH.exists(), "bundled example fw9.pdf not found")
     def test_w9_field_metadata_includes_widget_geometry(self) -> None:
@@ -2481,6 +2497,34 @@ class FormFillFieldLabelHintTests(unittest.TestCase):
         self.assertIn("f1_08[0]", descriptor)
         self.assertIn('label: "City, state, and ZIP code"', descriptor)
         self.assertIn("rect [58.6, 310.0, 388.0, 324.0]", descriptor)
+
+
+class FormFillExampleFixtureTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.service = FormFillService()
+
+    def test_contractor_names_distinguish_legal_entities_from_dbas(self) -> None:
+        records = self.service._load_csv_records(str(_CONTRACTORS_EXAMPLE_PATH))
+        names = {
+            record["record_payload"]["Name"]: (
+                record["record_payload"]["Legal Entity Name"],
+                record["record_payload"]["DBA/Disregarded Entity Name"],
+            )
+            for record in records
+        }
+
+        self.assertEqual(names["Alice Monroe"], ("", "Monroe Design Studio"))
+        self.assertEqual(names["Daniel Okafor"], ("Okafor Drafting LLC", ""))
+        self.assertEqual(names["Priya Raman"], ("", ""))
+        self.assertEqual(names["Marcus Bell"], ("Bell & Sons Electrical", ""))
+        self.assertEqual(names["Sofia Herrera"], ("Herrera Translations Inc.", ""))
+
+    def test_request_letter_placeholders_match_contractor_columns(self) -> None:
+        records = self.service._load_csv_records(str(_CONTRACTORS_EXAMPLE_PATH))
+        placeholders = self.service._extract_docx_placeholders(str(_W9_REQUEST_LETTER_PATH))
+        replacements = self.service._record_placeholder_replacements(placeholders, records[0]["record_payload"])
+
+        self.assertEqual(set(replacements), set(placeholders))
 
 
 class FormFillDroppedValueWarningTests(unittest.TestCase):

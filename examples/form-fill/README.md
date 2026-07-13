@@ -16,7 +16,7 @@ All data is fictional; TINs use invalid ranges (900-xx SSNs, 98-xxxxxxx EINs).
 
 | File(s) | Feature demonstrated |
 | --- | --- |
-| `sources/contractors.csv` | **Fill once per row** — 5 contractor records → 5 filled W-9s (ZIP). Per-row mode is only offered for a single CSV/XLSX source. |
+| `sources/contractors.csv` | **Fill once per row** — 5 contractor records → 5 filled W-9s (ZIP). Legal entity and DBA/disregarded entity names are separate so Form Fill can apply the W-9 line 1/line 2 rules by classification. Per-row mode is only offered for a single CSV/XLSX source. |
 | `sources/willow-creek/` (`company-profile.docx` + `tax-details.pdf`) | **Fill once for all files** — each file holds part of one entity's info (profile: legal name/entity type; tax sheet: address/EIN). Together they fill a single W-9. |
 | `sources/clients/` (3 DOCX profiles) | **Fill once per file** — each client information sheet fills its own W-9 → 3 documents. |
 | `sources/expenses-2025.csv` | **Table expansion + chronological order** — 8 dated rows, deliberately shuffled. Fill into the expense schedule (fill once for all files) with "Allow AI to add new rows" enabled; output should be sorted oldest-first with rows added beyond the original 3. |

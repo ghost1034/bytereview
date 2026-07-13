@@ -1,6 +1,6 @@
-Name,Business Name,Federal Tax Classification,Address,"City, State, ZIP",TIN Type,TIN
-Alice Monroe,Monroe Design Studio,Individual/sole proprietor,742 Juniper Lane,"Fairmont, OR 97301",SSN,900-55-0101
-Daniel Okafor,Okafor Drafting LLC,Limited liability company (S corporation),12 Harborview Court,"Portside, OR 97203",EIN,98-7000102
-Priya Raman,,Individual/sole proprietor,"310 Cedarwood Ave, Apt 4C","Fairmont, OR 97302",SSN,900-55-0103
-Marcus Bell,Bell & Sons Electrical,Partnership,5580 Old Mill Road,"Riverbend, OR 97410",EIN,98-7000104
-Sofia Herrera,Herrera Translations Inc.,C corporation,"220 Meridian Pkwy, Suite 900","Portside, OR 97205",EIN,98-7000105
+Name,Legal Entity Name,DBA/Disregarded Entity Name,Federal Tax Classification,Address,"City, State, ZIP",TIN Type,TIN
+Alice Monroe,,Monroe Design Studio,Individual/sole proprietor,742 Juniper Lane,"Fairmont, OR 97301",SSN,900-55-0101
+Daniel Okafor,Okafor Drafting LLC,,Limited liability company (S corporation),12 Harborview Court,"Portside, OR 97203",EIN,98-7000102
+Priya Raman,,,Individual/sole proprietor,"310 Cedarwood Ave, Apt 4C","Fairmont, OR 97302",SSN,900-55-0103
+Marcus Bell,Bell & Sons Electrical,,Partnership,5580 Old Mill Road,"Riverbend, OR 97410",EIN,98-7000104
+Sofia Herrera,Herrera Translations Inc.,,C corporation,"220 Meridian Pkwy, Suite 900","Portside, OR 97205",EIN,98-7000105
