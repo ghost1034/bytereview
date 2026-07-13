@@ -188,6 +188,7 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
             raise ValueError("No active system prompt found")
         
         # Get data types for JSON schema creation
+        # No longer used since compact JSON schema (commit 2ac300c9)
         data_types = db.query(DataType).all()
         data_types_map = {
             dt.id: {

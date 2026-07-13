@@ -608,7 +608,7 @@ Column order: columns={columns_json}
 Rules:
 - Each row must have exactly {len(columns)} values, in the same order as columns.
 - Unless otherwise specified, use null when a value is missing/unclear.
-- Use native JSON numbers/booleans for number/boolean fields (do not quote numbers).
+- Return every non-null field value as a JSON string, regardless of the specified data type.
 - Do not include any extra keys besides "results".
 - You must extract ALL items from the document, even if there are many.
 
@@ -768,7 +768,7 @@ Column order: columns={columns_json}
 Rules:
 - Each row must have exactly {len(columns)} values, in the same order as columns.
 - Unless otherwise specified, use null when a value is missing/unclear.
-- Use native JSON numbers/booleans for number/boolean fields (do not quote numbers).
+- Return every non-null field value as a JSON string, regardless of the specified data type.
 - Do not include any extra keys besides "results".
 - You must extract ALL items from the document, even if there are many.
 
