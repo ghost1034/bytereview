@@ -32,6 +32,7 @@ except Exception:  # pragma: no cover - reportlab is a declared dependency
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from models.db_models import FormFillRun
 from services.form_fill_service import FormFillService, _normalize_repeat_mode, _parse_date
 
 
@@ -1787,6 +1788,117 @@ class FormFillOutputRetryTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("INVALID_ARGUMENT", output.error_message)
         self.assertIsNotNone(output.completed_at)
         finalize.assert_awaited_once_with(str(self.run_id))
+
+
+class FormFillFinalizeLockContentionTests(unittest.IsolatedAsyncioTestCase):
+    """Losing the run-level advisory lock must never drop finalization: the
+    lock holder may have read output statuses before the last output's commit
+    and concluded "not ready", leaving the run in_progress forever."""
+
+    def setUp(self) -> None:
+        self.service = FormFillService()
+        self.service.finalize_lock_wait_seconds = 1
+        self.service.finalize_lock_poll_seconds = 0.01
+        self.run_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
+
+    def _make_run(self, status: str = "in_progress", result: str | None = None) -> SimpleNamespace:
+        return SimpleNamespace(
+            id=self.run_id,
+            user_id="user-1",
+            status=status,
+            result_gcs_object_name=result,
+            result_filename=None,
+            result_file_type=None,
+            target_filename="fw9.pdf",
+            target_page_count=6,
+            generated_transforms=None,
+            total_outputs=2,
+            completed_outputs=2,
+            failed_outputs=0,
+            usage_basis=None,
+            usage_pages=None,
+            warnings=None,
+            fill_plan=None,
+            processing_strategy=None,
+            error_message=None,
+            completed_at=None,
+        )
+
+    def _db(self, run: SimpleNamespace, outputs: list[SimpleNamespace]) -> MagicMock:
+        run_query = MagicMock()
+        run_query.filter.return_value.first.return_value = run
+        output_query = MagicMock()
+        output_query.filter.return_value.order_by.return_value.all.return_value = outputs
+        db = MagicMock()
+        db.query.side_effect = lambda model: run_query if model is FormFillRun else output_query
+        return db
+
+    async def test_finalize_waits_for_contended_lock_then_finalizes(self) -> None:
+        run = self._make_run()
+        outputs = [
+            SimpleNamespace(
+                id=uuid.uuid4(),
+                record_index=index,
+                record_label=f"row {index}",
+                status="completed",
+                result_gcs_object_name=f"outputs/{index}.pdf",
+                result_filename=f"filled-{index}.pdf",
+                warnings=None,
+                error_message=None,
+                fill_plan={"strategy": "fillable_pdf"},
+            )
+            for index in range(2)
+        ]
+        db = self._db(run, outputs)
+
+        async def fake_download(object_name: str, local_path: str) -> None:
+            Path(local_path).write_bytes(b"pdf-bytes")
+
+        with patch.object(self.service, "_get_session", return_value=db), \
+                patch.object(self.service, "_try_advisory_lock", side_effect=[False, True]) as try_lock, \
+                patch.object(self.service, "_advisory_unlock"), \
+                patch.object(self.service, "_sync_run_output_counts"), \
+                patch.object(self.service, "_download_to_local", new=AsyncMock(side_effect=fake_download)), \
+                patch.object(self.service.storage_service, "upload_file", new=AsyncMock()), \
+                patch.object(self.service, "_record_usage_for_run"):
+            result = await self.service._finalize_run_if_ready(str(self.run_id))
+
+        self.assertTrue(result["finalized"])
+        self.assertEqual(run.status, "completed")
+        self.assertEqual(run.processing_strategy, "fillable_pdf")
+        self.assertEqual(try_lock.call_count, 2)
+
+    async def test_finalize_skips_when_other_worker_finalized_while_waiting(self) -> None:
+        run = self._make_run(status="completed", result="form-fill/user-1/runs/r/result.zip")
+        db = self._db(run, [])
+
+        with patch.object(self.service, "_get_session", return_value=db), \
+                patch.object(self.service, "_try_advisory_lock", return_value=False), \
+                patch.object(self.service, "_advisory_unlock"), \
+                patch("services.form_fill_service.cloud_run_task_service.enqueue_form_fill_task", new_callable=AsyncMock) as enqueue:
+            result = await self.service._finalize_run_if_ready(str(self.run_id))
+
+        self.assertFalse(result["finalized"])
+        self.assertTrue(result.get("skipped"))
+        enqueue.assert_not_awaited()
+
+    async def test_finalize_enqueues_retry_when_lock_stays_contended(self) -> None:
+        run = self._make_run()
+        db = self._db(run, [])
+        self.service.finalize_lock_wait_seconds = 0.05
+
+        with patch.object(self.service, "_get_session", return_value=db), \
+                patch.object(self.service, "_try_advisory_lock", return_value=False), \
+                patch.object(self.service, "_advisory_unlock"), \
+                patch("services.form_fill_service.cloud_run_task_service.enqueue_form_fill_task", new_callable=AsyncMock) as enqueue:
+            result = await self.service._finalize_run_if_ready(str(self.run_id))
+
+        self.assertFalse(result["finalized"])
+        self.assertTrue(result.get("locked"))
+        enqueue.assert_awaited_once_with(
+            str(self.run_id),
+            delay_seconds=self.service.finalize_retry_delay_seconds,
+        )
 
 
 FW9_PDF_PATH = Path(__file__).resolve().parents[2] / "examples" / "form-fill" / "fw9.pdf"

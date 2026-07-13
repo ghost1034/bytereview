@@ -481,6 +481,9 @@ Environment configuration (.env)
     - FORM_FILL_BATCH_MAX_ROUNDS=200 (optional; default 200; up to 20,000 items/operations at the default batch size)
     - FORM_FILL_BATCH_ITEMS_PER_CALL=100 (optional; default 100)
     - FORM_FILL_MAPPING_CHUNK_SIZE=100 (optional; default FORM_FILL_BATCH_ITEMS_PER_CALL)
+    - FORM_FILL_FINALIZE_LOCK_WAIT_SECONDS=30 (optional; default 30; how long an output worker waits for the run finalize lock)
+    - FORM_FILL_FINALIZE_LOCK_POLL_SECONDS=2 (optional; default 2)
+    - FORM_FILL_FINALIZE_RETRY_DELAY_SECONDS=30 (optional; default 30; delay before a re-enqueued finalize retry)
   - Google OAuth and Integrations
     - GOOGLE_CLIENT_ID=...
     - GOOGLE_CLIENT_SECRET=...

@@ -315,6 +315,9 @@ class FormFillService:
         self.tabular_code_sample_rows = max(1, self._env_int("FORM_FILL_TABULAR_CODE_SAMPLE_ROWS", 10))
         self.transform_cache_wait_seconds = max(0, self._env_int("FORM_FILL_TRANSFORM_CACHE_WAIT_SECONDS", 180))
         self.transform_cache_poll_seconds = max(1, self._env_int("FORM_FILL_TRANSFORM_CACHE_POLL_SECONDS", 3))
+        self.finalize_lock_wait_seconds = max(0, self._env_int("FORM_FILL_FINALIZE_LOCK_WAIT_SECONDS", 30))
+        self.finalize_lock_poll_seconds = max(1, self._env_int("FORM_FILL_FINALIZE_LOCK_POLL_SECONDS", 2))
+        self.finalize_retry_delay_seconds = max(1, self._env_int("FORM_FILL_FINALIZE_RETRY_DELAY_SECONDS", 30))
         try:
             self.near_token_ratio = float(os.getenv("FORM_FILL_NEAR_TOKEN_RATIO", "0.98"))
         except Exception:
@@ -4447,9 +4450,31 @@ Instructions:
         lock_acquired = False
         try:
             lock_acquired = self._try_advisory_lock(db, run_id)
+            deadline = time.monotonic() + self.finalize_lock_wait_seconds
+            while not lock_acquired and time.monotonic() < deadline:
+                await asyncio.sleep(self.finalize_lock_poll_seconds)
+                db.rollback()
+                current = db.query(FormFillRun).filter(FormFillRun.id == uuid.UUID(str(run_id))).first()
+                if current and current.status in FORM_FILL_RUN_TERMINAL_STATUSES and current.result_gcs_object_name:
+                    return {"success": True, "run_id": run_id, "finalized": False, "skipped": True}
+                lock_acquired = self._try_advisory_lock(db, run_id)
             if not lock_acquired:
+                logger.warning(
+                    "Form Fill run %s finalize lock unavailable after %ss; enqueueing retry",
+                    run_id,
+                    self.finalize_lock_wait_seconds,
+                )
+                try:
+                    await cloud_run_task_service.enqueue_form_fill_task(
+                        run_id, delay_seconds=self.finalize_retry_delay_seconds
+                    )
+                except Exception:
+                    logger.exception("Failed to enqueue Form Fill finalize retry for run %s", run_id)
                 return {"success": True, "run_id": run_id, "finalized": False, "locked": True}
 
+            # Discard any snapshot read while waiting so the checks below see
+            # state committed before the previous lock holder released.
+            db.rollback()
             run = db.query(FormFillRun).filter(FormFillRun.id == uuid.UUID(str(run_id))).first()
             if not run:
                 raise ValueError("Form Fill run not found")
@@ -4522,6 +4547,13 @@ Instructions:
             run.result_file_type = "application/zip"
             db.commit()
             self._record_usage_for_run(db, run)
+            logger.info(
+                "Form Fill run %s finalized as %s with %s outputs (%s failed)",
+                run.id,
+                run.status,
+                len(completed_outputs),
+                int(run.failed_outputs or 0),
+            )
             return {
                 "success": True,
                 "run_id": str(run.id),
