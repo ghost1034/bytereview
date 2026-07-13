@@ -15,6 +15,7 @@ import queue
 import re
 import shutil
 import tempfile
+import time
 import uuid
 import zipfile
 from copy import deepcopy
@@ -312,6 +313,8 @@ class FormFillService:
             self._env_int("FORM_FILL_TABULAR_CODE_MAX_OUTPUT_BYTES", GENERATED_CODE_MAX_OUTPUT_BYTES_DEFAULT),
         )
         self.tabular_code_sample_rows = max(1, self._env_int("FORM_FILL_TABULAR_CODE_SAMPLE_ROWS", 10))
+        self.transform_cache_wait_seconds = max(0, self._env_int("FORM_FILL_TRANSFORM_CACHE_WAIT_SECONDS", 180))
+        self.transform_cache_poll_seconds = max(1, self._env_int("FORM_FILL_TRANSFORM_CACHE_POLL_SECONDS", 3))
         try:
             self.near_token_ratio = float(os.getenv("FORM_FILL_NEAR_TOKEN_RATIO", "0.98"))
         except Exception:
@@ -1614,6 +1617,7 @@ class FormFillService:
                     widgets = list(page.widgets() or [])
                 except Exception:
                     continue
+                label_lines = self._page_label_lines(page)
                 for widget in widgets:
                     try:
                         self._merge_widget_metadata(
@@ -1621,6 +1625,7 @@ class FormFillService:
                             page=page,
                             page_index=page_index,
                             row_widgets=widgets,
+                            label_lines=label_lines,
                             type_map=type_map,
                             fields=fields,
                             order=order,
@@ -1641,6 +1646,7 @@ class FormFillService:
         type_map: dict[int, str],
         fields: dict[str, dict[str, Any]],
         order: list[str],
+        label_lines: Optional[list[dict[str, Any]]] = None,
     ) -> None:
         qualified = str(widget.field_name or "").strip()
         if not qualified:
@@ -1674,7 +1680,19 @@ class FormFillService:
                 choice_options.append({"export": export, "label": display})
             multi_select = bool(int(getattr(widget, "field_flags", 0) or 0) & (1 << 21))
 
-        label = self._widget_label_hint(page, widget, row_widgets)
+        # The PDF /TU tooltip is authoritative when present; the geometric hint
+        # is a best-effort fallback for forms whose tooltips were stripped.
+        try:
+            tooltip = str(widget.field_label or "").strip()
+        except Exception:
+            tooltip = ""
+        label = tooltip[:120] or self._widget_label_hint(page, widget, row_widgets, label_lines=label_lines)
+
+        rect_values: Optional[list[float]] = None
+        try:
+            rect_values = [round(float(value), 1) for value in (widget.rect.x0, widget.rect.y0, widget.rect.x1, widget.rect.y1)]
+        except Exception:
+            rect_values = None
 
         existing = fields.get(leaf)
         if existing is None:
@@ -1686,6 +1704,8 @@ class FormFillService:
             }
             if label:
                 entry["label"] = label
+            if rect_values:
+                entry["rect"] = rect_values
             if field_type == "checkbox":
                 entry["on_states"] = list(dict.fromkeys(on_states))
             elif field_type == "radio":
@@ -1714,44 +1734,151 @@ class FormFillService:
                         options.append({"export": state, "label": label})
                         known.add(state)
 
-    def _widget_label_hint(self, page: Any, widget: Any, row_widgets: list[Any]) -> str:
+    def _page_label_lines(self, page: Any) -> list[dict[str, Any]]:
+        """Whole text lines of a page as ``{"text", "bbox"}`` entries.
+
+        Label hints are built from complete printed lines (never from a clipped
+        text band), so a hint can't start or end mid-word. Returns ``[]`` on any
+        error."""
+        lines: list[dict[str, Any]] = []
+        try:
+            data = page.get_text("dict")
+        except Exception:
+            return lines
+        for block in data.get("blocks") or []:
+            for line in block.get("lines") or []:
+                text = "".join(str(span.get("text") or "") for span in (line.get("spans") or [])).strip()
+                if text:
+                    lines.append({"text": text, "bbox": fitz.Rect(line["bbox"])})
+        return lines
+
+    def _widget_label_hint(
+        self, page: Any, widget: Any, row_widgets: list[Any], label_lines: Optional[list[dict[str, Any]]] = None
+    ) -> str:
         """Best-effort human-readable label for a widget (a hint, not authoritative).
 
-        Reads the text band to the right of the widget, clipped at the next
-        widget on the same row, and returns its first line. Falls back to the
-        band on the left, then to ``""``. The multimodal PDF sent to the model is
-        the real disambiguator, so this never raises.
+        Considers whole text lines beside the widget (clipped at neighboring
+        widgets on BOTH sides so one field never inherits another field's label)
+        and the nearest line directly above it. Checkbox/radio widgets prefer
+        the right-hand label; text fields prefer same-row-left, then above, then
+        right. The multimodal PDF sent to the model is the real disambiguator,
+        so this never raises.
         """
         try:
             rect = widget.rect
-            page_rect = page.rect
         except Exception:
             return ""
-        row_tol = 6.0
-        max_band = 240.0
-        clip_x = min(rect.x1 + max_band, page_rect.x1)
+        if label_lines is None:
+            label_lines = self._page_label_lines(page)
+        if not label_lines:
+            return ""
+        try:
+            is_button = widget.field_type in (fitz.PDF_WIDGET_TYPE_CHECKBOX, fitz.PDF_WIDGET_TYPE_RADIOBUTTON)
+        except Exception:
+            is_button = False
+
+        right = self._same_row_label(rect, row_widgets, label_lines, side="right")
+        left = self._same_row_label(rect, row_widgets, label_lines, side="left")
+        above = self._above_label(rect, label_lines)
+        candidates = (right, left, above) if is_button else (left, above, right)
+        for candidate in candidates:
+            if candidate:
+                return candidate[:120]
+        return ""
+
+    def _same_row_label(self, rect: Any, row_widgets: list[Any], label_lines: list[dict[str, Any]], *, side: str) -> str:
+        """A single whole text line beside the widget, or ``""``.
+
+        The search band is clipped at the nearest vertically-overlapping widget
+        on that side. If several lines share the band (a paragraph flowing past
+        the field, not a label) the hint is rejected outright.
+        """
+        band_top, band_bottom = rect.y0 - 2.0, rect.y1 + 2.0
+        boundary = None
         for other in row_widgets:
-            if other is widget:
-                continue
             try:
                 other_rect = other.rect
             except Exception:
                 continue
-            if other_rect.x0 > rect.x1 and abs(other_rect.y0 - rect.y0) <= row_tol:
-                clip_x = min(clip_x, other_rect.x0)
-        right = self._first_line_in_rect(page, fitz.Rect(rect.x1, rect.y0 - 2, clip_x, rect.y1 + 2))
-        if right:
-            return right
-        left_x0 = max(rect.x0 - max_band, page_rect.x0)
-        return self._first_line_in_rect(page, fitz.Rect(left_x0, rect.y0 - 2, rect.x0, rect.y1 + 2))
+            if other_rect == rect:
+                continue
+            if other_rect.y1 <= band_top or other_rect.y0 >= band_bottom:
+                continue
+            if side == "right" and other_rect.x0 >= rect.x1 - 1:
+                boundary = other_rect.x0 if boundary is None else min(boundary, other_rect.x0)
+            elif side == "left" and other_rect.x1 <= rect.x0 + 1:
+                boundary = other_rect.x1 if boundary is None else max(boundary, other_rect.x1)
 
-    def _first_line_in_rect(self, page: Any, rect: Any) -> str:
-        try:
-            text = page.get_textbox(rect) or ""
-        except Exception:
+        matches: list[dict[str, Any]] = []
+        for line in label_lines:
+            bbox = line["bbox"]
+            center_y = (bbox.y0 + bbox.y1) / 2.0
+            if not (band_top <= center_y <= band_bottom):
+                continue
+            if not any(ch.isalpha() for ch in line["text"]):
+                continue  # dot leaders, dashes between digit boxes, etc.
+            if side == "right":
+                if bbox.x0 < rect.x1 - 2 or (boundary is not None and bbox.x0 >= boundary):
+                    continue
+                if bbox.x0 - rect.x1 > 120:
+                    continue
+            else:
+                if bbox.x1 > rect.x0 + 2 or (boundary is not None and bbox.x1 <= boundary):
+                    continue
+                if rect.x0 - bbox.x1 > 120:
+                    continue
+            matches.append(line)
+
+        if not matches:
             return ""
-        first = text.strip().split("\n")[0].strip()
-        return first[:80]
+        if side == "right":
+            # Prefer the line hugging the widget; with competing lines, only
+            # trust it if it is immediately adjacent (a checkbox caption).
+            matches.sort(key=lambda line: line["bbox"].x0)
+            nearest = matches[0]
+            if len(matches) > 1 and nearest["bbox"].x0 - rect.x1 > 20:
+                return ""
+            return nearest["text"].strip()
+
+        if len(matches) != 1:
+            return ""  # several lines flowing past the field = body text, not a label
+        text = matches[0]["text"].strip()
+        # A long left-hand line without label-like terminal punctuation is body
+        # text that happens to end next to the field, not the field's label.
+        if len(text.split()) > 6 and text[-1] not in ")]:.?*":
+            return ""
+        return text
+
+    def _above_label(self, rect: Any, label_lines: list[dict[str, Any]]) -> str:
+        """The nearest whole text line directly above the widget, or ``""``.
+
+        When that line is a wrapped continuation (starts lowercase), the line
+        above it is prepended so the hint carries the start of the label."""
+        def nearest_above(bottom: float, span_rect: Any) -> Optional[dict[str, Any]]:
+            best: Optional[dict[str, Any]] = None
+            for line in label_lines:
+                bbox = line["bbox"]
+                if bbox.y1 > bottom + 2 or bottom - bbox.y1 > 18:
+                    continue
+                if min(bbox.x1, span_rect.x1) - max(bbox.x0, span_rect.x0) <= 4:
+                    continue
+                if best is None or bbox.y1 > best["bbox"].y1:
+                    best = line
+            return best
+
+        best = nearest_above(rect.y0, rect)
+        if best is None:
+            return ""
+        text = best["text"].strip()
+        if len(text) < 3 or not any(ch.isalpha() for ch in text):
+            return ""
+        if text[0].islower():
+            previous = nearest_above(best["bbox"].y0, best["bbox"])
+            if previous is not None:
+                opener = previous["text"].strip()
+                if opener and any(ch.isalpha() for ch in opener):
+                    text = f"{opener} {text}"
+        return text
 
     def _align_pdf_field_metadata(
         self, pdf_fields: list[str], metadata_list: list[dict[str, Any]]
@@ -2574,7 +2701,198 @@ Rules:
 
         normalized["warnings"] = code_warnings + list(normalized.get("warnings") or [])
         normalized["code_hash"] = hashlib.sha256(code.encode("utf-8")).hexdigest()
+        normalized["code"] = code
+        normalized["code_warnings"] = code_warnings
         return normalized
+
+    def _transform_cache_key(self, label: str, parts: list[Any]) -> str:
+        digest = hashlib.sha256(json.dumps(parts, ensure_ascii=True, sort_keys=False, default=str).encode("utf-8")).hexdigest()
+        return f"{label}:{digest[:16]}"
+
+    def _load_run_generated_transform(self, run_id: str, cache_key: str) -> Optional[dict[str, Any]]:
+        db = self._get_session()
+        try:
+            run = db.query(FormFillRun).filter(FormFillRun.id == uuid.UUID(str(run_id))).first()
+            transforms = run.generated_transforms if run is not None and isinstance(run.generated_transforms, dict) else {}
+            entry = transforms.get(cache_key)
+            if isinstance(entry, dict) and str(entry.get("code") or "").strip():
+                return dict(entry)
+            return None
+        except Exception as exc:
+            logger.warning("Failed to load cached Form Fill transform for run %s: %s", run_id, exc)
+            return None
+        finally:
+            db.close()
+
+    def _store_run_generated_transform(self, run_id: str, cache_key: str, entry: dict[str, Any]) -> None:
+        db = self._get_session()
+        try:
+            run = db.query(FormFillRun).filter(FormFillRun.id == uuid.UUID(str(run_id))).first()
+            if run is None:
+                return
+            transforms = dict(run.generated_transforms) if isinstance(run.generated_transforms, dict) else {}
+            transforms[cache_key] = entry
+            run.generated_transforms = transforms
+            db.commit()
+        except Exception as exc:
+            logger.warning("Failed to store cached Form Fill transform for run %s: %s", run_id, exc)
+            db.rollback()
+        finally:
+            db.close()
+
+    def _wait_for_run_generated_transform(self, run_id: str, cache_key: str) -> Optional[dict[str, Any]]:
+        deadline = time.monotonic() + self.transform_cache_wait_seconds
+        while time.monotonic() < deadline:
+            time.sleep(self.transform_cache_poll_seconds)
+            entry = self._load_run_generated_transform(run_id, cache_key)
+            if entry:
+                return entry
+        return None
+
+    def _run_record_sample_rows(self, run_id: str, limit: int) -> list[dict[str, Any]]:
+        """Record payloads of the run's outputs, for use as codegen sample rows.
+
+        A per-row output only carries its own record, but the shared transform
+        must handle every row of the run (e.g. both SSN-type and EIN-type
+        contractors), so the generation prompt gets the run-wide variety."""
+        db = self._get_session()
+        try:
+            outputs = (
+                db.query(FormFillOutput)
+                .filter(FormFillOutput.run_id == uuid.UUID(str(run_id)))
+                .order_by(FormFillOutput.record_index.asc())
+                .limit(max(1, int(limit)))
+                .all()
+            )
+            return [dict(output.record_payload) for output in outputs if isinstance(output.record_payload, dict) and output.record_payload]
+        except Exception as exc:
+            logger.warning("Failed to load sample record rows for Form Fill run %s: %s", run_id, exc)
+            return []
+        finally:
+            db.close()
+
+    def _execute_cached_transform(
+        self,
+        entry: dict[str, Any],
+        *,
+        rows: list[dict[str, Any]],
+        context: dict[str, Any],
+        expected_key: str,
+        label: str,
+    ) -> Optional[dict[str, Any]]:
+        code = str(entry.get("code") or "")
+        if not code.strip():
+            return None
+        try:
+            result = self._execute_generated_transform(code, rows=rows, context=context)
+            normalized = self._validate_generated_transform_result(result, expected_key=expected_key)
+        except Exception as exc:
+            logger.warning("Cached Form Fill transform failed (%s); falling back to regeneration: %s", label, exc)
+            return None
+        normalized["code_hash"] = entry.get("code_hash")
+        normalized["code_cached"] = True
+        return normalized
+
+    def _shared_tabular_transform(
+        self,
+        contents: list[Any],
+        *,
+        prompt: str,
+        rows: list[dict[str, Any]],
+        context: dict[str, Any],
+        expected_key: str,
+        label: str,
+        fill_chronologically: bool = False,
+        run_id: Optional[str] = None,
+        cache_key: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Generate-and-execute a tabular transform, sharing the generated code
+        across a run's outputs.
+
+        Per-row outputs of one run fill the same target from rows of the same
+        schema, so the first output generates the transform code once (guarded
+        by an advisory lock), stores it on the run, and every other output
+        executes the stored code. This keeps all outputs of a run consistent
+        with each other and avoids one Gemini codegen call per row. The stored
+        code's warnings/assumptions live on the cache entry and are surfaced
+        once at run level instead of once per output.
+        """
+        if not run_id or not cache_key:
+            payload = self._generate_and_execute_tabular_transform(
+                contents,
+                prompt=prompt,
+                rows=rows,
+                context=context,
+                expected_key=expected_key,
+                label=label,
+                fill_chronologically=fill_chronologically,
+            )
+            payload.pop("code", None)
+            payload.pop("code_warnings", None)
+            return payload
+
+        cached = self._load_run_generated_transform(run_id, cache_key)
+        if cached:
+            executed = self._execute_cached_transform(cached, rows=rows, context=context, expected_key=expected_key, label=label)
+            if executed is not None:
+                return executed
+
+        lock_id = str(uuid.uuid5(uuid.UUID(str(run_id)), cache_key))
+        lock_db = self._get_session()
+        lock_acquired = False
+        try:
+            lock_acquired = self._try_advisory_lock(lock_db, lock_id)
+            if lock_acquired:
+                # Another output may have stored the code between our first
+                # cache read and acquiring the lock.
+                cached = self._load_run_generated_transform(run_id, cache_key)
+                if cached:
+                    executed = self._execute_cached_transform(cached, rows=rows, context=context, expected_key=expected_key, label=label)
+                    if executed is not None:
+                        return executed
+            else:
+                cached = self._wait_for_run_generated_transform(run_id, cache_key)
+                if cached:
+                    executed = self._execute_cached_transform(cached, rows=rows, context=context, expected_key=expected_key, label=label)
+                    if executed is not None:
+                        return executed
+                logger.warning(
+                    "Form Fill transform lock for run %s (%s) unavailable and no cached code appeared; generating independently",
+                    run_id,
+                    label,
+                )
+
+            payload = self._generate_and_execute_tabular_transform(
+                contents,
+                prompt=prompt,
+                rows=rows,
+                context=context,
+                expected_key=expected_key,
+                label=label,
+                fill_chronologically=fill_chronologically,
+            )
+            code = payload.pop("code", None)
+            code_warnings = [str(item) for item in (payload.pop("code_warnings", None) or [])]
+            if code:
+                self._store_run_generated_transform(
+                    run_id,
+                    cache_key,
+                    {
+                        "code": code,
+                        "code_hash": payload.get("code_hash"),
+                        "warnings": code_warnings,
+                        "label": label,
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                    },
+                )
+            # Codegen warnings were persisted with the code and are reported once
+            # at run level; keep only this row's execution warnings here.
+            payload["warnings"] = list(payload.get("warnings") or [])[len(code_warnings):]
+            return payload
+        finally:
+            if lock_acquired:
+                self._advisory_unlock(lock_db, lock_id)
+            lock_db.close()
 
     def _generate_json_response(self, contents: list[Any], schema: types.Schema) -> dict[str, Any]:
         self._ensure_client()
@@ -3378,16 +3696,26 @@ Instructions:
         return warnings
 
     def _render_field_descriptor(self, name: str, meta: Optional[dict[str, Any]]) -> str:
-        """Render one prompt bullet for a field, with type + allowed values when
-        the field is a checkbox/radio/dropdown. Text fields (and missing metadata)
-        render as a bare ``- {name}`` so the prompt is unchanged for them."""
-        if not isinstance(meta, dict) or (meta.get("type") or "text") == "text":
+        """Render one prompt bullet for a field: type, nearby label, and widget
+        geometry, plus allowed values for checkbox/radio/dropdown fields. Fields
+        without metadata render as a bare ``- {name}``."""
+        if not isinstance(meta, dict):
             return f"- {name}"
-        ftype = meta.get("type")
+        ftype = meta.get("type") or "text"
         label = meta.get("label")
+        rect = meta.get("rect")
+        position = ""
+        if isinstance(rect, list) and len(rect) == 4:
+            position = f'; page {meta.get("page") or 1} rect [{", ".join(str(value) for value in rect)}]'
+        if ftype == "text":
+            if not label and not position:
+                return f"- {name}"
+            labeled = f'; label: "{label}"' if label else ""
+            return f"- {name}\n    type: text{labeled}{position}"
         header = f"- {name}\n    type: {ftype}"
         if label:
             header += f'; label: "{label}"'
+        header += position
         if ftype == "checkbox":
             states = meta.get("on_states") or []
             if states:
@@ -3421,6 +3749,15 @@ Instructions:
                 "listed allowed values (copy it verbatim, case-sensitive) or null to leave it unset. Never "
                 "invent values and never return the human-readable label in place of the listed value."
             )
+            if any(isinstance(meta, dict) and meta.get("rect") for meta in field_metadata.values()):
+                nontext_rule += (
+                    "\n- Field rects are [x0, y0, x1, y1] in PDF points with the origin at the TOP-LEFT of the "
+                    "page (y grows downward). Labels are nearby text and can be missing or imprecise; use each "
+                    "field's position on the attached rendered form to confirm what it is before assigning a "
+                    "value. Several small boxes sharing one row are segments of a single value (for example the "
+                    "3-2-4 digit groups of an SSN or the 2-7 digit groups of an EIN); a full-width field belongs "
+                    "to the label above or beside it."
+                )
         else:
             names = "\n".join(f"- {item}" for item in mapping_items)
             nontext_rule = ""
@@ -3499,6 +3836,31 @@ Instructions:
                 compact[key] = value
         return compact
 
+    def _dropped_source_value_warnings(self, record: dict[str, Any], field_values: dict[str, str]) -> list[str]:
+        """Warn when a digit-bearing source value landed in no field at all.
+
+        Only values with 3+ digits are checked (addresses, TINs, ZIPs, …): those
+        must appear literally somewhere in the output, while plain-text values
+        like a tax classification may legitimately become a checkbox tick.
+        Comparison ignores case, punctuation, and field-boundary splits so a TIN
+        split across digit-group boxes still counts as present.
+        """
+        joined = "".join(str(value) for value in field_values.values())
+        written_text = re.sub(r"[^0-9a-z]", "", joined.lower())
+        written_digits = re.sub(r"\D", "", joined)
+        dropped: list[str] = []
+        for column, value in record.items():
+            text = str(value if value is not None else "").strip()
+            if not text:
+                continue
+            digits = re.sub(r"\D", "", text)
+            if len(digits) < 3:
+                continue
+            if re.sub(r"[^0-9a-z]", "", text.lower()) in written_text or digits in written_digits:
+                continue
+            dropped.append(f"The source value for '{column}' does not appear in any filled field; verify it was not dropped.")
+        return dropped
+
     async def _generate_filled_document(
         self,
         *,
@@ -3516,6 +3878,31 @@ Instructions:
         tabular_rows = list((tabular_context or {}).get("rows") or [])
         use_tabular_generation = bool(tabular_rows)
 
+        # Per-row outputs of one run share a single generated transform: the
+        # code is generated once (from sample rows spanning the whole run) and
+        # every output executes it against its own row, so all outputs of a run
+        # map source columns to the target identically.
+        share_transform = (
+            (getattr(run, "repeat_mode", None) or REPEAT_MODE_SINGLE) == REPEAT_MODE_SOURCE_ROWS
+            and bool((tabular_context or {}).get("single_record"))
+            and use_tabular_generation
+        )
+        codegen_tabular_context = dict(tabular_context or {})
+        per_row_contract_note = ""
+        share_run_id: Optional[str] = None
+        if share_transform:
+            share_run_id = str(run.id)
+            sample_rows = self._run_record_sample_rows(share_run_id, limit=self.tabular_code_sample_rows)
+            if sample_rows:
+                codegen_tabular_context = {**codegen_tabular_context, "rows": sample_rows, "row_count": len(sample_rows)}
+            per_row_contract_note = (
+                " This run fills one copy of the target per source row: transform(rows, context) is invoked once "
+                "per row, and rows then contains exactly ONE row dict (use rows[0]). The sample rows show the "
+                "variety of values the same code must handle across invocations; handle every variant, not just "
+                "the first sample."
+            )
+        source_columns = list((tabular_context or {}).get("columns") or [])
+
         if run.target_file_type == PDF_MIME:
             field_metadata_list = self._extract_pdf_form_field_metadata(target_local_path)
             pdf_fields = [meta["name"] for meta in field_metadata_list]
@@ -3531,23 +3918,33 @@ Instructions:
                         "For checkbox, radio, and dropdown fields, emit one of that field's allowed values exactly as "
                         "listed (copy it verbatim) or omit the field; never invent values and never emit the "
                         "human-readable label. context['fields'] lists each field's type and allowed values."
+                        + per_row_contract_note
                     )
                     code_context = {
                         "target_kind": "fillable PDF",
                         "field_names": pdf_fields,
                         "fields": context_fields,
+                        "fields_note": (
+                            "Each entry in context['fields'] may include a nearby text 'label' and a 'rect' "
+                            "([x0, y0, x1, y1] in PDF points, origin at the TOP-LEFT of the page, y grows "
+                            "downward). Labels can be missing or imprecise; cross-check them against the "
+                            "attached rendered form and each field's position before mapping source columns "
+                            "to field names. Several small boxes sharing one row are segments of a single "
+                            "value (for example the 3-2-4 digit groups of an SSN or the 2-7 digit groups of "
+                            "an EIN); a full-width field belongs to the label above or beside it."
+                        ),
                         "source_columns": list((tabular_context or {}).get("columns") or []),
                         "source_files": list((tabular_context or {}).get("source_files") or []),
                         "output_contract": output_contract,
                     }
                     code_prompt = self._build_generated_code_prompt(
-                        tabular_context=tabular_context or {},
+                        tabular_context=codegen_tabular_context,
                         target_kind="fillable PDF",
                         target_context=code_context,
                         output_contract=output_contract,
                         fill_chronologically=bool(run.fill_chronologically),
                     )
-                    mapping_payload = self._generate_and_execute_tabular_transform(
+                    mapping_payload = self._shared_tabular_transform(
                         source_parts + target_parts,
                         prompt=code_prompt,
                         rows=tabular_rows,
@@ -3555,19 +3952,27 @@ Instructions:
                         expected_key="field_values",
                         label="fillable_pdf_generated_code",
                         fill_chronologically=bool(run.fill_chronologically),
+                        run_id=share_run_id,
+                        cache_key=self._transform_cache_key(
+                            "fillable_pdf_generated_code",
+                            [pdf_fields, source_columns, bool(run.fill_chronologically)],
+                        ) if share_transform else None,
                     )
                     allowed_fields = set(pdf_fields)
                     field_values = {
                         str(name): str(value)
                         for name, value in (mapping_payload.get("field_values") or {}).items()
-                        if str(name) in allowed_fields
+                        if str(name) in allowed_fields and value is not None
                     }
                     warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
+                    if bool((tabular_context or {}).get("single_record")) and tabular_rows:
+                        warnings.extend(self._dropped_source_value_warnings(tabular_rows[0], field_values))
                     fill_plan = {
                         "strategy": processing_strategy,
                         "field_values": field_values,
                         "source_rows": len(tabular_rows),
                         "code_hash": mapping_payload.get("code_hash"),
+                        "code_cached": bool(mapping_payload.get("code_cached")),
                     }
                 else:
                     mapping_payload = self._generate_mapping_payload(
@@ -3579,10 +3984,12 @@ Instructions:
                         label="fillable_pdf_mapping",
                         field_metadata=field_metadata,
                     )
+                    # Null means "the source does not provide a value": leave the
+                    # field untouched rather than writing an empty string into it.
                     field_values = {
-                        str(item.get("name")): "" if item.get("value") is None else str(item.get("value"))
+                        str(item.get("name")): str(item.get("value"))
                         for item in mapping_payload.get("items") or []
-                        if isinstance(item, dict) and item.get("name")
+                        if isinstance(item, dict) and item.get("name") and item.get("value") is not None
                     }
                     warnings.extend([str(item) for item in (mapping_payload.get("warnings") or []) if str(item).strip()])
                     fill_plan = {"strategy": processing_strategy, "field_values": field_values}
@@ -3605,22 +4012,23 @@ Instructions:
                     "Return {'items': [overlay_item, ...], 'warnings': [...]}. Each overlay_item must include "
                     "page_number and overlay_text, and may include anchor_text, anchor_before, anchor_after, "
                     "placement_hint, cover_anchor, and font_size."
+                    + per_row_contract_note
                 )
                 code_context = {
                     "target_kind": "PDF overlay",
                     "target_preview_text": target_preview_text,
-                    "source_columns": list((tabular_context or {}).get("columns") or []),
+                    "source_columns": source_columns,
                     "source_files": list((tabular_context or {}).get("source_files") or []),
                     "output_contract": output_contract,
                 }
                 overlay_prompt = self._build_generated_code_prompt(
-                    tabular_context=tabular_context or {},
+                    tabular_context=codegen_tabular_context,
                     target_kind="PDF overlay",
                     target_context=code_context,
                     output_contract=output_contract,
                     fill_chronologically=bool(run.fill_chronologically),
                 )
-                overlay_payload = self._generate_and_execute_tabular_transform(
+                overlay_payload = self._shared_tabular_transform(
                     source_parts + target_parts,
                     prompt=overlay_prompt,
                     rows=tabular_rows,
@@ -3628,6 +4036,11 @@ Instructions:
                     expected_key="items",
                     label="pdf_overlay_generated_code",
                     fill_chronologically=bool(run.fill_chronologically),
+                    run_id=share_run_id,
+                    cache_key=self._transform_cache_key(
+                        "pdf_overlay_generated_code",
+                        [source_columns, bool(run.fill_chronologically)],
+                    ) if share_transform else None,
                 )
             else:
                 overlay_prompt = self._build_pdf_overlay_prompt(
@@ -3709,6 +4122,7 @@ Instructions:
                         "replace_text_in_block, replace_block_text, append_to_block, insert_before_block, insert_after_block, "
                         "insert_table_row_after, or insert_table_column_after with valid provided block_id/table_id values. "
                         "Each operation object must put the operation name in the 'action' key and must provide cells as strings."
+                        + per_row_contract_note
                     )
                     code_context = {
                         "target_kind": "DOCX edit in place",
@@ -3716,18 +4130,18 @@ Instructions:
                         "editable_blocks": self._public_docx_blocks(docx_blocks),
                         "editable_tables": self._public_docx_tables(docx_tables),
                         "allow_table_expansion": bool(run.allow_docx_table_expansion),
-                        "source_columns": list((tabular_context or {}).get("columns") or []),
+                        "source_columns": source_columns,
                         "source_files": list((tabular_context or {}).get("source_files") or []),
                         "output_contract": output_contract,
                     }
                     code_prompt = self._build_generated_code_prompt(
-                        tabular_context=tabular_context or {},
+                        tabular_context=codegen_tabular_context,
                         target_kind="DOCX edit in place",
                         target_context=code_context,
                         output_contract=output_contract,
                         fill_chronologically=bool(run.fill_chronologically),
                     )
-                    edit_payload = self._generate_and_execute_tabular_transform(
+                    edit_payload = self._shared_tabular_transform(
                         source_parts + target_parts,
                         prompt=code_prompt,
                         rows=tabular_rows,
@@ -3735,6 +4149,11 @@ Instructions:
                         expected_key="operations",
                         label="docx_edit_generated_code",
                         fill_chronologically=bool(run.fill_chronologically),
+                        run_id=share_run_id,
+                        cache_key=self._transform_cache_key(
+                            "docx_edit_generated_code",
+                            [source_columns, bool(run.allow_docx_table_expansion), bool(run.fill_chronologically)],
+                        ) if share_transform else None,
                     )
                 else:
                     edit_payload = self._generate_collection_json_response(
@@ -4050,6 +4469,15 @@ Instructions:
                 if output.status == "completed" and output.result_gcs_object_name and output.result_filename
             ]
             aggregate_warnings: list[str] = []
+            # Warnings/assumptions from the run's shared generated transform
+            # apply to every output; report them once instead of per record.
+            if isinstance(run.generated_transforms, dict):
+                for entry in run.generated_transforms.values():
+                    if not isinstance(entry, dict):
+                        continue
+                    for warning in entry.get("warnings") or []:
+                        if str(warning).strip():
+                            aggregate_warnings.append(f"Fill plan: {warning}")
             for output in outputs:
                 if isinstance(output.warnings, list):
                     aggregate_warnings.extend(f"{output.record_label}: {warning}" for warning in output.warnings)

@@ -2285,5 +2285,272 @@ class FormFillServiceDownloadMetadataTests(unittest.TestCase):
             self.service.get_target_metadata("user-id", str(run.id))
 
 
+_W9_EXAMPLE_PATH = Path(__file__).resolve().parents[2] / "examples" / "form-fill" / "targets" / "fw9.pdf"
+
+
+@unittest.skipUnless(_HAS_FITZ, "PyMuPDF is required for PDF field metadata tests")
+class FormFillFieldLabelHintTests(unittest.TestCase):
+    """Label-hint extraction against the bundled W-9, whose fields have no /TU
+    tooltips and whose dense layout previously produced swapped/garbled hints
+    (the LLC classification box labelled 'Exempt payee code', etc.)."""
+
+    def setUp(self) -> None:
+        self.service = FormFillService()
+
+    @unittest.skipUnless(_W9_EXAMPLE_PATH.exists(), "bundled example fw9.pdf not found")
+    def test_w9_label_hints_disambiguate_dense_form_fields(self) -> None:
+        metadata = self.service._extract_pdf_form_field_metadata(str(_W9_EXAMPLE_PATH))
+        by_name = {meta["name"]: meta for meta in metadata}
+
+        def label(name: str) -> str:
+            return str(by_name[name].get("label") or "").lower()
+
+        # Line 3a: f1_03 is the LLC tax-classification code box; f1_05 is the
+        # exempt payee code. These two used to receive each other's labels.
+        self.assertIn("llc", label("f1_03[0]"))
+        self.assertNotIn("exempt", label("f1_03[0]"))
+        self.assertIn("exempt payee", label("f1_05[0]"))
+
+        self.assertIn("address", label("f1_07[0]"))
+        self.assertIn("city", label("f1_08[0]"))
+        self.assertIn("requester", label("f1_09[0]"))
+        self.assertNotIn("apt. or suite", label("f1_09[0]"))
+        self.assertIn("account number", label("f1_10[0]"))
+        self.assertIn("social security", label("f1_11[0]"))
+        self.assertIn("social security", label("f1_12[0]"))
+        self.assertIn("employer identification", label("f1_14[0]"))
+        self.assertIn("employer identification", label("f1_15[0]"))
+        self.assertIn("individual/sole proprietor", label("c1_1[0]"))
+        self.assertIn("trust/estate", label("c1_1[4]"))
+
+    @unittest.skipUnless(_W9_EXAMPLE_PATH.exists(), "bundled example fw9.pdf not found")
+    def test_w9_field_metadata_includes_widget_geometry(self) -> None:
+        metadata = self.service._extract_pdf_form_field_metadata(str(_W9_EXAMPLE_PATH))
+        by_name = {meta["name"]: meta for meta in metadata}
+        for meta in metadata:
+            rect = meta.get("rect")
+            self.assertIsInstance(rect, list, meta["name"])
+            self.assertEqual(len(rect), 4, meta["name"])
+        # Line 7 (account numbers) is full width; the SSN digit-group boxes are
+        # narrow. Geometry is what lets the model tell them apart.
+        account_width = by_name["f1_10[0]"]["rect"][2] - by_name["f1_10[0]"]["rect"][0]
+        ssn_width = by_name["f1_11[0]"]["rect"][2] - by_name["f1_11[0]"]["rect"][0]
+        self.assertGreater(account_width, 400)
+        self.assertLess(ssn_width, 100)
+
+    def test_field_tooltip_takes_precedence_over_geometric_hint(self) -> None:
+        widget = SimpleNamespace(
+            field_name="topmostSubform[0].f1_07[0]",
+            field_type=fitz.PDF_WIDGET_TYPE_TEXT,
+            rect=fitz.Rect(0, 0, 100, 12),
+            field_label="Line 5. Address",
+        )
+        fields: dict = {}
+        order: list = []
+        with patch.object(self.service, "_widget_label_hint") as hint:
+            self.service._merge_widget_metadata(
+                widget=widget,
+                page=None,
+                page_index=1,
+                row_widgets=[widget],
+                label_lines=[],
+                type_map={fitz.PDF_WIDGET_TYPE_TEXT: "text"},
+                fields=fields,
+                order=order,
+            )
+        hint.assert_not_called()
+        self.assertEqual(fields["f1_07[0]"]["label"], "Line 5. Address")
+        self.assertEqual(fields["f1_07[0]"]["rect"], [0.0, 0.0, 100.0, 12.0])
+
+    def test_render_field_descriptor_includes_text_field_label_and_rect(self) -> None:
+        descriptor = self.service._render_field_descriptor(
+            "f1_08[0]",
+            {"name": "f1_08[0]", "type": "text", "page": 1, "label": "City, state, and ZIP code", "rect": [58.6, 310.0, 388.0, 324.0]},
+        )
+        self.assertIn("f1_08[0]", descriptor)
+        self.assertIn('label: "City, state, and ZIP code"', descriptor)
+        self.assertIn("rect [58.6, 310.0, 388.0, 324.0]", descriptor)
+
+
+class FormFillSharedTransformTests(unittest.TestCase):
+    """Per-row runs generate the mapping transform once and reuse it, so every
+    output of a run maps source columns to the target identically."""
+
+    def setUp(self) -> None:
+        self.service = FormFillService()
+        self.store: dict[str, dict] = {}
+        self.service._load_run_generated_transform = MagicMock(
+            side_effect=lambda run_id, key: dict(self.store[key]) if key in self.store else None
+        )
+        self.service._store_run_generated_transform = MagicMock(
+            side_effect=lambda run_id, key, entry: self.store.__setitem__(key, entry)
+        )
+        self.service._try_advisory_lock = MagicMock(return_value=True)
+        self.service._advisory_unlock = MagicMock()
+        self.service._get_session = MagicMock(return_value=MagicMock())
+
+    def test_shared_transform_generates_once_and_reuses_code_across_rows(self) -> None:
+        code = (
+            "def transform(rows, context):\n"
+            "    return {'field_values': {'f1_01[0]': str(rows[0]['Name'])}, 'warnings': []}\n"
+        )
+        generate = MagicMock(return_value=(code, ["Assumed f1_01 is the name field"]))
+        self.service._generate_transform_code = generate
+        kwargs = dict(
+            prompt="prompt",
+            context={},
+            expected_key="field_values",
+            label="fillable_pdf_generated_code",
+            run_id=str(uuid.uuid4()),
+            cache_key="fillable_pdf_generated_code:abc",
+        )
+
+        first = self.service._shared_tabular_transform([], rows=[{"Name": "Alice Monroe"}], **kwargs)
+        second = self.service._shared_tabular_transform([], rows=[{"Name": "Daniel Okafor"}], **kwargs)
+
+        self.assertEqual(generate.call_count, 1)
+        self.assertEqual(first["field_values"], {"f1_01[0]": "Alice Monroe"})
+        self.assertEqual(second["field_values"], {"f1_01[0]": "Daniel Okafor"})
+        self.assertTrue(second.get("code_cached"))
+        self.assertEqual(first["code_hash"], second["code_hash"])
+
+    def test_shared_transform_reports_codegen_assumptions_once_at_run_level(self) -> None:
+        code = (
+            "def transform(rows, context):\n"
+            "    return {'field_values': {}, 'warnings': []}\n"
+        )
+        self.service._generate_transform_code = MagicMock(return_value=(code, ["Assumed SSN split 3-2-4"]))
+        kwargs = dict(
+            prompt="prompt",
+            context={},
+            expected_key="field_values",
+            label="fillable_pdf_generated_code",
+            run_id=str(uuid.uuid4()),
+            cache_key="fillable_pdf_generated_code:abc",
+        )
+
+        first = self.service._shared_tabular_transform([], rows=[{"Name": "Alice"}], **kwargs)
+        second = self.service._shared_tabular_transform([], rows=[{"Name": "Bob"}], **kwargs)
+
+        # Assumptions live on the persisted cache entry (surfaced once at run
+        # finalization), not on each output.
+        self.assertEqual(first["warnings"], [])
+        self.assertEqual(second["warnings"], [])
+        entry = self.store["fillable_pdf_generated_code:abc"]
+        self.assertEqual(entry["warnings"], ["Assumed SSN split 3-2-4"])
+
+    def test_shared_transform_waits_for_other_worker_when_lock_unavailable(self) -> None:
+        code = (
+            "def transform(rows, context):\n"
+            "    return {'field_values': {'f1_01[0]': str(rows[0]['Name'])}, 'warnings': []}\n"
+        )
+        self.service._try_advisory_lock = MagicMock(return_value=False)
+        self.service._generate_transform_code = MagicMock()
+        self.service._wait_for_run_generated_transform = MagicMock(
+            return_value={"code": code, "code_hash": "other-worker-hash", "warnings": []}
+        )
+
+        payload = self.service._shared_tabular_transform(
+            [],
+            prompt="prompt",
+            rows=[{"Name": "Priya Raman"}],
+            context={},
+            expected_key="field_values",
+            label="fillable_pdf_generated_code",
+            run_id=str(uuid.uuid4()),
+            cache_key="fillable_pdf_generated_code:abc",
+        )
+
+        self.service._generate_transform_code.assert_not_called()
+        self.assertEqual(payload["field_values"], {"f1_01[0]": "Priya Raman"})
+        self.assertEqual(payload["code_hash"], "other-worker-hash")
+
+    def test_shared_transform_regenerates_when_cached_code_fails(self) -> None:
+        good_code = (
+            "def transform(rows, context):\n"
+            "    return {'field_values': {'f1_01[0]': str(rows[0]['Name'])}, 'warnings': []}\n"
+        )
+        self.store["fillable_pdf_generated_code:abc"] = {
+            "code": "def transform(rows, context):\n    raise ValueError('boom')\n",
+            "code_hash": "bad",
+            "warnings": [],
+        }
+        generate = MagicMock(return_value=(good_code, []))
+        self.service._generate_transform_code = generate
+
+        payload = self.service._shared_tabular_transform(
+            [],
+            prompt="prompt",
+            rows=[{"Name": "Sofia Herrera"}],
+            context={},
+            expected_key="field_values",
+            label="fillable_pdf_generated_code",
+            run_id=str(uuid.uuid4()),
+            cache_key="fillable_pdf_generated_code:abc",
+        )
+
+        self.assertEqual(payload["field_values"], {"f1_01[0]": "Sofia Herrera"})
+        self.assertEqual(self.store["fillable_pdf_generated_code:abc"]["code"], good_code)
+
+    def test_shared_transform_without_cache_key_delegates_directly(self) -> None:
+        code = (
+            "def transform(rows, context):\n"
+            "    return {'field_values': {}, 'warnings': ['row warning']}\n"
+        )
+        self.service._generate_transform_code = MagicMock(return_value=(code, ["assumption"]))
+
+        payload = self.service._shared_tabular_transform(
+            [],
+            prompt="prompt",
+            rows=[{"Name": "Alice"}],
+            context={},
+            expected_key="field_values",
+            label="fillable_pdf_generated_code",
+        )
+
+        self.service._store_run_generated_transform.assert_not_called()
+        # Single-output runs keep codegen assumptions on the payload as before.
+        self.assertEqual(payload["warnings"], ["assumption", "row warning"])
+        self.assertNotIn("code", payload)
+        self.assertNotIn("code_warnings", payload)
+
+
+class FormFillDroppedValueWarningTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.service = FormFillService()
+
+    def test_flags_digit_bearing_value_missing_from_all_fields(self) -> None:
+        record = {
+            "Name": "Alice Monroe",
+            "Address": "742 Juniper Lane",
+            "TIN": "900-55-0101",
+            "Federal Tax Classification": "Individual/sole proprietor",
+        }
+        field_values = {
+            "f1_01[0]": "Alice Monroe",
+            "f1_11[0]": "900",
+            "f1_12[0]": "55",
+            "f1_13[0]": "0101",
+        }
+        warnings = self.service._dropped_source_value_warnings(record, field_values)
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("'Address'", warnings[0])
+
+    def test_accepts_values_split_across_fields_and_ignores_text_only_columns(self) -> None:
+        record = {
+            "Name": "Sofia Herrera",
+            "City, State, ZIP": "Portside, OR 97205",
+            "TIN": "98-7000105",
+            "TIN Type": "EIN",
+        }
+        field_values = {
+            "f1_01[0]": "Sofia Herrera",
+            "f1_08[0]": "Portside, OR 97205",
+            "f1_14[0]": "98",
+            "f1_15[0]": "7000105",
+        }
+        self.assertEqual(self.service._dropped_source_value_warnings(record, field_values), [])
+
+
 if __name__ == "__main__":
     unittest.main()
