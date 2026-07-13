@@ -313,8 +313,6 @@ class FormFillService:
             self._env_int("FORM_FILL_TABULAR_CODE_MAX_OUTPUT_BYTES", GENERATED_CODE_MAX_OUTPUT_BYTES_DEFAULT),
         )
         self.tabular_code_sample_rows = max(1, self._env_int("FORM_FILL_TABULAR_CODE_SAMPLE_ROWS", 10))
-        self.transform_cache_wait_seconds = max(0, self._env_int("FORM_FILL_TRANSFORM_CACHE_WAIT_SECONDS", 180))
-        self.transform_cache_poll_seconds = max(1, self._env_int("FORM_FILL_TRANSFORM_CACHE_POLL_SECONDS", 3))
         self.finalize_lock_wait_seconds = max(0, self._env_int("FORM_FILL_FINALIZE_LOCK_WAIT_SECONDS", 30))
         self.finalize_lock_poll_seconds = max(1, self._env_int("FORM_FILL_FINALIZE_LOCK_POLL_SECONDS", 2))
         self.finalize_retry_delay_seconds = max(1, self._env_int("FORM_FILL_FINALIZE_RETRY_DELAY_SECONDS", 30))
@@ -2704,198 +2702,7 @@ Rules:
 
         normalized["warnings"] = code_warnings + list(normalized.get("warnings") or [])
         normalized["code_hash"] = hashlib.sha256(code.encode("utf-8")).hexdigest()
-        normalized["code"] = code
-        normalized["code_warnings"] = code_warnings
         return normalized
-
-    def _transform_cache_key(self, label: str, parts: list[Any]) -> str:
-        digest = hashlib.sha256(json.dumps(parts, ensure_ascii=True, sort_keys=False, default=str).encode("utf-8")).hexdigest()
-        return f"{label}:{digest[:16]}"
-
-    def _load_run_generated_transform(self, run_id: str, cache_key: str) -> Optional[dict[str, Any]]:
-        db = self._get_session()
-        try:
-            run = db.query(FormFillRun).filter(FormFillRun.id == uuid.UUID(str(run_id))).first()
-            transforms = run.generated_transforms if run is not None and isinstance(run.generated_transforms, dict) else {}
-            entry = transforms.get(cache_key)
-            if isinstance(entry, dict) and str(entry.get("code") or "").strip():
-                return dict(entry)
-            return None
-        except Exception as exc:
-            logger.warning("Failed to load cached Form Fill transform for run %s: %s", run_id, exc)
-            return None
-        finally:
-            db.close()
-
-    def _store_run_generated_transform(self, run_id: str, cache_key: str, entry: dict[str, Any]) -> None:
-        db = self._get_session()
-        try:
-            run = db.query(FormFillRun).filter(FormFillRun.id == uuid.UUID(str(run_id))).first()
-            if run is None:
-                return
-            transforms = dict(run.generated_transforms) if isinstance(run.generated_transforms, dict) else {}
-            transforms[cache_key] = entry
-            run.generated_transforms = transforms
-            db.commit()
-        except Exception as exc:
-            logger.warning("Failed to store cached Form Fill transform for run %s: %s", run_id, exc)
-            db.rollback()
-        finally:
-            db.close()
-
-    def _wait_for_run_generated_transform(self, run_id: str, cache_key: str) -> Optional[dict[str, Any]]:
-        deadline = time.monotonic() + self.transform_cache_wait_seconds
-        while time.monotonic() < deadline:
-            time.sleep(self.transform_cache_poll_seconds)
-            entry = self._load_run_generated_transform(run_id, cache_key)
-            if entry:
-                return entry
-        return None
-
-    def _run_record_sample_rows(self, run_id: str, limit: int) -> list[dict[str, Any]]:
-        """Record payloads of the run's outputs, for use as codegen sample rows.
-
-        A per-row output only carries its own record, but the shared transform
-        must handle every row of the run (e.g. both SSN-type and EIN-type
-        contractors), so the generation prompt gets the run-wide variety."""
-        db = self._get_session()
-        try:
-            outputs = (
-                db.query(FormFillOutput)
-                .filter(FormFillOutput.run_id == uuid.UUID(str(run_id)))
-                .order_by(FormFillOutput.record_index.asc())
-                .limit(max(1, int(limit)))
-                .all()
-            )
-            return [dict(output.record_payload) for output in outputs if isinstance(output.record_payload, dict) and output.record_payload]
-        except Exception as exc:
-            logger.warning("Failed to load sample record rows for Form Fill run %s: %s", run_id, exc)
-            return []
-        finally:
-            db.close()
-
-    def _execute_cached_transform(
-        self,
-        entry: dict[str, Any],
-        *,
-        rows: list[dict[str, Any]],
-        context: dict[str, Any],
-        expected_key: str,
-        label: str,
-    ) -> Optional[dict[str, Any]]:
-        code = str(entry.get("code") or "")
-        if not code.strip():
-            return None
-        try:
-            result = self._execute_generated_transform(code, rows=rows, context=context)
-            normalized = self._validate_generated_transform_result(result, expected_key=expected_key)
-        except Exception as exc:
-            logger.warning("Cached Form Fill transform failed (%s); falling back to regeneration: %s", label, exc)
-            return None
-        normalized["code_hash"] = entry.get("code_hash")
-        normalized["code_cached"] = True
-        return normalized
-
-    def _shared_tabular_transform(
-        self,
-        contents: list[Any],
-        *,
-        prompt: str,
-        rows: list[dict[str, Any]],
-        context: dict[str, Any],
-        expected_key: str,
-        label: str,
-        fill_chronologically: bool = False,
-        run_id: Optional[str] = None,
-        cache_key: Optional[str] = None,
-    ) -> dict[str, Any]:
-        """Generate-and-execute a tabular transform, sharing the generated code
-        across a run's outputs.
-
-        Per-row outputs of one run fill the same target from rows of the same
-        schema, so the first output generates the transform code once (guarded
-        by an advisory lock), stores it on the run, and every other output
-        executes the stored code. This keeps all outputs of a run consistent
-        with each other and avoids one Gemini codegen call per row. The stored
-        code's warnings/assumptions live on the cache entry and are surfaced
-        once at run level instead of once per output.
-        """
-        if not run_id or not cache_key:
-            payload = self._generate_and_execute_tabular_transform(
-                contents,
-                prompt=prompt,
-                rows=rows,
-                context=context,
-                expected_key=expected_key,
-                label=label,
-                fill_chronologically=fill_chronologically,
-            )
-            payload.pop("code", None)
-            payload.pop("code_warnings", None)
-            return payload
-
-        cached = self._load_run_generated_transform(run_id, cache_key)
-        if cached:
-            executed = self._execute_cached_transform(cached, rows=rows, context=context, expected_key=expected_key, label=label)
-            if executed is not None:
-                return executed
-
-        lock_id = str(uuid.uuid5(uuid.UUID(str(run_id)), cache_key))
-        lock_db = self._get_session()
-        lock_acquired = False
-        try:
-            lock_acquired = self._try_advisory_lock(lock_db, lock_id)
-            if lock_acquired:
-                # Another output may have stored the code between our first
-                # cache read and acquiring the lock.
-                cached = self._load_run_generated_transform(run_id, cache_key)
-                if cached:
-                    executed = self._execute_cached_transform(cached, rows=rows, context=context, expected_key=expected_key, label=label)
-                    if executed is not None:
-                        return executed
-            else:
-                cached = self._wait_for_run_generated_transform(run_id, cache_key)
-                if cached:
-                    executed = self._execute_cached_transform(cached, rows=rows, context=context, expected_key=expected_key, label=label)
-                    if executed is not None:
-                        return executed
-                logger.warning(
-                    "Form Fill transform lock for run %s (%s) unavailable and no cached code appeared; generating independently",
-                    run_id,
-                    label,
-                )
-
-            payload = self._generate_and_execute_tabular_transform(
-                contents,
-                prompt=prompt,
-                rows=rows,
-                context=context,
-                expected_key=expected_key,
-                label=label,
-                fill_chronologically=fill_chronologically,
-            )
-            code = payload.pop("code", None)
-            code_warnings = [str(item) for item in (payload.pop("code_warnings", None) or [])]
-            if code:
-                self._store_run_generated_transform(
-                    run_id,
-                    cache_key,
-                    {
-                        "code": code,
-                        "code_hash": payload.get("code_hash"),
-                        "warnings": code_warnings,
-                        "label": label,
-                        "created_at": datetime.now(timezone.utc).isoformat(),
-                    },
-                )
-            # Codegen warnings were persisted with the code and are reported once
-            # at run level; keep only this row's execution warnings here.
-            payload["warnings"] = list(payload.get("warnings") or [])[len(code_warnings):]
-            return payload
-        finally:
-            if lock_acquired:
-                self._advisory_unlock(lock_db, lock_id)
-            lock_db.close()
 
     def _generate_json_response(self, contents: list[Any], schema: types.Schema) -> dict[str, Any]:
         self._ensure_client()
@@ -3881,31 +3688,6 @@ Instructions:
         tabular_rows = list((tabular_context or {}).get("rows") or [])
         use_tabular_generation = bool(tabular_rows)
 
-        # Per-row outputs of one run share a single generated transform: the
-        # code is generated once (from sample rows spanning the whole run) and
-        # every output executes it against its own row, so all outputs of a run
-        # map source columns to the target identically.
-        share_transform = (
-            (getattr(run, "repeat_mode", None) or REPEAT_MODE_SINGLE) == REPEAT_MODE_SOURCE_ROWS
-            and bool((tabular_context or {}).get("single_record"))
-            and use_tabular_generation
-        )
-        codegen_tabular_context = dict(tabular_context or {})
-        per_row_contract_note = ""
-        share_run_id: Optional[str] = None
-        if share_transform:
-            share_run_id = str(run.id)
-            sample_rows = self._run_record_sample_rows(share_run_id, limit=self.tabular_code_sample_rows)
-            if sample_rows:
-                codegen_tabular_context = {**codegen_tabular_context, "rows": sample_rows, "row_count": len(sample_rows)}
-            per_row_contract_note = (
-                " This run fills one copy of the target per source row: transform(rows, context) is invoked once "
-                "per row, and rows then contains exactly ONE row dict (use rows[0]). The sample rows show the "
-                "variety of values the same code must handle across invocations; handle every variant, not just "
-                "the first sample."
-            )
-        source_columns = list((tabular_context or {}).get("columns") or [])
-
         if run.target_file_type == PDF_MIME:
             field_metadata_list = self._extract_pdf_form_field_metadata(target_local_path)
             pdf_fields = [meta["name"] for meta in field_metadata_list]
@@ -3921,7 +3703,6 @@ Instructions:
                         "For checkbox, radio, and dropdown fields, emit one of that field's allowed values exactly as "
                         "listed (copy it verbatim) or omit the field; never invent values and never emit the "
                         "human-readable label. context['fields'] lists each field's type and allowed values."
-                        + per_row_contract_note
                     )
                     code_context = {
                         "target_kind": "fillable PDF",
@@ -3941,13 +3722,13 @@ Instructions:
                         "output_contract": output_contract,
                     }
                     code_prompt = self._build_generated_code_prompt(
-                        tabular_context=codegen_tabular_context,
+                        tabular_context=tabular_context or {},
                         target_kind="fillable PDF",
                         target_context=code_context,
                         output_contract=output_contract,
                         fill_chronologically=bool(run.fill_chronologically),
                     )
-                    mapping_payload = self._shared_tabular_transform(
+                    mapping_payload = self._generate_and_execute_tabular_transform(
                         source_parts + target_parts,
                         prompt=code_prompt,
                         rows=tabular_rows,
@@ -3955,11 +3736,6 @@ Instructions:
                         expected_key="field_values",
                         label="fillable_pdf_generated_code",
                         fill_chronologically=bool(run.fill_chronologically),
-                        run_id=share_run_id,
-                        cache_key=self._transform_cache_key(
-                            "fillable_pdf_generated_code",
-                            [pdf_fields, source_columns, bool(run.fill_chronologically)],
-                        ) if share_transform else None,
                     )
                     allowed_fields = set(pdf_fields)
                     field_values = {
@@ -3975,7 +3751,6 @@ Instructions:
                         "field_values": field_values,
                         "source_rows": len(tabular_rows),
                         "code_hash": mapping_payload.get("code_hash"),
-                        "code_cached": bool(mapping_payload.get("code_cached")),
                     }
                 else:
                     mapping_payload = self._generate_mapping_payload(
@@ -4015,23 +3790,22 @@ Instructions:
                     "Return {'items': [overlay_item, ...], 'warnings': [...]}. Each overlay_item must include "
                     "page_number and overlay_text, and may include anchor_text, anchor_before, anchor_after, "
                     "placement_hint, cover_anchor, and font_size."
-                    + per_row_contract_note
                 )
                 code_context = {
                     "target_kind": "PDF overlay",
                     "target_preview_text": target_preview_text,
-                    "source_columns": source_columns,
+                    "source_columns": list((tabular_context or {}).get("columns") or []),
                     "source_files": list((tabular_context or {}).get("source_files") or []),
                     "output_contract": output_contract,
                 }
                 overlay_prompt = self._build_generated_code_prompt(
-                    tabular_context=codegen_tabular_context,
+                    tabular_context=tabular_context or {},
                     target_kind="PDF overlay",
                     target_context=code_context,
                     output_contract=output_contract,
                     fill_chronologically=bool(run.fill_chronologically),
                 )
-                overlay_payload = self._shared_tabular_transform(
+                overlay_payload = self._generate_and_execute_tabular_transform(
                     source_parts + target_parts,
                     prompt=overlay_prompt,
                     rows=tabular_rows,
@@ -4039,11 +3813,6 @@ Instructions:
                     expected_key="items",
                     label="pdf_overlay_generated_code",
                     fill_chronologically=bool(run.fill_chronologically),
-                    run_id=share_run_id,
-                    cache_key=self._transform_cache_key(
-                        "pdf_overlay_generated_code",
-                        [source_columns, bool(run.fill_chronologically)],
-                    ) if share_transform else None,
                 )
             else:
                 overlay_prompt = self._build_pdf_overlay_prompt(
@@ -4125,7 +3894,6 @@ Instructions:
                         "replace_text_in_block, replace_block_text, append_to_block, insert_before_block, insert_after_block, "
                         "insert_table_row_after, or insert_table_column_after with valid provided block_id/table_id values. "
                         "Each operation object must put the operation name in the 'action' key and must provide cells as strings."
-                        + per_row_contract_note
                     )
                     code_context = {
                         "target_kind": "DOCX edit in place",
@@ -4133,18 +3901,18 @@ Instructions:
                         "editable_blocks": self._public_docx_blocks(docx_blocks),
                         "editable_tables": self._public_docx_tables(docx_tables),
                         "allow_table_expansion": bool(run.allow_docx_table_expansion),
-                        "source_columns": source_columns,
+                        "source_columns": list((tabular_context or {}).get("columns") or []),
                         "source_files": list((tabular_context or {}).get("source_files") or []),
                         "output_contract": output_contract,
                     }
                     code_prompt = self._build_generated_code_prompt(
-                        tabular_context=codegen_tabular_context,
+                        tabular_context=tabular_context or {},
                         target_kind="DOCX edit in place",
                         target_context=code_context,
                         output_contract=output_contract,
                         fill_chronologically=bool(run.fill_chronologically),
                     )
-                    edit_payload = self._shared_tabular_transform(
+                    edit_payload = self._generate_and_execute_tabular_transform(
                         source_parts + target_parts,
                         prompt=code_prompt,
                         rows=tabular_rows,
@@ -4152,11 +3920,6 @@ Instructions:
                         expected_key="operations",
                         label="docx_edit_generated_code",
                         fill_chronologically=bool(run.fill_chronologically),
-                        run_id=share_run_id,
-                        cache_key=self._transform_cache_key(
-                            "docx_edit_generated_code",
-                            [source_columns, bool(run.allow_docx_table_expansion), bool(run.fill_chronologically)],
-                        ) if share_transform else None,
                     )
                 else:
                     edit_payload = self._generate_collection_json_response(
@@ -4494,15 +4257,6 @@ Instructions:
                 if output.status == "completed" and output.result_gcs_object_name and output.result_filename
             ]
             aggregate_warnings: list[str] = []
-            # Warnings/assumptions from the run's shared generated transform
-            # apply to every output; report them once instead of per record.
-            if isinstance(run.generated_transforms, dict):
-                for entry in run.generated_transforms.values():
-                    if not isinstance(entry, dict):
-                        continue
-                    for warning in entry.get("warnings") or []:
-                        if str(warning).strip():
-                            aggregate_warnings.append(f"Fill plan: {warning}")
             for output in outputs:
                 if isinstance(output.warnings, list):
                     aggregate_warnings.extend(f"{output.record_label}: {warning}" for warning in output.warnings)

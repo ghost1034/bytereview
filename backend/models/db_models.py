@@ -266,7 +266,6 @@ class FormFillRun(Base):
     usage_basis = Column(String(32), nullable=True)
     usage_pages = Column(Integer, nullable=True)
     source_record_config = Column(MutableDict.as_mutable(JSONB), nullable=True)
-    generated_transforms = Column(MutableDict.as_mutable(JSONB), nullable=True)
     processing_strategy = Column(String(50))
     warnings = Column(JSONB, nullable=True)
     fill_plan = Column(MutableDict.as_mutable(JSONB), nullable=True)
