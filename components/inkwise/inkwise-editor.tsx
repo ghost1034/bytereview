@@ -18,6 +18,7 @@ import {
   type InkwiseEditorCommentThread,
   type InkwiseTrackedChange,
 } from '@/lib/inkwise-editor-extensions'
+import { splitGroupedCitationAnchors } from '@/lib/inkwise-citation-anchor'
 import { INKWISE_TIPTAP_BASE_EXTENSIONS } from '@/lib/inkwise-tiptap'
 import { cn } from '@/lib/utils'
 
@@ -72,7 +73,7 @@ export function InkwiseEditor({
   focusMode?: boolean
 }) {
   const incoming = useMemo(() => {
-    if (contentJson) return contentJson
+    if (contentJson) return splitGroupedCitationAnchors(contentJson)
     if (contentHtml) return contentHtml
     return ''
   }, [contentJson, contentHtml])
@@ -157,11 +158,11 @@ export function InkwiseEditor({
   useEffect(() => {
     if (!editor || !allowExternalSetContent) return
 
-    const signature = contentJson ? JSON.stringify(contentJson) : contentHtml || ''
+    const signature = contentJson ? JSON.stringify(incoming) : contentHtml || ''
     if (lastExternalSetRef.current === signature) return
 
     const currentSig = JSON.stringify(editor.getJSON())
-    if (contentJson && currentSig === JSON.stringify(contentJson)) {
+    if (contentJson && currentSig === JSON.stringify(incoming)) {
       lastExternalSetRef.current = signature
       return
     }

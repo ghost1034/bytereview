@@ -21,6 +21,10 @@ export type InkwiseCitationAnchorAttrs = {
 const TEXTBLOCK_TYPES = new Set(['paragraph', 'heading'])
 const EVIDENCE_MARKER_RE = /\[(E\d{2})\]/g
 
+function createAnchorId(): string {
+  return globalThis.crypto?.randomUUID?.() || `inkwise-citation-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
 function parseJson<T>(value: string | null | undefined, fallback: T): T {
   if (!value) return fallback
   try {
@@ -44,6 +48,16 @@ function buildAnchorNode(attrs: InkwiseCitationAnchorAttrs): JSONContent {
     type: INKWISE_CITATION_ANCHOR_NODE,
     attrs,
   }
+}
+
+function splitCitationAnchorAttrs(attrs: InkwiseCitationAnchorAttrs): InkwiseCitationAnchorAttrs[] {
+  if (attrs.citations.length <= 1) return [attrs]
+
+  return attrs.citations.map((citation, index) => ({
+    ...attrs,
+    anchorId: index === 0 ? attrs.anchorId : createAnchorId(),
+    citations: [citation],
+  }))
 }
 
 function buildTextNode(text: string, template?: JSONContent): JSONContent {
@@ -90,7 +104,7 @@ export function createInkwiseCitationAnchorAttrs({
   retrievalRunId?: string | null
 }): InkwiseCitationAnchorAttrs {
   return {
-    anchorId: globalThis.crypto?.randomUUID?.() || `inkwise-citation-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    anchorId: createAnchorId(),
     sourceKind,
     citationStyle: normalizeInkwiseCitationStyle(citationStyle),
     attemptId: attemptId || null,
@@ -106,17 +120,44 @@ export function appendCitationAnchorToContent(
 ): JSONContent {
   const doc = JSON.parse(JSON.stringify(content && content.type === 'doc' ? content : { type: 'doc', content: [] })) as JSONContent
 
-  if (!appendAnchorToLastTextblock(doc, attrs)) {
-    doc.content = [
-      ...(doc.content ?? []),
-      {
-        type: 'paragraph',
-        content: [buildAnchorNode(attrs)],
-      },
-    ]
+  for (const citationAttrs of splitCitationAnchorAttrs(attrs)) {
+    if (!appendAnchorToLastTextblock(doc, citationAttrs)) {
+      doc.content = [
+        ...(doc.content ?? []),
+        {
+          type: 'paragraph',
+          content: [buildAnchorNode(citationAttrs)],
+        },
+      ]
+    }
   }
 
   return doc
+}
+
+export function splitGroupedCitationAnchors(content: JSONContent): JSONContent {
+  function visit(node: JSONContent): JSONContent[] {
+    if (node.type === INKWISE_CITATION_ANCHOR_NODE) {
+      const attrs = (node.attrs || {}) as Partial<InkwiseCitationAnchorAttrs>
+      const citations = parseCitations(attrs.citations)
+      if (citations.length > 1) {
+        return citations.map((citation, index) => ({
+          ...node,
+          attrs: {
+            ...node.attrs,
+            anchorId: index === 0 && attrs.anchorId ? attrs.anchorId : createAnchorId(),
+            citations: [citation],
+          },
+        }))
+      }
+    }
+
+    if (!Array.isArray(node.content) || !node.content.length) return [node]
+    return [{ ...node, content: node.content.flatMap((child) => visit(child)) }]
+  }
+
+  const nodes = visit(content)
+  return nodes.length === 1 ? nodes[0] : { type: 'doc', content: nodes }
 }
 
 function splitTextNodeByCitationMarkers({
@@ -165,17 +206,14 @@ function splitTextNodeByCitationMarkers({
     }
 
     if (citationIds.length) {
-      parts.push(
-        buildAnchorNode(
-          createInkwiseCitationAnchorAttrs({
-            citations: citationIds.map((citationId) => citationById.get(citationId)).filter(Boolean) as InkwiseCitation[],
-            sourceKind,
-            citationStyle,
-            attemptId,
-            retrievalRunId,
-          }),
-        ),
-      )
+      const attrs = createInkwiseCitationAnchorAttrs({
+        citations: citationIds.map((citationId) => citationById.get(citationId)).filter(Boolean) as InkwiseCitation[],
+        sourceKind,
+        citationStyle,
+        attemptId,
+        retrievalRunId,
+      })
+      parts.push(...splitCitationAnchorAttrs(attrs).map((citationAttrs) => buildAnchorNode(citationAttrs)))
       inserted = true
     } else {
       parts.push(buildTextNode(text.slice(match.index, nextCursor), node))
