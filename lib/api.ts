@@ -2724,6 +2724,11 @@ export interface InkwiseBibliographicMetadata {
   docket_number?: string | null
 }
 
+export interface InkwiseCitationHighlight {
+  start: number
+  end: number
+}
+
 export interface InkwiseCitation {
   evidence_id?: string
   source_id?: string
@@ -2737,6 +2742,7 @@ export interface InkwiseCitation {
   preview_bucket?: string | null
   preview_object?: string | null
   excerpt?: string
+  highlights?: InkwiseCitationHighlight[] | null
   bibliographic_metadata?: InkwiseBibliographicMetadata | null
   score?: number | null
 }

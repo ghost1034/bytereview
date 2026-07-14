@@ -452,6 +452,8 @@ def build_grounded_chat_prompt(
         ),
         "Citation rules:",
         "- Cite evidence IDs in square brackets like [E01].",
+        "- When possible, pin the citation to its support: after the ID, add the shortest verbatim quote from that evidence block that directly supports your sentence, like [E01|\"exact words copied from the evidence\"].",
+        "- The pinned quote must be copied character-for-character from the evidence block text, at most about 40 words, with no double-quote characters inside it. If you cannot quote exactly, use the bare ID like [E01].",
         f"- Only cite from: {', '.join(allowed_ids)}",
         "- Never cite an ID not in the evidence.",
         "- Do not cite the draft excerpt.",

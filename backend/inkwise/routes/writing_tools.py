@@ -25,7 +25,7 @@ from inkwise.schemas import (
 from inkwise.services.document_sources import InkwiseDocumentSourceService
 from inkwise.services.document_service import InkwiseDocumentService
 from inkwise.services.generation_attempts import InkwiseGenerationAttemptService
-from inkwise.services.citation_text import parse_citation_text
+from inkwise.services.citation_text import parse_citation_text, split_stream_display_text
 from inkwise.services.gemini import GeminiError, generate_content, generate_content_stream, generate_text, generate_text_stream
 from inkwise.services.multimodal_evidence import build_multimodal_contents
 from inkwise.services.retrieval_service import InkwiseRetrievalService, build_evidence_pack
@@ -208,6 +208,7 @@ async def _stream_writing_tool_attempt(
         multimodal_attached_evidence_ids = list(multimodal_bundle.attached_evidence_ids)
         raw_response_text = ""
         pending_text = ""
+        marker_buffer = ""
         if multimodal_bundle.has_attachments:
             stream = generate_content_stream(
                 model=settings.gemini_model,
@@ -232,13 +233,17 @@ async def _stream_writing_tool_attempt(
             if not chunk.text:
                 continue
             raw_response_text += chunk.text
-            pending_text += chunk.text
+            marker_buffer += chunk.text
+            display_text, marker_buffer = split_stream_display_text(marker_buffer)
+            pending_text += display_text
             pieces, pending_text = _drain_stream_text_buffer(pending_text)
             for piece in pieces:
                 if await request.is_disconnected():
                     raise asyncio.CancelledError
                 yield _sse("token", {"text": piece})
                 await asyncio.sleep(0)
+        display_text, marker_buffer = split_stream_display_text(marker_buffer, final=True)
+        pending_text += display_text
         pieces, pending_text = _drain_stream_text_buffer(pending_text, final=True)
         for piece in pieces:
             if await request.is_disconnected():
