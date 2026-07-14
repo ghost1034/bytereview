@@ -73,10 +73,7 @@ function formatDefaultInline(citation: InkwiseCitation): string {
 }
 
 function formatDefaultNote(citation: InkwiseCitation): string {
-  const summary = formatDefaultInline(citation)
-  const excerpt = text(citation.excerpt)
-  if (excerpt) return summary ? `${summary}: ${excerpt}` : excerpt
-  return summary
+  return formatDefaultInline(citation)
 }
 
 function formatApaInline(citation: InkwiseCitation): string {

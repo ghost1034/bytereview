@@ -114,11 +114,7 @@ def _format_default_inline(citation: dict[str, Any]) -> str:
 
 
 def _format_default_note(citation: dict[str, Any]) -> str:
-    summary = _format_default_inline(citation)
-    excerpt = _text(citation.get("excerpt"))
-    if excerpt:
-        return f"{summary}: {excerpt}" if summary else excerpt
-    return summary
+    return _format_default_inline(citation)
 
 
 def _format_apa_inline(citation: dict[str, Any]) -> str:

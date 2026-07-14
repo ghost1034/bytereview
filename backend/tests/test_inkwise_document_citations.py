@@ -7,6 +7,63 @@ from inkwise.services.exporter import content_to_text
 
 
 class RefreshDocumentCitationsTests(unittest.TestCase):
+    def test_default_note_citations_exclude_source_excerpt(self) -> None:
+        content_json = {
+            "type": "doc",
+            "content": [
+                {
+                    "type": "inkwiseNoteDefinition",
+                    "attrs": {
+                        "noteId": "footnote-1",
+                        "noteKind": "footnote",
+                        "noteNumber": 1,
+                        "citationStyle": "default",
+                        "citations": [
+                            {
+                                "evidence_id": "E01",
+                                "source_id": "source-1",
+                                "source_title": "Source Title",
+                                "page_number": 3,
+                                "excerpt": "Referenced source text chunk.",
+                                "bibliographic_metadata": {},
+                            }
+                        ],
+                    },
+                    "content": [{"type": "text", "text": "Old reference"}],
+                },
+                {
+                    "type": "inkwiseNoteDefinition",
+                    "attrs": {
+                        "noteId": "endnote-1",
+                        "noteKind": "endnote",
+                        "noteNumber": 2,
+                        "citationStyle": "default",
+                        "citations": [
+                            {
+                                "evidence_id": "E02",
+                                "source_id": "source-2",
+                                "source_title": "Another Source",
+                                "page_number": 8,
+                                "excerpt": "Another referenced source text chunk.",
+                                "bibliographic_metadata": {},
+                            }
+                        ],
+                    },
+                    "content": [{"type": "text", "text": "Old reference"}],
+                },
+            ],
+        }
+
+        refreshed, changed = refresh_document_citations(
+            content_json=content_json,
+            citation_style="default",
+            source_map={},
+        )
+
+        self.assertTrue(changed)
+        self.assertEqual(refreshed["content"][0]["content"][0]["text"], "Source Title p.3")
+        self.assertEqual(refreshed["content"][1]["content"][0]["text"], "Another Source p.8")
+
     def test_refreshes_semantic_inline_and_note_citations(self) -> None:
         content_json = {
             "type": "doc",
