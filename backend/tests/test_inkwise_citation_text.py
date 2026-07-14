@@ -70,7 +70,13 @@ class ParseCitationTextTests(unittest.TestCase):
             {"text": "The lease renews automatically.", "citation_ids": ["E01"]},
             {"text": " Either party may terminate with notice.", "citation_ids": ["E02"]},
         ])
+        self.assertEqual(
+            parsed.content_with_citations,
+            "The lease renews automatically.[E01#1] Either party may terminate with notice.[E02#1]",
+        )
         self.assertEqual([item["evidence_id"] for item in parsed.citations], ["E01", "E02"])
+        self.assertEqual(parsed.citations[0]["references"], [{"id": "E01#1", "highlight": None}])
+        self.assertEqual(parsed.citations[1]["references"], [{"id": "E02#1", "highlight": None}])
 
     def test_merges_adjacent_marker_group_into_one_segment_anchor(self) -> None:
         evidence = [
@@ -118,12 +124,13 @@ class ParseCitationTextTests(unittest.TestCase):
         )
 
         self.assertEqual(parsed.plain_text, "The lease renews on its own.")
-        self.assertEqual(parsed.content_with_citations, "The lease renews on its own.[E01]")
+        self.assertEqual(parsed.content_with_citations, "The lease renews on its own.[E01#1]")
         self.assertEqual(len(parsed.citations), 1)
         highlights = parsed.citations[0]["highlights"]
         self.assertEqual(len(highlights), 1)
         start, end = highlights[0]["start"], highlights[0]["end"]
         self.assertEqual(excerpt[start:end], "renews automatically each year")
+        self.assertEqual(parsed.citations[0]["references"], [{"id": "E01#1", "highlight": highlights[0]}])
 
     def test_pin_cited_quote_tolerates_whitespace_and_curly_quotes(self) -> None:
         excerpt = "The tenant’s deposit shall be\n  returned within thirty days."
@@ -149,10 +156,11 @@ class ParseCitationTextTests(unittest.TestCase):
 
         self.assertEqual([item["evidence_id"] for item in parsed.citations], ["E01"])
         self.assertEqual(parsed.citations[0]["highlights"], [])
-        self.assertEqual(parsed.content_with_citations, "Claim.[E01]")
+        self.assertEqual(parsed.content_with_citations, "Claim.[E01#1]")
         self.assertEqual(parsed.plain_text, "Claim.")
+        self.assertEqual(parsed.citations[0]["references"], [{"id": "E01#1", "highlight": None}])
 
-    def test_multiple_quotes_for_same_evidence_merge_into_highlight_list(self) -> None:
+    def test_multiple_quotes_for_same_evidence_keep_occurrence_highlights(self) -> None:
         excerpt = "Rent is due on the first. Late fees accrue after five days. Notice must be written."
         evidence = [_evidence_item("E01", excerpt)]
 
@@ -162,10 +170,15 @@ class ParseCitationTextTests(unittest.TestCase):
         )
 
         self.assertEqual(len(parsed.citations), 1)
+        self.assertEqual(parsed.content_with_citations, "Rent timing.[E01#1] Late penalty.[E01#2]")
         highlights = parsed.citations[0]["highlights"]
         self.assertEqual(len(highlights), 2)
         self.assertEqual(excerpt[highlights[0]["start"] : highlights[0]["end"]], "Rent is due on the first")
         self.assertEqual(excerpt[highlights[1]["start"] : highlights[1]["end"]], "Late fees accrue after five days")
+        references = parsed.citations[0]["references"]
+        self.assertEqual([reference["id"] for reference in references], ["E01#1", "E01#2"])
+        self.assertEqual(excerpt[references[0]["highlight"]["start"] : references[0]["highlight"]["end"]], "Rent is due on the first")
+        self.assertEqual(excerpt[references[1]["highlight"]["start"] : references[1]["highlight"]["end"]], "Late fees accrue after five days")
 
     def test_unknown_evidence_id_keeps_bare_marker_and_drops_quote(self) -> None:
         evidence = [_evidence_item("E01", "renews automatically")]

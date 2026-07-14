@@ -2,6 +2,8 @@ import type { JSONContent } from '@tiptap/core'
 import { mergeAttributes, Node } from '@tiptap/core'
 
 import type { InkwiseCitation, InkwiseCitationStyle } from '@/lib/api'
+import { createInkwiseCitationResolver } from '@/lib/inkwise-citation-reference'
+import type { InkwiseCitationResolver } from '@/lib/inkwise-citation-reference'
 import { normalizeInkwiseCitationStyle } from '@/lib/inkwise-citation-format'
 
 export const INKWISE_CITATION_ANCHOR_NODE = 'inkwiseCitationAnchor'
@@ -19,7 +21,7 @@ export type InkwiseCitationAnchorAttrs = {
 }
 
 const TEXTBLOCK_TYPES = new Set(['paragraph', 'heading'])
-const EVIDENCE_MARKER_RE = /\[(E\d{2})\]/g
+const EVIDENCE_MARKER_RE = /\[(E\d{2})(?:#(\d+))?\]/g
 
 function createAnchorId(): string {
   return globalThis.crypto?.randomUUID?.() || `inkwise-citation-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
@@ -162,18 +164,20 @@ export function splitGroupedCitationAnchors(content: JSONContent): JSONContent {
 
 function splitTextNodeByCitationMarkers({
   node,
-  citationById,
+  resolveCitation,
   sourceKind,
   citationStyle,
   attemptId,
   retrievalRunId,
+  referenceOccurrences,
 }: {
   node: JSONContent
-  citationById: Map<string, InkwiseCitation>
+  resolveCitation: InkwiseCitationResolver
   sourceKind: InkwiseCitationAnchorSourceKind
   citationStyle?: InkwiseCitationStyle | null
   attemptId?: string | null
   retrievalRunId?: string | null
+  referenceOccurrences: Map<string, number>
 }): { nodes: JSONContent[]; inserted: boolean } {
   const text = typeof node.text === 'string' ? node.text : ''
   if (!text) return { nodes: [node], inserted: false }
@@ -192,22 +196,28 @@ function splitTextNodeByCitationMarkers({
       parts.push(buildTextNode(text.slice(cursor, match.index), node))
     }
 
-    const citationIds: string[] = []
+    const citations: InkwiseCitation[] = []
     let nextCursor = match.index
     while (true) {
       EVIDENCE_MARKER_RE.lastIndex = nextCursor
       const nextMatch = EVIDENCE_MARKER_RE.exec(text)
       if (!nextMatch || nextMatch.index !== nextCursor) break
-      const evidenceId = nextMatch[1]
-      if (citationById.has(evidenceId) && !citationIds.includes(evidenceId)) {
-        citationIds.push(evidenceId)
+      let referenceIndex = nextMatch[2]
+      if (!referenceIndex) {
+        const occurrence = (referenceOccurrences.get(nextMatch[1]) || 0) + 1
+        referenceOccurrences.set(nextMatch[1], occurrence)
+        referenceIndex = String(occurrence)
+      }
+      const citation = resolveCitation(nextMatch[1], referenceIndex)
+      if (citation && !citations.some((item) => item === citation)) {
+        citations.push(citation)
       }
       nextCursor = nextMatch.index + nextMatch[0].length
     }
 
-    if (citationIds.length) {
+    if (citations.length) {
       const attrs = createInkwiseCitationAnchorAttrs({
-        citations: citationIds.map((citationId) => citationById.get(citationId)).filter(Boolean) as InkwiseCitation[],
+        citations,
         sourceKind,
         citationStyle,
         attemptId,
@@ -252,16 +262,21 @@ export function injectCitationAnchorsFromMarkedContent({
   retrievalRunId?: string | null
 }): { content: JSONContent; inserted: boolean } {
   const doc = JSON.parse(JSON.stringify(content && content.type === 'doc' ? content : { type: 'doc', content: [] })) as JSONContent
-  const citationById = new Map(
-    citations
-      .filter((citation) => citation?.evidence_id)
-      .map((citation) => [String(citation.evidence_id), citation] as const),
-  )
+  const resolveCitation = createInkwiseCitationResolver(citations)
+  const referenceOccurrences = new Map<string, number>()
   let inserted = false
 
   function visit(node: JSONContent): JSONContent[] {
     if (node.type === 'text') {
-      const result = splitTextNodeByCitationMarkers({ node, citationById, sourceKind, citationStyle, attemptId, retrievalRunId })
+      const result = splitTextNodeByCitationMarkers({
+        node,
+        resolveCitation,
+        sourceKind,
+        citationStyle,
+        attemptId,
+        retrievalRunId,
+        referenceOccurrences,
+      })
       inserted = inserted || result.inserted
       return result.nodes
     }

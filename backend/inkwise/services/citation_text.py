@@ -136,7 +136,8 @@ def parse_citation_text(*, text: str, evidence: list[Any]) -> ParsedCitationText
     segments: list[dict[str, Any]] = []
     citations: list[dict[str, Any]] = []
     seen_citation_ids: set[str] = set()
-    highlight_spans_by_id: dict[str, list[tuple[int, int]]] = {}
+    references_by_id: dict[str, list[dict[str, Any]]] = {}
+    reference_counts_by_id: dict[str, int] = {}
     normalized_parts: list[str] = []
     current_text = ""
     current_ids: list[str] = []
@@ -171,23 +172,42 @@ def parse_citation_text(*, text: str, evidence: list[Any]) -> ParsedCitationText
             continue
 
         evidence_id, quote = value
-        normalized_parts.append(f"[{evidence_id}]")
         if evidence_id not in evidence_by_id:
+            normalized_parts.append(f"[{evidence_id}]")
             current_text += f"[{evidence_id}]"
             continue
+        if not current_text:
+            normalized_parts.append(f"[{evidence_id}]")
+            continue
+
+        reference_index = reference_counts_by_id.get(evidence_id, 0) + 1
+        reference_counts_by_id[evidence_id] = reference_index
+        reference_id = f"{evidence_id}#{reference_index}"
+        normalized_parts.append(f"[{reference_id}]")
+
+        span = None
         if quote:
             span = find_excerpt_span(str(getattr(evidence_by_id[evidence_id], "excerpt", "") or ""), quote)
-            if span:
-                highlight_spans_by_id.setdefault(evidence_id, []).append(span)
-        if not current_text:
-            continue
+        references_by_id.setdefault(evidence_id, []).append(
+            {
+                "id": reference_id,
+                "highlight": {"start": span[0], "end": span[1]} if span else None,
+            }
+        )
         if evidence_id not in current_ids:
             current_ids.append(evidence_id)
 
     flush()
 
     for citation in citations:
-        spans = _merge_spans(highlight_spans_by_id.get(str(citation.get("evidence_id")), []))
+        references = references_by_id.get(str(citation.get("evidence_id")), [])
+        citation["references"] = references
+        reference_spans: list[tuple[int, int]] = []
+        for reference in references:
+            highlight = reference.get("highlight")
+            if isinstance(highlight, dict):
+                reference_spans.append((int(highlight["start"]), int(highlight["end"])))
+        spans = _merge_spans(reference_spans)
         citation["highlights"] = [{"start": start, "end": end} for start, end in spans]
 
     if not segments and raw_text:

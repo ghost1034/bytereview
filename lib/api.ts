@@ -2729,6 +2729,11 @@ export interface InkwiseCitationHighlight {
   end: number
 }
 
+export interface InkwiseCitationReference {
+  id: string
+  highlight?: InkwiseCitationHighlight | null
+}
+
 export interface InkwiseCitation {
   evidence_id?: string
   source_id?: string
@@ -2743,6 +2748,7 @@ export interface InkwiseCitation {
   preview_object?: string | null
   excerpt?: string
   highlights?: InkwiseCitationHighlight[] | null
+  references?: InkwiseCitationReference[] | null
   bibliographic_metadata?: InkwiseBibliographicMetadata | null
   score?: number | null
 }

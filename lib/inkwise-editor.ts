@@ -248,7 +248,7 @@ export function insertManualReferenceNote({
 
 export function stripInkwiseChatCitationMarkers(markdown: string): string {
   return (markdown || '')
-    .replace(/\s*\[E\d{2}\]/g, '')
+    .replace(/\s*\[E\d{2}(?:#\d+)?\]/g, '')
     .replace(/[ \t]+([,.;:!?])/g, '$1')
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
