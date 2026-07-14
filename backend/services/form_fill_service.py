@@ -58,6 +58,8 @@ from services.page_counting_service import page_counting_service
 logger = logging.getLogger(__name__)
 
 PDF_MIME = "application/pdf"
+PDF_OVERLAY_FONTNAME = "helv"
+PDF_OVERLAY_FONT_ASCENDER = fitz.Font(PDF_OVERLAY_FONTNAME).ascender
 DOCX_PLACEHOLDER_RE = re.compile(r"(\{\{[^{}]+\}\}|\[\[[^\[\]]+\]\]|<<[^<>]+>>)")
 DOCX_BLOCK_TEXT_LIMIT = 30000
 PDF_FIELD_LABEL_MAX_CHARS = 512
@@ -3318,6 +3320,18 @@ Instructions:
 
         return before_rect or after_rect
 
+    @staticmethod
+    def _pdf_anchor_baseline(page: fitz.Page, anchor_rect: fitz.Rect) -> float:
+        """Baseline y of the text line the anchor sits on."""
+        for block in page.get_text("dict").get("blocks", []):
+            for line in block.get("lines", []):
+                for span in line.get("spans", []):
+                    span_rect = fitz.Rect(span["bbox"])
+                    if span_rect.intersects(anchor_rect) and abs(span_rect.y0 - anchor_rect.y0) < 2.0:
+                        return float(span["origin"][1])
+        # Anchor rects synthesized from before/after anchors may not match a span.
+        return anchor_rect.y1 - 0.25 * anchor_rect.height
+
     def _target_rect_from_anchor(
         self,
         page: fitz.Page,
@@ -3337,11 +3351,13 @@ Instructions:
 
         expanded = fitz.Rect(anchor_rect.x0 - 1.5, anchor_rect.y0 - 1.5, anchor_rect.x1 + 1.5, anchor_rect.y1 + 1.5)
         if placement_hint == "replace_anchor":
+            baseline = self._pdf_anchor_baseline(page, anchor_rect)
+            y0 = max(margin, baseline - font_size * PDF_OVERLAY_FONT_ASCENDER)
             return fitz.Rect(
-                max(margin, expanded.x0 - 4.0),
-                max(margin, expanded.y0 - 2.0),
+                max(margin, anchor_rect.x0 + 2.0),
+                y0,
                 min(page_rect.width - margin, max(expanded.x1 + 120.0, expanded.x0 + 180.0)),
-                min(page_rect.height - margin, expanded.y1 + 4.0),
+                min(page_rect.height - margin, y0 + line_height + 8.0),
             )
         if placement_hint == "below":
             y0 = expanded.y1 + 4.0
@@ -3397,8 +3413,8 @@ Instructions:
                 if cover_anchor and anchor_rect is not None:
                     page.draw_rect(
                         fitz.Rect(
-                            min(anchor_rect.x0 - 1.5, target_rect.x0),
-                            min(anchor_rect.y0 - 1.5, target_rect.y0),
+                            anchor_rect.x0 - 1.5,
+                            anchor_rect.y0 - 1.5,
                             anchor_rect.x1 + 1.5,
                             anchor_rect.y1 + 1.5,
                         ),
@@ -3412,7 +3428,7 @@ Instructions:
                     target_rect,
                     overlay_text,
                     fontsize=font_size,
-                    fontname="helv",
+                    fontname=PDF_OVERLAY_FONTNAME,
                     color=(0, 0, 0),
                     align=fitz.TEXT_ALIGN_LEFT,
                     overlay=True,

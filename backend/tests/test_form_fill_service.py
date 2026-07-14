@@ -2412,6 +2412,80 @@ class FormFillPdfOverlayAnchorTests(unittest.TestCase):
             self._assert_on_label_line(centers, f"Value {index}", label)
 
 
+@unittest.skipUnless(_HAS_FITZ, "PyMuPDF not installed")
+class FormFillPdfOverlayReplaceAnchorPlacementTests(unittest.TestCase):
+    """replace_anchor must sit on the blank and its baseline, not drift onto
+    the label to the left of it or float above the line."""
+
+    CHECKBOX_BASELINE_Y = 100.0
+
+    def setUp(self) -> None:
+        self.service = FormFillService()
+        handle = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        handle.close()
+        self.addCleanup(os.unlink, handle.name)
+        self.path = handle.name
+        doc = fitz.open()
+        page = doc.new_page()
+        page.insert_text(
+            (72, self.CHECKBOX_BASELINE_Y),
+            "Subject to backup withholding?  Yes ____  No ____",
+            fontsize=11,
+            fontname="helv",
+        )
+        doc.save(self.path)
+        doc.close()
+
+    def test_x_on_short_blank_stays_on_blank_and_baseline(self) -> None:
+        base = fitz.open(self.path)
+        no_label = base[0].search_for("No")[0]
+        no_blank = [rect for rect in base[0].search_for("____") if rect.x0 > no_label.x1][0]
+        base.close()
+
+        out = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        out.close()
+        self.addCleanup(os.unlink, out.name)
+        items = [
+            {
+                "page_number": 1,
+                "anchor_text": "____",
+                "anchor_before": "No",
+                "overlay_text": "X",
+                "placement_hint": "replace_anchor",
+            }
+        ]
+
+        warnings = self.service._apply_pdf_overlay_plan(self.path, items, out.name)
+
+        self.assertEqual(warnings, [])
+        doc = fitz.open(out.name)
+        try:
+            x_span = None
+            for block in doc[0].get_text("dict")["blocks"]:
+                for line in block.get("lines", []):
+                    for span in line["spans"]:
+                        if span["text"] == "X":
+                            x_span = span
+            self.assertIsNotNone(x_span, "overlay X was not rendered")
+            self.assertGreaterEqual(x_span["bbox"][0], no_blank.x0, "X overlaps the 'No' label")
+            self.assertLess(
+                abs(x_span["origin"][1] - self.CHECKBOX_BASELINE_Y),
+                1.5,
+                "X baseline does not match the line's baseline",
+            )
+            white_fills = [
+                drawing["rect"] for drawing in doc[0].get_drawings() if drawing.get("fill") == (1.0, 1.0, 1.0)
+            ]
+            self.assertTrue(white_fills, "cover_anchor white-out was not drawn")
+            self.assertGreaterEqual(
+                min(rect.x0 for rect in white_fills),
+                no_blank.x0 - 2.0,
+                "white-out extends onto the 'No' label",
+            )
+        finally:
+            doc.close()
+
+
 @unittest.skipUnless(FW9_PDF_PATH.exists(), f"fixture not found: {FW9_PDF_PATH}")
 class FormFillNonTextEndToEndTests(unittest.TestCase):
     """extract metadata -> mapping prompt -> (mocked) model -> write: the chosen
