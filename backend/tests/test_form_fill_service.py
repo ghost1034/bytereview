@@ -2768,5 +2768,132 @@ class FormFillDroppedValueWarningTests(unittest.TestCase):
         self.assertEqual(self.service._dropped_source_value_warnings(record, field_values), [])
 
 
+def _build_text_pdf(path: str, *, pages: int = 1) -> None:
+    """A flat digital PDF whose every page carries plenty of extractable text."""
+    doc = fitz.open()
+    for index in range(pages):
+        page = doc.new_page()
+        page.insert_text((72, 100), f"Page {index + 1}: taxpayer name, address, and identification details.", fontsize=11)
+    doc.save(path)
+    doc.close()
+
+
+def _build_textless_pdf(path: str, *, pages: int = 1) -> None:
+    """A PDF with no text layer, standing in for a scanned document."""
+    doc = fitz.open()
+    for _ in range(pages):
+        doc.new_page()
+    doc.save(path)
+    doc.close()
+
+
+@unittest.skipUnless(_HAS_FITZ, "PyMuPDF not installed")
+class FormFillTargetOcrTests(unittest.IsolatedAsyncioTestCase):
+    """Scanned PDF targets must be OCR-normalized before the overlay fill runs."""
+
+    def setUp(self) -> None:
+        self.service = FormFillService()
+        self.temp_dir = tempfile.mkdtemp(prefix="form_fill_ocr_test_")
+        self.addCleanup(shutil.rmtree, self.temp_dir, True)
+
+    def _path(self, name: str) -> str:
+        return os.path.join(self.temp_dir, name)
+
+    def _run(self, *, target_file_type: str = "application/pdf") -> SimpleNamespace:
+        return SimpleNamespace(
+            id="run-1",
+            user_id="user-1",
+            target_file_type=target_file_type,
+            target_gcs_object_name="form-fill/user-1/runs/run-1/target.pdf",
+        )
+
+    def test_needs_ocr_false_for_text_pdf(self) -> None:
+        path = self._path("text.pdf")
+        _build_text_pdf(path, pages=2)
+        self.assertFalse(self.service._target_pdf_needs_ocr(path))
+
+    def test_needs_ocr_true_when_any_page_lacks_text(self) -> None:
+        mixed = self._path("mixed.pdf")
+        doc = fitz.open()
+        page = doc.new_page()
+        page.insert_text((72, 100), "This first page is digital and has plenty of extractable text on it.", fontsize=11)
+        doc.new_page()
+        doc.save(mixed)
+        doc.close()
+        self.assertTrue(self.service._target_pdf_needs_ocr(mixed))
+
+    def test_needs_ocr_false_for_fillable_pdf(self) -> None:
+        path = self._path("blank.pdf")
+        _build_textless_pdf(path)
+        with patch.object(self.service, "_pdf_has_form_fields", return_value=True):
+            self.assertFalse(self.service._target_pdf_needs_ocr(path))
+
+    async def test_ensure_ocr_target_returns_none_for_docx_target(self) -> None:
+        run = self._run(target_file_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        result = await self.service._ensure_ocr_target(run, self._path("target.docx"), self.temp_dir)
+        self.assertIsNone(result)
+
+    async def test_ensure_ocr_target_returns_none_for_text_pdf(self) -> None:
+        path = self._path("target.pdf")
+        _build_text_pdf(path)
+        result = await self.service._ensure_ocr_target(self._run(), path, self.temp_dir)
+        self.assertIsNone(result)
+
+    async def test_ensure_ocr_target_returns_none_when_disabled(self) -> None:
+        path = self._path("target.pdf")
+        _build_textless_pdf(path)
+        self.service.target_ocr_enabled = False
+        result = await self.service._ensure_ocr_target(self._run(), path, self.temp_dir)
+        self.assertIsNone(result)
+
+    async def test_ensure_ocr_target_runs_ocr_uploads_and_returns_paths(self) -> None:
+        path = self._path("target.pdf")
+        _build_textless_pdf(path)
+
+        def fake_run_ocr(*, input_pdf_path: str, output_pdf_path: str, **_kwargs) -> str:
+            _build_text_pdf(output_pdf_path)
+            return output_pdf_path
+
+        upload = AsyncMock()
+        with patch.object(self.service, "_download_to_local", AsyncMock(side_effect=Exception("not found"))), \
+                patch.object(self.service.target_ocr_service, "run_ocr", side_effect=fake_run_ocr) as run_ocr, \
+                patch.object(self.service.storage_service, "upload_file", upload):
+            result = await self.service._ensure_ocr_target(self._run(), path, self.temp_dir)
+
+        self.assertIsNotNone(result)
+        ocr_local_path, ocr_object_name = result
+        self.assertEqual(ocr_object_name, "form-fill/user-1/runs/run-1/target-ocr.pdf")
+        self.assertTrue(os.path.exists(ocr_local_path))
+        run_ocr.assert_called_once()
+        upload.assert_awaited_once_with(ocr_local_path, ocr_object_name)
+
+    async def test_ensure_ocr_target_reuses_cached_copy(self) -> None:
+        path = self._path("target.pdf")
+        _build_textless_pdf(path)
+
+        async def fake_download(object_name: str, local_path: str) -> None:
+            _build_text_pdf(local_path)
+
+        with patch.object(self.service, "_download_to_local", AsyncMock(side_effect=fake_download)), \
+                patch.object(self.service.target_ocr_service, "run_ocr") as run_ocr:
+            result = await self.service._ensure_ocr_target(self._run(), path, self.temp_dir)
+
+        self.assertIsNotNone(result)
+        run_ocr.assert_not_called()
+
+    async def test_ensure_ocr_target_raises_when_ocr_recovers_no_text(self) -> None:
+        path = self._path("target.pdf")
+        _build_textless_pdf(path)
+
+        def fake_run_ocr(*, input_pdf_path: str, output_pdf_path: str, **_kwargs) -> str:
+            _build_textless_pdf(output_pdf_path)
+            return output_pdf_path
+
+        with patch.object(self.service, "_download_to_local", AsyncMock(side_effect=Exception("not found"))), \
+                patch.object(self.service.target_ocr_service, "run_ocr", side_effect=fake_run_ocr):
+            with self.assertRaises(ValueError):
+                await self.service._ensure_ocr_target(self._run(), path, self.temp_dir)
+
+
 if __name__ == "__main__":
     unittest.main()

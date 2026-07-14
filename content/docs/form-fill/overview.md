@@ -49,6 +49,8 @@ You can fill into these **target** types (the form to fill *into*):
 
 > **Note:** You can add up to **100 source files**, totaling **1000 MB**. A PDF target always produces a PDF; a DOCX target can be filled and saved as either DOCX or PDF.
 
+> **Scanned PDFs:** Scanned or image-only PDFs work as both sources and targets. When a target form is a scan, Form Fill first adds an invisible OCR text layer so values can be placed accurately; the run's warnings note when this happened. Very low-quality scans that OCR cannot read are rejected with a clear error instead of producing a badly filled form.
+
 ## Fill your first form in four steps
 
 1. Go to **Form Fill** (`/dashboard/form-fill`) and, under **Source**, click **Choose files** to upload your data.

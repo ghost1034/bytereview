@@ -31,6 +31,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from core.database import db_config
+from inkwise.services.ocrmypdf_service import OCRmyPDFError, OCRmyPDFService
 from models.db_models import (
     ExtractionJob,
     ExtractionResult,
@@ -76,6 +77,10 @@ TABULAR_SOURCE_MIME_TYPES = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
 SUPPORTED_TARGET_MIME_TYPES = {PDF_MIME, DOCX_MIME}
+TARGET_OCR_WARNING = (
+    "The target PDF had pages without extractable text (likely a scan), so Form Fill "
+    "added an OCR text layer before filling."
+)
 DEFAULT_MAX_SOURCE_FILES = 100
 DEFAULT_MAX_TOTAL_SOURCE_BYTES = 1000 * 1024 * 1024
 REPEAT_MODE_SINGLE = "single"
@@ -316,6 +321,11 @@ class FormFillService:
             self._env_int("FORM_FILL_TABULAR_CODE_MAX_OUTPUT_BYTES", GENERATED_CODE_MAX_OUTPUT_BYTES_DEFAULT),
         )
         self.tabular_code_sample_rows = max(1, self._env_int("FORM_FILL_TABULAR_CODE_SAMPLE_ROWS", 10))
+        self.target_ocr_enabled = os.getenv("FORM_FILL_TARGET_OCR_ENABLED", "true").strip().lower() in {"1", "true", "yes", "y"}
+        self.target_ocr_languages = os.getenv("FORM_FILL_TARGET_OCR_LANGUAGES", "eng")
+        self.target_ocr_timeout_seconds = max(30, self._env_int("FORM_FILL_TARGET_OCR_TIMEOUT_SECONDS", 600))
+        self.target_ocr_min_chars_per_page = max(1, self._env_int("FORM_FILL_TARGET_OCR_MIN_CHARS_PER_PAGE", 25))
+        self.target_ocr_service = OCRmyPDFService()
         self.finalize_lock_wait_seconds = max(0, self._env_int("FORM_FILL_FINALIZE_LOCK_WAIT_SECONDS", 30))
         self.finalize_lock_poll_seconds = max(1, self._env_int("FORM_FILL_FINALIZE_LOCK_POLL_SECONDS", 2))
         self.finalize_retry_delay_seconds = max(1, self._env_int("FORM_FILL_FINALIZE_RETRY_DELAY_SECONDS", 30))
@@ -856,6 +866,94 @@ class FormFillService:
                 template.page_count = page_count
         db.commit()
         return page_count
+
+    def _pdf_has_form_fields(self, local_path: str) -> bool:
+        try:
+            doc = fitz.open(local_path)
+        except Exception:
+            return False
+        try:
+            for page in doc:
+                try:
+                    if list(page.widgets() or []):
+                        return True
+                except Exception:
+                    continue
+            return False
+        finally:
+            doc.close()
+
+    def _pdf_usable_text_page_stats(self, local_path: str) -> tuple[int, int]:
+        """Return (pages with at least the OCR min-chars of text, total pages)."""
+        doc = fitz.open(local_path)
+        try:
+            usable = 0
+            for page in doc:
+                text = (page.get_text("text") or "").strip()
+                if len(text) >= self.target_ocr_min_chars_per_page:
+                    usable += 1
+            return usable, len(doc)
+        finally:
+            doc.close()
+
+    def _target_pdf_needs_ocr(self, local_path: str) -> bool:
+        """True when a target PDF has pages that a text search cannot see (scans).
+
+        Fillable PDFs are excluded: the widget fill path does not depend on the
+        text layer. ocrmypdf runs with --skip-text, so pages that already carry
+        text are passed through untouched and only textless pages get OCR.
+        """
+        try:
+            if self._pdf_has_form_fields(local_path):
+                return False
+            usable, total = self._pdf_usable_text_page_stats(local_path)
+        except Exception as exc:
+            logger.warning("Form Fill target OCR detection failed: %s", exc)
+            return False
+        return total > 0 and usable < total
+
+    async def _ensure_ocr_target(self, run: FormFillRun, target_local_path: str, temp_dir: str) -> Optional[tuple[str, str]]:
+        """OCR-normalize a scanned PDF target so overlay anchors can resolve.
+
+        Returns (local_path, gcs_object_name) of a copy of the target with an
+        OCR text layer, or None when the target does not need OCR. The copy is
+        cached in GCS per run so repeat-mode outputs OCR the target only once.
+        The Gemini prompt must use the returned object so the anchor text it
+        proposes comes from the same text layer that page.search_for() searches.
+        """
+        if not self.target_ocr_enabled or getattr(run, "target_file_type", None) != PDF_MIME:
+            return None
+        if not await asyncio.to_thread(self._target_pdf_needs_ocr, target_local_path):
+            return None
+
+        ocr_local_path = os.path.join(temp_dir, "target-ocr.pdf")
+        ocr_object_name = f"form-fill/{run.user_id}/runs/{run.id}/target-ocr.pdf"
+        try:
+            await self._download_to_local(ocr_object_name, ocr_local_path)
+        except Exception:
+            pass
+        else:
+            if os.path.exists(ocr_local_path) and os.path.getsize(ocr_local_path) > 0:
+                return ocr_local_path, ocr_object_name
+
+        try:
+            await asyncio.to_thread(
+                self.target_ocr_service.run_ocr,
+                input_pdf_path=target_local_path,
+                output_pdf_path=ocr_local_path,
+                languages=self.target_ocr_languages,
+                timeout_seconds=self.target_ocr_timeout_seconds,
+            )
+        except OCRmyPDFError as exc:
+            raise ValueError(f"The target PDF appears to be a scanned image and OCR failed: {exc}") from exc
+        usable, _total = await asyncio.to_thread(self._pdf_usable_text_page_stats, ocr_local_path)
+        if usable == 0:
+            raise ValueError(
+                "The target PDF appears to be a scanned image and OCR could not recover any text "
+                "from it, so Form Fill has no way to place values on the form."
+            )
+        await self.storage_service.upload_file(ocr_local_path, ocr_object_name)
+        return ocr_local_path, ocr_object_name
 
     def _check_usage_limit_or_raise(self, db: Session, *, user_id: str, page_count: int) -> None:
         if page_count <= 0:
@@ -3774,17 +3872,19 @@ Instructions:
         source_text: str,
         tabular_context: Optional[dict[str, Any]] = None,
         filename_suffix: str = "",
+        target_gcs_object_name: Optional[str] = None,
     ) -> dict[str, Any]:
         target_parts: list[Any] = []
         warnings: list[str] = []
         fill_plan: dict[str, Any] = {}
         tabular_rows = list((tabular_context or {}).get("rows") or [])
         use_tabular_generation = bool(tabular_rows)
+        target_object_name = target_gcs_object_name or run.target_gcs_object_name
 
         if run.target_file_type == PDF_MIME:
             field_metadata_list = self._extract_pdf_form_field_metadata(target_local_path)
             pdf_fields = [meta["name"] for meta in field_metadata_list]
-            target_parts.append(self._part_from_uri(self.storage_service.construct_gcs_uri_for_object(run.target_gcs_object_name), PDF_MIME))
+            target_parts.append(self._part_from_uri(self.storage_service.construct_gcs_uri_for_object(target_object_name), PDF_MIME))
             if pdf_fields:
                 field_metadata, context_fields = self._align_pdf_field_metadata(pdf_fields, field_metadata_list)
                 processing_strategy = "fillable_pdf"
@@ -4214,6 +4314,10 @@ Instructions:
                 target_local_path = os.path.join(temp_dir, f"target{_safe_ext(run.target_filename, '.bin')}")
                 await self._download_to_local(run.target_gcs_object_name, target_local_path)
                 await self._ensure_run_target_page_count(db, run, target_local_path, temp_dir)
+                ocr_target = await self._ensure_ocr_target(run, target_local_path, temp_dir)
+                target_ocr_object_name: Optional[str] = None
+                if ocr_target:
+                    target_local_path, target_ocr_object_name = ocr_target
                 repeat_mode = getattr(run, "repeat_mode", REPEAT_MODE_SINGLE) or REPEAT_MODE_SINGLE
                 if repeat_mode == REPEAT_MODE_SOURCE_ROWS:
                     tabular_context = self._tabular_context_from_record_payload(
@@ -4242,7 +4346,10 @@ Instructions:
                     source_text=source_text,
                     tabular_context=tabular_context,
                     filename_suffix=f"{output.record_index + 1:03d}_{output.record_label}",
+                    target_gcs_object_name=target_ocr_object_name,
                 )
+                if ocr_target:
+                    generated["warnings"].append(TARGET_OCR_WARNING)
                 result_object_name = (
                     f"form-fill/{run.user_id}/runs/{run.id}/outputs/"
                     f"{output.record_index + 1:03d}-{uuid.uuid4()}{_safe_ext(generated['filename'], '.bin')}"
@@ -4440,6 +4547,12 @@ Instructions:
             target_local_path = os.path.join(temp_dir, f"target{_safe_ext(run.target_filename, '.bin')}")
             await self._download_to_local(run.target_gcs_object_name, target_local_path)
             target_page_count = await self._ensure_run_target_page_count(db, run, target_local_path, temp_dir)
+            # OCR-normalize scanned targets before any outputs are enqueued so the
+            # cached copy is ready and a hopeless scan fails the run up front.
+            ocr_target = await self._ensure_ocr_target(run, target_local_path, temp_dir)
+            target_ocr_object_name: Optional[str] = None
+            if ocr_target:
+                target_local_path, target_ocr_object_name = ocr_target
 
             if (run.repeat_mode or REPEAT_MODE_SINGLE) == REPEAT_MODE_SOURCE_ROWS:
                 records = await self._extract_repeat_records(run)
@@ -4485,7 +4598,10 @@ Instructions:
                 source_parts=source_parts,
                 source_text=source_text,
                 tabular_context=tabular_context,
+                target_gcs_object_name=target_ocr_object_name,
             )
+            if ocr_target:
+                generated["warnings"].append(TARGET_OCR_WARNING)
             result_object_name = f"form-fill/{run.user_id}/runs/{run.id}/result{_safe_ext(generated['filename'], '.bin')}"
             await self.storage_service.upload_file(generated["local_path"], result_object_name)
 
