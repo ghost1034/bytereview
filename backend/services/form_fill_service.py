@@ -3022,6 +3022,8 @@ Instructions:
 - Use the original page numbers from the target PDF.
 - Prefer anchor_text that appears visibly in the PDF near where the overlay should go.
 - When the same anchor_text appears more than once on the page (for example identical underscore blanks next to several labels), also set anchor_before to the unique label text immediately before the intended spot so the correct occurrence is chosen.
+- anchor_before must be text that comes before the intended spot in reading order (usually the field's own label, to the left of its blank); anchor_after must be text that comes after it. Never use another field's label as anchor_before or anchor_after unless it truly borders the intended spot.
+- When marking a Yes/No or checkbox choice, re-check the source before choosing: anchor the mark to the option that matches the source value.
 - Use placement_hint values such as replace_anchor, right_of, below, or near_blank.
 - Set cover_anchor to true when replacing placeholder text, blanks, or underscores already present in the PDF.
 - overlay_text must be concise and ready to render.{chronological_rule}
@@ -3252,12 +3254,27 @@ Instructions:
             # blank on another line, so weight vertical offset heavily.
             return abs(dx) + 4.0 * abs(dy)
 
+        def comes_before(rect: fitz.Rect, other: fitz.Rect) -> bool:
+            if rect.y1 <= other.y0 + 2.0:
+                return True
+            if other.y1 <= rect.y0 + 2.0:
+                return False
+            return rect.x1 <= other.x0 + 2.0
+
+        # A match that sits on the wrong side of a before/after anchor in
+        # reading order must lose to any match on the correct side.
+        order_penalty = 100000.0
+
         def score(rect: fitz.Rect) -> float:
             total = 0.0
             if before_rect is not None:
                 total += distance(rect, before_rect)
+                if comes_before(rect, before_rect):
+                    total += order_penalty
             if after_rect is not None:
                 total += distance(rect, after_rect)
+                if not comes_before(rect, after_rect):
+                    total += order_penalty
             return total
 
         return min(matches, key=score)

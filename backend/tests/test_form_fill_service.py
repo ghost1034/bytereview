@@ -2368,6 +2368,32 @@ class FormFillPdfOverlayAnchorTests(unittest.TestCase):
         self._assert_on_label_line(centers, "Jordan Ellis", "Primary contact:")
         self._assert_on_label_line(centers, "Brightpath Consulting LLC", "Vendor legal name:")
 
+    def test_anchor_after_next_label_still_selects_preceding_blank(self) -> None:
+        # Regression: the model sometimes disambiguates a blank with the next
+        # field's label in anchor_after instead of the field's own label in anchor_before.
+        items = [
+            {
+                "page_number": 1,
+                "anchor_text": BLANK_RUN,
+                "anchor_after": "Street address:",
+                "overlay_text": "Cedar Bookkeeping Services",
+                "placement_hint": "replace_anchor",
+            },
+            {
+                "page_number": 1,
+                "anchor_text": BLANK_RUN,
+                "anchor_after": "Primary contact:",
+                "overlay_text": "915 Alder Street",
+                "placement_hint": "replace_anchor",
+            },
+        ]
+
+        warnings, centers = self._apply_items(items)
+
+        self.assertEqual(warnings, [])
+        self._assert_on_label_line(centers, "Cedar Bookkeeping Services", "Vendor legal name:")
+        self._assert_on_label_line(centers, "915 Alder Street", "Street address:")
+
     def test_repeated_anchor_without_labels_consumes_blanks_in_order(self) -> None:
         items = [
             {
