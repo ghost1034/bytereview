@@ -107,6 +107,27 @@ class InkwiseSourceServiceTests(unittest.TestCase):
             request = SimpleNamespace(original_filename=filename, content_type=content_type, size_bytes=1024)
             service._validate_upload_request(request)  # should not raise
 
+    def test_validate_upload_request_rejects_legacy_office_documents_with_specific_message(self) -> None:
+        service = InkwiseSourceService()
+        legacy_files = (
+            ("letter.doc", "application/msword"),
+            ("deck.PPT", "application/vnd.ms-powerpoint"),
+            ("book.xls", "application/vnd.ms-excel"),
+        )
+
+        for filename, content_type in legacy_files:
+            with self.subTest(filename=filename):
+                request = SimpleNamespace(original_filename=filename, content_type=content_type, size_bytes=1024)
+                with self.assertRaisesRegex(ValueError, r"\.doc, \.ppt, and \.xls.*not supported"):
+                    service._validate_upload_request(request)
+
+    def test_validate_upload_request_rejects_legacy_office_mime_type_without_extension(self) -> None:
+        service = InkwiseSourceService()
+        request = SimpleNamespace(original_filename="letter", content_type="application/msword", size_bytes=1024)
+
+        with self.assertRaisesRegex(ValueError, r"Please convert.*\.docx, \.pptx, or \.xlsx"):
+            service._validate_upload_request(request)
+
     def test_validate_upload_request_allows_video_up_to_video_limit(self) -> None:
         service = InkwiseSourceService()
         request = SimpleNamespace(

@@ -19,6 +19,9 @@ type InkwiseSourceImportPanelProps = {
   compact?: boolean
 }
 
+const LEGACY_OFFICE_UNSUPPORTED_MESSAGE =
+  'Legacy Microsoft Office files (.doc, .ppt, and .xls) are not supported. Please convert them to .docx, .pptx, or .xlsx before uploading.'
+
 export function InkwiseSourceImportPanel({
   title = 'Add References',
   description = 'Upload documents, images, audio, video, folders, ZIP archives, webpages, or selected Google Drive files.',
@@ -52,6 +55,9 @@ export function InkwiseSourceImportPanel({
 
   const uploadLocalItems = useMutation({
     mutationFn: async (files: File[]) => {
+      if (files.some(isLegacyOfficeSourceFile)) {
+        throw new Error(LEGACY_OFFICE_UNSUPPORTED_MESSAGE)
+      }
       if (!allowRichMedia && files.some(isAudioOrVideoSourceFile)) {
         throw new Error('Audio and video references require the Pro plan.')
       }
@@ -275,12 +281,19 @@ function buildAcceptedSourceTypes(allowRichMedia: boolean): string {
     '.docx',
     '.pptx',
     '.xlsx',
+    '.doc',
+    '.ppt',
+    '.xls',
     '.zip',
     '.jpg',
     '.jpeg',
     '.png',
     ...(allowRichMedia ? ['.mp3', '.wav', '.mp4', '.mpeg', '.mpg'] : []),
   ].join(',')
+}
+
+function isLegacyOfficeSourceFile(file: File): boolean {
+  return /\.(doc|ppt|xls)$/i.test(file.name)
 }
 
 function isAudioOrVideoSourceFile(file: File): boolean {

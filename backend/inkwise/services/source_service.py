@@ -87,6 +87,16 @@ _SUPPORTED_UPLOAD_MIME_TYPES = {
     "video/mpeg",
     "video/mpg",
 }
+_LEGACY_OFFICE_EXTENSIONS = {".doc", ".ppt", ".xls"}
+_LEGACY_OFFICE_MIME_TYPES = {
+    "application/msword",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.ms-excel",
+}
+_LEGACY_OFFICE_UNSUPPORTED_MESSAGE = (
+    "Legacy Microsoft Office files (.doc, .ppt, and .xls) are not supported. "
+    "Please convert them to .docx, .pptx, or .xlsx before uploading."
+)
 
 
 @dataclass(frozen=True)
@@ -175,6 +185,10 @@ class InkwiseSourceService:
         return source
 
     def create_source(self, db: Session, *, user_id: str, body: InkwiseSourceCreateRequest) -> InkwiseSource:
+        self._assert_not_legacy_office_upload(
+            filename=(body.original_filename or body.title or "reference").strip(),
+            content_type=(body.content_type or "").strip().lower(),
+        )
         upload_kind = self._detect_upload_kind(
             filename=(body.original_filename or body.title or "reference").strip(),
             content_type=(body.content_type or "").strip().lower(),
@@ -434,6 +448,7 @@ class InkwiseSourceService:
 
             filename = str(metadata.get("name") or "reference")
             content_type = str(metadata.get("mimeType") or "application/octet-stream")
+            self._assert_not_legacy_office_upload(filename=filename, content_type=content_type)
             upload_kind = self._detect_upload_kind(filename=filename, content_type=content_type)
             self._assert_upload_kind_allowed_for_plan(
                 upload_kind=upload_kind,
@@ -565,6 +580,7 @@ class InkwiseSourceService:
         external_id: str | None = None,
         external_meta: dict | None = None,
     ) -> list[InkwiseSource]:
+        self._assert_not_legacy_office_upload(filename=filename, content_type=content_type)
         upload_kind = self._detect_upload_kind(filename=filename, content_type=content_type)
         if upload_kind is None:
             raise ValueError(f"Unsupported reference type for {filename}")
@@ -898,6 +914,7 @@ class InkwiseSourceService:
         if int(body.size_bytes) <= 0:
             raise ValueError("size_bytes must be greater than zero")
 
+        self._assert_not_legacy_office_upload(filename=filename, content_type=content_type)
         upload_kind = self._detect_upload_kind(filename=filename, content_type=content_type)
         if upload_kind is None:
             raise ValueError("Only PDF, DOCX, PPTX, XLSX, image, audio, video, and ZIP uploads are currently supported")
@@ -988,6 +1005,12 @@ class InkwiseSourceService:
         if lowered_type in {"video/mpeg", "video/mpg"} or lowered_filename.endswith((".mpeg", ".mpg")):
             return "video_mpeg"
         return None
+
+    def _assert_not_legacy_office_upload(self, *, filename: str, content_type: str) -> None:
+        extension = os.path.splitext((filename or "").strip().lower())[1]
+        normalized_content_type = (content_type or "").split(";", 1)[0].strip().lower()
+        if extension in _LEGACY_OFFICE_EXTENSIONS or normalized_content_type in _LEGACY_OFFICE_MIME_TYPES:
+            raise ValueError(_LEGACY_OFFICE_UNSUPPORTED_MESSAGE)
 
     def _resolved_content_type_for_kind(self, upload_kind: str | None) -> str:
         return _UPLOAD_KIND_TO_CONTENT_TYPE.get(upload_kind or "", "application/pdf")
