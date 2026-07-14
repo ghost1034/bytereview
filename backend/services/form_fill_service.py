@@ -3021,6 +3021,7 @@ Instructions:
 - Return overlay items only for content that should be added to the original PDF.
 - Use the original page numbers from the target PDF.
 - Prefer anchor_text that appears visibly in the PDF near where the overlay should go.
+- When the same anchor_text appears more than once on the page (for example identical underscore blanks next to several labels), also set anchor_before to the unique label text immediately before the intended spot so the correct occurrence is chosen.
 - Use placement_hint values such as replace_anchor, right_of, below, or near_blank.
 - Set cover_anchor to true when replacing placeholder text, blanks, or underscores already present in the PDF.
 - overlay_text must be concise and ready to render.{chronological_rule}
@@ -3224,15 +3225,52 @@ Instructions:
             for table in tables
         ]
 
-    def _resolve_pdf_anchor_rect(self, page: fitz.Page, item: dict[str, Any]) -> fitz.Rect | None:
+    @staticmethod
+    def _pdf_rect_is_used(rect: fitz.Rect, used_rects: list[fitz.Rect] | None) -> bool:
+        if not used_rects:
+            return False
+        for used in used_rects:
+            intersection = fitz.Rect(rect)
+            intersection.intersect(used)
+            if not intersection.is_empty and intersection.get_area() >= 0.5 * max(rect.get_area(), 1.0):
+                return True
+        return False
+
+    @staticmethod
+    def _pick_pdf_anchor_match(
+        matches: list[fitz.Rect],
+        before_rect: fitz.Rect | None,
+        after_rect: fitz.Rect | None,
+    ) -> fitz.Rect:
+        if len(matches) == 1 or (before_rect is None and after_rect is None):
+            return matches[0]
+
+        def distance(rect: fitz.Rect, other: fitz.Rect) -> float:
+            dx = (rect.x0 + rect.x1) / 2 - (other.x0 + other.x1) / 2
+            dy = (rect.y0 + rect.y1) / 2 - (other.y0 + other.y1) / 2
+            # A blank on the anchor's own line should beat a vertically nearer
+            # blank on another line, so weight vertical offset heavily.
+            return abs(dx) + 4.0 * abs(dy)
+
+        def score(rect: fitz.Rect) -> float:
+            total = 0.0
+            if before_rect is not None:
+                total += distance(rect, before_rect)
+            if after_rect is not None:
+                total += distance(rect, after_rect)
+            return total
+
+        return min(matches, key=score)
+
+    def _resolve_pdf_anchor_rect(
+        self,
+        page: fitz.Page,
+        item: dict[str, Any],
+        used_rects: list[fitz.Rect] | None = None,
+    ) -> fitz.Rect | None:
         anchor_text = str(item.get("anchor_text") or "").strip()
         anchor_before = str(item.get("anchor_before") or "").strip()
         anchor_after = str(item.get("anchor_after") or "").strip()
-
-        if anchor_text:
-            matches = page.search_for(anchor_text)
-            if matches:
-                return matches[0]
 
         before_rect = None
         after_rect = None
@@ -3244,6 +3282,15 @@ Instructions:
             after_matches = page.search_for(anchor_after)
             if after_matches:
                 after_rect = after_matches[0]
+
+        if anchor_text:
+            matches = page.search_for(anchor_text)
+            if matches:
+                unused = [rect for rect in matches if not self._pdf_rect_is_used(rect, used_rects)]
+                chosen = self._pick_pdf_anchor_match(unused or matches, before_rect, after_rect)
+                if used_rects is not None:
+                    used_rects.append(fitz.Rect(chosen))
+                return chosen
 
         if before_rect and after_rect:
             x0 = min(before_rect.x1, after_rect.x0)
@@ -3307,6 +3354,7 @@ Instructions:
         doc = fitz.open(local_target_path)
         try:
             fallback_slots: dict[int, int] = {}
+            used_anchor_rects: dict[int, list[fitz.Rect]] = {}
             for item in overlay_items:
                 overlay_text = str(item.get("overlay_text") or "").strip()
                 if not overlay_text:
@@ -3318,7 +3366,7 @@ Instructions:
                     continue
 
                 page = doc[page_number - 1]
-                anchor_rect = self._resolve_pdf_anchor_rect(page, item)
+                anchor_rect = self._resolve_pdf_anchor_rect(page, item, used_anchor_rects.setdefault(page_number, []))
                 if anchor_rect is None:
                     warnings.append(
                         f"Could not locate anchor for overlay '{overlay_text[:40]}' on page {page_number}; placed it in a fallback position."
@@ -3331,7 +3379,12 @@ Instructions:
                 cover_anchor = bool(item.get("cover_anchor")) or placement_hint == "replace_anchor"
                 if cover_anchor and anchor_rect is not None:
                     page.draw_rect(
-                        fitz.Rect(anchor_rect.x0 - 1.5, anchor_rect.y0 - 1.5, anchor_rect.x1 + 1.5, anchor_rect.y1 + 1.5),
+                        fitz.Rect(
+                            min(anchor_rect.x0 - 1.5, target_rect.x0),
+                            min(anchor_rect.y0 - 1.5, target_rect.y0),
+                            anchor_rect.x1 + 1.5,
+                            anchor_rect.y1 + 1.5,
+                        ),
                         color=(1, 1, 1),
                         fill=(1, 1, 1),
                         overlay=True,

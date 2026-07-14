@@ -2282,6 +2282,110 @@ class FormFillChoiceFieldTests(unittest.TestCase):
         self.assertEqual(self._apply_value("AL;TX", path=handle.name), "AL")
 
 
+BLANK_RUN = "____________________"
+OVERLAY_LABELS = ["Vendor legal name:", "Street address:", "Primary contact:"]
+
+
+def _build_flat_blanks_pdf(path: str) -> None:
+    """A flat (non-AcroForm) page with identical underscore blanks next to each label."""
+    doc = fitz.open()
+    page = doc.new_page()
+    for index, label in enumerate(OVERLAY_LABELS):
+        y = 100 + index * 40
+        page.insert_text((72, y), label, fontsize=11, fontname="helv")
+        page.insert_text((300, y), BLANK_RUN, fontsize=11, fontname="helv")
+    doc.save(path)
+    doc.close()
+
+
+@unittest.skipUnless(_HAS_FITZ, "PyMuPDF not installed")
+class FormFillPdfOverlayAnchorTests(unittest.TestCase):
+    """Overlay items anchored to repeated identical blanks must land on distinct lines."""
+
+    def setUp(self) -> None:
+        self.service = FormFillService()
+        handle = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        handle.close()
+        self.addCleanup(os.unlink, handle.name)
+        self.path = handle.name
+        _build_flat_blanks_pdf(self.path)
+
+    def _apply_items(self, items: list[dict]) -> tuple[list[str], dict[str, float]]:
+        out = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        out.close()
+        self.addCleanup(os.unlink, out.name)
+        warnings = self.service._apply_pdf_overlay_plan(self.path, items, out.name)
+        doc = fitz.open(out.name)
+        try:
+            centers: dict[str, float] = {}
+            for block in doc[0].get_text("dict")["blocks"]:
+                for line in block.get("lines", []):
+                    for span in line["spans"]:
+                        centers[span["text"]] = (span["bbox"][1] + span["bbox"][3]) / 2
+        finally:
+            doc.close()
+        return warnings, centers
+
+    def _assert_on_label_line(self, centers: dict[str, float], overlay_text: str, label: str) -> None:
+        self.assertIn(overlay_text, centers)
+        self.assertIn(label, centers)
+        self.assertLess(
+            abs(centers[overlay_text] - centers[label]),
+            6.0,
+            f"{overlay_text!r} not on the {label!r} line",
+        )
+
+    def test_anchor_before_selects_the_matching_blank(self) -> None:
+        # Deliberately out of document order: the label must pick the blank, not emission order.
+        items = [
+            {
+                "page_number": 1,
+                "anchor_text": BLANK_RUN,
+                "anchor_before": "Street address:",
+                "overlay_text": "480 Skyline Terrace",
+                "placement_hint": "replace_anchor",
+            },
+            {
+                "page_number": 1,
+                "anchor_text": BLANK_RUN,
+                "anchor_before": "Primary contact:",
+                "overlay_text": "Jordan Ellis",
+                "placement_hint": "replace_anchor",
+            },
+            {
+                "page_number": 1,
+                "anchor_text": BLANK_RUN,
+                "anchor_before": "Vendor legal name:",
+                "overlay_text": "Brightpath Consulting LLC",
+                "placement_hint": "replace_anchor",
+            },
+        ]
+
+        warnings, centers = self._apply_items(items)
+
+        self.assertEqual(warnings, [])
+        self._assert_on_label_line(centers, "480 Skyline Terrace", "Street address:")
+        self._assert_on_label_line(centers, "Jordan Ellis", "Primary contact:")
+        self._assert_on_label_line(centers, "Brightpath Consulting LLC", "Vendor legal name:")
+
+    def test_repeated_anchor_without_labels_consumes_blanks_in_order(self) -> None:
+        items = [
+            {
+                "page_number": 1,
+                "anchor_text": BLANK_RUN,
+                "overlay_text": f"Value {index}",
+                "placement_hint": "replace_anchor",
+            }
+            for index in range(len(OVERLAY_LABELS))
+        ]
+
+        warnings, centers = self._apply_items(items)
+
+        self.assertEqual(warnings, [])
+        for index, label in enumerate(OVERLAY_LABELS):
+            self._assert_on_label_line(centers, f"Value {index}", label)
+
+
 @unittest.skipUnless(FW9_PDF_PATH.exists(), f"fixture not found: {FW9_PDF_PATH}")
 class FormFillNonTextEndToEndTests(unittest.TestCase):
     """extract metadata -> mapping prompt -> (mocked) model -> write: the chosen
