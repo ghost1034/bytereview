@@ -62,9 +62,47 @@ INKWISE_VIDEO_CHUNK_SECONDS=${INKWISE_VIDEO_CHUNK_SECONDS:-60}
 INKWISE_MEDIA_CHUNK_OVERLAP_SECONDS=${INKWISE_MEDIA_CHUNK_OVERLAP_SECONDS:-2}
 INKWISE_MEDIA_MAX_CLIPS_PER_SOURCE=${INKWISE_MEDIA_MAX_CLIPS_PER_SOURCE:-256}
 
-# Get parameters
-GIT_HASH=${1:-latest}
-ENVIRONMENT=${2:-production}
+# Get parameters. The positional arguments are retained for deploy.sh and
+# existing direct callers; flags control the two phases independently.
+GIT_HASH="latest"
+ENVIRONMENT="production"
+SKIP_BUILD=false
+SKIP_DEPLOY=false
+
+if [[ "${1:-}" != "" && "${1:-}" != -* ]]; then
+    GIT_HASH="$1"
+    shift
+fi
+if [[ "${1:-}" != "" && "${1:-}" != -* ]]; then
+    ENVIRONMENT="$1"
+    shift
+fi
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --skip-build)
+            SKIP_BUILD=true
+            shift
+            ;;
+        --skip-deploy)
+            SKIP_DEPLOY=true
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: $0 [IMAGE_TAG] [ENVIRONMENT] [--skip-build|--skip-deploy]"
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $1${NC}"
+            exit 1
+            ;;
+    esac
+done
+
+if [ "$SKIP_BUILD" = true ] && [ "$SKIP_DEPLOY" = true ]; then
+    echo -e "${RED}Cannot skip both building and deploying${NC}"
+    exit 1
+fi
 
 echo -e "${BLUE}🚀 Deploying CPAAutomation Cloud Run Tasks...${NC}"
 echo -e "${BLUE}Environment: ${ENVIRONMENT}${NC}"
@@ -152,32 +190,35 @@ deploy_service() {
     echo ""
 }
 
-# Check if Docker is running
-if ! docker info >/dev/null 2>&1; then
-    echo -e "${RED}❌ Docker is not running. Please start Docker and try again.${NC}"
-    exit 1
+if [ "$SKIP_BUILD" = false ]; then
+    # Check if Docker is running
+    if ! docker info >/dev/null 2>&1; then
+        echo -e "${RED}❌ Docker is not running. Please start Docker and try again.${NC}"
+        exit 1
+    fi
+
+    # Set up Docker Buildx for multi-platform builds
+    echo -e "${YELLOW}🔧 Setting up Docker Buildx for multi-platform builds...${NC}"
+    docker buildx create --use --name cpa-builder --driver docker-container || true
+    docker buildx inspect --bootstrap
+    echo -e "${GREEN}✅ Docker Buildx setup complete${NC}"
+
+    echo -e "${YELLOW}🔐 Authenticating Docker with Artifact Registry...${NC}"
+    gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+    echo -e "${GREEN}✅ Docker authentication complete${NC}"
+    echo ""
+
+    echo -e "${BLUE}=== Building Task Service Images ===${NC}"
+    build_and_push_task_image "extract" "Dockerfile.extract"
+    build_and_push_task_image "io" "Dockerfile.io"
+    build_and_push_task_image "automation" "Dockerfile.automation"
+    build_and_push_task_image "maintenance" "Dockerfile.maintenance"
+else
+    echo -e "${YELLOW}⏭️  Skipping task service image builds${NC}"
 fi
 
-# Set up Docker Buildx for multi-platform builds
-echo -e "${YELLOW}🔧 Setting up Docker Buildx for multi-platform builds...${NC}"
-docker buildx create --use --name cpa-builder --driver docker-container || true
-docker buildx inspect --bootstrap
-echo -e "${GREEN}✅ Docker Buildx setup complete${NC}"
-
-echo -e "${YELLOW}🔐 Authenticating Docker with Artifact Registry...${NC}"
-gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
-echo -e "${GREEN}✅ Docker authentication complete${NC}"
-echo ""
-
-# Build task service images
-echo -e "${BLUE}=== Building Task Service Images ===${NC}"
-
-build_and_push_task_image "extract" "Dockerfile.extract"
-build_and_push_task_image "io" "Dockerfile.io" 
-build_and_push_task_image "automation" "Dockerfile.automation"
-build_and_push_task_image "maintenance" "Dockerfile.maintenance"
-
 # Deploy task services
+if [ "$SKIP_DEPLOY" = false ]; then
 echo -e "${BLUE}=== Deploying Task Services ===${NC}"
 
 # Deploy Extract Task Service
@@ -274,3 +315,6 @@ gcloud tasks queues update extract-tasks \
     --max-backoff=300s \
     --max-retry-duration=7200s
 echo -e "${GREEN}✅ extract-tasks dispatch and retry policy updated${NC}"
+else
+    echo -e "${YELLOW}⏭️  Skipping task service deployment${NC}"
+fi

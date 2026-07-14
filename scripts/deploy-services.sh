@@ -587,7 +587,7 @@ ok "Using project ${PROJECT_ID} in ${REGION} (${ENVIRONMENT})"
 
 if [ "$SKIP_BUILD" = false ]; then
   section "Building images"
-  printf 'n\n' | "$ROOT_DIR/scripts/build-images.sh" "$IMAGE_TAG"
+  "$ROOT_DIR/scripts/build-images.sh" "$IMAGE_TAG"
 else
   warn "Skipping image build"
 fi

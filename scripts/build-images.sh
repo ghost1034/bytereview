@@ -134,16 +134,7 @@ echo -e "• Frontend: ${ARTIFACT_REGISTRY_URL}/frontend:${GIT_HASH}"
 echo ""
 echo -e "${YELLOW}📝 Next steps:${NC}"
 echo -e "1. Deploy services using: ./scripts/deploy-services.sh --image-tag ${GIT_HASH} --skip-build"
-echo -e "2. Or run full deployment: ./scripts/deploy.sh --skip-build"
+echo -e "2. Or deploy all existing images: ./scripts/deploy.sh --deploy-only"
 echo ""
-
-# Optional: Clean up buildx cache to save space
-echo -e "${BLUE}🧹 Clean up buildx cache? (y/N):${NC}"
-read -r cleanup
-if [[ $cleanup =~ ^[Yy]$ ]]; then
-    echo -e "${YELLOW}Cleaning up buildx cache...${NC}"
-    docker buildx prune -f || true
-    echo -e "${GREEN}✅ Buildx cache cleaned up${NC}"
-fi
 
 echo -e "${GREEN}✨ Image building complete!${NC}"
