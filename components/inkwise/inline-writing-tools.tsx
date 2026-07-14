@@ -7,7 +7,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowUp, ChevronDown, Copy, Library, Loader2, RotateCcw, Sparkles, Square, Wand2, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -86,6 +85,7 @@ export function InlineWritingTools({
   const abortRef = useRef<AbortController | null>(null)
   const promptRef = useRef<HTMLTextAreaElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const lastClickedSourceIdRef = useRef<string | null>(null)
   // The tiptap menu plugins register once and capture the first render's closures,
   // so anything read inside shouldShow/tippyOptions must live in a ref.
   const panelOpenRef = useRef(false)
@@ -159,6 +159,29 @@ export function InlineWritingTools({
 
   function preventEditorBlur(event: { preventDefault: () => void }) {
     event.preventDefault()
+  }
+
+  function toggleSource(sourceId: string, selectRange: boolean) {
+    setSourceChecked((prev) => {
+      const nextSelected = !(prev[sourceId] ?? true)
+      const next = { ...prev, [sourceId]: nextSelected }
+      const anchorId = lastClickedSourceIdRef.current
+
+      if (selectRange && anchorId) {
+        const anchorIndex = filteredBoundSources.findIndex((item) => item.source.id === anchorId)
+        const sourceIndex = filteredBoundSources.findIndex((item) => item.source.id === sourceId)
+        if (anchorIndex >= 0 && sourceIndex >= 0) {
+          const start = Math.min(anchorIndex, sourceIndex)
+          const end = Math.max(anchorIndex, sourceIndex)
+          for (const item of filteredBoundSources.slice(start, end + 1)) {
+            if (item.grounded_chat_ready) next[item.source.id] = nextSelected
+          }
+        }
+      }
+
+      return next
+    })
+    lastClickedSourceIdRef.current = sourceId
   }
 
   function clearRunState() {
@@ -564,7 +587,10 @@ export function InlineWritingTools({
                       variant="ghost"
                       className="h-7 px-2 text-xs"
                       onMouseDown={preventEditorBlur}
-                      onClick={() => setSourceChecked(Object.fromEntries(readySources.map((item) => [item.source.id, true])))}
+                      onClick={() => {
+                        lastClickedSourceIdRef.current = null
+                        setSourceChecked(Object.fromEntries(readySources.map((item) => [item.source.id, true])))
+                      }}
                       disabled={busy}
                     >
                       All
@@ -574,7 +600,10 @@ export function InlineWritingTools({
                       variant="ghost"
                       className="h-7 px-2 text-xs"
                       onMouseDown={preventEditorBlur}
-                      onClick={() => setSourceChecked(Object.fromEntries(readySources.map((item) => [item.source.id, false])))}
+                      onClick={() => {
+                        lastClickedSourceIdRef.current = null
+                        setSourceChecked(Object.fromEntries(readySources.map((item) => [item.source.id, false])))
+                      }}
                       disabled={busy}
                     >
                       None
@@ -592,29 +621,32 @@ export function InlineWritingTools({
                     className="h-8 bg-card text-sm"
                   />
                   <div className="grid max-h-36 gap-1.5 overflow-auto pr-1">
-                    {filteredBoundSources.map((item) => (
-                      <label
-                        key={item.binding_id}
-                        onMouseDown={preventEditorBlur}
-                        className={cn(
-                          'flex items-center gap-2.5 rounded-lg px-1.5 py-1 text-sm',
-                          item.grounded_chat_ready ? 'cursor-pointer text-foreground hover:bg-surface-muted' : 'text-foreground-subtle',
-                        )}
-                      >
-                        <Checkbox
-                          checked={sourceChecked[item.source.id] ?? item.grounded_chat_ready}
+                    {filteredBoundSources.map((item) => {
+                      const selected = sourceChecked[item.source.id] ?? item.grounded_chat_ready
+                      return (
+                        <button
+                          key={item.binding_id}
+                          type="button"
+                          aria-pressed={selected}
                           disabled={!item.grounded_chat_ready || busy}
                           onMouseDown={preventEditorBlur}
-                          onCheckedChange={(checked) => {
-                            setSourceChecked((prev) => ({ ...prev, [item.source.id]: Boolean(checked) }))
-                          }}
-                        />
-                        <span className="truncate">{item.source.title}</span>
-                        {!item.grounded_chat_ready ? (
-                          <span className="ml-auto shrink-0 text-[10px]">{item.grounded_chat_reason || 'Not ready'}</span>
-                        ) : null}
-                      </label>
-                    ))}
+                          onClick={(event) => toggleSource(item.source.id, event.shiftKey)}
+                          className={cn(
+                            'flex w-full select-none items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
+                            selected
+                              ? 'bg-primary-soft text-primary-soft-foreground hover:bg-primary-soft/80'
+                              : item.grounded_chat_ready
+                                ? 'text-foreground hover:bg-surface-muted'
+                                : 'cursor-not-allowed text-foreground-subtle',
+                          )}
+                        >
+                          <span className="truncate">{item.source.title}</span>
+                          {!item.grounded_chat_ready ? (
+                            <span className="ml-auto shrink-0 text-[10px]">{item.grounded_chat_reason || 'Not ready'}</span>
+                          ) : null}
+                        </button>
+                      )
+                    })}
                     {!filteredBoundSources.length ? (
                       <div className="px-1.5 py-2 text-xs text-foreground-muted">No attached sources match that search.</div>
                     ) : null}

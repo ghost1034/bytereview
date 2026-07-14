@@ -31,7 +31,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -460,6 +459,29 @@ function ChatSourcePopover({
   | 'chatSourceSearch'
   | 'onChatSourceSearchChange'
 >) {
+  const lastClickedSourceIdRef = useRef<string | null>(null)
+
+  const toggleSource = (sourceId: string, selectRange: boolean) => {
+    const nextSelected = !(chatSourceChecked[sourceId] ?? true)
+    const next = { ...chatSourceChecked, [sourceId]: nextSelected }
+    const anchorId = lastClickedSourceIdRef.current
+
+    if (selectRange && anchorId) {
+      const anchorIndex = filteredChatSources.findIndex((item) => item.source.id === anchorId)
+      const sourceIndex = filteredChatSources.findIndex((item) => item.source.id === sourceId)
+      if (anchorIndex >= 0 && sourceIndex >= 0) {
+        const start = Math.min(anchorIndex, sourceIndex)
+        const end = Math.max(anchorIndex, sourceIndex)
+        for (const item of filteredChatSources.slice(start, end + 1)) {
+          if (item.grounded_chat_ready) next[item.source.id] = nextSelected
+        }
+      }
+    }
+
+    lastClickedSourceIdRef.current = sourceId
+    onChatSourceCheckedChange(next)
+  }
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -477,7 +499,10 @@ function ChatSourcePopover({
                 size="sm"
                 variant="ghost"
                 className="h-7 px-2 text-xs"
-                onClick={() => onChatSourceCheckedChange(Object.fromEntries(readyChatSources.map((item) => [item.source.id, true])))}
+                onClick={() => {
+                  lastClickedSourceIdRef.current = null
+                  onChatSourceCheckedChange(Object.fromEntries(readyChatSources.map((item) => [item.source.id, true])))
+                }}
               >
                 All
               </Button>
@@ -485,7 +510,10 @@ function ChatSourcePopover({
                 size="sm"
                 variant="ghost"
                 className="h-7 px-2 text-xs"
-                onClick={() => onChatSourceCheckedChange(Object.fromEntries(readyChatSources.map((item) => [item.source.id, false])))}
+                onClick={() => {
+                  lastClickedSourceIdRef.current = null
+                  onChatSourceCheckedChange(Object.fromEntries(readyChatSources.map((item) => [item.source.id, false])))
+                }}
               >
                 None
               </Button>
@@ -501,25 +529,31 @@ function ChatSourcePopover({
           />
         ) : null}
         <div className="mt-2 grid max-h-56 gap-1.5 overflow-auto pr-1">
-          {filteredChatSources.map((item) => (
-            <label
-              key={item.binding_id}
-              className={cn(
-                'flex items-center gap-2.5 rounded-lg px-1.5 py-1 text-sm',
-                item.grounded_chat_ready ? 'cursor-pointer text-foreground hover:bg-surface-muted' : 'text-foreground-subtle',
-              )}
-            >
-              <Checkbox
-                checked={chatSourceChecked[item.source.id] ?? item.grounded_chat_ready}
+          {filteredChatSources.map((item) => {
+            const selected = chatSourceChecked[item.source.id] ?? item.grounded_chat_ready
+            return (
+              <button
+                key={item.binding_id}
+                type="button"
+                aria-pressed={selected}
                 disabled={!item.grounded_chat_ready}
-                onCheckedChange={(checked) => onChatSourceCheckedChange({ ...chatSourceChecked, [item.source.id]: Boolean(checked) })}
-              />
-              <span className="truncate">{item.source.title}</span>
-              {!item.grounded_chat_ready ? (
-                <span className="ml-auto shrink-0 text-[10px]">{item.grounded_chat_reason || 'Not ready'}</span>
-              ) : null}
-            </label>
-          ))}
+                onClick={(event) => toggleSource(item.source.id, event.shiftKey)}
+                className={cn(
+                  'flex w-full select-none items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
+                  selected
+                    ? 'bg-primary-soft text-primary-soft-foreground hover:bg-primary-soft/80'
+                    : item.grounded_chat_ready
+                      ? 'text-foreground hover:bg-surface-muted'
+                      : 'cursor-not-allowed text-foreground-subtle',
+                )}
+              >
+                <span className="truncate">{item.source.title}</span>
+                {!item.grounded_chat_ready ? (
+                  <span className="ml-auto shrink-0 text-[10px]">{item.grounded_chat_reason || 'Not ready'}</span>
+                ) : null}
+              </button>
+            )
+          })}
           {boundSources.length && !filteredChatSources.length ? (
             <div className="px-1.5 py-2 text-xs text-foreground-muted">No bound references match that search.</div>
           ) : null}
