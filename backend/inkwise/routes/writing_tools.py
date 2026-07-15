@@ -25,6 +25,7 @@ from inkwise.schemas import (
 from inkwise.services.document_sources import InkwiseDocumentSourceService
 from inkwise.services.document_service import InkwiseDocumentService
 from inkwise.services.generation_attempts import InkwiseGenerationAttemptService
+from inkwise.services.citation_pages import resolve_citation_page_locators
 from inkwise.services.citation_text import parse_citation_text, split_stream_display_text
 from inkwise.services.gemini import GeminiError, generate_content, generate_content_stream, generate_text, generate_text_stream
 from inkwise.services.multimodal_evidence import build_multimodal_contents
@@ -251,6 +252,10 @@ async def _stream_writing_tool_attempt(
             yield _sse("token", {"text": piece})
             await asyncio.sleep(0)
         parsed_citation_text = parse_citation_text(text=raw_response_text, evidence=evidence)
+        parsed_citation_text.citations[:] = resolve_citation_page_locators(
+            db,
+            citations=parsed_citation_text.citations,
+        )
     except asyncio.CancelledError:
         generation_attempt_service.fail_attempt(db, attempt_id=attempt_id, message="cancelled", retrieval_run_id=retrieval_run_id)
         return
@@ -409,6 +414,10 @@ async def create_prediction(
         await _raise_if_prediction_disconnected(request)
         normalized_prediction = normalize_prediction_result(raw_text=result.text, body=body)
         parsed_prediction = parse_citation_text(text=normalized_prediction.text, evidence=evidence)
+        parsed_prediction.citations[:] = resolve_citation_page_locators(
+            db,
+            citations=parsed_prediction.citations,
+        )
         suggestion_text = parsed_prediction.plain_text
         if not suggestion_text:
             logger.info(

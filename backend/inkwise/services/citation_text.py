@@ -68,6 +68,11 @@ def find_excerpt_span(excerpt: str, quote: str) -> tuple[int, int] | None:
     return start, end
 
 
+def normalize_citation_match_text(text: str) -> str:
+    normalized, _mapping = _normalize_for_match(text or "")
+    return normalized.strip()
+
+
 def _normalize_for_match(text: str) -> tuple[str, list[int]]:
     chars: list[str] = []
     mapping: list[int] = []

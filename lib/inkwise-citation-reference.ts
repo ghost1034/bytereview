@@ -11,6 +11,8 @@ export function createInkwiseCitationResolver(citations: InkwiseCitation[] | nul
     for (const reference of citation.references || []) {
       citationById.set(reference.id, {
         ...citation,
+        page_number: reference.page_number ?? citation.page_number,
+        locator_json: reference.locator_json ?? citation.locator_json,
         highlights: reference.highlight ? [reference.highlight] : [],
       })
     }

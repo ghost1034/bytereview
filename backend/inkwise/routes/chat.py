@@ -34,6 +34,7 @@ from inkwise.services.chat_service import (
     prepare_grounded_chat_history,
     truncate_text,
 )
+from inkwise.services.citation_pages import resolve_citation_page_locators
 from inkwise.services.citation_text import parse_citation_text, split_stream_display_text
 from inkwise.services.document_sources import InkwiseDocumentSourceService
 from inkwise.services.generation_attempts import InkwiseGenerationAttemptService
@@ -371,6 +372,10 @@ async def _stream_chat_attempt(
             await asyncio.sleep(0)
 
         parsed_citation_text = parse_citation_text(text=raw_response_text, evidence=evidence)
+        parsed_citation_text.citations[:] = resolve_citation_page_locators(
+            db,
+            citations=parsed_citation_text.citations,
+        )
         assistant_text = parsed_citation_text.plain_text
     except asyncio.CancelledError:
         generation_attempt_service.fail_attempt(

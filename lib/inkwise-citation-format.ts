@@ -187,13 +187,13 @@ function yearValue(citation: InkwiseCitation): string {
 
 function defaultLocator(citation: InkwiseCitation): string {
   const locator = locatorNumber(citation)
-  return locator ? `p.${locator}` : ''
+  return locator ? `${isMultiplePageLocator(locator) ? 'pp.' : 'p.'}${locator}` : ''
 }
 
 function apaLocator(citation: InkwiseCitation): string {
   const locator = locatorNumber(citation)
   if (!locator) return ''
-  return locator.includes('-') ? `pp. ${locator}` : `p. ${locator}`
+  return isMultiplePageLocator(locator) ? `pp. ${locator}` : `p. ${locator}`
 }
 
 function mlaLocator(citation: InkwiseCitation): string {
@@ -212,12 +212,40 @@ function locatorNumber(citation: InkwiseCitation): string {
   const explicit = text(metadataFor(citation).pin_cite)
   if (explicit) return explicit
   const locator = citation.locator_json || {}
+  const pageNumbers = normalizedPageNumbers(locator.page_numbers)
+  if (pageNumbers.length) return formatPageNumbers(pageNumbers)
   const pageStart = integer(locator.page_start)
   const pageEnd = integer(locator.page_end)
   if (pageStart && pageEnd && pageEnd !== pageStart) return `${pageStart}-${pageEnd}`
   if (pageStart) return String(pageStart)
   const pageNumber = integer(citation.page_number)
   return pageNumber ? String(pageNumber) : ''
+}
+
+function isMultiplePageLocator(locator: string): boolean {
+  return locator.includes('-') || locator.includes(',')
+}
+
+function normalizedPageNumbers(value: unknown): number[] {
+  if (!Array.isArray(value)) return []
+  return Array.from(new Set(value.map(integer).filter((item): item is number => item !== null))).sort((a, b) => a - b)
+}
+
+function formatPageNumbers(pageNumbers: number[]): string {
+  const ranges: string[] = []
+  let start = pageNumbers[0]
+  let end = start
+  for (const pageNumber of pageNumbers.slice(1)) {
+    if (pageNumber === end + 1) {
+      end = pageNumber
+      continue
+    }
+    ranges.push(start === end ? String(start) : `${start}-${end}`)
+    start = pageNumber
+    end = pageNumber
+  }
+  if (start !== undefined) ranges.push(start === end ? String(start) : `${start}-${end}`)
+  return ranges.join(', ')
 }
 
 function lastName(value?: string | null): string {

@@ -299,14 +299,16 @@ def _short_title(citation: dict[str, Any]) -> str:
 
 def _default_locator(citation: dict[str, Any]) -> str:
     locator = _locator_number(citation)
-    return f"p.{locator}" if locator else ""
+    if not locator:
+        return ""
+    return f"{'pp.' if _is_multiple_page_locator(locator) else 'p.'}{locator}"
 
 
 def _apa_locator(citation: dict[str, Any]) -> str:
     locator = _locator_number(citation)
     if not locator:
         return ""
-    return f"p. {locator}" if "-" not in locator else f"pp. {locator}"
+    return f"pp. {locator}" if _is_multiple_page_locator(locator) else f"p. {locator}"
 
 
 def _mla_locator(citation: dict[str, Any]) -> str:
@@ -329,6 +331,9 @@ def _locator_number(citation: dict[str, Any]) -> str:
         return explicit
     locator = citation.get("locator_json")
     if isinstance(locator, dict):
+        page_numbers = _page_numbers(locator.get("page_numbers"))
+        if page_numbers:
+            return _format_page_numbers(page_numbers)
         page_start = _int(locator.get("page_start"))
         page_end = _int(locator.get("page_end"))
         if page_start and page_end and page_end != page_start:
@@ -337,6 +342,31 @@ def _locator_number(citation: dict[str, Any]) -> str:
             return str(page_start)
     page_number = _int(citation.get("page_number"))
     return str(page_number) if page_number else ""
+
+
+def _is_multiple_page_locator(locator: str) -> bool:
+    return "-" in locator or "," in locator
+
+
+def _page_numbers(value: Any) -> list[int]:
+    if not isinstance(value, list):
+        return []
+    return sorted({page for item in value if (page := _int(item)) is not None})
+
+
+def _format_page_numbers(page_numbers: list[int]) -> str:
+    ranges: list[str] = []
+    start = page_numbers[0]
+    end = start
+    for page_number in page_numbers[1:]:
+        if page_number == end + 1:
+            end = page_number
+            continue
+        ranges.append(str(start) if start == end else f"{start}-{end}")
+        start = page_number
+        end = page_number
+    ranges.append(str(start) if start == end else f"{start}-{end}")
+    return ", ".join(ranges)
 
 
 def _last_name(value: str) -> str:

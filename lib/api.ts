@@ -2675,6 +2675,7 @@ export interface InkwiseEvidenceLocator {
   kind?: string
   page_start?: number | null
   page_end?: number | null
+  page_numbers?: number[] | null
   [key: string]: any
 }
 
@@ -2713,6 +2714,8 @@ export interface InkwiseCitationHighlight {
 export interface InkwiseCitationReference {
   id: string
   highlight?: InkwiseCitationHighlight | null
+  page_number?: number | null
+  locator_json?: InkwiseEvidenceLocator | null
 }
 
 export interface InkwiseCitation {

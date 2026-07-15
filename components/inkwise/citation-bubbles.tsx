@@ -366,6 +366,10 @@ function formatCitationSourceTitle(citation: InkwiseCitation, { maxLength }: { m
 export function formatLocatorLabel(citation: InkwiseCitation): string {
   const locator = citation.locator_json || {}
   const locatorKind = typeof locator.kind === 'string' ? locator.kind : null
+  const pageNumbers = normalizedPageNumbers(locator.page_numbers)
+  if (pageNumbers.length) {
+    return `${pageNumbers.length > 1 ? 'pp.' : 'p.'}${formatPageNumbers(pageNumbers)}`
+  }
   const rawPageStart = citation.page_number ?? locator.page_start ?? null
   const pageStart = typeof rawPageStart === 'number' && rawPageStart > 0 ? rawPageStart : null
   const pageEnd = locator.page_end ?? null
@@ -454,6 +458,8 @@ function shouldUseCanonicalPdfPageFragment(citation: InkwiseCitation | null, sou
 function pageNumberForPreview(citation: InkwiseCitation | null): number | null {
   if (!citation) return null
   const locator = citation.locator_json || {}
+  const pageNumbers = normalizedPageNumbers(locator.page_numbers)
+  if (pageNumbers.length) return pageNumbers[0]
   const pageStart = integerOrNull(locator.page_start)
   if (pageStart) return pageStart
   const pageNumber = integerOrNull(citation.page_number)
@@ -463,6 +469,28 @@ function pageNumberForPreview(citation: InkwiseCitation | null): number | null {
 
 function integerOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.trunc(value) : null
+}
+
+function normalizedPageNumbers(value: unknown): number[] {
+  if (!Array.isArray(value)) return []
+  return Array.from(new Set(value.map(integerOrNull).filter((item): item is number => item !== null))).sort((a, b) => a - b)
+}
+
+function formatPageNumbers(pageNumbers: number[]): string {
+  const ranges: string[] = []
+  let start = pageNumbers[0]
+  let end = start
+  for (const pageNumber of pageNumbers.slice(1)) {
+    if (pageNumber === end + 1) {
+      end = pageNumber
+      continue
+    }
+    ranges.push(start === end ? String(start) : `${start}-${end}`)
+    start = pageNumber
+    end = pageNumber
+  }
+  if (start !== undefined) ranges.push(start === end ? String(start) : `${start}-${end}`)
+  return ranges.join(', ')
 }
 
 function formatTimeRangeLocator(locator: Record<string, any>): string | null {
