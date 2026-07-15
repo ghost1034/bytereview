@@ -98,12 +98,15 @@ async def on_startup():
 
         inkwise_settings = get_inkwise_settings()
         logger.info(
-            "Inkwise retrieval config: query_rewrite=%s lexical_fusion=%s vector_rerank=%s vector_top_k=%s lexical_top_k=%s rerank_top_k=%s rerank_model=%s",
+            "Inkwise retrieval config: query_rewrite=%s lexical_fusion=%s vector_rerank=%s vector_top_k=%s lexical_top_k=%s diversity_per_source_top_k=%s max_balanced_per_source=%s diversity_score_margin=%s rerank_top_k=%s rerank_model=%s",
             inkwise_settings.query_rewrite_enabled,
             inkwise_settings.use_lexical_fusion,
             inkwise_settings.use_vector_rerank,
             inkwise_settings.vector_search_top_k,
             inkwise_settings.lexical_search_top_k,
+            inkwise_settings.diversity_per_source_top_k,
+            inkwise_settings.max_balanced_evidence_per_source,
+            inkwise_settings.diversity_vector_score_margin,
             inkwise_settings.rerank_top_k,
             inkwise_settings.vector_rerank_model,
         )

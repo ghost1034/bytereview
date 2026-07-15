@@ -54,6 +54,30 @@ class InkwiseSettingsTests(TestCase):
 
         self.assertFalse(settings.use_vector_rerank)
 
+    def test_retrieval_diversity_defaults(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            settings = get_inkwise_settings()
+
+        self.assertEqual(settings.diversity_per_source_top_k, 2)
+        self.assertEqual(settings.max_balanced_evidence_per_source, 3)
+        self.assertEqual(settings.diversity_vector_score_margin, 0.05)
+
+    def test_retrieval_diversity_respects_env(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "INKWISE_DIVERSITY_PER_SOURCE_TOP_K": "4",
+                "INKWISE_MAX_BALANCED_EVIDENCE_PER_SOURCE": "2",
+                "INKWISE_DIVERSITY_VECTOR_SCORE_MARGIN": "0.08",
+            },
+            clear=True,
+        ):
+            settings = get_inkwise_settings()
+
+        self.assertEqual(settings.diversity_per_source_top_k, 4)
+        self.assertEqual(settings.max_balanced_evidence_per_source, 2)
+        self.assertEqual(settings.diversity_vector_score_margin, 0.08)
+
     def test_video_upload_limit_defaults_to_1000mb(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
             settings = get_inkwise_settings()
@@ -83,3 +107,6 @@ class InkwiseSettingsTests(TestCase):
         self.assertIn('INKWISE_MAX_VIDEO_UPLOAD_MB="${INKWISE_MAX_VIDEO_UPLOAD_MB:-1000}"', script)
         self.assertIn('INKWISE_USE_LEXICAL_FUSION="${INKWISE_USE_LEXICAL_FUSION:-false}"', script)
         self.assertIn('INKWISE_USE_VECTOR_RERANK="${INKWISE_USE_VECTOR_RERANK:-false}"', script)
+        self.assertIn('INKWISE_DIVERSITY_PER_SOURCE_TOP_K="${INKWISE_DIVERSITY_PER_SOURCE_TOP_K:-2}"', script)
+        self.assertIn('INKWISE_MAX_BALANCED_EVIDENCE_PER_SOURCE="${INKWISE_MAX_BALANCED_EVIDENCE_PER_SOURCE:-3}"', script)
+        self.assertIn('INKWISE_DIVERSITY_VECTOR_SCORE_MARGIN="${INKWISE_DIVERSITY_VECTOR_SCORE_MARGIN:-0.05}"', script)

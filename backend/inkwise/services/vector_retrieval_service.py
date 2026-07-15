@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import time
 import uuid
+from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
@@ -145,6 +146,7 @@ class InkwiseVectorRetrievalService:
             bound_sources=bound_sources,
             vector_top_k=int(settings.vector_search_top_k),
             lexical_top_k=int(settings.lexical_search_top_k),
+            diversity_per_source_top_k=int(settings.diversity_per_source_top_k),
             use_lexical_fusion=bool(settings.use_lexical_fusion),
         )
         search_meta["attempt_index"] = 1
@@ -172,9 +174,15 @@ class InkwiseVectorRetrievalService:
             if reranked:
                 ordered_candidates = reranked + [c for c in ordered_candidates if c.segment_id not in {r.segment_id for r in reranked}]
 
+        selected_candidates, diversity_meta = self._select_diverse_candidates(
+            ordered_candidates,
+            max_evidence=max_evidence,
+            max_per_source=int(settings.max_balanced_evidence_per_source),
+            vector_score_margin=float(settings.diversity_vector_score_margin),
+        )
         evidence_pack_started = time.perf_counter()
         evidence = self._candidates_to_evidence(
-            ordered_candidates,
+            selected_candidates,
             max_evidence=max_evidence,
             max_total_chars=max_total_chars,
         )
@@ -186,6 +194,8 @@ class InkwiseVectorRetrievalService:
             strategy_bits.append("rerank")
         if query_plan.rewrite_applied:
             strategy_bits.append("qr")
+        if len(bound_sources) > 1:
+            strategy_bits.append("diversity")
         return evidence, {
             "engine": "vector",
             "query_plan": {
@@ -210,11 +220,12 @@ class InkwiseVectorRetrievalService:
             "query_rewrite": rewrite_meta,
             "lexical_fusion": lexical_fusion_meta,
             "rerank": rerank_meta,
+            "diversity": diversity_meta,
             "candidate_count": len(ordered_candidates),
             "evidence_count": len(evidence),
             "evidence_pack_duration_ms": evidence_pack_duration_ms,
             "total_duration_ms": int((time.perf_counter() - started) * 1000),
-        }, "+".join(strategy_bits) + "-v1"
+        }, "+".join(strategy_bits) + ("-v2" if len(bound_sources) > 1 else "-v1")
 
     def _build_query_plan(
         self,
@@ -261,6 +272,7 @@ class InkwiseVectorRetrievalService:
         bound_sources: list[tuple[uuid.UUID, str]],
         vector_top_k: int,
         lexical_top_k: int,
+        diversity_per_source_top_k: int,
         use_lexical_fusion: bool,
     ) -> tuple[list[RetrievalCandidate], dict[str, Any]]:
         embedding_started = time.perf_counter()
@@ -268,11 +280,25 @@ class InkwiseVectorRetrievalService:
         embedding_duration_ms = int((time.perf_counter() - embedding_started) * 1000)
 
         vector_started = time.perf_counter()
-        vector_candidates = self._vector_candidates(
+        global_vector_candidates = self._vector_candidates(
             db,
             embedding=query_embedding.values,
             source_ids=[source_id for source_id, _title in bound_sources],
             limit=vector_top_k,
+        )
+        represented_source_ids = {candidate.source_id for candidate in global_vector_candidates}
+        missing_source_ids = [
+            source_id for source_id, _title in bound_sources if source_id not in represented_source_ids
+        ]
+        supplemental_vector_candidates = self._supplemental_vector_candidates(
+            db,
+            embedding=query_embedding.values,
+            source_ids=missing_source_ids,
+            per_source_limit=diversity_per_source_top_k,
+        )
+        vector_candidates = self._combine_vector_candidate_pools(
+            global_vector_candidates,
+            supplemental_vector_candidates,
         )
         vector_duration_ms = int((time.perf_counter() - vector_started) * 1000)
 
@@ -295,6 +321,9 @@ class InkwiseVectorRetrievalService:
         merge_duration_ms = int((time.perf_counter() - merge_started) * 1000)
         return merged, {
             "vector_count": len(vector_candidates),
+            "global_vector_count": len(global_vector_candidates),
+            "supplemental_vector_count": len(supplemental_vector_candidates),
+            "supplemented_source_count": len({candidate.source_id for candidate in supplemental_vector_candidates}),
             "vector_query": query,
             "lexical_count": len(lexical_candidates),
             "lexical_query": fts_q if use_lexical_fusion else None,
@@ -374,6 +403,105 @@ class InkwiseVectorRetrievalService:
                 )
             )
         return out
+
+    def _supplemental_vector_candidates(
+        self,
+        db: Session,
+        *,
+        embedding: list[float],
+        source_ids: list[uuid.UUID],
+        per_source_limit: int,
+    ) -> list[RetrievalCandidate]:
+        if not source_ids or not embedding or per_source_limit <= 0:
+            return []
+        stmt = text(
+            """
+            select
+              candidate.segment_id,
+              scope.id as source_id,
+              scope.title as source_title,
+              candidate.modality,
+              candidate.segment_type,
+              candidate.segment_title,
+              candidate.text_content,
+              candidate.page_start,
+              candidate.page_end,
+              candidate.locator_json,
+              candidate.preview_bucket,
+              candidate.preview_object,
+              scope.bibliographic_metadata as bibliographic_metadata,
+              (1 - candidate.vector_distance) as vector_score
+            from inkwise_sources scope
+            cross join lateral (
+              select
+                s.id as segment_id,
+                s.modality as modality,
+                s.segment_type as segment_type,
+                s.title as segment_title,
+                coalesce(s.text_content, '') as text_content,
+                s.page_start as page_start,
+                s.page_end as page_end,
+                s.locator_json as locator_json,
+                s.preview_bucket as preview_bucket,
+                s.preview_object as preview_object,
+                (e.embedding <=> cast(:embedding as vector)) as vector_distance
+              from inkwise_source_segment_embeddings e
+              join inkwise_source_segments s on s.id = e.segment_id
+              where e.is_active = true
+                and e.source_id = scope.id
+                and s.source_id = scope.id
+              order by e.embedding <=> cast(:embedding as vector) asc
+              limit :per_source_limit
+            ) candidate
+            where scope.id in :source_ids
+            order by vector_score desc
+            """
+        ).bindparams(bindparam("source_ids", expanding=True))
+        rows = db.execute(
+            stmt,
+            {
+                "embedding": self._vector_literal(embedding),
+                "source_ids": source_ids,
+                "per_source_limit": int(per_source_limit),
+            },
+        ).mappings().all()
+        return [
+            RetrievalCandidate(
+                segment_id=self._uuid(row.get("segment_id")),
+                source_id=self._uuid(row.get("source_id")),
+                source_title=str(row.get("source_title") or ""),
+                modality=_text_or_none(row.get("modality")),
+                segment_type=_text_or_none(row.get("segment_type")),
+                segment_title=_text_or_none(row.get("segment_title")),
+                text_content=str(row.get("text_content") or ""),
+                page_start=_int_or_none(row.get("page_start")),
+                page_end=_int_or_none(row.get("page_end")),
+                locator_json=row.get("locator_json") if isinstance(row.get("locator_json"), dict) else None,
+                preview_bucket=_text_or_none(row.get("preview_bucket")),
+                preview_object=_text_or_none(row.get("preview_object")),
+                bibliographic_metadata=row.get("bibliographic_metadata") if isinstance(row.get("bibliographic_metadata"), dict) else None,
+                vector_score=_float_or_none(row.get("vector_score")),
+                excerpt=_make_excerpt(str(row.get("text_content") or "")),
+            )
+            for row in rows
+        ]
+
+    def _combine_vector_candidate_pools(
+        self,
+        global_candidates: list[RetrievalCandidate],
+        supplemental_candidates: list[RetrievalCandidate],
+    ) -> list[RetrievalCandidate]:
+        candidates_by_segment: dict[uuid.UUID, RetrievalCandidate] = {}
+        for candidate in [*global_candidates, *supplemental_candidates]:
+            candidates_by_segment.setdefault(candidate.segment_id, candidate)
+        combined = sorted(
+            candidates_by_segment.values(),
+            key=lambda candidate: float(candidate.vector_score) if candidate.vector_score is not None else float("-inf"),
+            reverse=True,
+        )
+        for rank, candidate in enumerate(combined, start=1):
+            candidate.vector_rank = rank
+        return combined
 
     def _lexical_candidates(
         self,
@@ -557,6 +685,87 @@ class InkwiseVectorRetrievalService:
         meta["duration_ms"] = int((time.perf_counter() - started) * 1000)
         return ranked, meta
 
+    def _select_diverse_candidates(
+        self,
+        candidates: list[RetrievalCandidate],
+        *,
+        max_evidence: int,
+        max_per_source: int,
+        vector_score_margin: float,
+    ) -> tuple[list[RetrievalCandidate], dict[str, Any]]:
+        usable = [candidate for candidate in candidates if _make_excerpt(_candidate_excerpt(candidate))]
+        selection_limit = max(0, int(max_evidence))
+        baseline = usable[:selection_limit]
+        if not baseline:
+            return [], {
+                "enabled": True,
+                "baseline_source_counts": {},
+                "selected_source_counts": {},
+                "eligible_candidate_count": 0,
+                "promoted_candidate_count": 0,
+            }
+
+        baseline_ids = {candidate.segment_id for candidate in baseline}
+        baseline_vector_scores = [
+            float(candidate.vector_score)
+            for candidate in baseline
+            if candidate.vector_score is not None
+        ]
+        vector_cutoff = min(baseline_vector_scores) if baseline_vector_scores else None
+        minimum_vector_score = (
+            vector_cutoff - max(0.0, float(vector_score_margin))
+            if vector_cutoff is not None
+            else None
+        )
+
+        eligible: list[RetrievalCandidate] = []
+        for candidate in usable:
+            if candidate.segment_id in baseline_ids:
+                eligible.append(candidate)
+                continue
+            if (
+                minimum_vector_score is not None
+                and candidate.vector_score is not None
+                and float(candidate.vector_score) >= minimum_vector_score
+            ):
+                eligible.append(candidate)
+
+        selected: list[RetrievalCandidate] = []
+        selected_ids: set[uuid.UUID] = set()
+        selected_per_source: Counter[uuid.UUID] = Counter()
+        balanced_limit = max(1, int(max_per_source))
+        for candidate in eligible:
+            if len(selected) >= selection_limit:
+                break
+            if selected_per_source[candidate.source_id] >= balanced_limit:
+                continue
+            selected.append(candidate)
+            selected_ids.add(candidate.segment_id)
+            selected_per_source[candidate.source_id] += 1
+
+        for candidate in usable:
+            if len(selected) >= selection_limit:
+                break
+            if candidate.segment_id in selected_ids:
+                continue
+            selected.append(candidate)
+            selected_ids.add(candidate.segment_id)
+            selected_per_source[candidate.source_id] += 1
+
+        promoted = [candidate for candidate in selected if candidate.segment_id not in baseline_ids]
+        return selected, {
+            "enabled": True,
+            "max_per_source": balanced_limit,
+            "vector_score_margin": max(0.0, float(vector_score_margin)),
+            "baseline_vector_score_cutoff": vector_cutoff,
+            "minimum_supplemental_vector_score": minimum_vector_score,
+            "baseline_source_counts": _source_counts(baseline),
+            "selected_source_counts": _source_counts(selected),
+            "eligible_candidate_count": len(eligible),
+            "promoted_candidate_count": len(promoted),
+            "promoted_segment_ids": [str(candidate.segment_id) for candidate in promoted],
+        }
+
     def _candidates_to_evidence(
         self,
         candidates: list[RetrievalCandidate],
@@ -645,3 +854,8 @@ def _candidate_excerpt(candidate: RetrievalCandidate) -> str:
         bibliographic_metadata=candidate.bibliographic_metadata,
     )
     return _evidence_excerpt(item)
+
+
+def _source_counts(candidates: list[RetrievalCandidate]) -> dict[str, int]:
+    counts = Counter(str(candidate.source_id) for candidate in candidates)
+    return dict(counts)

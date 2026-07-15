@@ -101,16 +101,18 @@ def evidence_preview_mime_type(item: EvidenceItem) -> str | None:
 
 def build_evidence_pack(evidence: list[EvidenceItem]) -> str:
     blocks: list[str] = []
+    source_keys: dict[uuid.UUID, str] = {}
     for item in evidence:
+        source_key = source_keys.setdefault(item.source_id, f"S{len(source_keys) + 1:02d}")
         locator = item.locator_json or {}
         locator_kind = str(locator.get("kind") or "").strip().lower() if isinstance(locator, dict) else ""
         page_end = locator.get("page_end") if isinstance(locator, dict) else None
         if item.page_number > 0:
-            header = f'[{item.evidence_id}] source="{item.source_title}" page={item.page_number}'
+            header = f'[{item.evidence_id}] source_key="{source_key}" source="{item.source_title}" page={item.page_number}'
             if isinstance(page_end, int) and page_end != item.page_number:
-                header = f'[{item.evidence_id}] source="{item.source_title}" pages={item.page_number}-{page_end}'
+                header = f'[{item.evidence_id}] source_key="{source_key}" source="{item.source_title}" pages={item.page_number}-{page_end}'
         else:
-            header = f'[{item.evidence_id}] source="{item.source_title}"'
+            header = f'[{item.evidence_id}] source_key="{source_key}" source="{item.source_title}"'
             if locator_kind == "image_asset":
                 header += ' locator="image"'
             elif locator_kind == "audio_asset":

@@ -104,6 +104,9 @@ class InkwiseSettings:
     use_vector_rerank: bool
     vector_search_top_k: int
     lexical_search_top_k: int
+    diversity_per_source_top_k: int
+    max_balanced_evidence_per_source: int
+    diversity_vector_score_margin: float
     rerank_top_k: int
     vector_rerank_model: str
     segment_pdf_window_pages: int
@@ -182,6 +185,9 @@ def get_inkwise_settings() -> InkwiseSettings:
         use_vector_rerank=_env_bool("INKWISE_USE_VECTOR_RERANK", False),
         vector_search_top_k=max(1, _env_int("INKWISE_VECTOR_SEARCH_TOP_K", 24)),
         lexical_search_top_k=max(1, _env_int("INKWISE_LEXICAL_SEARCH_TOP_K", 16)),
+        diversity_per_source_top_k=max(1, _env_int("INKWISE_DIVERSITY_PER_SOURCE_TOP_K", 2)),
+        max_balanced_evidence_per_source=max(1, _env_int("INKWISE_MAX_BALANCED_EVIDENCE_PER_SOURCE", 3)),
+        diversity_vector_score_margin=max(0.0, _env_float("INKWISE_DIVERSITY_VECTOR_SCORE_MARGIN", 0.05)),
         rerank_top_k=max(1, _env_int("INKWISE_RERANK_TOP_K", 12)),
         vector_rerank_model=os.getenv("INKWISE_VECTOR_RERANK_MODEL", default_model),
         segment_pdf_window_pages=max(1, _env_int("INKWISE_SEGMENT_PDF_WINDOW_PAGES", 4)),
