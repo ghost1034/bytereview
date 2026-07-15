@@ -2484,23 +2484,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/inkwise/retrieval-runs/{retrieval_run_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Retrieval Run */
-        get: operations["get_retrieval_run_api_inkwise_retrieval_runs__retrieval_run_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/inkwise/documents/{document_id}/export": {
         parameters: {
             query?: never;
@@ -2579,23 +2562,6 @@ export interface paths {
         };
         /** List Messages */
         get: operations["list_messages_api_inkwise_chat_threads__thread_id__messages_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/inkwise/chat/attempts/{attempt_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Chat Attempt */
-        get: operations["get_chat_attempt_api_inkwise_chat_attempts__attempt_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6444,27 +6410,6 @@ export interface components {
             /** Threads */
             threads: components["schemas"]["InkwiseChatThreadOut"][];
         };
-        /** InkwiseDebugTimelineEntryOut */
-        InkwiseDebugTimelineEntryOut: {
-            /** Stage */
-            stage: string;
-            /** Label */
-            label: string;
-            /** Status */
-            status: string;
-            /** Started At */
-            started_at?: string | null;
-            /** Finished At */
-            finished_at?: string | null;
-            /** Duration Ms */
-            duration_ms?: number | null;
-            /** Details */
-            details?: {
-                [key: string]: unknown;
-            };
-            /** Error */
-            error?: string | null;
-        };
         /** InkwiseDocumentBoundSourcesOut */
         InkwiseDocumentBoundSourcesOut: {
             /**
@@ -6683,68 +6628,6 @@ export interface components {
         InkwiseDriveImportRequest: {
             /** File Ids */
             file_ids?: string[];
-        };
-        /** InkwiseGenerationAttemptDetailOut */
-        InkwiseGenerationAttemptDetailOut: {
-            attempt: components["schemas"]["InkwiseGenerationAttemptOut"];
-            /** Debug Timeline */
-            debug_timeline?: components["schemas"]["InkwiseDebugTimelineEntryOut"][];
-        };
-        /** InkwiseGenerationAttemptOut */
-        InkwiseGenerationAttemptOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** User Id */
-            user_id: string;
-            /** Document Id */
-            document_id?: string | null;
-            /** Thread Id */
-            thread_id?: string | null;
-            /** Chat Message Id */
-            chat_message_id?: string | null;
-            /** Retrieval Run Id */
-            retrieval_run_id?: string | null;
-            /** Parent Attempt Id */
-            parent_attempt_id?: string | null;
-            /**
-             * Generation Group Id
-             * Format: uuid
-             */
-            generation_group_id: string;
-            /** Kind */
-            kind: string;
-            /** Status */
-            status: string;
-            /** Attempt Number */
-            attempt_number: number;
-            /** Provider */
-            provider?: string | null;
-            /** Model */
-            model?: string | null;
-            /** Request Json */
-            request_json?: {
-                [key: string]: unknown;
-            };
-            /** Response Text */
-            response_text?: string | null;
-            /** Citations Json */
-            citations_json?: {
-                [key: string]: unknown;
-            } | null;
-            /** Meta Json */
-            meta_json?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Completed At */
-            completed_at?: string | null;
         };
         /** InkwiseMessageResponse */
         InkwiseMessageResponse: {
@@ -13435,37 +13318,6 @@ export interface operations {
             };
         };
     };
-    get_retrieval_run_api_inkwise_retrieval_runs__retrieval_run_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                retrieval_run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InkwiseRetrievalRunDetailOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     export_document_api_inkwise_documents__document_id__export_get: {
         parameters: {
             query: {
@@ -13650,37 +13502,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InkwisePaginatedChatMessages"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_chat_attempt_api_inkwise_chat_attempts__attempt_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                attempt_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InkwiseGenerationAttemptDetailOut"];
                 };
             };
             /** @description Validation Error */

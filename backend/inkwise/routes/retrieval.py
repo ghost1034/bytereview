@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from dependencies.auth import verify_firebase_token
-from inkwise.debug_access import can_access_inkwise_chat_debug
 from inkwise.schemas import (
     InkwiseRetrievalEvidenceOut,
     InkwiseRetrievalRunDetailOut,
@@ -87,44 +86,3 @@ def run_document_retrieval(
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to run retrieval: {exc}") from exc
-
-
-@router.get("/retrieval-runs/{retrieval_run_id}", response_model=InkwiseRetrievalRunDetailOut)
-def get_retrieval_run(
-    retrieval_run_id: uuid.UUID,
-    token_data: dict = Depends(verify_firebase_token),
-    db: Session = Depends(get_db),
-) -> InkwiseRetrievalRunDetailOut:
-    if not can_access_inkwise_chat_debug(user_id=token_data["uid"]):
-        raise HTTPException(status_code=403, detail="Debug access not allowed")
-    try:
-        run, evidence = retrieval_service.get_retrieval_run_for_user(
-            db,
-            user_id=token_data["uid"],
-            retrieval_run_id=retrieval_run_id,
-        )
-        return InkwiseRetrievalRunDetailOut(
-            run=InkwiseRetrievalRunSummaryOut.model_validate(run),
-            evidence=[
-                InkwiseRetrievalEvidenceOut(
-                    evidence_id=item.evidence_id,
-                    source_id=item.source_id,
-                    source_title=item.source_title,
-                    page_number=item.page_number,
-                    modality=item.modality,
-                    segment_type=item.segment_type,
-                    segment_id=item.segment_id,
-                    segment_title=item.segment_title,
-                    locator_json=item.locator_json,
-                    preview_bucket=item.preview_bucket,
-                    preview_object=item.preview_object,
-                    excerpt=item.excerpt,
-                    bibliographic_metadata=item.bibliographic_metadata,
-                    score=item.score,
-                )
-                for item in evidence
-            ],
-            evidence_pack=build_evidence_pack(evidence),
-        )
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc

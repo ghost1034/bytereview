@@ -3,7 +3,6 @@
 import { useEffect, useRef } from 'react'
 import {
   ArrowUp,
-  Bug,
   Copy,
   CornerDownLeft,
   Indent,
@@ -36,14 +35,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import type { InkwiseBoundSource, InkwiseChatMessage, InkwiseChatThread, InkwiseDebugTimelineEntry } from '@/lib/api'
+import type { InkwiseBoundSource, InkwiseChatMessage, InkwiseChatThread } from '@/lib/api'
 import {
   assistantMarkdownClassName,
   type ChatInsertMode,
-  messageAttemptId,
   messageCitations,
   messageDisplayMarkdown,
-  messageRetrievalRunId,
   type StreamState,
 } from '@/lib/inkwise-chat'
 import { cn } from '@/lib/utils'
@@ -83,9 +80,6 @@ export type ChatPanelProps = {
   chatInsertKey: string | null
   primaryChatInsertMode: ChatInsertMode
   primaryChatInsertLabel: string
-  // debug (admin)
-  chatDebugEnabled: boolean
-  onOpenDebug: (target: { attemptId?: string | null; retrievalRunId?: string | null }) => void
   // draft selection
   activeDraftSelection: boolean
   draftSelectionLabel: string | undefined
@@ -132,7 +126,7 @@ export function ChatPanel(props: ChatPanelProps) {
             <ChatMessageBubble key={message.id} message={message} isLatestAssistant={message.id === props.latestAssistantMessageId} {...props} />
           ))}
 
-          {streamState ? <StreamingBubble streamState={streamState} chatDebugEnabled={props.chatDebugEnabled} /> : null}
+          {streamState ? <StreamingBubble streamState={streamState} /> : null}
 
           {!messages.length && !streamState ? <ChatEmptyState onPromptSelect={applySuggestedPrompt} /> : null}
         </div>
@@ -240,8 +234,6 @@ function ChatMessageBubble({
   chatInsertKey,
   primaryChatInsertMode,
   primaryChatInsertLabel,
-  chatDebugEnabled,
-  onOpenDebug,
   activeDraftSelection,
 }: ChatPanelProps & { message: InkwiseChatMessage; isLatestAssistant: boolean }) {
   const isUser = message.role === 'user'
@@ -255,9 +247,6 @@ function ChatMessageBubble({
       </div>
     )
   }
-
-  const attemptId = messageAttemptId(message)
-  const retrievalRunId = messageRetrievalRunId(message)
 
   return (
     <div className="group flex w-full gap-2.5">
@@ -290,16 +279,13 @@ function ChatMessageBubble({
           {isLatestAssistant ? (
             <ActionIcon icon={RotateCcw} label="Retry" disabled={retryPending || sendPending} onClick={() => onRetry(message.id)} />
           ) : null}
-          {chatDebugEnabled && (attemptId || retrievalRunId) ? (
-            <ActionIcon icon={Bug} label="Debug" onClick={() => onOpenDebug({ attemptId, retrievalRunId })} />
-          ) : null}
         </div>
       </div>
     </div>
   )
 }
 
-function StreamingBubble({ streamState, chatDebugEnabled }: { streamState: StreamState; chatDebugEnabled: boolean }) {
+function StreamingBubble({ streamState }: { streamState: StreamState }) {
   return (
     <div className="flex w-full gap-2.5">
       <AssistantAvatar />
@@ -318,26 +304,6 @@ function StreamingBubble({ streamState, chatDebugEnabled }: { streamState: Strea
             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground-subtle [animation-delay:0.4s]" />
           </div>
         )}
-        {chatDebugEnabled && streamState.debugTimeline?.length ? <DebugTimeline entries={streamState.debugTimeline} /> : null}
-      </div>
-    </div>
-  )
-}
-
-function DebugTimeline({ entries }: { entries: InkwiseDebugTimelineEntry[] }) {
-  return (
-    <div className="mt-4 rounded-xl border border-border bg-surface-muted p-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">Backend debug</div>
-      <div className="mt-2 space-y-2">
-        {entries.map((entry) => (
-          <div key={entry.stage} className="flex items-start justify-between gap-3 text-xs text-foreground-muted">
-            <div>
-              <div className="font-medium text-foreground">{entry.label}</div>
-              <div>{entry.status}</div>
-            </div>
-            <div className="whitespace-nowrap">{typeof entry.duration_ms === 'number' ? `${entry.duration_ms} ms` : ''}</div>
-          </div>
-        ))}
       </div>
     </div>
   )

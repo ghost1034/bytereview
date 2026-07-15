@@ -420,46 +420,6 @@ class InkwiseRetrievalRunDetailOut(BaseModel):
     evidence_pack: str
 
 
-class InkwiseDebugTimelineEntryOut(BaseModel):
-    stage: str
-    label: str
-    status: str
-    started_at: str | None = None
-    finished_at: str | None = None
-    duration_ms: int | None = None
-    details: dict = Field(default_factory=dict)
-    error: str | None = None
-
-
-class InkwiseGenerationAttemptOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
-    user_id: str
-    document_id: uuid.UUID | None = None
-    thread_id: uuid.UUID | None = None
-    chat_message_id: uuid.UUID | None = None
-    retrieval_run_id: uuid.UUID | None = None
-    parent_attempt_id: uuid.UUID | None = None
-    generation_group_id: uuid.UUID
-    kind: str
-    status: str
-    attempt_number: int
-    provider: str | None = None
-    model: str | None = None
-    request_json: dict = Field(default_factory=dict)
-    response_text: str | None = None
-    citations_json: dict | None = None
-    meta_json: dict | None = None
-    created_at: datetime
-    completed_at: datetime | None = None
-
-
-class InkwiseGenerationAttemptDetailOut(BaseModel):
-    attempt: InkwiseGenerationAttemptOut
-    debug_timeline: list[InkwiseDebugTimelineEntryOut] = Field(default_factory=list)
-
-
 class InkwiseChatThreadOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

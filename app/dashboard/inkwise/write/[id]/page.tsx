@@ -11,7 +11,6 @@ import { InkwiseEditor, type InkwiseEditorReviewState } from '@/components/inkwi
 import { InkwiseSourceImportPanel } from '@/components/inkwise/source-import-panel'
 import { InkwiseSourceListLoadMore } from '@/components/inkwise/source-list-load-more'
 import { InlineWritingTools } from '@/components/inkwise/inline-writing-tools'
-import { InkwiseChatDebugSheet } from '@/components/inkwise/chat-debug-sheet'
 import { InkwiseCitationBubbles } from '@/components/inkwise/citation-bubbles'
 import { FocusBackground } from '@/components/inkwise/focus-background'
 import { GoogleDriveFolderPicker } from '@/components/integrations/GoogleDriveFolderPicker'
@@ -34,7 +33,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { useGaplessAudioLoop } from '@/hooks/useGaplessAudioLoop'
 import { useToast } from '@/hooks/use-toast'
-import { useAuth } from '@/contexts/AuthContext'
 import {
   useInkwiseChatMessages,
   useInkwiseChatThreads,
@@ -51,7 +49,6 @@ import {
   InkwiseCitation,
   InkwiseCitationStyle,
   InkwiseChatThreadsResponse,
-  InkwiseDebugTimelineEntry,
   InkwiseDocumentRevision,
   InkwiseDriveExportResponse,
   InkwisePredictionRequest,
@@ -85,7 +82,6 @@ const MAX_PREDICTION_DOCUMENT_PREFIX_TEXT = 1000
 const PREDICTION_DEBOUNCE_MS = 1000
 const FOCUS_MODE_MUTE_STORAGE_KEY = 'cpaa_inkwise_focus_mode_muted_v1'
 const FOCUS_MODE_AUDIO_SRC = '/audio/inkwise-white-noise-loop.mp3'
-const INKWISE_CHAT_DEBUG_USER_ID = 'jbvogQmSz6WKNk1KL79bmK31Uk63'
 const INKWISE_THREAD_AUTO_NAME_POLL_INTERVAL_MS = 1500
 const INKWISE_THREAD_AUTO_NAME_POLL_TIMEOUT_MS = 15000
 
@@ -106,20 +102,6 @@ type DriveFolderSelection = {
   id: string
   name: string
   url?: string
-}
-
-function upsertDebugTimelineEntry(entries: InkwiseDebugTimelineEntry[] | undefined, entry: InkwiseDebugTimelineEntry): InkwiseDebugTimelineEntry[] {
-  const current = entries ?? []
-  const index = current.findIndex((item) => item.stage === entry.stage)
-  if (index < 0) return [...current, entry]
-  const next = [...current]
-  next[index] = {
-    ...next[index],
-    ...entry,
-    details: entry.details ?? next[index].details,
-    error: entry.error ?? next[index].error,
-  }
-  return next
 }
 
 function normalizePredictionState(prediction: InkwisePredictionResponse): PredictionState | null {
@@ -162,10 +144,8 @@ export default function InkwiseDocumentPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { user } = useAuth()
   const { toast } = useToast()
   const documentId = params.id
-  const chatDebugEnabled = user?.uid === INKWISE_CHAT_DEBUG_USER_ID
   const pendingAutoNameThreadsRef = useRef<Record<string, number>>({})
 
   const documentQuery = useInkwiseDocument(documentId)
@@ -234,7 +214,6 @@ export default function InkwiseDocumentPage() {
   const [driveExportFolder, setDriveExportFolder] = useState<DriveFolderSelection | null>(null)
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
   const [chatInsertKey, setChatInsertKey] = useState<string | null>(null)
-  const [chatDebugTarget, setChatDebugTarget] = useState<{ attemptId?: string | null; retrievalRunId?: string | null } | null>(null)
   const [trackChangesEnabled, setTrackChangesEnabled] = useState(false)
   const [reviewState, setReviewState] = useState<InkwiseEditorReviewState>({ comments: [], changes: [] })
   const [focusModeEnabled, setFocusModeEnabled] = useState(false)
@@ -600,12 +579,6 @@ export default function InkwiseDocumentPage() {
           if (event.event === 'meta' && event.data?.error) {
             streamErrorMessage = event.data?.message || 'Chat request failed'
           }
-          if (chatDebugEnabled && event.event === 'debug' && event.data?.stage && event.data?.label) {
-            setStreamState((current) => ({
-              ...(current ?? { text: '' }),
-              debugTimeline: upsertDebugTimelineEntry(current?.debugTimeline, event.data as InkwiseDebugTimelineEntry),
-            }))
-          }
           if (event.event === 'meta' && event.data?.citations) {
             setStreamState((current) => ({
               ...(current ?? { text: '' }),
@@ -666,12 +639,6 @@ export default function InkwiseDocumentPage() {
           }
           if (event.event === 'meta' && event.data?.error) {
             streamErrorMessage = event.data?.message || 'Retry failed'
-          }
-          if (chatDebugEnabled && event.event === 'debug' && event.data?.stage && event.data?.label) {
-            setStreamState((current) => ({
-              ...(current ?? { text: '' }),
-              debugTimeline: upsertDebugTimelineEntry(current?.debugTimeline, event.data as InkwiseDebugTimelineEntry),
-            }))
           }
           if (event.event === 'meta' && event.data?.citations) {
             setStreamState((current) => ({
@@ -1318,8 +1285,6 @@ export default function InkwiseDocumentPage() {
                   chatInsertKey={chatInsertKey}
                   primaryChatInsertMode={primaryChatInsertMode}
                   primaryChatInsertLabel={primaryChatInsertLabel}
-                  chatDebugEnabled={chatDebugEnabled}
-                  onOpenDebug={setChatDebugTarget}
                   activeDraftSelection={Boolean(activeDraftSelection)}
                   draftSelectionLabel={draftSelectionLabel}
                   boundSources={boundSources}
@@ -1689,16 +1654,6 @@ export default function InkwiseDocumentPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <InkwiseChatDebugSheet
-        open={chatDebugEnabled && Boolean(chatDebugTarget)}
-        onOpenChange={(open) => {
-          if (!open) setChatDebugTarget(null)
-        }}
-        enabled={chatDebugEnabled}
-        attemptId={chatDebugTarget?.attemptId}
-        retrievalRunId={chatDebugTarget?.retrievalRunId}
-      />
 
       <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
         <SheetContent side="right" className="w-full sm:max-w-3xl">
