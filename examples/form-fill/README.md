@@ -33,5 +33,5 @@ both routes side by side.
 3. **Fillable PDF, per file** — Source: all three `clients/` profiles · Target: `targets/fw9.pdf` · Mode: fill once per file.
 4. **DOCX edit in place** — Source: `expenses-2025.csv` · Target: `schedule-of-business-expenses.docx` · Mode: fill once for all files · Options: "Fill entries in chronological order" and "Allow AI to add new rows or columns" enabled.
 5. **Extraction → Form Fill** — Extract from `receipts/`, then repeat run 4 using the extraction results as the source.
-6. **PDF overlay** — Source: any one `clients/` profile (or both `willow-creek/` files) · Target: `targets/vendor-setup-sheet.pdf` · Mode: fill once for all files. Also works per file with all three client profiles → three setup sheets.
-7. **DOCX placeholders, per row** — Source: `contractors.csv` · Target: `targets/w9-request-letter.docx` · Mode: fill once per row → five personalized W-9 request letters.
+6. **DOCX placeholders, per row** — Source: `contractors.csv` · Target: `targets/w9-request-letter.docx` · Mode: fill once per row → five personalized W-9 request letters.
+7. **PDF overlay** — Source: any one `clients/` profile (or both `willow-creek/` files) · Target: `targets/vendor-setup-sheet.pdf` · Mode: fill once for all files. Also works per file with all three client profiles → three setup sheets.
