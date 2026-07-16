@@ -6,7 +6,7 @@ order: 1
 
 The Claw Series is a family of **AI digital workers** — autonomous agents you deploy, not tools you operate. Each Claw runs hundreds of pre-built skills end-to-end, with guardrails designed for regulated accounting, finance, and legal work. You point a Claw at your data, tell it what you need in plain language, and it prepares review-ready deliverables for you to check and sign off.
 
-Two digital workers are available for self-service today: **AccountingClaw** and **LegalClaw**. FinanceClaw is offered through white-glove setup — [contact us](/contact) and we'll deploy and tune it for your firm.
+Two digital workers are available for self-service today: **AccountingClaw** and **LegalClaw**. FinanceClaw is coming soon — [contact us](/contact) to learn more.
 
 ## What AccountingClaw does
 

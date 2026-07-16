@@ -209,7 +209,7 @@ const DOWNLOAD_NOTES = [
   },
   {
     icon: Cloud,
-    title: 'OpenRouter key required',
+    title: 'OpenRouter key if desired',
     detail: 'Hermes uses OpenRouter by default, so pass OPENROUTER_API_KEY with your model access key.',
   },
 ]
@@ -226,7 +226,7 @@ const SKILL_PACKAGES: Array<{
   },
   {
     icon: Briefcase,
-    name: 'FinanceClaw',
+    name: 'FinanceClaw (Coming Soon)',
     detail: 'FP&A automations, flux analysis, reporting packs',
   },
   {
