@@ -14,9 +14,9 @@ import {
 } from '@/hooks/useConnector'
 
 /**
- * Claw agent access tokens (``cpaa_conn_…``). Claw containers normally get one
- * automatically during activation; this card exists for visibility, manual
- * setups, and revocation. The full token value is shown exactly once.
+ * Claw agent access tokens (``cpaa_conn_…``). Cloud and desktop installations
+ * normally get one automatically during activation; this card exists for
+ * visibility, manual setups, and revocation. The full token is shown once.
  */
 export function ConnectorTokensCard() {
   const { data } = useConnectorTokens()
@@ -45,8 +45,8 @@ export function ConnectorTokensCard() {
     <div className="space-y-4">
       <p className="text-sm text-foreground-muted">
         Claw agents use these tokens to reach your connected integrations. A token is
-        issued automatically when a Claw container activates; revoke any token here to
-        cut that agent&apos;s access instantly.
+        issued automatically when a cloud or desktop Claw activates; revoke any token
+        here to cut that agent&apos;s access instantly.
       </p>
 
       {freshToken && (

@@ -147,15 +147,15 @@ class ConnectorService:
 
     @property
     def base_url(self) -> str:
-        return (os.getenv("OPENCONNECTOR_URL") or "").rstrip("/")
+        return (os.getenv("OPENCONNECTOR_URL") or "").strip().rstrip("/")
 
     @property
     def _runtime_token(self) -> str:
-        return os.getenv("OPENCONNECTOR_RUNTIME_TOKEN") or ""
+        return (os.getenv("OPENCONNECTOR_RUNTIME_TOKEN") or "").strip()
 
     @property
     def _admin_token(self) -> str:
-        return os.getenv("OPENCONNECTOR_ADMIN_TOKEN") or ""
+        return (os.getenv("OPENCONNECTOR_ADMIN_TOKEN") or "").strip()
 
     def is_configured(self) -> bool:
         return bool(self.base_url and self._runtime_token and self._admin_token)

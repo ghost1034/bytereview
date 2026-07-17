@@ -67,8 +67,10 @@ class BundleRequest(BaseModel):
 
 
 class BundleResponse(BaseModel):
-    """A short-lived signed URL to the plaintext AccountingClaw profile tarball."""
+    """Desktop profile bundle and optional CPAAutomation integrations access."""
     bundle_url: str
     sha256: Optional[str] = None
     version: Optional[str] = None
     expires_in_seconds: int = 900
+    connector_mcp_url: Optional[str] = None
+    connector_token: Optional[str] = None

@@ -22,17 +22,17 @@ echo -e "${BLUE}🔐 Setting up CPAAutomation secrets in Google Secret Manager..
 
 # Cloud Run Task Service URLs. Create on first run, add a new version otherwise.
 echo -e "${BLUE}=== Cloud Run Task Service URLs ===${NC}"
-gcloud secrets create TASK_EXTRACT_URL --data-file=- <<< "https://task-extract-oyrpyor7wq-uc.a.run.app" || \
-gcloud secrets versions add TASK_EXTRACT_URL --data-file=- <<< "https://task-extract-oyrpyor7wq-uc.a.run.app"
+printf '%s' "https://task-extract-oyrpyor7wq-uc.a.run.app" | gcloud secrets create TASK_EXTRACT_URL --data-file=- || \
+printf '%s' "https://task-extract-oyrpyor7wq-uc.a.run.app" | gcloud secrets versions add TASK_EXTRACT_URL --data-file=-
 
-gcloud secrets create TASK_IO_URL --data-file=- <<< "https://task-io-oyrpyor7wq-uc.a.run.app" || \
-gcloud secrets versions add TASK_IO_URL --data-file=- <<< "https://task-io-oyrpyor7wq-uc.a.run.app"
+printf '%s' "https://task-io-oyrpyor7wq-uc.a.run.app" | gcloud secrets create TASK_IO_URL --data-file=- || \
+printf '%s' "https://task-io-oyrpyor7wq-uc.a.run.app" | gcloud secrets versions add TASK_IO_URL --data-file=-
 
-gcloud secrets create TASK_AUTOMATION_URL --data-file=- <<< "https://task-automation-oyrpyor7wq-uc.a.run.app" || \
-gcloud secrets versions add TASK_AUTOMATION_URL --data-file=- <<< "https://task-automation-oyrpyor7wq-uc.a.run.app"
+printf '%s' "https://task-automation-oyrpyor7wq-uc.a.run.app" | gcloud secrets create TASK_AUTOMATION_URL --data-file=- || \
+printf '%s' "https://task-automation-oyrpyor7wq-uc.a.run.app" | gcloud secrets versions add TASK_AUTOMATION_URL --data-file=-
 
-gcloud secrets create TASK_MAINTENANCE_URL --data-file=- <<< "https://task-maintenance-oyrpyor7wq-uc.a.run.app" || \
-gcloud secrets versions add TASK_MAINTENANCE_URL --data-file=- <<< "https://task-maintenance-oyrpyor7wq-uc.a.run.app"
+printf '%s' "https://task-maintenance-oyrpyor7wq-uc.a.run.app" | gcloud secrets create TASK_MAINTENANCE_URL --data-file=- || \
+printf '%s' "https://task-maintenance-oyrpyor7wq-uc.a.run.app" | gcloud secrets versions add TASK_MAINTENANCE_URL --data-file=-
 
 echo -e "${GREEN}✅ Task service URL secrets ensured${NC}"
 
@@ -54,7 +54,7 @@ ensure_generated_secret OPENCONNECTOR_ADMIN_TOKEN
 ensure_generated_secret OPENCONNECTOR_RUNTIME_TOKEN
 ensure_generated_secret OOMOL_CONNECT_ENCRYPTION_KEY
 
-gcloud secrets create OPENCONNECTOR_URL --data-file=- <<< "https://connect.cpaautomation.ai" || \
-gcloud secrets versions add OPENCONNECTOR_URL --data-file=- <<< "https://connect.cpaautomation.ai"
+printf '%s' "https://connect.cpaautomation.ai" | gcloud secrets create OPENCONNECTOR_URL --data-file=- || \
+printf '%s' "https://connect.cpaautomation.ai" | gcloud secrets versions add OPENCONNECTOR_URL --data-file=-
 
 echo -e "${GREEN}✅ OpenConnector secrets ensured${NC}"

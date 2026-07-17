@@ -137,6 +137,41 @@ def _stamp_resolution(row: ActivationKey, fingerprint: Optional[str], install_ty
     row.resolve_count = (row.resolve_count or 0) + 1
 
 
+def _provision_connector(
+    db,
+    user_id: str,
+    product: str,
+    fingerprint: Optional[str],
+    install_type: str,
+) -> tuple[Optional[str], Optional[str]]:
+    """Mint an installation-scoped MCP credential when integrations are enabled."""
+    try:
+        from services.connector_service import connector_service
+        from services.connector_token_service import mint_token
+
+        if not connector_service.is_configured():
+            return None, None
+
+        mode = "desktop:" if install_type == "desktop" else ""
+        token_name = f"claw:{mode}{product}:{(fingerprint or 'unknown')[:64]}"
+        with db.begin_nested():
+            connector_token, _ = mint_token(
+                db,
+                user_id,
+                name=token_name,
+                rotate_same_name=True,
+            )
+        connector_mcp_url = os.getenv(
+            "CONNECTOR_MCP_PUBLIC_URL",
+            "https://api.cpaautomation.ai/api/connector/mcp",
+        )
+        return connector_mcp_url, connector_token
+    except Exception as connector_err:
+        # Claw activation must keep working if the optional broker is unavailable.
+        logger.warning("Connector token provisioning failed during %s activation: %s", install_type, connector_err)
+        return None, None
+
+
 @router.post("/activate", response_model=ActivateResponse)
 async def activate(req: ActivateRequest, user_id: str = Depends(get_current_user_id)):
     """Redeem an active six-digit code and mint (or return) the user's key."""
@@ -285,27 +320,14 @@ async def resolve(req: ResolveRequest, request: Request):
 
         _stamp_resolution(row, req.fingerprint, req.install_type, default_type="docker")
 
-        # Provision the container's integrations access: a per-user connector
-        # token for the MCP proxy, rotated per (product, fingerprint) so a
-        # re-activated container replaces its predecessor's credential. Skipped
-        # (nulls) when the OpenConnector broker is not configured.
-        connector_token = None
-        connector_mcp_url = None
-        try:
-            from services.connector_service import connector_service
-            from services.connector_token_service import mint_token
-            if connector_service.is_configured():
-                token_name = f"claw:{req.product}:{(req.fingerprint or 'unknown')[:64]}"
-                connector_token, _ = mint_token(db, str(row.user_id), name=token_name, rotate_same_name=True)
-                connector_mcp_url = os.getenv(
-                    "CONNECTOR_MCP_PUBLIC_URL",
-                    "https://api.cpaautomation.ai/api/connector/mcp",
-                )
-        except Exception as connector_err:
-            # Activation must keep working even if token minting fails.
-            connector_token = None
-            connector_mcp_url = None
-            logger.warning("Connector token provisioning failed during resolve: %s", connector_err)
+        # Rotating per installation replaces stale credentials on re-activation.
+        connector_mcp_url, connector_token = _provision_connector(
+            db,
+            str(row.user_id),
+            req.product,
+            req.fingerprint,
+            "docker",
+        )
 
         db.commit()
 
@@ -335,8 +357,8 @@ async def bundle(req: BundleRequest, request: Request):
     Like /resolve, authenticated by possession of the activation key itself (NOT
     Firebase). Instead of the decryption secret, returns a short-lived signed GET
     URL to the requested product's plaintext profile tarball in the private GCS
-    bucket, plus its sha256 for client-side verification. Generic 401 for all key
-    failures.
+    bucket, its sha256, and optional MCP credentials for the user's integrations.
+    Generic 401 for all key failures.
     """
     ip = _client_ip(request)
     if not rate_limiter.check("bundle_ip", ip, limit=20, window_seconds=60):
@@ -366,17 +388,26 @@ async def bundle(req: BundleRequest, request: Request):
             raise HTTPException(status_code=503, detail="Activation is not currently available.")
 
         _stamp_resolution(row, req.fingerprint, req.install_type, default_type="desktop")
+        connector_mcp_url, connector_token = _provision_connector(
+            db,
+            str(row.user_id),
+            req.product,
+            req.fingerprint,
+            "desktop",
+        )
         db.commit()
 
         logger.info(
-            "Issued %s bundle URL for key_lookup=%s user_id=%s ip=%s",
-            req.product, row.key_lookup, row.user_id, ip,
+            "Issued %s bundle URL for key_lookup=%s user_id=%s ip=%s connector=%s",
+            req.product, row.key_lookup, row.user_id, ip, bool(connector_token),
         )
         return BundleResponse(
             bundle_url=url,
             sha256=sha256,
             version=version,
             expires_in_seconds=expiration_minutes * 60,
+            connector_mcp_url=connector_mcp_url,
+            connector_token=connector_token,
         )
     except HTTPException:
         raise

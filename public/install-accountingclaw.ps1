@@ -40,9 +40,13 @@ New-Item -ItemType Directory -Force -Path (Join-Path $HermesHome "skills") | Out
 
 # 2. Idempotency: skip if already installed unless -Force.
 if ((Test-Path $MarkerFile) -and -not $Force) {
-    Write-Host "AccountingClaw is already installed (marker: $MarkerFile)."
-    Write-Host "Re-run with -Force to reinstall."
-    exit 0
+    $ConfigFile = Join-Path $HermesHome "config.yaml"
+    if ((Test-Path $ConfigFile) -and (Select-String -Path $ConfigFile -SimpleMatch "# >>> cpaa-connector >>>" -Quiet)) {
+        Write-Host "AccountingClaw is already installed (marker: $MarkerFile)."
+        Write-Host "Re-run with -Force to reinstall."
+        exit 0
+    }
+    Write-Host "Updating AccountingClaw to enable CPAAutomation integrations."
 }
 
 # 3. Activation key from -Key, env, or interactive prompt.
@@ -111,6 +115,30 @@ try {
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Failed to extract the bundle (tar exit code $LASTEXITCODE)."
         exit 65
+    }
+
+    # Give Hermes live access to this user's CPAAutomation integrations.
+    if ($Response.connector_mcp_url -and $Response.connector_token) {
+        $ConfigPath = Join-Path $HermesHome "config.yaml"
+        $Config = if (Test-Path $ConfigPath) { [System.IO.File]::ReadAllText($ConfigPath) } else { "" }
+        $ManagedPattern = '(?ms)^# >>> cpaa-connector >>>\r?\n.*?^# <<< cpaa-connector <<<\r?\n?'
+        $Config = [regex]::Replace($Config, $ManagedPattern, "")
+        $ManagedBlock = @"
+# >>> cpaa-connector >>>
+# Managed by the AccountingClaw desktop installer; do not edit.
+mcp_servers:
+  cpaa-connector:
+    url: "$($Response.connector_mcp_url)"
+    headers:
+      Authorization: "Bearer $($Response.connector_token)"
+# <<< cpaa-connector <<<
+"@
+        $Config = $Config.TrimEnd("`r", "`n") + "`r`n`r`n" + $ManagedBlock.Trim() + "`r`n"
+        [System.IO.File]::WriteAllText($ConfigPath, $Config, (New-Object System.Text.UTF8Encoding($false)))
+        Write-Host "CPAAutomation integrations enabled."
+    }
+    else {
+        Write-Host "CPAAutomation integrations are temporarily unavailable; the skills were still installed."
     }
 
     (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ") | Set-Content -Path $MarkerFile

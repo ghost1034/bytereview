@@ -32,7 +32,7 @@ Launch the app and complete its onboarding — this is where you connect your AI
 
 ## Step 2 — Add the skills
 
-With Hermes Desktop installed, run the installer for the worker you want and your platform. It verifies your key with CPAAutomation, downloads the skills, and installs them into your local Hermes home. Replace `cpaa_live_...` with your own activation key.
+With Hermes Desktop installed, run the installer for the worker you want and your platform. It verifies your key with CPAAutomation, downloads the skills, installs them into your local Hermes home, and securely connects the worker to your CPAAutomation integrations. Replace `cpaa_live_...` with your own activation key.
 
 **AccountingClaw — macOS / Linux:**
 
@@ -68,7 +68,7 @@ Open the **Skills** pane in Hermes Desktop and confirm the skills are listed. If
 hermes skills list
 ```
 
-You should see the installed skills — see the [AccountingClaw skills catalog](/docs/claw-series/skills-catalog) or the [LegalClaw skills catalog](/docs/claw-series/legalclaw-skills-catalog). You're ready to start briefing the worker; see [Working with AccountingClaw](/docs/claw-series/using-accountingclaw) or [Working with LegalClaw](/docs/claw-series/using-legalclaw).
+You should see the installed skills. Integrations connected on your [Integrations page](/dashboard/integrations) are also available to the worker and stay current as you connect or disconnect apps. See the [AccountingClaw skills catalog](/docs/claw-series/skills-catalog) or the [LegalClaw skills catalog](/docs/claw-series/legalclaw-skills-catalog). You're ready to start briefing the worker; see [Working with AccountingClaw](/docs/claw-series/using-accountingclaw) or [Working with LegalClaw](/docs/claw-series/using-legalclaw).
 
 ## Where your data lives
 
@@ -83,6 +83,6 @@ Your skills, sessions, and configuration stay in your local Hermes home:
 
 - **One key, both modes, both products.** The same activation key works for desktop and cloud, and for AccountingClaw and LegalClaw — you can run a desktop worker now and a cloud worker later with the same key.
 - **One desktop profile at a time.** Both installers write into the same Hermes home, and the profile files (`SOUL.md`, `config.yaml`) define the agent's persona — so pick the worker that matches your role for a given machine. (The installer backs up any profile files it overwrites.)
-- **Everything is local.** On the desktop, the agent and your data run entirely on your machine; only your chosen AI model is called over the network.
+- **Local runtime, connected services.** Skills, sessions, and agent configuration stay on your machine. Hermes calls your chosen AI model provider, and integration actions use CPAAutomation's authenticated gateway to reach the apps you connected on CPAAutomation.ai.
 
 Next: [Working with AccountingClaw](/docs/claw-series/using-accountingclaw) or [Working with LegalClaw](/docs/claw-series/using-legalclaw).

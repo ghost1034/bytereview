@@ -4915,7 +4915,7 @@ export interface components {
         };
         /**
          * BundleResponse
-         * @description A short-lived signed URL to the plaintext AccountingClaw profile tarball.
+         * @description Desktop profile bundle and optional CPAAutomation integrations access.
          */
         BundleResponse: {
             /** Bundle Url */
@@ -4929,6 +4929,10 @@ export interface components {
              * @default 900
              */
             expires_in_seconds: number;
+            /** Connector Mcp Url */
+            connector_mcp_url?: string | null;
+            /** Connector Token */
+            connector_token?: string | null;
         };
         /**
          * CatalogProvider

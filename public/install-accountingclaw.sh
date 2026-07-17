@@ -44,9 +44,12 @@ mkdir -p "$HERMES_HOME/.cpaa" "$HERMES_HOME/skills"
 
 # 2. Idempotency: skip if already installed unless --force.
 if [ -s "$MARKER_FILE" ] && [ "$FORCE" != true ]; then
-  echo "AccountingClaw is already installed (marker: $MARKER_FILE)."
-  echo "Re-run with --force to reinstall."
-  exit 0
+  if grep -q '^# >>> cpaa-connector >>>$' "$HERMES_HOME/config.yaml" 2>/dev/null; then
+    echo "AccountingClaw is already installed (marker: $MARKER_FILE)."
+    echo "Re-run with --force to reinstall."
+    exit 0
+  fi
+  echo "Updating AccountingClaw to enable CPAAutomation integrations."
 fi
 
 # 3. Activation key from env, first argument, or interactive prompt.
@@ -95,6 +98,8 @@ fi
 
 bundle_url="$(printf '%s' "$response" | json_field bundle_url)"
 expected_sha="$(printf '%s' "$response" | json_field sha256)"
+connector_url="$(printf '%s' "$response" | json_field connector_mcp_url)"
+connector_token="$(printf '%s' "$response" | json_field connector_token)"
 if [ -z "$bundle_url" ]; then
   echo "Activation failed: no bundle URL returned."
   exit 77
@@ -129,6 +134,29 @@ done
 
 # 7. Install into the Hermes home (same layout the Docker image installs into /opt/data).
 tar -xzf "$tmp_dir/accountingclaw-profile.tar.gz" -C "$HERMES_HOME"
+
+# Give Hermes live access to this user's CPAAutomation integrations.
+if [ -n "$connector_url" ] && [ -n "$connector_token" ]; then
+  config_file="$HERMES_HOME/config.yaml"
+  if [ -f "$config_file" ]; then
+    awk '/# >>> cpaa-connector >>>/{skip=1; next} /# <<< cpaa-connector <<</{skip=0; next} !skip' \
+      "$config_file" > "$config_file.tmp" && mv "$config_file.tmp" "$config_file"
+  fi
+  cat >> "$config_file" <<EOF
+# >>> cpaa-connector >>>
+# Managed by the AccountingClaw desktop installer; do not edit.
+mcp_servers:
+  cpaa-connector:
+    url: "$connector_url"
+    headers:
+      Authorization: "Bearer $connector_token"
+# <<< cpaa-connector <<<
+EOF
+  chmod 600 "$config_file"
+  echo "CPAAutomation integrations enabled."
+else
+  echo "CPAAutomation integrations are temporarily unavailable; the skills were still installed."
+fi
 
 date -u +%Y-%m-%dT%H:%M:%SZ > "$MARKER_FILE"
 
