@@ -63,6 +63,11 @@ if ! gsutil ls -b "$BACKUP_BUCKET" >/dev/null 2>&1; then
 {"rule": [{"action": {"type": "Delete"}, "condition": {"age": 30}}]}
 LIFECYCLE
 fi
+# The VM's default compute SA runs the backup cron; grant it bucket write
+# explicitly so backups don't depend on broad project-level roles.
+PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
+COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+gsutil iam ch "serviceAccount:${COMPUTE_SA}:roles/storage.objectAdmin" "$BACKUP_BUCKET" >/dev/null
 echo -e "${GREEN}✅ Backup bucket ready${NC}"
 
 echo -e "${BLUE}=== VM ===${NC}"
@@ -101,10 +106,35 @@ gcloud compute ssh "$VM_NAME" --zone "$ZONE" --command '
 '
 
 echo -e "${BLUE}=== Seed /opt/openconnector from repo + Secret Manager ===${NC}"
+# Fetch secrets locally (the operator's gcloud has Secret Manager access; the
+# VM's default compute service account does not, and doesn't need it).
+fetch() {
+  local val
+  if ! val="$(gcloud secrets versions access latest --secret "$1")" || [ -z "$val" ]; then
+    echo -e "${RED}❌ Secret $1 is missing or empty — run scripts/setup-secrets.sh first${NC}" >&2
+    return 1
+  fi
+  printf '%s' "$val"
+}
+ENCRYPTION_KEY="$(fetch OOMOL_CONNECT_ENCRYPTION_KEY)"
+ADMIN_TOKEN="$(fetch OPENCONNECTOR_ADMIN_TOKEN)"
+RUNTIME_TOKEN="$(fetch OPENCONNECTOR_RUNTIME_TOKEN)"
+
+ENV_TMP="$(mktemp)"
+trap 'rm -f "$ENV_TMP"' EXIT
+chmod 600 "$ENV_TMP"
+{
+  echo "OOMOL_CONNECT_ORIGIN=https://connect.cpaautomation.ai"
+  echo "OOMOL_CONNECT_ENCRYPTION_KEY=${ENCRYPTION_KEY}"
+  echo "OOMOL_CONNECT_ADMIN_TOKEN=${ADMIN_TOKEN}"
+  echo "OOMOL_CONNECT_RUNTIME_TOKEN=${RUNTIME_TOKEN}"
+} > "$ENV_TMP"
+
 gcloud compute scp \
   "$REPO_ROOT/infra/openconnector/docker-compose.yml" \
   "$REPO_ROOT/infra/openconnector/Caddyfile" \
   "$REPO_ROOT/scripts/backup-openconnector.sh" \
+  "$ENV_TMP" \
   "$VM_NAME:/tmp/" --zone "$ZONE"
 
 gcloud compute ssh "$VM_NAME" --zone "$ZONE" --command '
@@ -112,15 +142,8 @@ gcloud compute ssh "$VM_NAME" --zone "$ZONE" --command '
   sudo mv /tmp/docker-compose.yml /tmp/Caddyfile /opt/openconnector/
   sudo mv /tmp/backup-openconnector.sh /opt/openconnector/
   sudo chmod +x /opt/openconnector/backup-openconnector.sh
-
-  fetch() { gcloud secrets versions access latest --secret "$1"; }
-  umask 077
-  {
-    echo "OOMOL_CONNECT_ORIGIN=https://connect.cpaautomation.ai"
-    echo "OOMOL_CONNECT_ENCRYPTION_KEY=$(fetch OOMOL_CONNECT_ENCRYPTION_KEY)"
-    echo "OOMOL_CONNECT_ADMIN_TOKEN=$(fetch OPENCONNECTOR_ADMIN_TOKEN)"
-    echo "OOMOL_CONNECT_RUNTIME_TOKEN=$(fetch OPENCONNECTOR_RUNTIME_TOKEN)"
-  } | sudo tee /opt/openconnector/.env >/dev/null
+  sudo mv "/tmp/'"$(basename "$ENV_TMP")"'" /opt/openconnector/.env
+  sudo chown root:root /opt/openconnector/.env
   sudo chmod 600 /opt/openconnector/.env
 
   cd /opt/openconnector && sudo docker compose up -d --pull always
