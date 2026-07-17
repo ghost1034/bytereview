@@ -12,8 +12,8 @@ DOCKERHUB_NAMESPACE="${DOCKERHUB_NAMESPACE:-cpaautomation}"
 TAG="${1:-$(git rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)}"
 CONTEXT_DIR="hermes/accountingclaw"
 PLATFORM="${ACCOUNTINGCLAW_PLATFORM:-linux/amd64}"
-PUSH="${PUSH:-false}"
-PUSH_TARGET="${PUSH_TARGET:-artifact-registry}"
+PUSH="${PUSH:-true}"
+PUSH_TARGET="${PUSH_TARGET:-dockerhub}"
 
 ENV_FILE="backend/.env"
 if [ -f "$ENV_FILE" ]; then
