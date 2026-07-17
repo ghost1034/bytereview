@@ -2,7 +2,6 @@
 name: identify-compliance-issues-regulatory-consent-order
 description: "Agents reviewing a state insurance regulatory consent order summarize the findings by checking penalty calculations, testing whether any cited findings fall outside the relevant examination period or within an applicable exemption, analyzing the scope of any waiver language, and assessing whether the order creates broader regulatory exposure through information-sharing mechanisms."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

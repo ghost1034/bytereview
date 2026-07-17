@@ -2,7 +2,6 @@
 name: analyze-counterpartys-motion-for-summary-judgment
 description: "Defending against a summary judgment motion requires identifying genuine factual disputes, exposing mischaracterizations in the movant's statement of undisputed facts, and pinpointing evidentiary deficiencies that preclude judgment as a matter of law."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

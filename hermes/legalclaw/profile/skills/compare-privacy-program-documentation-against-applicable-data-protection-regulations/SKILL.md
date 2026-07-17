@@ -2,7 +2,6 @@
 name: compare-privacy-program-documentation-against-applicable-data-protection-regulations
 description: "Enterprise privacy program gap analyses fail when the agent reviews documents serially rather than building a cross-document picture of the program and reconciling it against applicable data-protection obligations simultaneously."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

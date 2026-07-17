@@ -2,7 +2,6 @@
 name: draft-litigation-hold-notice
 description: "Agents draft a litigation hold notice but fail to produce the separate preservation action-items memo, omit cloud-platform litigation hold implementation directives, miss emergency forensic imaging obligations for devices at risk of loss, and overlook cross-border data protection obligations triggered by international custodians."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

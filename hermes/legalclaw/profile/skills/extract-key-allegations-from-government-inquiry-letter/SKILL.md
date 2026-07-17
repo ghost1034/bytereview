@@ -2,7 +2,6 @@
 name: extract-key-allegations-from-government-inquiry-letter
 description: "Agents summarize allegations in a government inquiry letter at a high level, identify additional liability theories embedded in document-request sections, analyze disclosure-triggering events and their sequencing, and flag potential individual representation conflicts for named witnesses."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

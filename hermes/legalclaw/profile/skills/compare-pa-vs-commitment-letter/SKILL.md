@@ -2,7 +2,6 @@
 name: compare-pa-vs-commitment-letter
 description: "Guides cross-document comparison of a purchase agreement against a debt commitment letter, identifying mismatches in specified representations, financing conditions, timeline alignment, financial statement requirements, and fund-level change-of-control implications."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

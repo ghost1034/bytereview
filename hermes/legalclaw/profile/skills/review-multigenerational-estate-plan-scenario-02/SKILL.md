@@ -2,7 +2,6 @@
 name: review-multigenerational-estate-plan-scenario-02
 description: "Reviews a multigenerational estate plan for common issue-spotting and drafting gaps, with attention to retained-control estate inclusion risks, supplemental-benefits trust design, inherited-retirement-account trust drafting, and health-information authorization coverage."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

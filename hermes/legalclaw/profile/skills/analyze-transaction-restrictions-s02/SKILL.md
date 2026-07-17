@@ -2,7 +2,6 @@
 name: analyze-transaction-restrictions-s02
 description: "Guides comprehensive analysis of acquisition consent requirements and transaction restrictions across credit facilities, joint venture agreements, government contracts, commercial contracts, and regulatory notification obligations for a reverse triangular merger, using a procedural, category-level approach."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

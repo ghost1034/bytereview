@@ -2,7 +2,6 @@
 name: review-board-resolutions-scenario-02
 description: "Agents apply the same resolution review framework as the baseline scenario while also checking compensation formulas for internal arithmetic consistency, separating any mathematical inconsistency from interested-director procedural issues, and confirming whether any transfer, offering, or issuance restrictions tied to existing equity rights have been addressed before an issuance becomes effective."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

@@ -2,7 +2,6 @@
 name: draft-coverage-position-memorandum-silica-mass-tort
 description: "Agents drafting a coverage position memorandum for a latent-disease mass tort claim should assess trigger, allocation, occurrence characterization, exclusions, notice, excess tender, and reservation-of-rights issues, and present the analysis in a memorandum organized by issue."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

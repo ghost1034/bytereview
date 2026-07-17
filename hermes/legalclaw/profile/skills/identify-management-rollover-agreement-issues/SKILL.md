@@ -2,7 +2,6 @@
 name: identify-management-rollover-agreement-issues
 description: "Guides preparation of a management-side issues memo for a private equity acquisition rollover agreement where equity valuation mechanics, vesting structure, liquidity rights, and operating agreement interactions must be assessed."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

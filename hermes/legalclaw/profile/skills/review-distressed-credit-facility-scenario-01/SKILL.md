@@ -2,7 +2,6 @@
 name: review-distressed-credit-facility-scenario-01
 description: "Ensures a distressed credit facility review memo identifies collateral-package scope issues, tests whether any proposed debtor-in-possession financing or similar rescue financing is practically and contractually feasible against the facility it is intended to address, and calculates any standstill or forbearance expiration as a restructuring deadline."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

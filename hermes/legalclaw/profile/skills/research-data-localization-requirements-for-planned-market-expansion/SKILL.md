@@ -2,7 +2,6 @@
 name: research-data-localization-requirements-for-planned-market-expansion
 description: "Data localisation memos for multi-country market expansions fail when the agent applies generic cross-border transfer analysis without addressing each target jurisdiction's specific localisation or residency requirements and without assessing whether the current cloud and infrastructure architecture can be adapted to satisfy those requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

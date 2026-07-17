@@ -2,7 +2,6 @@
 name: analyze-gdpr-amendment-impact-on-data-processing-agreement-portfolio
 description: "Portfolio-level data processing agreement amendment impact analyses fail when the agent assesses each agreement in isolation rather than systematically mapping every new or amended obligation across the portfolio and the agreement register matrix."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

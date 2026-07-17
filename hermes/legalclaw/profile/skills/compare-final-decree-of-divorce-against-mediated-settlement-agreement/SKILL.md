@@ -2,7 +2,6 @@
 name: compare-final-decree-of-divorce-against-mediated-settlement-agreement
 description: "Comparing a proposed final divorce decree against a mediated settlement agreement requires clause-by-clause comparison to identify deviations, assign severity, and assess whether the discrepancies suggest a directional pattern favoring one side."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

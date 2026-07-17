@@ -2,7 +2,6 @@
 name: identify-issues-in-sale-and-contribution-agreement
 description: "Identifying issues in a draft sale and contribution agreement for an auto loan securitization where true sale characterization, SPE separateness, early amortization linkage to servicer default, and alignment between governing law and the applicable perfection framework each require cross-document analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

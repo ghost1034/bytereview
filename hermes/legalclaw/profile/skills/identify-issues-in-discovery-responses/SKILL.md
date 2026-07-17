@@ -2,7 +2,6 @@
 name: identify-issues-in-discovery-responses
 description: "Closes the gap where agents identify discovery deficiencies without computing procedural deadlines and waiver consequences, quantifying the impact of omissions, connecting suspicious transfers to dissipation, and flagging sworn declaration arithmetic errors."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

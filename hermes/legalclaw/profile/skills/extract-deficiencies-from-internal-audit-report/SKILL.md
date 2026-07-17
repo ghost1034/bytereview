@@ -2,7 +2,6 @@
 name: extract-deficiencies-from-internal-audit-report
 description: "Structured deficiency matrix extracted from a structured immigration compliance audit report, where the analysis must classify each deficiency by regulatory type and severity and separately flag any potential anti-discrimination exposure for further review."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

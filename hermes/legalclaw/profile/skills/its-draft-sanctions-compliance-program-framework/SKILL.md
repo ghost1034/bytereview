@@ -2,7 +2,6 @@
 name: its-draft-sanctions-compliance-program-framework
 description: "Drafts a board-ready sanctions compliance program framework organized by a five-pillar compliance framework that identifies the root cause of prior incidents, requires screening tool reconfiguration, integrates export-control and sanctions screening for dual-use goods, addresses conflicts between U.S. sanctions compliance obligations and foreign blocking or antiboycott-type restrictions, and establishes a direct board reporting line for the compliance function."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

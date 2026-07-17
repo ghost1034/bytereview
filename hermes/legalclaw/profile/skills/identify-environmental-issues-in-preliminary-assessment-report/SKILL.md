@@ -2,7 +2,6 @@
 name: identify-environmental-issues-in-preliminary-assessment-report
 description: "Guides preparation of an environmental issues memorandum for a commercial acquisition by integrating preliminary assessment, Phase I, and Phase II findings with seller disclosure, purchase agreement provisions, and lender requirements to identify material issues and gaps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

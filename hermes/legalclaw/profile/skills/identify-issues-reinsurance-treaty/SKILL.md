@@ -2,7 +2,6 @@
 name: identify-issues-reinsurance-treaty
 description: "Agents reviewing a reinsurance treaty identify drafting issues, including collateral adequacy, insolvency-clause payment mechanics, intermediary-risk allocation, exclusion gaps for emerging contaminants, commutation mechanics, and notice/prejudice provisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

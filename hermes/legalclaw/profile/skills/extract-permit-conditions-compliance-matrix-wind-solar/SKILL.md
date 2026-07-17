@@ -2,7 +2,6 @@
 name: extract-permit-conditions-compliance-matrix-wind-solar
 description: "Guides construction of a compliance tracking matrix from multiple regulatory approvals by assigning responsible parties to every condition, identifying cross-approval conflicts, flagging missing approvals, and producing a Critical Issues section for time-sensitive or deal-blocking items."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

@@ -2,7 +2,6 @@
 name: extract-fiduciary-duty-provisions-scenario-02
 description: "Agents extract fiduciary-duty, exculpation, indemnification, and governance provisions across multiple fund documents, comparing how each vehicle allocates duties, limits liability, structures information rights, and handles conflict-approval mechanics."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

@@ -2,7 +2,6 @@
 name: compare-homeowners-filing-washington-state-regulatory
 description: "Agents reviewing an insurance product filing package against state regulatory requirements identify potential compliance gaps, verify internal calculations, and check for required disclosures, notices, timing provisions, and consistency across documents without relying on task-specific citations or scenario-specific numeric thresholds."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

@@ -2,7 +2,6 @@
 name: ecvc-draft-stockholder-consent-resolutions
 description: "A stockholder written consent for a preferred stock financing should reconcile share counts across the consent, the capitalization schedule, and the proposed charter amendment; address any shortfall in authorized shares with a separate amendment resolution; include any required separate class votes for affected classes or series under the applicable corporate statute; and sequence the charter filing before the share issuance."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

@@ -2,7 +2,6 @@
 name: extract-ip-tech-transactions
 description: "Extract key commercial terms from an IP or technology transaction term sheet and supporting documents for a board-ready memo, with separate identification of risk flags and negotiation positions for structural anomalies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

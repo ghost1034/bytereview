@@ -2,7 +2,6 @@
 name: identify-issues-in-probate-court-filing
 description: "Closes the gap where agents review probate petitions without checking the surviving spouse's statutory elective share against the testamentary provision, identifying required notice for charitable bequests, flagging interested-witness issues involving a drafting lawyer or firm, and analyzing how a no-contest clause interacts with statutory spousal rights."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

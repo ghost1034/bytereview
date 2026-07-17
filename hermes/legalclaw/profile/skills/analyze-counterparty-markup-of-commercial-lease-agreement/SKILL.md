@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-commercial-lease-agreement
 description: "Guides prioritized redline analysis of a counterparty lease markup by structuring cross-document reconciliation, economic impact quantification, and playbook-calibrated response recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

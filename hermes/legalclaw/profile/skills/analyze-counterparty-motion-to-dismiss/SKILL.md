@@ -2,7 +2,6 @@
 name: analyze-counterparty-motion-to-dismiss
 description: "Analyze a motion to dismiss by mapping each argument against the operative complaint count-by-count and identifying jurisdictional, pleading-standard, and contractual defenses that can be assessed and organized for opposition."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

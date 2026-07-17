@@ -2,7 +2,6 @@
 name: draft-commitments-proposal
 description: "Closes gaps in structural versus behavioral remedy justification, licensing term specificity, crown jewel provision structure, purchaser criteria adequacy, and procedural provisions commonly required in merger remedy commitments."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

@@ -2,7 +2,6 @@
 name: compare-sla-negotiation-playbook
 description: "Deviation report comparing a vendor-drafted software license agreement against the company negotiation playbook and internal priorities, with a summary deviation table."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

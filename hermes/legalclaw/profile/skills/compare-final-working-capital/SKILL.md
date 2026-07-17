@@ -2,7 +2,6 @@
 name: compare-final-working-capital
 description: "Guides independent verification of a post-closing working capital adjustment by applying the operative agreement\u2019s definition line by line, computing the resulting adjustment with any applicable collar, and calculating interest from the contractually specified start date."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

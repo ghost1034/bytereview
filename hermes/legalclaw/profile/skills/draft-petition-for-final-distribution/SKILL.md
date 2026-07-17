@@ -2,7 +2,6 @@
 name: draft-petition-for-final-distribution
 description: "Drafting a petition for final distribution in probate requires reconciling the final accounting, identifying and reserving for claims and expenses, confirming tax compliance, and preparing a court-ready petition with a proposed order and distribution summary."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

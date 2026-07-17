@@ -2,7 +2,6 @@
 name: hls-compare-ctp-fda-requirements
 description: "Compares a clinical trial protocol against applicable regulatory requirements and pre-submission guidance to produce a gap analysis memorandum with citation-level support and remediation recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

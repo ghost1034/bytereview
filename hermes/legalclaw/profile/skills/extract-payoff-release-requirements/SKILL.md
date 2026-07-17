@@ -2,7 +2,6 @@
 name: extract-payoff-release-requirements
 description: "Guides preparation of a comprehensive payoff requirements memorandum for an acquisition closing where multiple credit facilities with intercreditor arrangements must be reviewed for payoff amounts, release conditions, and closing mechanics."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

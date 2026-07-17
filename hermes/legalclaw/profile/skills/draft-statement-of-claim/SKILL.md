@@ -2,7 +2,6 @@
 name: draft-statement-of-claim
 description: "Ensures an ICC arbitration statement of claim correctly distinguishes seat from venue, identifies the joint venture entity as a separate legal person, addresses non-signatory joinder, and explains how to compute lost profits using the claimant's ownership share."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

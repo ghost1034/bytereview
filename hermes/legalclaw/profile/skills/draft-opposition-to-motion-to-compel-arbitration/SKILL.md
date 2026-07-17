@@ -2,7 +2,6 @@
 name: draft-opposition-to-motion-to-compel-arbitration
 description: "Guides the drafter in preparing a court-filed memorandum of law opposing a motion to compel arbitration, leading with the governing statutory anti-waiver theory and developing alternative grounds in the alternative."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

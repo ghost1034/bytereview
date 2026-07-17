@@ -2,7 +2,6 @@
 name: identify-issues-in-incident-response-plan
 description: "Incident response plan issue memos for healthcare organisations fail when the agent does not cross-reference the incident response plan against supporting materials such as audit findings, insurance terms, vendor agreements, and compliance memoranda to identify structural gaps between the plan's written requirements and the organisation's actual capabilities."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

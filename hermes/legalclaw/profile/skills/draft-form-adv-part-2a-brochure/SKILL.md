@@ -2,7 +2,6 @@
 name: draft-form-adv-part-2a-brochure
 description: "Draft a Form ADV Part 2A brochure organized by the required Items from the source materials and prepare a companion issues memo documenting cross-document inconsistencies and material disclosure gaps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

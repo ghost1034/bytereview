@@ -2,7 +2,6 @@
 name: extract-key-terms-land-option-agreement-solar
 description: "Guides extraction of key terms from a solar project land option agreement by cross-referencing title and access encumbrances, comparing each term against relevant diligence standards, and flagging ambiguities in escalation mechanics and casualty provisions that create long-term risk."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

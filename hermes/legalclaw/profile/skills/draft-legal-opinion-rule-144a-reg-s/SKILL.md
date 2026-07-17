@@ -2,7 +2,6 @@
 name: draft-legal-opinion-rule-144a-reg-s
 description: "Closing opinion letter for a Rule 144A / Regulation S offering where the baseline adapts a model template but does not resolve cross-document discrepancies embedded in the opinion's assumptions or address missing closing deliverables."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

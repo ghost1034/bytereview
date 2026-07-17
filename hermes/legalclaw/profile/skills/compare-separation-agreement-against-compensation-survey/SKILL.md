@@ -2,7 +2,6 @@
 name: compare-separation-agreement-against-compensation-survey
 description: "Guides the analyst through a gap analysis comparing each component of a draft separation agreement against market benchmark data, the employment agreement's contractual entitlements, and any applicable equity plan provisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

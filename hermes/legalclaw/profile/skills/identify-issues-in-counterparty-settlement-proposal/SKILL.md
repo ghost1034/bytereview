@@ -2,7 +2,6 @@
 name: identify-issues-in-counterparty-settlement-proposal
 description: "Guides counsel in producing a prioritized issues memorandum identifying legally unsupported, commercially unfavorable, and tactically problematic provisions in a settlement proposal."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

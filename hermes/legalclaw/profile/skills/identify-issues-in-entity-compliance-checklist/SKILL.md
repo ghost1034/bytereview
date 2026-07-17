@@ -2,7 +2,6 @@
 name: identify-issues-in-entity-compliance-checklist
 description: "Agents flag general checklist gaps in entity compliance reviews without turning the checklist into an answer key. Analyze whether corporate actions were properly authorized under the applicable entity law, whether foreign qualification may be required where the company conducts business, whether authorized share capacity is sufficient for a contemplated financing, and whether tax or filing lapses create lien, dissolution, or good-standing risks."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

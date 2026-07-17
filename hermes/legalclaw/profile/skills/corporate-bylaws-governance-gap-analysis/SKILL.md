@@ -2,7 +2,6 @@
 name: corporate-bylaws-governance-gap-analysis
 description: "Gap analysis memorandum comparing corporate bylaws against best-practice governance guidelines, identifying provisions that may require amendment to governing documents versus implementation by board or committee action, and cross-referencing any existing commitments already in place."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

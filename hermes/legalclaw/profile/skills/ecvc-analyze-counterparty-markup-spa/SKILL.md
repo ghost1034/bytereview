@@ -2,7 +2,6 @@
 name: ecvc-analyze-counterparty-markup-spa
 description: "Purchase agreement markup analysis should detect economically important changes hidden in definitions, schedules, and exhibits; assess the impact of preference, conversion, redemption, and control mechanics across scenarios; and cross-check representation changes against diligence materials rather than only listing revised provisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

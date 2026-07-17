@@ -2,7 +2,6 @@
 name: draft-markup-of-settlement-agreement
 description: "Guides the drafter in preparing a redlined markup of an employment settlement agreement, focusing on release scope, statutory waiver requirements, tax characterization, protected-activity savings language, internal-policy review, and related issue spotting."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

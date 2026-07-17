@@ -2,7 +2,6 @@
 name: data-retention-destruction-policy-cross-border-digital-health
 description: "Comprehensive data retention and destruction policy for a company with cross-border operations, covering storage limitation and erasure obligations, pseudonymized data treatment, multi-jurisdictional destruction verification, and the interaction between erasure rights and statutory retention obligations, with a cover memo flagging compliance gaps and transaction deadline implications."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

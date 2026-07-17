@@ -2,7 +2,6 @@
 name: compare-form-adv-against-compliance-manual
 description: "Compare a registered investment adviser's public disclosure against its compliance manual and supporting documents to produce a gap analysis memorandum organized by disclosure item, with severity ratings and remediation timelines."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

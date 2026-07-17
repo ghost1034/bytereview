@@ -2,7 +2,6 @@
 name: assess-settlement-value-range
 description: "Pre-mediation settlement valuation requires synthesizing liability exposure, damages quantification, expert opinions on both sides, comparable outcomes, insurance coverage limits, and litigation cost considerations into a defensible valuation range with an opening offer strategy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

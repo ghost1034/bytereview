@@ -2,7 +2,6 @@
 name: identify-regulatory-compliance-gaps-in-updated-financial-institution-policies
 description: "Agents identify general policy gaps by comparing an updated financial institution policy set against the governing compliance baseline, including any institution-specific supervisory requirement that is more stringent than the general baseline, checking internal arithmetic and implementation assumptions in staffing and budget plans, identifying consumer credit threshold issues, flagging undefined training scope as a scope-creep risk, and recognizing that mandatory supervisor-first reporting may deter protected reporting activity."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

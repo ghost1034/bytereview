@@ -2,7 +2,6 @@
 name: compare-executed-vendor-agreement-template
 description: "GC-ready deviation report comparing an executed vendor agreement against the approved template and related approval materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

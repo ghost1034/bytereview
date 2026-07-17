@@ -2,7 +2,6 @@
 name: extract-and-categorize-assets-from-financial-disclosure-schedules
 description: "Closes the gap where agents rely exclusively on the filed financial disclosure without cross-referencing source documents to identify omitted assets, stale or unsupported valuations, inappropriate depreciation on non-depreciable personal property, and contested valuation methodologies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

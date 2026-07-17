@@ -2,7 +2,6 @@
 name: ecvc-draft-series-seed-founders-spa
 description: "Drafting a founders' stock purchase agreement requires checking authorized-share sufficiency across all reservation categories, aligning vesting commencement with any credited prior service, treating IP assignment as a closing condition for each founder, and including an acknowledgment framework for any timely tax-election filing associated with restricted stock."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

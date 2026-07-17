@@ -2,7 +2,6 @@
 name: payroll-gl-reconciler
 description: Tie payroll register to GL by component and analyze provider-versus-GL variance
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, payroll, reconciliation]

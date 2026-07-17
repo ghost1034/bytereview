@@ -2,7 +2,6 @@
 name: draft-buyer-side-markup-insurance-company-spa
 description: "Agents producing a buyer-side SPA markup for an insurance company acquisition should flag primary deviations and insurance-company-specific structural issues, including dividend covenant restrictions, managing general agent concentration risk, representation and warranty insurance cooperation clauses, and regulatory examination exposure."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

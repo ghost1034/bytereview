@@ -2,7 +2,6 @@
 name: individual-tax-researcher
 description: Research Form 1040 issues (QBI §199A, PAL §469, basis, residency, wash sales) into an IRAC dossier
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [tax, individual, research]

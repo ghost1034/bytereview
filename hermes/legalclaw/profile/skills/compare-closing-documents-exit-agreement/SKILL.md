@@ -2,7 +2,6 @@
 name: compare-closing-documents-exit-agreement
 description: "Guides comparison of a closing binder against agreement-based deliverable requirements, with substantive accuracy review of escrow mechanics, funds flow arithmetic, tax-related certificates, resignations, transition services terms, and other named deliverables."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

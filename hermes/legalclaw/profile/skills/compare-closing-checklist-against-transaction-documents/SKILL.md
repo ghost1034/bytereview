@@ -2,7 +2,6 @@
 name: compare-closing-checklist-against-transaction-documents
 description: "Comparing a closing checklist against executed transaction documents where filing jurisdiction, missing parties in account control agreements, absent market-standard deliverables, and document title discrepancies each require independent legal assessment from the depositor's perspective."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

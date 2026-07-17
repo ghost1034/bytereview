@@ -2,7 +2,6 @@
 name: hls-extract-pharma-data-privacy-compliance
 description: "Compiles a regulatory obligation register for a pharmaceutical digital health platform launch covering healthcare privacy and security, consumer communications consent, anti-kickback and patient-assistance-program structure, substance-use-disorder confidentiality, multi-jurisdiction breach notification, professional licensure, and consumer health-data notification obligations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

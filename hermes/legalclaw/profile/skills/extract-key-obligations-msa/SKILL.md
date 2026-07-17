@@ -2,7 +2,6 @@
 name: extract-key-obligations-msa
 description: "Building a categorized obligation tracker from an executed master services agreement and related exhibits, requiring cross-document reconciliation, ambiguity identification, and flagging of compliance gaps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: compare-expert-opinions-trial-record
 description: "Post-trial memorandum evaluating the consistency and supportability of competing expert opinions against the trial record for post-trial motion purposes."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

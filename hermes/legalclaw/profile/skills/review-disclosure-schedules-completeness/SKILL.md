@@ -2,7 +2,6 @@
 name: review-disclosure-schedules-completeness
 description: "Guides preparation of a gap analysis memorandum cross-referencing disclosure schedules against merger agreement representations, with findings organized by section and prioritized for deal team use."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

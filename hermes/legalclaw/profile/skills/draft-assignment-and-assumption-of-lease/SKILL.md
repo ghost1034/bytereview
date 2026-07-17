@@ -2,7 +2,6 @@
 name: draft-assignment-and-assumption-of-lease
 description: "Guides drafting of a commercial lease assignment and assumption by reconciling the governing lease documents, addressing assignor liability, consent conditions, and ancillary rights, and flagging cross-document discrepancies in a companion memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

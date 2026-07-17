@@ -2,7 +2,6 @@
 name: identify-issues-in-counterpartys-motion-brief
 description: "Closes the gap where agents summarize opposing motions without carefully comparing stated financial figures to source records, identifying omissions from sworn financial declarations, challenging lay witness opinion testimony that exceeds competence bounds, and assessing the legal standard for the specific relief requested."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

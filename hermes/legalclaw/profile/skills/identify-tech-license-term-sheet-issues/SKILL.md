@@ -2,7 +2,6 @@
 name: identify-tech-license-term-sheet-issues
 description: "Reviewing a technology licensing term sheet and related side materials against existing agreements and counsel instructions to prepare a board-ready issues memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: real-estate--extract-psa-key-terms--scenario-02
 description: "Guides extraction of key terms from a commercial property purchase and sale agreement into a structured term sheet by reading the agreement carefully, cross-referencing supporting documents for issues, and organizing output by topic for client and partner use."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

@@ -2,7 +2,6 @@
 name: ecvc-draft-markup-merger-agreement
 description: "Marking up a merger agreement from the target's perspective requires reviewing closing conditions, remedy allocation, outside-date timing, tax-related provisions, and any post-closing contingent consideration protections, then preparing a redline and supporting commentary."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

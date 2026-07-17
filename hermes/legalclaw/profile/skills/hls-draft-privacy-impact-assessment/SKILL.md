@@ -2,7 +2,6 @@
 name: hls-draft-privacy-impact-assessment
 description: "Drafts a privacy impact assessment for an AI-powered healthcare platform, focusing on algorithmic bias, inference logging, HIPAA marketing classification of automated outreach, business associate agreement secondary use scope, state health data law timing, de-identification risk, and API token security."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

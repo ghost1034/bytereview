@@ -2,7 +2,6 @@
 name: rnw-insurance-renewal-specialty-chemicals
 description: "Agents analyzing insurance renewals should compute nominal rate changes while also assessing coverage restrictions, exposure changes, and claim-trend effects; they should link new exclusions to pending or historical exposures, and produce a negotiation-ready structure with issue-by-issue recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

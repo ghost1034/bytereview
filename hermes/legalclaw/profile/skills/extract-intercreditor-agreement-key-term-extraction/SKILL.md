@@ -2,7 +2,6 @@
 name: extract-intercreditor-agreement-key-term-extraction
 description: "Ensures an intercreditor key terms memo identifies conflicts between multiple intercreditor agreements and determines the controlling provision, analyzes standstill mechanics and purchase option economics, and provides strategic observations drawn from the source documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

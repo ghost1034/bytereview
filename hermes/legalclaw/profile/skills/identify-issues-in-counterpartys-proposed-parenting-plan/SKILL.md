@@ -2,7 +2,6 @@
 name: identify-issues-in-counterpartys-proposed-parenting-plan
 description: "Focuses the analysis on identifying defects in a proposed parenting plan by comparing the plan\u2019s actual residential schedule to its label, checking the plan against the governing jurisdiction\u2019s mandatory requirements, and evaluating whether the proposed allocation of time and decision-making is internally consistent and practically workable."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

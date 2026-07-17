@@ -2,7 +2,6 @@
 name: identify-antitrust-issues-in-counterparty-complaint
 description: "Closes gaps in damages methodology critique with corrected calculation, foreclosure percentage computation, statute of limitations date analysis, and market concentration correction."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

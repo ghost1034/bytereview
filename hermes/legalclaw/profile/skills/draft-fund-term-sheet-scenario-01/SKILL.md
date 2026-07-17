@@ -2,7 +2,6 @@
 name: draft-fund-term-sheet-scenario-01
 description: "Draft an investor-ready fund term sheet and issues memo identifying cross-document conflicts, off-market terms, and open items from fundraise source documents, using only generalized class-level guidance and avoiding scenario-specific answers."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

@@ -2,7 +2,6 @@
 name: identify-opposing-party-filing-issues
 description: "Closes the gap where agents summarize opposing temporary-orders motions without applying the correct property-characterization doctrine to inherited assets, challenging one-sided asset-freeze requests against the mutual-restraint standard, evaluating third-party declarations for personal-knowledge limitations, and assessing whether a custody reversal request is supported by the applicable best-interest factors."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

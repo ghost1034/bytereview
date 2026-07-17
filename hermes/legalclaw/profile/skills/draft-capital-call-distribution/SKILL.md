@@ -2,7 +2,6 @@
 name: draft-capital-call-distribution
 description: "Prepare capital call notices, distribution notices, allocation schedules, waterfall calculations, capital account statements, and a GP advisory memo from fund administration materials, applying the relevant fund governing documents, including mechanics for excused LPs, preferred-return accrual, credit-facility interest, tax considerations for exempt investors, and distribution sequencing."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

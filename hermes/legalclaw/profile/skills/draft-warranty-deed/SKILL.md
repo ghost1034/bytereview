@@ -2,7 +2,6 @@
 name: draft-warranty-deed
 description: "Guides drafting of a general warranty deed for a commercial property conveyance by reconciling the legal description, permitted exceptions, grantor authority, and chain of title across source materials, and flagging open title issues in a companion cover memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

@@ -2,7 +2,6 @@
 name: compare-employee-communications-against-sec-referral
 description: "Gap analysis memorandum comparing collected employee communications against an SEC referral notice, identifying communication log gaps, potential spoliation, instructions to employees not to discuss the matter, and obstruction or whistleblower suppression exposure."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

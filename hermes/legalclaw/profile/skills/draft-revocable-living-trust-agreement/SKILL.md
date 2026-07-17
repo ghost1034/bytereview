@@ -2,7 +2,6 @@
 name: draft-revocable-living-trust-agreement
 description: "Closes the gap where agents draft generic revocable trust agreements without resolving cross-document conflicts, flagging coordination issues for retirement and deferred compensation beneficiary designations, and addressing distribution conditions that raise public policy or tax concerns."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

@@ -2,7 +2,6 @@
 name: extract-key-terms-from-intercompany-agreements
 description: "Extracting key terms from intercompany agreements requires populating structured tables for each agreement type and flagging issues such as auto-renewals at stale pricing, percentage inconsistencies across related documents, missing benchmarking support, and deadlines that affect the timing of the response."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

@@ -2,7 +2,6 @@
 name: draft-complaint-patent-infringement
 description: "Patent infringement complaint and accompanying strategic cover memorandum for a federal patent dispute in a specified district, addressing standing, venue, willfulness, and related relief."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

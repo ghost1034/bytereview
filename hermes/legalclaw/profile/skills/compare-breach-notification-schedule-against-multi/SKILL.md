@@ -2,7 +2,6 @@
 name: compare-breach-notification-schedule-against-multi
 description: "Breach notification schedule gap analyses require comparing each scheduled notification action against the applicable regulatory deadline, identifying whether notifications are past due or still pending, and checking whether the schedule is complete, timely, and aligned with the governing guidance."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

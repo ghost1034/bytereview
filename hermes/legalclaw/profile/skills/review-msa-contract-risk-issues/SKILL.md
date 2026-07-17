@@ -2,7 +2,6 @@
 name: review-msa-contract-risk-issues
 description: "Reviewing a vendor-form master services agreement and related exhibits from the customer's perspective to produce a risk-categorized issue memorandum using a document-hierarchy, cross-exhibit, and issue-spotting workflow."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

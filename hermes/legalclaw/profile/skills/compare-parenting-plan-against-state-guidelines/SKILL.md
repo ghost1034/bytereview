@@ -2,7 +2,6 @@
 name: compare-parenting-plan-against-state-guidelines
 description: "A compliance gap analysis of a proposed parenting plan against governing statutory requirements demands provision-by-provision mapping against the applicable checklist, support-calculation analysis under the governing state model, and client-specific risk statements for each identified gap."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

@@ -2,7 +2,6 @@
 name: analyze-dpa-government-counter-markup
 description: "Negotiation analysis memo comparing a government counter-markup of a deferred prosecution agreement against a prior defense markup, identifying gaps in undefined terms, monitor scope, cooperation obligations, payment structure, statement-of-facts edits, and other material provisions where the government has rejected or modified defense positions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

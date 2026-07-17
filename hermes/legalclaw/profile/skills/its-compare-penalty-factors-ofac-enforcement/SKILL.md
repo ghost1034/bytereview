@@ -2,7 +2,6 @@
 name: its-compare-penalty-factors-ofac-enforcement
 description: "Produces a penalty comparison memorandum that compares a pre-penalty notice to applicable enforcement-guideline factors, verifies the penalty methodology and statutory maximum assumptions, identifies factual and arithmetic issues, and frames a negotiation posture."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

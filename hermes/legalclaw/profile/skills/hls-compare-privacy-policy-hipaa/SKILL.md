@@ -2,7 +2,6 @@
 name: hls-compare-privacy-policy-hipaa
 description: "Conducts an element-by-element privacy-rule gap analysis of a privacy notice and related privacy policy, addressing marketing authorization concepts, dual compliance-role obligations, and data-sharing agreement coverage gaps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

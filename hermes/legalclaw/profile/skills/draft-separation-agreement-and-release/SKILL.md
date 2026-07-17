@@ -2,7 +2,6 @@
 name: draft-separation-agreement-and-release
 description: "Guides the drafter in producing a separation agreement and general release for a senior employee, addressing age-discrimination waiver requirements, equity-plan provisions, and key litigation-risk issues in the cover memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

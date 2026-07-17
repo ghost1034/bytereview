@@ -2,7 +2,6 @@
 name: identify-arbitration-agreement-issues
 description: "Ensures a multi-document arbitration provisions review maps governing law conflicts across agreements, identifies arbitrator selection and tribunal-constitution defects, and determines the procedural law for the seat."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

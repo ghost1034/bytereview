@@ -2,7 +2,6 @@
 name: action-by-incorporator-delaware
 description: "Drafting an action by written consent of the sole incorporator for a Delaware corporation formation, separating incorporator-authority actions from initial board actions and producing a cover memo identifying cross-document discrepancies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

@@ -2,7 +2,6 @@
 name: identify-issues-concession-agreement-toll-road
 description: "Guides issue identification in a toll road concession agreement for acquisition due diligence by prioritizing transfer-restriction and technical-qualification threshold issues, characterizing reserve shortfalls as current breaches where supported by the agreement, and organizing analysis with appropriate legal and commercial context."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

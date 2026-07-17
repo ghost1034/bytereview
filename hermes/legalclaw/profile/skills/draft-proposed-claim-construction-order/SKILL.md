@@ -2,7 +2,6 @@
 name: draft-proposed-claim-construction-order
 description: "Proposed Markman order for disputed patent claim terms based on the claim construction briefs, hearing transcript, patent claims, and chambers instructions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

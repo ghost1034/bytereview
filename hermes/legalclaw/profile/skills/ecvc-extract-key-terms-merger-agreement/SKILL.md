@@ -2,7 +2,6 @@
 name: ecvc-extract-key-terms-merger-agreement
 description: "Extract key terms from a merger agreement by reading definitions and operative provisions together, checking internal consistency across articles, and noting missing protections or unusual conditions that may matter to preferred stockholders."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

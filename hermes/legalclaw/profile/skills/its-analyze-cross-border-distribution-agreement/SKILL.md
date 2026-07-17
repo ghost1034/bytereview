@@ -2,7 +2,6 @@
 name: its-analyze-cross-border-distribution-agreement
 description: "Produces a risk memorandum for a cross-border distribution agreement that identifies competition law restrictions, regulatory authorization gaps, IP protection deficiencies, and data compliance obligations derived from the deal documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

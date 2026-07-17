@@ -2,7 +2,6 @@
 name: hls-draft-fda-warning-letter-response
 description: "Drafts a corrective action response to an FDA warning letter that addresses each cited observation, identifies the applicable device and facility identifiers, and lays out observation-sequenced remediation steps and timelines."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

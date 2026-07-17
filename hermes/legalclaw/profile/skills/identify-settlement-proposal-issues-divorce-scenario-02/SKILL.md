@@ -2,7 +2,6 @@
 name: identify-settlement-proposal-issues-divorce-scenario-02
 description: "Generalizes the settlement-issue spotting workflow for a contested divorce proposal, with emphasis on checking support-duration assumptions against the marriage-length context, verifying whether equity-compensation division uses a coverture-style fraction for each vesting tranche, and noting when one asset allocation is being used to justify trade-offs in another area."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

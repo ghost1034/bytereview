@@ -2,7 +2,6 @@
 name: categorize-document-production-set-by-relevance-and-privilege
 description: "Reviewing a production set for relevance and privilege requires making document-by-document classifications under attorney-client privilege, work product, and related confidentiality doctrines, while producing a privilege log that is sufficiently detailed to withstand challenge."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

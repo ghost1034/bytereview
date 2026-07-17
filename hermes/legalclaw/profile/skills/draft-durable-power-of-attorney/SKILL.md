@@ -2,7 +2,6 @@
 name: draft-durable-power-of-attorney
 description: "Drafting a durable power of attorney for an elderly principal with multi-state assets requires curing prior power-of-attorney deficiencies, updating outdated template provisions, including authority for benefits-preserving trust contributions where needed, addressing multi-jurisdiction recognition, and coordinating health-information authorization."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

@@ -2,7 +2,6 @@
 name: draft-registration-statement-on-form-s1
 description: "Form S-1 drafting where the baseline produces a structurally complete prospectus but does not apply structure-specific disclosure requirements or produce the companion issues memo identifying cross-document discrepancies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

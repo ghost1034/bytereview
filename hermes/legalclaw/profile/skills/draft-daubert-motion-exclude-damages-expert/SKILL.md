@@ -2,7 +2,6 @@
 name: draft-daubert-motion-exclude-damages-expert
 description: "Daubert motion to exclude or limit opposing damages expert testimony in a patent infringement case, grounded in methodology challenges supported by the rebuttal expert report and case record."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

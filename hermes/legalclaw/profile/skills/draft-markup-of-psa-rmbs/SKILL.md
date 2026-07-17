@@ -2,7 +2,6 @@
 name: draft-markup-of-psa-rmbs
 description: "Preparing a seller-side markup of a draft RMBS pooling and servicing agreement where ERISA transfer restrictions for certain certificate classes, REMIC election authority, nonrecoverable advance standards, and an independent reviewer mechanism must each be addressed against a seller playbook and prior deal precedent."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

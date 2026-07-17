@@ -2,7 +2,6 @@
 name: review-multigenerational-estate-plan-scenario-01
 description: "Review a multigenerational estate plan for common drafting, fiduciary, and beneficiary-designation issues, including retirement-account beneficiary structure, retained-control concerns in irrevocable trusts, administrative formalities for gift-tax planning, formula provisions tied to exemption mechanics, capacity-sensitive implementation steps, digital-asset access planning, special-needs trust drafting, cross-document consistency, and choice-of-law complexity."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

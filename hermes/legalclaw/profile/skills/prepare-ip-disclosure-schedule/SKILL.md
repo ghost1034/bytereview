@@ -2,7 +2,6 @@
 name: prepare-ip-disclosure-schedule
 description: "Guides preparation of the IP disclosure schedule sub-sections for a company acquisition where owned IP, licenses, open-source software, claims, and employee or contractor IP assignment must be sourced from diligence materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

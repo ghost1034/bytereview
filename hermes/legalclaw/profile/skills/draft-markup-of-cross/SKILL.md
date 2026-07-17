@@ -2,7 +2,6 @@
 name: draft-markup-of-cross
 description: "Cross-border data transfer agreement markups for clinical trial data fail when the agent applies generic negotiation positions rather than integrating the organisation's playbook, the applicable commercial agreement context, the due-diligence summary, and the internal email escalation positions into a coherent redline."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

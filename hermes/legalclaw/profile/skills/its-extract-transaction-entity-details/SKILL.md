@@ -2,7 +2,6 @@
 name: its-extract-transaction-entity-details
 description: "Produces a structured entity extraction report for a multi-party trade finance transaction that flags name transliteration variants and entity form discrepancies as inconclusive rather than clearing matches, applies the applicable indirect ownership test to trace ownership through intermediate entities, screens vessel historical ownership, and identifies letter-of-credit routing anomalies as transshipment risk indicators."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

@@ -2,7 +2,6 @@
 name: draft-itc-section-337-complaint
 description: "Draft an International Trade Commission Section 337 complaint for patent infringement with domestic industry allegations, plus a pre-filing issues memo organized by severity."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

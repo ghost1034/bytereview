@@ -2,7 +2,6 @@
 name: compare-executed-supply-agreement-template
 description: "Full deviation report comparing an executed supplier agreement against the approved template, with risk ratings and remediation paths, incorporating supplier profile and delegation-of-authority context."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: extract-key-terms-tax-equity-flip-partnership
 description: "Guides extraction of key terms from a tax equity flip partnership agreement by identifying the flip structure and trigger, summarizing allocation mechanics, checking tax assumptions against applicable law, and systematically flagging cross-document inconsistencies between the agreement and related transaction materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

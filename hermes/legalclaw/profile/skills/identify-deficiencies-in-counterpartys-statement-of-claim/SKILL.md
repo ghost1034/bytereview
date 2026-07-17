@@ -2,7 +2,6 @@
 name: identify-deficiencies-in-counterpartys-statement-of-claim
 description: "Ensures a defense-oriented issues memo checks the claim for arithmetic integrity, applies any contractual liability cap, tests the pleaded fraud theory against the governing fraud standard, and identifies disclosure-based and notice-based defenses."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

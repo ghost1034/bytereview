@@ -2,7 +2,6 @@
 name: identify-issues-in-counterparty-contribution-claim
 description: "Guides preparation of an environmental contribution-claim issues memorandum by systematically identifying legal, factual, procedural, and damages weaknesses in the opposing party's claim against the client."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

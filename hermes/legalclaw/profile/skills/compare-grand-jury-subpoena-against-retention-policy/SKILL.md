@@ -2,7 +2,6 @@
 name: compare-grand-jury-subpoena-against-retention-policy
 description: "Gap analysis memorandum comparing a grand jury subpoena's scope against a corporate document retention policy and destruction records, identifying when the preservation obligation arose, which destructions occurred before versus after that obligation, and the spoliation risk associated with each gap."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

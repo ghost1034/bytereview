@@ -2,7 +2,6 @@
 name: its-compare-scp-against-ofac-framework
 description: "Produces a gap analysis memorandum organized by the principal pillars of the applicable sanctions compliance framework, identifying program deficiencies, assessing their severity, and providing remediation recommendations tailored to the organization\u2019s risk profile."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

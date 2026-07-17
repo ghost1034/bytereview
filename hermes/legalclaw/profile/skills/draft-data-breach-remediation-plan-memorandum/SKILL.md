@@ -2,7 +2,6 @@
 name: draft-data-breach-remediation-plan-memorandum
 description: "Board-level breach remediation memos fail when the agent does not integrate the forensic investigation findings, prior risk assessment gaps, and applicable regulatory obligations into a sequenced remediation plan with specific owners, timelines, and evidence of completion."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

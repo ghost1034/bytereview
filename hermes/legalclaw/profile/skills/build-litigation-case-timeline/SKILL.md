@@ -2,7 +2,6 @@
 name: build-litigation-case-timeline
 description: "A litigation case timeline must capture every dated event across the source materials in strict chronological order, annotate each entry for strategic significance, and flag gaps that may indicate missing documentation or non-production."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

@@ -2,7 +2,6 @@
 name: extract-license-grant-terms-executed-tech-agreements
 description: "Building a license grant matrix from multiple executed technology agreements and amendments, identifying scope limitations, amendment modifications, and remediation recommendations at a category level."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

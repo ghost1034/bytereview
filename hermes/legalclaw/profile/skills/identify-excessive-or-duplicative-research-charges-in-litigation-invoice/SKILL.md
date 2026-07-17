@@ -2,7 +2,6 @@
 name: identify-excessive-or-duplicative-research-charges-in-litigation-invoice
 description: "Reviewing research charges in a litigation invoice requires comparing each research entry against the relevant case phase, prior billing history or invoice summaries, and the applicable billing guidelines to identify excessive hours, duplicative research already performed, and charges that violate research-billing restrictions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

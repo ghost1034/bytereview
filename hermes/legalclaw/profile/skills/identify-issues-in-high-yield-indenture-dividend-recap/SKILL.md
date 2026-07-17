@@ -2,7 +2,6 @@
 name: identify-issues-in-high-yield-indenture-dividend-recap
 description: "High-yield indenture issue analysis for a proposed dividend recapitalization, focusing on covenant restrictions, basket availability, calculation checks, and drafting ambiguities that may create structural risk."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

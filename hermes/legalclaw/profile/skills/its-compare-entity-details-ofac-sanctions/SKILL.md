@@ -2,7 +2,6 @@
 name: its-compare-entity-details-ofac-sanctions
 description: "Produces a sanctions screening report that compares entity details against a sanctions reference list, traces beneficial ownership through intermediate entities where relevant, applies the applicable ownership-aggregation analysis, distinguishes between full blocking and narrower transactional restrictions, and assigns match confidence levels with analysis-based next steps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

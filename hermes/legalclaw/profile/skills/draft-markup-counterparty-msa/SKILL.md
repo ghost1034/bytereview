@@ -2,7 +2,6 @@
 name: draft-markup-counterparty-msa
 description: "Redlined master services agreement with bracketed commentary and a cover memo summarizing key issues and negotiation strategy, evaluated against the applicable contracting playbook and available vendor security documentation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

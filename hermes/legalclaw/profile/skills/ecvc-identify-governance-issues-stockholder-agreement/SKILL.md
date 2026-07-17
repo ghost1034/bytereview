@@ -2,7 +2,6 @@
 name: ecvc-identify-governance-issues-stockholder-agreement
 description: "A governance issues memo for a stockholder agreement must identify common drafting and consistency issues in voting thresholds, investor-status definitions, indebtedness covenants, drag-along mechanics, and transfer/co-sale provisions, and compare related terms across linked transaction documents for internal consistency."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

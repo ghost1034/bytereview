@@ -2,7 +2,6 @@
 name: hls-draft-enterprise-saas-vendor-dd
 description: "Drafts a tailored enterprise SaaS vendor onboarding questionnaire and internal cover memo for a healthcare system, with the cover memo linking each questionnaire section to prior internal review themes in general terms and the questionnaire including a response deadline."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

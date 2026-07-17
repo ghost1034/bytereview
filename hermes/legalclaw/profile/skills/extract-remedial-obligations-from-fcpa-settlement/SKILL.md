@@ -2,7 +2,6 @@
 name: extract-remedial-obligations-from-fcpa-settlement
 description: "Compliance obligation matrix extracting remedial obligations from a multi-agency anti-corruption settlement, distinguishing obligations by resolving authority, capturing financial terms and any offset or credit mechanism, mapping certification and reporting deadlines, and flagging gaps or conflicts between external commitments and internal implementation documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

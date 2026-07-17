@@ -2,7 +2,6 @@
 name: ap-exception-reviewer
 description: Detect duplicate invoices, coding inconsistencies, three-way-match exceptions, and approval-limit breaches
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, ap, controls]

@@ -2,7 +2,6 @@
 name: extract-eligibility-requirements-from-visa-category-regulations
 description: "Structured eligibility matrix for multiple visa categories extracted from regulatory summaries and policy guidance, where the matrix must preserve the disjunctive or layered structure of each standard and the discrepancy report must flag inconsistencies between source documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

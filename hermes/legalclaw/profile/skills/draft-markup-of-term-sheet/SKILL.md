@@ -2,7 +2,6 @@
 name: draft-markup-of-term-sheet
 description: "Prepares a borrower-side annotated term sheet markup memo with a narrative cover memo and provision-by-provision annotations, prioritized issues, and negotiating strategy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

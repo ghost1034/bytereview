@@ -2,7 +2,6 @@
 name: compare-ip-tech-transactions-term-sheet
 description: "Deviation report comparing a transaction term sheet against an engagement letter, identifying deviations and inconsistencies flagged by general counsel."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

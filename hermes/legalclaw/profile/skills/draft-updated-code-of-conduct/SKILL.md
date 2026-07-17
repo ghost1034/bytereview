@@ -2,7 +2,6 @@
 name: draft-updated-code-of-conduct
 description: "Agents address the main substantive code topics but omit specific off-channel communications policy requirements arising from a government enforcement context, phase-specific compliance deadlines for supply chain due diligence directives, employee monitoring consultation requirements in jurisdictions with co-determination rights, and the correct scope of clawback coverage linked to applicable securities law."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

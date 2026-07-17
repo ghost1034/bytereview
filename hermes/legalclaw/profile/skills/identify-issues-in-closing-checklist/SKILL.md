@@ -2,7 +2,6 @@
 name: identify-issues-in-closing-checklist
 description: "Cross-references a closing checklist against the governing credit documentation and submitted deliverables, then produces a severity-organized closing issues memo with remediation steps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

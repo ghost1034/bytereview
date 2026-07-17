@@ -2,7 +2,6 @@
 name: identify-issues-in-limited-partnership-interest-transfer-agreement
 description: "Review a limited partnership interest transfer agreement as counsel to the fund or general partner and produce an issues memo identifying material concerns and consent conditions by comparing the transfer documents against the governing partnership agreement, related side arrangements, portfolio-company information, and capital account or comparable transfer-supporting records."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

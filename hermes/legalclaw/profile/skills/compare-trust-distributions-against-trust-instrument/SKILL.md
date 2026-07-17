@@ -2,7 +2,6 @@
 name: compare-trust-distributions-against-trust-instrument
 description: "A trust distribution compliance review requires reading the governing instrument against every ledger entry, confirming required co-trustee execution, verifying loan authority and repayment terms, and assessing whether any charitable distribution limits were respected in each period."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

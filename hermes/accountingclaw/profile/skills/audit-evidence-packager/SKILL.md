@@ -2,7 +2,6 @@
 name: audit-evidence-packager
 description: Map PBC requests to evidence, validate completeness, tie schedules to GL, and produce auditor-ready packages
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, audit, pbc]

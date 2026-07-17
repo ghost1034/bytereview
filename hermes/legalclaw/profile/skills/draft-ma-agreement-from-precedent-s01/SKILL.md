@@ -2,7 +2,6 @@
 name: draft-ma-agreement-from-precedent-s01
 description: "Guides drafting of a complete stock purchase agreement adapted from a precedent and term sheet, requiring a companion drafting issues memo that flags material deviations from the precedent, addresses state-specific enforceability considerations for restrictive covenants across operating jurisdictions, adds earnout and rollover provisions absent from the precedent, and integrates representations and warranties insurance provisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

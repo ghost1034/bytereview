@@ -2,7 +2,6 @@
 name: draft-contract-amendment-cloud-msa
 description: "Amendment to an existing cloud infrastructure services master services agreement resolving conflicts between a proposed revision and internal requirements, with a cover memo detailing discrepancies, resolutions, and residual risks."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

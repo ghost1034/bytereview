@@ -2,7 +2,6 @@
 name: hls-draft-management-services-agreement
 description: "Drafts a healthcare management services agreement for a physician group engaging a management services organization, with attention to corporate practice limits, federal fraud-and-abuse constraints, fee-splitting concerns, governance mechanics, termination provisions, data rights, and related supporting materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

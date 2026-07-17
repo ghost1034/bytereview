@@ -2,7 +2,6 @@
 name: draft-last-will-and-testament
 description: "Drafting a last will and testament for a client with complex family dynamics requires integrating retirement-benefit designation issues, inherited-account distribution rules, special-needs planning, executor conflict analysis, closely held business transfer restrictions, and digital-asset access instructions into a companion drafting memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

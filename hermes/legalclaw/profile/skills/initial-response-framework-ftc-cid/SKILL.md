@@ -2,7 +2,6 @@
 name: initial-response-framework-ftc-cid
 description: "Initial response framework memorandum for a regulatory civil investigative demand, addressing coordination-risk signals in internal communications, the distinction between attorney-client privilege and work product doctrine for internal investigation documents, the duty to preserve timing relative to receipt of the demand, compensation-scrutiny issues in service arrangements, and a promotional-claims internal-objection timeline relevant to deception analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

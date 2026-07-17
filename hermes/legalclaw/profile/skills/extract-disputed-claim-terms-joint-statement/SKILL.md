@@ -2,7 +2,6 @@
 name: extract-disputed-claim-terms-joint-statement
 description: "Preparing a claim construction chart from a joint statement and related patent materials, requiring intrinsic record analysis, means-plus-function screening, prosecution history analysis, and priority ranking for hearing preparation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

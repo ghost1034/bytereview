@@ -2,7 +2,6 @@
 name: identify-issues-in-tax-exemption-application
 description: "Reviewing a nonprofit tax exemption application package requires identifying issues that may cause denial, delay, or a request for additional information; prioritizing those that should be corrected before filing; and providing concrete, procedural next steps rather than only noting potential problems."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

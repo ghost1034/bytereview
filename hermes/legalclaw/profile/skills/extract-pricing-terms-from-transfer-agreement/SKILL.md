@@ -2,7 +2,6 @@
 name: extract-pricing-terms-from-transfer-agreement
 description: "Extract all pricing-relevant terms from a secondary LP interest transfer document set into a structured pricing term sheet, with an appended issues log identifying discrepancies, ambiguities, and gaps across the documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

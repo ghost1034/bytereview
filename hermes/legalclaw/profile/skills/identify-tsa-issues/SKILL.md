@@ -2,7 +2,6 @@
 name: identify-tsa-issues
 description: "Guides preparation of a transition services agreement issue memo for the service recipient where legal, commercial, and operational risks must be identified and cross-checked against the governing transaction documents and internal materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

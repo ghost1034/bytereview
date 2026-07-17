@@ -2,7 +2,6 @@
 name: sales-tax-researcher
 description: Monitor SALT nexus (economic and physical), product taxability, and exemption-certificate management
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [tax, sales-tax, nexus]

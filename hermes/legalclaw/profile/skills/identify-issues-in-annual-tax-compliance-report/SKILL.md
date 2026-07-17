@@ -2,7 +2,6 @@
 name: identify-issues-in-annual-tax-compliance-report
 description: "Reviewing a draft annual tax compliance report requires checking the arithmetic and legal basis for each material computation, verifying the applicable tax rules for the relevant period, and quantifying any discrepancies identified."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

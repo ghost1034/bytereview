@@ -2,7 +2,6 @@
 name: draft-msa-from-term-sheet-deal-points
 description: "Execution-ready master services agreement and issues memorandum for a multi-year software-as-a-service consulting engagement, based on a signed term sheet, deal points memo, proposal, playbook, and negotiation emails."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

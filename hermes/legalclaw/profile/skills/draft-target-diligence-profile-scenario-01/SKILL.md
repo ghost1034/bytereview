@@ -2,7 +2,6 @@
 name: draft-target-diligence-profile-scenario-01
 description: "Guides preparation of a target diligence profile for an investment committee where legal, financial, environmental, and insurance diligence findings must be synthesized into a structured risk assessment."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

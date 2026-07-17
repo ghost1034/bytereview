@@ -2,7 +2,6 @@
 name: summarize-state-ai-governance-bill-for-product-and-engineering-teams
 description: "Agents summarize the bill's substantive requirements for product and engineering leadership, identifying implementation ambiguities, potential conflicts between documentation/retention requirements and privacy obligations, and opportunities to seek regulatory guidance on unresolved interpretive questions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

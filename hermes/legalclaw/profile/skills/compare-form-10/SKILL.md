@@ -2,7 +2,6 @@
 name: compare-form-10
 description: "Year-over-year annual report comparison memo where the baseline identifies numerical changes but misses disclosure triggers and related compliance analysis that the partner's instructions require."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

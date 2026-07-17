@@ -2,7 +2,6 @@
 name: identify-errors-counterparty-post-trial-brief
 description: "Reviewing an opposing party's post-trial brief to identify mischaracterizations, legal errors, and factual vulnerabilities for use in preparing a response brief."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

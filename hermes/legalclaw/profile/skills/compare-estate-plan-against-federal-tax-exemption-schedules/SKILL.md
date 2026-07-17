@@ -2,7 +2,6 @@
 name: compare-estate-plan-against-federal-tax-exemption-schedules
 description: "Comparing an estate plan against current federal tax exemption schedules requires evaluating ambiguous formula clauses under plausible interpretations, checking portability and related exclusion history, identifying estate inclusion issues, and assessing whether older documents still operate as intended under current law."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

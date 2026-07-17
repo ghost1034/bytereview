@@ -2,7 +2,6 @@
 name: draft-management-rollover-agreement
 description: "Guides drafting of a management rollover agreement and companion issues memo, requiring resolution of tax-treatment bifurcation, acceleration-trigger conflicts, call price discrepancies, restrictive-covenant enforceability, distribution-priority conflicts, and spousal-consent requirements in jurisdictions where marital property rules may affect equity interests."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

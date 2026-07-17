@@ -2,7 +2,6 @@
 name: analyze-fund-economics-comparison
 description: "Review fund formation materials including governing fund documents, offering materials, side letters, a fee workbook, a waterfall model, a prior-fund term sheet, and an investor commitment schedule to produce a full fund economics analysis covering consistency checks, side-letter economics, MFN cascade impact modeling, prior-fund comparison, and model error identification."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

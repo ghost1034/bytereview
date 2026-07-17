@@ -2,7 +2,6 @@
 name: analyze-term-sheet-markup-s02
 description: "Guides buyer-side analysis of a seller's term sheet markup, requiring arithmetic verification, assessment of deleted representations against R&W insurance coverage, and evaluation of non-market operational covenants before the negotiation session."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

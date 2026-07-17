@@ -2,7 +2,6 @@
 name: identify-issues-in-dpa-anti-kickback
 description: "Issue memorandum analyzing a draft deferred prosecution agreement, identifying discrepancies between agreement terms and the investigation record, monitoring cost and selection deficiencies, self-reporting window operational infeasibility, conflicts with existing financial obligations, and related breach/cure concerns."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

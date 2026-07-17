@@ -2,7 +2,6 @@
 name: draft-private-foundation-bylaws
 description: "Closes the gap where agents transcribe founder governance directives verbatim without identifying provisions that conflict with private foundation requirements and federal tax law \u2014 including mandatory distribution obligations, dissolution provisions, and conflict-of-interest standards."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

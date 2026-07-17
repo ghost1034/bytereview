@@ -2,7 +2,6 @@
 name: analyze-dd-summary-memo
 description: "Guides synthesis of multi-workstream due diligence reports into an investment-committee-ready memo organized by risk severity rather than by workstream, with cross-workstream findings and deal protection recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

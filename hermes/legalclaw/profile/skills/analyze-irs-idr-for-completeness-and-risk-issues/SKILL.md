@@ -2,7 +2,6 @@
 name: analyze-irs-idr-for-completeness-and-risk-issues
 description: "An IDR analysis memorandum should address each request item, identify the legal and factual issues raised, estimate the associated tax and penalty exposure where possible, and recommend an audit strategy \u2014 not merely catalog what the IRS asked for."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

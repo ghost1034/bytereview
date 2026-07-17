@@ -2,7 +2,6 @@
 name: triage-vendor-ai-contracts-for-compliance-with-eu-ai-liability-directive
 description: "Agents triage AI contracts without overlooking whether a non-EU-governed agreement needs separate EU-specific compliance analysis, without treating a force-majeure or change-in-law clause as a substitute for tailored AI-regulatory drafting, and without limiting review to vendor obligations while ignoring the company's own exposure as a deployer of high-risk AI systems."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-investment-advisory-agreement
 description: "Review a counterparty's redline of an investment advisory agreement against the adviser's standard form, negotiation playbook, and Form ADV to produce a classified redline review memorandum with issue-by-issue counter-positions for each proposed change."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

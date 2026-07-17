@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-protective-order
 description: "Closes gaps in identifying compound interaction risks across protective order provisions, citing the relevant court\u2019s prior rulings on contested issues, and making concrete recommendations with legal grounding."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

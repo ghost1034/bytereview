@@ -2,7 +2,6 @@
 name: draft-credit-compliance-cert
 description: "Prepares a quarterly covenant compliance package consisting of a compliance memo, a calculation workbook, and an officer-certifiable certificate, including independent verification of the borrower's preliminary figures."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

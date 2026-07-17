@@ -2,7 +2,6 @@
 name: analyze-counterparty-plan-objection
 description: "Ensures a plan objection analysis applies the governing legal standards to each argument with a fact-driven assessment, rather than offering only descriptive paraphrases of the objector's positions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

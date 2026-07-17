@@ -2,7 +2,6 @@
 name: analyze-iss-antitrust-transaction-structure
 description: "Closes gaps in deal-structure antitrust risk analysis including hell-or-high-water provision adequacy, reverse termination fee sufficiency, outside date feasibility, and hot-document identification."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

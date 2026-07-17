@@ -2,7 +2,6 @@
 name: draft-complaint
 description: "Drafting a federal complaint for trade secret misappropriation and breach of an employment agreement requires pleading each claim element with supporting factual specificity, satisfying the applicable trade secret statute's definitional requirements, and pairing the complaint with a separate strategic concerns memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

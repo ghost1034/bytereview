@@ -2,7 +2,6 @@
 name: hls-identify-cta-issues-scenario-01
 description: "Reviews a proposed clinical trial agreement against an institutional research playbook to identify recurring compliance and drafting gaps involving screening practices, cross-border data transfer obligations, reimbursement controls, side-letter authority issues, allocation of responsibility for protocol deviations, and governing-law considerations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

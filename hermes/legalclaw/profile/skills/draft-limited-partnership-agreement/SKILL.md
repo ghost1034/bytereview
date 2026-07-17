@@ -2,7 +2,6 @@
 name: draft-limited-partnership-agreement
 description: "Draft a limited partnership agreement for a growth equity fund using the principal transaction documents as source material, and prepare a companion issues memo flagging cross-document conflicts and drafting decisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

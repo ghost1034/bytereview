@@ -2,7 +2,6 @@
 name: triage-counterparty-redlines-company-msa-template
 description: "Triaging a counterparty's redlined MSA against the company's standard template and playbook, incorporating deal context and insurance details, to produce a prioritized deviations report."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

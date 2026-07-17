@@ -2,7 +2,6 @@
 name: rnw-saas-subscription-renewal
 description: "Analyzing a SaaS subscription renewal proposal against the original agreement, service performance data, market benchmarks, and downstream customer service commitments to produce a renewal analysis memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

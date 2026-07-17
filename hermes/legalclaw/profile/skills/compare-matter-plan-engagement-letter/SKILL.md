@@ -2,7 +2,6 @@
 name: compare-matter-plan-engagement-letter
 description: "Guides field-by-field comparison of a matter plan against an engagement letter, identifying scope gaps, fee discrepancies, regulatory threshold implications of deal value differences, and professional responsibility concerns."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

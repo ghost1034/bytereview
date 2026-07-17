@@ -2,7 +2,6 @@
 name: identify-governance-and-legal-issues-in-counterparty-settlement-agreement
 description: "Agents identify major settlement terms, compare them to the underlying project or liability baseline in the source materials, flag the absence of appropriate carve-outs from broad release language, identify required regulatory approvals for any transfer or assumption of obligations, and assess time-bar risk on ancillary claims that may affect settlement leverage."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

@@ -2,7 +2,6 @@
 name: extract-doj-preservation-notice-obligations
 description: "Prioritized compliance gap report extracting preservation obligations from a government preservation notice and any supplemental correspondence, identifying document categories, enumerated technology systems, auto-deletion suspension requirements, and any imaging or collection deadlines, with recommended remedial steps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

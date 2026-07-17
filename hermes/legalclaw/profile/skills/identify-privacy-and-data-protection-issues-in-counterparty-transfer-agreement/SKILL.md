@@ -2,7 +2,6 @@
 name: identify-privacy-and-data-protection-issues-in-counterparty-transfer-agreement
 description: "Data transfer agreement issue memoranda should be framed by the relevant supervisory communications and guidance, and should reconcile transfer-mechanism status, anonymisation analysis, and the actual data inventory against the agreement\u2019s provisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

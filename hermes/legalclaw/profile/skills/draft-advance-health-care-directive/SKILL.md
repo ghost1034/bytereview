@@ -2,7 +2,6 @@
 name: draft-advance-health-care-directive
 description: "Drafting an advance health care directive for a client with diminishing capacity requires reconciling potentially inconsistent agent designations across source materials, translating abstract treatment preferences into actionable clinical standards, and addressing companion document requirements and professional responsibility concerns."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

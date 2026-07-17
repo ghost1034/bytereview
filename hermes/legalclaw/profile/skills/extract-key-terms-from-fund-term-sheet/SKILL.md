@@ -2,7 +2,6 @@
 name: extract-key-terms-from-fund-term-sheet
 description: "Guides preparation of an investment-committee-ready fund term extraction memo where key economic and governance terms are assessed against a pension investor's private equity investment policy and prior-fund benchmarks."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: draft-responses-discovery-patent
 description: "Responses to interrogatories and requests for production in patent infringement litigation, applying a standard objection framework and aligning substantive answers with the pleadings and litigation record."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

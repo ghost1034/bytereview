@@ -2,7 +2,6 @@
 name: extract-fiduciary-duty-provisions-scenario-01
 description: "Agents extract individual fiduciary provisions from each document in isolation, then compare corresponding provisions across documents to identify differences in fiduciary standards, exculpation, indemnification, information access, and conflict-oversight mechanics; assess whether any contractual modification is permissible under the applicable governing law and whether any investment-adviser duty standard is consistent with the applicable fiduciary framework; and evaluate whether an oversight body\u2019s information access and consent mechanics enable meaningful review of conflict transactions, including any independence concern created by a dual-hat compliance role."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

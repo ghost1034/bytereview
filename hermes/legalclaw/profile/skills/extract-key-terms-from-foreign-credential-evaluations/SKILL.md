@@ -2,7 +2,6 @@
 name: extract-key-terms-from-foreign-credential-evaluations
 description: "Cross-referenced extraction from multiple foreign credential evaluations and supporting academic records, where the output should surface discrepancies between evaluators and between evaluations and the underlying records, rather than only summarizing each evaluation's conclusion."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

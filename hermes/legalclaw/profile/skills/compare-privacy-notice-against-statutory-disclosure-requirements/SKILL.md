@@ -2,7 +2,6 @@
 name: compare-privacy-notice-against-statutory-disclosure-requirements
 description: "Multi-regime privacy notice gap analyses improve when the agent uses the data processing inventory as the factual baseline, cross-checks current and planned processing against applicable disclosure requirements, and distinguishes present gaps from prospective ones."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

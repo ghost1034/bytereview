@@ -2,7 +2,6 @@
 name: extract-document-requests-from-tax-authority-summons
 description: "Consolidating document requests from multiple tax-authority summonses requires assigning a response recommendation to every request, such as produce, withhold with privilege log entry, or narrow, and identifying any summons that warrants a challenge based on the governing summons-enforcement framework."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

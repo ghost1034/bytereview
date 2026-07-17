@@ -2,7 +2,6 @@
 name: ecvc-extract-economic-terms-convertible-note
 description: "Extract and compare economic terms across multiple convertible notes by grouping instruments by issuer, separating note-level extraction from cross-note comparison, identifying definitional inconsistencies, and preparing dilution modeling inputs."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

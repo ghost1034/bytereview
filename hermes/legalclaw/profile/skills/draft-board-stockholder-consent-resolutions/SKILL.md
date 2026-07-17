@@ -2,7 +2,6 @@
 name: draft-board-stockholder-consent-resolutions
 description: "Guides drafting of a complete corporate consent package for an acquisition transaction, requiring separate board and stockholder approvals, any class-based preferred stock approval needed by the charter, and an issues memo that flags discrepancies and open items for counsel."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

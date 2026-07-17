@@ -2,7 +2,6 @@
 name: audit-committee-charter-sec-update
 description: "Audit committee charter redline and commentary memorandum incorporating updated securities-law and governance requirements, revising auditor independence and oversight provisions, and identifying any committee composition independence issue that requires prompt remediation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

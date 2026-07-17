@@ -2,7 +2,6 @@
 name: draft-standard-contractual-clauses-addendum
 description: "SCC addendum drafts fail when the agent selects the wrong SCC module for the controller-processor relationship, does not populate the Annexes from the engagement documents, and omits any separate UK transfer instrument when both EU and UK personal data are in scope."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

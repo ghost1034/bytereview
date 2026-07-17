@@ -2,7 +2,6 @@
 name: extract-assets-from-financial-declaration
 description: "Focuses the agent on extracting asset, liability, and income data from a sworn financial declaration into a structured workbook, reconciling totals across schedules, computing equity where appropriate, and flagging stale, unsupported, or classification-sensitive entries for follow-up."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

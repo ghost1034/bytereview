@@ -2,7 +2,6 @@
 name: draft-markup-of-engagement-letter
 description: "Guides preparation of a redlined engagement letter with bracketed comments and a companion priority-ranked memo, focusing on identifying overbroad tail provisions, evaluating fee-credit economics, assessing arbitration venue and other procedural burdens, reviewing limitation-of-liability carve-out language, and checking scope, rate, and payment provisions for ambiguity or mismatch."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

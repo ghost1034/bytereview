@@ -2,7 +2,6 @@
 name: assess-msa-renewal-terms-performance
 description: "Negotiation preparation memorandum evaluating proposed renewal terms against the existing agreement and historical account performance data."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

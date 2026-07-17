@@ -2,7 +2,6 @@
 name: hls-draft-data-privacy-compliance-manual
 description: "Drafts a comprehensive data privacy compliance policy manual and gap analysis for a digital health company operating under overlapping healthcare-privacy obligations, addressing biometric privacy laws, consumer health data statutes, advertising SDK data sharing, and implementation deadlines."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

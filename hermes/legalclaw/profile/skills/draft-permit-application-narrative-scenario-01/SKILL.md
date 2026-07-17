@@ -2,7 +2,6 @@
 name: draft-permit-application-narrative-scenario-01
 description: "Guides drafting of an air permit application narrative by ensuring the required topics are addressed with internally consistent emissions and modeling data, and by documenting discrepancies and data gaps in a companion issues memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

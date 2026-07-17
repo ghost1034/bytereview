@@ -2,7 +2,6 @@
 name: hsr-prenotification-briefing-framing-only
 description: "Framing-only ablation \u2014 procedural and domain guidance for an HSR pre-notification briefing paper, with no rubric-derived numbers, quotes, or entity names. Used to test whether deal-triage framing alone drives the lift."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

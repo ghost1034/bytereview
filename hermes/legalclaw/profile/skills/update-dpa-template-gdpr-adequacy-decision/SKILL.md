@@ -2,7 +2,6 @@
 name: update-dpa-template-gdpr-adequacy-decision
 description: "Revising a DPA template to reflect an updated adequacy framework and related guidance, producing an issues memo and a redlined revised template."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

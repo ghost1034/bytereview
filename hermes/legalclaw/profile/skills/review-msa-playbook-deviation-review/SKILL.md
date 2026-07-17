@@ -2,7 +2,6 @@
 name: review-msa-playbook-deviation-review
 description: "Reviewing a redlined master services agreement against a standard template and internal contracting guidance to produce a deviation report informed by deal context and diligence materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

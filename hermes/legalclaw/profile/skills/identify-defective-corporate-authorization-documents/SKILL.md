@@ -2,7 +2,6 @@
 name: identify-defective-corporate-authorization-documents
 description: "Reviews corporate authorization documents for a credit facility closing across multiple entity types and jurisdictions, and prepares a structured issues memo organized by severity."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

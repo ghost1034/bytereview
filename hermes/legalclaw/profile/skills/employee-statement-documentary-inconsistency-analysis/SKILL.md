@@ -2,7 +2,6 @@
 name: employee-statement-documentary-inconsistency-analysis
 description: "Inconsistency analysis memorandum for an investigation committee comparing each declarant's sworn statements against documentary evidence, assessing credibility, and identifying potential legal exposure from financial reporting irregularities."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

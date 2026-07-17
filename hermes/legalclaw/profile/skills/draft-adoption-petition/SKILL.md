@@ -2,7 +2,6 @@
 name: draft-adoption-petition
 description: "Drafting a stepparent adoption petition requires assembling the required party information and court-filing allegations, addressing any consent revocation period, any pre-adoption support arrears, applicable interstate-placement considerations, and any home study preparer credentials in a companion attorney cover memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

@@ -2,7 +2,6 @@
 name: compare-document-production-against-discovery-requests
 description: "A discovery gap analysis requires comparing each requested document category against the production index and privilege log to identify what was not produced, assess the sufficiency of privilege assertions, and evaluate whether a motion to compel is warranted."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

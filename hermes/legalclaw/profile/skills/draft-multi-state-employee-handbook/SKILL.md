@@ -2,7 +2,6 @@
 name: draft-multi-state-employee-handbook
 description: "Guides the drafter in producing a multi-state employee handbook and compliance issues memorandum for a cannabis employer, addressing jurisdiction-specific wage and hour exemption analysis, tip pooling, collective bargaining agreement interaction, and labor-law considerations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

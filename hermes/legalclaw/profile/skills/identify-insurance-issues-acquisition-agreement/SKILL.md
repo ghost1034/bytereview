@@ -2,7 +2,6 @@
 name: identify-insurance-issues-acquisition-agreement
 description: "Agents identifying insurance issues in an acquisition agreement flag headline coverage gaps, connect those gaps to supporting evidence in the record, identify standalone uninsured exposures, and address closing deliverables that support post-closing insurance placement."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

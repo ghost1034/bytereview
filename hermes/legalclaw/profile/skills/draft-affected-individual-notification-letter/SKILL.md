@@ -2,7 +2,6 @@
 name: draft-affected-individual-notification-letter
 description: "Healthcare breach notification letters fail when the agent does not anchor factual representations to the forensic investigation findings and does not flag inconsistencies between the notification template, incident memo, and compliance matrix in an accompanying cover memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

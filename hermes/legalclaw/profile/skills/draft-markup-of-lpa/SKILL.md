@@ -2,7 +2,6 @@
 name: draft-markup-of-lpa
 description: "Redline a draft limited partnership agreement on behalf of a limited partner investor by reference to the investor's guidelines, any prior side letter, and market standards, producing a section-by-section markup with commentary that cites the source authority for each proposed change."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

@@ -2,7 +2,6 @@
 name: draft-issues-list-restrictive-covenant
 description: "Guides preparation of a restrictive covenant agreement issues memorandum with an executive summary of the most critical issues, section references for each issue, enforceability analysis that connects transaction consideration to scope and duration reasonableness, and separate treatment of each draft agreement."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

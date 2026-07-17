@@ -2,7 +2,6 @@
 name: compare-indemnification-provisions-precedent
 description: "Guides provision-by-provision comparison of draft indemnification terms against a firm playbook and precedent, assessing structural gaps in basket type, materiality scrape, knowledge qualifier, defense control, survival periods, and special representation treatment."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

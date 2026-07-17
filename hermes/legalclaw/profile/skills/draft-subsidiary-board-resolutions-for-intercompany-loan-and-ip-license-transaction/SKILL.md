@@ -2,7 +2,6 @@
 name: draft-subsidiary-board-resolutions-for-intercompany-loan-and-ip-license-transaction
 description: "Agents draft subsidiary board resolutions by checking director-interest issues, confirming quorum and cleansing mechanics, reviewing governing-document authorization limits, addressing cross-default risk, and applying the correct jurisdictional interested-director framework for each entity."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

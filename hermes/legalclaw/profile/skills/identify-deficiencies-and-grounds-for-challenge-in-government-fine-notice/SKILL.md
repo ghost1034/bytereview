@@ -2,7 +2,6 @@
 name: identify-deficiencies-and-grounds-for-challenge-in-government-fine-notice
 description: "Issue memorandum identifying deficiencies and grounds for challenge in a government fine notice, where each contestable ground must be supported by specific analysis of penalty-rate applicability, violation categorization, and quantified financial impact."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

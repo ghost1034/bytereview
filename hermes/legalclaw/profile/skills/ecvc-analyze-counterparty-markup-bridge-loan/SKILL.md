@@ -2,7 +2,6 @@
 name: ecvc-analyze-counterparty-markup-bridge-loan
 description: "Counterparty bridge loan markups require analysis that connects conversion mechanics, investor control provisions, runway implications, and pay-to-play interactions \u2014 not just issue-by-issue enumeration."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

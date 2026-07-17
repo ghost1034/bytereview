@@ -2,7 +2,6 @@
 name: its-extract-penalty-factors-ofac-ppn
 description: "Produces a penalty assessment memorandum from an OFAC Pre-Penalty Notice that identifies potential duplicate or phantom transactions to test the violation count, assesses the transition from constructive to actual knowledge, evaluates statute-of-limitations defenses for early transactions, flags criminal referral risk, and develops a penalty-range analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

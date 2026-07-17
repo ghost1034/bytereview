@@ -2,7 +2,6 @@
 name: prepare-responses-to-ddrl-scenario-01
 description: "Guides preparation of a sell-side due diligence response matrix that maps each buyer request to available diligence materials, checks whether the materials actually address the request, and flags gaps or sensitive items for further review before disclosure."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

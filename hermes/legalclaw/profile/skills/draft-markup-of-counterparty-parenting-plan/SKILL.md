@@ -2,7 +2,6 @@
 name: draft-markup-of-counterparty-parenting-plan
 description: "Producing a redline markup of an opposing party's proposed parenting plan requires advancing the client's position through targeted revisions with embedded commentary, correcting any misstated modification standard, and addressing child-specific educational accommodations and transportation burden with the applicable governing authority."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

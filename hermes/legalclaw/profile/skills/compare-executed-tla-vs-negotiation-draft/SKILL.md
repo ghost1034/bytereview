@@ -2,7 +2,6 @@
 name: compare-executed-tla-vs-negotiation-draft
 description: "Comparative deviation report for an executed technology license agreement versus the last negotiation draft, using negotiation-summary context to identify, prioritize, and analyze differences and to frame possible remediation paths."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

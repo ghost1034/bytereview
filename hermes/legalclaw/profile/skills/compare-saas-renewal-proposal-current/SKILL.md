@@ -2,7 +2,6 @@
 name: compare-saas-renewal-proposal-current
 description: "Deviation report evaluating a SaaS renewal proposal against the current agreement and amendments, with issue characterization and negotiation guidance for internal presentation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

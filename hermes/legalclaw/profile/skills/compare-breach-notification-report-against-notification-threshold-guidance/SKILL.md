@@ -2,7 +2,6 @@
 name: compare-breach-notification-report-against-notification-threshold-guidance
 description: "Gap analyses for breach notification matters should use the internal threshold guidance as the primary benchmark, compare the draft report against the underlying forensic findings and incident timeline, and identify any omissions or inconsistencies affecting notification thresholds, timing, and content."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

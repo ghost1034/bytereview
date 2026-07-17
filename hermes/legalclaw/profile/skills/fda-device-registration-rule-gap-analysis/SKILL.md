@@ -2,7 +2,6 @@
 name: fda-device-registration-rule-gap-analysis
 description: "Gap analysis comparing a proposed FDA device registration rule against current device registration and listing requirements and a client's device portfolio, verifying a third-party consulting memo and addressing client-specific questions about transition timelines and implementation obligations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

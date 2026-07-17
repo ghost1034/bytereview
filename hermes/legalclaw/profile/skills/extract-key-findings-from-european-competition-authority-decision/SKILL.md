@@ -2,7 +2,6 @@
 name: extract-key-findings-from-european-competition-authority-decision
 description: "Closes gaps in per-defendant procedural history analysis, rights of defense violations from supplementary objection omissions, fine calculation verification, and appeal ground identification with legal authority."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

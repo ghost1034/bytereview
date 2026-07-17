@@ -2,7 +2,6 @@
 name: identify-issues-in-expert-remediation-report
 description: "Guides preparation of a prioritized vulnerability memorandum by identifying methodological, data, and credibility weaknesses in an expert remediation report for a cost-recovery defense."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

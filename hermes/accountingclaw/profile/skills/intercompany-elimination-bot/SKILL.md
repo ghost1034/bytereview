@@ -2,7 +2,6 @@
 name: intercompany-elimination-bot
 description: Match cross-entity intercompany balances, isolate FX differences, and generate elimination JEs
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, intercompany, consolidation]

@@ -2,7 +2,6 @@
 name: quarterly-board-minutes-with-governance-memo
 description: "Formal quarterly board meeting minutes matching prior meeting format, accompanied by a governance issues memorandum flagging interested director participation, privilege protection for compliance discussions, and remote participation verification."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

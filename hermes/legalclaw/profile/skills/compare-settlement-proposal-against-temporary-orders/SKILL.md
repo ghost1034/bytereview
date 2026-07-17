@@ -2,7 +2,6 @@
 name: compare-settlement-proposal-against-temporary-orders
 description: "Comparing a settlement proposal against temporary orders and financial records requires identifying the relevant estate, measuring each party\u2019s proposed allocation against the applicable division benchmark, and flagging missing structural provisions that may create enforcement or implementation risk."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

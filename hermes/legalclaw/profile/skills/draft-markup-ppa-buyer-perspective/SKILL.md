@@ -2,7 +2,6 @@
 name: draft-markup-ppa-buyer-perspective
 description: "Guides drafting of a buyer-side PPA markup by using contract-ready language for commercial terms, narrowing force majeure and seller discretion, protecting buyer interests in environmental attributes, and producing both an annotated redline and a cover memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

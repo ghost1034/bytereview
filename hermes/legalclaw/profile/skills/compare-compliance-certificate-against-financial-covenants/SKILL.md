@@ -2,7 +2,6 @@
 name: compare-compliance-certificate-against-financial-covenants
 description: "Independently recalculate covenant metrics from financial data and credit agreement definitions, compare the results against the compliance certificate, and identify deviations together with appropriate follow-up steps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

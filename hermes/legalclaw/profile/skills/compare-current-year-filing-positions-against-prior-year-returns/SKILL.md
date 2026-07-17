@@ -2,7 +2,6 @@
 name: compare-current-year-filing-positions-against-prior-year-returns
 description: "A year-over-year tax position deviation analysis must identify not only numerical differences but the legal consequences of each deviation, including downstream effects on losses, classification disputes, and documentation requirements, before filing."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

@@ -2,7 +2,6 @@
 name: identify-issues-in-whistleblower-complaint-pharma-fraud
 description: "Issue-spotting memorandum analyzing a whistleblower complaint involving alleged revenue fraud, identifying securities fraud theories, comparing whistleblower protection pathways, and tracing the adverse employment action timeline against protected activity dates."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

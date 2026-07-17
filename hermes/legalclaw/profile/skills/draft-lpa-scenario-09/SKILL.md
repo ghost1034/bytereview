@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-09
 description: "Draft a small-business investment company fund limited partnership agreement adapted from a non-specialized venture capital fund precedent, incorporating the applicable small-business investment company regulatory requirements, including priority for repayment of government leverage, investment limitations, transfer-consent mechanics, examination and records access, and a companion memo documenting all material changes from the precedent."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

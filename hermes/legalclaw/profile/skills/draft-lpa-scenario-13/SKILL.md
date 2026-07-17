@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-13
 description: "Draft a successor fund limited partnership agreement by reconciling prior-precedent terms against updated term-sheet instructions, resolving any internal inconsistency in the post-investment-period fee basis, and adding parallel-vehicle provisions using general fund-structuring principles where no precedent language exists."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

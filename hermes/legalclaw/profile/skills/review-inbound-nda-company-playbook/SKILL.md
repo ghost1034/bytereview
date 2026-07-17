@@ -2,7 +2,6 @@
 name: review-inbound-nda-company-playbook
 description: "Reviewing an inbound NDA draft against a company playbook and related deal-context materials to produce a prioritized deviation report with redline recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

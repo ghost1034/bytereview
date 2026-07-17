@@ -2,7 +2,6 @@
 name: draft-grantor-retained-annuity-trust-agreement
 description: "Drafting a grantor retained annuity trust agreement for privately held shares requires identifying the applicable transfer and valuation mechanics, checking any ownership-transfer restrictions in the governing company documents, confirming trustee independence and authority, and flagging valuation and mortality considerations in the issues memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

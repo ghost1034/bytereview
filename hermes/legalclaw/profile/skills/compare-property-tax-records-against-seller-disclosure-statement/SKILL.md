@@ -2,7 +2,6 @@
 name: compare-property-tax-records-against-seller-disclosure-statement
 description: "Guides property-by-property comparison of seller-disclosed tax information against official tax records for a multi-property portfolio, quantifying discrepancies and evaluating their underwriting and legal significance."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

@@ -2,7 +2,6 @@
 name: draft-quarterly-report-on-form-10-q
 description: "Form 10-Q drafting from multiple source documents where the baseline populates standard sections but may miss disclosure obligations triggered by events during the quarter, such as acquisitions, regulatory matters, workforce changes, system migrations, or subsequent events."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

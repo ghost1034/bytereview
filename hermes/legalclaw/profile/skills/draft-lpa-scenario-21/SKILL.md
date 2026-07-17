@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-21
 description: "Draft a successor fund LPA for a digital asset fund by adapting a prior-fund precedent to address updated valuation conventions for illiquid tokens, a discount for lack of marketability schedule, staking income treatment, and closing mechanics including a first-close minimum and a final-close deadline."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

@@ -2,7 +2,6 @@
 name: extract-issuer-financial-statements-scenario-02
 description: "Financial statement extraction for a debt offering \u2014 use the same analytical framework as the base scenario, and extend it to extract and verify the proposed offering terms stated in the offering memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

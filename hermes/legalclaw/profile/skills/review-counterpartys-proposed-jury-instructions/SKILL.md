@@ -2,7 +2,6 @@
 name: review-counterpartys-proposed-jury-instructions
 description: "Reviewing a counterparty's proposed jury instructions in a trade secrets trial requires identifying instructions that misstate the applicable legal standard, conflict with prior court orders, or unfairly shift the burden of proof, and recommending specific objections and counter-instructions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

@@ -2,7 +2,6 @@
 name: draft-development-agreement
 description: "Guides developer-side drafting of a public-private development agreement by integrating municipal approvals, negotiated term sheets, environmental findings, and financing constraints into a coherent document with bracketed notes for unresolved conflicts."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

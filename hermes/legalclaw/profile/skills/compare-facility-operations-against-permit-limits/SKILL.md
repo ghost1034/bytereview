@@ -2,7 +2,6 @@
 name: compare-facility-operations-against-permit-limits
 description: "Guides compliance gap analysis of facility operations against permit limits by organizing findings by regulated medium using actual monitoring data and records rather than characterizing compliance at a general level."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

@@ -2,7 +2,6 @@
 name: compare-ddrl-to-vdr-index-s02
 description: "Guides DDRL-to-VDR gap analysis by requiring a substantive assessment of each gap, distinguishing simple document omissions from compliance deficiencies and ownership or chain-of-title defects that may require pre-closing remediation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

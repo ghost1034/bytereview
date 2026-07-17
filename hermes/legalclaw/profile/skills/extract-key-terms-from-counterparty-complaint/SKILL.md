@@ -2,7 +2,6 @@
 name: extract-key-terms-from-counterparty-complaint
 description: "Preparing a litigation summary memorandum from a newly served complaint requires extracting the complaint\u2019s claims, parties, operative facts, requested relief, and key procedural facts from the complaint and service materials, while integrating the client\u2019s initial description of the dispute to identify discrepancies and defense-relevant issues."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

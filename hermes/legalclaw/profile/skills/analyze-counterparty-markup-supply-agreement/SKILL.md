@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-supply-agreement
 description: "Comprehensive deviation report analyzing a counterparty-marked supply agreement against the company's standard form and procurement playbook, incorporating critical-supplier dependency context."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: analyze-cim-deal-teaser-s02
 description: "Guides buy-side critical analysis of a confidential information memorandum, stress-testing financial normalization, revenue quality metrics, and key-person risk against independently verifiable source data."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

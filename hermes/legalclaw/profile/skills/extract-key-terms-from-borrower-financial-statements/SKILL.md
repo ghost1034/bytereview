@@ -2,7 +2,6 @@
 name: extract-key-terms-from-borrower-financial-statements
 description: "Reviews a borrower\u2019s financial reporting package against the governing credit documentation and produces an extraction and reconciliation memo for the portfolio team, independently correcting covenant-calculation figures where supported by the documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

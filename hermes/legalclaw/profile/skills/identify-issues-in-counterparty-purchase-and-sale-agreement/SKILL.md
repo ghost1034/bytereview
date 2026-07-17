@@ -2,7 +2,6 @@
 name: identify-issues-in-counterparty-purchase-and-sale-agreement
 description: "Guides buyer-side identification of issues in a seller's draft purchase and sale agreement by anchoring each issue to the executed letter of intent, the buyer's acquisition playbook, and financial due diligence, and producing a prioritized issues memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

@@ -2,7 +2,6 @@
 name: ecvc-draft-rofr-waiver
 description: "A right-of-first-refusal waiver for a secondary stock sale should be narrowly scoped to the specific transfer, address vesting and any repurchase-right status, identify the applicable securities-law transfer pathway in general terms, include legend-removal procedures, and require the transferee to execute a joinder to the applicable transfer-restriction agreement."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

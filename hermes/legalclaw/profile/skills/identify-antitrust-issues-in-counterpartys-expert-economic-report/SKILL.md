@@ -2,7 +2,6 @@
 name: identify-antitrust-issues-in-counterpartys-expert-economic-report
 description: "Closes gaps in econometric specification critique including residual diagnostics, structural-break testing, methodological linkage to prior exclusion history, and consistency analysis between affected-commerce measures and market-share evidence."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

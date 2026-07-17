@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-senior-secured-credit-facility-term-sheet
 description: "Produces a deviation analysis memo comparing a lender's markup against the original term sheet, applying a negotiation playbook to classify and recommend a response to each change."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

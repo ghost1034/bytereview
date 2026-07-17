@@ -2,7 +2,6 @@
 name: identify-issues-in-environmental-site-assessment
 description: "Guides comprehensive environmental issue identification for a property acquisition by synthesizing environmental site assessment findings, regulatory correspondence, and cost estimates against the purchase agreement's environmental provisions and the seller's disclosure."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

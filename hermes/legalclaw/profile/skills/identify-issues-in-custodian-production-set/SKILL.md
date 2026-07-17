@@ -2,7 +2,6 @@
 name: identify-issues-in-custodian-production-set
 description: "Issues memorandum analyzing a custodian production set for a government investigation, identifying preservation-risk events, post-preservation deletions, privilege log deficiencies, and gaps between the collection plan and actual collection activity."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

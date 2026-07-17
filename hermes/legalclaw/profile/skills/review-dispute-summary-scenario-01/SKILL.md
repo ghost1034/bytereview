@@ -2,7 +2,6 @@
 name: review-dispute-summary-scenario-01
 description: "Ensures a dispute summary issues memo identifies potential mischaracterizations, selective contractual quotation, enforceability questions for restrictive covenants, and cure period analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

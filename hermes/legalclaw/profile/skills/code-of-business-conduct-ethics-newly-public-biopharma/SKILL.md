@@ -2,7 +2,6 @@
 name: code-of-business-conduct-ethics-newly-public-biopharma
 description: "Board-ready code of business conduct and ethics for a newly public biopharmaceutical company, consolidating source policies and addressing applicable public-company governance, healthcare-interaction, whistleblower, disclosure, compensation-recovery, conflicts, privacy, and compliance-program requirements, with a drafting memorandum documenting gap resolution and open action items."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

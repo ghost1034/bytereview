@@ -2,7 +2,6 @@
 name: draft-pretrial-statement
 description: "Drafting the plaintiff's portion of a joint pretrial statement requires compiling a trial-ready witness list with anticipated testimony, an exhibit list with objection responses, deposition designations, and proposed motions in limine, all constrained by governing pretrial orders and prior court rulings."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

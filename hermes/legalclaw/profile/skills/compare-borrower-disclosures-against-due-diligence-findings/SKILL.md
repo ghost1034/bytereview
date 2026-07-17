@@ -2,7 +2,6 @@
 name: compare-borrower-disclosures-against-due-diligence-findings
 description: "Cross-references borrower disclosure schedules against due diligence findings and produces a severity-organized discrepancy memorandum with issue-specific recommended next steps for each gap."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

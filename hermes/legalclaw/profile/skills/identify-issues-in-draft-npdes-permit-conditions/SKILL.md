@@ -2,7 +2,6 @@
 name: identify-issues-in-draft-npdes-permit-conditions
 description: "Guides preparation of an NPDES permit issues memorandum for an industrial discharge by evaluating draft conditions against applicable Clean Water Act requirements, current permit limits, applicable load allocations, and technical data to identify deficiencies for public comment."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

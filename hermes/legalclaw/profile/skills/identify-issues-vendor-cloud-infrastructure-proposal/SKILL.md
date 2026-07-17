@@ -2,7 +2,6 @@
 name: identify-issues-vendor-cloud-infrastructure-proposal
 description: "Reviewing a vendor cloud infrastructure proposal and draft agreement against an internal assessment to produce an issue memorandum with severity ratings and recommended fixes."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

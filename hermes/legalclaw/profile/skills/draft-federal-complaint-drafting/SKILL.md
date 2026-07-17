@@ -2,7 +2,6 @@
 name: draft-federal-complaint-drafting
 description: "Drafting a federal complaint for breach of contract and fiduciary duty requires pleading each claim element with factual specificity across the source record, and preparing the separate supporting deliverables required by the task instructions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

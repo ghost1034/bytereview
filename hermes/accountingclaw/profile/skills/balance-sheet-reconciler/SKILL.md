@@ -2,7 +2,6 @@
 name: balance-sheet-reconciler
 description: Reconcile a GL account to supporting documentation with roll-forward, aging, and fuzzy matching
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, reconciliation, close]

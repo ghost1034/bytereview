@@ -2,7 +2,6 @@
 name: hls-identify-msa-issues
 description: "Reviews a draft management services agreement and supporting materials to identify common healthcare regulatory and drafting risks, including corporate practice of medicine concerns, fee arrangement issues under fraud-and-abuse principles, physician self-referral issues where applicable, independence flaws in valuation support, restrictive covenant enforceability issues, fee-splitting concerns, assignment asymmetry, and liability cap adequacy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

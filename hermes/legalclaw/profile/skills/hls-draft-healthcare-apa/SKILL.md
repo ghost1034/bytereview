@@ -2,7 +2,6 @@
 name: hls-draft-healthcare-apa
 description: "Drafts a healthcare asset purchase agreement for an ambulatory surgery center acquisition, focusing on healthcare-specific operational transition issues, regulatory-compliance drafting, employee and lease transfer mechanics, and post-closing adjustment structure."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

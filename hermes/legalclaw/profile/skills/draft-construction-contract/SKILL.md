@@ -2,7 +2,6 @@
 name: draft-construction-contract
 description: "Guides drafting of an AIA-style modified construction agreement by synthesizing multi-document source materials into a coherent single-document structure and flagging cross-document inconsistencies in a companion memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

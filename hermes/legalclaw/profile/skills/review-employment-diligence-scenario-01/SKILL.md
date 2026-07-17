@@ -2,7 +2,6 @@
 name: review-employment-diligence-scenario-01
 description: "Guides preparation of a buy-side employment diligence memorandum for an acquisition where executive employment agreements, severance arrangements, equity plans, and standard form agreements must all be systematically assessed."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

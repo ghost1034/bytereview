@@ -2,7 +2,6 @@
 name: banking-finance--compare-credit-agreement-to-commitment-letter
 description: "Compares a draft credit agreement against related financing materials and produces a structured deviation report distinguishing items that appear to depart from the agreed package from items that are more likely to be negotiable market-practice changes."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

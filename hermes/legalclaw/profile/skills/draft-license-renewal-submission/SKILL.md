@@ -2,7 +2,6 @@
 name: draft-license-renewal-submission
 description: "Agents produce renewal packages that address required disclosures of prior non-compliances with a corrective-action narrative, include biographical affidavit requirements for newly appointed officers and directors, and frame adverse financial ratios in a way that supports regulator review of solvency and operational condition."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

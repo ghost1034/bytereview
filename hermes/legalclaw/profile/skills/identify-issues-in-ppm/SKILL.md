@@ -2,7 +2,6 @@
 name: identify-issues-in-ppm
 description: "Guides preparation of a partner-ready issue memo for a private fund offering disclosure package that requires cross-document consistency review across the primary offering memorandum, governing agreement, subscription materials, adviser disclosure, and any side letter tracker."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

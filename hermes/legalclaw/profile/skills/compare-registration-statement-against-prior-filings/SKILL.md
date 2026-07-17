@@ -2,7 +2,6 @@
 name: compare-registration-statement-against-prior-filings
 description: "Registration statement staleness review that compares a draft against prior filings, checks intervening disclosures for material updates, and evaluates whether the filing remains internally consistent and procedurally complete."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

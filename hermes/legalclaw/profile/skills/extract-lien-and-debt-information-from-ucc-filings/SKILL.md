@@ -2,7 +2,6 @@
 name: extract-lien-and-debt-information-from-ucc-filings
 description: "Reviews UCC filings, lien search certificates, and related documents and produces a comprehensive lien search summary report for a secured credit facility."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

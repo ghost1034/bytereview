@@ -2,7 +2,6 @@
 name: draft-workplace-policy-memorandum
 description: "Guides the drafter in producing a legal risk memorandum analyzing a return-to-office policy against accommodation obligations, collective-bargaining constraints, notice-act considerations, caregiver protections, and retaliation risks."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

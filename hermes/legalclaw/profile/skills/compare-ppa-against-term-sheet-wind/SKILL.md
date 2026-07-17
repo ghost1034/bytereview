@@ -2,7 +2,6 @@
 name: compare-ppa-against-term-sheet-wind
 description: "Guides a term-sheet-to-executed-agreement comparison by classifying each deviation as favorable or adverse, identifying internal inconsistencies, distinguishing authorized from unexplained changes, and recommending specific corrective actions for each deviation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

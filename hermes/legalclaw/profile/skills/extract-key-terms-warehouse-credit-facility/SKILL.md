@@ -2,7 +2,6 @@
 name: extract-key-terms-warehouse-credit-facility
 description: "Extract material terms from a warehouse credit facility term sheet and any supplemental side letter, compare overlapping provisions for consistency, identify undefined or ambiguous covenant language, and flag structural issues in events of default and eligibility provisions for follow-up analysis and negotiation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

@@ -2,7 +2,6 @@
 name: gdpr-adequacy-decision-cross-border-impact
 description: "Regulatory impact memorandum analyzing how a new data-transfer adequacy decision affects an organization's cross-border transfer framework, including eligibility review, contract-transition issues, onward transfer gaps, and assessment currency."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

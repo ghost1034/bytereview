@@ -2,7 +2,6 @@
 name: draft-concession-agreement-solar-bess-bot
 description: "Guides drafting of a build-operate-transfer concession agreement for a renewable energy project by resolving cross-document conflicts, addressing project-risk allocation mechanisms, and flagging every drafting judgment that requires client or counterparty confirmation in a companion issues memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

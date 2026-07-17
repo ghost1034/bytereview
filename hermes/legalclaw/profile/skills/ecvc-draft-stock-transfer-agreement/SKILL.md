@@ -2,7 +2,6 @@
 name: ecvc-draft-stock-transfer-agreement
 description: "Drafting a secondary stock transfer agreement requires confirming transfer restriction compliance, specifying an applicable securities law exemption with supporting representations, addressing governance-related closing deliverables where relevant, and resolving any interaction between the transfer and related employment or consulting arrangements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

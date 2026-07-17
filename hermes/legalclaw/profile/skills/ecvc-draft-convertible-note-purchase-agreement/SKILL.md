@@ -2,7 +2,6 @@
 name: ecvc-draft-convertible-note-purchase-agreement
 description: "Drafting an execution-ready convertible note purchase agreement requires precise capitalization definitions, cross-checking cap table arithmetic, sequencing conversion with other outstanding convertible instruments, obtaining or representing lender consent under existing debt covenants, and disclosing insider conflicts under the applicable corporate law interested-director framework."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

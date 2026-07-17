@@ -2,7 +2,6 @@
 name: hls-extract-regulatory-permits-diligence
 description: "Extracts and catalogs regulatory permits from healthcare acquisition diligence documents, including change-of-ownership analysis by regulatory body, operating-without-permit risk identification, facility-level compounding risk assessment, and deal-phase-organized remediation recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

@@ -2,7 +2,6 @@
 name: extract-key-changes-from-proposed-regulation
 description: "Agents extract the main proposed provisions and prepare a regulatory impact summary memorandum that evaluates operational effects, disclosure obligations, transaction-process implications, implementation burden, books-and-records considerations, and comment-period opportunities."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

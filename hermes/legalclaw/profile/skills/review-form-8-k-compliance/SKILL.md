@@ -2,7 +2,6 @@
 name: review-form-8-k-compliance
 description: "Form 8-K compliance review where the baseline identifies triggered Items but misses exhibit-level deficiencies, cover page accuracy issues, and ancillary filing obligations created by the reported transaction."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

@@ -2,7 +2,6 @@
 name: draft-acquisition-agreement-provisions
 description: "Guides drafting of specified acquisition agreement articles from a precedent and term sheet, with a companion cover memo identifying structural mismatches, regulatory transfer nuances, basket-type discrepancies, and specific escrow designations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

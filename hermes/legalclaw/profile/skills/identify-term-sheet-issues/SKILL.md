@@ -2,7 +2,6 @@
 name: identify-term-sheet-issues
 description: "Reviews a term sheet and related engagement materials for a leveraged acquisition financing from the borrower or sponsor side, and produces a prioritized issues memo with severity classifications and suggested negotiation points."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

@@ -2,7 +2,6 @@
 name: hls-draft-clinical-trial-agreement
 description: "Drafts a clinical trial agreement harmonizing sponsor and site positions on biospecimen use, publication mechanics, CRO involvement, debarment representations, and data-lock timing, with a companion memo identifying cross-document conflicts and recommended compromises."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

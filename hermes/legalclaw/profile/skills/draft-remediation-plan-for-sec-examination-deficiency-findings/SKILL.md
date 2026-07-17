@@ -2,7 +2,6 @@
 name: draft-remediation-plan-for-sec-examination-deficiency-findings
 description: "Agents address each deficiency in isolation without identifying cross-cutting structural risk, governance independence concerns, corrective outreach obligations, performance disclosure methodology issues in multi-class products, or testimonial disclosure completeness requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

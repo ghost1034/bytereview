@@ -2,7 +2,6 @@
 name: research-wage-and-hour-classification-for-new-job-role
 description: "Guides the analyst in producing a comprehensive wage-and-hour classification memorandum for a new job role, applying the applicable federal and state exemption tests and analyzing potential exposure in a procedural, jurisdiction-aware way."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

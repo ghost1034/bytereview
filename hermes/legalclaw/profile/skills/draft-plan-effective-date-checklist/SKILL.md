@@ -2,7 +2,6 @@
 name: draft-plan-effective-date-checklist
 description: "Ensures a plan effective date checklist provides a dashboard summary, condition-level detail with responsible party and risk rating, and proactive identification of practical risks that are not formal conditions precedent but can still delay the effective date."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

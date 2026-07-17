@@ -2,7 +2,6 @@
 name: its-compare-product-specs-ccl
 description: "Produces an export classification memorandum that compares product technical specifications against applicable export-control jurisdiction frameworks, checks for end-use inconsistencies, reviews re-export chain coverage, and recommends enhanced due diligence for ambiguous intermediaries."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

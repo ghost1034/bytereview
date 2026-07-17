@@ -2,7 +2,6 @@
 name: identify-issues-in-altansps-land-title-survey
 description: "Guides identification of survey and title issues in a mixed-use development site acquisition by systematically comparing the survey against the title commitment and related diligence documents and flagging issues affecting the proposed use and lender requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

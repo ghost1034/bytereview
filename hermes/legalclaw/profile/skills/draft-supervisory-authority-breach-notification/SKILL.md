@@ -2,7 +2,6 @@
 name: draft-supervisory-authority-breach-notification
 description: "Draft a supervisory-authority breach notification and a privileged internal memo by identifying the correct controller role, the applicable notification deadline, the required factual content, and the strategic disclosure risks created by the incident record."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

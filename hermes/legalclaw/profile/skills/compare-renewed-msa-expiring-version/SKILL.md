@@ -2,7 +2,6 @@
 name: compare-renewed-msa-expiring-version
 description: "Comprehensive deviation report comparing a renewed MSA against the expiring version and the applicable contract playbook, with analysis informed by internal correspondence."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

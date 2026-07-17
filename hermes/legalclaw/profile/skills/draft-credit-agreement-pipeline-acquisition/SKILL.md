@@ -2,7 +2,6 @@
 name: draft-credit-agreement-pipeline-acquisition
 description: "Guides drafting of a senior secured credit agreement for an infrastructure acquisition by resolving cross-document conflicts, addressing asset-class-specific legal constraints on collateral, and documenting drafting judgments in a companion issues memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

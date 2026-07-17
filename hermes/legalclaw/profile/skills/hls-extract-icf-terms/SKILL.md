@@ -2,7 +2,6 @@
 name: hls-extract-icf-terms
 description: "Reviews an informed consent form against applicable informed-consent requirements, any required privacy authorization, institutional review board contact requirements, conflict-of-interest disclosure expectations, and cross-document consistency to identify missing elements, omissions, and discrepancies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

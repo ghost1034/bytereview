@@ -2,7 +2,6 @@
 name: state-privacy-law-compliance-timeline
 description: "Compliance gap analysis and remediation timeline for a newly enacted state consumer data privacy statute, identifying gaps in consumer rights procedures, sensitive data handling, data processor agreements, and enforcement risk analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

@@ -2,7 +2,6 @@
 name: draft-ip-assignment-tech-acquisition
 description: "Buyer-protective IP assignment agreement for a technology portfolio acquisition, drafted from diligence materials, asset schedules, and deal terms."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

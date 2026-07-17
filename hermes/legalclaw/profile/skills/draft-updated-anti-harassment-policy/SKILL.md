@@ -2,7 +2,6 @@
 name: draft-updated-anti-harassment-policy
 description: "Guides the drafter in producing an updated multi-state anti-harassment policy and compliance implementation memorandum that addresses mandatory training requirements and prior policy deficiencies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

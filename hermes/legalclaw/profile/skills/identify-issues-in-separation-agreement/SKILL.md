@@ -2,7 +2,6 @@
 name: identify-issues-in-separation-agreement
 description: "Guides counsel in producing a categorized issues memorandum identifying legal, enforceability, and factual consistency defects in a draft executive separation agreement, with severity ratings and recommended corrections."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

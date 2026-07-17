@@ -2,7 +2,6 @@
 name: extract-key-allegations-from-sec-referral
 description: "Structured allegation summary extracted from an SEC enforcement referral notice, with cross-document attribution of quantitative data, reconciliation of trade count discrepancies across source documents, and identification of compliance policy sections the referral characterizes as violated."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

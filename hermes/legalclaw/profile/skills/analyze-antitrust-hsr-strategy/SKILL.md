@@ -2,7 +2,6 @@
 name: analyze-antitrust-hsr-strategy
 description: "Closes gaps in product-market separation, geographic-market framing, hot-document identification, and HSR filing strategy memo production for acquisition antitrust review."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

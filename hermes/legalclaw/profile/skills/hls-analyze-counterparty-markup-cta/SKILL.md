@@ -2,7 +2,6 @@
 name: hls-analyze-counterparty-markup-cta
 description: "Reviews a site\u2019s redline of a sponsor clinical trial agreement against a negotiation playbook to classify changes by risk level and recommend negotiating positions, with attention to intellectual property, indemnification, insurance, audit rights, publication, assignment, and program-wide precedent effects."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

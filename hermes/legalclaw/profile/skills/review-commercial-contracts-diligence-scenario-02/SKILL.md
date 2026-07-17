@@ -2,7 +2,6 @@
 name: review-commercial-contracts-diligence-scenario-02
 description: "Guides preparation of a commercial contracts diligence memo for a SaaS target acquisition where customer contracts, vendor agreements, and partnership arrangements must be systematically assessed for material risks."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

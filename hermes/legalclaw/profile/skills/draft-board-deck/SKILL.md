@@ -2,7 +2,6 @@
 name: draft-board-deck
 description: "Guides preparation of a substantive slide-by-slide board presentation deck outline for a proposed acquisition, with each section covering the required decision-making content, plus a companion issues memorandum identifying cross-document discrepancies and open items."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

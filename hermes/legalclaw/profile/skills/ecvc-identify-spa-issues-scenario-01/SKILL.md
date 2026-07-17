@@ -2,7 +2,6 @@
 name: ecvc-identify-spa-issues-scenario-01
 description: "Identifying issues in a Series B preferred stock purchase agreement from the company's perspective requires flagging departures from market-standard anti-dilution mechanics, assessing expenditure consent thresholds against operational reality, analyzing restrictive covenant enforceability under the governing employment and corporate-law framework, and explaining any pay-to-play conversion mechanism."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

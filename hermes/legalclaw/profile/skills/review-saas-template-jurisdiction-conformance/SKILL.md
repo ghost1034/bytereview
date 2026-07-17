@@ -2,7 +2,6 @@
 name: review-saas-template-jurisdiction-conformance
 description: "Reviewing a SaaS subscription agreement template against jurisdiction-specific legal requirements and operational documents to produce a conformance memorandum identifying required changes and pre-launch actions across the relevant target markets."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

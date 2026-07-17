@@ -2,7 +2,6 @@
 name: draft-markup-of-side-letter
 description: "Redline a proposed side letter on behalf of an LP client by reference to the LP's investment policy, the governing fund documents, and prior fund precedent, producing a marked-up draft with a cover memo that prioritizes changes and identifies the LP's policy basis for each position."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

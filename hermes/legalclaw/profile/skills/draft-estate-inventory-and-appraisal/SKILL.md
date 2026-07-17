@@ -2,7 +2,6 @@
 name: draft-estate-inventory-and-appraisal
 description: "Drafting a court-ready estate inventory and appraisal requires correct probate versus non-probate classification, item-by-item listing of securities, art, firearms, and jewelry, appraiser certification, and an issues memo flagging business-entity transfer restrictions and valuation documentation gaps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

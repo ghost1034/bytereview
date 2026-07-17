@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-contract-amendment
 description: "Redline deviation analysis of a counterparty-marked contract amendment against the executed baseline agreement and internal contracting policies. Focus on procedural comparison, issue spotting, and documenting how the amendment changes rights, obligations, and risk exposure."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

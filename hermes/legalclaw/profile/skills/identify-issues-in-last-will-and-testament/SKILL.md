@@ -2,7 +2,6 @@
 name: identify-issues-in-last-will-and-testament
 description: "Closes the gap where agents identify will deficiencies without applying the governing jurisdiction\u2019s interested witness rule precisely, analyzing testamentary capacity through medical and medication evidence, addressing the divorce\u2013beneficiary designation disconnect, and identifying an executor\u2013trustee\u2013beneficiary conflict\u2019s specific implication for estate administration choices."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

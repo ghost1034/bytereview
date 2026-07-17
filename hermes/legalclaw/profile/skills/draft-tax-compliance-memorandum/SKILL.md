@@ -2,7 +2,6 @@
 name: draft-tax-compliance-memorandum
 description: "A post-restructuring tax compliance memorandum must identify the filing obligations and substantive tax risks created by the transaction, explain the compliance consequence of non-performance for each, and provide a specific recommended action \u2014 not merely catalog what documentation should exist."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

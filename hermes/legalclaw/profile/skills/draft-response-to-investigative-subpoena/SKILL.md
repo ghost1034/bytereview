@@ -2,7 +2,6 @@
 name: draft-response-to-investigative-subpoena
 description: "Closes gaps in the three-deliverable structure, objection framework, sensitive document flagging, and complete privilege log format requirements for a government investigative subpoena response."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

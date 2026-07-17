@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-saas-subscription
 description: "Deviation report with risk classifications and counter-language recommendations for a vendor-marked SaaS subscription agreement evaluated against the company's standard form and available performance history."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

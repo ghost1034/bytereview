@@ -2,7 +2,6 @@
 name: close-orchestration-dashboard
 description: Track a dependency-aware month-end close with critical-path analysis and burn-down reporting
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, close, project-management]

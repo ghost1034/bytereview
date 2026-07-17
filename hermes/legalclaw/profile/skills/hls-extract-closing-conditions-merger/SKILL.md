@@ -2,7 +2,6 @@
 name: hls-extract-closing-conditions-merger
 description: "Extract closing conditions from a merger agreement into a structured matrix, categorizing each condition by burdened party and condition type, and assessing feasibility, unusual features, and procedural interactions that may affect closing."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

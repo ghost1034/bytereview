@@ -2,7 +2,6 @@
 name: draft-markup-of-data-processing-agreement
 description: "DPA markups with commentary memos fail when the analysis does not distinguish mandatory legal requirements from policy-driven positions and commercial preferences, and when the commentary does not connect security-history concerns to the relevant privacy and security provisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

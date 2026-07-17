@@ -2,7 +2,6 @@
 name: draft-tax-structure-memorandum-pe-acquisition
 description: "A tax structure memorandum for a private equity acquisition of an S-corporation target should compare structural alternatives with per-seller after-tax computations and address election mechanics for a deemed asset sale, inventory-method recapture, the business interest limitation under current and prospective adjusted taxable income definitions, and related basis and depreciation issues."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

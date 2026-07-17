@@ -2,7 +2,6 @@
 name: ecvc-draft-markup-series-b-spa
 description: "Marking up a preferred stock purchase agreement from the company's perspective requires comparing the draft to the agreed term sheet, reviewing all schedules and exhibits for hidden anti-dilution mechanics, identifying any investor-specific consent rights that go beyond the general class vote, reconciling the share authorization in the transaction documents against the charter documents, and checking whether any signing representations are inconsistent with the diligence record."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

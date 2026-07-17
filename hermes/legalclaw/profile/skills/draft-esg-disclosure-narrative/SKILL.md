@@ -2,7 +2,6 @@
 name: draft-esg-disclosure-narrative
 description: "Guides drafting of an ESG disclosure narrative and companion legal risk memo by ensuring environmental performance claims are substantiated by underlying data, legal contingencies are properly characterized, and climate risk disclosures satisfy applicable framework requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

@@ -2,7 +2,6 @@
 name: identify-issues-in-notice-of-deficiency
 description: "Identifying issues in a notice of deficiency requires checking the notice for arithmetic consistency, analyzing each adjustment issue by issue, and organizing the analysis so that procedural deadlines, litigation posture, and overall exposure are addressed in a clear memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

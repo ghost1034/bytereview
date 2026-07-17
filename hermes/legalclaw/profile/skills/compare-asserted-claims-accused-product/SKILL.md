@@ -2,7 +2,6 @@
 name: compare-asserted-claims-accused-product
 description: "Element-by-element claim chart and non-infringement analysis comparing asserted patent claims to an accused product implementation, using the patent record, prosecution history, and technical materials to test each limitation and any infringement theory."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

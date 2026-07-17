@@ -2,7 +2,6 @@
 name: credit-agreement-covenant-extraction
 description: "Extracts and compares financial covenants across multiple credit agreements in a multi-tranche capital structure, verifies compliance certificate arithmetic, and assesses cross-agreement change-of-control and cross-default interplay."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

@@ -2,7 +2,6 @@
 name: extract-shareholder-proposal-terms-from-proxy-materials
 description: "Agents extract shareholder proposal terms and summarize proxy materials by topic, including voting outcomes, board recommendations, prior-year history, director relationships, committee composition issues, proxy access mechanics, voting-standard implications, and related-party transaction disclosures."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

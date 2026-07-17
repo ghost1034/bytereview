@@ -2,7 +2,6 @@
 name: its-compare-ownership-structure-sanctions
 description: "Produces a sanctions compliance assessment memo that traces multi-tier ownership chains to identify sanctions-linked parties at any tier, applies the applicable ownership-aggregation rule across layered and joint-venture structures, and separately assesses any co-ownership, control, or transactional-prohibition issues under the relevant sanctions regimes."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

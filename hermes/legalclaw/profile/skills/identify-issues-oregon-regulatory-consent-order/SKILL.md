@@ -2,7 +2,6 @@
 name: identify-issues-oregon-regulatory-consent-order
 description: "Agents preparing a board-level issue memorandum on a regulatory consent order summarize the order's findings by checking the order for mathematical consistency, waiver scope, operational feasibility, privilege and confidentiality issues, reporting burden, governance authority, timing constraints, and any prior objections that were not addressed."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

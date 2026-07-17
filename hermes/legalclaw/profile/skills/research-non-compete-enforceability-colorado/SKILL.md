@@ -2,7 +2,6 @@
 name: research-non-compete-enforceability-colorado
 description: "Guides the analyst in producing a comprehensive advisory memorandum on non-compete enforceability under the applicable Colorado framework, including choice-of-law analysis, statutory prerequisites, and consideration adequacy assessment."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

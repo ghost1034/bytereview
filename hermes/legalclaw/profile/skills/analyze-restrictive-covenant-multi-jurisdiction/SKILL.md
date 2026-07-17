@@ -2,7 +2,6 @@
 name: analyze-restrictive-covenant-multi-jurisdiction
 description: "Board-ready memorandum and companion risk matrix analyzing restrictive covenant enforceability across employment agreements governed by multiple state laws, prepared in the context of an acquisition diligence."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

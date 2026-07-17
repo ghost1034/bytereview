@@ -2,7 +2,6 @@
 name: identify-issues-in-state-attorney-general-data-breach-inquiry
 description: "AG data breach CID issue memos fail when the agent identifies compliance gaps in the abstract rather than connecting each gap to the specific requests in the CID and the evidence (or absence of evidence) in the company\u2019s own documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

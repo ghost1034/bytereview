@@ -2,7 +2,6 @@
 name: identify-issues-epc-contract-solar-utility
 description: "Guides issue identification in an EPC contract for a utility-scale solar project by cross-referencing the contract against related project documents, quantifying any exposure created by timing or cap mismatches when the relevant inputs are available, and checking construction-period documentation obligations tied to applicable incentives or certifications."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

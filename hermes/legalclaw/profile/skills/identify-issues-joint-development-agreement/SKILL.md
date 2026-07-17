@@ -2,7 +2,6 @@
 name: identify-issues-joint-development-agreement
 description: "Reviewing a joint development agreement against related governance, data access, insurance, and product specification materials to identify intellectual property ownership ambiguities and structural risks."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: extract-response-action-obligations-from-record-of-decision
 description: "Guides construction of a response action obligation matrix by extracting all remedial actions required by a decision document, distinguishing who is bound by each obligation and by what theory of obligation, and identifying conflicts with planned redevelopment."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

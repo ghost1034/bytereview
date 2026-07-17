@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-environmental-indemnity-agreement
 description: "Guides risk-prioritized redline analysis of an environmental indemnity agreement by grounding each markup in site-condition findings, transaction structure, and the contractual allocation of known versus unknown environmental liabilities."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

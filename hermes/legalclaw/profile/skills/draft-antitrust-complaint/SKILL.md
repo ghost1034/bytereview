@@ -2,7 +2,6 @@
 name: draft-antitrust-complaint
 description: "Draft a federal antitrust complaint by pleading plausible facts, tying allegations to source documents at a categorical level, organizing claims by theory of liability, and requesting appropriate relief."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

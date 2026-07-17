@@ -2,7 +2,6 @@
 name: identify-issues-counterparty-financial-statements
 description: "Preparing a counterparty risk assessment memo from audited financial statements, a draft supply agreement, and diligence materials, requiring financial stability analysis and contractual risk allocation assessment."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

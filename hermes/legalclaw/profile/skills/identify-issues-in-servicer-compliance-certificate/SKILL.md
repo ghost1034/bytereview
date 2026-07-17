@@ -2,7 +2,6 @@
 name: identify-issues-in-servicer-compliance-certificate
 description: "Reviewing a servicer compliance certificate and supporting materials from the trustee's perspective to identify numerical discrepancies across reported figures, verify that required non-recoverability determination documentation exists, assess proximity to any applicable modification cap, and explain the waterfall consequence of each identified error."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

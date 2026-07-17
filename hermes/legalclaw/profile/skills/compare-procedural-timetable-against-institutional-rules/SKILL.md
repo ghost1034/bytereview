@@ -2,7 +2,6 @@
 name: compare-procedural-timetable-against-institutional-rules
 description: "Ensures a procedural order compliance review identifies the applicable institutional arbitration rules edition, checks for mandatory procedural milestones, and verifies article cross-references against the governing version."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

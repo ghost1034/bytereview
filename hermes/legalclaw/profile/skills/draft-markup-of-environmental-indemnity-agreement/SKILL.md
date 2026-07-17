@@ -2,7 +2,6 @@
 name: draft-markup-of-environmental-indemnity-agreement
 description: "Guides preparation of a buyer-side redline markup of an environmental indemnity agreement by applying site-specific investigation findings, active agency orders, and buyer markup playbook standards to identify and correct inadequate protections."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

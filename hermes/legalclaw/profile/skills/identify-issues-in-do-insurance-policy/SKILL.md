@@ -2,7 +2,6 @@
 name: identify-issues-in-do-insurance-policy
 description: "Agents identify headline D&O coverage terms without flagging potential gaps in informal inquiry coverage before a formal investigation is opened, the insured-vs.-insured exclusion gap in a potential restructuring or insolvency scenario, change-of-control extended reporting period limitations, and whether witness-expense sublimits are adequate given current regulatory document-production obligations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

@@ -2,7 +2,6 @@
 name: compare-reinsurance-treaty-underlying-policy-gap
 description: "Agents comparing a reinsurance treaty against the underlying policy should treat the work as a structured gap analysis, quantify any unrecovered share for relevant loss categories where treaty limitations reduce recovery below the underlying policy treatment, and analyze how a per-occurrence cap interacts with current loss development."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

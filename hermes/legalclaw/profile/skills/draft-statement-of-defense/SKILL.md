@@ -2,7 +2,6 @@
 name: draft-statement-of-defense
 description: "Ensures a statement of defense addresses procedural termination issues, applies any contractual liability limitation, corrects damages methodology where pricing tiers are involved, and includes a duty to mitigate analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

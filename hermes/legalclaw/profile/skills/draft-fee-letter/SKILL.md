@@ -2,7 +2,6 @@
 name: draft-fee-letter
 description: "Drafts a fee letter for a leveraged acquisition financing, reconciling fee economics across deal documents and flagging cross-document inconsistencies in a separate issues memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

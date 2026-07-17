@@ -2,7 +2,6 @@
 name: its-draft-ofac-ppn-response
 description: "Drafts a formal OFAC Pre-Penalty Notice response that checks the transaction list against internal records, tests the penalty calculation methodology, evaluates available compliance and reliance arguments, and presents alternative penalty scenarios for settlement advocacy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

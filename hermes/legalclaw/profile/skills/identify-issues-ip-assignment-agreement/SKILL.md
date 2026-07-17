@@ -2,7 +2,6 @@
 name: identify-issues-ip-assignment-agreement
 description: "Reviewing a draft IP assignment agreement against diligence materials and deal documents to identify ownership chain defects, government rights obligations, and transaction-specific risk factors."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: track-third-party-consents
 description: "Guides completion of a consent tracker, preparation of a consent analysis memo, and drafting of tailored consent request letters for an acquisition closing where multiple material contracts require consent, notice, or payoff coordination."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

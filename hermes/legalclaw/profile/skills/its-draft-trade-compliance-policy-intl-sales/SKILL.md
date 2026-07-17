@@ -2,7 +2,6 @@
 name: its-draft-trade-compliance-policy-intl-sales
 description: "Drafts a trade compliance policy for international sales operations that addresses deficiencies identified in the company\u2019s warning-letter correspondence and gap assessment, covering deemed export controls, anti-boycott reporting, jurisdictional boundary procedures between export-control regimes, foreign-produced item content analysis, and technology control plan requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

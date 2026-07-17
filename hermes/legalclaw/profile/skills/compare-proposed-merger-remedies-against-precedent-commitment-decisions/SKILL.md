@@ -2,7 +2,6 @@
 name: compare-proposed-merger-remedies-against-precedent-commitment-decisions
 description: "Closes gaps in remedy deviation identification, preference for structural over behavioral remedies, and concrete recommendations for remedy improvements tied to relevant precedent decisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

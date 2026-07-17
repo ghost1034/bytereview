@@ -2,7 +2,6 @@
 name: draft-hsr-merger-notification
 description: "Guides drafting of an HSR premerger notification package where multi-jurisdictional analysis, document-log obligations, and internal filing-issues identification must all be completed from deal documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

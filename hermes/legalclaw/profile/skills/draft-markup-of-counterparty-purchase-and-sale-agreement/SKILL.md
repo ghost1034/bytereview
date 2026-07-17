@@ -2,7 +2,6 @@
 name: draft-markup-of-counterparty-purchase-and-sale-agreement
 description: "Guides buyer-side article-by-article markup commentary of a seller's draft purchase and sale agreement by reconciling against the negotiated term sheet, the buyer's playbook, and due diligence findings, and producing a structured commentary memo with prioritized positions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

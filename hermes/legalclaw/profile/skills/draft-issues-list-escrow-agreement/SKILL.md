@@ -2,7 +2,6 @@
 name: draft-issues-list-escrow-agreement
 description: "Guides preparation of a buyer-side issues list for a draft escrow agreement, requiring cross-reference of each provision against the related acquisition agreement, flagging timing misalignments, claims deadline inconsistencies, governing law conflicts, and absent successor escrow agent provisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

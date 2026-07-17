@@ -2,7 +2,6 @@
 name: draft-motion-enhanced-damages-284
 description: "Post-trial motion for enhanced damages in a patent infringement matter under the applicable patent damages statute, grounded in the governing discretionary-enhancement standard, the trial record, and post-verdict evidence of continued infringement."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

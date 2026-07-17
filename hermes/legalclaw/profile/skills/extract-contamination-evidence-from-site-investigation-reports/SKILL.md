@@ -2,7 +2,6 @@
 name: extract-contamination-evidence-from-site-investigation-reports
 description: "Guides preparation of a contamination evidence memorandum by systematically extracting and organizing detected contaminants, concentrations, affected media, and spatial extent across multiple investigation reports spanning different time periods."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

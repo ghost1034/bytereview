@@ -2,7 +2,6 @@
 name: banking-finance--extract-credit-agreement-covenants
 description: "Extract and analyze financial covenants from a credit agreement for acquisition diligence, including compliance status, headroom calculations, and risks affecting future flexibility."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

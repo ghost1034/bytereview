@@ -2,7 +2,6 @@
 name: compare-closing-docs
 description: "Guides substantive verification of closing deliverables against transaction-document requirements, including arithmetic checks, definition cross-checks, and conformity of certificates and ancillary documents to their stated conditions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

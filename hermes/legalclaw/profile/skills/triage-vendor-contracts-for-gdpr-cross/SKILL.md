@@ -2,7 +2,6 @@
 name: triage-vendor-contracts-for-gdpr-cross
 description: "Cross-border vendor transfer triage fails when the agent does not use the inventory baseline provided in the task materials, does not verify claimed transfer mechanisms against independent confirmation materials, and does not assess each vendor relationship against the transfer destinations and data categories evidenced by the record."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

@@ -2,7 +2,6 @@
 name: its-draft-export-license-application
 description: "Produces a BIS export license application narrative and a pre-filing issues memorandum that identifies document deficiencies, transshipment disclosure obligations, missing export filing history, and unauthorized signatories that must be resolved before submission."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

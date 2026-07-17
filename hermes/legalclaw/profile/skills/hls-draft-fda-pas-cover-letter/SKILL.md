@@ -2,7 +2,6 @@
 name: hls-draft-fda-pas-cover-letter
 description: "Drafts an FDA Prior Approval Supplement cover letter and a companion discrepancy memo that resolves cross-document conflicts on supplement classification, facility identifiers, regulatory authority citations, and user fee category."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

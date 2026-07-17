@@ -2,7 +2,6 @@
 name: its-compare-transaction-records-sanctions-list
 description: "Produces a sanctions screening report covering transactions in the review period by comparing counterparties, dates, ownership chains, and vessel identifiers against applicable sanctions lists and highlighting items that warrant escalation or disclosure review."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

@@ -2,7 +2,6 @@
 name: rnw-ip-license-renewal
 description: "Analyze IP license renewal proposals from the licensee\u2019s perspective by comparing proposed renewal terms, commercial need, patent validity and enforceability considerations, sublicense implications, and financial impact to produce a renewal analysis memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

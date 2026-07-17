@@ -2,7 +2,6 @@
 name: draft-witness-statement
 description: "Ensures a witness statement stays within the witness's personal knowledge, addresses overlapping operational events factually, and acknowledges limitations on equipment damage knowledge."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

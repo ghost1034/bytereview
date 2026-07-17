@@ -2,7 +2,6 @@
 name: compare-rw-against-precedent-indenture
 description: "Comparing representations and warranties sections in a draft indenture against a precedent to identify deviations in breach standards, cure periods, collateral quality representations, origination channel coverage, and other categories of protections, as well as representations present in the precedent but absent from the draft."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

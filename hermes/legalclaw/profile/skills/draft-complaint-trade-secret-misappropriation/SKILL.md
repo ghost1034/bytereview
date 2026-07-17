@@ -2,7 +2,6 @@
 name: draft-complaint-trade-secret-misappropriation
 description: "Federal complaint for trade secret misappropriation and related claims, plus a strategic memo flagging anticipated defenses and litigation concerns, based on forensic and employment documentation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

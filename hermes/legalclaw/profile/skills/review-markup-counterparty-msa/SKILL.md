@@ -2,7 +2,6 @@
 name: review-markup-counterparty-msa
 description: "Reviewing and marking up a counterparty master services agreement and related data-processing exhibit against a contract playbook and deal context, producing a redline and a tiered issues summary memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

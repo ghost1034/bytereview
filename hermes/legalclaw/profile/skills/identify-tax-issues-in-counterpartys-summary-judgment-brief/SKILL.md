@@ -2,7 +2,6 @@
 name: identify-tax-issues-in-counterpartys-summary-judgment-brief
 description: "Analyzing a government summary judgment brief requires verifying the internal consistency of any stated deficiency computation, assessing whether the brief addresses the relevant economic substance analysis under both prongs of the applicable doctrine, and identifying whether any factual contradictions within the brief have implications on more than one issue."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

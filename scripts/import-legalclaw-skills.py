@@ -88,7 +88,6 @@ def render_skill(skill: dict) -> str:
         f"name: {skill['slug']}\n"
         f"description: {json.dumps(skill['description'])}\n"
         "version: 0.1.0\n"
-        "platforms: [linux]\n"
         "metadata:\n"
         "  hermes:\n"
         f"    tags: [legal, {skill['area']}]\n"

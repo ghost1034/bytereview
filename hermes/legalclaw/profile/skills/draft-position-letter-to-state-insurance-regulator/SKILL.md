@@ -2,7 +2,6 @@
 name: draft-position-letter-to-state-insurance-regulator
 description: "Agents draft a response to a market conduct examination report by reviewing each finding, testing the examiner\u2019s factual and methodological premises, assessing duplication risk across findings, considering due process concerns tied to excluded supplemental evidence, and addressing available penalty mitigation factors under the applicable insurance framework."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

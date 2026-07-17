@@ -2,7 +2,6 @@
 name: compare-manufacturing-claim-property-policy-exclusions
 description: "Agents analyzing a complex property claim against a commercial policy should compare the claimed loss categories against the operative coverage grants, exclusions, endorsements, valuation provisions, deductibles, and mitigation-related clauses; address causation doctrines where relevant; and test the claim timeline and arithmetic against the policy terms."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

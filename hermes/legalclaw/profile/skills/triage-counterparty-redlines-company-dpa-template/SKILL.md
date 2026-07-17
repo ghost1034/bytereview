@@ -2,7 +2,6 @@
 name: triage-counterparty-redlines-company-dpa-template
 description: "Triaging a counterparty redline against a company standard data processing agreement template and playbook to produce a deviation report with risk classification and recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

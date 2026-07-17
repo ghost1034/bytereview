@@ -2,7 +2,6 @@
 name: do-insurance-indemnification-gap-analysis
 description: "Coverage gap analysis memorandum comparing a D&O insurance policy against an indemnification agreement, identifying structural mismatches in timing, conduct standards, consent requirements, subrogation, tail coverage, and related protection gaps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

@@ -2,7 +2,6 @@
 name: draft-perm-recruitment-report
 description: "PERM recruitment report and companion compliance memo for a labor certification filing, where the report must document each mandatory and supplemental recruitment step in the required order and format, and the memo must separately identify compliance risks in the recruitment record."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

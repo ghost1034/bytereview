@@ -2,7 +2,6 @@
 name: summarize-key-legal-issues-data-room
 description: "Guides preparation of a multi-workstream due diligence memorandum from a data room document review where findings must be organized by subject matter, risk-rated, and translated into recommended deal protections."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

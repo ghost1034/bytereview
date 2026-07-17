@@ -2,7 +2,6 @@
 name: extract-multi
 description: "Multi-state privacy obligation extraction memos fail when the agent does not apply each statute's applicability threshold to the company's actual profile before extracting obligations and does not differentiate between obligations that are unique to one state and those that are shared across states."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

@@ -2,7 +2,6 @@
 name: identify-issues-oma-power-plant-acquisition
 description: "Guides issue identification in an operations and maintenance agreement for a power plant acquisition by assessing pending subcontractor disputes and their post-closing implications, identifying market-standard deviations in key personnel and renewal mechanics, and addressing consequential damages limitations on the owner's primary loss exposure."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

@@ -2,7 +2,6 @@
 name: identify-issues-counterparty-supply-agreement
 description: "Reviewing a proposed master supply agreement against a procurement playbook and supplier performance data to produce a risk-rated issues memo with negotiation recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

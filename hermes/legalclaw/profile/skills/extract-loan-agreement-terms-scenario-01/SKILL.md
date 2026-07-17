@@ -2,7 +2,6 @@
 name: extract-loan-agreement-terms-scenario-01
 description: "Ensures a loan term extraction memo covers financial covenant terms, cross-default mechanics across related facilities, mandatory prepayment provisions, change-of-control definition differences, and near-term strategic deadlines relevant to restructuring planning."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

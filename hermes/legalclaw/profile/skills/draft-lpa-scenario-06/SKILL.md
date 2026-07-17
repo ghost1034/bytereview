@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-06
 description: "Draft a venture debt (credit) fund limited partnership agreement by adapting an equity fund precedent to the applicable term sheet and counsel notes, replacing equity-fund provisions with credit-fund-appropriate mechanics."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

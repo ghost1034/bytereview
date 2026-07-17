@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-data-processing-agreement
 description: "DPA redline reviews lose rigour when the agent treats playbook positions as optional and fails to cross-reference the broader commercial agreement when assessing risk of counterparty changes."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

@@ -2,7 +2,6 @@
 name: draft-ip-assignment-series-a
 description: "Execution-ready founder IP assignment agreement and cover memo for a startup financing transaction, addressing material IP risks and pre-closing action items identified in diligence."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: draft-sow-cloud-migration
 description: "Drafting a technology services statement of work for a regulated enterprise cloud migration engagement that requires reconciling conflicting specifications across multiple source documents while incorporating applicable healthcare data-compliance obligations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

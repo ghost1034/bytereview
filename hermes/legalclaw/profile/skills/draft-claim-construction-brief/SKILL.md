@@ -2,7 +2,6 @@
 name: draft-claim-construction-brief
 description: "Opening claim construction brief for a patent infringement action, arguing the client's proposed constructions for disputed patent terms based on the intrinsic evidence hierarchy and rebutting the opposing party's expert declaration. Focus on the patent record, the governing claim-construction framework, and any court-specific filing requirements without hard-coding scenario-specific details."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

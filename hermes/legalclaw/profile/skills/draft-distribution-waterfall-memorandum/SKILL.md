@@ -2,7 +2,6 @@
 name: draft-distribution-waterfall-memorandum
 description: "Guides step-by-step modeling and memorandum drafting for a private equity fund distribution waterfall, requiring application of the limited partnership agreement's fee offset provisions, the correct compounding convention, GP catch-up shortfall analysis, clawback assessment, and carried-interest holding-period analysis under the applicable tax rules."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

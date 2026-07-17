@@ -2,7 +2,6 @@
 name: ecvc-draft-ira
 description: "Drafting an amended and restated investors\u2019 rights agreement for a preferred stock financing requires calibrating investor-status thresholds to the post-financing cap table, sequencing piggyback cutbacks explicitly, addressing MFN interaction with side letters to avoid circularity, and resolving over-subscription when multiple participation rights coexist."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

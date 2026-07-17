@@ -2,7 +2,6 @@
 name: partnership-tax-researcher
 description: Research Subchapter K issues (§704(b)/(c), §752 liabilities, §754/§743/§734 basis, tax-basis capital) into an IRAC dossier
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [tax, partnership, research]

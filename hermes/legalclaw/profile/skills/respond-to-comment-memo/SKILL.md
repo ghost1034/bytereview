@@ -2,7 +2,6 @@
 name: respond-to-comment-memo
 description: "Draft counsel responses to an LP comment memo on a fund agreement, completing the response column with a clear accept/partial-accept/reject decision, a concise rationale, and proposed revised language for each accepted or partially accepted comment."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

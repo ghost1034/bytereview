@@ -2,7 +2,6 @@
 name: icdppa-multi-state-operations-impact
 description: "Regulatory impact memorandum analyzing a newly enacted state privacy law against an organization's existing privacy program, vendor agreements, and data architecture, with attention to biometric data, universal opt-out signal handling, and processor agreement gaps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

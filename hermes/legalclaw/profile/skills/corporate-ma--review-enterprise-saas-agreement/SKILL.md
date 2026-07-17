@@ -2,7 +2,6 @@
 name: corporate-ma--review-enterprise-saas-agreement
 description: "Guides preparation of a risk-tiered issues memo for an enterprise SaaS agreement review in a regulated-data context where privacy compliance, security controls, service levels, and contractual terms must be assessed against the vendor's representations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: draft-motion-in-limine
 description: "Motion in limine to exclude specified categories of prejudicial evidence in a contract case, based on the pretrial record and case management order."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

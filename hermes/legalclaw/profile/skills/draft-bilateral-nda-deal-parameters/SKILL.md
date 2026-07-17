@@ -2,7 +2,6 @@
 name: draft-bilateral-nda-deal-parameters
 description: "Bilateral NDA for a potential strategic acquisition and an accompanying cover memorandum explaining key drafting decisions and open issues, based on deal parameters and dual-party playbook inputs."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

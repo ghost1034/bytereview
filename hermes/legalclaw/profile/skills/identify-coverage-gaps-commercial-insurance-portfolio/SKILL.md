@@ -2,7 +2,6 @@
 name: identify-coverage-gaps-commercial-insurance-portfolio
 description: "Agents reviewing a commercial insurance portfolio for coverage gaps should test time-sensitive acquisition-related coverage periods, compare broker summaries against governing policy language, and identify whether newly acquired assets, entities, or exposures are outside the operative terms of the relevant policies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

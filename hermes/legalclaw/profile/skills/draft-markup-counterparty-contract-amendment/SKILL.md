@@ -2,7 +2,6 @@
 name: draft-markup-counterparty-contract-amendment
 description: "Annotated redline of a proposed contract amendment with marginal commentary and a cover memo, evaluated against the operative agreement history and internal contracting guidance."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: research-trade-secret-protections-departing-employee
 description: "Analyzing trade secret and restrictive covenant enforcement options following a departing employee scenario, using employment agreements, a forensic report, and exit documentation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: respond-to-lp-comment-letter
 description: "Review an LP comment package and accompanying LPA markup, then produce a GP counsel response memo that includes a summary matrix, comment-by-comment responses with accept/modify/reject decisions, precedent-based analysis where relevant, and an appendix cross-referencing comments to the applicable LPA sections."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

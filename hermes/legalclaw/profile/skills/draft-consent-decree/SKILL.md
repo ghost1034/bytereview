@@ -2,7 +2,6 @@
 name: draft-consent-decree
 description: "Closes gaps in consent-decree compliance provisions, trigger-event specificity for remedy deadlines, crown jewel provision structure, retained jurisdiction, and firewall duration relative to any transitional services arrangement."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

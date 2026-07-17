@@ -2,7 +2,6 @@
 name: draft-requests-for-production
 description: "Drafting a plaintiff's first set of requests for production in a breach of contract and trade secret misappropriation action requires linking request categories to the pleaded claims and defenses, including a Definitions and Instructions section, and specifying ESI format requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

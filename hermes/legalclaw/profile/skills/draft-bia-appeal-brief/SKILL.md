@@ -2,7 +2,6 @@
 name: draft-bia-appeal-brief
 description: "BIA appellate brief challenging an asylum denial by translating record-based procedural errors and legal-standard misapplications into structured appellate arguments using the governing immigration framework and relevant appellate authority."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

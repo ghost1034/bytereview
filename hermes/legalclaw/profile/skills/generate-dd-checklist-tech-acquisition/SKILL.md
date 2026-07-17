@@ -2,7 +2,6 @@
 name: generate-dd-checklist-tech-acquisition
 description: "Guides generation of a tailored due diligence request checklist for an acquisition of a technology-intensive business, with sector-specific diligence priorities integrated into standard M&A diligence categories."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

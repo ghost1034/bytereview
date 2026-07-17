@@ -2,7 +2,6 @@
 name: lmr-employment-regulatory-approval
 description: "Preparing a regulatory approval requirements memo for a business expansion by mapping proposed digital-asset custody activities against the current license and registration inventory and the applicable regulatory frameworks."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

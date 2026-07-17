@@ -2,7 +2,6 @@
 name: its-draft-restricted-party-screening-procedures
 description: "Drafts a restricted party screening procedures chapter for an export management and compliance program that addresses identified audit findings and remediation commitments, specifies the beneficial ownership collection mechanism, describes the screening-calibration trade-off between false positives and false negatives, identifies record-retention considerations using general legal authorities, and integrates military end-use screening requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

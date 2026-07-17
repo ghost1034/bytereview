@@ -2,7 +2,6 @@
 name: lease-842-assistant
 description: Apply the ASC 842 lessee model — classification, PV, ROU and liability, amortization, modifications, and JE generation
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, leases, asc842]

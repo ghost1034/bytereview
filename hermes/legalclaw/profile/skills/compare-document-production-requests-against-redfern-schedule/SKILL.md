@@ -2,7 +2,6 @@
 name: compare-document-production-requests-against-redfern-schedule
 description: "Supports a gap analysis memorandum that compares document production requests against response schedules, checking both structure and substance while avoiding instance-specific conclusions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

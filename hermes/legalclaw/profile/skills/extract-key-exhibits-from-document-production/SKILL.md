@@ -2,7 +2,6 @@
 name: extract-key-exhibits-from-document-production
 description: "Closes the gap where agents catalog exhibits in isolation without linking related financial documents to identify undisclosed accounts, quantifying income understatement across all sources, connecting account balance declines to specific transfers, and building a complete asset summary table."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

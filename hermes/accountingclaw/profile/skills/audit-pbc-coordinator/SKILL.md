@@ -2,7 +2,6 @@
 name: audit-pbc-coordinator
 description: Track PBC requests with dependency-aware status reporting and burn-down
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, audit, pbc]

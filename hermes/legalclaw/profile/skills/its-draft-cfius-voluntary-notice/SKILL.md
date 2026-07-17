@@ -2,7 +2,6 @@
 name: its-draft-cfius-voluntary-notice
 description: "Drafts a CFIUS joint voluntary notice in the required regulatory format, using the transaction documents and supporting diligence materials to identify the parties, describe the transaction, and address the categories of disclosures commonly required for a foreign acquisition of a business involving sensitive technology, data, or government-related exposures."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

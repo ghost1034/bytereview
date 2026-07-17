@@ -2,7 +2,6 @@
 name: analyze-mfn-waterfall
 description: "Review a fund's side-letter package, governing fund agreement, policy materials, tracking records, and commitment schedule to produce an MFN election analysis and recommendation memorandum covering LP eligibility, economic cascade modeling, and pre-notice amendment recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

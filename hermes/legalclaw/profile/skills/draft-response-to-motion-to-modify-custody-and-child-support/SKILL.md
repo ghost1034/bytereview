@@ -2,7 +2,6 @@
 name: draft-response-to-motion-to-modify-custody-and-child-support
 description: "Draft an opposition brief to a motion seeking modification of custody and child support by applying the governing modification standard, testing the evidentiary basis for the requested changes, and organizing rebuttal arguments around the motion\u2019s issues and the record."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

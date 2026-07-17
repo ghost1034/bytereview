@@ -2,7 +2,6 @@
 name: draft-internal-investigation-report
 description: "Agents draft privileged internal investigation reports that address the primary misconduct allegations, assess parallel regulatory and enforcement exposure, evaluate privilege and waiver issues when sharing the report, consider evidence-preservation and retaliation risks, and analyze whether financial exposure should be presented using both baseline and stress-test approaches."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

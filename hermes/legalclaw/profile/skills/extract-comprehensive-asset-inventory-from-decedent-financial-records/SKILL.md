@@ -2,7 +2,6 @@
 name: extract-comprehensive-asset-inventory-from-decedent-financial-records
 description: "Produces a comprehensive estate asset schedule that classifies each asset by disposition pathway, reconciles values across source materials, identifies unresolved value or title questions, and flags planning or reporting issues for retirement accounts and closely held business interests."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

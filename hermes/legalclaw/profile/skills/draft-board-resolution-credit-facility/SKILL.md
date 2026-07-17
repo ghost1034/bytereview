@@ -2,7 +2,6 @@
 name: draft-board-resolution-credit-facility
 description: "Drafts a board resolution authorizing a senior secured revolving credit facility and a cover memo, ensuring corporate authorization is procedurally valid and aligned with the governing documents and commitment terms."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

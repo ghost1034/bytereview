@@ -2,7 +2,6 @@
 name: extract-reporting-obligations-from-credit-agreement
 description: "Extract all reporting, notice, and certificate obligations from a credit facility's loan documents into a structured matrix with a compliance calendar and an inconsistencies log."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

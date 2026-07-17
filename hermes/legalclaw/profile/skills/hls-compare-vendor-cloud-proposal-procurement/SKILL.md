@@ -2,7 +2,6 @@
 name: hls-compare-vendor-cloud-proposal-procurement
 description: "Compares a vendor cloud infrastructure proposal against internal procurement requirements and related security or compliance addenda to identify financial, technical, legal, and regulatory gaps, then organizes the differences into a negotiation-focused gap analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

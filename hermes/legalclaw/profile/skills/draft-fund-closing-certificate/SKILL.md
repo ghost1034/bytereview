@@ -2,7 +2,6 @@
 name: draft-fund-closing-certificate
 description: "Draft a GP closing certificate for a private equity fund's final closing certifying each closing condition precedent and prepare a companion issues memo that flags discrepancies and unresolved items identified across the source documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

@@ -2,7 +2,6 @@
 name: tech-accounting-memo
 description: Draft an IRAC technical accounting memo (DOCX, Times New Roman 12pt) with ASC and IFRS citation scaffolding
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, memo, technical]

@@ -2,7 +2,6 @@
 name: draft-term-sheet-scenario-02
 description: "Guides drafting of an acquisition term sheet from a multi-document deal set where purchase price mechanics, financing assumptions, exclusivity, and unresolved issues must be synthesized into a non-binding but deal-defining document."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

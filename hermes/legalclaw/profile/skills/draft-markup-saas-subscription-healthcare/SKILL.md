@@ -2,7 +2,6 @@
 name: draft-markup-saas-subscription-healthcare
 description: "Section-by-section markup commentary memo with proposed redlines and priority classifications for a vendor-form SaaS agreement reviewed against a company playbook in a regulated healthcare procurement context."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

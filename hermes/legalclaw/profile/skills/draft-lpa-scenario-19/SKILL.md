@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-19
 description: "Draft a successor master fund LPA incorporating institutional-investor environmental and social requirements and multi-jurisdiction anti-corruption compliance, where the term sheet contains an inconsistency on concentration limits and the fund structure includes feeder vehicles that must be addressed in the companion drafting memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

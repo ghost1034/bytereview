@@ -2,7 +2,6 @@
 name: funds-asset-management--identify-lpa-issues
 description: "Review a private equity fund LPA from an LP investor's perspective and produce an issues memo with severity ratings and negotiation recommendations for provisions that deviate from market standard or the LP's investment guidelines."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

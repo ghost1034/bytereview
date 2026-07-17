@@ -2,7 +2,6 @@
 name: its-compare-entity-details-export-control
 description: "Produces a per-transaction export control compliance assessment that identifies applicable license exceptions, restricted-party screening issues, re-export chain analysis, and military end-use obligations for each transaction in the review set."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

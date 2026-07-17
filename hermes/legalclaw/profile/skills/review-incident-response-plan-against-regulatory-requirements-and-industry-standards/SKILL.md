@@ -2,7 +2,6 @@
 name: review-incident-response-plan-against-regulatory-requirements-and-industry-standards
 description: "IRP review memos fail when the agent assesses the updated plan against general regulatory standards without using prior incident materials as evidence of specific gaps the new plan must close, and without assessing whether governance materials and audit findings impose additional requirements the plan must satisfy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

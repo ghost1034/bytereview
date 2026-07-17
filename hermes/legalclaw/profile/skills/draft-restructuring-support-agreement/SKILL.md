@@ -2,7 +2,6 @@
 name: draft-restructuring-support-agreement
 description: "Ensures an RSA draft reconciles source-document inconsistencies in restructuring economics and milestone timing, includes a board fiduciary-out and allocation mechanics for any backstop or similar support commitment, and documents each resolution with a bracketed drafting note."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

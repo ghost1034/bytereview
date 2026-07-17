@@ -2,7 +2,6 @@
 name: draft-closing-checklist-ip-asset-purchase
 description: "Closing checklist memorandum for an intellectual property and technology asset purchase transaction, organizing pre-closing conditions, closing deliverables, and post-closing obligations derived from the governing transaction documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

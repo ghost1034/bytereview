@@ -2,7 +2,6 @@
 name: draft-comment-letter-on-proposed-remedial-plan
 description: "Guides drafting of a formal regulatory comment letter on a proposed remedial plan by grounding objections in applicable cleanup standards, remedy selection criteria, and community health and safety concerns supported by site data."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

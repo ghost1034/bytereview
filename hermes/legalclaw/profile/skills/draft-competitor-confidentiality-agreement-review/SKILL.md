@@ -2,7 +2,6 @@
 name: draft-competitor-confidentiality-agreement-review
 description: "Closes gaps in identifying antitrust risks in competitor confidentiality agreements, including information exchange, no-poach enforceability, clean-team protocols, interaction effects, and pre-clearance coordination risk."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

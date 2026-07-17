@@ -2,7 +2,6 @@
 name: extract-key-terms-from-section-16-filings
 description: "Section 16 filing extraction where the baseline captures reported transaction data, but the workflow also checks arithmetic consistency, ownership computations, timing, indirect ownership, derivative terms, and potential short-swing exposure at a procedural level."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

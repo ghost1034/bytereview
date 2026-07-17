@@ -2,7 +2,6 @@
 name: draft-proxy-statement
 description: "DEF 14A proxy statement drafting for an annual meeting with a contested director election; the baseline produces standard narrative sections but does not fully verify tabular consistency, shareholder-proposal handling, or governance disclosures tied to the company\u2019s specific profile."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

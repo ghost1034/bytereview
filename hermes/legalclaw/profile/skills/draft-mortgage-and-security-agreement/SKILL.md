@@ -2,7 +2,6 @@
 name: draft-mortgage-and-security-agreement
 description: "Guides drafting of a commercial mortgage and security agreement by reconciling the deal terms, title materials, appraisal, operating documents, and renovation materials into a complete security instrument with a companion issues memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

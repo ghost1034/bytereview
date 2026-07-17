@@ -2,7 +2,6 @@
 name: hls-extract-regulatory-compliance-obligations-telehealth
 description: "Produces a structured regulatory obligations register and narrative memo for a digital health telehealth platform launch, covering data-use agreements, clinical decision support analysis, telehealth prescribing rules, biometric privacy laws, remote monitoring billing requirements, and open vendor audit findings."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

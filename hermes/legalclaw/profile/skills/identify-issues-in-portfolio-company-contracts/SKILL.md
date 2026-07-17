@@ -2,7 +2,6 @@
 name: identify-issues-in-portfolio-company-contracts
 description: "Guides preparation of a due diligence issue memo for a portfolio company contract review where a large, heterogeneous contract set must be systematically assessed for material risks across multiple categories."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

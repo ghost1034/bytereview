@@ -2,7 +2,6 @@
 name: identify-contested-divorce-financial-discovery
 description: "Closes the gap where agents review business valuations without independently checking the underlying arithmetic, identifying normalization adjustment omissions, assessing whether valuation discounts are appropriate in the dissolution context, and linking pre-separation account withdrawals to potential dissipation issues."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

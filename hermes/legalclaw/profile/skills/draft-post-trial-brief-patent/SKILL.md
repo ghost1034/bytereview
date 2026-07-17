@@ -2,7 +2,6 @@
 name: draft-post-trial-brief-patent
 description: "Post-trial brief in a patent infringement action, presented as proposed findings of fact and conclusions of law on infringement, validity, and damages, based on the trial record and exhibits."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-restructuring-support-agreement
 description: "Ensures an RSA markup analysis evaluates the economic impact of each material change, classifies each deviation against the company's stated negotiating positions, and surfaces cross-issue interaction effects that individual-issue analysis would miss."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

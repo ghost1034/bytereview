@@ -2,7 +2,6 @@
 name: draft-term-sheet-to-lpa-edit
 description: "Mark up a prior fund LPA precedent in tracked changes to conform to a new fund's term sheet, adding required new sections, and flagging open questions and valuation methodology concerns with partner notes."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

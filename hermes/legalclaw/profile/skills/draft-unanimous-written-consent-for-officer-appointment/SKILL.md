@@ -2,7 +2,6 @@
 name: draft-unanimous-written-consent-for-officer-appointment
 description: "Agents draft a board consent for officer appointments by checking for any required stockholder approvals, confirming the currentness of valuation support for equity grants, verifying plan capacity, and addressing any timing gap between consent execution and the officer\u2019s start date."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

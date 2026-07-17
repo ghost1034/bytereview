@@ -2,7 +2,6 @@
 name: hls-identify-government-subpoena-issues
 description: "Reviews a government healthcare subpoena and supporting materials to identify potential temporal scope objections, relator indicators, audit privilege risks, retaliation exposure, successor-liability issues, parallel-state-investigation coordination needs, and spoliation concerns."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

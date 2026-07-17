@@ -2,7 +2,6 @@
 name: compare-employment-discrimination-complaint-against-personnel-file-records
 description: "Guides defense counsel through a systematic cross-check of factual allegations in a complaint against personnel records, HR investigation materials, and compensation data, producing a structured discrepancy analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

@@ -2,7 +2,6 @@
 name: assess-litigation-regulatory-risk
 description: "Guides matter-by-matter analysis of a target's pending litigation and regulatory matters, assessing reserve adequacy, insurance coverage gaps, aggregate exposure relative to indemnification structure, and recommended deal protections."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

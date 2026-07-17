@@ -2,7 +2,6 @@
 name: identify-issues-in-zoning-compliance-report
 description: "Guides identification of issues in a seller's zoning compliance report for a mixed-use acquisition by comparing the report against the underlying zoning ordinance, survey, variance approval, environmental materials, and purchase agreement provisions, and organizing findings by severity."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

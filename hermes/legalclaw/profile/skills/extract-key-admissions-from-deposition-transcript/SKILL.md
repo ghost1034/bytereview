@@ -2,7 +2,6 @@
 name: extract-key-admissions-from-deposition-transcript
 description: "Extracting key admissions from a deposition transcript requires cross-referencing each admission against the governing record, prior sworn statements, and related contemporaneous documents to identify inconsistencies and assess the admission\u2019s utility for motion practice, trial impeachment, and settlement analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

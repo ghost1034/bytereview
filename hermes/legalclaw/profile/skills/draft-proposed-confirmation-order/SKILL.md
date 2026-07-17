@@ -2,7 +2,6 @@
 name: draft-proposed-confirmation-order
 description: "Ensures a proposed confirmation order contains explicit findings for the applicable confirmation elements, correct voting results by class, properly distinguished consensual and non-consensual releases, and a comprehensive retained jurisdiction provision."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

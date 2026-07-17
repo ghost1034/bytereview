@@ -2,7 +2,6 @@
 name: draft-discovery-plan-memorandum
 description: "A Rule 26(f) discovery plan memorandum should map claims and defenses to discoverable evidence categories, identify custodians and data sources, assess litigation-hold adequacy and any spoliation risks, and propose ESI and discovery protocols for the conference."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

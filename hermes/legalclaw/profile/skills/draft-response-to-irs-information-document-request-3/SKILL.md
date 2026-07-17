@@ -2,7 +2,6 @@
 name: draft-response-to-irs-information-document-request-3
 description: "An IDR response letter should address each request item with an express response, whether production, privilege or confidentiality objection, or an extension request, and should flag any apparent errors identified during the response process that may warrant further review or possible voluntary disclosure."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

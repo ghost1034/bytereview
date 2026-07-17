@@ -2,7 +2,6 @@
 name: draft-source-code-escrow-agreement
 description: "Draft a beneficiary-oriented source code escrow agreement and a negotiation issues memo for a software-as-a-service license transaction, using the escrow agent's template and the deal documents as inputs."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

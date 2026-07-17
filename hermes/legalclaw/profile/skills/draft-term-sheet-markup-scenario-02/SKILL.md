@@ -2,7 +2,6 @@
 name: draft-term-sheet-markup-scenario-02
 description: "Guides buyer-side term sheet markup and explanatory memorandum where valuation, purchase price mechanics, working capital, and risk-allocation provisions must be revised using the transaction documents and available diligence materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: ecvc-draft-arcoi
 description: "Drafting an amended and restated certificate of incorporation for a venture financing requires reconciling overlapping protective provisions across equity classes, keeping drag-along thresholds consistent with the voting framework, verifying authorized-share sufficiency, and applying current corporate exculpation standards."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

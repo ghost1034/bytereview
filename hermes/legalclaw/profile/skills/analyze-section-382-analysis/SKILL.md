@@ -2,7 +2,6 @@
 name: analyze-section-382-analysis
 description: "A Section 382 ownership change analysis requires systematic identification of testing dates, proper segregation of public groups, look-through analysis for entity shareholders, and option-rule treatment of contingent shares \u2014 not just a top-level ownership arithmetic check."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

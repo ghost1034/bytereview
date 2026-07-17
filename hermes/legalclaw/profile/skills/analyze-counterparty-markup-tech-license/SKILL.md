@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-tech-license
 description: "Comprehensive deviation report for a counterparty-marked technology license agreement evaluated against the original draft and internal negotiation guidance."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

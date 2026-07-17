@@ -2,7 +2,6 @@
 name: hls-draft-markup-healthcare-merger-agreement
 description: "Produces a healthcare merger agreement markup commentary and issues summary chart that contextualizes each issue against the applicable negotiation playbook, incorporates cross-document references from related compliance and financing materials when they bear on the provision being analyzed, and applies a structured issue-analysis framework."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

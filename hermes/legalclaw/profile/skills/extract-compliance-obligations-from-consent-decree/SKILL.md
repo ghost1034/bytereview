@@ -2,7 +2,6 @@
 name: extract-compliance-obligations-from-consent-decree
 description: "Guides the analyst in extracting obligations from a consent decree into a structured tracker, including deadline mapping, compliance status, cascading risk identification, and cross-referencing related modifying or supplementing documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

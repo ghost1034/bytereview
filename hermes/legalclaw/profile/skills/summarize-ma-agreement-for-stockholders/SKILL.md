@@ -2,7 +2,6 @@
 name: summarize-ma-agreement-for-stockholders
 description: "Guides preparation of a plain-language merger agreement summary for stockholder disclosure materials where accessibility, accuracy, and cross-document consistency must all be achieved simultaneously."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

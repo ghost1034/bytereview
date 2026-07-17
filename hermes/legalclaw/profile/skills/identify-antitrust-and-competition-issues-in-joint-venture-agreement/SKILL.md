@@ -2,7 +2,6 @@
 name: identify-antitrust-and-competition-issues-in-joint-venture-agreement
 description: "Frame an antitrust and competition issue memorandum for a joint venture agreement by checking for restrictive covenants, pricing coordination, information exchange, pre-closing conduct, filing obligations, governance vetoes, and competition-law treatment of IP sharing."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

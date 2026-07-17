@@ -2,7 +2,6 @@
 name: compare-distribution-amounts-against-plan-requirements
 description: "Prepare a compliance analysis memorandum that checks distributions against governing plan requirements, tests the underlying arithmetic and allocation logic, reviews reserve mechanics, and identifies procedural follow-up items for the responsible estate personnel."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

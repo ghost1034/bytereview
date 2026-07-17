@@ -2,7 +2,6 @@
 name: draft-markup-of-procedural-order
 description: "Ensures a respondent-side procedural order markup analyzes hearing-time adequacy, privilege-log and insurance-disclosure risks, and due process concerns under the applicable curial law."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

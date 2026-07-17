@@ -2,7 +2,6 @@
 name: debt-equity-reviewer
 description: Classify preferred stock, warrants, SAFEs, and convertible debt via the ASC 480 and 815-40 decision tree
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, debt-equity, asc480]

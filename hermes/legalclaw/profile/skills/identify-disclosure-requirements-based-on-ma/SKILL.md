@@ -2,7 +2,6 @@
 name: identify-disclosure-requirements-based-on-ma
 description: "Guides preparation of a disclosure schedule checklist that maps each disclosure obligation in a merger agreement to the required content, responsible party, and information source."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-commercial-real-estate-loan-agreement
 description: "Guides prioritized redline analysis of a lender markup by structuring term-sheet verification, borrower-risk assessment, and playbook-calibrated response recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

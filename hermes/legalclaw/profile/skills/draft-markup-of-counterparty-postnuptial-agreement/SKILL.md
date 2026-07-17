@@ -2,7 +2,6 @@
 name: draft-markup-of-counterparty-postnuptial-agreement
 description: "Producing an article-by-article redline markup of a proposed postnuptial agreement requires identifying provisions that are asymmetric, undisclosed, or potentially unconscionable, and replacing them with client-protective language accompanied by explanatory commentary."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

@@ -2,7 +2,6 @@
 name: draft-litigation-discovery-responses
 description: "Draft responses to requests for admissions and requests for production in breach of supply agreement litigation by distinguishing what may be admitted from what should be denied or objected to, pairing objections with any substantive partial responses, and preparing the required formal responses together with a separate strategy memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

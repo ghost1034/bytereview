@@ -2,7 +2,6 @@
 name: identify-issues-in-estoppel-certificate
 description: "Guides tenant-by-tenant review of estoppel certificates against lease abstracts, rent roll, and acquisition agreement requirements, identifying factual discrepancies, qualification language, and coverage gaps that affect closing conditions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

@@ -2,7 +2,6 @@
 name: draft-due-diligence-summary
 description: "Guides preparation of an investment-committee-ready due diligence summary memo that synthesizes findings by severity tier, translates financial adjustments into enterprise-value impact, identifies insurance coverage gaps for excluded exposures, and provides deal-protection recommendations for significant issues."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

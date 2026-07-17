@@ -2,7 +2,6 @@
 name: review-enterprise-saas-agreement-company-playbook
 description: "Reviewing a SaaS agreement against a contracting playbook and related deal context to produce a prioritized deviation and risk memorandum with recommended redline positions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

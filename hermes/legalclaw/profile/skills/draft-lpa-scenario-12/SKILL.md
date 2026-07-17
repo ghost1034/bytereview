@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-12
 description: "Draft a fund limited partnership agreement by adapting a precedent to a term sheet and drafting instructions, updating every changed term consistently throughout the document and giving priority to any specifically flagged instructions over the base precedent and general terms."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

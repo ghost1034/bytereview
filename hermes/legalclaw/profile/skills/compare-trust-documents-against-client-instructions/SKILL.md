@@ -2,7 +2,6 @@
 name: compare-trust-documents-against-client-instructions
 description: "Comparing trust draft documents against client instructions requires provision-by-provision deviation analysis that traces the practical downstream consequences of each departure and explains the drafting decisions behind any intentional divergence."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

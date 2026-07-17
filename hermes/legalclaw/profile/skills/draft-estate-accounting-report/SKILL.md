@@ -2,7 +2,6 @@
 name: draft-estate-accounting-report
 description: "Drafting a first and final judicial accounting for a surrogate\u2019s court submission requires reconciling the fiduciary\u2019s summary against underlying financial records, classifying receipts and disbursements into the proper accounting schedules, computing any fiduciary compensation under the applicable statutory framework, and explaining investment performance and distribution calculations in a manner consistent with the governing estate administration rules."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

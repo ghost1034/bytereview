@@ -2,7 +2,6 @@
 name: extract-key-custodians-from-document-preservation-notice
 description: "Closes gaps in accurate title and division extraction for each custodian, employment status verification, and gap analysis between the preservation notice list and the full custodian universe identified in source documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

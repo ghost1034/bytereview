@@ -2,7 +2,6 @@
 name: compare-claim-constructions-patent-spec
 description: "Claim construction analysis memorandum evaluating proposed constructions for disputed patent terms against the patent specification, prosecution history, and opposing brief, prepared from the client's perspective."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: extract-key-terms-tech-licensing-term-sheet
 description: "Preparing a board-ready key-terms extraction memo from a technology licensing term sheet and related side materials, requiring identification of conflicts, risk flags, and negotiation recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

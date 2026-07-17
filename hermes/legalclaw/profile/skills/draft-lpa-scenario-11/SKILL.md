@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-11
 description: "Draft a complete impact fund LPA with sector-specific ESG KPI definitions, category-level negative screens, placeholder service-provider identification, and NTD annotations for items requiring partner or client decision."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

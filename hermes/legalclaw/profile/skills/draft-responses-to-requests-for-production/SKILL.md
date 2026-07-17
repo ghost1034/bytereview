@@ -2,7 +2,6 @@
 name: draft-responses-to-requests-for-production
 description: "Draft responses to requests for production by reviewing the requests, the available document set, and any privilege or objection materials; state objections with supporting reasons where warranted; indicate whether responsive, non-objectionable documents will be produced; note any withheld material at a categorical level; and prepare the required companion litigation analysis deliverable."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

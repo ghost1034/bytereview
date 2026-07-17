@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-proposed-stipulation-of-facts
 description: "Practitioners analyzing a counterparty-marked-up stipulation of facts should assess each modification's strategic impact on the client's trial theories, not merely catalog textual changes."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

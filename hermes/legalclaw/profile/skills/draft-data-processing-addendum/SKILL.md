@@ -2,7 +2,6 @@
 name: draft-data-processing-addendum
 description: "Controller-protective data processing addendum as an exhibit to an MSA, with complete annexes and a negotiation issues memo, for a healthcare analytics vendor onboarding."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

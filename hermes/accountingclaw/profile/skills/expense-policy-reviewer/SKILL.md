@@ -2,7 +2,6 @@
 name: expense-policy-reviewer
 description: Audit T&E reports against policy with category limits, missing-receipt and duplicate detection, and risk scoring
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, expense, controls]

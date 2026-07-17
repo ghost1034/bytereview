@@ -2,7 +2,6 @@
 name: compare-insurance-proposal-coverage-specifications
 description: "Agents comparing an insurance proposal against coverage specifications should analyze compounded coverage gaps across policies, check for maritime-worker coverage obligations, and calibrate severity to the practical exposure presented by each issue."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

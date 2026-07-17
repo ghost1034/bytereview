@@ -2,7 +2,6 @@
 name: identify-issues-in-counterparty-sale-objection
 description: "Ensures a sale objection analysis applies the governing legal standard to each argument, checks contract-based cure-period and damages issues against the operative agreement and applicable law, evaluates break-up fee objections under the appropriate business-judgment framework, analyzes insider allegations under the relevant insider definition, assesses standing, and contextualizes any requested delay against the transaction timeline and financing milestones."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

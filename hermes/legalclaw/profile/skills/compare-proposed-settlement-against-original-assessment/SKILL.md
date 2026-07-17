@@ -2,7 +2,6 @@
 name: compare-proposed-settlement-against-original-assessment
 description: "Reconciling a proposed administrative tax settlement against the original assessment requires arithmetic verification of stated amounts, analysis of scope and waiver language, and identification of downstream consequences before the client decides whether to proceed."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

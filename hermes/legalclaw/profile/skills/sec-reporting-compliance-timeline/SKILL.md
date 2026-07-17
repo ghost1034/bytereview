@@ -2,7 +2,6 @@
 name: sec-reporting-compliance-timeline
 description: "Compliance timeline assessment identifying obligations, errors, and gaps across multiple new SEC reporting requirements, including filer status classification, cybersecurity disclosures, and executive compensation clawback rules, using general rule-based analysis rather than scenario-specific conclusions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

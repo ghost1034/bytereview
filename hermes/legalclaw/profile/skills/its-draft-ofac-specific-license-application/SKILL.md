@@ -2,7 +2,6 @@
 name: its-draft-ofac-specific-license-application
 description: "Produces a complete OFAC specific license application package and a pre-filing issues memorandum that addresses required application elements, party-screening disclosures, line-item schedule checks, shipping route completeness, and re-export authorization requirements for the full transaction chain."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

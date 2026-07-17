@@ -2,7 +2,6 @@
 name: extract-oss-license-obligations-disclosure-schedule
 description: "Reviewing a target company's open source software disclosure schedule and related M&A diligence materials to identify compliance risks and transaction impact, requiring license-category analysis and consistency checking against deal-level IP representations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: hls-compare-policies-hipaa-security-rule
 description: "Compares security and privacy policies against the HIPAA Security Rule on a policy-by-policy basis, organizing gaps by applicable safeguard category and tailoring remediation sequencing to external compliance deadlines."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

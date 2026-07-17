@@ -2,7 +2,6 @@
 name: extract-key-terms-vendor-proposal
 description: "Reviewing a vendor proposal package against a request-for-proposal package to produce a structured term sheet summary with risk assessments, requiring comparison across responding vendors and identification of gaps versus stated requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

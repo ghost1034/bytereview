@@ -2,7 +2,6 @@
 name: assess-cpra-regulatory-impact-on-data-broker-relationships
 description: "Assess privacy-regulatory impact on counterparty relationships by classifying each relationship under the applicable privacy framework, checking whether the actual data flows and contract terms match that classification, and identifying any missing contractual, disclosure, registration, or consumer-rights steps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

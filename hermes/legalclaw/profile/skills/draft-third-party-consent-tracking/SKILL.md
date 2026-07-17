@@ -2,7 +2,6 @@
 name: draft-third-party-consent-tracking
 description: "Guides consent tracking, analysis, and request-letter drafting for an acquisition closing where material contracts, financing arrangements, leases, and regulatory permits must be reviewed for consent requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

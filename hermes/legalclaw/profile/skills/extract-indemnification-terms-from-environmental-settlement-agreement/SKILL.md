@@ -2,7 +2,6 @@
 name: extract-indemnification-terms-from-environmental-settlement-agreement
 description: "Guides preparation of a comprehensive indemnification summary memorandum by extracting all indemnification obligations, procedures, coverage limits, and claim carve-outs from a multi-document settlement package."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

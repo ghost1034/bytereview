@@ -2,7 +2,6 @@
 name: extract-cost-recovery-obligations-from-settlement-agreement
 description: "Guides preparation of a cost recovery obligation matrix by extracting all payment obligations, reimbursement mechanics, trust fund requirements, and risk triggers from a settlement agreement and cross-referencing against financial records."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

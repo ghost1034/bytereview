@@ -2,7 +2,6 @@
 name: sec-examination-audit-findings-memo
 description: "Privileged audit findings memorandum for the board summarizing examination deficiency findings, analyzing their severity and legal basis, identifying evidence of intent where relevant, and recommending a response strategy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

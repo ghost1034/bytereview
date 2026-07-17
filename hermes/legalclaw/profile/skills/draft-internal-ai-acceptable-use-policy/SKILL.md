@@ -2,7 +2,6 @@
 name: draft-internal-ai-acceptable-use-policy
 description: "Agents produce an AI acceptable use policy that addresses overlapping legal, labor, privacy, data handling, and insurance considerations and surfaces unresolved items as open action items in the accompanying executive memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

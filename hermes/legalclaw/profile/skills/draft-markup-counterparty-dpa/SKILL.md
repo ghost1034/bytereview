@@ -2,7 +2,6 @@
 name: draft-markup-counterparty-dpa
 description: "Redlined DPA with bracketed commentary organized against the applicable negotiation playbook, with a risk-prioritized commentary memo covering negotiation strategy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

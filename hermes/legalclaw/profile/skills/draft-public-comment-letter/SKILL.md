@@ -2,7 +2,6 @@
 name: draft-public-comment-letter
 description: "Agents draft formal regulatory comment letters that frame policy objections within the APA arbitrary-and-capricious framework, assess whether a proposed rule falls within the agency's statutory authority, and ground the letter in the commenter's specific business experience and relevant industry-aligned positions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

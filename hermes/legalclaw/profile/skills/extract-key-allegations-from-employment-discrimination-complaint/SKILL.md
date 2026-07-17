@@ -2,7 +2,6 @@
 name: extract-key-allegations-from-employment-discrimination-complaint
 description: "Guides preparation of a structured allegation summary memorandum for an employment discrimination complaint, covering the asserted counts, alleged incidents, comparators, timing issues, and damages categories."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

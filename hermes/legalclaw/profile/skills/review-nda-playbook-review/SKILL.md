@@ -2,7 +2,6 @@
 name: review-nda-playbook-review
 description: "Agents produce structured deviation analyses for non-disclosure agreements by comparing each agreement against the applicable standard playbook positions, classifying deviations by severity, and summarizing portfolio-level triage in a table."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

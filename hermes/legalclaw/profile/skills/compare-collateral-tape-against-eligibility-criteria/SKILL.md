@@ -2,7 +2,6 @@
 name: compare-collateral-tape-against-eligibility-criteria
 description: "Reviewing a CLO collateral tape against governing eligibility criteria in the applicable transaction documents to identify loan-level failures, portfolio concentration breaches, and the appropriate remediation path for each category of deficiency."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

@@ -2,7 +2,6 @@
 name: draft-epc-contract-utility-solar
 description: "Guides drafting of an owner-oriented EPC contract for a utility-scale solar project by checking internal consistency of liquidated damages provisions, coordinating construction and commercial timing constraints, and documenting cross-document conflicts in a companion issues memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

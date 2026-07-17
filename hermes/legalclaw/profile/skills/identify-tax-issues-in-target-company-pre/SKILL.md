@@ -2,7 +2,6 @@
 name: identify-tax-issues-in-target-company-pre
 description: "Guides preparation of a tax due diligence issue memo for an acquisition where multi-year tax returns, foreign subsidiary filings, net operating loss schedules, transfer pricing, and employee benefit plan compliance must be systematically reviewed."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

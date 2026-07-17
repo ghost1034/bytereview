@@ -2,7 +2,6 @@
 name: draft-leniency-application
 description: "Closes gaps in complete proffer content including coordination event specificity, affected-commerce calculation methodology, Type A condition analysis, and individual participant identification."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

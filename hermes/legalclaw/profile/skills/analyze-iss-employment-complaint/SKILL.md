@@ -2,7 +2,6 @@
 name: analyze-iss-employment-complaint
 description: "Guides defense counsel to analyze a multi-count employment complaint count-by-count, applying the relevant statutory limitations periods, damages ceilings, burden-shifting frameworks, and procedural defenses for each legal theory."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

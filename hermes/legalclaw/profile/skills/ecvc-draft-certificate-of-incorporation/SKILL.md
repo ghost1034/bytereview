@@ -2,7 +2,6 @@
 name: ecvc-draft-certificate-of-incorporation
 description: "Drafting an initial or amended certificate of incorporation requires analyzing authorized-share sufficiency across all reservation categories, checking the governing corporate statute for anti-dilution and redemption mechanics, and updating exculpation provisions to reflect current standards for both directors and officers."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

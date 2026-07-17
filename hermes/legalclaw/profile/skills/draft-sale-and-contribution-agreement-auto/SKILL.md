@@ -2,7 +2,6 @@
 name: draft-sale-and-contribution-agreement-auto
 description: "Drafting a sale and contribution agreement for an asset-backed securitization by updating a prior deal template to reflect changed pool parameters and structural terms, ensuring true sale and accounting derecognition treatment, and flagging departures and open items in an issues memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

@@ -2,7 +2,6 @@
 name: ecvc-draft-escrow-agreement
 description: "Drafting a merger escrow agreement requires aligning governing law with the merger agreement, specifying allocation methodology for different stockholder classes in each release scenario, separating working capital and indemnification mechanics, and addressing tax treatment of escrow earnings"
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

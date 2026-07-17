@@ -2,7 +2,6 @@
 name: identify-weaknesses-opposing-claim-construction-brief
 description: "Reviewing an opposing party's opening claim construction brief to identify legal errors, intrinsic-record mischaracterizations, and construction vulnerabilities for the responsive brief, using only category-level references to the record and governing framework."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

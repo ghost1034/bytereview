@@ -2,7 +2,6 @@
 name: identify-issues-in-matter-budget-proposal
 description: "Reviewing a litigation budget proposal requires comparing proposed staffing, rates, and phase-level allocations against the governing billing guidelines and prior-period actuals, flagging rate change requests that conflict with the guidelines, unauthorized timekeeper additions, and phase allocations that appear disproportionate to the case posture."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

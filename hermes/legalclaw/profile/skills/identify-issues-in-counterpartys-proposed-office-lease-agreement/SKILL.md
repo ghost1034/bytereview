@@ -2,7 +2,6 @@
 name: identify-issues-in-counterpartys-proposed-office-lease-agreement
 description: "Guides tenant-side identification of issues in a proposed office lease by anchoring each issue to the tenant's requirements and stated priorities, benchmarking economics against available market information, and producing a prioritized issues memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

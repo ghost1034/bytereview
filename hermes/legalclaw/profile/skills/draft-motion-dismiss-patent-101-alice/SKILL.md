@@ -2,7 +2,6 @@
 name: draft-motion-dismiss-patent-101-alice
 description: "Rule 12(b)(6) motion to dismiss a patent infringement complaint on subject matter eligibility grounds under patent-law eligibility doctrine using the Alice/Mayo two-step framework."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

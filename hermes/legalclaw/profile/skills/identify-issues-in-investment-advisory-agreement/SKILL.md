@@ -2,7 +2,6 @@
 name: identify-issues-in-investment-advisory-agreement
 description: "Review a draft investment advisory agreement on behalf of an investor client and produce an issues memo identifying material deficiencies, with severity ratings, legal authority citations, and recommended resolutions for each issue."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

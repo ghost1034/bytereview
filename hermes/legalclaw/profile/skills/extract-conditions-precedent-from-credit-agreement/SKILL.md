@@ -2,7 +2,6 @@
 name: extract-conditions-precedent-from-credit-agreement
 description: "Extract conditions precedent from a credit agreement, compare them against a closing checklist and supporting materials, and produce a prioritized gap analysis with remediation steps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

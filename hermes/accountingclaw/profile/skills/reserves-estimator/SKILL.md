@@ -2,7 +2,6 @@
 name: reserves-estimator
 description: Estimate the CECL (ASC 326) allowance via aging-based loss rates with qualitative overlays and sensitivity analysis
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, cecl, asc326]

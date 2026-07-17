@@ -2,7 +2,6 @@
 name: draft-security-agreement-whole-business
 description: "Drafting a security agreement for a whole business securitization where the collateral includes operating contracts, intellectual property, deposit accounts, and equipment, requiring layered cash management mechanics, perfection steps for each collateral type, and identification of pre-existing lien and consent issues before closing."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

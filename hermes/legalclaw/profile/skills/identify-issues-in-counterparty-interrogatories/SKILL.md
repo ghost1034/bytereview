@@ -2,7 +2,6 @@
 name: identify-issues-in-counterparty-interrogatories
 description: "Reviewing incoming interrogatories requires analyzing each interrogatory for proper form, scope limitations, and strategic risks to the defense, recommending objections and response strategies interrogatory-by-interrogatory, and accounting for the governing response deadline and the relevant contractual scope documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

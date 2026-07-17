@@ -2,7 +2,6 @@
 name: draft-answer-to-breach-of-contract-complaint
 description: "Drafting an answer to a breach-of-contract complaint requires responding paragraph-by-paragraph using the available responses (admit, deny, or lack knowledge), pleading affirmative defenses with sufficient factual support, and preserving any viable counterclaims."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

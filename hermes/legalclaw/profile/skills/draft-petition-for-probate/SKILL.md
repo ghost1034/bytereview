@@ -2,7 +2,6 @@
 name: draft-petition-for-probate
 description: "Drafting a petition for probate and qualification of a personal representative requires confirming will validity, addressing capacity and codicil interaction, identifying non-probate assets, and flagging title, creditor, and multi-jurisdiction administration issues in a companion cover memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

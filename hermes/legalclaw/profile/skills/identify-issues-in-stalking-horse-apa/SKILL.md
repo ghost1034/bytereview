@@ -2,7 +2,6 @@
 name: identify-issues-in-stalking-horse-apa
 description: "Ensures a stalking horse asset purchase agreement issues memo consistently applies four analytical elements to each issue \u2014 problem identification, legal or contractual basis, impact on the estate, and recommended resolution \u2014 with attention to environmental successor-liability risk, material adverse effect carve-out gaps, and alignment between closing deadlines and financing milestones."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

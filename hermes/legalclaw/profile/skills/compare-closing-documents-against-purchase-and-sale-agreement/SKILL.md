@@ -2,7 +2,6 @@
 name: compare-closing-documents-against-purchase-and-sale-agreement
 description: "Guides document-by-document comparison of closing deliverables against the executed purchase and sale agreement to surface deviations, assess their significance, and identify potential corrective steps before or after closing."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

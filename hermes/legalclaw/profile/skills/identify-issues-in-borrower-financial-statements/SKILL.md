@@ -2,7 +2,6 @@
 name: identify-issues-in-borrower-financial-statements
 description: "Reviews a borrower\u2019s periodic reporting package against the applicable credit documentation and produces an issues memo with corrected covenant calculations and next-step analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

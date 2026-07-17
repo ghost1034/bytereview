@@ -2,7 +2,6 @@
 name: draft-indenture-for-auto-loan-abs
 description: "Drafting a trust indenture for an auto loan ABS issuance by adapting a prior transaction template to a new structure that introduces a non-advancing servicer, turbo principal waterfall, and subordinated note class, while flagging structural issues that require resolution before the document is finalized."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

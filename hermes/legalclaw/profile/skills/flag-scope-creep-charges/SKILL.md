@@ -2,7 +2,6 @@
 name: flag-scope-creep-charges
 description: "Guides preparation of a detailed invoice dispute memo identifying charges that appear outside the agreed scope of a transactional engagement, with a negotiation strategy for addressing disputed amounts."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

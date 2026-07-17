@@ -2,7 +2,6 @@
 name: identify-rfe-issues-scenario-01
 description: "H-1B request-for-evidence issue identification memo where each agency-identified concern is analyzed for its impact on petition approvability, with a response strategy and evidence recommendation for each issue organized by RFE category."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

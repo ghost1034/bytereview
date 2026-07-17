@@ -2,7 +2,6 @@
 name: draft-structural-overview-memorandum-auto-abs
 description: "Drafting a structural overview memorandum for an auto loan ABS transaction, with attention to independently verifying key calculations, cross-checking performance triggers across source documents for consistency, and including an issues table as a required output section."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

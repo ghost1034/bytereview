@@ -2,7 +2,6 @@
 name: hls-identify-hipaa-privacy-policy-issues
 description: "Produces a per-document compliance gap report identifying privacy-rule deficiencies, using subsection-level citations where available, and covering common HIPAA privacy-policy topics such as marketing communications, notice of privacy practices distribution, separate confidentiality regimes for substance use disorder records, electronic-accounting obligations, business associate scope alignment, patient restriction rights, reproductive-health privacy provisions, and minimum-necessary access controls."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

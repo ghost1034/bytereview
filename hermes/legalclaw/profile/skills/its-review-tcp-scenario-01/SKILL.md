@@ -2,7 +2,6 @@
 name: its-review-tcp-scenario-01
 description: "Produces an export-compliance issues memorandum for a Technology Control Plan review in connection with a manufacturing license renewal that identifies unauthorized deemed exports, jurisdiction-coverage gaps, agreement-scope violations, dual-national concerns, cloud migration compliance failures, and structural TCP deficiencies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

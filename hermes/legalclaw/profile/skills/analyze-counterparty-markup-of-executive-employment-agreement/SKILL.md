@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-executive-employment-agreement
 description: "Guides the analyst to compare a counterparty redline against the company draft and negotiation playbook, applying sponsor-side framing across compensation, equity, termination, restrictive covenants, and miscellaneous provisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

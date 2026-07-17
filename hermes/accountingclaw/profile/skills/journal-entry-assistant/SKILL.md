@@ -2,7 +2,6 @@
 name: journal-entry-assistant
 description: Draft and balance multi-line journal entries with COA-driven Dr/Cr logic and ERP-ready upload templates
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, journal-entry, erp]

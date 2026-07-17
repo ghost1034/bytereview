@@ -2,7 +2,6 @@
 name: identify-dd-request-list-issues-scenario-02
 description: "DD request list gap analysis \u2014 same framework as the base scenario, extended to address subsidiary dissolution records, jurisdiction-specific dissolution requirements, and clinical hold history as distinct diligence gaps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

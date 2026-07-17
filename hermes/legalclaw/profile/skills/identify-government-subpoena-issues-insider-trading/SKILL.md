@@ -2,7 +2,6 @@
 name: identify-government-subpoena-issues-insider-trading
 description: "Issue memorandum analyzing a grand jury subpoena for a government investigation, identifying overbroad requests, relevance categories, privilege considerations, act-of-production doctrine applicability, and negotiation strategy with the government."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

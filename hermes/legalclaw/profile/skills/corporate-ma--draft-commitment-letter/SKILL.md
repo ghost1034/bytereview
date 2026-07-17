@@ -2,7 +2,6 @@
 name: corporate-ma--draft-commitment-letter
 description: "Guides drafting of a leveraged acquisition commitment letter and companion issues memo, requiring identification and resolution of cross-document economic inconsistencies and flagging of non-market conditions that may be inappropriate as unconditional funding conditions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

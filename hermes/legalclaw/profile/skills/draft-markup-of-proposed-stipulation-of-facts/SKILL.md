@@ -2,7 +2,6 @@
 name: draft-markup-of-proposed-stipulation-of-facts
 description: "Redlining a proposed stipulation of facts requires a paragraph-by-paragraph response that accepts, revises, objects to, or proposes additions to each paragraph based on factual accuracy and strategic impact on the client's legal theory."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

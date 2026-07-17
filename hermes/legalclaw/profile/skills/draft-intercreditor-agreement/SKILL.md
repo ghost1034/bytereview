@@ -2,7 +2,6 @@
 name: draft-intercreditor-agreement
 description: "Drafts an intercreditor agreement from source documents, using bracketed drafting notes for unresolved points and producing a closing issues memo that flags open issues and possible resolutions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

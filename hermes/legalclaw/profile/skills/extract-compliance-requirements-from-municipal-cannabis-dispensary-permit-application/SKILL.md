@@ -2,7 +2,6 @@
 name: extract-compliance-requirements-from-municipal-cannabis-dispensary-permit-application
 description: "Agents extract permit requirements by reconciling the application form against the governing municipal ordinance, identifying sequencing risks from any separate state licensing process, distinguishing scoring criteria from ongoing permit conditions, and checking document-completeness requirements such as bonding documentation and professional certifications."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

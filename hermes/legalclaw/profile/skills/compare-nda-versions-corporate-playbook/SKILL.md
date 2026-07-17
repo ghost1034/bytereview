@@ -2,7 +2,6 @@
 name: compare-nda-versions-corporate-playbook
 description: "Deviation report comparing mutual and unilateral NDA drafts against an internal playbook, with version-by-version redline recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

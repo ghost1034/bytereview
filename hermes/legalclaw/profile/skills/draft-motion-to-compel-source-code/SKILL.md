@@ -2,7 +2,6 @@
 name: draft-motion-to-compel-source-code
 description: "Motion to compel production of disputed discovery responses involving source code and technical documents in a patent matter, with a supporting memorandum, counsel declaration, and proposed protective order."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

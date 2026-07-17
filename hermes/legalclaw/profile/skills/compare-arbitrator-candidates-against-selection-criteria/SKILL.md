@@ -2,7 +2,6 @@
 name: compare-arbitrator-candidates-against-selection-criteria
 description: "Ensures candidate evaluation applies conflict-screening guidance rigorously, surfaces availability and prejudgment concerns, and produces a weighted ranking with explicit threshold screening."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

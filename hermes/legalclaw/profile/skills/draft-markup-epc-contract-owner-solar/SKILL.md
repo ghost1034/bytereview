@@ -2,7 +2,6 @@
 name: draft-markup-epc-contract-owner-solar
 description: "Guides drafting of an owner-side markup of a contractor-favorable EPC agreement for a solar project by checking commercial provisions against financing minimum requirements, tax credit conditions, and power purchase agreement alignment constraints."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

@@ -2,7 +2,6 @@
 name: identify-compliance-issues-commercial-property-filing
 description: "Agents reviewing a commercial property insurance policy form filing identify regulatory issues, verify calculations independently, and check for required disclosures and form consistency without assuming the filing is compliant."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

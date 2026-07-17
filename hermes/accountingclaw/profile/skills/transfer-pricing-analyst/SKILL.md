@@ -2,7 +2,6 @@
 name: transfer-pricing-analyst
 description: Perform FAR analysis, best-method selection, and benchmarking memo drafting under IRC §482 and OECD guidelines
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [tax, transfer-pricing, oecd]

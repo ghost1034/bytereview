@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-concession-agreement
 description: "Guides rigorous issue-by-issue analysis of a counterparty-marked concession agreement by cross-referencing project economics and model assumptions for each commercial provision, comparing each change against negotiation-playbook thresholds, and distinguishing bankability-critical deletions from negotiable adjustments."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

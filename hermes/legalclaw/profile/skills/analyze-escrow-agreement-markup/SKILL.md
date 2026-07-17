@@ -2,7 +2,6 @@
 name: analyze-escrow-agreement-markup
 description: "Guides buyer-side review of an escrow agreement markup by cross-referencing the acquisition agreement and internal playbook to identify procedural traps, release-timing mismatches, and conflicts with the agreed deal terms."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: draft-markup-of-indenture
 description: "Purchaser-perspective indenture markup where the baseline redlines obvious economic deviations from the playbook but may miss additional purchaser-protective structural provisions that experienced counsel commonly add."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

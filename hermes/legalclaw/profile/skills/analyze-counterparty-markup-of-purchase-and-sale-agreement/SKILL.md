@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-purchase-and-sale-agreement
 description: "Guides prioritized issue analysis of a seller's counsel markup of a purchase and sale agreement by structuring comparison against the buyer's form, deal economics, and transmittal context to produce actionable memorandum recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

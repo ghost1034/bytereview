@@ -2,7 +2,6 @@
 name: compare-site-assessment-reports-against-applicable-regulatory-cleanup-standards
 description: "Guides acquisition due diligence by comparing site assessment findings against applicable regulatory cleanup standards and evaluating whether the proposed remedial approach and environmental contract provisions adequately address identified risks."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

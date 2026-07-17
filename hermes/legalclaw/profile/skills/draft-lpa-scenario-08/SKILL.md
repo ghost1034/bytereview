@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-08
 description: "Draft a master fund limited partnership agreement with a parallel vehicle structure, anti-corruption provisions using generally applicable international frameworks, aggregate concentration limits across vehicles, and a companion drafting memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

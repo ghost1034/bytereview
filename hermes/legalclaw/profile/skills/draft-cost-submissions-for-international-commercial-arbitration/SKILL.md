@@ -2,7 +2,6 @@
 name: draft-cost-submissions-for-international-commercial-arbitration
 description: "Draft a cost submission for an international commercial arbitration by identifying recoverable cost categories, checking billing entries for likely challenge points, handling any currency-conversion issues consistently, and addressing whether interest or other ancillary costs should be sought."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

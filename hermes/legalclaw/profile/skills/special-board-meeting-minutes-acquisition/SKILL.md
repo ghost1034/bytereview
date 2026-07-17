@@ -2,7 +2,6 @@
 name: special-board-meeting-minutes-acquisition
 description: "Formal board meeting minutes for a special meeting approving an acquisition, financing, and officer appointments, with a governance observations memorandum flagging conflict of interest procedures, quorum calculation, and other procedural concerns."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

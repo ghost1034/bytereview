@@ -2,7 +2,6 @@
 name: hipaa-security-rule-baa-portfolio-impact
 description: "Gap analysis of a business associate agreement portfolio against proposed privacy and security rule updates, identifying deficiencies in encryption, breach notification, patch management, and technical safeguard provisions in individual agreements and across the portfolio."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

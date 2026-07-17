@@ -2,7 +2,6 @@
 name: draft-fcpa-investigation-plan-memorandum
 description: "Investigation plan memorandum for an internal FCPA investigation, covering scope definition, privilege protection, witness interview sequencing, document preservation with targeted IT preservation steps where warranted, voluntary self-disclosure assessment, and immediate remedial steps triggered by red flags in the record."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

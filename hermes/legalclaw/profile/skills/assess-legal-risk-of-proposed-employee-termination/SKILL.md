@@ -2,7 +2,6 @@
 name: assess-legal-risk-of-proposed-employee-termination
 description: "Guides the analyst through a privileged termination risk assessment, integrating protected-activity timeline analysis, burden-shifting frameworks, and pretext vulnerability identification across multiple employment-law theories."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

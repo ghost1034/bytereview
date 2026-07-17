@@ -2,7 +2,6 @@
 name: draft-settlement-statement
 description: "Guides drafting of a commercial property settlement statement with proration schedules and a reconciliation notes memo by integrating the purchase agreement, rent roll, payoff information, and other closing documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

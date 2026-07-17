@@ -2,7 +2,6 @@
 name: compare-fund-term-sheet-side-letter
 description: "Guides deviation analysis between a fund term sheet and an LP side letter, identifying MFN cascade effects, structural impossibilities, capital account distortion risks, and disclosure tension for public-entity LPs."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

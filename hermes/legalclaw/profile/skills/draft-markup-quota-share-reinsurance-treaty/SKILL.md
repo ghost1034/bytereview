@@ -2,7 +2,6 @@
 name: draft-markup-quota-share-reinsurance-treaty
 description: "Agents producing a quota share treaty markup memo identify commission changes, assess the economic significance of retention and profit-participation mechanics, evaluate arbitration substitutions as structural changes, and note any internal approval requirements before accepting below-floor commission terms."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

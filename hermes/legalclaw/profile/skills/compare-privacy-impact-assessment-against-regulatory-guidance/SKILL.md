@@ -2,7 +2,6 @@
 name: compare-privacy-impact-assessment-against-regulatory-guidance
 description: "PIA/DPIA gap analyses fail when the agent uses only one benchmark, omits key elements of the applicable DPIA framework, or skips task-specific scope materials that may shape the memo's priorities."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

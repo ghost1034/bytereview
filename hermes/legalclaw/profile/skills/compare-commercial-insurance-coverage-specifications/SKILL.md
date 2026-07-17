@@ -2,7 +2,6 @@
 name: compare-commercial-insurance-coverage-specifications
 description: "Agents producing a gap analysis memo against coverage specifications should identify shortfalls, explain the business exposure each shortfall can create, and present findings in a severity-prioritized structure without assuming any particular fact pattern."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

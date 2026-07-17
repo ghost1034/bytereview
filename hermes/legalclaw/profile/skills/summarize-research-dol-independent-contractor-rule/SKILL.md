@@ -2,7 +2,6 @@
 name: summarize-research-dol-independent-contractor-rule
 description: "Agents produce a general summary of the federal independent-contractor classification rule for an executive audience, contrasting the current totality-of-the-circumstances framework with any prior simplified approach, identifying worker categories and agreement provisions that may affect classification analysis, and organizing the output so the reader can prioritize further review and remediation by worker type."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

@@ -2,7 +2,6 @@
 name: draft-reduction-in-force-selection-memorandum
 description: "Guides the drafter in producing a privileged attorney-client memorandum on reduction-in-force selection criteria and legal risk analysis, including facility-level notice analysis, disparate-impact review, selection criteria documentation, and review of internal communications for risk indicators."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

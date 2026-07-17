@@ -2,7 +2,6 @@
 name: batch-nda-generation-multi-party
 description: "Generation of a batch of individualized NDAs from a master template, with counterparty-specific modifications for entity type, directionality, governing law, and existing agreement conflicts, accompanied by a cover memorandum flagging all issues at a categorical level."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

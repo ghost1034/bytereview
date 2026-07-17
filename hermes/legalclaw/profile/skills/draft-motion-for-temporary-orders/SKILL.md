@@ -2,7 +2,6 @@
 name: draft-motion-for-temporary-orders
 description: "Drafting a motion for temporary orders in a high-conflict divorce requires integrating child custody, spousal support, and asset-restraining provisions into a single filing, supported by a client declaration with financial documentation and a proposed order that conforms to any applicable standing orders and local rules."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

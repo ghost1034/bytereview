@@ -2,7 +2,6 @@
 name: analyze-restrictive-covenant-six-agreements
 description: "Jurisdiction-by-jurisdiction memorandum analyzing restrictive covenants in multiple employment agreements in connection with a planned acquisition-related transaction."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

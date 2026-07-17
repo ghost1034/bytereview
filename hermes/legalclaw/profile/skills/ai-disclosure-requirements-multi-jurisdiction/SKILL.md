@@ -2,7 +2,6 @@
 name: ai-disclosure-requirements-multi-jurisdiction
 description: "Multi-jurisdiction comparison of AI disclosure requirements across deployment jurisdictions, identifying misclassifications in prior analyses, consent-versus-disclosure distinctions, and a prioritized remediation roadmap mapped to law effective dates."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

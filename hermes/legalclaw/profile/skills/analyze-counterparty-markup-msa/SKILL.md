@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-msa
 description: "Systematic deviation analysis of a vendor-redlined master services agreement against the company template and contracting playbook, with risk classifications and counter-positions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

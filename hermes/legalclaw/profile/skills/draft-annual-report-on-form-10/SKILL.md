@@ -2,7 +2,6 @@
 name: draft-annual-report-on-form-10
 description: "Form 10-K drafting task with a companion issues memo required, where the baseline drafts narrative from individual source documents without reconciling cross-document discrepancies or flagging open items for company input."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

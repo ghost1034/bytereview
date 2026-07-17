@@ -2,7 +2,6 @@
 name: analyze-reasonable-accommodation-request-under-ada-requirements
 description: "Guides the analyst through a workplace accommodation memorandum covering disability qualification, procedural timeline compliance, and accommodation-by-accommodation reasonableness analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

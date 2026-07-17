@@ -2,7 +2,6 @@
 name: draft-stock-purchase-agreement-insurance-company
 description: "Agents drafting a stock purchase agreement for a property and casualty insurer acquisition should use insurance-specific provisions addressing reserve indemnity escrow timing, defined-benefit pension obligations, reinsurance commutation fallbacks, and intercompany services transition terms."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

@@ -2,7 +2,6 @@
 name: draft-code-of-ethics-for-registered-investment-adviser
 description: "Draft an adoption-ready code of ethics for a registered investment adviser under the applicable adviser ethics rule and prepare a cover memo summarizing key changes, flagging urgent compliance issues, and listing open items requiring firm decision."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

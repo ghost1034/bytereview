@@ -2,7 +2,6 @@
 name: draft-regulatory-impact-assessment-memorandum
 description: "Agents summarize a proposed rule's provisions for a holding company and assess facility-level performance, data infrastructure implications, multi-regulator coordination, emerging community development qualification issues, and differential impacts across market types."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

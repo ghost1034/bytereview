@@ -2,7 +2,6 @@
 name: extract-privacy-compliance-obligations-from-multi
 description: "Multi-jurisdictional compliance obligation matrices for health-tech platforms fail when the agent does not assess each statute's applicability to the company's current and planned data architecture and does not use prior incidents as evidence of existing compliance gaps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

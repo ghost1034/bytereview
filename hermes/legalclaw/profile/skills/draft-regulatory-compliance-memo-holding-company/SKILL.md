@@ -2,7 +2,6 @@
 name: draft-regulatory-compliance-memo-holding-company
 description: "Agents drafting a regulatory compliance memorandum for an insurance holding company system analyze affiliated transactions in isolation as well as in combination, identify filing and approval issues across all potentially affected jurisdictions, verify any internal compliance conclusions against the underlying calculations, and assess premium-to-surplus and related capital adequacy concerns."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

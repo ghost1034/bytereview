@@ -2,7 +2,6 @@
 name: compare-offering-memorandum-against-indenture
 description: "Comparing an offering memorandum against the governing transaction document to identify discrepancies where investor-facing descriptions of structural terms diverge from the operative legal document, including internal offering memorandum inconsistencies and omissions that may be material to investors even when not framed as a discrepancy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

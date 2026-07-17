@@ -2,7 +2,6 @@
 name: hls-identify-medicare-enrollment-issues
 description: "Reviews a Medicare enrollment application package for compliance deficiencies by checking disclosure completeness, authority of signatories, accuracy of status certifications, lease and compensation arrangements, screening of required individuals, accreditation assertions, and consistency across related application materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

@@ -2,7 +2,6 @@
 name: assess-breach-notification-obligations-across-affected-jurisdictions
 description: "Multi-jurisdiction breach notification memos fail when the agent applies only federal frameworks and omits state-by-state notification deadlines, business-associate reporting chains, and cyber-insurance reporting obligations that may be triggered by the same incident."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

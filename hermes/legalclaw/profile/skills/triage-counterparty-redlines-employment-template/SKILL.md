@@ -2,7 +2,6 @@
 name: triage-counterparty-redlines-employment-template
 description: "Triaging a counterparty's redline against the company template and playbook, with attention to silent changes and inconsistencies with the cover email's representations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: identify-issues-in-compliance-certificate
 description: "Reviews a compliance certificate against the governing credit documentation and financial data, independently recalculates covenant metrics, and identifies errors, omissions, and resulting defaults or notice issues with procedural next-step recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

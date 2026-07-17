@@ -2,7 +2,6 @@
 name: identify-issues-ip-ownership-opinion-letter
 description: "Reviewing a draft IP ownership opinion letter against supporting portfolio, transaction, and government grant materials to identify deficiencies in the opinion's factual basis and legal conclusions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: post-series-a-delaware-bylaws
 description: "Execution-ready bylaws for a Delaware corporation following a financing, incorporating board composition from transaction documents, mandatory indemnification and advancement provisions, exclusive forum clauses, and a structured amendment regime, with a cover memo flagging cross-document discrepancies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

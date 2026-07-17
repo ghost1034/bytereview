@@ -2,7 +2,6 @@
 name: proxy-statement-sec-compliance-gap-analysis
 description: "Proxy statement compliance gap analysis identifying deficiencies in compensation disclosures, related-person disclosures, beneficial ownership disclosures, governance disclosures, equity-compensation reporting, insider-trading policy disclosures, and fee disclosures against applicable SEC regulatory requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

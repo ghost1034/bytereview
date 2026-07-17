@@ -2,7 +2,6 @@
 name: draft-notice-of-arbitration-scenario-01
 description: "Ensures a notice of arbitration identifies the parties, describes the dispute and relief sought, addresses any contractual liability cap in a neutral way, references the filing fee, and uses documented prior knowledge and settlement history as factual context where relevant."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

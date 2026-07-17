@@ -2,7 +2,6 @@
 name: draft-disclosure-schedule-preparation
 description: "Guides preparation of a complete disclosure schedule package keyed to the acquisition agreement, with a master table of contents, individual schedules for each representation, and an Outstanding Items Memo tracking pre-closing actions including IP chain-of-title gaps, regulatory notice requirements, and open-source copyleft issues."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

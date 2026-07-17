@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-intercreditor-agreement-wind
 description: "Guides systematic benchmarking of a counterparty's intercreditor agreement markup against market precedent data, with analysis of economic and control impacts and identification of provisions whose combined effect is materially more adverse than any individual change."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

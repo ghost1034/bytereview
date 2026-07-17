@@ -2,7 +2,6 @@
 name: draft-marital-settlement-agreement
 description: "Drafting a marital settlement agreement from a mediated term sheet requires reconciling inconsistencies across supporting financial information, valuation materials, and account records, while addressing the substantive terms of property division, support, custody, taxes, enforcement mechanisms, and any companion issues memorandum in an integrated agreement."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

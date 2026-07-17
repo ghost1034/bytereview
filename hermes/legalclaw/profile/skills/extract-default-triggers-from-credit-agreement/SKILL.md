@@ -2,7 +2,6 @@
 name: extract-default-triggers-from-credit-agreement
 description: "Extract default triggers from a credit agreement and related amendments, cross-reference them against deal materials and compliance data, and produce a structured risk report with next steps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

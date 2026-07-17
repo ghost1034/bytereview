@@ -2,7 +2,6 @@
 name: extract-conditions-from-zoning-approval
 description: "Guides construction of a compliance tracking matrix from a conditional use approval by systematically extracting each condition, cross-referencing against supporting materials for inconsistencies, and flagging critical-path and binary-approval risks."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

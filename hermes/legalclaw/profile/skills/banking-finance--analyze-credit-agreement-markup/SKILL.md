@@ -2,7 +2,6 @@
 name: banking-finance--analyze-credit-agreement-markup
 description: "Produces a change analysis memo comparing a borrower-marked credit agreement against the prior draft and any governing commitment materials, with issue-by-issue risk classification and procedural recommendations on each deviation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

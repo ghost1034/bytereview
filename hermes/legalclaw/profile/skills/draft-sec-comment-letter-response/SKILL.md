@@ -2,7 +2,6 @@
 name: draft-sec-comment-letter-response
 description: "SEC comment letter response drafting where the baseline addresses each comment narratively but omits the standard representation, draft-ready proposed disclosure language, and the privileged internal strategy memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

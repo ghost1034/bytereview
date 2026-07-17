@@ -2,7 +2,6 @@
 name: compare-leniency-programs-across-three-jurisdictions
 description: "Closes gaps in cross-jurisdictional leniency comparison including limitations analysis, sequential-cooperation mechanics, individual applicant strategy, and sequencing recommendations for a board-ready memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

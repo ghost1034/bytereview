@@ -2,7 +2,6 @@
 name: draft-disclosure-schedules
 description: "Guides drafting of disclosure schedules to an asset purchase agreement using cover-page conventions, an over-disclosure approach, time-sensitive deadline flagging, employment-law risk disclosure, and accurate tax filing-status disclosures."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

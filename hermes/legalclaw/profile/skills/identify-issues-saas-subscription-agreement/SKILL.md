@@ -2,7 +2,6 @@
 name: identify-issues-saas-subscription-agreement
 description: "Reviewing a SaaS subscription agreement package from the customer\u2019s perspective, cross-referencing related technical, privacy, and commercial documents, and internal correspondence, to identify risk allocation and compliance gaps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

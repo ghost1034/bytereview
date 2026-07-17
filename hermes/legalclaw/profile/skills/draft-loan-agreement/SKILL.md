@@ -2,7 +2,6 @@
 name: draft-loan-agreement
 description: "Guides drafting of a construction-to-mini-perm loan agreement by reconciling economic terms across source materials and producing both the loan agreement and a cover memo flagging material inconsistencies with proposed resolutions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

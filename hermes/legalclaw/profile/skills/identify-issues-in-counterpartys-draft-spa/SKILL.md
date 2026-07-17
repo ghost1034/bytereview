@@ -2,7 +2,6 @@
 name: identify-issues-in-counterpartys-draft-spa
 description: "Guides preparation of a buyer-side issues memorandum identifying material deficiencies and risks in a seller-drafted stock purchase agreement, cross-referenced against diligence materials and deal documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

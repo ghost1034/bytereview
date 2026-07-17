@@ -2,7 +2,6 @@
 name: review-update-employment-agreement-template-state-regs
 description: "Reviewing an executive employment agreement template against a new state workplace fairness statute to produce a compliance memo and a redlined updated template."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

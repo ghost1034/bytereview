@@ -2,7 +2,6 @@
 name: extract-filing-dates-patent-schedule
 description: "Reconciling patent portfolio filing dates and status across multiple diligence sources for a transactional patent schedule, requiring priority-chain verification, discrepancy flagging, and maintenance-fee risk assessment at a category level."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

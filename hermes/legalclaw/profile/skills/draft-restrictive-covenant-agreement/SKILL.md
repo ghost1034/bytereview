@@ -2,7 +2,6 @@
 name: draft-restrictive-covenant-agreement
 description: "Guides drafting of a post-closing restrictive covenant agreement and accompanying memorandum where cumulative restriction duration, choice-of-law tensions, and garden leave mechanics require enforceability analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

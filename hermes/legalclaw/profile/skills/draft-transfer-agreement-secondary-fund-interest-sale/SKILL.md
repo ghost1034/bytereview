@@ -2,7 +2,6 @@
 name: draft-transfer-agreement-secondary-fund-interest-sale
 description: "Draft a seller-protective transfer agreement for a secondary market sale of a fund interest, incorporating protections and closing mechanics drawn from the governing fund documents, related side letters, consent materials, and capital account records."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

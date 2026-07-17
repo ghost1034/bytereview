@@ -2,7 +2,6 @@
 name: compare-closing-documents-against-restructuring-conditions
 description: "Reviews restructuring closing documents against closing conditions from the relevant restructuring support and related transaction documents from an ad hoc lender\u2019s perspective, flagging discrepancies with severity calibration and recommended remedial actions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

@@ -2,7 +2,6 @@
 name: compare-closing-documents-against-conditions-precedent
 description: "Verify closing documents against the applicable conditions-precedent framework and produce a severity-organized gap memorandum with remediation steps for each deficiency."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

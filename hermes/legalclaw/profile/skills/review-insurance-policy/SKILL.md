@@ -2,7 +2,6 @@
 name: review-insurance-policy
 description: "Guides gap analysis of a construction project's insurance program against the governing financing documents by reviewing each policy line by line against the applicable insurance requirements and the project's risk profile, and flagging material coverage gaps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

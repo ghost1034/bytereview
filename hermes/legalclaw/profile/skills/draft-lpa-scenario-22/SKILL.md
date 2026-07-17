@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-22
 description: "Draft a fund LPA for a sustainable agriculture impact fund using a precedent template and investor-facing materials, with attention to measurable impact provisions, defined exclusions, service-provider designations, and bracketed notes for unresolved drafting points."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

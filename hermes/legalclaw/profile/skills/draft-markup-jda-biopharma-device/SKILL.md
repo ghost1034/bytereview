@@ -2,7 +2,6 @@
 name: draft-markup-jda-biopharma-device
 description: "Combined issue log, redline commentary, and strategic cover memo for a joint development agreement in a biopharma-device collaboration, evaluated against client instructions, IP schedule, licensing policy, and prior deal terms."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

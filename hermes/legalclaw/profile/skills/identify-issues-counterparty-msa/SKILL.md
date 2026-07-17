@@ -2,7 +2,6 @@
 name: identify-issues-counterparty-msa
 description: "Reviewing a counterparty-form master services agreement against a contracting playbook and deal materials to produce a redline recommendation memo with prioritized risk ratings."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: compare-closing-documents-against-closing-checklist
 description: "Checklist-driven closing review where the baseline misses document-level defects such as mismatched parties, stale certificates, identifier mismatches, and similar defects, and fails to produce a severity-tiered remediation plan."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

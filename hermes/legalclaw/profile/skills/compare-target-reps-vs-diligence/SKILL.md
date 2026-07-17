@@ -2,7 +2,6 @@
 name: compare-target-reps-vs-diligence
 description: "Guides cross-referencing transaction representations and disclosure materials against diligence findings, mapping each material discrepancy to the implicated provision, assessing financial and risk impact, and identifying appropriate protective drafting or process responses."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

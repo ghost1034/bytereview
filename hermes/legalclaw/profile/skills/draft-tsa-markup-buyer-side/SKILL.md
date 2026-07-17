@@ -2,7 +2,6 @@
 name: draft-tsa-markup-buyer-side
 description: "Guides buyer-side redline of a seller-drafted transition services agreement by applying the buyer\u2019s playbook, the signed acquisition agreement, and supporting cost data to produce a fully annotated markup, including proposed additions where the draft is silent."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: draft-markup-of-executive-employment-agreement
 description: "Guides the drafter in producing a section-by-section redlined markup of an executive employment agreement anchored to the approved term sheet, internal compensation guidance, and applicable regulatory requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

@@ -2,7 +2,6 @@
 name: identify-issues-in-state-environmental-compliance-order
 description: "Guides preparation of a defense memorandum for a state environmental compliance order by assessing each alleged violation against facility permit records, audit findings, inspection documentation, and monitoring data."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

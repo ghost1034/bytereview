@@ -2,7 +2,6 @@
 name: review-corporate-insider-trading-policy-for-compliance-gaps
 description: "Insider trading policy compliance review focused on identifying gaps in a corporate policy against the applicable insider trading rule set and related public-disclosure obligations, without assuming the baseline analysis is complete."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

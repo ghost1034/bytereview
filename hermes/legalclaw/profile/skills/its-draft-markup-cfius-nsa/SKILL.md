@@ -2,7 +2,6 @@
 name: its-draft-markup-cfius-nsa
 description: "Produces a redline markup memorandum for a CFIUS national security agreement that narrows overbroad provisions, proposes sunset mechanisms for indefinite monitoring obligations, addresses foreign-investment nexus separation requirements, and harmonizes the agreement with overlapping industrial-security mitigation obligations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

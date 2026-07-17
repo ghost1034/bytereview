@@ -2,7 +2,6 @@
 name: draft-internal-controls-policy
 description: "ICFR policy drafting from multiple source documents identifying distinct weaknesses, requiring a COSO-mapped policy that remediates each weakness and includes an implementation timeline."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

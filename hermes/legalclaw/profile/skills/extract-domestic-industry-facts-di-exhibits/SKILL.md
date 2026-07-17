@@ -2,7 +2,6 @@
 name: extract-domestic-industry-facts-di-exhibits
 description: "Extract and organize domestic industry facts from evidentiary exhibits for an opposition brief, with arithmetic checks, evidentiary-gap assessment, and patent-specific technical-prong risk analysis tied to the asserted domestic-industry theory."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

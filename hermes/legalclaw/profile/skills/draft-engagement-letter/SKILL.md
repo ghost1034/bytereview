@@ -2,7 +2,6 @@
 name: draft-engagement-letter
 description: "Guides drafting of a customized engagement letter from intake materials and a firm template, requiring precise party identification, matter-specific scope with explicit exclusions, and a companion cover memo flagging source-document conflicts and open items."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

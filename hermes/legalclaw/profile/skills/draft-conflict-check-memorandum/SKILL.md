@@ -2,7 +2,6 @@
 name: draft-conflict-check-memorandum
 description: "A conflict check memo for a new litigation engagement must analyze concurrent and former-client conflicts under the applicable professional-conduct rules, assess imputation across the firm, evaluate the adequacy of any advance waivers, and recommend appropriate clearance steps or screening protocols."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

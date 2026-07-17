@@ -2,7 +2,6 @@
 name: draft-vendor-due-diligence-memorandum
 description: "Guides preparation of a vendor due diligence memorandum for a procurement committee where contractual, security, compliance, and reference findings must be synthesized into a structured recommendation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

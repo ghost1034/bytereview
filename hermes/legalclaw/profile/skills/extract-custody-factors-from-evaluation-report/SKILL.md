@@ -2,7 +2,6 @@
 name: extract-custody-factors-from-evaluation-report
 description: "Closes the gap where agents summarize a custody evaluation report without applying the governing best-interest factors, cross-referencing supporting documents against the evaluator's methodology, and providing litigation strategy recommendations for each identified gap or inconsistency."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

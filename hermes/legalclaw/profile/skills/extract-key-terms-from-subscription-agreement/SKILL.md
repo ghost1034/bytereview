@@ -2,7 +2,6 @@
 name: extract-key-terms-from-subscription-agreement
 description: "Extract and cross-reference key terms from subscription documents and a related summary into a standardized term extraction report, flagging inconsistencies across documents and capturing the operative language and regulatory characterization required for each investor representation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

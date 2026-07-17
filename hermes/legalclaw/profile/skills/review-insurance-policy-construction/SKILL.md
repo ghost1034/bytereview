@@ -2,7 +2,6 @@
 name: review-insurance-policy-construction
 description: "Agents reviewing construction project insurance policies against lender requirements should identify coverage gaps, classify each issue by severity, compare policy terms to lender expectations, and propose specific remediation steps where needed."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

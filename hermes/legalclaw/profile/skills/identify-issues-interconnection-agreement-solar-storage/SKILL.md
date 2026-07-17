@@ -2,7 +2,6 @@
 name: identify-issues-interconnection-agreement-solar-storage
 description: "Guides issue identification in a large generator interconnection agreement by cross-referencing costs against the relevant study, comparing technical requirements against the generator's specifications, and flagging non-standard additions and subjective standards that create open-ended obligations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

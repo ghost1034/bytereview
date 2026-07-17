@@ -2,7 +2,6 @@
 name: triage-service-provider-contracts-for-cpra-compliance-gaps
 description: "CPRA service-provider contract triage requires first classifying each counterparty by its correct legal relationship before assessing contractual adequacy, and using any existing internal gap analysis and enforcement materials as framing inputs that set triage priorities."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

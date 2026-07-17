@@ -2,7 +2,6 @@
 name: identify-issues-in-form-adv-part-2a-brochure
 description: "Review a Form ADV Part 2A brochure against supporting compliance and fund documents and produce a findings memo organized by item number with severity ratings and remediation recommendations for each identified deficiency."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

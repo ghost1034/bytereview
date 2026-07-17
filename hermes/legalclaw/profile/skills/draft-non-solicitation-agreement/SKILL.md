@@ -2,7 +2,6 @@
 name: draft-non-solicitation-agreement
 description: "Guides the drafter in producing a tailored non-solicitation agreement and accompanying drafting memorandum for a new executive hire, accounting for the hire's prior employer obligations and the applicable legal framework."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

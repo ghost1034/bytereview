@@ -2,7 +2,6 @@
 name: extract-beneficiary-designations-from-existing-beneficiary-designation-forms
 description: "Closes the gap where agents list beneficiary designations without tracing contingent and derivative beneficiaries, flagging handwritten amendment validity risks, identifying accounts with no effective designation, and addressing retirement-account distribution implications for non-spouse beneficiaries."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

@@ -2,7 +2,6 @@
 name: analyze-responses-to-ddrl-s01
 description: "Guides cross-verification of seller responses to diligence requests against the underlying document set to identify false or incomplete characterizations, regulatory contradictions, financial inconsistencies, and outstanding information gaps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

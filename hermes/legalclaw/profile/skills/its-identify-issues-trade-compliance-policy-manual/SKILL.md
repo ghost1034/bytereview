@@ -2,7 +2,6 @@
 name: its-identify-issues-trade-compliance-policy-manual
 description: "Produces a gap analysis memorandum for a trade compliance policy manual that identifies substantive regulatory gaps, procedural deficiencies, and governance issues in areas such as deemed export controls, anti-boycott reporting, foreign-produced item analysis, sanctions coverage, product classification, and compliance-function independence."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

@@ -2,7 +2,6 @@
 name: draft-motion-to-dismiss-antitrust-claims
 description: "Draft a Rule 12(b)(6) motion to dismiss antitrust claims by testing plausibility, pleading sufficiency, market definition, agreement allegations, and source discipline at the motion-to-dismiss stage."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

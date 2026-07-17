@@ -2,7 +2,6 @@
 name: draft-antitrust-competition-pre-notification
 description: "Supports pre-notification briefing papers for cross-border merger control by structuring multi-jurisdiction filing analysis, vertical foreclosure review, gun-jumping risk screening, and privilege-aware document handling."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

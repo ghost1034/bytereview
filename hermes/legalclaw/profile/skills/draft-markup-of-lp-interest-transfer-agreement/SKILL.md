@@ -2,7 +2,6 @@
 name: draft-markup-of-lp-interest-transfer-agreement
 description: "Redline a buyer\u2019s draft limited partner interest transfer agreement from the seller\u2019s perspective, converting a buyer-favorable draft into a seller-protective document by adding closing conditions, tax provisions, and other transfer protections identified by reviewing the governing partnership agreement, related side arrangements, financing terms, and capital account information."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

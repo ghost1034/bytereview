@@ -2,7 +2,6 @@
 name: synthesize-disclosure-schedules-against-acquisition-agreement
 description: "Guides preparation of a buyer-side gap analysis memorandum cross-referencing updated disclosure schedules against an acquisition agreement\u2019s representations and warranties using supporting diligence materials to identify completeness gaps and disclosure concerns."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

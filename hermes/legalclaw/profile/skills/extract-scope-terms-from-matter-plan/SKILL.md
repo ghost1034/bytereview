@@ -2,7 +2,6 @@
 name: extract-scope-terms-from-matter-plan
 description: "Extracting scope terms from engagement materials requires identifying scope-defining provisions across the relevant engagement materials, then flagging any inter-document inconsistencies that create ambiguity about what work is authorized."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

@@ -2,7 +2,6 @@
 name: draft-prenuptial-agreement
 description: "Closes the framing gap where agents produce generic prenuptial agreements without reconciling conflicting source documents, defining a jurisdiction-appropriate business appreciation methodology, and resolving structural interaction risks between spousal support provisions and career-interruption credits."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

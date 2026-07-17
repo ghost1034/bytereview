@@ -2,7 +2,6 @@
 name: identify-pe-target-contract-issues
 description: "Guides preparation of a comprehensive issues memo for a target contract review in a private-equity acquisition where a heterogeneous contract set spanning commercial agreements, leases, employment, and licenses must be assessed for material risks."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

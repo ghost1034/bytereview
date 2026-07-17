@@ -2,7 +2,6 @@
 name: review-annual-report-filing-for-form-compliance
 description: "Form 10-K compliance review where the baseline catches missing narrative sections but misses required items and exhibits introduced by later rule changes, and does not apply the correct filing deadline calculation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

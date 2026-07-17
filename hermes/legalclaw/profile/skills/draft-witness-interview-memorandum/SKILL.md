@@ -2,7 +2,6 @@
 name: draft-witness-interview-memorandum
 description: "Agents produce structurally complete interview memos that omit required formal identification elements, fail to develop the legal significance of the witness's own statements on key investigative theories, and miss the documentation conventions required for privilege preservation in internal investigations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

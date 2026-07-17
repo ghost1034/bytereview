@@ -2,7 +2,6 @@
 name: extract-issuer-financial-statements-scenario-01
 description: "Financial statement extraction for a debt offering where the baseline extracts individual line items but does not cross-reference them against the offering materials and financing documents to surface discrepancies and required disclosure enhancements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

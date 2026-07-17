@@ -2,7 +2,6 @@
 name: draft-markup-of-restrictive-covenant-agreement
 description: "Guides preparation of a section-by-section restrictive covenant agreement markup memo and negotiation priority matrix, requiring analysis of customer non-solicitation scope, passive investment carve-outs, enforceability under the selected governing law, and carve-outs for board or community service where relevant."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

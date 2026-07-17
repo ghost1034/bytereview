@@ -2,7 +2,6 @@
 name: draft-interconnection-application-hybrid-solar-storage
 description: "Guides completion of a large generator interconnection application for a hybrid solar-plus-storage facility by populating required fields from source documents, flagging regulatory, site-control, technical, and credit-support issues in an internal issues memo, and analyzing available interconnection service options."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

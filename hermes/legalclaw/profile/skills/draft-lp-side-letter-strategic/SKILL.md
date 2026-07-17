@@ -2,7 +2,6 @@
 name: draft-lp-side-letter-strategic
 description: "Guides drafting of a private equity fund side letter for a strategic limited partner, with each negotiated provision cross-checked against the fund\u2019s governing agreement for conflicts, authority limits, and interactions with other investor rights."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: draft-side-letter-mfns
 description: "Draft side letters for multiple investors at a fund closing, produce a campaign summary memo with MFN cascade analysis, and prepare an MFN disclosure schedule. The task requires distinguishing MFN-eligible provisions from carved-out provisions and resolving investor-specific issues using the governing side-letter policy and the fund\u2019s operating documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

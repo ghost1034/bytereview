@@ -2,7 +2,6 @@
 name: compare-merger-filing-requirements-jurisdictions
 description: "Guides a multi-jurisdictional merger control filing analysis by identifying the applicable filing thresholds, governing authority or regulatory framework, timing considerations, and substantive competition issues on a jurisdiction-by-jurisdiction basis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

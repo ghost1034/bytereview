@@ -2,7 +2,6 @@
 name: ecvc-draft-ip-assignment-agreement
 description: "An omnibus IP assignment for an early-stage financing should address open-source contamination risks, employee-invention assignment carve-outs, federally funded invention obligations, and prior-employer overlap risks \u2014 not just enumerate the categories of assigned IP."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

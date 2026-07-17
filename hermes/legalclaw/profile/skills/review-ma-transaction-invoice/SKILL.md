@@ -2,7 +2,6 @@
 name: review-ma-transaction-invoice
 description: "Guides preparation of a billing deviation report identifying deviations between an M&A outside counsel invoice and the applicable fee arrangement, including invoice review, issue categorization, and dollar-impact quantification."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

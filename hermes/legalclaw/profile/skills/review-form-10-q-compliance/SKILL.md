@@ -2,7 +2,6 @@
 name: review-form-10-q-compliance
 description: "Form 10-Q compliance review where the baseline catches missing narrative sections but misses required financial statement components, disclosure deficiencies in transaction-specific notes, and the controls effectiveness conclusion requirement."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

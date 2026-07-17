@@ -2,7 +2,6 @@
 name: extract-reporting-obligations-from-advisory-agreement
 description: "Extract all reporting obligations from an investment advisory agreement and companion documents into a consolidated reporting obligation matrix, and identify structural and compliance issues including sequencing dependencies, deadline ambiguities, and gaps between the adviser's ongoing obligations and the agreement's periodic reporting cadence."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

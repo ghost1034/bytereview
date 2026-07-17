@@ -2,7 +2,6 @@
 name: ecvc-draft-merger-agreement
 description: "Drafting a merger agreement requires structuring the merger form, allocating assignment and consent risk, addressing any required governmental or third-party approvals, drafting earnout protections if applicable, handling warrant notice obligations if applicable, and using a market-standard material adverse effect definition and remedies structure."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

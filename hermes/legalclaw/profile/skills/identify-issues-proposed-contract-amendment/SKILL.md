@@ -2,7 +2,6 @@
 name: identify-issues-proposed-contract-amendment
 description: "Reviewing a proposed contract amendment against the operative agreement, prior amendments, and internal guidance to identify conflicts, unintended consequences, and missing provisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

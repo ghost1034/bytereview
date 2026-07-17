@@ -2,7 +2,6 @@
 name: draft-settlement-agreement
 description: "Guides the drafter in producing an execution-ready employment discrimination settlement agreement with compliant tax allocation, statutory waiver provisions where applicable, and a cover memo addressing key drafting decisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

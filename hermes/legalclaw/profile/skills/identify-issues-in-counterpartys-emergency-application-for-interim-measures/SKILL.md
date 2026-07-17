@@ -2,7 +2,6 @@
 name: identify-issues-in-counterpartys-emergency-application-for-interim-measures
 description: "Helps a respondent analyze an emergency interim measures application by checking financial assertions against source materials, testing proportionality, and assessing irreparable harm, urgency, and procedural requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

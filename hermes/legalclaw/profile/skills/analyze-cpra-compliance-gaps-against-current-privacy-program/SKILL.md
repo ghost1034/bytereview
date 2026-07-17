@@ -2,7 +2,6 @@
 name: analyze-cpra-compliance-gaps-against-current-privacy-program
 description: "Gap analyses can fail when the agent treats privacy disclosures in isolation, misclassifies third-party data disclosures, omits sensitive-data limitation rights, or fails to reconcile policy statements against the actual processing inventory and vendor arrangements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

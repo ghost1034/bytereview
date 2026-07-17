@@ -2,7 +2,6 @@
 name: analyze-term-sheet-markup-s01
 description: "Guides buyer-side analysis of a seller's term sheet markup by checking calculations, assessing deleted representations against representation-and-warranty insurance coverage, and evaluating non-market operational covenants before the negotiation session."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: draft-buyer-favorable-spa
 description: "Guides drafting of a buyer-favorable stock purchase agreement from transaction materials, with an accompanying issues memorandum identifying material concerns encountered during drafting."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

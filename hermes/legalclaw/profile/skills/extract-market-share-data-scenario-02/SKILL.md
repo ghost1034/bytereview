@@ -2,7 +2,6 @@
 name: extract-market-share-data-scenario-02
 description: "Closes gaps in per-source revenue accuracy, sub-segment HHI computation, hot-document obligations, and explicit characterization of self-serving internal materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

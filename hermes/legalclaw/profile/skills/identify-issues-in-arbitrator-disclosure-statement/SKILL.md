@@ -2,7 +2,6 @@
 name: identify-issues-in-arbitrator-disclosure-statement
 description: "Ensures an arbitrator disclosure issues memo analyzes income concentration and win-rate patterns quantitatively, identifies undisclosed co-panelist or other relationship issues using external sources where appropriate, and flags challenge timing as urgent where applicable."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

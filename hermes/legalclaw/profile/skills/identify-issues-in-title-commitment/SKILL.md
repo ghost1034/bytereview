@@ -2,7 +2,6 @@
 name: identify-issues-in-title-commitment
 description: "Guides identification and severity-ranked analysis of title commitment issues for a land acquisition by comparing the title commitment against the survey, purchase agreement requirements, lender requirements, and trust documentation, with curative recommendations for each material issue."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

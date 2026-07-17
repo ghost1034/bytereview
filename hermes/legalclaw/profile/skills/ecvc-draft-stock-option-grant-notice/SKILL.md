@@ -2,7 +2,6 @@
 name: ecvc-draft-stock-option-grant-notice
 description: "Drafting a stock option grant notice requires confirming that the valuation support is current, checking the applicable annual incentive stock option limit for the grantee, addressing fractional share rounding in the vesting schedule, and reviewing attached form agreements for any employment restrictions that may be unenforceable for the grantee's jurisdiction."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

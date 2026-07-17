@@ -2,7 +2,6 @@
 name: draft-tenant-notification-letter
 description: "Guides drafting of a tenant notification letter for an ownership and management transition by integrating closing documents, lease provisions, and renovation plans, while separately identifying legal risks and cross-document discrepancies in a companion advisory memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

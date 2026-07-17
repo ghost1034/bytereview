@@ -2,7 +2,6 @@
 name: draft-psa-subprime-auto
 description: "Drafting a pooling and servicing agreement for an auto loan asset-backed securitization by adapting a prior deal precedent to a new structure that introduces changes to the principal waterfall, pre-funding mechanics, interest-rate fallback language, and note class configuration, while identifying and flagging structural conflicts and open items."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

@@ -2,7 +2,6 @@
 name: rnw-lease-renewal
 description: "Guides location-by-location deviation analysis of lease renewal proposals against market comparables, existing lease abstracts, the applicable lease policy framework, and the financial summary, producing a structured deviation report with economic quantification and response options."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

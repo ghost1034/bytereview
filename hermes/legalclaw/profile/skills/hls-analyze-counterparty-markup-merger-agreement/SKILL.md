@@ -2,7 +2,6 @@
 name: hls-analyze-counterparty-markup-merger-agreement
 description: "Reviews a counterparty's redline of a merger agreement against the initial draft and related deal materials to identify compounded risk interactions, representation issues, and asymmetric risk allocation with term-sheet deviation analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

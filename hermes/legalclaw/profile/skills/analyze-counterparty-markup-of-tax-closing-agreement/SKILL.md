@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-tax-closing-agreement
 description: "Analyzing a counter-markup of a tax closing agreement requires side-by-side comparison of every changed term, quantification of incremental exposure where possible, and review of scope and penalty language for legal defects \u2014 not merely a narrative summary of differences."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

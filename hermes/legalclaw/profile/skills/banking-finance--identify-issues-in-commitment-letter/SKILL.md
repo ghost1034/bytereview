@@ -2,7 +2,6 @@
 name: banking-finance--identify-issues-in-commitment-letter
 description: "Reviews a commitment letter package from the sponsor's perspective against the acquisition documentation and related engagement materials, and produces a prioritized issues memo identifying funding condition and flex risks."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

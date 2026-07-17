@@ -2,7 +2,6 @@
 name: hls-draft-response-to-cid
 description: "Drafts a comprehensive Civil Investigative Demand response with objections, interrogatory answers, and a privilege log, plus a privileged internal strategy memo analyzing preservation issues, potential whistleblower-related exposure, personal self-incrimination issues, and voluntary disclosure options."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

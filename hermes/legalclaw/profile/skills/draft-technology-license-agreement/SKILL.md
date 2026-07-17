@@ -2,7 +2,6 @@
 name: draft-technology-license-agreement
 description: "Draft a technology license agreement for a complex IP platform from a term sheet and supporting diligence materials, reconciling it with any pre-existing agreements and producing a structured cover memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

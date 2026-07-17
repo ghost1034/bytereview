@@ -2,7 +2,6 @@
 name: identify-prior-art-deficiencies-patent-defense
 description: "Reviewing invalidity contentions in a patent infringement defense to identify weaknesses in the prior art analysis and strategic gaps in the invalidity defense, using claim-by-claim comparison, reference-date checking, and analysis of obviousness support."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

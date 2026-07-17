@@ -2,7 +2,6 @@
 name: review-patent-complaint-defense-issues
 description: "Reviewing a patent and related IP infringement complaint from the defense perspective to identify issues, assess severity, and develop responsive strategies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

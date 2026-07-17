@@ -2,7 +2,6 @@
 name: draft-coverage-opinion-letter-cgl-toxic-tort
 description: "Agents drafting a CGL coverage opinion letter for a toxic tort claim should begin with the relevant policy terms and claim summary, then analyze the coverage issues methodically, including the duty to defend, reservation of rights, and any independent-counsel considerations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

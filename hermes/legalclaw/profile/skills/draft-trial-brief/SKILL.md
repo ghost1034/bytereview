@@ -2,7 +2,6 @@
 name: draft-trial-brief
 description: "Closes the gap where agents produce generic dissolution trial briefs without applying the governing marital-property framework, resolving competing business valuation methodologies, building a documented dissipation record with burden-shifting analysis, and completing mandatory filing requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

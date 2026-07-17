@@ -2,7 +2,6 @@
 name: compare-arbitration-clause-vs-institutional-rules-compliance-audit
 description: "Ensures a clause-versus-rules compliance audit explains the practical consequences of a frozen rules reference, tests any waiver language against non-waivable challenges under the applicable curial law, and keeps the governing law analysis distinct from the seat analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

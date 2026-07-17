@@ -2,7 +2,6 @@
 name: compare-corporate-tax-positions-against-irs-revenue-rulings
 description: "Assessing corporate tax positions against revenue rulings requires careful attribution of each ruling to the specific position it governs, recomputation of affected credits or deductions, and aggregation of the net exposure across all positions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

@@ -2,7 +2,6 @@
 name: compare-job-requirements-against-candidate-credentials
 description: "Multi-candidate credential gap analysis for immigration compliance where agents assess the job requirements against each candidate\u2019s credentials, separate filing-blocking deficiencies from gaps that may be documented or cured, and produce prioritized corrective actions by candidate."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

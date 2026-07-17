@@ -2,7 +2,6 @@
 name: conform-employment-template-new-jurisdiction
 description: "Conformance memorandum and revised employment agreement template adapting an existing template from one jurisdiction to the mandatory requirements of a new target jurisdiction."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

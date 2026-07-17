@@ -2,7 +2,6 @@
 name: identify-weaknesses-counterparty-sjm-brief
 description: "Reviewing an opposing party's summary judgment motion in a patent dispute to identify legal and factual weaknesses for the opposition brief."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

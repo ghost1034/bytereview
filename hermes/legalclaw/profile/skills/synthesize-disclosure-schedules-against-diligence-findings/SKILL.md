@@ -2,7 +2,6 @@
 name: synthesize-disclosure-schedules-against-diligence-findings
 description: "Guides preparation of a gap analysis memorandum for an acquisition transaction by cross-referencing disclosure schedules against diligence findings and relevant representations to identify omissions, inconsistencies, and disclosure concerns."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

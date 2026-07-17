@@ -2,7 +2,6 @@
 name: draft-fund-ppm
 description: "Draft a private placement memorandum for a fund offering using a prior offering memorandum as a structural template, resolving cross-document inconsistencies and producing a complete, accurate offering document for prospective investors."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

@@ -2,7 +2,6 @@
 name: wage-theft-prevention-act-compliance-timeline
 description: "Board-ready compliance timeline memorandum for a newly enacted state wage theft prevention statute, analyzing worker classification risks, wage notice and pay stub obligations, multilingual posting requirements, and third-party staffing liability"
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

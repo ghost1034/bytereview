@@ -2,7 +2,6 @@
 name: extract-post-closing-obligations
 description: "Guides systematic extraction of post-closing obligations from a stock purchase agreement and related transaction documents into a compliance tracker, with cross-document consistency review."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

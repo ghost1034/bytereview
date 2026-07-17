@@ -2,7 +2,6 @@
 name: draft-workplace-investigation-report
 description: "Guides the drafter in producing a comprehensive independent workplace investigation report that applies structured credibility assessments, synthesizes multi-complainant evidence, and evaluates the employer's harassment-prevention and response framework."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

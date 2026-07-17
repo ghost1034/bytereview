@@ -2,7 +2,6 @@
 name: draft-notice-of-arbitration-scenario-02
 description: "Ensures a notice of arbitration treats service availability and data-loss allegations as distinct claims, states an accurate incident timeline, includes the governing law, and references the filing fee."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

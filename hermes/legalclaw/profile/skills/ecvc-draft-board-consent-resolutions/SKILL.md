@@ -2,7 +2,6 @@
 name: ecvc-draft-board-consent-resolutions
 description: "A board written consent for a preferred stock financing should resolve the financing authorization, address any option plan adjustments and grant approvals, handle convertible instrument conversion mechanics, disclose and manage any interested-director issues, and authorize closing actions and document execution."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

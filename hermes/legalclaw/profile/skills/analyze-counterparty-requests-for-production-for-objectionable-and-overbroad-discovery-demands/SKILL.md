@@ -2,7 +2,6 @@
 name: analyze-counterparty-requests-for-production-for-objectionable-and-overbroad-discovery-demands
 description: "Reviewing incoming requests for production requires evaluating each request against scope-of-discovery principles, applicable case-specific orders, and governing agreements to identify requests that are objectionable as overbroad, unduly burdensome, privileged, or beyond permissible scope."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

@@ -2,7 +2,6 @@
 name: identify-pre-loi-issues-scenario-02
 description: "Guides preparation of a pre-LOI issues memo identifying material risks, information gaps, and inconsistencies that should be resolved or addressed before signing a letter of intent for an environmental services acquisition."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

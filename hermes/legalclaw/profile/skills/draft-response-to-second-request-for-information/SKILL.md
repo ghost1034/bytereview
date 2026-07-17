@@ -2,7 +2,6 @@
 name: draft-response-to-second-request-for-information
 description: "Closes gaps in market-concentration analysis, hot-document identification with mandatory internal-document production, serial-acquisition risk analysis, spoliation assessment, and timing-model review."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

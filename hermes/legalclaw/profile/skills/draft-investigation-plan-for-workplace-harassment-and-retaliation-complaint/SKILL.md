@@ -2,7 +2,6 @@
 name: draft-investigation-plan-for-workplace-harassment-and-retaliation-complaint
 description: "Guides the drafter in preparing a privileged investigation plan memorandum that addresses investigator neutrality, preservation obligations, witness sequencing, prior-complaint review, and privilege considerations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

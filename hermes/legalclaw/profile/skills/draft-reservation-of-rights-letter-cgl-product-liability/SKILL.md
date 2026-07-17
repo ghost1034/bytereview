@@ -2,7 +2,6 @@
 name: draft-reservation-of-rights-letter-cgl-product-liability
 description: "Agents drafting a reservation of rights letter produce a generic document that omits accurate factual recitation, fails to reserve rights on occurrence timing uncertainty, does not acknowledge the applicable notice-prejudice rule where relevant, and lacks a general reservation clause preserving unidentified defenses."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

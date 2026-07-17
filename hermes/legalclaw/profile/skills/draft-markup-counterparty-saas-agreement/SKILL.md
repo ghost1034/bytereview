@@ -2,7 +2,6 @@
 name: draft-markup-counterparty-saas-agreement
 description: "Redlined SaaS agreement and order form with commentary markup and a risk-prioritized commentary memo for a specialized life sciences data platform, evaluated against the company playbook and a security assessment."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

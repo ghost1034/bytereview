@@ -2,7 +2,6 @@
 name: compare-financial-declaration-against-tax-returns
 description: "Comparing a sworn financial declaration against multiple years of tax returns requires source-by-source income reconciliation, correction of improper expense deductions in rental income calculations, and assessment of the legal consequences of material misstatements in sworn filings."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

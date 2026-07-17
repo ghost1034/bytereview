@@ -2,7 +2,6 @@
 name: review-employment-agreement-markup-company-positions
 description: "Reviewing a draft executive employment agreement against a company playbook and agreed deal points to prepare a redline markup memorandum with proposed replacement language."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

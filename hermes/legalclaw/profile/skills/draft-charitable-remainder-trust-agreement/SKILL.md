@@ -2,7 +2,6 @@
 name: draft-charitable-remainder-trust-agreement
 description: "Drafting a charitable remainder unitrust agreement with mixed-asset funding and joint-life income beneficiaries requires the lesser-of/makeup-account mechanics under the applicable charitable remainder trust rules, precise flip-trigger language under the governing regulations, private-foundation excise-tax analysis as extended to charitable remainder trusts, and a qualified appraisal assessment for non-cash contributions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

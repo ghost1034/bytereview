@@ -2,7 +2,6 @@
 name: draft-intercreditor-agreement-first-second-lien
 description: "Draft an intercreditor agreement governing the relationship between first-lien and second-lien lenders, addressing standstill mechanics, automatic lien release scope, adequate protection waivers, refinancing treatment, amendment consent rights, and consistency of defined terms across related financing documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

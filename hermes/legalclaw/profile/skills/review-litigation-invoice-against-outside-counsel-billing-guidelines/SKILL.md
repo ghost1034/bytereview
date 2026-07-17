@@ -2,7 +2,6 @@
 name: review-litigation-invoice-against-outside-counsel-billing-guidelines
 description: "A full invoice compliance review requires comparing each billing entry against applicable outside-counsel billing guidelines and the engagement letter for rate compliance, billing-practice violations, and prior-approval requirements, while cross-referencing the prior approval log to distinguish approved items from unauthorized deviations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

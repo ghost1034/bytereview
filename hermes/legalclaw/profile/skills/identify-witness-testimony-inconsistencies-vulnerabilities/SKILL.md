@@ -2,7 +2,6 @@
 name: identify-witness-testimony-inconsistencies-vulnerabilities
 description: "Impeachment vulnerability memorandum focused on contradictory statements across multiple prior testimony forums, assessing false statement exposure in each forum, and analyzing the impact of inconsistencies on key defenses including good-faith reliance on professional advice."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

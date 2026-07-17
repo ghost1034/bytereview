@@ -2,7 +2,6 @@
 name: review-executive-employment-agreement-playbook
 description: "Reviewing a draft executive employment agreement against a company playbook, equity plan, and negotiation correspondence to produce a deviation report."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

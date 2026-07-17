@@ -2,7 +2,6 @@
 name: draft-comment-letter-on-proposed-npdes-permit
 description: "Guides drafting of a formal public comment letter on a proposed NPDES permit by structuring legal, technical, and scientific objections around the applicable Clean Water Act requirements the permit must satisfy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

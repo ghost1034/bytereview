@@ -2,7 +2,6 @@
 name: extract-key-terms-reinsurance-treaty
 description: "Agents extracting key terms from a reinsurance treaty should capture headline provisions, cross-reference related documents, and check for internal consistency, missing elections, ambiguous formulas, and operational mechanics across the treaty package."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

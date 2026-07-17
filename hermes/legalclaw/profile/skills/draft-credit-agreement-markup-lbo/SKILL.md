@@ -2,7 +2,6 @@
 name: draft-credit-agreement-markup-lbo
 description: "Preparing a borrower-side markup of a financing agreement by comparing each provision against the operative deal documents to identify tightening of economic terms, flexibility baskets, and protective covenants."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

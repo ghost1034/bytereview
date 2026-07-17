@@ -2,7 +2,6 @@
 name: sec-climate-disclosure-gap-analysis
 description: "Gap analysis of a public company's climate-related disclosures and reporting infrastructure against applicable climate-related disclosure requirements, covering board governance, greenhouse gas emissions, severe weather financial effects, and attestation obligations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

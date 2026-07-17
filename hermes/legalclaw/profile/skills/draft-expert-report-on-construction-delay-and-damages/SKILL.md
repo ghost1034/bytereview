@@ -2,7 +2,6 @@
 name: draft-expert-report-on-construction-delay-and-damages
 description: "Ensures a construction delay expert report conducts a proper concurrency analysis, applies the relevant home office overhead methodology correctly, resolves float ownership under the contract, and logs all cross-document inconsistencies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

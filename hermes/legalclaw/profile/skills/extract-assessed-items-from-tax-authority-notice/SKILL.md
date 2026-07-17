@@ -2,7 +2,6 @@
 name: extract-assessed-items-from-tax-authority-notice
 description: "Extracting assessed items from a state tax authority notice requires separately cataloging each tax type and each component deficiency, identifying the challenge issues applicable to each line item, and flagging procedural vulnerabilities \u2014 not just reading the total deficiency from the cover page."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

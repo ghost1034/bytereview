@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-construction-contract
 description: "Guides comprehensive redline analysis of a construction contract markup by structuring multi-document cross-reference, risk quantification, and playbook- and lender-calibrated response recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

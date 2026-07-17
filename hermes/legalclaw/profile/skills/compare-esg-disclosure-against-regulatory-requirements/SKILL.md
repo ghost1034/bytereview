@@ -2,7 +2,6 @@
 name: compare-esg-disclosure-against-regulatory-requirements
 description: "Guides gap analysis of a draft ESG report by walking each applicable regulatory framework's disclosure requirements systematically rather than treating ESG disclosure as a single undifferentiated category."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

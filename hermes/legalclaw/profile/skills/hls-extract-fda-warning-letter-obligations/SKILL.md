@@ -2,7 +2,6 @@
 name: hls-extract-fda-warning-letter-obligations
 description: "Extract compliance obligations from a warning letter and supporting inspection materials into a structured spreadsheet register with required columns, categorized obligations, phased timeline, and a summary/risk assessment tab."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

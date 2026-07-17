@@ -2,7 +2,6 @@
 name: review-material-contract-review
 description: "Guides preparation of a contract-by-contract risk assessment and discrepancy log for a proposed acquisition where multiple contract types must be reviewed against a summary spreadsheet and draft SPA definitions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

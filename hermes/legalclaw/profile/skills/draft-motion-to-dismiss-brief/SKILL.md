@@ -2,7 +2,6 @@
 name: draft-motion-to-dismiss-brief
 description: "Drafting a Rule 12(b)(6) motion to dismiss brief in a commercial software licensing dispute requires arguing each count's facial legal deficiency based on the complaint's allegations and any documents incorporated by reference or integral to the complaint, and preparing the separate companion deliverables required by the task instructions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

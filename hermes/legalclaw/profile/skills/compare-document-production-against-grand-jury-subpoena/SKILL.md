@@ -2,7 +2,6 @@
 name: compare-document-production-against-grand-jury-subpoena
 description: "Gap analysis memorandum comparing a rolling document production set against subpoena request categories, identifying collection gaps, coding guide deficiencies, privilege log completeness issues, and potential bad-faith or obstruction risk from non-responsive classification of plainly responsive documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-10
 description: "Draft a digital asset fund LPA with asset-class-specific valuation provisions, multi-signature custody mechanics, staking governance, airdrop and hard-fork treatment, and a drafting notes annex flagging open issues."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

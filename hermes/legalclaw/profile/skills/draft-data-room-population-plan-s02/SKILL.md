@@ -2,7 +2,6 @@
 name: draft-data-room-population-plan-s02
 description: "Guides preparation of a data room population plan with critical DDRL review, regulatory filing-check validation, open-source audit staleness assessment, LGPL copyleft risk identification, anti-assignment consent tracking, and resolution of instruction conflicts."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

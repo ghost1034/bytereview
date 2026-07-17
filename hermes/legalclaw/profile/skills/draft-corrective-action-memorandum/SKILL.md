@@ -2,7 +2,6 @@
 name: draft-corrective-action-memorandum
 description: "I-9 compliance corrective action memorandum following an internal audit, where the remediation plan must distinguish between paperwork corrections, anti-discrimination concerns requiring separate treatment, and ongoing work-authorization obligations for nonimmigrant employees."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

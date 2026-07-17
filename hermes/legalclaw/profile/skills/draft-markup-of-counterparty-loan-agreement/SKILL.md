@@ -2,7 +2,6 @@
 name: draft-markup-of-counterparty-loan-agreement
 description: "Guides borrower-side markup of a lender's draft loan agreement by anchoring each redline position to the governing deal documents and client instructions, and producing both a redlined agreement and a cover letter summarizing key changes."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

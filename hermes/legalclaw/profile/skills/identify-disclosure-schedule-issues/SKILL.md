@@ -2,7 +2,6 @@
 name: identify-disclosure-schedule-issues
 description: "Guides cross-referencing of disclosure schedules against transaction representations, diligence materials, and source documents to identify gaps, inconsistencies, and incompleteness requiring remediation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

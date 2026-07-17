@@ -2,7 +2,6 @@
 name: draft-current-report-on-form-8-k
 description: "Form 8-K drafting task focused on identifying all triggered items from a reported transaction, drafting each item with the required disclosures, and preparing a cover memorandum that flags discrepancies, inconsistencies, or arithmetic errors in the source materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

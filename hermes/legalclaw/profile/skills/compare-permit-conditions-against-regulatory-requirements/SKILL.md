@@ -2,7 +2,6 @@
 name: compare-permit-conditions-against-regulatory-requirements
 description: "Guides comparison of issued permit conditions against the underlying regulatory requirements by identifying conditions that are more stringent, less stringent, or procedurally deficient relative to applicable statutory and regulatory standards without relying on scenario-specific facts."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

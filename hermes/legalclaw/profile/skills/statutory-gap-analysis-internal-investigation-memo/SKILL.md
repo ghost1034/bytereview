@@ -2,7 +2,6 @@
 name: statutory-gap-analysis-internal-investigation-memo
 description: "Statutory gap analysis of an internal investigation memorandum, identifying legal errors where the memo misstates scienter requirements, omits required statutory elements, or fails to analyze nexus elements that the underlying facts clearly establish."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

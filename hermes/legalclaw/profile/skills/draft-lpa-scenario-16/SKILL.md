@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-16
 description: "Draft a limited partnership agreement for a successor fund that incorporates a multi-tier carried interest structure, ESG reporting requirements, and accommodations for government or sovereign investors, while independently checking formula logic, fee-structure consistency, and conflicts among draft materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

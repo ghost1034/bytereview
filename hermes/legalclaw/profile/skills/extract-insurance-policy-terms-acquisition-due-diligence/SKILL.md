@@ -2,7 +2,6 @@
 name: extract-insurance-policy-terms-acquisition-due-diligence
 description: "Agents conducting an insurance coverage analysis memo for acquisition due diligence extract primary policy terms and then test for structural coverage gaps, endorsements, open-claim tensions, transition risk, and post-closing continuity issues."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

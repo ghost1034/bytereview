@@ -2,7 +2,6 @@
 name: review-iss-tax-transaction-structure
 description: "Reviewing a tax transaction structure memorandum for a \u00a7 338(h)(10) deal requires independently verifying the aggregate deemed sale price computation against the applicable regulatory formula, identifying structural issues that could affect the election, and flagging state conformity risks by jurisdiction."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

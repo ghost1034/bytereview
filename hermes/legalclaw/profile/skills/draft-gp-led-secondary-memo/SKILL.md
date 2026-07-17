@@ -2,7 +2,6 @@
 name: draft-gp-led-secondary-memo
 description: "Review GP-led continuation vehicle transaction documents and prepare a structuring memorandum covering legal structure, conflict disclosures, tax and regulatory considerations, and key structural risks for the deal team and investment committee."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

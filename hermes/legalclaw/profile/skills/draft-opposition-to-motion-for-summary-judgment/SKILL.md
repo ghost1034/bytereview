@@ -2,7 +2,6 @@
 name: draft-opposition-to-motion-for-summary-judgment
 description: "Opposing a summary judgment motion in a whistleblower retaliation case requires responding paragraph-by-paragraph to the movant's statement of material facts, marshaling record evidence to establish genuine disputes on each retaliation element, and demonstrating that credibility questions about the asserted non-retaliatory rationale must be resolved by the factfinder."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

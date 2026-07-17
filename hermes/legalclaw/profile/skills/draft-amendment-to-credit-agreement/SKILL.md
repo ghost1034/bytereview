@@ -2,7 +2,6 @@
 name: draft-amendment-to-credit-agreement
 description: "Drafts a credit agreement amendment in standard market form incorporating an additional financing tranche or other covenant changes, and prepares an issues memo flagging cross-document inconsistencies and unresolved points."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

@@ -2,7 +2,6 @@
 name: identify-preference-exposure-analysis
 description: "Ensures a preference exposure review memo checks the preparer's calculations, identifies transfers that may be subject to extended look-back treatment, applies the correct limitations period for avoidance actions, and confirms that only qualifying post-transfer new value is credited."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

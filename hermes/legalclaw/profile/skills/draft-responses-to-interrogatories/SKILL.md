@@ -2,7 +2,6 @@
 name: draft-responses-to-interrogatories
 description: "Drafting verified interrogatory responses requires making specific, well-grounded objections where warranted, providing substantive answers to each non-objectionable interrogatory based on the client's records and interview memo, and complying with the verification requirement."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

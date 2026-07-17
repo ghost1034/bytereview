@@ -2,7 +2,6 @@
 name: extract-disclosure-requirements-from-environmental-reporting-framework
 description: "Guides extraction of disclosure requirements from an environmental reporting framework and preparation of a gap analysis comparing those requirements against a company's current reporting practices and data."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

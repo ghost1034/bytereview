@@ -2,7 +2,6 @@
 name: identify-compliance-issues-in-employee-i9
 description: "Audit employee I-9 forms against the applicable completion, document, and consistency requirements, using roster or intake data as needed to verify timing and form-level accuracy at the individual employee level."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

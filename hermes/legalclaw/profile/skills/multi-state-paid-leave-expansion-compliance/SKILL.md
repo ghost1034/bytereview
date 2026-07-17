@@ -2,7 +2,6 @@
 name: multi-state-paid-leave-expansion-compliance
 description: "Multi-state paid leave compliance memorandum for a company expanding into new states, identifying employer contribution calculation issues, PTO payout policy issues, temporary worker coverage gaps, and payroll infrastructure requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

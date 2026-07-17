@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-psa
 description: "Reviewing a counterparty redline of a pooling and servicing agreement where deletions of required backup servicer provisions, fee structure changes, and waterfall modifications must be assessed against an internal playbook and deal economics."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

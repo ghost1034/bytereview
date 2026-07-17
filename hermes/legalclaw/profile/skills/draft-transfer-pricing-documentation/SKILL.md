@@ -2,7 +2,6 @@
 name: draft-transfer-pricing-documentation
 description: "A transfer pricing documentation review memorandum must assess a multinational documentation package against the applicable transfer pricing documentation framework, analyze entity substance and DEMPE functions, identify local compliance deadlines as urgent action items, and produce both a risk quantification table and an action item matrix."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

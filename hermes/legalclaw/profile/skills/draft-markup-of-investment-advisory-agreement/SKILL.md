@@ -2,7 +2,6 @@
 name: draft-markup-of-investment-advisory-agreement
 description: "Redline an investment adviser's form advisory agreement from the client's perspective, producing a marked-up draft with a cover memo that prioritizes changes by negotiating importance and ties each proposed modification to the applicable legal, regulatory, or client-policy basis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

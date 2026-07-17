@@ -2,7 +2,6 @@
 name: analyze-msa-limitation-of-liability
 description: "Enforceability and market-standard analysis of a redlined master services agreement limitation-of-liability clause, incorporating insurance coverage and negotiation context."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

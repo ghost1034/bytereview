@@ -2,7 +2,6 @@
 name: draft-saas-subscription-agreement
 description: "Draft an enterprise SaaS subscription agreement for a healthcare platform procurement, together with a drafting issues memo, using the available commercial, legal, negotiation, and security materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

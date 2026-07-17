@@ -2,7 +2,6 @@
 name: compare-perm-credentials-against-beneficiary
 description: "Gap analysis comparing a position\u2019s stated minimum requirements against an individual\u2019s actual credentials, with attention to whether superficial matches on degree field and experience totals conceal qualification-defeating deficiencies in certification specificity, pre-degree experience countability, and concurrent academic-work periods."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

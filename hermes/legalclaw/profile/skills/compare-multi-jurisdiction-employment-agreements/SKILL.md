@@ -2,7 +2,6 @@
 name: compare-multi-jurisdiction-employment-agreements
 description: "Jurisdiction-organized deviation report comparing employment agreement drafts for multiple jurisdictions against a company playbook and outside counsel guidance."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

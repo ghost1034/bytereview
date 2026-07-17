@@ -2,7 +2,6 @@
 name: draft-data-processing-agreement
 description: "Drafting a GDPR-compliant data processing agreement for a cross-border health data analytics engagement fails when the agent does not reconcile conflicts among the controller\u2019s data governance materials, the processor\u2019s standard template, and the transfer-impact analysis before drafting, and does not apply the more protective standard where instructed."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

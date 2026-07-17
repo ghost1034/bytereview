@@ -2,7 +2,6 @@
 name: draft-confidential-information-memorandum
 description: "Guides drafting of a sell-side confidential information memorandum with core sections, management biographies, facility-level operating detail, capex categorization, and reconciliation of cross-source data discrepancies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

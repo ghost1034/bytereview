@@ -2,7 +2,6 @@
 name: identify-issues-in-counterparty-warn-psj-motion
 description: "Guides defense counsel in producing a comprehensive issue-identification memorandum identifying legal and factual defects in a counterparty's partial summary judgment motion and outlining opposition strategies for each."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

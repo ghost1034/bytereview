@@ -2,7 +2,6 @@
 name: review-counterparty-redlines-nda-template
 description: "Reviewing multiple counterparties' redlined NDAs against a clean template and playbook to produce a deviation analysis with risk assessments and recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

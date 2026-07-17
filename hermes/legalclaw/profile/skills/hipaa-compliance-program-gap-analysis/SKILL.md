@@ -2,7 +2,6 @@
 name: hipaa-compliance-program-gap-analysis
 description: "Gap analysis of a healthcare organization\u2019s privacy and security compliance program, identifying deficiencies in administrative safeguards, breach notification procedures, and vendor oversight against applicable healthcare privacy and security requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

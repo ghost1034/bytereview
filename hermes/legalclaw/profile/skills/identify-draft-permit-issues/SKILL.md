@@ -2,7 +2,6 @@
 name: identify-draft-permit-issues
 description: "Guides preparation of an NPDES permit issues memorandum by systematically evaluating draft permit conditions against applicable water pollution control requirements and supporting technical documents to identify legal and technical deficiencies for public comment strategy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

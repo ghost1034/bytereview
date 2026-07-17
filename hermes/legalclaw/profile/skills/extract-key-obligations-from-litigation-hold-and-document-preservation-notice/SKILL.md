@@ -2,7 +2,6 @@
 name: extract-key-obligations-from-litigation-hold-and-document-preservation-notice
 description: "Extract obligations from a preservation notice by mapping each obligation to the relevant custodial groups, data sources, and operational controls, then summarize the required preservation steps in an actionable memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

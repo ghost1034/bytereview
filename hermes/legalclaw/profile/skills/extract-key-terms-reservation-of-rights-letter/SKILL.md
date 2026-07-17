@@ -2,7 +2,6 @@
 name: extract-key-terms-reservation-of-rights-letter
 description: "Agents extracting terms from a reservation of rights letter should identify coverage defenses, policy provisions, implicated exclusions or endorsements, any state-law standards that affect how those provisions operate, and any limits or reservation gaps that may matter to the coverage analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

@@ -2,7 +2,6 @@
 name: draft-commercial-real-estate-loan-agreement
 description: "Guides drafting of a lender-protective construction-to-permanent loan agreement by systematically reconciling economic terms across core transaction documents and flagging inconsistencies with bracketed drafting notes."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

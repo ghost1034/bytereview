@@ -2,7 +2,6 @@
 name: extract-license-grant-terms-executed-agreements
 description: "Create a matrix summarizing license grant terms across multiple executed technology license agreements and assess how those terms interact with a planned integration, using cross-agreement comparison and conflict identification."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

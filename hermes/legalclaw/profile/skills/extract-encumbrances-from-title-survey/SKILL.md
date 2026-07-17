@@ -2,7 +2,6 @@
 name: extract-encumbrances-from-title-survey
 description: "Guides preparation of an encumbrance summary report by systematically cataloguing title exceptions and survey-disclosed encumbrances, assessing project compatibility, and outlining resolution steps for each material item."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

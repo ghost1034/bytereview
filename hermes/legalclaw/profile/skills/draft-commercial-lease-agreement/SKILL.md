@@ -2,7 +2,6 @@
 name: draft-commercial-lease-agreement
 description: "Guides drafting of a landlord-favorable triple-net commercial lease by integrating multi-document source materials, addressing building- and lender-related constraints, and flagging cross-document issues in a companion memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

@@ -2,7 +2,6 @@
 name: identify-issues-in-counterparty-postnuptial-agreement
 description: "Closes the gap where agents review postnuptial agreements without applying the governing jurisdiction\u2019s enforceability standards, identifying incomplete financial disclosure, flagging support-waiver limits, and assessing the economic asymmetry of one-sided provisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

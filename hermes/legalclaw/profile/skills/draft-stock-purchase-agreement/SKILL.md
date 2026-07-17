@@ -2,7 +2,6 @@
 name: draft-stock-purchase-agreement
 description: "Guides drafting of a comprehensive buyer-side stock purchase agreement from a term sheet, precedent, and multi-document diligence set where capitalization complexity, diligence findings, and deal-specific representations must be integrated."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

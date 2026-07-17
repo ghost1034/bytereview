@@ -2,7 +2,6 @@
 name: review-board-resolutions-certifications
 description: "Guides review of a merger closing document set to identify defects in board resolutions, closing certifications, and merger authorizations, with corrected document drafting and a correspondence letter to opposing counsel."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

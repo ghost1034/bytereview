@@ -2,7 +2,6 @@
 name: draft-commercial-real-estate-closing-checklist
 description: "Guides drafting of a comprehensive commercial real estate closing checklist by deriving required deliverables and conditions from the purchase and sale agreement, title materials, financing materials, environmental materials, and transaction status updates."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

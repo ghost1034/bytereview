@@ -2,7 +2,6 @@
 name: draft-updated-privacy-policy
 description: "Privacy policy updates for AI-powered health tools fail when the agent does not ground new disclosures in the product description and the privacy impact assessment, and does not separately memo the legal risks arising from the new product's data uses."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

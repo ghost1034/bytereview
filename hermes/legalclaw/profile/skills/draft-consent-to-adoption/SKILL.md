@@ -2,7 +2,6 @@
 name: draft-consent-to-adoption
 description: "Drafting a consent to adoption in a Maryland independent adoption requires careful attention to revocation timing, paternity status, notice obligations, naming consistency, execution formalities, and related family-support issues."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

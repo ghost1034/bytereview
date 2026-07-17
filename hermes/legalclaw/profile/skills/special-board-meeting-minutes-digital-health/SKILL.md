@@ -2,7 +2,6 @@
 name: special-board-meeting-minutes-digital-health
 description: "Formal board meeting minutes for a special board meeting of a digital health company, with a cover memorandum flagging common board-governance issues that may require conditional resolutions, disclosure specificity, observer-seat authorization review, quorum confirmation, and remote-participation confirmation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-administrative-settlement-agreement
 description: "Guides section-by-section redline analysis of an administrative settlement agreement by anchoring each markup to the applicable environmental liability allocation framework, settlement authority, cleanup-program compliance requirements, and agency policy constraints rather than treating redlined changes as isolated contract edits."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

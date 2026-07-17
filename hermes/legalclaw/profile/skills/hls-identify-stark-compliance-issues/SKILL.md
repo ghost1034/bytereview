@@ -2,7 +2,6 @@
 name: hls-identify-stark-compliance-issues
 description: "Reviews physician compensation arrangements, lease agreements, compliance hotline logs, and fair-market-value opinions to produce an issue-identification memorandum addressing Stark Law compliance risk, exposure at risk by arrangement, voluntary-disclosure considerations, and the relationship between unresolved compliance complaints and broader litigation or notice concerns."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

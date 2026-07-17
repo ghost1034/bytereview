@@ -2,7 +2,6 @@
 name: ecvc-draft-voting-agreement
 description: "Drafting a voting agreement requires consistent board seat allocation, a clear proxy provision with enforceability language, a drag-along obligation that survives termination until the underlying transaction closes, and an acknowledgment addressing dual-capacity privilege risks for investors who also serve as board observers."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

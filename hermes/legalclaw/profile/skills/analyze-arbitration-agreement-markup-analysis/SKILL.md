@@ -2,7 +2,6 @@
 name: analyze-arbitration-agreement-markup-analysis
 description: "Evaluates a counterparty redline of an arbitration agreement provision-by-provision and for interaction effects, playbook compliance, and enforcement consequences."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

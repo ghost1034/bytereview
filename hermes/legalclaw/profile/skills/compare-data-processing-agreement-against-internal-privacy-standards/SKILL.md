@@ -2,7 +2,6 @@
 name: compare-data-processing-agreement-against-internal-privacy-standards
 description: "Vendor DPA deviation reports are strongest when the agent benchmarks the agreement against the relevant internal privacy standards and any applicable external requirements, then converts each gap into a structured deviation analysis with practical negotiation guidance."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

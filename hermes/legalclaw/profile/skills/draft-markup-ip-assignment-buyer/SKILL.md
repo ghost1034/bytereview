@@ -2,7 +2,6 @@
 name: draft-markup-ip-assignment-buyer
 description: "Buyer-favorable annotated markup of a seller-drafted intellectual property assignment agreement with bracketed comments explaining each proposed change, informed by due diligence and deal terms."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

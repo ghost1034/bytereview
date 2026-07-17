@@ -2,7 +2,6 @@
 name: identify-industrial-portfolio-acquisition
 description: "Guides property-by-property title commitment issue identification for a multi-property real-estate acquisition by comparing each title commitment against the transaction documents, survey materials, and financing requirements, and producing a prioritized issues memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

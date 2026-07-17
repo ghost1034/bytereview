@@ -2,7 +2,6 @@
 name: extract-oss-license-obligations-software-disclosure
 description: "Reviewing a target's software disclosure schedule, software composition analysis scan, software bill of materials, IP representations, architecture documentation, and internal emails to produce a compliance risk report focused on open source license obligations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

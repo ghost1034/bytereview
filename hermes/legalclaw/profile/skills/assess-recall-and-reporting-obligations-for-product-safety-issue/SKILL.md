@@ -2,7 +2,6 @@
 name: assess-recall-and-reporting-obligations-for-product-safety-issue
 description: "Guides incident response analysis for a product safety issue by mapping recall and reporting obligations across regulatory reporting, public-company disclosure, supply-chain contract, and litigation-hold dimensions rather than treating the matter as a single-agency compliance question."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

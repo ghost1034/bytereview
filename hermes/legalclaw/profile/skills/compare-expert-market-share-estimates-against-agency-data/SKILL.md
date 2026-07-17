@@ -2,7 +2,6 @@
 name: compare-expert-market-share-estimates-against-agency-data
 description: "Closes gaps in independent arithmetic verification of concentration calculations, identification of methodology differences that explain divergent results, and cross-examination vulnerability assessment."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

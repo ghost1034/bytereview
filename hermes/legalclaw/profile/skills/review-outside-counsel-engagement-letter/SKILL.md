@@ -2,7 +2,6 @@
 name: review-outside-counsel-engagement-letter
 description: "Guides preparation of a severity-ranked issues memo identifying problematic, missing, or adverse provisions in an outside counsel engagement letter for patent litigation representation, cross-referenced against internal guidelines and related engagement materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

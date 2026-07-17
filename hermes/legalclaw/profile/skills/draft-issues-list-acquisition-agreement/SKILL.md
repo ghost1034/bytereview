@@ -2,7 +2,6 @@
 name: draft-issues-list-acquisition-agreement
 description: "Guides preparation of a prioritized issues list memorandum for a membership interest purchase agreement, requiring each issue to be tied to a specific agreement section, regulatory notification obligations to be analyzed as potential closing conditions, unsupported earnings adjustments to be identified and quantified, and earnout operating protections to be evaluated where the draft lacks them."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

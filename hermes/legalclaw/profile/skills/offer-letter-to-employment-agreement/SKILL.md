@@ -2,7 +2,6 @@
 name: offer-letter-to-employment-agreement
 description: "Guides the drafter in converting an executed offer letter into a complete employment agreement using the standard template, implementing jurisdiction-specific modifications, and preparing a cover memorandum flagging material changes and open items."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

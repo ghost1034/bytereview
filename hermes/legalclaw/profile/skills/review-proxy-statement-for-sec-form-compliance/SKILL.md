@@ -2,7 +2,6 @@
 name: review-proxy-statement-for-sec-form-compliance
 description: "Proxy statement form-compliance review where the baseline identifies visible disclosure gaps but may miss recently required disclosures, shareholder-proposal handling requirements, and procedural notice obligations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

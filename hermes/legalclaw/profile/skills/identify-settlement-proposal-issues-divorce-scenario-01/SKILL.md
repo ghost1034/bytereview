@@ -2,7 +2,6 @@
 name: identify-settlement-proposal-issues-divorce-scenario-01
 description: "Helps an agent review a contested divorce settlement proposal for asset characterization, support, tax, parenting, and release-language issues, with attention to quantification where the record permits and to preserving future enforcement and modification rights."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

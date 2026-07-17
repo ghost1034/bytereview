@@ -2,7 +2,6 @@
 name: board-resolution-credit-facility
 description: "Board resolution authorizing entry into a senior secured revolving credit facility, with a cover memorandum identifying observer-versus-director classification issues, signing authority gaps, stockholder consent requirements, and financial covenant discrepancies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

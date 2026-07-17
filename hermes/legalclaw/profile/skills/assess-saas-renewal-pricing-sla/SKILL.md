@@ -2,7 +2,6 @@
 name: assess-saas-renewal-pricing-sla
 description: "Contract review memorandum evaluating renewal pricing and service-level modifications against the operative agreement and historical performance data."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

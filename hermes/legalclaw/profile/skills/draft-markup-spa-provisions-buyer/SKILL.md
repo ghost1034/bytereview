@@ -2,7 +2,6 @@
 name: draft-markup-spa-provisions-buyer
 description: "Guides preparation of a detailed buyer-side SPA markup memorandum with draft-ready redline language, requiring identification of all indebtedness categories from the target's financial statements, verification of escrow economics against the operative transaction terms, cross-checking of earnout economics against the operative transaction terms, and evaluation of whether any extended environmental representation survival is supported by diligence findings."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

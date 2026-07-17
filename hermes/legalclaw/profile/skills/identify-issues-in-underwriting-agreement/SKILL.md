@@ -2,7 +2,6 @@
 name: identify-issues-in-underwriting-agreement
 description: "Underwriting agreement issue identification where the baseline lists concerns but does not cite the specific agreement section for each issue or provide sufficiently precise redline instructions for the negotiating team to act on."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

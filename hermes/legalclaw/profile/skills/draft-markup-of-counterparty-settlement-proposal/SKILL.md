@@ -2,7 +2,6 @@
 name: draft-markup-of-counterparty-settlement-proposal
 description: "Produce a redline markup of an opposing proposed marital settlement agreement with marginal commentary. Focus on contract-ready replacement language, issue spotting against supporting financial and parenting materials, and a priority-ordered cover memo that frames the negotiation posture in procedural terms."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

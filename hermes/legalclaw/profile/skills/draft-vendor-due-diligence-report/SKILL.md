@@ -2,7 +2,6 @@
 name: draft-vendor-due-diligence-report
 description: "Guides preparation of a sell-side vendor due diligence report for distribution to prospective bidders where multi-workstream diligence findings must be organized, qualified, and presented in a form suitable for external disclosure."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: draft-discovery-requests-patent
 description: "First set of interrogatories and requests for production in a patent infringement action, tailored to the case\u2019s infringement, invalidity, and damages theories without relying on scenario-specific names, numbers, or quotations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

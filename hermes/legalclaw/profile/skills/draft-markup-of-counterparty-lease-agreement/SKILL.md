@@ -2,7 +2,6 @@
 name: draft-markup-of-counterparty-lease-agreement
 description: "Guides tenant-side markup and commentary of a proposed lease by anchoring each redline position to the applicable playbook and deal summary, preserving the commercial terms the user provided, and organizing the output with prioritized cover commentary."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

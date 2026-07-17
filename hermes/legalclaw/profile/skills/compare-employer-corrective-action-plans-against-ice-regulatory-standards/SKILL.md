@@ -2,7 +2,6 @@
 name: compare-employer-corrective-action-plans-against-ice-regulatory-standards
 description: "Compliance gap analysis comparing employer corrective action plans against applicable immigration-related employment verification standards, where plans may contain remedial provisions that are themselves non-compliant despite their corrective purpose."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

@@ -2,7 +2,6 @@
 name: extract-competitive-overlap-data-from-joint-venture-business-plan
 description: "Closes gaps in cross-document data reconciliation, pipeline-to-pipeline overlap analysis, merger control filing-threshold assessment, and clean team information distribution compliance."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

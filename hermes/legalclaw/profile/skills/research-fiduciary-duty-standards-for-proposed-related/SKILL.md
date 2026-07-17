@@ -2,7 +2,6 @@
 name: research-fiduciary-duty-standards-for-proposed-related
 description: "Agents should describe the applicable standard of review for a conflicted related-party transaction, identify the burden-shifting framework that can move review away from entire fairness only if the required process protections are present from the outset, evaluate whether the committee process is sufficiently independent and empowered, and flag any transaction assets, liabilities, or process gaps that require further analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

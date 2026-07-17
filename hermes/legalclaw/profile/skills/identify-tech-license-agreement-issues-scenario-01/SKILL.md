@@ -2,7 +2,6 @@
 name: identify-tech-license-agreement-issues-scenario-01
 description: "Reviewing a draft technology license agreement from the licensee's perspective against a licensing playbook and business requirements to prepare a risk-rated issues memo with recommended positions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

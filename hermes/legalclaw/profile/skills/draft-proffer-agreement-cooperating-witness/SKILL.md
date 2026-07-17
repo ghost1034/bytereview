@@ -2,7 +2,6 @@
 name: draft-proffer-agreement-cooperating-witness
 description: "Proffer agreement and accompanying cover memorandum for a cooperating witness in a federal investigation, covering direct use protection, derivative use risk analysis, false statement exposure, and the strategic framework for deciding whether to proffer."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

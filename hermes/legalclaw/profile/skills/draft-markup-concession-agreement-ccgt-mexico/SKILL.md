@@ -2,7 +2,6 @@
 name: draft-markup-concession-agreement-ccgt-mexico
 description: "Guides drafting of a project-company-side markup of a concession agreement by prioritizing bankability-critical provisions, structuring termination and currency risk mechanisms, and producing a companion commentary memo with negotiability assessments and fallback positions for each markup."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

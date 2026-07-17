@@ -2,7 +2,6 @@
 name: review-environmental-site-assessment-compressor-acquisition
 description: "Guides review of environmental site assessments for an infrastructure acquisition by identifying classification errors, sampling gaps, storage-tank compliance deficiencies, air permit exposure, and cleanup-liability risks, and by cross-checking consultant conclusions against the raw data and seller representations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

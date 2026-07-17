@@ -2,7 +2,6 @@
 name: identify-tax-issues-in-counterpartys-opposition-brief
 description: "Identifying weaknesses in a government opposition brief requires locating the specific passage where each error or vulnerability appears, assigning a severity rating, and analyzing the government's silence on arguments the taxpayer raised \u2014 not just cataloging the brief's positions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

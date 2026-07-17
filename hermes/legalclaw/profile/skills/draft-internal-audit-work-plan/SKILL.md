@@ -2,7 +2,6 @@
 name: draft-internal-audit-work-plan
 description: "Agents produce a work plan that lists audit topics without a structured audit universe with risk ratings and cycle frequencies, fail to reconcile available hours against the co-sourcing cap, omit engagement-specific rationales for each planned area, and miss supervisory guidance thresholds that justify concentration-area audit priorities."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

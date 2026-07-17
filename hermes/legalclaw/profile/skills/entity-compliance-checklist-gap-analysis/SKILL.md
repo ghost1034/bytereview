@@ -2,7 +2,6 @@
 name: entity-compliance-checklist-gap-analysis
 description: "Cross-referencing a compliance checklist against supporting documents for a multi-entity fund structure, identifying deadline errors, missing entities, beneficial ownership reporting obligations, and state-specific filing requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

@@ -2,7 +2,6 @@
 name: identify-issues-counterparty-jury-instructions
 description: "Reviewing opposing party's proposed jury instructions against applicable court orders, model instructions, and prosecution history to prepare formal objections."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: ecvc-draft-markup-ira
 description: "Marking up an investors\u2019 rights agreement from the Company\u2019s perspective requires comparing the counterparty draft against the negotiated term sheet, identifying added investor-favorable language, and reviewing provisions that can create spillover effects among registration, information, pro rata, drag-along, and most-favored-nation mechanics."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

@@ -2,7 +2,6 @@
 name: identify-weaknesses-counterparty-sjm-motion
 description: "Reviewing an opposing party's summary judgment motion and supporting materials in a patent case to identify weaknesses and prepare a comprehensive opposition strategy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

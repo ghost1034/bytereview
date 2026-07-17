@@ -2,7 +2,6 @@
 name: draft-form-a-change-of-control-insurance
 description: "Agents drafting a change-of-control application for an insurance regulator should build a complete ownership-and-control narrative, identify financing and governance items that may need disclosure or approval, and check for filing obligations in each potentially affected jurisdiction."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

@@ -2,7 +2,6 @@
 name: analyze-lp-comment-memo
 description: "Review an LP's marked-up LPA and comment letter against the applicable negotiation policy and prior precedent materials to produce an internal GP response memorandum that catalogs all LP comments, assesses overlap between sources, and develops a procedural response position and MFN impact analysis for each item."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

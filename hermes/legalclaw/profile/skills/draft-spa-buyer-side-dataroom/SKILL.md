@@ -2,7 +2,6 @@
 name: draft-spa-buyer-side-dataroom
 description: "Guides drafting of a buyer-side stock purchase agreement from a data room where equity ownership, financing payoff mechanics, change-of-control compensation issues, and regulatory clearance provisions must all be sourced from transactional documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

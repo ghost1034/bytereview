@@ -2,7 +2,6 @@
 name: identify-regulatory-and-methodological-issues-in-expert-damages-report
 description: "Agents identify general methodology weaknesses without addressing a potentially dispositive contractual damages waiver as a threshold issue, verifying arithmetic in discount-rate or margin calculations, applying the reasonable-certainty standard to separate damages periods, or identifying a duty-to-mitigate provision as an independent basis for damages reduction."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

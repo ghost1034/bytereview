@@ -2,7 +2,6 @@
 name: extract-key-terms-technical-patent-specs
 description: "Preparing a claim construction chart for a patent specification and related technical materials, requiring intrinsic record analysis, identification of functional claiming issues, and linkage between construction choices and infringement analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

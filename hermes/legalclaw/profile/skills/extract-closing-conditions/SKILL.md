@@ -2,7 +2,6 @@
 name: extract-closing-conditions
 description: "Guides extraction and mapping of all closing conditions from an acquisition agreement into a comprehensive matrix cross-referenced against the current status of each condition."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

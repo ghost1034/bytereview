@@ -2,7 +2,6 @@
 name: identify-target-org-docs-issues
 description: "Guides preparation of a pre-closing charter document review memo for an acquisition target where capitalization, governance, stockholder rights, and subsidiary organizational documents must all be assessed for transaction-readiness."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

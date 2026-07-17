@@ -2,7 +2,6 @@
 name: identify-pe-purchase-agreement-issues
 description: "Guides preparation of a severity-ranked issues list for a private-equity acquisition purchase agreement where diligence findings, financial adjustments, and disclosure schedule disclosures must be cross-referenced against the draft agreement."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

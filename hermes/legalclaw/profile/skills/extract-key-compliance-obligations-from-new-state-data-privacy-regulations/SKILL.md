@@ -2,7 +2,6 @@
 name: extract-key-compliance-obligations-from-new-state-data-privacy-regulations
 description: "State privacy regulation obligation extraction fails when the agent does not apply each statute's applicability thresholds to the company's actual data profile and does not map extracted obligations against existing compliance gaps evidenced by the company's own documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

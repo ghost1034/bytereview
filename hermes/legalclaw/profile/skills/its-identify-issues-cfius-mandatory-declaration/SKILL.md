@@ -2,7 +2,6 @@
 name: its-identify-issues-cfius-mandatory-declaration
 description: "Produces a comprehensive issue memorandum for a draft CFIUS mandatory declaration that identifies subsidiary omissions, technology-class specificity gaps, foreign government substantial interest threshold errors, control definition misapplications, personal identification deficiencies, and FOCI mitigation instrument inadequacies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

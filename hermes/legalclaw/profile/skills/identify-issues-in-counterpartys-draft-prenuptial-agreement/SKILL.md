@@ -2,7 +2,6 @@
 name: identify-issues-in-counterpartys-draft-prenuptial-agreement
 description: "Closes the gap where agents identify surface-level prenuptial issues without challenging the adequacy of financial disclosure, flagging relevant enforcement considerations, assessing maintenance waiver unconscionability risk, and identifying provisions that may be unenforceable or overbroad."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

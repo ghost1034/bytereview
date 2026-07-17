@@ -2,7 +2,6 @@
 name: corporate-ma--identify-lpa-issues
 description: "Guides preparation of an investor-side LPA issues memorandum for a public pension investor, emphasizing comparison of draft fund terms against the investor's governing guidelines, the prior fund relationship, and public-sector disclosure or compliance constraints."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

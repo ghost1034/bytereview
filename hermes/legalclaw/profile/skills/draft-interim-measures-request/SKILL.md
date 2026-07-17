@@ -2,7 +2,6 @@
 name: draft-interim-measures-request
 description: "Ensures an ICC emergency interim measures application for a cross-border commercial dispute frames the governing arbitral rules, addresses non-party limitations, and considers a cross-undertaking in damages."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

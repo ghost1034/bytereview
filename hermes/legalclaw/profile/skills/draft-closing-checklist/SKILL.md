@@ -2,7 +2,6 @@
 name: draft-closing-checklist
 description: "Guides drafting of a comprehensive closing checklist from executed acquisition documents, requiring deal-specific conditions and deliverables drawn from the principal agreement with section references, cross-document discrepancy flags, and tracking of insurance, rollover, employment, and tax-certification items."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

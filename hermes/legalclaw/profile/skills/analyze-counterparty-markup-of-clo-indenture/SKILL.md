@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-clo-indenture
 description: "Reviewing a counterparty redline of a CLO indenture where changes to coverage test thresholds, portfolio constraints, and structural triggers must be evaluated against a negotiation playbook, deal materials, and the counterparty's own characterization of its changes."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

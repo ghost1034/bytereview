@@ -2,7 +2,6 @@
 name: draft-open-source-compliance-policy
 description: "Board-ready open source software compliance policy for a technology company, incorporating audit findings, customer contract obligations, engineering practices, and a pending relicensing development."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: fixed-asset-lifecycle-manager
 description: Capitalization, depreciation (SL, DDB, MACRS), impairment, disposal, and GL roll-forward for a fixed-asset register
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, fixed-assets, depreciation]

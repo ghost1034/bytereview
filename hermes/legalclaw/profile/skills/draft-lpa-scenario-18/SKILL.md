@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-18
 description: "Draft a successor fund LPA that updates benchmark-rate references to a current alternative reference rate, verifies and corrects any carried-forward waterfall mechanics, and incorporates equalization mechanics for later-closing investors, including checking any supplemental memo that purports to correct the waterfall for a separate error."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

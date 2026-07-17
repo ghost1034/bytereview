@@ -2,7 +2,6 @@
 name: draft-cross-border-acquisition-tax-memo
 description: "A cross-border acquisition tax memorandum should analyze the tax consequences across all relevant jurisdictions in the deal structure, compare structural alternatives, and produce a risk matrix and action tracker alongside the narrative memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

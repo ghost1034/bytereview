@@ -2,7 +2,6 @@
 name: hls-compare-closing-certificate-covenants
 description: "Compares a closing certificate against merger agreement pre-closing covenants and supporting documents to identify false certifications, unauthorized actions, and timing failures through a structured closing-analysis workflow."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

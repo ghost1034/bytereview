@@ -2,7 +2,6 @@
 name: extract-document-requests-from-regulatory-inquiry-letter
 description: "Regulatory response tracker construction benefits from reconciling requests across multiple regulatory inquiries into a unified tracker that accounts for overlapping requests, privilege implications, and preservation scope for each request."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

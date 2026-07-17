@@ -2,7 +2,6 @@
 name: sox-control-reviewer
 description: Walkthrough review of SOX control narratives against evidence with IPE/IUC validation
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, sox, controls, audit]

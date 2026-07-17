@@ -2,7 +2,6 @@
 name: compare-environmental-settlement-against-precedents
 description: "Comparative analysis memorandum assessing proposed consent decree settlement terms against precedent resolutions, evaluating structural and quantitative settlement differences, audit scope, officer certification provisions, and negotiation considerations for the board."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

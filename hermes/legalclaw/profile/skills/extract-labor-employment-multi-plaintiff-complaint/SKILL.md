@@ -2,7 +2,6 @@
 name: extract-labor-employment-multi-plaintiff-complaint
 description: "Guides extraction and categorization of allegations in a multi-plaintiff employment complaint, with attention to plaintiff-specific claims, pleaded facts, and potential legal deficiencies across the asserted theories."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

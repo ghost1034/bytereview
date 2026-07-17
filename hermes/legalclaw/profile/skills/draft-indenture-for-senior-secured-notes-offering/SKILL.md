@@ -2,7 +2,6 @@
 name: draft-indenture-for-senior-secured-notes-offering
 description: "High-yield indenture drafting from a precedent and multiple deal documents, requiring a companion issues memo that resolves cross-document discrepancies in economic terms and covenant definitions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

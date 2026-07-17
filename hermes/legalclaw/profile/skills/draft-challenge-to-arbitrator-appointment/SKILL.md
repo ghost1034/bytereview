@@ -2,7 +2,6 @@
 name: draft-challenge-to-arbitrator-appointment
 description: "Ensures an arbitrator-challenge submission organizes relationships under the applicable conflict-of-interest framework, treats non-disclosure as an independent challenge basis where supported, and analyzes speaking-engagement topic relevance for potential predisposition."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

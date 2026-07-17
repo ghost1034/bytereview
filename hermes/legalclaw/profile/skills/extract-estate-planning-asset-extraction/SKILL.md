@@ -2,7 +2,6 @@
 name: extract-estate-planning-asset-extraction
 description: "Closes the gap where agents compile asset schedules using a net worth summary without verifying whether irrevocable trust assets are incorrectly included in the client's owned-asset total, and without identifying ineffective beneficiary designations and their estate and income tax consequences."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

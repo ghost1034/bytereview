@@ -2,7 +2,6 @@
 name: draft-markup-of-proposed-interim-order
 description: "Ensures a respondent-side markup of a proposed interim order addresses the requested relief structure, tests any asserted risk with financial evidence, and cites the applicable interim measures framework."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

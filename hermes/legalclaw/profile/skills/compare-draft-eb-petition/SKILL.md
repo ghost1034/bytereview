@@ -2,7 +2,6 @@
 name: compare-draft-eb-petition
 description: "Gap analysis review of a draft petition package where exhibit completeness, sequential numbering integrity, and form currency are prone to being overlooked when the filing checklist is reconciled against the petition body."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

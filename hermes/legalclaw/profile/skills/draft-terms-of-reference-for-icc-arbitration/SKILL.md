@@ -2,7 +2,6 @@
 name: draft-terms-of-reference-for-icc-arbitration
 description: "Ensures ICC Terms of Reference are drafted in an ICC-compliant, procedural way by identifying the parties, summarizing each side\u2019s claims and counterclaims, bracketing disputed text for tribunal resolution, flagging contract-structure and governing-law issues for tribunal resolution, and recording agreed procedural matters."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

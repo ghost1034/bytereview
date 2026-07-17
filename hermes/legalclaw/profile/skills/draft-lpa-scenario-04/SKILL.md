@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-04
 description: "Draft a healthcare fund limited partnership agreement by adapting a generic precedent to incorporate investor-requested provisions, healthcare-specific representations, LPAC governance terms, and no-fault GP removal mechanics, while verifying internal consistency and cross-references."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

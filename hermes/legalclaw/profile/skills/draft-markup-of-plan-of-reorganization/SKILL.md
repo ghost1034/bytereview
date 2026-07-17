@@ -2,7 +2,6 @@
 name: draft-markup-of-plan-of-reorganization
 description: "Ensures a committee plan markup redlines materially objectionable plan provisions with bracketed comments grounded in applicable bankruptcy and restructuring principles, and prepares a tiered cover memorandum that prioritizes the committee\u2019s positions without stating outcomes as conclusions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

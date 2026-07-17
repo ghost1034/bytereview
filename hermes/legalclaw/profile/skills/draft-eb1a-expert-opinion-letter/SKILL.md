@@ -2,7 +2,6 @@
 name: draft-eb1a-expert-opinion-letter
 description: "Expert opinion letter for an extraordinary-ability petition accompanied by a privileged issues memo, where the letter must rely exclusively on verifiable claims and the memo must flag every statistic or assertion that cannot be confirmed from the supporting documentation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

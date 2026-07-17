@@ -2,7 +2,6 @@
 name: extract-relevant-transactions-from-accounting-records
 description: "Transaction summary memorandum extracting and aggregating potentially relevant transactions from accounting records for an investigation, tracing ownership connections between vendors and company insiders, and analyzing fee structures for evidence of possible diversion."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

@@ -2,7 +2,6 @@
 name: extract-reporting-obligations-from-consent-decree
 description: "Guides construction of a comprehensive consent decree obligation register and companion risk memo by extracting reporting and compliance deadlines, identifying sequencing dependencies, and flagging tracker errors and ambiguities."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

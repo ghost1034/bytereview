@@ -2,7 +2,6 @@
 name: prepare-antitrust-risk-assessment
 description: "Closes gaps in a multi-deliverable structure, market-level concentration analysis, hot-document and HSR production identification, coordinated effects analysis, and entry barrier assessment."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

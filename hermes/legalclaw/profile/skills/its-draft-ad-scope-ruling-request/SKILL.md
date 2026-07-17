@@ -2,7 +2,6 @@
 name: its-draft-ad-scope-ruling-request
 description: "Produces a Commerce scope ruling request under the applicable scope-analysis framework, accompanied by an internal strategy memorandum that addresses shared manufacturing process vulnerabilities, circumvention inquiry risk, and subsidy disclosure obligations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

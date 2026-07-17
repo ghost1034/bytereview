@@ -2,7 +2,6 @@
 name: draft-employment-agreement-offer-letter
 description: "Executive employment agreement for a senior technology hire drafted from an offer letter and supporting materials, with a cross-document discrepancy memo flagging inconsistencies for resolution."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

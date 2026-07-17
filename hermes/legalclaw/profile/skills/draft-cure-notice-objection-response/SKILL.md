@@ -2,7 +2,6 @@
 name: draft-cure-notice-objection-response
 description: "Ensures a cure notice objection addresses the full assumption analysis for an executory contract, including monetary cure, compensation for actual pecuniary loss, and adequate assurance, on a line-item basis, and anticipates likely waiver or forbearance defenses."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

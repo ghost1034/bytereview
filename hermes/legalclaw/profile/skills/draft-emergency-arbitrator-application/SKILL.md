@@ -2,7 +2,6 @@
 name: draft-emergency-arbitrator-application
 description: "Ensures an ICC Emergency Arbitrator application correctly frames financial information as evidence of the inadequacy of monetary relief, addresses non-party limitations, and offers a cross-undertaking."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

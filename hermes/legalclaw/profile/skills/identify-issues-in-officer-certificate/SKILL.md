@@ -2,7 +2,6 @@
 name: identify-issues-in-officer-certificate
 description: "Reviews an officer's certificate package against the applicable credit agreement conditions precedent, identifying signatory deficiencies, stale representations, undisclosed events, and certification errors."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

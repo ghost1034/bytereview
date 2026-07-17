@@ -2,7 +2,6 @@
 name: draft-guaranty-agreement
 description: "Drafts a guaranty agreement using the provided template and source documents, and prepares a cover memo flagging open issues, material template changes, and authorization deficiencies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

@@ -2,7 +2,6 @@
 name: draft-objections-to-document-production-request
 description: "Ensures document production objections in a fund-related arbitration address confidentiality concerns with nuance, identify possible open-records exposure for certain institutional investors, and avoid blanket refusals by pairing each objection with a counter-proposal."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

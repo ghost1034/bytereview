@@ -2,7 +2,6 @@
 name: review-form-adv-part-2a-for-regulatory-and-disclosure-deficiencies
 description: "Review a Form ADV Part 2A brochure against supporting records and produce an issues memo organized by Item number with severity ratings, regulatory basis citations, and remediation recommendations with timelines for each deficiency."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

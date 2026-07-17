@@ -2,7 +2,6 @@
 name: compare-data-protection-remediation-plan-against-regulatory-undertaking-commitments
 description: "Regulatory undertaking gap analyses are strongest when the agent maps each undertaking commitment individually to the remediation plan and tests whether implementation evidence, timelines, ownership, and verification measures satisfy the commitment's specific requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

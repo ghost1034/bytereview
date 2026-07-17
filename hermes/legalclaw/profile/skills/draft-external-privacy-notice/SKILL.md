@@ -2,7 +2,6 @@
 name: draft-external-privacy-notice
 description: "External privacy notice drafts for digital health platforms fail when the agent does not anchor the notice's disclosures in the current data processing inventory and does not address additional jurisdiction-specific expansion and AI product integration obligations as distinct disclosure workstreams."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

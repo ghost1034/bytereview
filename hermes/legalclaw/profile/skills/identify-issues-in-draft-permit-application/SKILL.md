@@ -2,7 +2,6 @@
 name: identify-issues-in-draft-permit-application
 description: "Guides preparation of a Title V permit application issues memorandum by identifying legal, technical, and data deficiencies in a draft application that could result in agency rejection, permit conditions adverse to the facility, or compliance risk."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

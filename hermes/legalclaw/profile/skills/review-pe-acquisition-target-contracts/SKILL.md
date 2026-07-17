@@ -2,7 +2,6 @@
 name: review-pe-acquisition-target-contracts
 description: "Guides preparation of a key terms extraction report for a private equity acquisition where target company contracts in a SaaS clinical trial management business must be reviewed for material terms and deal-impact assessment."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

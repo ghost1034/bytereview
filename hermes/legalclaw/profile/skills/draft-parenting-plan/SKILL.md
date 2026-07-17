@@ -2,7 +2,6 @@
 name: draft-parenting-plan
 description: "Drafting a comprehensive parenting plan requires translating mediator recommendations and case-specific child-care, medical, therapeutic, and school-related information into a legally complete residential schedule and decision-making framework, with a companion cover memo addressing risks and open issues."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

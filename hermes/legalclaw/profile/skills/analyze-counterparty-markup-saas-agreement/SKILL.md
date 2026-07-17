@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-saas-agreement
 description: "Priority-ranked redline analysis memorandum for a vendor-marked SaaS subscription agreement evaluated against the company's template, playbook, order form, and negotiation correspondence. Focus on comparing the operative draft against reference materials, identifying deviations, and organizing issues by business impact and negotiation significance."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

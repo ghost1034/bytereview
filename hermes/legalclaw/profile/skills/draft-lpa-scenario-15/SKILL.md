@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-15
 description: "Draft a new fund limited partnership agreement by adapting a general precedent to a minority-stake investment strategy, revising governance and investment provisions that assume control positions, and integrating supplemental investor requirements and governance mechanics."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

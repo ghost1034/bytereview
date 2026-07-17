@@ -2,7 +2,6 @@
 name: intellectual-property--review-enterprise-saas-agreement
 description: "Reviewing an enterprise SaaS agreement from the customer\u2019s perspective against diligence materials to produce a risk-tiered issues memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

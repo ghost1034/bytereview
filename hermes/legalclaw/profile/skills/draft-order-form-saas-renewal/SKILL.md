@@ -2,7 +2,6 @@
 name: draft-order-form-saas-renewal
 description: "Draft a renewal order form and accompanying cover memo for an enterprise software subscription renewal by reviewing the governing agreement, any amendments, the prior order form, the renewal proposal, negotiation correspondence, and any pricing benchmark materials; identify the controlling hierarchy of sources and reconcile conflicts accordingly."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

@@ -2,7 +2,6 @@
 name: draft-markup-tsa-seller
 description: "Guides seller-side transition services agreement redline work where gaps between playbook positions and counterparty draft require priority-tiered classification tied to parent transaction agreement conflicts."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

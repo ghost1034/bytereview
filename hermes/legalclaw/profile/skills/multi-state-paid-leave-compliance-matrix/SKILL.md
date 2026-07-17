@@ -2,7 +2,6 @@
 name: multi-state-paid-leave-compliance-matrix
 description: "Multi-state paid leave compliance analysis comparing a universal leave policy against current jurisdictional requirements across all applicable jurisdictions, identifying potential over-withholding issues, carryover issues, and incident-specific retroactive correction obligations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

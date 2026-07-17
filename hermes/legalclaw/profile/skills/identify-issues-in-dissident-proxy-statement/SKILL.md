@@ -2,7 +2,6 @@
 name: identify-issues-in-dissident-proxy-statement
 description: "Agents identify surface-level proxy statement deficiencies in a dissident solicitation, focusing on potential disclosure gaps, misleading performance or comparison claims, voting-standard misstatements, group-formation issues, and other procedural defects that may be relevant to defensive communications, regulatory outreach, or procedural challenges."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

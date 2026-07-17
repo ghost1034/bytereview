@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-postnuptial-agreement
 description: "Redline review of a counterparty's postnuptial agreement markup requires change-tracking against the client's original draft and financial disclosures to surface asymmetric provisions, financial quantification, and cumulative enforceability risk."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

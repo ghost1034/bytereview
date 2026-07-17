@@ -2,7 +2,6 @@
 name: draft-transaction-nda-scenario-02
 description: "Guides drafting of a bilateral M&A NDA from precedent and negotiated transaction materials, with a drafting notes memo that records incorporated terms, judgment calls, and any open issues."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: hls-identify-fda-presub-issues
 description: "Reviews a pre-submission package for a novel medical device to identify issues in product classification, biocompatibility categorization, software concern classification, electromagnetic compatibility testing gaps, investigational study requirements, predicate selection, imaging-compatibility claims, drug-use instructions, and clinical study design deficiencies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

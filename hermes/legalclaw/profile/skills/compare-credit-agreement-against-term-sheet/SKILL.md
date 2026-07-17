@@ -2,7 +2,6 @@
 name: compare-credit-agreement-against-term-sheet
 description: "Compares a draft credit agreement against the executed term sheet from the borrower\u2019s perspective and produces a prioritized deviation report with economic impact analysis and recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

@@ -2,7 +2,6 @@
 name: shareholder-activism-response-memo
 description: "Privileged board advisory memorandum analyzing an activist shareholder campaign, assessing the activist's legal vulnerabilities, available defensive options, institutional shareholder dynamics, and strategic considerations for the board's response."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

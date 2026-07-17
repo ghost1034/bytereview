@@ -2,7 +2,6 @@
 name: review-privilege-log-clawback-review
 description: "Assessing an opposing party's privilege log for defensibility requires reviewing each log entry against the applicable privilege standards and cross-referencing sample documents to identify log entries with insufficient descriptions, unsupported privilege claims, or documents that appear to have been improperly withheld, producing both a deficiency memo and a clawback candidate list."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

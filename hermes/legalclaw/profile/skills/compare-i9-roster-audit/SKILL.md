@@ -2,7 +2,6 @@
 name: compare-i9-roster-audit
 description: "Cross-audit comparing an employee roster against employment eligibility verification records to identify compliance gaps at the individual employee level, with employee-specific documentation, timing, and reverification analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

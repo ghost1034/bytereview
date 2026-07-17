@@ -2,7 +2,6 @@
 name: hls-identify-stark-compliance-program-issues
 description: "Reviews a Stark Law compliance program, physician arrangement documents, and internal audit materials to identify exception-citation deficiencies, in-office ancillary services same-building issues, holdover-arrangement issues, and compliance-officer reporting-independence gaps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

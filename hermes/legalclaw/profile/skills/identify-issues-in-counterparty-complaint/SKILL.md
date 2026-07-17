@@ -2,7 +2,6 @@
 name: identify-issues-in-counterparty-complaint
 description: "Identifying issues in a counterparty's verified complaint requires cross-referencing the complaint's factual allegations against the governing contract documents, termination notices, and pre-suit correspondence to identify pleading deficiencies, contractual defenses, and potential counterclaims."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

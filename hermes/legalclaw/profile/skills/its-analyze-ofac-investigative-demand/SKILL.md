@@ -2,7 +2,6 @@
 name: its-analyze-ofac-investigative-demand
 description: "Produces an issues memorandum in response to an OFAC investigative demand that analyzes potential civil and criminal exposure, evaluates compliance-program and mitigation considerations, and outlines immediate preservation and response steps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

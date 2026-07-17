@@ -2,7 +2,6 @@
 name: review-msa-regulatory-compliance
 description: "Reviewing a draft master services agreement against a contracting playbook, vendor management policy, and due diligence materials to produce a structured deviation report covering regulatory compliance and commercial risk."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

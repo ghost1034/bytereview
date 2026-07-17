@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-underwriting-agreement
 description: "Redline analysis where the baseline omits a systematic risk-shift narrative, issue severity ratings, and the playbook-grounded rationale needed for a negotiation-ready memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

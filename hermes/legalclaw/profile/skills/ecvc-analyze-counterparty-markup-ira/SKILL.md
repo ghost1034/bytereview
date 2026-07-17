@@ -2,7 +2,6 @@
 name: ecvc-analyze-counterparty-markup-ira
 description: "IRA markup analysis requires evaluating the cumulative effect of changes to registration rights, information rights, pay-to-play provisions, and consistency with the agreed term sheet \u2014 not treating revisions as isolated issues."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

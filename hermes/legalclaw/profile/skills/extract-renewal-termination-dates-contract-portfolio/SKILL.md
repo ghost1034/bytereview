@@ -2,7 +2,6 @@
 name: extract-renewal-termination-dates-contract-portfolio
 description: "Building a compliance tracker and summary memo from a contract portfolio audit, requiring deadline urgency flagging, auto-renewal risk identification, and prioritized recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

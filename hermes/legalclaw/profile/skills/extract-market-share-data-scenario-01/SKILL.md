@@ -2,7 +2,6 @@
 name: extract-market-share-data-scenario-01
 description: "Supports multi-source reconciliation, concentration analysis, document-production review, and cumulative acquisition-risk assessment for an antitrust transaction memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

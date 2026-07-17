@@ -2,7 +2,6 @@
 name: identify-governance-deficiencies-in-prior-year-proxy-statement
 description: "Agents identify general governance concerns, check for internal inconsistencies in compensation disclosures, verify whether broad compliance statements are contradicted by specific data elsewhere in the same filing, compare the company\u2019s clawback policy against the applicable proxy-disclosure and recovery-policy standard, and assess whether materially inaccurate proxy disclosures create anti-fraud liability risk."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

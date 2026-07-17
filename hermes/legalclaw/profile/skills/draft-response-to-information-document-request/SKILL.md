@@ -2,7 +2,6 @@
 name: draft-response-to-information-document-request
 description: "An information document request response package requires two separate deliverables \u2014 a formal production letter and a privileged internal memorandum \u2014 with the privilege boundary maintained strictly between them."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

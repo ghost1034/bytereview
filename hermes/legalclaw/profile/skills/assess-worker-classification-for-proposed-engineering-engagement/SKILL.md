@@ -2,7 +2,6 @@
 name: assess-worker-classification-for-proposed-engineering-engagement
 description: "Guides the analyst through a worker-classification risk assessment covering applicable tests across relevant legal regimes, factor-by-factor analysis of the working relationship, and structural remediation considerations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

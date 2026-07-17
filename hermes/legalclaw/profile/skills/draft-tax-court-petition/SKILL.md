@@ -2,7 +2,6 @@
 name: draft-tax-court-petition
 description: "A Tax Court petition must satisfy the formal requirements of the applicable Tax Court rules and should challenge each adjustment in the notice of deficiency with a separately labeled assignment of error, without omitting any adjustment that needs to be preserved for litigation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

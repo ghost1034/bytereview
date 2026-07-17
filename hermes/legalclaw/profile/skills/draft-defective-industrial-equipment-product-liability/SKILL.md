@@ -2,7 +2,6 @@
 name: draft-defective-industrial-equipment-product-liability
 description: "A case assessment memo for an industrial equipment product liability claim requires analyzing liability theories against the available forensic and workplace-safety findings, evaluating contractual terms-and-conditions defenses, assessing insurance coverage layers, and recommending a venue and early-case strategy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

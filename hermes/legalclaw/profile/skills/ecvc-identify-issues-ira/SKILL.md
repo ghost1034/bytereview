@@ -2,7 +2,6 @@
 name: ecvc-identify-issues-ira
 description: "Identifying issues in an investors\u2019 rights agreement for a preferred stock financing requires checking for provisions carried over from an earlier form without updating them for the post-closing investor base, assessing the practical effect of any board observer on attorney-client privilege, reviewing restrictive covenants under the applicable law for each bound party, and comparing any repeated defined thresholds for consistency across the agreement."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

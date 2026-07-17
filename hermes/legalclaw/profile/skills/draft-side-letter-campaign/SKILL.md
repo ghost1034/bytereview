@@ -2,7 +2,6 @@
 name: draft-side-letter-campaign
 description: "Draft a complete set of side letters for multiple investors at a fund closing, along with a campaign summary memo and an MFN disclosure schedule, where investors have potentially conflicting requests, some provisions may exceed the side-letter policy, and the MFN cascade must be analyzed across the full investor group."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

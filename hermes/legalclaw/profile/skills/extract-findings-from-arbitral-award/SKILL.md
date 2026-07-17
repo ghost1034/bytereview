@@ -2,7 +2,6 @@
 name: extract-findings-from-arbitral-award
 description: "Ensures a comprehensive arbitral award summary memo extracts each claim, each financial component, any expert-methodology findings, any interest analysis, and any open enforcement or compliance steps from a complex multi-claim final award."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

@@ -2,7 +2,6 @@
 name: compare-site-lease-market-terms-solar
 description: "Guides a ground lease deviation review by benchmarking each provision against a market playbook and lender requirements, assessing the financial impact of escalation terms over the full lease term, and identifying provisions whose absence may create financing risk."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

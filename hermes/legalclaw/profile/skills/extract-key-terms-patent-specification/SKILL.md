@@ -2,7 +2,6 @@
 name: extract-key-terms-patent-specification
 description: "Preparing a claim construction chart from a patent specification and prosecution history, using intrinsic-record hierarchy analysis and connecting each construction to downstream infringement and validity analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

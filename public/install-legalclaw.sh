@@ -135,6 +135,13 @@ done
 # 7. Install into the Hermes home (same layout the Docker image installs into /opt/data).
 tar -xzf "$tmp_dir/legalclaw-profile.tar.gz" -C "$HERMES_HOME"
 
+# The bundle's config.yaml is the Docker profile config (runtime.data_dir:
+# /opt/data); on desktop the Hermes app's own config.yaml is authoritative.
+# Restore it so the connector block below is the only config change.
+if [ -f "$HERMES_HOME/config.yaml.backup-$ts" ]; then
+  cp "$HERMES_HOME/config.yaml.backup-$ts" "$HERMES_HOME/config.yaml"
+fi
+
 # Give Hermes live access to this user's CPAAutomation integrations.
 if [ -n "$connector_url" ] && [ -n "$connector_token" ]; then
   config_file="$HERMES_HOME/config.yaml"

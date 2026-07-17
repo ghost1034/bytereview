@@ -2,7 +2,6 @@
 name: draft-child-support-worksheet
 description: "Completing a state child support guideline worksheet requires checking income figures against source financial records rather than relying solely on self-reported statements, applying income imputation where a parent is voluntarily underemployed, correcting improper deductions from rental income, and averaging variable compensation over an appropriate multi-year period."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

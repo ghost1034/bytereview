@@ -2,7 +2,6 @@
 name: identify-issues-in-litigation-hold-preservation-notice
 description: "Agents identify surface-level preservation notice gaps by checking whether the stated preservation window captures the earliest preservation trigger, whether the notice covers complaint-implicated topic categories, whether routine deletion or retention cycles create urgency, whether delay between trigger and issuance creates spoliation risk, and whether interim preservation steps are documented."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

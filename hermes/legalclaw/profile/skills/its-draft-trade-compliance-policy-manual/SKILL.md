@@ -2,7 +2,6 @@
 name: its-draft-trade-compliance-policy-manual
 description: "Drafts a comprehensive multi-chapter trade compliance policy manual that converts remediation commitments into binding policy, specifies technology access matrices for the deemed export program, addresses EU general export authorizations and catch-all controls for EU operations, and incorporates privilege protocols for investigation records."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

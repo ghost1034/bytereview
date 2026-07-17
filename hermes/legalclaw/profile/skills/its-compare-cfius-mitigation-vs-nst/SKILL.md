@@ -2,7 +2,6 @@
 name: its-compare-cfius-mitigation-vs-nst
 description: "Produces a structured gap analysis memo that maps each national-security-term requirement to the draft mitigation agreement, identifies deviations with side-by-side timing comparisons where relevant, distinguishes commercially motivated deviations from inadvertent gaps, and flags missing mandatory provisions when they appear in the source materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

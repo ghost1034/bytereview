@@ -2,7 +2,6 @@
 name: anti-corruption-regional-sales-practices-gap
 description: "Privileged anti-corruption gap analysis for a newly acquired subsidiary's regional sales practices, assessing exposure across third-party agent relationships, gift and hospitality expenditures, government official hiring, and books-and-records compliance."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

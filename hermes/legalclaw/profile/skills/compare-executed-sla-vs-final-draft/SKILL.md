@@ -2,7 +2,6 @@
 name: compare-executed-sla-vs-final-draft
 description: "Deviation report comparing an executed software license agreement against the last pre-execution draft, focused on identifying textual differences, checking authorization under the applicable contracting policy, cross-referencing the negotiation record, and organizing remedial analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

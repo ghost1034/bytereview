@@ -2,7 +2,6 @@
 name: sec-cybersecurity-disclosure-incident-response-gap
 description: "Gap analysis of incident response procedures and governance disclosures against cybersecurity disclosure requirements, with attention to materiality analysis, filing timing, and incident-response structure."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

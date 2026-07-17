@@ -2,7 +2,6 @@
 name: hls-identify-healthcare-merger-agreement-issues
 description: "Reviews a healthcare merger agreement and supporting diligence materials to identify structural, regulatory, valuation, restrictive-covenant, reimbursement, earnout, indemnity, and operational issues that may affect closing, integration, and post-closing performance."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

@@ -2,7 +2,6 @@
 name: ecvc-compare-term-sheet-against-spa
 description: "Term-sheet-to-agreement comparison requires classifying each deviation by type and affected party, reading defined-term exceptions that may embed substantive changes, and assessing cumulative dilution impact rather than merely listing differences."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

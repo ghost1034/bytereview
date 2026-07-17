@@ -2,7 +2,6 @@
 name: compare-plan-feasibility-projections-vs-historical
 description: "Ensures a feasibility analysis memo tests each projection metric against historical actuals, verifies internal arithmetic, accounts for mandatory cash sweep obligations omitted from projections, and frames the analysis under the applicable plan-confirmation feasibility standard."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

@@ -2,7 +2,6 @@
 name: review-annual-good-standing-and-qualification-filings-across-jurisdictions
 description: "Agents identify missing or overdue filings and assess the compliance implications at a category level, including administrative status issues, registered-agent lapses, foreign qualification gaps, and franchise-tax payment discrepancies, without stating task-specific outcomes or remediation amounts."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

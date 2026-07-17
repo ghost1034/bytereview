@@ -2,7 +2,6 @@
 name: analyze-property-damage-claim-commercial-policy
 description: "Agents reviewing a commercial property damage claim against policy exclusions should apply each exclusion to each claimed category, test any exception to an exclusion against the governing policy language and applicable law, and verify covered amounts after any sublimits or other policy caps are applied."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

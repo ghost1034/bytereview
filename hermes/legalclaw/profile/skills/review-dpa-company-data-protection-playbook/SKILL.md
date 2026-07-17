@@ -2,7 +2,6 @@
 name: review-dpa-company-data-protection-playbook
 description: "Reviewing a vendor data processing agreement against an internal data protection playbook and related technical due diligence materials to produce a deviation report with risk ratings and remediation recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

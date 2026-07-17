@@ -2,7 +2,6 @@
 name: its-review-draft-voluntary-self
 description: "Produces a prioritized issue memorandum reviewing draft voluntary self-disclosures for completeness, accuracy, citation hygiene, intent-characterization consistency with the evidentiary record, missing concurrent disclosure obligations, and cross-document internal consistency."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

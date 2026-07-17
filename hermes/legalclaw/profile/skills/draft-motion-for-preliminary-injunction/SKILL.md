@@ -2,7 +2,6 @@
 name: draft-motion-for-preliminary-injunction
 description: "A preliminary injunction memorandum in a trade secret and non-compete matter should analyze the governing preliminary-injunction factors, connect the requested relief to record evidence of alleged misappropriation and ongoing harm, and assess enforceability of any restrictive covenant under the applicable jurisdiction\u2019s law."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

@@ -2,7 +2,6 @@
 name: its-identify-cfius-voluntary-notice-deficiencies
 description: "Produces a categorized deficiency memorandum for a draft CFIUS voluntary notice that identifies disclosure gaps, omitted ancillary agreements, board nomination rights analysis issues, government contract omissions, regulatory correspondence non-disclosures, and mandatory filing trigger analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

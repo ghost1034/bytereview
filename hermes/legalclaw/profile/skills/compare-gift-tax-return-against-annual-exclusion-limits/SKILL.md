@@ -2,7 +2,6 @@
 name: compare-gift-tax-return-against-annual-exclusion-limits
 description: "Reviewing a filed gift tax return against the transaction ledger and supporting documents requires reconciling all transfers, verifying annual exclusion qualification conditions, distinguishing direct-payment exclusions from ordinary exclusion gifts, and tracing any election-driven filing obligations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

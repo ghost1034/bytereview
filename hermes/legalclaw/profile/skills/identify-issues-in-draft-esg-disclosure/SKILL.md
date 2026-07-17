@@ -2,7 +2,6 @@
 name: identify-issues-in-draft-esg-disclosure
 description: "Guides preparation of a severity-ranked ESG disclosure issues memorandum by cross-checking draft report claims against underlying data, active enforcement matters, board records, and internal communications that may reveal material inaccuracies or legal exposure."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

@@ -2,7 +2,6 @@
 name: extract-pricing-data-from-document-production
 description: "Supports extraction of complete pricing structures, temporal gap analysis between competitor contacts and later pricing changes, cost-justification assessment, and flagging of deletion or non-reply instructions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

@@ -2,7 +2,6 @@
 name: ecvc-extract-transfer-restrictions
 description: "A transfer restriction analysis for a proposed secondary sale must identify whether transfer restrictions apply to the relevant classes of equity, characterize the consequence of transferring without any required joinder, explain drag-along obligations that bind transferees upon joinder, and confirm whether any common-stock holder has registration rights eligibility."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

@@ -2,7 +2,6 @@
 name: flux-variance-analyst
 description: Run period-over-period flux analysis with top-driver extraction and controller-ready commentary
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, variance, analytics]

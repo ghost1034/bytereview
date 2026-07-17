@@ -2,7 +2,6 @@
 name: draft-employer-compliance-certification
 description: "Draft an employer compliance certification responding to an agency site visit and request for evidence in a multi-worker sponsorship matter, with separate treatment of the external submission and any privileged internal memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

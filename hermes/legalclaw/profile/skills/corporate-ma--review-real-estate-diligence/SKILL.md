@@ -2,7 +2,6 @@
 name: corporate-ma--review-real-estate-diligence
 description: "Guides preparation of a real estate due diligence memorandum for an acquisition involving a portfolio of leased, owned, and subleased properties, including review of lease terms, consent issues, purchase rights, and property tax allocation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

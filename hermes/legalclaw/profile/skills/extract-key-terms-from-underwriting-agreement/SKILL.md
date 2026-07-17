@@ -2,7 +2,6 @@
 name: extract-key-terms-from-underwriting-agreement
 description: "Underwriting agreement term extraction where the baseline captures core economics but may miss cross-document discrepancies, non-standard provisions, and exhibit completeness gaps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

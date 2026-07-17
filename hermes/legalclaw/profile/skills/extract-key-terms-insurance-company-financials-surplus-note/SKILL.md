@@ -2,7 +2,6 @@
 name: extract-key-terms-insurance-company-financials-surplus-note
 description: "Agents producing a due diligence summary for an insurance company financial review prioritize headline financial metrics, complete all required sections with data-supported content, identify cross-instrument and underwriting reserve interactions, and present risk factors with severity labels and brief impact statements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

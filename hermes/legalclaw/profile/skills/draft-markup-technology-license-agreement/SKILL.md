@@ -2,7 +2,6 @@
 name: draft-markup-technology-license-agreement
 description: "Comprehensive redline with bracketed commentary on deviations from the negotiation playbook and on missing provisions, for a technology license agreement evaluated against internal instructions and product documentation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

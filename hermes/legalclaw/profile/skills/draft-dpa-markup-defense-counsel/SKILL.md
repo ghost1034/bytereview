@@ -2,7 +2,6 @@
 name: draft-dpa-markup-defense-counsel
 description: "Section-by-section markup of a government-drafted deferred prosecution agreement with defense counsel redlines and comments, addressing penalty reduction, criminal charge scope, monitor provisions, and agreement term in light of applicable enforcement policy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

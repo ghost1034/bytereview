@@ -2,7 +2,6 @@
 name: review-markup-counterparty-dpa
 description: "Reviewing a counterparty data processing agreement template against a company playbook and sub-processor register to produce a prioritized commentary memo with recommended markups."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

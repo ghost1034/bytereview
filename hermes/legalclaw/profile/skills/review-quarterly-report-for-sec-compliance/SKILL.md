@@ -2,7 +2,6 @@
 name: review-quarterly-report-for-sec-compliance
 description: "Form 10-Q compliance review focused on checking whether the filing\u2019s cover page, financial statements, and MD&A disclosures follow the required form and whether period-specific disclosure items are handled consistently with the applicable accounting and SEC framework."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

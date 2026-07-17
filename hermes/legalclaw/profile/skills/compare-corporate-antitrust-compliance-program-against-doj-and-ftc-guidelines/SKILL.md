@@ -2,7 +2,6 @@
 name: compare-corporate-antitrust-compliance-program-against-doj-and-ftc-guidelines
 description: "Closes gaps in organizing issues within a recognized antitrust compliance evaluation framework, identifying high-risk personnel categories requiring specialized training, and connecting material compliance events to program update obligations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

@@ -2,7 +2,6 @@
 name: identify-issues-in-subscription-agreement
 description: "Review subscription documents for a large institutional investor and produce a comprehensive issues memo for the fund sponsor identifying material legal, regulatory, and commercial concerns before the investor is admitted as a limited partner."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

@@ -2,7 +2,6 @@
 name: draft-investment-advisory-agreement
 description: "Draft an execution-ready investment advisory agreement for a separately managed account program and prepare a companion drafting-notes memo covering key decisions, cross-document inconsistencies, and regulatory considerations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

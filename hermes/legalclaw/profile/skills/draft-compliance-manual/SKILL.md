@@ -2,7 +2,6 @@
 name: draft-compliance-manual
 description: "Draft a comprehensive compliance policies and procedures manual for a registered investment adviser, addressing deficiencies and gaps identified across source materials such as examination reports, deficiency letters, risk alerts, and internal assessments."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

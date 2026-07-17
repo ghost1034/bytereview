@@ -2,7 +2,6 @@
 name: draft-credit-agreement-markup
 description: "Produces a borrower-side markup memo identifying deviations between a draft credit agreement and the operative financing summary materials, with proposed redlines and priority classification."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

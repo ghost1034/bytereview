@@ -2,7 +2,6 @@
 name: summarize-new-gdpr-enforcement-guidance
 description: "GDPR enforcement guidance executive briefs fail when the agent summarizes the guidance generically rather than filtering its implications through the company's specific processing activities and compliance tracker to produce actionable, company-specific takeaways for cross-functional leadership."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

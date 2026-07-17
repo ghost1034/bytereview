@@ -2,7 +2,6 @@
 name: its-extract-trade-sanctions-entity-details
 description: "Produces an entity extraction risk report from a trade finance transaction package that screens all parties across the deal chain, analyzes screening discrepancies including birth-date mismatches, flags free-zone opacity risks, and identifies shipping term anomalies indicative of transshipment diversion."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

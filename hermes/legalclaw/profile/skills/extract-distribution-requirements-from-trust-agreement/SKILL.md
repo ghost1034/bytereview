@@ -2,7 +2,6 @@
 name: extract-distribution-requirements-from-trust-agreement
 description: "Closes the gap where agents summarize distribution provisions at a general level without computing adjusted figures, applying section-by-section prohibition conditions to each pending request, flagging ambiguous expense definitions, and identifying trust protector conflicts that affect the approval process."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

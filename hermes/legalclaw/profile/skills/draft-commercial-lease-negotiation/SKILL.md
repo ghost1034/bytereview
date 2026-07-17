@@ -2,7 +2,6 @@
 name: draft-commercial-lease-negotiation
 description: "Guides preparation of a full tenant-side lease negotiation package by aligning redline positions against the governing baseline documents and internal requirements, and producing all required deliverables in consistent form."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

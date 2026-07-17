@@ -2,7 +2,6 @@
 name: extract-key-terms-trial-exhibit-list
 description: "Cross-referencing a joint trial exhibit list against pretrial filings to identify discrepancies, authentication risks, and corrective actions before trial, using the governing pretrial materials and related procedural orders."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

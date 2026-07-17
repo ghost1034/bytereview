@@ -2,7 +2,6 @@
 name: research-statute-of-limitations-for-potential-breach-of-contract-claims
 description: "Agents state the applicable limitation period without analyzing whether a contractual shortening clause is enforceable under the governing law, calculating deadline dates from each potential accrual date, addressing equitable tolling or estoppel doctrines based on counterparty conduct in the source documents, or confirming which claims remain timely."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

@@ -2,7 +2,6 @@
 name: data-privacy-cybersecurity--audit-privacy-policy-compliance--scenario-02
 description: "Privacy policy compliance audits for fintech apps fail when the agent reviews the policy as a standalone document rather than reconciling it against the data inventory, sharing agreement, breach log, and investor due-diligence memo for cross-document consistency gaps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

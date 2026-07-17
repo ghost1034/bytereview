@@ -2,7 +2,6 @@
 name: eu-ai-act-portfolio-impact
 description: "Regulatory impact assessment of an AI product portfolio against applicable AI governance classification requirements, identifying prohibited practices, high-risk system obligations, general-purpose AI model obligations, and systemic governance gaps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

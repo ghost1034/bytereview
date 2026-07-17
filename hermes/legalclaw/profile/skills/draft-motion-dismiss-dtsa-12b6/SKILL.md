@@ -2,7 +2,6 @@
 name: draft-motion-dismiss-dtsa-12b6
 description: "Rule 12(b)(6) motion to dismiss a federal trade secret misappropriation complaint on federal and state trade secret law grounds, with an integrated memorandum of law."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

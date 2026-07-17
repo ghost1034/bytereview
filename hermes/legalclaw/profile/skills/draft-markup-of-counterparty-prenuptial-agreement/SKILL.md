@@ -2,7 +2,6 @@
 name: draft-markup-of-counterparty-prenuptial-agreement
 description: "Producing a prioritized redline markup of a draft prenuptial agreement requires identifying asymmetric and over-broad provisions unfavorable to the client, supplying replacement contract language, and embedding commentary explaining the legal basis and strategic rationale for each change."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

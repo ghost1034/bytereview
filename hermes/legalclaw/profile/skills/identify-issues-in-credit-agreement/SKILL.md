@@ -2,7 +2,6 @@
 name: identify-issues-in-credit-agreement
 description: "Compares a final credit agreement against the governing deal materials and internal instructions from the borrower\u2019s side, and produces a prioritized issue-spotting memorandum with severity classifications and recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

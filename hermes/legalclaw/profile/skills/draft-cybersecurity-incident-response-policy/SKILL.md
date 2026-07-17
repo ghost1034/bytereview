@@ -2,7 +2,6 @@
 name: draft-cybersecurity-incident-response-policy
 description: "Incident response policies for regulated manufacturers fail when the agent drafts a generic template rather than integrating the organisation-specific gap analysis findings, governance mandate, operational runbook, and regulatory guidance into a facility- and product-context-specific policy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

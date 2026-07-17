@@ -2,7 +2,6 @@
 name: draft-due-diligence-summary-memorandum-rtl
 description: "Drafting a due diligence summary memorandum for a residential transition loan ABS transaction where loan-level legal issues, servicer assessment, geographic concentration analysis, and open items must be synthesized across multiple diligence reports into a structured deliverable."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

@@ -2,7 +2,6 @@
 name: identify-regulatory-and-operational-deficiencies-in-fund-manager-compliance-manual
 description: "Review a registered investment adviser's compliance manual against applicable regulatory requirements and supporting materials, then produce an issues memo identifying regulatory and operational deficiencies, with severity ratings and remediation recommendations for each issue identified."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

@@ -2,7 +2,6 @@
 name: identify-issues-intercreditor-agreement-mezzanine
 description: "Guides identification of issues in a project finance intercreditor agreement from the mezzanine lender's perspective by focusing on project finance market conventions, the effect of cash sweep mechanics on mezzanine debt service, and the need to explain both the legal issue and practical risk of each item."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

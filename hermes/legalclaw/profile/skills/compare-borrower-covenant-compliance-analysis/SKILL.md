@@ -2,7 +2,6 @@
 name: compare-borrower-covenant-compliance-analysis
 description: "Independently recalculates covenant compliance from source documents, flags deviations from the borrower\u2019s compliance certificate, and produces a default-oriented analysis with next-step triage."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

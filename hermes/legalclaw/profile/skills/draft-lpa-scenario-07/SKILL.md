@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-07
 description: "Draft the Fund V LPA from the Fund IV precedent, incorporating the term sheet, LP counsel memo, waterfall correction memo, market terms report, and equalization emails; flag conflicts and open questions separately."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

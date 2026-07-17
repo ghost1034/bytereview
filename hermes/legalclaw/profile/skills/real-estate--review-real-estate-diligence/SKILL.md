@@ -2,7 +2,6 @@
 name: real-estate--review-real-estate-diligence
 description: "Guides preparation of a real estate due diligence memorandum by abstracting each lease instrument, identifying material risks from tax records and any sublease, and organizing findings according to the supervising lawyer\u2019s instructions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

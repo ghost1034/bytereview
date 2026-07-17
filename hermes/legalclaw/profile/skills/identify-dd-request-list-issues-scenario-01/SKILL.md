@@ -2,7 +2,6 @@
 name: identify-dd-request-list-issues-scenario-01
 description: "DD request list gap analysis for a pre-IPO company where the baseline identifies generic omissions but does not connect each gap to the specific disclosure obligation or underwriter diligence standard it is meant to satisfy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

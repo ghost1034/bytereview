@@ -2,7 +2,6 @@
 name: review-document-production-set-for-attorney
 description: "Reviewing a document production set for privilege designations requires applying attorney-client privilege and work product doctrine to each document, addressing any prior inadvertent production and clawback history, and producing both a privilege designation report and draft privilege log entries as separate required outputs."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

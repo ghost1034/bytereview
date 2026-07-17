@@ -2,7 +2,6 @@
 name: its-analyze-cfius-nsa-markup
 description: "Produces a risk-prioritized analysis of a national security agreement markup that identifies compounding effects across grouped changes, distinguishes categorically non-negotiable provisions from negotiable deviations, and evaluates cover-letter characterizations against the actual redline."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

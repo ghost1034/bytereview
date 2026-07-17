@@ -2,7 +2,6 @@
 name: review-employment-agreement-prepare-company-markup
 description: "Reviewing a draft employment agreement from the company\u2019s perspective against a playbook and approved offer-letter terms to prepare a markup with recommended positions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

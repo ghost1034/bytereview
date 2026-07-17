@@ -2,7 +2,6 @@
 name: analyze-sellers-counsel-markup-spa
 description: "Guides buyer-side analysis of a seller-side markup of a stock purchase agreement by requiring a two-pass review that separates disclosed changes from silent ones and assesses the combined economic effect of interacting indemnification revisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

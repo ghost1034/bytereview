@@ -2,7 +2,6 @@
 name: draft-disclosure-statement
 description: "Ensures a chapter 11 disclosure statement provides adequate information across the core disclosure categories relevant to a reorganization case, including liquidation comparison, treatment of impaired classes, tax consequences, insider transactions, and material risk factors, and reconciles any inconsistent financial figures in the source materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

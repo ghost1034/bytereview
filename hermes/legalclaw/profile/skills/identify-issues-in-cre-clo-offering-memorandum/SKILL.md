@@ -2,7 +2,6 @@
 name: identify-issues-in-cre-clo-offering-memorandum
 description: "Reviewing a preliminary offering memorandum for a CRE CLO transaction from a placement agent perspective to identify genuine structural and disclosure issues, explain their significance for investor decision-making and placement agent liability, and distinguish them from provisions consistent with CRE CLO market practice."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

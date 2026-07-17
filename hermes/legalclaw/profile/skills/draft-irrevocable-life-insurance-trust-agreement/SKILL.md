@@ -2,7 +2,6 @@
 name: draft-irrevocable-life-insurance-trust-agreement
 description: "Drafting an irrevocable life-insurance trust for a blended family requires structuring withdrawal rights for beneficiaries, addressing transfer and ownership issues for any policy insuring the grantor, coordinating transfer-skipping transfer tax planning for skip-person beneficiaries, and aligning the draft with the broader estate plan in a companion cover memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

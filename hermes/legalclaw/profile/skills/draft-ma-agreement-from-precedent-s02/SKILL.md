@@ -2,7 +2,6 @@
 name: draft-ma-agreement-from-precedent-s02
 description: "Guides drafting of a stock purchase agreement from a precedent and term sheet, requiring a companion issues memo that identifies non-compete scope problems, explains earnout and rollover provisions absent from the precedent, and distinguishes fundamental, general, and tax representation survival period requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

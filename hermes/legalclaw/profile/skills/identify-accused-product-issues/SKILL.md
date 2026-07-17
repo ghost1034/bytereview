@@ -2,7 +2,6 @@
 name: identify-accused-product-issues
 description: "Preparing an infringement issue-identification memo for a patent matter by analyzing asserted claims against accused product documentation and prosecution history, requiring claim mapping, prosecution history estoppel assessment, and prior art impact analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

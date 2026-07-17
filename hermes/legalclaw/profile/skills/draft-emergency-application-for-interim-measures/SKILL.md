@@ -2,7 +2,6 @@
 name: draft-emergency-application-for-interim-measures
 description: "Ensures an ICC interim measures application seeking letter of credit restraint and continued supply addresses the letter of credit autonomy principle directly, tests any no-oral-modification clause against extension or waiver communications, and frames any termination issue in support of irreparable harm."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

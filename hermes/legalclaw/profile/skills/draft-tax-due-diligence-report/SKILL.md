@@ -2,7 +2,6 @@
 name: draft-tax-due-diligence-report
 description: "A buy-side tax due diligence report should identify and quantify tax exposures across a low-to-high range, analyze relevant loss-attribute limitations and related tax attributes, and recommend transaction protections for each material exposure."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

@@ -2,7 +2,6 @@
 name: its-draft-response-export-control-charging-letter
 description: "Drafts a formal administrative response that challenges each charge with individualized legal defenses, argues for mitigating credit based on independent internal discovery and voluntary disclosure, distinguishes willful from non-willful violations, and proposes a settlement position with a penalty analysis tied to the applicable statutory framework."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

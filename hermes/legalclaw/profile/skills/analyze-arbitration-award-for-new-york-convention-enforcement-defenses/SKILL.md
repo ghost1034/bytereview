@@ -2,7 +2,6 @@
 name: analyze-arbitration-award-for-new-york-convention-enforcement-defenses
 description: "Ensures analysis of an arbitral award for enforcement resistance covers the relevant Convention defenses, verifies the award's arithmetic independently, and addresses the applicable enforcement procedure in the forum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

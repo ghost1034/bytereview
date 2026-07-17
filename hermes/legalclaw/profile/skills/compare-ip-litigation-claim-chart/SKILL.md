@@ -2,7 +2,6 @@
 name: compare-ip-litigation-claim-chart
 description: "Element-by-element infringement comparison chart mapping asserted patent claims to accused product features, with separate handling for claim construction, literal infringement, doctrine of equivalents, prosecution-history limits, and overall strength assessment."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

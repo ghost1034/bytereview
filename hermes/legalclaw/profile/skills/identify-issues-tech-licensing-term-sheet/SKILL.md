@@ -2,7 +2,6 @@
 name: identify-issues-tech-licensing-term-sheet
 description: "Reviewing a technology licensing term sheet against a company playbook and supporting deal documents to prepare a comprehensive issue memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

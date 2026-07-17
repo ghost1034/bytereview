@@ -2,7 +2,6 @@
 name: draft-staffing-memorandum
 description: "Guides preparation of an internal engagement staffing memorandum for a cross-border M&A matter where team composition, conflicts status, regulatory specialty coverage, diversity metrics, and budget must all be addressed in a procedural, non-answer-key format."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

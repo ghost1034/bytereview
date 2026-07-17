@@ -2,7 +2,6 @@
 name: draft-vendor-onboarding-questionnaire
 description: "Drafting a risk-tiered vendor onboarding questionnaire from vendor management policies and internal directives, requiring identification of cross-document inconsistencies and healthcare compliance questions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

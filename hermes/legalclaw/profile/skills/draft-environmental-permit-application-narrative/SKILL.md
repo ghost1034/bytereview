@@ -2,7 +2,6 @@
 name: draft-environmental-permit-application-narrative
 description: "Guides drafting of a permit renewal application narrative for a food processing facility by addressing each pre-application conference topic systematically with accurate technical data and proactively resolving compliance history issues."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

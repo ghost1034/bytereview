@@ -2,7 +2,6 @@
 name: draft-opposition-summary-judgment-patent
 description: "Opposition to a motion for summary judgment in patent infringement litigation, based on the trial record, expert reports, deposition testimony, and briefing guidelines."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

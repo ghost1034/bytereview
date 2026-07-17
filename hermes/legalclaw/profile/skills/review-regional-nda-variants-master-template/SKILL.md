@@ -2,7 +2,6 @@
 name: review-regional-nda-variants-master-template
 description: "Reviewing multiple regional NDA templates against a master template to produce a conformance report identifying jurisdiction-specific deviations and harmonization actions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

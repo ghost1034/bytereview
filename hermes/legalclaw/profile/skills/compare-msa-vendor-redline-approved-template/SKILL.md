@@ -2,7 +2,6 @@
 name: compare-msa-vendor-redline-approved-template
 description: "Produce a deviation report comparing a vendor-redlined master services agreement against the approved template and playbook, using the template and playbook as the baseline and assessing changes with due diligence context where available."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

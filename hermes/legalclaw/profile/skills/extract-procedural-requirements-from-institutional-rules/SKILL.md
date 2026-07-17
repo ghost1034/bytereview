@@ -2,7 +2,6 @@
 name: extract-procedural-requirements-from-institutional-rules
 description: "Ensures a procedural compliance checklist computes each deadline from its trigger event, identifies overlapping deadlines, flags forfeiture and waiver risks, and addresses emergency-order enforceability at the seat."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

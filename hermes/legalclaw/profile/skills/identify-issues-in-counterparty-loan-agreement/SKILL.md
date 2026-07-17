@@ -2,7 +2,6 @@
 name: identify-issues-in-counterparty-loan-agreement
 description: "Guides borrower-side identification of issues in a draft construction loan agreement and guaranty by anchoring each issue to the agreed deal terms, project economics, organizational documents, and environmental findings, and producing a prioritized issue memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

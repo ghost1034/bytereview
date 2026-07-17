@@ -2,7 +2,6 @@
 name: corporate-ma--extract-credit-agreement-covenants
 description: "Guides extraction and analysis of the covenant package in a credit agreement for acquisition diligence, cross-referenced against current compliance data to identify constraints and risks."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

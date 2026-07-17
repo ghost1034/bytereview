@@ -2,7 +2,6 @@
 name: draft-bid-procedures-motion
 description: "Ensures a bid procedures motion includes the core procedural elements commonly addressed in a chapter 11 sale process \u2014 a free-and-clear sale basis, stalking horse protections, bidder assurance requirements, and a cure-claims handling mechanism \u2014 and is accompanied by a separate issues memorandum with severity-rated findings."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

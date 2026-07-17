@@ -2,7 +2,6 @@
 name: draft-deposition-outline
 description: "A deposition outline for an adverse supervisor witness in an employment discrimination and retaliation case should progress topically from background and credibility-building through document authentication, comparator analysis, and targeted admission-seeking, with each section tied to the relevant proof issues and supported by document-specific questions and authentication steps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

@@ -2,7 +2,6 @@
 name: identify-issues-in-transfer-impact-assessment
 description: "TIA issue memos for cross-border EU data transfers fail when the agent does not assess the TIA's methodology and conclusions against the destination-country legal analysis required by Schrems II, and does not identify where multiple transfer mechanisms in the same engagement have been incorrectly applied or are inconsistent."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

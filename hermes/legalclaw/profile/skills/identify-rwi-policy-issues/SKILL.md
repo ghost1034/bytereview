@@ -2,7 +2,6 @@
 name: identify-rwi-policy-issues
 description: "Guides preparation of a prioritized RWI policy gap analysis identifying coverage exclusions, definition mismatches, and underwriting limitations that create uninsured exposure relative to the acquisition agreement representations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

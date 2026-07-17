@@ -2,7 +2,6 @@
 name: extract-compliance-findings-from-internal-audit-report
 description: "Agents summarize audit findings while also assessing audit independence, limitations in transaction-monitoring testing, sanctions-disclosure considerations, customer classification risks, and the basis for any disagreement over management severity adjustments."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

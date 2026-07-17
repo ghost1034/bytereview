@@ -2,7 +2,6 @@
 name: ecvc-draft-legal-opinion-series-b
 description: "A legal opinion for a preferred stock financing should address each requested opinion item separately, including organization and good standing, corporate authorization, valid issuance and capitalization, no-conflicts, identification of the applicable securities offering exemption, state securities law compliance by investor domicile, and enforceability of each transaction document."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

@@ -2,7 +2,6 @@
 name: discovery-production-gap-analysis
 description: "Production gap analysis memorandum comparing document production against discovery request specifications, assessing the merits of each objection, identifying privilege log deficiencies, and recommending remediation to bring production into compliance."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

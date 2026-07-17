@@ -2,7 +2,6 @@
 name: extract-obligations-from-executed-marital-settlement-agreement
 description: "Closes the gap where agents list settlement-agreement provisions without cross-referencing the agreement text against attached exhibits for numerical discrepancies, identifying ambiguous support-termination conditions, flagging post-decree filing deadline risk created by a phased engagement, and noting enforcement gaps in ongoing reporting and contribution obligations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

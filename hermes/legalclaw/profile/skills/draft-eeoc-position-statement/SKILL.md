@@ -2,7 +2,6 @@
 name: draft-eeoc-position-statement
 description: "Guides the drafter in preparing a submission-ready EEOC position statement that accurately presents the employer's defense across the charged theories, supported by documentation and comparator evidence."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

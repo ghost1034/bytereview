@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-ppa-solar
 description: "Guides analysis of a buyer's markup of a power purchase agreement by connecting related changes that compound risk exposure, benchmarking performance provisions against market ranges, identifying changes that threaten project financing, and separately identifying changes that appear commercially reasonable to accept."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

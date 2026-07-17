@@ -2,7 +2,6 @@
 name: identify-issues-in-notice-of-violation
 description: "Guides preparation of a defense memorandum for an industrial facility's notice-of-violation response by assessing each alleged violation against available permit records, operational data, and monitoring results to identify defensible positions and mitigation arguments."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

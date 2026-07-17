@@ -2,7 +2,6 @@
 name: ecvc-identify-issues-bridge-loan
 description: "Identifying issues in a bridge loan agreement requires assessing economic terms against market benchmarks, flagging a personal guaranty as non-standard for an institutional bridge, identifying one-sided amendment provisions, and evaluating revenue milestones for achievability given the company's stage."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

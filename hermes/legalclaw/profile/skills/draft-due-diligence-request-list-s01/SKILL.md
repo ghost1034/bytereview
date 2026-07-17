@@ -2,7 +2,6 @@
 name: draft-due-diligence-request-list-s01
 description: "Guides drafting of a tailored due diligence request list for a healthcare IT or software acquisition, with an executive summary of key diligence themes and target-specific requests addressing open-source licensing risk, multi-jurisdiction tax nexus gaps, time-sensitive contract renewals, and restrictive covenant enforceability."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

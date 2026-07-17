@@ -2,7 +2,6 @@
 name: analyze-change-of-control-provisions
 description: "Guides systematic review of change-of-control and anti-assignment clauses across a portfolio of material contracts, capturing trigger type, required action, notice timing, and cascading risk across the full document set."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: draft-response-to-epa-compliance-order
 description: "Guides drafting of a formal response to a regulatory compliance order by organizing the analysis count-by-count, evaluating available defenses and mitigation themes, and proposing a compliance schedule with achievable milestones."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

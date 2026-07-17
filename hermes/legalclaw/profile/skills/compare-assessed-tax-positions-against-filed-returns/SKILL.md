@@ -2,7 +2,6 @@
 name: compare-assessed-tax-positions-against-filed-returns
 description: "A pre-acquisition tax variance analysis should reconcile assessed positions against filed returns issue by issue, assess federal and state-specific errors, and translate each variance into an actionable indemnification analysis rather than merely listing differences."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

@@ -2,7 +2,6 @@
 name: hls-extract-reimbursement-terms-payor
 description: "Extracts and catalogs reimbursement terms from a managed care payor contract and any related exhibits, focusing on methodologies, rate structures, escalation mechanics, discount provisions, audit and recoupment mechanics, value-based care terms, and termination-related payment obligations, benchmarked against general industry playbook conventions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

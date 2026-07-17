@@ -2,7 +2,6 @@
 name: draft-enterprise-saas-agreement-deal-points
 description: "Draft a master subscription agreement for an enterprise software-as-a-service customer from a deal points memo and internal playbook, with a required privacy/security exhibit and a cover memo identifying judgment calls and open issues."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

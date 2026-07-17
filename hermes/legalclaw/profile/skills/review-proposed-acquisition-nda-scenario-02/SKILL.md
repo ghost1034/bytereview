@@ -2,7 +2,6 @@
 name: review-proposed-acquisition-nda-scenario-02
 description: "Guides preparation of a prioritized NDA issues memo where a draft acquisition NDA must be reviewed against a client playbook and client-specific instructions to identify deviations requiring negotiation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: identify-issues-in-tax-equity-flip-partnership
 description: "Guides issue identification in a tax equity flip partnership agreement by cross-referencing the financial model's tax assumptions against current applicable law, assessing eligibility for available tax credit bonus treatments and related substantiation, and analyzing structural tax risks including basis adjustment rules, partnership anti-abuse principles, and back-leverage mechanics."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

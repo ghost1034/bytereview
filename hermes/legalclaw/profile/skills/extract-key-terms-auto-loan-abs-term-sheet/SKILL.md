@@ -2,7 +2,6 @@
 name: extract-key-terms-auto-loan-abs-term-sheet
 description: "Extract and cross-check material terms from an asset-backed securities term sheet and supporting documents, verify internal arithmetic where relevant, and identify structural or disclosure inconsistencies by comparing the term sheet against other transaction materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

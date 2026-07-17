@@ -2,7 +2,6 @@
 name: review-commercial-lease-company-playbook
 description: "Reviewing a draft commercial lease against a real estate contracting playbook and related deal correspondence to produce a prioritized deviation report with recommended redline language."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

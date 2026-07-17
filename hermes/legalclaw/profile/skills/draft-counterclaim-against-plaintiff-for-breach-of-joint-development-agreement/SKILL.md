@@ -2,7 +2,6 @@
 name: draft-counterclaim-against-plaintiff-for-breach-of-joint-development-agreement
 description: "Drafting a counterclaim for breach of a joint development agreement requires identifying the counterclaims arising from the same transaction, pleading ownership and misuse theories with factual specificity, and coordinating the counterclaim's factual narrative with the defense of the plaintiff's complaint."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

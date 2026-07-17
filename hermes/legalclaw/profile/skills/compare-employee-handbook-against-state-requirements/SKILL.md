@@ -2,7 +2,6 @@
 name: compare-employee-handbook-against-state-requirements
 description: "Guides the analyst through a jurisdiction-specific handbook compliance gap analysis that compares each handbook policy against the applicable state statutory requirements and assigns severity ratings."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

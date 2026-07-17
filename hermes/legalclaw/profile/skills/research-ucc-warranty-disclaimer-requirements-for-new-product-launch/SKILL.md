@@ -2,7 +2,6 @@
 name: research-ucc-warranty-disclaimer-requirements-for-new-product-launch
 description: "A UCC warranty analysis memo for a new product launch should audit the relevant warranty documents and marketing materials for potential express warranty creation, assess whether disclaimer language satisfies the applicable conspicuousness and form requirements, and identify remediation steps for materials that do not comply."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

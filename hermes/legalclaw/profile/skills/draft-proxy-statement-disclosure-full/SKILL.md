@@ -2,7 +2,6 @@
 name: draft-proxy-statement-disclosure-full
 description: "Comprehensive proxy statement drafting from multiple source documents where the baseline produces the core disclosure sections but may miss additional disclosure obligations arising from the company\u2019s governance and compensation profile."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

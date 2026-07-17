@@ -2,7 +2,6 @@
 name: cfpb-open-banking-rule-impact
 description: "Regulatory impact memorandum assessing each existing data sharing agreement against the applicable consumer financial data access and sharing rule, identifying disclosure, authorization, data-use, revocation, deletion, interface, and implementation-gaps across the agreement portfolio."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

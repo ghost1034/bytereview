@@ -2,7 +2,6 @@
 name: draft-pour
 description: "Drafting a pour-over will that coordinates with a revocable living trust for a blended family estate requires identifying assets not funded into the trust, confirming the trust's current operative version, and flagging prenuptial agreement interactions and execution requirements in a companion issues memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

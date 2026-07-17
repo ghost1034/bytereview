@@ -2,7 +2,6 @@
 name: review-outside-counsel-engagement-letter-for-problematic-terms
 description: "Reviewing a proposed outside counsel engagement letter requires systematically comparing each provision against the applicable outside counsel guidelines, flagging non-compliant terms on billing, staffing, conflicts, e-discovery, and scope, and recommending specific redline changes or conditions for acceptance."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

@@ -2,7 +2,6 @@
 name: identify-issues-counterparty-dpa
 description: "Reviewing a counterparty data processing addendum against internal playbook guidance and underlying commercial-agreement summary terms to produce a prioritized issue memo with redline recommendations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

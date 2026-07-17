@@ -2,7 +2,6 @@
 name: draft-witness-examination-outline
 description: "A trial witness examination outline should sequence direct and cross-examination to build the client\u2019s narrative, lock in favorable admissions, use prior deposition testimony and documentary evidence for impeachment, and account for any pretrial evidentiary rulings limiting what can be elicited."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

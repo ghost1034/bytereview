@@ -2,7 +2,6 @@
 name: draft-response-to-regulatory-inquiry-letter
 description: "Regulatory inquiry responses involving health data sharing should be drafted by mapping each inquiry item to a corresponding response, preserving the distinction between the external response and any privileged internal analysis, and checking that representations align with the underlying factual record."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

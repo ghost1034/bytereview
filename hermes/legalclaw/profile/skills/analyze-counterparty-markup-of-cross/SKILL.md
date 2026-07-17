@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-cross
 description: "Redlining analysis loses discipline when the agent skips playbook hierarchy and fails to anchor each deviation to the governing transfer mechanism and transfer impact findings."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

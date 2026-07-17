@@ -2,7 +2,6 @@
 name: review-data-room-red-flag
 description: "Guides preparation of a data room red flag memorandum for an acquisition where a large, heterogeneous data room requires systematic review to identify material risks requiring deal team attention."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

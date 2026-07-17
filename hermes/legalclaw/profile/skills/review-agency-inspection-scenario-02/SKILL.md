@@ -2,7 +2,6 @@
 name: review-agency-inspection-scenario-02
 description: "Guides preparation of a defense-oriented issues memorandum for a contested agency multi-media inspection by organizing findings medium-by-medium and assessing each allegation against facility records, monitoring data, and procedural documentation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

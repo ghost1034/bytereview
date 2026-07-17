@@ -2,7 +2,6 @@
 name: draft-dip-financing-motion
 description: "Ensures a DIP financing motion discloses roll-up structure, challenge period terms, carve-out justification, and milestone rationale, and proactively addresses the objections that courts routinely raise to DIP provisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

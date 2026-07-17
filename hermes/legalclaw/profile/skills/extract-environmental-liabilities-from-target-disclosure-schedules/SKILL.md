@@ -2,7 +2,6 @@
 name: extract-environmental-liabilities-from-target-disclosure-schedules
 description: "Guides preparation of an environmental liability summary memorandum for an acquisition target by extracting and synthesizing disclosed liabilities from disclosure schedules, environmental site assessments, regulatory correspondence, and financial accruals."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

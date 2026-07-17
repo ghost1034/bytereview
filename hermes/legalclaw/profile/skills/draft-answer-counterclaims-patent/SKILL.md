@@ -2,7 +2,6 @@
 name: draft-answer-counterclaims-patent
 description: "Complete responsive pleading for a patent infringement defendant, comprising answer, affirmative defenses, and counterclaims, grounded in technical facts, prior art analysis, and the pleadings record."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

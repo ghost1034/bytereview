@@ -2,7 +2,6 @@
 name: extract-client-assets-from-financial-statements
 description: "Closes the gap where agents compile flat asset lists without categorized subtotals, correct treatment of inherited retirement-account spousal rollover rights and distribution compliance, partnership-interest valuation discount notation, and installment-note tax and estate consequences."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-epc-contract-solar
 description: "Guides analysis of an EPC redline by systematically connecting each markup change to its impact on financing closing conditions, schedule and completion-risk exposure, fixed-price structure integrity, warranty and indemnity risk allocation, and applicable legal constraints."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

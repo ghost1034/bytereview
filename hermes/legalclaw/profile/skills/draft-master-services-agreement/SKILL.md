@@ -2,7 +2,6 @@
 name: draft-master-services-agreement
 description: "Comprehensive master services agreement for a healthcare data analytics engagement, with a cover memo explaining key drafting decisions and open items, based on a prior agreement, playbook, and negotiated business terms."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

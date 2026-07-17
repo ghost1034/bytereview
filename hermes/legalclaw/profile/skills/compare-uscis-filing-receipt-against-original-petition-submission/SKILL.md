@@ -2,7 +2,6 @@
 name: compare-uscis-filing-receipt-against-original-petition-submission
 description: "Discrepancy review comparing a USCIS filing receipt against the original petition submission, focusing on field-by-field mismatches, their potential effect on case linkage and identity verification, and the appropriate correction path based on the source and materiality of each error."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

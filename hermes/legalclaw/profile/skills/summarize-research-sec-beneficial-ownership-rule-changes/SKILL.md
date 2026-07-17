@@ -2,7 +2,6 @@
 name: summarize-research-sec-beneficial-ownership-rule-changes
 description: "Agents summarize amended beneficial ownership filing deadlines by applying the relevant filing regime, accounting for business-day calculations where required, verifying timeliness against the triggering event, and distinguishing individual reporting obligations from any group-formation analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

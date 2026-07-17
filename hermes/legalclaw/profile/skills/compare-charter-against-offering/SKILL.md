@@ -2,7 +2,6 @@
 name: compare-charter-against-offering
 description: "Three-document cross-check where the baseline typically performs only pairwise comparisons and misses conflicts that surface only when all three documents are read together."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

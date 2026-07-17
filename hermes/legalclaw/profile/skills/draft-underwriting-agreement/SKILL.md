@@ -2,7 +2,6 @@
 name: draft-underwriting-agreement
 description: "Firm-commitment underwriting agreement drafting for an IPO where the baseline populates economic terms but omits deal-specific provisions required by the transaction structure and source documents, and does not produce the companion issues memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

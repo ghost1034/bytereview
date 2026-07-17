@@ -2,7 +2,6 @@
 name: identify-issues-in-plan-of-reorganization
 description: "Ensures a plan issues memo checks the plan\u2019s internal consistency, tests economic assumptions and classifications against the supporting materials, identifies confirmation-related defects and disclosure gaps, and ends with a cumulative feasibility-oriented risk assessment rather than only isolated issues."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

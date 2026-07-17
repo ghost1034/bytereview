@@ -2,7 +2,6 @@
 name: compare-post-closing-working-capital
 description: "Guides independent verification of a disputed post-closing working capital closing statement by applying the operative definition line by line, identifying categorization and arithmetic errors, and recomputing the corrected adjustment with directional impact for each error."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

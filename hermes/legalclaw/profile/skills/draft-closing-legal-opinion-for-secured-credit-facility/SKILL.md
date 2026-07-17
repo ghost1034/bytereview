@@ -2,7 +2,6 @@
 name: draft-closing-legal-opinion-for-secured-credit-facility
 description: "Drafts a borrower-side closing legal opinion for a senior secured credit facility and an issues memo cataloging deficiencies that prevent or qualify any required opinion."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

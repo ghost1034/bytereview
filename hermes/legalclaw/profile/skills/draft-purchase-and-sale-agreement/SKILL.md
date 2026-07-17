@@ -2,7 +2,6 @@
 name: draft-purchase-and-sale-agreement
 description: "Guides drafting of a commercial office building purchase and sale agreement by integrating source materials such as a letter of intent, due diligence findings, operating data, and negotiation notes into a complete instrument with a companion issues memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

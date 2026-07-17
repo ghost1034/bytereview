@@ -2,7 +2,6 @@
 name: compare-loss-reserves-industry-benchmarks-adequacy
 description: "Agents assessing reserve adequacy against industry benchmarks should describe reserve deficiencies by comparing loss development, identifying whether access limitations affected the actuarial analysis, and tracing the external consequences that reserve strengthening can have for capital, ratings, reinsurance capacity, and compliance timing."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

@@ -2,7 +2,6 @@
 name: identify-tech-license-agreement-issues-scenario-02
 description: "Reviewing a draft technology license agreement from the licensee's perspective against supporting materials provided to prepare an issue memorandum with recommended positions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

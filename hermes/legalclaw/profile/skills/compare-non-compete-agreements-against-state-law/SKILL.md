@@ -2,7 +2,6 @@
 name: compare-non-compete-agreements-against-state-law
 description: "Guides the analyst through a multi-jurisdiction enforceability analysis of a restrictive-covenant agreement, including jurisdiction-specific defects, procedural compliance failures, and assessment of a demand letter's legal claims."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

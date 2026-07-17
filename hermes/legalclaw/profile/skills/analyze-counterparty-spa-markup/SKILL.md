@@ -2,7 +2,6 @@
 name: analyze-counterparty-spa-markup
 description: "Guides provision-by-provision analysis of a counterparty's stock purchase agreement redline, evaluating deviations against the negotiation playbook and assessing the compounded legal and economic impact of markup changes."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

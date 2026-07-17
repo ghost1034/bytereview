@@ -2,7 +2,6 @@
 name: review-dispute-summary-scenario-02
 description: "Ensures a dispute summary issues memo identifies omitted contractual provisions, corrects threshold errors, and applies the same analytical review for dilution, restrictive covenants, selective quotation, cure periods, waiver, and related factual discrepancies as the baseline scenario."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

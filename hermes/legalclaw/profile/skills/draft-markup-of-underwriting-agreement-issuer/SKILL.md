@@ -2,7 +2,6 @@
 name: draft-markup-of-underwriting-agreement-issuer
 description: "Issuer-perspective underwriting agreement markup where the baseline redlines identify deviations from the playbook and document the basis for each change without converting the skill into an answer key."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

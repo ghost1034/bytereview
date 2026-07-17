@@ -2,7 +2,6 @@
 name: identify-rfe-issues-scenario-02
 description: "H-1B request-for-evidence issue-identification memorandum. The analysis should go beyond the stated agency concerns to review the petition record for independent factual inaccuracies, internal inconsistencies, and sequence problems in the petitioner\u2019s own submissions, and should assess how any such issues may affect the response strategy and the underlying petition record."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

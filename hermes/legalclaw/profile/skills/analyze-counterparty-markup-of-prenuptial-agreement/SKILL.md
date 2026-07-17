@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-prenuptial-agreement
 description: "Redline analysis of a counterparty's prenuptial agreement markup requires systematic tracking of every change against the client's original draft and financial disclosures, with attention to asymmetric provisions, cross-provision interactions, and enforceability risks."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

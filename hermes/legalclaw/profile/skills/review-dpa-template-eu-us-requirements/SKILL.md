@@ -2,7 +2,6 @@
 name: review-dpa-template-eu-us-requirements
 description: "Reviewing a data processing agreement template against EU and US data protection requirements to produce a conformance memorandum identifying required changes and pre-launch actions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

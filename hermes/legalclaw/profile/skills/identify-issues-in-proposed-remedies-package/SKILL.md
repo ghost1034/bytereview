@@ -2,7 +2,6 @@
 name: identify-issues-in-proposed-remedies-package
 description: "Closes gaps in buyer viability assessment against applicable antitrust agency standards, crown jewel structural analysis, revenue-at-risk quantification from customer change-of-control provisions, and certification timing as a market access barrier."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

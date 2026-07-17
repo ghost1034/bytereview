@@ -2,7 +2,6 @@
 name: multi-state-privacy-law-gap-analysis
 description: "Multi-state consumer privacy law gap analysis comparing a current privacy program, data inventory, and vendor agreements against enacted state comprehensive privacy laws, identifying data classification issues, state-specific stricter requirements, and universal opt-out signal obligations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

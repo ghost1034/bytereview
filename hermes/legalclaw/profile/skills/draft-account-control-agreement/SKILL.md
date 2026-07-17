@@ -2,7 +2,6 @@
 name: draft-account-control-agreement
 description: "Drafting an account control agreement for an asset-backed finance transaction where a standard-form template must be adapted to fix identified deficiencies in control mechanics, notice procedures, pre- and post-default account authority, and governing law."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

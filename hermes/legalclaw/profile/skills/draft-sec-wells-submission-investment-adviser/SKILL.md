@@ -2,7 +2,6 @@
 name: draft-sec-wells-submission-investment-adviser
 description: "Wells submission memorandum responding to an SEC Wells Notice for an investment adviser, organized to address the staff\u2019s theories, the factual record, any scienter-related issues, any nexus or element-based defenses, any reliance on professionals, and any remediation or mitigation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

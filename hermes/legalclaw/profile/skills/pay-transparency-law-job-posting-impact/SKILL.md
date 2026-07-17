@@ -2,7 +2,6 @@
 name: pay-transparency-law-job-posting-impact
 description: "Multi-jurisdiction compliance gap analysis of job postings, offer letters, and internal promotion practices against applicable state pay transparency laws, identifying posting deficiencies, disclosure gaps, and employer exposure for third-party recruiter postings."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

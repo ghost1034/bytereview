@@ -2,7 +2,6 @@
 name: draft-markup-of-irs-closing-agreement
 description: "Drafting a markup of an IRS closing agreement requires identifying and revising structural and substantive issues in the draft, including penalty-waiver language, scope language, correlative adjustments, limitations-period timing, and a companion explanatory response letter to the IRS contact."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

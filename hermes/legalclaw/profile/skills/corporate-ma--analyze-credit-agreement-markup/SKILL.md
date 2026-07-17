@@ -2,7 +2,6 @@
 name: corporate-ma--analyze-credit-agreement-markup
 description: "Guides systematic comparison of a borrower\u2019s credit agreement markup against the original draft and related preliminary financing terms, assessing both individual provision changes and their compounded effect on lender protection."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

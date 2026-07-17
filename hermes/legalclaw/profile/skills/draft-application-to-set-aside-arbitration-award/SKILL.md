@@ -2,7 +2,6 @@
 name: draft-application-to-set-aside-arbitration-award
 description: "Ensures a petition to vacate an arbitration award under the Federal Arbitration Act develops the available vacatur grounds, addresses timeliness and venue, and includes a cumulative prejudice argument where appropriate."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

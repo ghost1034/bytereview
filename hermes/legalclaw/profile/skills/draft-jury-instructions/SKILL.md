@@ -2,7 +2,6 @@
 name: draft-jury-instructions
 description: "Drafting proposed jury instructions for retaliation, whistleblower, and implied contract claims requires adapting pattern instructions to the claims and issues remaining after prior rulings, pairing each instruction with a special verdict form question, and flagging legal disputes in a cover memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

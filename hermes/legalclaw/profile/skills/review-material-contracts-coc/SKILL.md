@@ -2,7 +2,6 @@
 name: review-material-contracts-coc
 description: "Guides completion of a contract review checklist and risk assessment memo for a proposed acquisition, using the governing transaction documents and the actual contracts to identify scope, change-of-control and assignment issues, and discrepancies against any summary materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

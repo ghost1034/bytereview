@@ -2,7 +2,6 @@
 name: corporate-tax-researcher
 description: Research Form 1120 issues (M-1/M-3, §382 NOLs, §163(j), R&D, GILTI/FDII) into an IRAC dossier
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [tax, corporate, research]

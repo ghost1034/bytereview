@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-parenting-plan
 description: "Redline analysis of an opposing party's parenting plan markup requires systematic change-tracking against a client's original proposal, mediation summaries, and court-ordered temporary orders to surface substantive and procedural risks."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

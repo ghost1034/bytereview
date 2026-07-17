@@ -2,7 +2,6 @@
 name: identify-issues-coverage-denial-letter
 description: "Agents analyzing an insurance coverage denial letter should test each denial ground against the policy language, the insurer's own positions, and the underlying facts; identify omitted coverage theories, internal inconsistencies, timing defenses, causation issues, mitigation arguments, and potential bad-faith exposure under applicable law."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

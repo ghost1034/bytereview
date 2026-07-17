@@ -2,7 +2,6 @@
 name: research-fair-use-defense-marketing
 description: "Analyze a proposed commercial marketing use of third-party copyrighted content to assess the availability of a fair use defense, including cease-and-desist context and internal IP policy compliance."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

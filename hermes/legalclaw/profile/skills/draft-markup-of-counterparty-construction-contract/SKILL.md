@@ -2,7 +2,6 @@
 name: draft-markup-of-counterparty-construction-contract
 description: "Guides owner-side markup of a contractor's guaranteed maximum price contract draft by calibrating each redline position against the owner's playbook, lender requirements, insurer requirements, and other deal-specific guidance, and producing both a full redline and a prioritized issues memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

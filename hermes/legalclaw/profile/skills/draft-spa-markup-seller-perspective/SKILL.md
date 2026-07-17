@@ -2,7 +2,6 @@
 name: draft-spa-markup-seller-perspective
 description: "Guides seller-side review of a buyer-drafted asset purchase agreement by checking whether customary seller-favorable risk allocations, operational flexibility, and dispute-resolution mechanics are adequately addressed, and by cross-referencing the draft against the letter of intent and other agreed deal points."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

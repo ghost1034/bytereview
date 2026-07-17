@@ -2,7 +2,6 @@
 name: extract-loan-agreement-terms-scenario-02
 description: "Ensures a loan term extraction memo analyzes borrowing base availability separately from commitment, addresses any make-whole premium or prepayment economics using the applicable formula, tracks cross-default and judgment default concepts across facilities, and evaluates how environmental claims may affect insurance- and misrepresentation-related default provisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

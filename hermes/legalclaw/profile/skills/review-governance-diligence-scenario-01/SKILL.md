@@ -2,7 +2,6 @@
 name: review-governance-diligence-scenario-01
 description: "Guides preparation of an M&A governance due diligence memorandum for a reverse triangular merger where charter documents, stockholder agreements, board minutes, and investor rights must all be reviewed for transaction-readiness and governance risk."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

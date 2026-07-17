@@ -2,7 +2,6 @@
 name: identify-issues-in-security-agreement-term-loan
 description: "Guides issue identification in a security agreement for a senior secured lender by systematically checking perfection requirements, cross-document consistency on collateral package terms, and remedies provisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

@@ -2,7 +2,6 @@
 name: draft-motion-in-limine-to-exclude-expert-testimony-and-prejudicial-evidence
 description: "A motion in limine in a commercial breach of contract matter should challenge expert testimony under the applicable reliability framework and separately target categories of potentially prejudicial evidence under the relevant evidence rules, with each category addressed as a discrete argument."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

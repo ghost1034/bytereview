@@ -2,7 +2,6 @@
 name: review-saas-agreement-company-playbook
 description: "Reviewing a proposed SaaS agreement against a company playbook and related business context to produce a prioritized deviation report with redlines and fallback language."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

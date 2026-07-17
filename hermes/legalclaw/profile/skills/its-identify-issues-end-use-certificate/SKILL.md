@@ -2,7 +2,6 @@
 name: its-identify-issues-end-use-certificate
 description: "Produces a risk assessment memorandum for an end-user certificate and supporting transaction documents that identifies regulatory basis errors, document-to-document discrepancies, transit route disclosure gaps, entity-list proliferation basis implications, catch-all end-use control triggers, and government authentication requirements for the destination country."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

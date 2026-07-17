@@ -2,7 +2,6 @@
 name: summarize-research-emerging-fintech-lending-regulations
 description: "Agents summarize emerging fintech lending regulations generically, identifying how true-lender risk, state rate restrictions, open-banking obligations, AI credit-decision explainability, proxy-variable fair lending risk, and notice-and-comment participation may affect a multi-state expansion without using scenario-specific facts, figures, parties, deadlines, or conclusions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

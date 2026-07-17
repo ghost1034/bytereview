@@ -2,7 +2,6 @@
 name: hls-draft-healthcare-merger-agreement
 description: "Drafts a definitive reverse triangular merger agreement for a healthcare transaction with healthcare-specific representations, regulatory and operational covenants, earn-out mechanics, antitrust considerations, and a companion drafting issues memorandum flagging ambiguities and buyer-side risks."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

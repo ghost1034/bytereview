@@ -2,7 +2,6 @@
 name: draft-evergreen-capital-fund-v-lpa
 description: "Guides drafting of a complete private equity fund limited partnership agreement by reconciling conflicts across source materials, with bracketed notes resolving key economic and governance discrepancies, including commitment methodology, distribution waterfall structure, recycling and credit facility interactions, MFN scope, broken deal expense allocation, and no-fault removal fee ambiguity."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: wind-farm-title-commitment-issue-identification
 description: "Guides title issue identification for a wind farm acquisition by systematically analyzing schedule-based title exceptions for priority conflicts, assessing wind-energy-specific encumbrance types, and checking lender title requirements against the commitment's coverage."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

@@ -2,7 +2,6 @@
 name: tax-provision-calculator
 description: Build an ASC 740 income tax provision with current and deferred layering, DTA/DTL roll-forward, ETR reconciliation, and FIN 48 flags
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [tax, provision, asc740]

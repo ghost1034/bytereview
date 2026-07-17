@@ -2,7 +2,6 @@
 name: identify-issues-in-ppa-solar-bess
 description: "Guides issue identification in a solar-plus-storage power purchase agreement from the seller's perspective by comparing commercial terms against the project model, checking environmental permitting status against applicable species-protection requirements, and assessing interconnection cost exposure from co-developer withdrawal risk."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

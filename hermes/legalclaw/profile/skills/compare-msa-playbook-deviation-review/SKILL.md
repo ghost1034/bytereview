@@ -2,7 +2,6 @@
 name: compare-msa-playbook-deviation-review
 description: "Deviation review of an MSA against a contracting playbook, organized by provision type and informed by vendor diligence context."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

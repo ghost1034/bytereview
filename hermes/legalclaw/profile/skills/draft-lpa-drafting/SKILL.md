@@ -2,7 +2,6 @@
 name: draft-lpa-drafting
 description: "Draft a complete limited partnership agreement package from source documents without relying on a prior-fund precedent, producing three deliverables: the agreement draft, an issues memo, and a side letter checklist, using the source materials to construct each provision from first principles."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

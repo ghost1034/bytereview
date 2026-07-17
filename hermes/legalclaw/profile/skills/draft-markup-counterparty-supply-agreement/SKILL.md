@@ -2,7 +2,6 @@
 name: draft-markup-counterparty-supply-agreement
 description: "Redlined supply agreement markup and negotiation commentary memo for a counterparty supply agreement evaluated against the applicable internal playbook, relevant internal communications, and a supplier risk assessment."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

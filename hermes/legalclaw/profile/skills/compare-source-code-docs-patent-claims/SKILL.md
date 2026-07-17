@@ -2,7 +2,6 @@
 name: compare-source-code-docs-patent-claims
 description: "Limitation-by-limitation claim chart and non-infringement analysis for asserted patent claims based on product architecture specifications, prosecution history, and source code documentation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

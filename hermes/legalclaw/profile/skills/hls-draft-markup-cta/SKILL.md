@@ -2,7 +2,6 @@
 name: hls-draft-markup-cta
 description: "Produces a fully marked-up institutional redline of a sponsor-drafted clinical trial agreement, aligning the draft to the applicable institutional research position on indemnification causation, publication rights, adverse-event reporting, protocol amendment review, and government-funding / invention-ownership considerations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

@@ -2,7 +2,6 @@
 name: identify-weaknesses-opposing-expert-damages-report
 description: "Reviewing an opposing damages expert's report in an intellectual-property case to prepare a rebuttal memorandum usable for motion practice and cross-examination, requiring methodology critique and comparable-license analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

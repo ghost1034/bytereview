@@ -2,7 +2,6 @@
 name: draft-final-decree-motion
 description: "Ensures a final decree motion and proposed order together address all open case administration items, accurately represent the status of disputed claims and distributions, and include retention of jurisdiction and discharge injunction survival provisions commonly required in a closing order."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

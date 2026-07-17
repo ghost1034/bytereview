@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-05
 description: "Draft a limited partnership agreement for a fund using a precedent, incorporating term sheet changes, LP-specific side-letter requirements, investor counsel comments, and an ESG framework, with a companion issues memo documenting drafting decisions and open items."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

@@ -2,7 +2,6 @@
 name: draft-notice-to-creditors
 description: "Draft the creditor-notification package for a probate proceeding by coordinating publication notice with personal notice to known creditors, distinguishing among different claim categories, and documenting the notification process for the estate file."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

@@ -2,7 +2,6 @@
 name: review-business-unit-msas-corporate-template
 description: "Reviewing multiple business unit MSA templates against a corporate template and a higher-authority risk policy to produce a deviation-by-deviation conformance report with risk ratings and a remediation roadmap."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

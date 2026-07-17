@@ -2,7 +2,6 @@
 name: extract-client-intake-facts-divorce-scenario-02
 description: "Extract and organize key facts from a disorganized client intake for a contested divorce matter, with emphasis on asset characterization, potential dissipation, transfer timing, and the client\u2019s stated priorities."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

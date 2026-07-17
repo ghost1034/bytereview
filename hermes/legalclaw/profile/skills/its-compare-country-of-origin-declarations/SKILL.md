@@ -2,7 +2,6 @@
 name: its-compare-country-of-origin-declarations
 description: "Produces a compliance gap report comparing import entry country-of-origin claims against applicable trade preference rules, distinguishing fraudulent certificates from curable calculation errors, quantifying duty exposure entry by entry, and evaluating whether voluntary disclosure procedures are appropriate where underpayments are identified."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

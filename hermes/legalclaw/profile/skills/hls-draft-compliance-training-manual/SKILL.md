@@ -2,7 +2,6 @@
 name: hls-draft-compliance-training-manual
 description: "Drafts a corporate-integrity-agreement-compliant comprehensive employee compliance training manual that identifies and resolves cross-document errors, covers whistleblower anti-retaliation, foreign anti-corruption, government pricing, and contractor obligations, with role-differentiated modules."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

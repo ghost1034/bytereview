@@ -2,7 +2,6 @@
 name: draft-data-room-population-plan-s01
 description: "Guides preparation of a data room population plan from deal materials, requiring critical review of the request list for errors, separate tracking of contracts with assignment or change-of-control restrictions, distinction between copyleft and permissive open-source licenses, board minute redaction protocol, and resolution of instruction conflicts."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

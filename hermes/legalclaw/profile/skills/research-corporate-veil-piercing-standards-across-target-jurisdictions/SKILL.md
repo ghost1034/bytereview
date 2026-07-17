@@ -2,7 +2,6 @@
 name: research-corporate-veil-piercing-standards-across-target-jurisdictions
 description: "A multi-jurisdictional veil-piercing research memo should identify the applicable entity-law standards across the relevant jurisdictions, apply those standards to the corporate structure and intercompany financial relationships reflected in the source materials, assess direct-liability theories as alternatives, and recommend structural remediation steps to reduce exposure."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

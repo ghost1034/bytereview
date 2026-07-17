@@ -2,7 +2,6 @@
 name: cpsc-settlement-versus-allegations-gap-analysis
 description: "Gap analysis memorandum comparing a final regulatory settlement against initial agency allegations, identifying changes in scope, financial exposure, contingent compliance obligations, and downstream enforcement and litigation implications."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

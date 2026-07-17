@@ -2,7 +2,6 @@
 name: draft-voluntary-chapter-11-petition-and-schedules
 description: "Ensures a chapter 11 petition and schedules package correctly categorizes assets and liabilities across the relevant schedule types and that the companion issues memorandum systematically analyzes potential avoidance exposure and related restructuring issues based on the source documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

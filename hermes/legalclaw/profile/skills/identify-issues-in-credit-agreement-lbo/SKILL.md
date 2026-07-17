@@ -2,7 +2,6 @@
 name: identify-issues-in-credit-agreement-lbo
 description: "Identifying issues in a final credit agreement for an acquisition financing by comparing each material provision against the preliminary financing materials, explaining the practical operational impact of each deviation, and prioritizing issues for a negotiation call."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

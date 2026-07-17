@@ -2,7 +2,6 @@
 name: hls-draft-cia-response
 description: "Drafts a CIA implementation plan and board resolution package that maps each CIA obligation to a timeline, addresses chief compliance officer qualification and independence requirements, and includes multi-period staffing and budget projections for review."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

@@ -2,7 +2,6 @@
 name: extract-key-terms-insurance-acquisition-closing-docs
 description: "Agents extracting terms from acquisition closing documents should produce a structurally complete summary, verify cross-document consistency, check arithmetic in line items, surface operational risks embedded in transition services arrangements, and compile a post-closing obligation tracker."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

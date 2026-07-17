@@ -117,6 +117,14 @@ try {
         exit 65
     }
 
+    # The bundle's config.yaml is the Docker profile config (runtime.data_dir:
+    # /opt/data); on desktop the Hermes app's own config.yaml is authoritative.
+    # Restore it so the connector block below is the only config change.
+    $ConfigBackup = Join-Path $HermesHome "config.yaml.backup-$Ts"
+    if (Test-Path $ConfigBackup) {
+        Copy-Item $ConfigBackup (Join-Path $HermesHome "config.yaml") -Force
+    }
+
     # Give Hermes live access to this user's CPAAutomation integrations.
     if ($Response.connector_mcp_url -and $Response.connector_token) {
         $ConfigPath = Join-Path $HermesHome "config.yaml"

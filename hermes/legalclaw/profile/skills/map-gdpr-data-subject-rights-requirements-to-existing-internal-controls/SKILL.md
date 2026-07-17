@@ -2,7 +2,6 @@
 name: map-gdpr-data-subject-rights-requirements-to-existing-internal-controls
 description: "Data subject rights gap analyses are strongest when the agent maps the applicable rights framework against operational evidence showing how requests are actually handled in practice, rather than relying only on written policies or procedures."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

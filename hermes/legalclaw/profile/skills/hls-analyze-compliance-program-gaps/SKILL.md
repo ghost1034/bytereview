@@ -2,7 +2,6 @@
 name: hls-analyze-compliance-program-gaps
 description: "Identifies structural and documentary gaps in a healthcare data privacy compliance program using incident records, vendor tracking, audit findings, and governance minutes to produce a remediation-focused memorandum."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

@@ -2,7 +2,6 @@
 name: identify-counterparty-term-sheet-issues-scenario-02
 description: "Guides preparation of a seller-side prioritized issues memo identifying material problems in a buyer's proposed non-binding M&A term sheet, cross-referenced against deal economics and market data."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

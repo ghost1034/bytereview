@@ -2,7 +2,6 @@
 name: draft-ppa-seller-solar-plus-storage
 description: "Guides drafting of a seller-side power purchase agreement for a solar-plus-storage project by surfacing and resolving cross-document commercial conflicts, coordinating force majeure and deadline provisions as a system, and flagging open issues with drafting notes for client resolution."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

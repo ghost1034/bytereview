@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-02
 description: "Draft a limited partnership agreement for a buyout fund using a prior-fund precedent, incorporating term-sheet changes for the fund\u2019s structure, economics, and governance, and produce a separate issues memo identifying source-document conflicts."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

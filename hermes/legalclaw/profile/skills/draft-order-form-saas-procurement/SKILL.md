@@ -2,7 +2,6 @@
 name: draft-order-form-saas-procurement
 description: "Order form under an existing master services agreement for an enterprise software procurement, with an issues memorandum cataloging cross-document inconsistencies and risks with recommended resolutions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

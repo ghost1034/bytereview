@@ -2,7 +2,6 @@
 name: extract-creditor-claims-from-estate-correspondence
 description: "Closes the gap where agents list creditor claims without computing the applicable claims filing deadline, identifying potentially untimely claims, prorating invoices that straddle the relevant cutoff date, correcting arithmetic errors in invoices, and producing an adjusted total claims figure with a reconciliation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

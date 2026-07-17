@@ -2,7 +2,6 @@
 name: identify-issues-counterparty-discovery-requests
 description: "Reviewing opposing party discovery requests in an IP litigation matter to identify objectionable requests and develop response strategies, using the pleadings, scheduling materials, and any discovery-related orders to frame scope and objections."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

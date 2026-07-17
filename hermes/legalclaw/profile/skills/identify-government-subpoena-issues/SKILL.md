@@ -2,7 +2,6 @@
 name: identify-government-subpoena-issues
 description: "Advising on a government subpoena in a criminal or regulatory investigation requires analyzing the subpoena's scope against the available documents, assessing privilege and self-incrimination implications, identifying potential individual exposure from responsive communications and records, and recommending a response strategy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

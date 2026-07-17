@@ -2,7 +2,6 @@
 name: draft-cash-collateral-stipulation
 description: "Ensures a cash collateral stipulation is drafted in proper court-entry format with findings of fact, adequate protection mechanics, limitations on post-petition lien scope, and a separate counsel memorandum identifying non-market provisions in the lender's proposed terms."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

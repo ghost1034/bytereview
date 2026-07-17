@@ -2,7 +2,6 @@
 name: draft-motion-to-reopen-removal-proceedings
 description: "Motion to reopen removal proceedings where the procedural basis selected (for example, exceptional circumstances, lack of notice, or changed country conditions) determines the timing rules and the evidentiary showing required."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

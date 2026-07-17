@@ -2,7 +2,6 @@
 name: draft-antitrust-compliance-training-materials
 description: "Drafts two separate antitrust compliance deliverables, covering the principal competition-law frameworks, providing issue-specific guidance for compliance risks identified in the source materials, and maintaining a clear distinction between per se and rule-of-reason analysis throughout."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

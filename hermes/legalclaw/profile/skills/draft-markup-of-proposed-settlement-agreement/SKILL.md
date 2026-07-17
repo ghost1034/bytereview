@@ -2,7 +2,6 @@
 name: draft-markup-of-proposed-settlement-agreement
 description: "Agents redline settlement terms and prepare commentary memorandum by checking any monetary relief methodology against applicable enforcement-law limits, analyzing limitations defenses for older conduct, reviewing admissions language for derivative-litigation and scienter implications, scrutinizing cooperation obligations for parallel-proceeding risk, and assessing monitor provisions and board-authorization constraints."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

@@ -2,7 +2,6 @@
 name: disclosure-footnote-assistant
 description: Draft GAAP and SEC footnotes (debt, leases, income tax, segments) with cross-footing checks
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, disclosure, reporting]

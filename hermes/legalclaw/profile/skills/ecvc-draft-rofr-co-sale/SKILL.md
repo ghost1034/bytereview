@@ -2,7 +2,6 @@
 name: ecvc-draft-rofr-co-sale
 description: "Drafting an amended and restated right of first refusal and co-sale agreement requires identifying the relevant holders and any related holding vehicles as parties where appropriate, conditioning permitted estate-planning transfers on retention of voting control, addressing charitable transfer carve-outs, keying termination to post-offering tradability rather than the offering date, and stating de minimis thresholds in durable terms rather than absolute share counts."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

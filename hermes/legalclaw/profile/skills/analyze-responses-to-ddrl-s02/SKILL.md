@@ -2,7 +2,6 @@
 name: analyze-responses-to-ddrl-s02
 description: "Guides cross-verification of seller responses to DDRL requests against the underlying diligence materials to identify inaccurate or incomplete characterizations, contradictions, and information gaps."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

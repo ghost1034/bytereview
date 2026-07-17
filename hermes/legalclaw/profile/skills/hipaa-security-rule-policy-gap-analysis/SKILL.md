@@ -2,7 +2,6 @@
 name: hipaa-security-rule-policy-gap-analysis
 description: "HIPAA Security Rule gap analysis comparing each security policy against the applicable regulatory requirements, organized by safeguard category, with remediation recommendations aligned to an upcoming regulatory audit."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

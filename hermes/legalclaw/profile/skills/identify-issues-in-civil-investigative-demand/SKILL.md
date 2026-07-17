@@ -2,7 +2,6 @@
 name: identify-issues-in-civil-investigative-demand
 description: "Closes gaps in privilege survival analysis, data preservation and disclosure obligations, oral testimony scheduling, information-exchange assessment, and petition grounds."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

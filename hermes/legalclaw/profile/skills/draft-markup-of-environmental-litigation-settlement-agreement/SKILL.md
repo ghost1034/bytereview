@@ -2,7 +2,6 @@
 name: draft-markup-of-environmental-litigation-settlement-agreement
 description: "Guides preparation of a strategic redline markup of a proposed environmental litigation settlement or consent decree by evaluating remedy adequacy, penalty provisions, contribution protection scope, compliance schedules, enforceability, and the client's negotiating posture."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

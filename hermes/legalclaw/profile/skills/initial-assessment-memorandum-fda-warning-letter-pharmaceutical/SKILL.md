@@ -2,7 +2,6 @@
 name: initial-assessment-memorandum-fda-warning-letter-pharmaceutical
 description: "Privileged board-level initial assessment memorandum in response to a regulatory warning letter for a sterile injectable manufacturer, covering GMP violation analysis, data integrity criminal referral risk, prior management awareness as an aggravating factor, consent decree probability assessment, triggered representations in concurrent commercial and M&A agreements, public-company disclosure obligations, and a total worst-case financial exposure estimate."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

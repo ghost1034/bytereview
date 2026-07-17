@@ -2,7 +2,6 @@
 name: identify-deficiencies-in-counterpartys-statement-of-defense
 description: "Ensures a claimant-side defense analysis flags potential late filing, verifies force majeure notice timeliness, identifies the wrong contractual mechanism, and checks the defense's causation arithmetic for inconsistencies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

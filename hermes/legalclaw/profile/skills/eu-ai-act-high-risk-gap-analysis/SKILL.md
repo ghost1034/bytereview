@@ -2,7 +2,6 @@
 name: eu-ai-act-high-risk-gap-analysis
 description: "Gap analysis of AI systems operated by an autonomous vehicle provider against the EU AI Act high-risk classification framework, technical obligations, and conformity assessment pathways."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

@@ -2,7 +2,6 @@
 name: draft-nda-markup-scenario-02
 description: "Guides buyer-side NDA markup in a competitive auction process by applying playbook positions to a seller-drafted confidentiality agreement and producing a prioritized issues memo plus an annotated redline."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: draft-industry-summary-s01
 description: "Guides preparation of an industry summary and market analysis memo for an acquisition evaluation by cross-checking company-provided market data against independent sources, identifying potential base-year selection bias in growth calculations, quantifying regulatory and reimbursement headwinds at a category level, and adjusting precedent transaction multiples for period-specific outliers."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

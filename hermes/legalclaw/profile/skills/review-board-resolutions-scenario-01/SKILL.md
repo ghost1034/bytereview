@@ -2,7 +2,6 @@
 name: review-board-resolutions-scenario-01
 description: "Agents review board resolutions resolution-by-resolution and cross-check each action against the governing charter, bylaws, and any applicable investor or voting agreements; confirm committee membership requirements, interested-director procedure, option-pricing tax consequences, stockholder consent rights for indebtedness, board composition requirements, notice requirements, and any other procedural condition that may affect validity."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

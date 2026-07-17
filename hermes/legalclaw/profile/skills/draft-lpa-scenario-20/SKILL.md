@@ -2,7 +2,6 @@
 name: draft-lpa-scenario-20
 description: "Draft a fund LPA by adapting a private-equity or venture-capital precedent to incorporate applicable SBIC regulatory requirements, including leverage priority in the distribution waterfall, books-and-records and examination rights, transfer-consent mechanics, investment eligibility and concentration controls, and a companion memo that compares the precedent against the revised draft on a provision-by-provision basis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

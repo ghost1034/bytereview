@@ -2,7 +2,6 @@
 name: extract-filing-requirements-from-regulatory-guidance
 description: "Filing requirements checklist for pending immigration petitions extracted from regulatory guidance documents, where the checklist should capture both core procedural requirements and petition-specific risks arising from beneficiary facts and filing logistics."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

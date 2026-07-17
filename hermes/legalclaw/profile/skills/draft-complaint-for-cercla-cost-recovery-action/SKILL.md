@@ -2,7 +2,6 @@
 name: draft-complaint-for-cercla-cost-recovery-action
 description: "Guides drafting of a federal complaint for environmental cost recovery by ensuring each liability element is pled with document-supported specificity for each potentially responsible party, and that response-cost categories and compliance with applicable cleanup standards are properly framed."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

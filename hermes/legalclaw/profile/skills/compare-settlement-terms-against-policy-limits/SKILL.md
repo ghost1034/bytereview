@@ -2,7 +2,6 @@
 name: compare-settlement-terms-against-policy-limits
 description: "Guides the analyst through a coverage gap analysis memorandum comparing settlement terms against available insurance coverage, including policy-priority issues, reservation-of-rights handling, punitive-damages insurability, and defense-cost erosion."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

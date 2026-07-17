@@ -2,7 +2,6 @@
 name: ftc-noncompete-ban-impact
 description: "Regulatory impact memorandum classifying an employment agreement portfolio against the applicable noncompete restrictions, analyzing any senior-executive-style exception applicability, any sale-of-business-style exception scope, and pending-litigation strategic implications."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

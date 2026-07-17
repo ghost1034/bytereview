@@ -2,7 +2,6 @@
 name: extract-change-of-control-provisions
 description: "Guides systematic extraction and risk assessment of change-of-control provisions across a target's material contract portfolio in a merger or similar control transaction."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

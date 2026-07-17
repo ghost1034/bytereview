@@ -2,7 +2,6 @@
 name: draft-settlement-memorandum
 description: "A client-facing settlement memorandum must analyze each proposed concession for legal correctness, explain the mechanics of interest recomputation, identify the settlement instrument and its legal consequences, and flag post-settlement reporting and compliance obligations triggered by a federal settlement."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

@@ -2,7 +2,6 @@
 name: extract-contested-divorce-asset-extraction
 description: "Focuses the analysis on reconciling a sworn financial disclosure against supporting financial records to identify omitted assets, suspicious transfers suggesting dissipation, and unsupported valuation positions \u2014 and on computing a corrected total that reflects the identified adjustments."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

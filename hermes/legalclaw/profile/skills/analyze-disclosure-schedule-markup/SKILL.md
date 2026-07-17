@@ -2,7 +2,6 @@
 name: analyze-disclosure-schedule-markup
 description: "Guides gap analysis of supplemental disclosure schedules against the merger agreement's original representations, with cross-schedule consistency review, contractual-effects assessment, and identification of the buyer's response options and deadlines."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

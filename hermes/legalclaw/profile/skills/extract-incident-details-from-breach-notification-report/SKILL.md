@@ -2,7 +2,6 @@
 name: extract-incident-details-from-breach-notification-report
 description: "Incident summary memos fail when the agent does not reconcile conflicting accounts across multiple incident-related documents into a single authoritative incident narrative with discrepancies explicitly flagged."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

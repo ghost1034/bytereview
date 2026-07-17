@@ -2,7 +2,6 @@
 name: extract-key-financial-facts-from-client-intake-questionnaire-and-supporting-documents
 description: "Closes the gap where agents compile intake financial facts without independently verifying arithmetic in client-prepared expense documents, reconciling stated aggregate income against separately listed components, flagging active-versus-passive appreciation issues on inherited accounts, and identifying tracing requirements for retirement accounts."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

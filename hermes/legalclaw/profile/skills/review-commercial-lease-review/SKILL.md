@@ -2,7 +2,6 @@
 name: review-commercial-lease-review
 description: "Guides preparation of a tenant-side negotiation-ready issues list for a commercial lease by comparing the landlord\u2019s form against the tenant\u2019s requirements memo and market comparables, and producing a structured issues list organized by priority for partner review."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

@@ -2,7 +2,6 @@
 name: identify-issues-in-non-compete-agreement
 description: "Guides counsel in producing a prioritized enforceability memorandum that identifies legal, consideration, and drafting defects in a non-compete agreement, organized by issue priority for use in advising an executive client."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

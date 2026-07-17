@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-procedural-order
 description: "Ensures a counterparty's procedural order markup is analyzed against the case management conference record, tactical motivations are surfaced, and aggregate procedural consequences are assessed."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

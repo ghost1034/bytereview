@@ -2,7 +2,6 @@
 name: hls-identify-cta-issues-scenario-02
 description: "Reviews a proposed clinical trial agreement against an institutional research playbook to identify governing-law choice issues, exclusion-screening cadence gaps, fair-market-value concerns for compensation, side-letter governance bypass risks, pass-through cost-control gaps, liability-allocation issues for protocol deviations, and safety-reporting misalignment."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

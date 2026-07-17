@@ -2,7 +2,6 @@
 name: extract-signing-requirements-from-estate-plan-documents
 description: "Closes the gap where agents produce generic signing checklists without identifying signatories who cannot complete required steps at the ceremony, flagging document-specific formal requirements and applying witness disqualification rules to named witnesses."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

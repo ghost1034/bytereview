@@ -2,7 +2,6 @@
 name: identify-issues-in-counterpartys-proposed-apa
 description: "Ensures an APA issue memo identifies buyer-favorable deviations from \u00a7 363 sale market standards, including sale-order approval conditions, marketing restrictions, outside-date feasibility, environmental successor-liability allocation, knowledge-qualified representations, governing-forum provisions, and purchase-price allocation issues, and supports each with a proceeds waterfall showing creditor recovery."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

@@ -2,7 +2,6 @@
 name: identify-issues-in-existing-employee-handbook
 description: "Guides counsel in producing a prioritized issue memorandum identifying legal compliance gaps and litigation risks in a multi-state employee handbook, with jurisdiction-specific analysis and issue prioritization."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

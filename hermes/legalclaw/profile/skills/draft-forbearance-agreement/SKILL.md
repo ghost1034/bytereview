@@ -2,7 +2,6 @@
 name: draft-forbearance-agreement
 description: "Draft a forbearance agreement and issues memo based on the governing credit documents and source materials, independently verifying each stated default and addressing key protective provisions for the lender."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

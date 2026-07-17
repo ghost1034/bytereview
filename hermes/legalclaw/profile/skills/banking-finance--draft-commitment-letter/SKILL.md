@@ -2,7 +2,6 @@
 name: banking-finance--draft-commitment-letter
 description: "Drafts a commitment letter and issues memo for an acquisition financing, applying limited conditionality conventions and reconciling economic terms across deal documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

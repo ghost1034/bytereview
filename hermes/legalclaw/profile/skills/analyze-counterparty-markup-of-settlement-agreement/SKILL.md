@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-settlement-agreement
 description: "Guides section-by-section redline review of a settlement agreement by anchoring each markup to response-cost allocation, contribution protection scope, and applicable agency policy constraints on liability structure."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

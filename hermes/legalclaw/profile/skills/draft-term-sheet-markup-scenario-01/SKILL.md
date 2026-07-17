@@ -2,7 +2,6 @@
 name: draft-term-sheet-markup-scenario-01
 description: "Guides seller-side term sheet markup and commentary memorandum for a strategic subsidiary acquisition, where valuation, purchase price mechanics, working capital, risk allocation, and related deal terms must be revised using deal materials and market comparables."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

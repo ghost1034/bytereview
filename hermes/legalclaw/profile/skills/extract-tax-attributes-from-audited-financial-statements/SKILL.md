@@ -2,7 +2,6 @@
 name: extract-tax-attributes-from-audited-financial-statements
 description: "Extracting tax attributes from audited financial statements requires cross-checking each attribute across the available disclosure sources because inconsistencies between sources can be material due diligence findings."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

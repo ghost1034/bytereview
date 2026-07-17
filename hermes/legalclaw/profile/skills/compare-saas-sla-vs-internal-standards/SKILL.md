@@ -2,7 +2,6 @@
 name: compare-saas-sla-vs-internal-standards
 description: "Gap analysis memorandum comparing a SaaS agreement's service level provisions against internal service level standards, identifying material deviations and omissions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

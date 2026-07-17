@@ -2,7 +2,6 @@
 name: comprehensive-code-of-conduct-recently-public-biopharma
 description: "Comprehensive corporate code of conduct for a recently public biopharmaceutical company, incorporating industry-specific compliance requirements, healthcare-interaction controls, public-company disclosure and reporting practices, employee reporting protections, privacy and data-handling considerations, and an issues reconciliation memorandum documenting source conflicts and resolutions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

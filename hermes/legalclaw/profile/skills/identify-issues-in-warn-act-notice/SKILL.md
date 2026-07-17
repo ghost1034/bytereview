@@ -2,7 +2,6 @@
 name: identify-issues-in-warn-act-notice
 description: "Guides the analyst in producing a detailed compliance-issues memorandum for a worker-notice package, identifying procedural and substantive deficiencies across employee, union, and government notices, with citations to the applicable notice requirements and recommended corrections."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

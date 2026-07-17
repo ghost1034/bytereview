@@ -2,7 +2,6 @@
 name: draft-interrogatories
 description: "Drafting interrogatories in a trade secret misappropriation case requires structuring questions to establish the factual basis for alleged misappropriation, the scope of any competitive use, and the identities and roles of relevant individuals, while respecting the applicable limit on interrogatory count including subparts."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

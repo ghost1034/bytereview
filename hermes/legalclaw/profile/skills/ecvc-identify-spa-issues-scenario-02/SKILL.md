@@ -2,7 +2,6 @@
 name: ecvc-identify-spa-issues-scenario-02
 description: "Identifying issues in a Series B stock purchase agreement from the company's perspective requires all the analysis from the prior scenario plus evaluating cumulative dividend economics, the interaction between any pro-sandbagging clause and the indemnification cap, and whether protective provisions create concentrated veto control across an investor's blocking positions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, emerging-companies-venture-capital]

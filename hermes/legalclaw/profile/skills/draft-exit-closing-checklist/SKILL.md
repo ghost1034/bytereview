@@ -2,7 +2,6 @@
 name: draft-exit-closing-checklist
 description: "Guides preparation of a seller-perspective exit closing checklist that identifies pre-closing actions, closing deliverables, and regulatory items commonly relevant to a portfolio company stock purchase transaction, including debt payoffs, third-party consent requirements, tax election mechanics, and advance regulatory filing requirements."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

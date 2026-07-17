@@ -2,7 +2,6 @@
 name: map-sec-human-capital-disclosure-requirements-to-existing-hr-data
 description: "Agents map human capital disclosure topics to available HR data, distinguishing between information readily available in reportable form and information requiring remediation, flagging data-privacy restrictions on collecting sensitive employee diversity data, identifying the materiality of contingent worker safety metrics in regulated industries, and flagging collective bargaining agreement expiration as a human capital risk."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

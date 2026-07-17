@@ -2,7 +2,6 @@
 name: extract-financial-covenants-from-existing-loan-documents
 description: "Extract financial covenants from multiple commercial real estate loan documents, compare key covenant definitions across facilities, and produce a portfolio compliance summary with breach analysis and issue-spotting."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, banking-finance]

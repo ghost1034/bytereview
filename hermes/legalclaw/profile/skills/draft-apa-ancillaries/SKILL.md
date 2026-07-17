@@ -2,7 +2,6 @@
 name: draft-apa-ancillaries
 description: "Guides drafting of a complete buyer-favorable carve-out acquisition document suite, requiring substantive completeness in each ancillary document and cross-document consistency on key transaction terms, assumed liabilities, regulatory conditions, and defined terms."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: analyze-transaction-restrictions-s01
 description: "Guides comprehensive analysis of acquisition consent requirements and transaction restrictions across financing documents, joint venture arrangements, government contracts, commercial contracts, and regulatory notification obligations for a reverse triangular merger."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-side-letter
 description: "Review an LP's redline of a GP's form side letter against the GP's form, the LPA excerpts, internal side letter policy, placement agreement, and precedent executed letters to produce a negotiation-ready analysis memorandum focused on issue spotting, cross-referencing, and recommended counter-positions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

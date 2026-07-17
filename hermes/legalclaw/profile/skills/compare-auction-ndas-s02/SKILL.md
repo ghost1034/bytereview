@@ -2,7 +2,6 @@
 name: compare-auction-ndas-s02
 description: "Guides auction-process NDA review by comparing each bidder's markup against the seller's form and playbook, assessing standstill, representatives scope, enforcement mechanics, and data room admission recommendation for each bidder."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

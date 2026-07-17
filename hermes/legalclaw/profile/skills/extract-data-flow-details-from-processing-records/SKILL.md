@@ -2,7 +2,6 @@
 name: extract-data-flow-details-from-processing-records
 description: "Data flow extraction from processing records fails when the agent does not systematically reconcile the primary record of processing against supporting agreements, transfer assessments, and technical architecture to surface discrepancies between the documented and actual data flows."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, data-privacy-cybersecurity]

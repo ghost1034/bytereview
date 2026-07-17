@@ -2,7 +2,6 @@
 name: rev-rec-606-analyst
 description: Run the five-step ASC 606 engine — PO identification, constraint, SSP allocation, monthly waterfall, and modifications
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [accounting, revenue, asc606]

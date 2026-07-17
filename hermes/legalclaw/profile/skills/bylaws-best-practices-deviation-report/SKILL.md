@@ -2,7 +2,6 @@
 name: bylaws-best-practices-deviation-report
 description: "Board-ready deviation report comparing restated bylaws against current corporate governance best practice guidelines, identifying gaps in proxy access, director election standards, exclusive forum provisions, and related governance interactions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

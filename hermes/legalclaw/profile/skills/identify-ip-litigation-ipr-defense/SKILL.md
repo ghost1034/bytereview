@@ -2,7 +2,6 @@
 name: identify-ip-litigation-ipr-defense
 description: "Preparing a defensive prior art analysis memo and strategic recommendations for an inter partes review preliminary response, requiring claim chart verification, prior art combination analysis, and prosecution history assessment."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

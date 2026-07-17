@@ -2,7 +2,6 @@
 name: review-counterparty-employment-agreement-for-acquisition-target-ceo
 description: "Guides the analyst in producing an acquisition-context issues memorandum identifying provisions in a target CEO's employment agreement and related amendment that may create financial exposure, operational constraints, or integration risks for the acquiror."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

@@ -2,7 +2,6 @@
 name: compare-creditor-claims-against-estate-assets
 description: "Reconciling creditor claims against estate assets requires applying the governing probate priority framework, separating secured and unsecured components of each claim, and distinguishing allowable claims from those that are legally defective or inadequately documented."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

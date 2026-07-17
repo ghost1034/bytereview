@@ -2,7 +2,6 @@
 name: compare-competing-bid-terms-stalking-horse-apa
 description: "Ensures a bid comparison memo evaluates financing quality, liability exclusion risks, timeline feasibility, and conflict-of-interest indicators alongside headline economics \u2014 not only the face-value bid price."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

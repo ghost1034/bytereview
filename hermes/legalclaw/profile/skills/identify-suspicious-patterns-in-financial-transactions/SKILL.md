@@ -2,7 +2,6 @@
 name: identify-suspicious-patterns-in-financial-transactions
 description: "Issue memorandum identifying suspicious transaction patterns for a white-collar internal investigation, covering related-party payment structures, trading activity around nonpublic information, foreign-official payment issues, internal controls failures, and transaction structuring concerns."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

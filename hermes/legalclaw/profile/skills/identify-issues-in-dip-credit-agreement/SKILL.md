@@ -2,7 +2,6 @@
 name: identify-issues-in-dip-credit-agreement
 description: "Ensures a DIP credit agreement issue memo systematically analyzes claim elevation mechanics, investigation-period adequacy, carve-out sufficiency, avoidance-action lien coverage, MAC clause breadth, lender conflicts, and related budget and financing terms, with proposed modification language for each issue."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

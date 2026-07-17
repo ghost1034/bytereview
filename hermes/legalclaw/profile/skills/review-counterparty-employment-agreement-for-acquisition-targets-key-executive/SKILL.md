@@ -2,7 +2,6 @@
 name: review-counterparty-employment-agreement-for-acquisition-targets-key-executive
 description: "Guides the analyst in producing an acquiror-perspective issues memorandum on a key executive's employment agreement and amendment, identifying provisions that constrain post-closing flexibility, create severance exposure, or require compliance review."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

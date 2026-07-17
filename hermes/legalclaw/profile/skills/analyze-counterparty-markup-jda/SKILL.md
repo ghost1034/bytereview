@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-jda
 description: "Redline review memorandum analyzing a counterparty-marked joint development agreement against the original draft and the client\u2019s business terms, focusing on ownership, license scope, temporal allocation, and financial schedule changes."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

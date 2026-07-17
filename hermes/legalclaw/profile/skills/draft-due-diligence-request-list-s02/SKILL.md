@@ -2,7 +2,6 @@
 name: draft-due-diligence-request-list-s02
 description: "Guides drafting of a tailored due diligence request list for a regulated data or healthcare IT target, with an executive summary of target-specific diligence themes covering regulatory risk, open-source copyleft, change-of-control revenue at risk, data licensing compliance, and time-sensitive contract expirations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

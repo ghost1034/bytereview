@@ -2,7 +2,6 @@
 name: identify-h1b-qualification-issues
 description: "Pre-filing H-1B qualification review where the memo must assess both the position's specialty occupation and the beneficiary's individual qualifications, including coursework specificity, credential evaluation adequacy, and immigration history continuity, using only generalized analytical categories and without relying on scenario-specific facts."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

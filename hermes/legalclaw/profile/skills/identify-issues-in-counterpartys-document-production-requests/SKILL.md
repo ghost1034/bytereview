@@ -2,7 +2,6 @@
 name: identify-issues-in-counterpartys-document-production-requests
 description: "Ensures a document production request issues memo distinguishes privileged attorney-client communications from non-privileged non-attorney communications, applies the applicable control test for documents held by non-parties, and identifies overlapping requests for consolidation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

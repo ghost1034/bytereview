@@ -2,7 +2,6 @@
 name: complete-form-check-on-registration-statement
 description: "S-1 form check for a registration statement where the baseline identifies surface-level omissions but does not fully test internal consistency of financial tables, ownership disclosures, dilution computations, and other structure-dependent disclosures against the supporting record."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

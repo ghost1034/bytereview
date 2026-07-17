@@ -2,7 +2,6 @@
 name: compare-merger-control-thresholds
 description: "Guides multi-jurisdictional merger control threshold analysis by comparing transaction facts against each jurisdiction\u2019s applicable filing tests, identifying turnover-based and deal-value-based thresholds where relevant, checking closing-condition coverage, and flagging potentially stale reference data."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: compare-closing-checklist-vs-ma-agreement
 description: "Guides a two-directional comparison between an acquisition agreement and a closing checklist to identify missing items, inaccurate terms, and miscategorized deliverables, with verification of stated figures against the agreement\u2019s formulas and defined terms."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

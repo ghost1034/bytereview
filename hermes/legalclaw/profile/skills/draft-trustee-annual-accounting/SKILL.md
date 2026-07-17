@@ -2,7 +2,6 @@
 name: draft-trustee-annual-accounting
 description: "Closes the gap where agents produce trust accountings without cross-checking source documents for misclassifications, allocation errors, valuation issues, and separate identification of tax-exempt income."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

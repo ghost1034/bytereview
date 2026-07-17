@@ -2,7 +2,6 @@
 name: draft-markup-of-administrative-settlement-agreement
 description: "Guides preparation of a buyer-side redline markup of an administrative settlement agreement for a prospective purchaser of a contaminated industrial site by focusing edits on liability protections, covenant scope, reopener limitations, and financial assurance adequacy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

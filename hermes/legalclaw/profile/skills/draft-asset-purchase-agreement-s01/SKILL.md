@@ -2,7 +2,6 @@
 name: draft-asset-purchase-agreement-s01
 description: "Guides drafting of a complete buyer-side carve-out acquisition document suite, requiring all core documents to be substantively complete, the commercial terms to be carried consistently across the suite, regulatory closing conditions to be included where applicable, and the outside date and escrow mechanics to be handled consistently throughout."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

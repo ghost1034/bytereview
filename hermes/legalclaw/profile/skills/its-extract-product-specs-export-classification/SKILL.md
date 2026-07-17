@@ -2,7 +2,6 @@
 name: its-extract-product-specs-export-classification
 description: "Produces an export classification memorandum that extracts product specifications from technical data sheets, analyzes whether technical characteristics may implicate export-control jurisdiction, compares stated end-use descriptions across transaction documents for inconsistencies, and outlines when a jurisdictional determination or enhanced diligence may be appropriate."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

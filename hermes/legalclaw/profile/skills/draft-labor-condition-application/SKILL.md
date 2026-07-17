@@ -2,7 +2,6 @@
 name: draft-labor-condition-application
 description: "LCA preparation package for multiple beneficiaries where workforce composition determines dependent-employer status and the LCA attestation obligations, and where per-beneficiary data must be verified against source documents rather than assumed from prior filings."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

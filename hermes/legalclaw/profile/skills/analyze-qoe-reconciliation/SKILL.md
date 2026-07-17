@@ -2,7 +2,6 @@
 name: analyze-qoe-reconciliation
 description: "Guides line-by-line reconciliation of competing quality-of-earnings reports and a preliminary purchase price allocation, producing structured workbooks and a deal-team memo that quantifies the enterprise value impact of EBITDA differences."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

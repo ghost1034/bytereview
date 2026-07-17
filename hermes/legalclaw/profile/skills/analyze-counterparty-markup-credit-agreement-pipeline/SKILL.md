@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-credit-agreement-pipeline
 description: "Guides systematic analysis of a lender's markup of a credit agreement by tracing each change's financial impact through the financial model, identifying compounding interactions between related provisions, and separating legal enforceability issues from commercial negotiating points."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, energy-natural-resources]

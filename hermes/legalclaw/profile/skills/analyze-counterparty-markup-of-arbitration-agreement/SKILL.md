@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-arbitration-agreement
 description: "Ensures a counterparty arbitration agreement redline is analyzed for interaction effects between changes, gap-filling rules under the relevant governing law, non-signatory enforceability, and multi-agreement consolidation risks."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

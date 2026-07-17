@@ -2,7 +2,6 @@
 name: its-identify-issues-export-license-application
 description: "Produces a comprehensive issues memorandum for a draft export license application that compares stated technical parameters against source materials, evaluates screening and denial-risk considerations for restricted-party transactions, reviews personnel and publication relationships for diversion indicators, assesses remote-access and technical-data-transfer pathways, and checks whether current export-control parameters have been applied."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

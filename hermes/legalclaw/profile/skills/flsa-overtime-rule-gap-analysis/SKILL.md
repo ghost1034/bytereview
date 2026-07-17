@@ -2,7 +2,6 @@
 name: flsa-overtime-rule-gap-analysis
 description: "Gap analysis comparing current employee exempt classifications against applicable salary thresholds and duties tests, identifying potentially misclassified positions and producing procedural remediation planning with prospective and retrospective exposure analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

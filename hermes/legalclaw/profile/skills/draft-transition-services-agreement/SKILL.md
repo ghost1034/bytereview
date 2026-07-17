@@ -2,7 +2,6 @@
 name: draft-transition-services-agreement
 description: "Guides full drafting of a transition services agreement for a post-closing carve-out where the service scope, fee structure, term, and services schedule exhibit must be sourced from the deal record and scoping materials."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

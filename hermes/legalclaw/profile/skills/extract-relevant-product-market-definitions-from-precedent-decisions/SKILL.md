@@ -2,7 +2,6 @@
 name: extract-relevant-product-market-definitions-from-precedent-decisions
 description: "Closes gaps in applying extracted precedent market definitions to the current transaction's specific products, identifying inconsistencies across precedents, and assessing concentration implications under each plausible definition."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

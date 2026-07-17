@@ -2,7 +2,6 @@
 name: draft-joint-development-agreement
 description: "Joint development agreement for a collaboration involving co-developed technology, with drafting guidance that protects each party's pre-existing IP and commercialization interests and includes a memo identifying open issues for client decision."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

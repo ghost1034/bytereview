@@ -2,7 +2,6 @@
 name: identify-tax-issues-in-irs-closing-agreement
 description: "Reviewing a draft IRS closing agreement for issues requires independently verifying computed amounts for directional and arithmetic correctness, assessing structural deficiencies such as missing treaty-relief protection, signing authority, and non-precedential language, and identifying any state tax reporting obligations triggered by the settlement."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, tax]

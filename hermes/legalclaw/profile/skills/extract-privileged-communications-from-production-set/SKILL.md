@@ -2,7 +2,6 @@
 name: extract-privileged-communications-from-production-set
 description: "Reviewing a flagged document batch for privilege and clawback issues requires applying attorney-client privilege and work product doctrine to each flagged document, assessing whether the governing clawback order provides adequate protection, and producing both a privilege log and a clawback memorandum with recommended actions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

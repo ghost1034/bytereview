@@ -2,7 +2,6 @@
 name: environmental-diligence-chemical-manufacturing
 description: "Guides facility-by-facility environmental diligence for a manufacturing acquisition, requiring permit status analysis, remediation accrual comparison, contamination-defense assessment, pollution legal liability insurance review, and identification of unreported incidents from disclosure schedules."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

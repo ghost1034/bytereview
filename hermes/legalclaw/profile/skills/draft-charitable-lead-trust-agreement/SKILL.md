@@ -2,7 +2,6 @@
 name: draft-charitable-lead-trust-agreement
 description: "Drafting a charitable lead annuity trust requires analyzing the annuity structure against the applicable valuation rate, addressing special-needs beneficiary planning, evaluating private foundation self-dealing constraints, considering transfer-tax consequences for skip-person remaindermen, and handling substitution power limitations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

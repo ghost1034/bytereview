@@ -2,7 +2,6 @@
 name: identify-issues-in-epa-consent-decree
 description: "Issue memorandum for a proposed environmental consent decree, identifying potential mismatches between decree terms and existing permit limits, overly broad agency interpretive discretion without an express review standard, insurance coverage gaps, stipulated-penalty proportionality concerns, compliance schedule feasibility, and the scope of injunctive relief."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, white-collar-defense-investigations]

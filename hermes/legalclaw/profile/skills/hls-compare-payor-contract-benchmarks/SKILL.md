@@ -2,7 +2,6 @@
 name: hls-compare-payor-contract-benchmarks
 description: "Analyzes multiple payor contracts against a benchmark report on a contract-by-contract basis to identify rate deviations, structural adverse terms, and acquisition-relevant provisions with quantified financial impact."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

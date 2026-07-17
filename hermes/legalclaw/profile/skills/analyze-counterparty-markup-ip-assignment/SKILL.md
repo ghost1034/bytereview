@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-ip-assignment
 description: "Risk-prioritized redline analysis of a counterparty-marked IP assignment agreement against the original draft and internal acquisition playbook, focusing on how to compare the markup against baseline drafting conventions and transaction objectives."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

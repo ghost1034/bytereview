@@ -2,7 +2,6 @@
 name: corrective-action-plan-sec-ocie-deficiency
 description: "Formal corrective action plan in response to a regulatory examination deficiency letter, addressing root causes, communications-recordkeeping scope, compliance-officer independence, performance-data reconciliation, and retroactive disclosure amendment obligations."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

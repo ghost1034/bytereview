@@ -2,7 +2,6 @@
 name: build-loi-term-sheet-library-s02
 description: "Guides construction of a structured LOI and term sheet precedent database from transaction documents, with complete field population across the required terms for benchmarking and negotiation support."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

@@ -2,7 +2,6 @@
 name: identify-issues-in-consular-processing-packet
 description: "Pre-interview issue review of a consular processing packet where the analysis must assess document completeness, application consistency, inadmissibility-related concerns, and administrative processing risk factors using severity ratings."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-limited-partnership-interest-transfer-agreement
 description: "Review a buyer's redline of a secondary limited partnership interest transfer agreement against the seller's clean draft, fund governing documents, and internal negotiation guidance to produce a prioritized redline analysis memorandum with financial exposure analysis and recommended counter-positions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

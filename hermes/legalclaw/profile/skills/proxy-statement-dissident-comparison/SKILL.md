@@ -2,7 +2,6 @@
 name: proxy-statement-dissident-comparison
 description: "Governance analysis memorandum comparing company and dissident proxy filings, verifying financial claims, identifying material omissions in dissident materials, and assessing contest dynamics."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

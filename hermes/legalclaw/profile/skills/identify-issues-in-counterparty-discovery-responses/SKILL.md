@@ -2,7 +2,6 @@
 name: identify-issues-in-counterparty-discovery-responses
 description: "Guides counsel in preparing a discovery deficiency memorandum that identifies boilerplate objections, improper privilege claims, production gaps, and procedural rule violations, while organizing recommended next steps for each."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, employment-labor]

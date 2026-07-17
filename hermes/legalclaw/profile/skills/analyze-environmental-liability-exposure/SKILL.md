@@ -2,7 +2,6 @@
 name: analyze-environmental-liability-exposure
 description: "Guides facility-by-facility environmental liability analysis for an acquisition, evaluating accrual adequacy, undisclosed contingent exposures, regulatory escalation risk, and SPA protection adequacy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

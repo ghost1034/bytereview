@@ -2,7 +2,6 @@
 name: triage-employment-agreements-for-exposure-to-noncompete-rule-changes
 description: "Agents triage employment agreements for exposure to changes in federal noncompete rules, assess whether any sale-of-business or other categorical exception applies, identify state-law restrictions that operate independently of federal guidance, verify whether any jurisdiction-specific compensation or notice requirements are implicated, and separate any liquidated-damages analysis from the noncompete analysis."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

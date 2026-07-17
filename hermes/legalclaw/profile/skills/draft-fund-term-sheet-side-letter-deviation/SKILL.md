@@ -2,7 +2,6 @@
 name: draft-fund-term-sheet-side-letter-deviation
 description: "Guides preparation of a fund term sheet versus side letter deviation report, requiring severity ratings for structural conflicts, MFN cascade analysis across eligible investors, misrepresentation exposure assessment, and identification of governing law conflicts between side letters and the fund governing documents."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]

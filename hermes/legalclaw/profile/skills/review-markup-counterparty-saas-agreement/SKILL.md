@@ -2,7 +2,6 @@
 name: review-markup-counterparty-saas-agreement
 description: "Reviewing a vendor SaaS agreement and related attachments against an internal contracting playbook to produce a prioritized issues list and redline markup."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, intellectual-property]

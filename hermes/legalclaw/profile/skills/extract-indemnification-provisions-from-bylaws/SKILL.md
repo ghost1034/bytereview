@@ -2,7 +2,6 @@
 name: extract-indemnification-provisions-from-bylaws
 description: "Agents extract indemnification provisions from governance documents, compare them across sources, and analyze inconsistencies in advancement procedures, burden allocation, forum provisions, coverage scope, and related insurance coordination for litigation readiness."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-governance]

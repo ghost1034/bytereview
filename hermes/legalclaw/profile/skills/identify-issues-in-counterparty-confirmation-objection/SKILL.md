@@ -2,7 +2,6 @@
 name: identify-issues-in-counterparty-confirmation-objection
 description: "Ensures a confirmation objection analysis applies the relevant confirmation standards to each argument, flags confirmation vulnerabilities the objector did not raise, and assesses the objector's own strategic position for weaknesses."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, bankruptcy-restructuring]

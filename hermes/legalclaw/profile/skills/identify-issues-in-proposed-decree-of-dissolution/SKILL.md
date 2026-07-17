@@ -2,7 +2,6 @@
 name: identify-issues-in-proposed-decree-of-dissolution
 description: "Closes the gap where agents review proposed dissolution decrees without independently verifying property and support calculations, applying tranche-specific analysis to equity compensation, identifying assets that may be misclassified as separate or marital property, and flagging procedural requirements for support deviations and related provisions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

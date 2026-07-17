@@ -2,7 +2,6 @@
 name: verify-disbursement-charges-against-billing-guidelines
 description: "Verifying disbursement charges requires comparing each disbursement line against the applicable billing guidelines' permitted categories and cost limits, cross-referencing the pre-approval log to confirm which disbursements were approved in advance, and producing a compliance report that identifies any requested reductions for non-compliant items."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

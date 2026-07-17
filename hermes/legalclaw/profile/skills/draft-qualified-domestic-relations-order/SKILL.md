@@ -2,7 +2,6 @@
 name: draft-qualified-domestic-relations-order
 description: "Closes the gap where agents draft QDROs without resolving the separate-interest-vs.-shared-payment design choice, locking in the coverture fraction denominator, addressing survivor benefit requirements, and producing each plan's QDRO as a standalone document."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

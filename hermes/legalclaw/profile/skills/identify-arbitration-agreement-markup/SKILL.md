@@ -2,7 +2,6 @@
 name: identify-arbitration-agreement-markup
 description: "Ensures an arbitration agreement markup addresses the curial law implications of the proposed seat, advocates for a multi-arbitrator panel with an explicit selection mechanism, and preserves the ability to recover consequential damages where appropriate."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, arbitration-international-dispute-resolution]

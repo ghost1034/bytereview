@@ -2,7 +2,6 @@
 name: hls-identify-healthcare-compensation-arrangement
 description: "Reviews a medical director compensation arrangement against applicable healthcare fraud-and-abuse compensation rules, nonprofit excess benefit principles, and related documentation standards, identifying fair market value opinion gaps, ownership-conflict issues, referral-motivated compensation indicators in internal communications, and time-tracking deficiencies."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, healthcare-life-sciences]

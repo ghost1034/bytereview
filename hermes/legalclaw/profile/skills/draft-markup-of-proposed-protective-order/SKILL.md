@@ -2,7 +2,6 @@
 name: draft-markup-of-proposed-protective-order
 description: "Closes gaps in issue-specific protective order markup including in-house counsel competitive wall requirements, inter-agency sharing notice, clawback protection, and expert conflict screening mechanisms."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, antitrust-competition]

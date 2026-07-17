@@ -2,7 +2,6 @@
 name: analyze-counterparty-markup-of-limited-partnership-agreement
 description: "Review a counterparty markup of a limited partnership agreement against the applicable negotiation playbook, term sheet, and relevant precedent documents to produce a classified redline review memorandum with financial impact analysis and negotiation guidance."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, funds-asset-management]

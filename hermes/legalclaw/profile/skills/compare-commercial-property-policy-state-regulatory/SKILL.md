@@ -2,7 +2,6 @@
 name: compare-commercial-property-policy-state-regulatory
 description: "Agents conducting a policy form compliance review against state regulatory requirements should cross-reference prior objections, verify relevant statutory or regulatory periods for the applicable jurisdiction, and summarize gaps by severity tier."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, insurance]

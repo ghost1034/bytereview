@@ -2,7 +2,6 @@
 name: draft-ground-lease
 description: "Guides tenant-side drafting of a long-term commercial ground lease by reconciling economic terms from the governing deal materials and financing documents, addressing leasehold mortgage requirements and environmental constraints, and flagging cross-document issues in a companion memo."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, real-estate]

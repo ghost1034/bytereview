@@ -2,7 +2,6 @@
 name: its-extract-ownership-structure-sanctions
 description: "Produces an ownership report that traces beneficial ownership through multi-tier corporate and trust structures, aggregates sanctions-attributable ownership across all paths, and flags structural inconsistencies and post-designation non-divestiture as risk factors."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, international-trade-sanctions]

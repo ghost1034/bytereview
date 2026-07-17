@@ -2,7 +2,6 @@
 name: extract-asset-pool-characteristics-rmbs
 description: "Extract characteristics from a collateral tape and prepare a stratification and compliance report by testing each loan against applicable eligibility criteria, verifying categorical pool representations against the data, and identifying loans that fail multiple criteria simultaneously as a distinct category."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, structured-finance-securitization]

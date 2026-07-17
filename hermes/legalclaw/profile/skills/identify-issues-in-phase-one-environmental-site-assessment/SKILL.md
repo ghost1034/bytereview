@@ -2,7 +2,6 @@
 name: identify-issues-in-phase-one-environmental-site-assessment
 description: "Guides preparation of an issues memorandum for a Phase I environmental site assessment in an industrial acquisition by assessing the adequacy of the assessment methodology, the significance of identified recognized environmental conditions, and the sufficiency of the purchase agreement's environmental protections."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

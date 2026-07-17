@@ -2,7 +2,6 @@
 name: draft-equity-incentive-plan
 description: "Equity incentive plan drafting where the baseline produces a plan document but omits a companion drafting memo resolving conflicts among multiple source documents and flagging statutory, governance, and capitalization nuances."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, capital-markets]

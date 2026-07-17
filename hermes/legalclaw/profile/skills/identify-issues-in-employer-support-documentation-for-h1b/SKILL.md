@@ -2,7 +2,6 @@
 name: identify-issues-in-employer-support-documentation-for-h1b
 description: "Pre-filing issues memo for an H-1B petition package where deficiencies in the labor condition application, support letter, organizational documentation, and financial records must each be identified with an explanation of why the deficiency creates a filing risk."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, immigration]

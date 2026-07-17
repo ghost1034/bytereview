@@ -2,7 +2,6 @@
 name: identify-issues-in-environmental-impact-statement
 description: "Guides preparation of a memorandum for review of an environmental impact statement for a utility-scale energy project by identifying analytical deficiencies, consultation adequacy issues, cultural resources obligations, and socioeconomic analysis gaps that may create legal vulnerability to challenge."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

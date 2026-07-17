@@ -2,7 +2,6 @@
 name: draft-postnuptial-agreement
 description: "Drafting a postnuptial agreement under Illinois law requires reviewing any prior marital agreement, reconciling financial disclosure materials with valuation information, addressing compensation units and business ownership characterization, and documenting independent counsel representation and voluntariness for enforceability."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, trusts-estates-private-client]

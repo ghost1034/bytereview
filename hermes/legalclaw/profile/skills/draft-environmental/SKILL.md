@@ -2,7 +2,6 @@
 name: draft-environmental
 description: "Guides drafting of a formal public comment letter opposing reissuance of a draft NPDES permit by structuring legal and technical objections around the applicable permitting standards, anti-backsliding concerns, and water quality-based effluent limit adequacy."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, environmental-esg]

@@ -2,7 +2,6 @@
 name: draft-case-assessment-memorandum
 description: "A litigation case assessment memo must evaluate each claim and defense with its evidentiary support, assess damages exposure in a reasoned range, consider insurance and venue implications, and provide a clear disposition recommendation."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, litigation-dispute-resolution]

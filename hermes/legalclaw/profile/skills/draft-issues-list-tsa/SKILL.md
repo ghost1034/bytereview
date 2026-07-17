@@ -2,7 +2,6 @@
 name: draft-issues-list-tsa
 description: "Guides preparation of a prioritized transition services agreement issues list memo. Focuses on identifying drafting gaps, sequencing issues by priority, comparing terms to market practice at a category level where helpful, analyzing interactions among provisions, and proposing revised language at a procedural level without relying on scenario-specific facts or predetermined conclusions."
 version: 0.1.0
-platforms: [linux]
 metadata:
   hermes:
     tags: [legal, corporate-ma]
