@@ -243,6 +243,33 @@ class EsignEnvelopeService:
             raise EsignNotFound("Envelope not found")
         return envelope
 
+    def _load_envelope_as_participant(
+        self, db: Session, user_id: str, user_email: str, envelope_id: str
+    ) -> EsignEnvelope:
+        """Load an envelope the user owns OR is a recipient of (by email)."""
+        try:
+            env_uuid = uuid.UUID(str(envelope_id))
+        except ValueError:
+            raise EsignNotFound("Envelope not found")
+        envelope = (
+            db.query(EsignEnvelope)
+            .options(
+                joinedload(EsignEnvelope.documents),
+                joinedload(EsignEnvelope.recipients),
+                joinedload(EsignEnvelope.fields),
+            )
+            .filter(EsignEnvelope.id == env_uuid)
+            .first()
+        )
+        if not envelope:
+            raise EsignNotFound("Envelope not found")
+        if envelope.user_id == user_id:
+            return envelope
+        email = (user_email or "").strip().lower()
+        if email and any(r.email == email for r in (envelope.recipients or [])):
+            return envelope
+        raise EsignNotFound("Envelope not found")  # don't leak existence to non-participants
+
     def _require_draft(self, envelope: EsignEnvelope) -> None:
         if envelope.status != EsignEnvelopeStatus.DRAFT:
             raise EsignConflict("Envelope is no longer a draft and cannot be edited")
@@ -734,10 +761,12 @@ class EsignEnvelopeService:
         finally:
             db.close()
 
-    async def get_sealed_download(self, user_id: str, envelope_id: str) -> EsignDownloadResponse:
+    async def get_sealed_download(
+        self, user_id: str, user_email: str, envelope_id: str
+    ) -> EsignDownloadResponse:
         db = self._get_session()
         try:
-            envelope = self._load_envelope(db, user_id, envelope_id)
+            envelope = self._load_envelope_as_participant(db, user_id, user_email, envelope_id)
             if not envelope.sealed_gcs_object_name:
                 raise EsignNotFound("Envelope has not been sealed yet")
             filename = f"{envelope.title or 'envelope'} - signed.pdf"
@@ -753,10 +782,12 @@ class EsignEnvelopeService:
         finally:
             db.close()
 
-    async def get_certificate_download(self, user_id: str, envelope_id: str) -> EsignDownloadResponse:
+    async def get_certificate_download(
+        self, user_id: str, user_email: str, envelope_id: str
+    ) -> EsignDownloadResponse:
         db = self._get_session()
         try:
-            envelope = self._load_envelope(db, user_id, envelope_id)
+            envelope = self._load_envelope_as_participant(db, user_id, user_email, envelope_id)
             if not envelope.certificate_gcs_object_name:
                 raise EsignNotFound("Certificate of completion is not available yet")
             filename = f"{envelope.title or 'envelope'} - certificate of completion.pdf"

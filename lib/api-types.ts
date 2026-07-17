@@ -3617,8 +3617,8 @@ export interface paths {
          *     Like /resolve, authenticated by possession of the activation key itself (NOT
          *     Firebase). Instead of the decryption secret, returns a short-lived signed GET
          *     URL to the requested product's plaintext profile tarball in the private GCS
-         *     bucket, plus its sha256 for client-side verification. Generic 401 for all key
-         *     failures.
+         *     bucket, its sha256, and optional MCP credentials for the user's integrations.
+         *     Generic 401 for all key failures.
          */
         post: operations["bundle_api_activation_bundle_post"];
         delete?: never;
@@ -3716,6 +3716,9 @@ export interface paths {
         /**
          * Test Connection
          * @description Verify the credential still exists at the runtime.
+         *
+         *     no_auth connections are virtual on the runtime side (nothing is stored, so
+         *     they never appear in its connection list) — they are trivially valid.
          */
         post: operations["test_connection_api_connector_connections__connection_id__test_post"];
         delete?: never;
@@ -5968,6 +5971,8 @@ export interface components {
             expires_at?: string | null;
             /** Sent At */
             sent_at?: string | null;
+            /** Completed At */
+            completed_at?: string | null;
             /**
              * Created At
              * Format: date-time

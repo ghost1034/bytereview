@@ -406,7 +406,9 @@ async def download_envelope_document(
 @router.get("/envelopes/{envelope_id}/sealed/download", response_model=EsignDownloadResponse)
 async def download_sealed_document(envelope_id: str, token: dict = Depends(verify_firebase_token)):
     try:
-        return await esign_envelope_service.get_sealed_download(_uid(token), envelope_id)
+        return await esign_envelope_service.get_sealed_download(
+            _uid(token), _email(token), envelope_id
+        )
     except Exception as exc:
         _raise_http(exc)
 
@@ -414,7 +416,9 @@ async def download_sealed_document(envelope_id: str, token: dict = Depends(verif
 @router.get("/envelopes/{envelope_id}/certificate/download", response_model=EsignDownloadResponse)
 async def download_certificate(envelope_id: str, token: dict = Depends(verify_firebase_token)):
     try:
-        return await esign_envelope_service.get_certificate_download(_uid(token), envelope_id)
+        return await esign_envelope_service.get_certificate_download(
+            _uid(token), _email(token), envelope_id
+        )
     except Exception as exc:
         _raise_http(exc)
 

@@ -3,7 +3,15 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { CheckCircle2, Loader2, PenLine, ShieldAlert, ShieldCheck } from 'lucide-react'
+import {
+  CheckCircle2,
+  Download,
+  FileBadge,
+  Loader2,
+  PenLine,
+  ShieldAlert,
+  ShieldCheck,
+} from 'lucide-react'
 
 import { openPdfFromUrl, participantColor, type PdfDocument } from '@/components/esign/pdf'
 import { PdfPageCanvas } from '@/components/esign/PdfPageCanvas'
@@ -23,7 +31,7 @@ import {
   useSigningSession,
   useSubmitSignature,
 } from '@/hooks/useEnvelopes'
-import { ApiError, type EsignFieldResponse } from '@/lib/api'
+import { ApiError, apiClient, type EsignFieldResponse } from '@/lib/api'
 
 type CeremonyState = 'signing' | 'submitted' | 'declined'
 
@@ -213,6 +221,7 @@ export default function SigningCeremonyPage() {
   const [adoptionOpen, setAdoptionOpen] = React.useState(false)
   const [declineOpen, setDeclineOpen] = React.useState(false)
   const [fieldValues, setFieldValues] = React.useState<Record<string, string>>({})
+  const [downloading, setDownloading] = React.useState<'sealed' | 'certificate' | null>(null)
 
   const session = sessionQuery.data
 
@@ -244,6 +253,62 @@ export default function SigningCeremonyPage() {
   }
 
   if (!session) return null
+
+  if (session.envelope_status === 'completed') {
+    const openDownload = async (kind: 'sealed' | 'certificate') => {
+      setDownloading(kind)
+      try {
+        const result =
+          kind === 'sealed'
+            ? await apiClient.getEsignSealedDownload(session.envelope_id)
+            : await apiClient.getEsignCertificateDownload(session.envelope_id)
+        window.open(result.url, '_blank', 'noopener')
+      } catch (error) {
+        toast({
+          title: 'Download failed',
+          description: error instanceof Error ? error.message : undefined,
+          variant: 'destructive',
+        })
+      } finally {
+        setDownloading(null)
+      }
+    }
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-20 text-center">
+        <ShieldCheck className="size-12 text-success" />
+        <h1 className="text-xl font-semibold">Completed and digitally sealed</h1>
+        <p className="text-sm text-foreground-muted">
+          All parties have signed &quot;{session.title}&quot;. The sealed PDF carries an embedded
+          digital signature — any modification after completion will invalidate it.
+        </p>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button onClick={() => openDownload('sealed')} disabled={downloading === 'sealed'}>
+            {downloading === 'sealed' ? (
+              <Loader2 className="mr-1.5 size-4 animate-spin" />
+            ) : (
+              <Download className="mr-1.5 size-4" />
+            )}
+            Signed PDF
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => openDownload('certificate')}
+            disabled={downloading === 'certificate'}
+          >
+            {downloading === 'certificate' ? (
+              <Loader2 className="mr-1.5 size-4 animate-spin" />
+            ) : (
+              <FileBadge className="mr-1.5 size-4" />
+            )}
+            Certificate
+          </Button>
+        </div>
+        <Button asChild variant="ghost">
+          <Link href="/dashboard/esign">Back to E-Signature</Link>
+        </Button>
+      </div>
+    )
+  }
 
   if (ceremonyState === 'submitted') {
     return (

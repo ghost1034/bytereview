@@ -65,6 +65,9 @@ ALLOWED_TYPED_FONTS = {"dancing-script", "caveat", "great-vibes", "homemade-appl
 
 ACTIVE_ENVELOPE_STATUSES = (EsignEnvelopeStatus.SENT, EsignEnvelopeStatus.IN_PROGRESS)
 
+# Most recent completed envelopes to keep in a signer's inbox.
+COMPLETED_INBOX_LIMIT = int(os.getenv("ESIGN_COMPLETED_INBOX_LIMIT", "25"))
+
 
 def _app_base_url() -> str:
     explicit = os.getenv("ESIGN_APP_BASE_URL")
@@ -250,12 +253,16 @@ class EsignSigningService:
         email = (user_email or "").strip().lower()
         db = self._get_session()
         try:
-            rows = (
+            base = (
                 db.query(EsignRecipient, EsignEnvelope)
                 .join(EsignEnvelope, EsignRecipient.envelope_id == EsignEnvelope.id)
                 .filter(
                     EsignRecipient.email == email,
                     EsignRecipient.role == EsignRecipientRole.SIGNER,
+                )
+            )
+            rows = (
+                base.filter(
                     EsignEnvelope.status.in_(ACTIVE_ENVELOPE_STATUSES),
                     EsignRecipient.status.notin_(
                         [EsignRecipientStatus.SIGNED, EsignRecipientStatus.DECLINED]
@@ -264,9 +271,17 @@ class EsignSigningService:
                 .order_by(EsignEnvelope.sent_at.desc())
                 .all()
             )
+            # Completed envelopes stay listed so signers can reach the sealed
+            # document and certificate after the fact.
+            completed_rows = (
+                base.filter(EsignEnvelope.status == EsignEnvelopeStatus.COMPLETED)
+                .order_by(EsignEnvelope.completed_at.desc())
+                .limit(COMPLETED_INBOX_LIMIT)
+                .all()
+            )
             items = []
             dirty = False
-            for recipient, envelope in rows:
+            for recipient, envelope in list(rows) + list(completed_rows):
                 if recipient.recipient_user_id is None:
                     recipient.recipient_user_id = user_id
                     dirty = True
@@ -283,6 +298,7 @@ class EsignSigningService:
                         is_my_turn=self._is_recipients_turn(envelope, recipient),
                         expires_at=envelope.expires_at,
                         sent_at=envelope.sent_at,
+                        completed_at=envelope.completed_at,
                         created_at=envelope.created_at,
                     )
                 )
@@ -303,6 +319,31 @@ class EsignSigningService:
         db = self._get_session()
         try:
             envelope = self._load_envelope_any(db, envelope_id)
+
+            if envelope.status == EsignEnvelopeStatus.COMPLETED:
+                # Completed envelopes stay viewable to every recipient (signers
+                # and CCs) so they can reach the sealed document and certificate.
+                recipient = self._find_recipient(envelope, user_email, signer_only=False)
+                self._backfill_recipient_user(recipient, user_id)
+                db.commit()
+                return EsignSigningSessionResponse(
+                    envelope_id=str(envelope.id),
+                    recipient_id=str(recipient.id),
+                    title=envelope.title,
+                    message=envelope.message,
+                    sender_email=self._sender_email(db, envelope),
+                    envelope_status=envelope.status.value,
+                    recipient_status=recipient.status.value
+                    if hasattr(recipient.status, "value")
+                    else str(recipient.status),
+                    is_my_turn=False,
+                    consent_required=False,
+                    consent_disclosure_text=envelope.consent_disclosure_text,
+                    documents=[],
+                    fields=[],
+                    expires_at=envelope.expires_at,
+                )
+
             recipient = self._find_recipient(envelope, user_email)
             self._backfill_recipient_user(recipient, user_id)
 
@@ -867,11 +908,14 @@ class EsignSigningService:
         finally:
             db.close()
 
-        url = f"{_app_base_url()}/dashboard/esign/{envelope_id}"
-        targets = set(recipients)
+        # The sender views the envelope on their dashboard detail page; recipients
+        # are not the envelope owner, so they view it via the signer-facing page.
+        sender_url = f"{_app_base_url()}/dashboard/esign/{envelope_id}"
+        recipient_url = signing_url(envelope_id)
+        targets: dict[str, str] = {email: recipient_url for email in recipients}
         if sender_email:
-            targets.add(sender_email.lower())
-        for email in sorted(targets):
+            targets[sender_email.lower()] = sender_url
+        for email, url in sorted(targets.items()):
             await self._send_simple_email(
                 email,
                 f"Completed: {envelope_title}",

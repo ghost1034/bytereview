@@ -49,7 +49,10 @@ export default function EsignDashboardPage() {
   const envelopesQuery = useEnvelopes(PAGE_SIZE, offset, listStatus)
   const inboxQuery = useEsignInbox()
 
-  const inboxCount = inboxQuery.data?.items.length ?? 0
+  const inboxItems = inboxQuery.data?.items ?? []
+  const pendingItems = inboxItems.filter((item) => item.envelope_status !== 'completed')
+  const completedItems = inboxItems.filter((item) => item.envelope_status === 'completed')
+  const inboxCount = pendingItems.length
 
   return (
     <div className="space-y-6">
@@ -122,55 +125,98 @@ export default function EsignDashboardPage() {
       </div>
 
       {tab === 'inbox' ? (
-        <div className="rounded-lg border border-border bg-surface">
-          {inboxQuery.isLoading ? (
-            <div className="space-y-2 p-4">
-              <Skeleton className="h-9 w-full" />
-              <Skeleton className="h-9 w-full" />
-            </div>
-          ) : inboxCount === 0 ? (
-            <EmptyState
-              icon={Inbox}
-              title="Nothing waiting for you"
-              description="Envelopes sent to your email address will appear here when it's your turn to sign."
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Envelope</TableHead>
-                  <TableHead>From</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Expires</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {inboxQuery.data!.items.map((item) => (
-                  <TableRow key={item.envelope_id}>
-                    <TableCell className="font-medium">{item.title}</TableCell>
-                    <TableCell className="text-foreground-muted">{item.sender_email}</TableCell>
-                    <TableCell>
-                      {item.is_my_turn ? (
-                        <span className="text-sm font-medium text-info">Your turn</span>
-                      ) : (
-                        <span className="text-sm text-foreground-muted">Waiting on others</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-foreground-muted">{formatDate(item.expires_at)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        disabled={!item.is_my_turn}
-                        onClick={() => router.push(`/dashboard/esign/sign/${item.envelope_id}`)}
-                      >
-                        Review & sign
-                      </Button>
-                    </TableCell>
+        <div className="space-y-6">
+          <div className="rounded-lg border border-border bg-surface">
+            {inboxQuery.isLoading ? (
+              <div className="space-y-2 p-4">
+                <Skeleton className="h-9 w-full" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+            ) : inboxCount === 0 ? (
+              <EmptyState
+                icon={Inbox}
+                title="Nothing waiting for you"
+                description="Envelopes sent to your email address will appear here when it's your turn to sign."
+              />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Envelope</TableHead>
+                    <TableHead>From</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Expires</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {pendingItems.map((item) => (
+                    <TableRow key={item.envelope_id}>
+                      <TableCell className="font-medium">{item.title}</TableCell>
+                      <TableCell className="text-foreground-muted">{item.sender_email}</TableCell>
+                      <TableCell>
+                        {item.is_my_turn ? (
+                          <span className="text-sm font-medium text-info">Your turn</span>
+                        ) : (
+                          <span className="text-sm text-foreground-muted">Waiting on others</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-foreground-muted">{formatDate(item.expires_at)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          disabled={!item.is_my_turn}
+                          onClick={() => router.push(`/dashboard/esign/sign/${item.envelope_id}`)}
+                        >
+                          Review & sign
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+          {completedItems.length > 0 && (
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold">Completed</h2>
+              <p className="text-sm text-foreground-muted">
+                Documents you signed that every party has now completed. Open one to download the
+                sealed PDF and its certificate of completion.
+              </p>
+              <div className="rounded-lg border border-border bg-surface">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Envelope</TableHead>
+                      <TableHead>From</TableHead>
+                      <TableHead>Completed</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {completedItems.map((item) => (
+                      <TableRow key={item.envelope_id}>
+                        <TableCell className="font-medium">{item.title}</TableCell>
+                        <TableCell className="text-foreground-muted">{item.sender_email}</TableCell>
+                        <TableCell className="text-foreground-muted">
+                          {formatDate(item.completed_at)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => router.push(`/dashboard/esign/sign/${item.envelope_id}`)}
+                          >
+                            View document
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </section>
           )}
         </div>
       ) : (

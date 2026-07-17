@@ -188,6 +188,7 @@ class EsignInboxItem(BaseModel):
     is_my_turn: bool
     expires_at: Optional[datetime] = None
     sent_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
     created_at: datetime
 
 
