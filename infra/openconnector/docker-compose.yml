@@ -1,0 +1,46 @@
+# OpenConnector runtime for CPAAutomation integrations.
+#
+# Runs on the dedicated GCE VM provisioned by scripts/setup-openconnector-vm.sh.
+# The runtime's SQLite store (all user connection credentials, encrypted with
+# OOMOL_CONNECT_ENCRYPTION_KEY) lives on the attached persistent disk mounted
+# at /mnt/openconnector-data. Nightly backups: scripts/backup-openconnector.sh.
+#
+# Only Caddy publishes ports. The runtime itself is reachable solely through
+# the reverse proxy, which exposes /oauth/* and /health publicly and requires
+# bearer tokens (enforced by the runtime) for everything else.
+
+services:
+  open-connector:
+    image: ghcr.io/oomol-lab/open-connector:latest
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3000"
+      OOMOL_CONNECT_DATA_DIR: /data
+      OOMOL_CONNECT_ORIGIN: ${OOMOL_CONNECT_ORIGIN:-https://connect.cpaautomation.ai}
+      OOMOL_CONNECT_ENCRYPTION_KEY: ${OOMOL_CONNECT_ENCRYPTION_KEY:?set in .env}
+      OOMOL_CONNECT_ADMIN_TOKEN: ${OOMOL_CONNECT_ADMIN_TOKEN:?set in .env}
+      OOMOL_CONNECT_RUNTIME_TOKEN: ${OOMOL_CONNECT_RUNTIME_TOKEN:?set in .env}
+      # Defense-in-depth beneath the CPAA broker; comma-separated wildcards.
+      OOMOL_CONNECT_BLOCKED_ACTIONS: ${OOMOL_CONNECT_BLOCKED_ACTIONS:-}
+    volumes:
+      - /mnt/openconnector-data:/data
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - open-connector
+
+volumes:
+  caddy-data:
+  caddy-config:

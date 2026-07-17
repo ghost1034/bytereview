@@ -136,7 +136,7 @@ from routes import (
     analytics_firms, analytics_clients, analytics_research,
     analytics_assistant, analytics_waterfall, analytics_amortization,
     analytics_reconciliation, analytics_variance, analytics_comments, activation,
-    chrona_devices, chrona_sync, chrona_dashboard,
+    chrona_devices, chrona_sync, chrona_dashboard, connector,
 )
 from inkwise.router import router as inkwise_router
 
@@ -165,6 +165,8 @@ app.include_router(analytics_reconciliation.router)
 app.include_router(analytics_variance.router)
 app.include_router(analytics_comments.router)
 app.include_router(activation.router)
+app.include_router(connector.router)
+app.include_router(connector.admin_router)
 app.include_router(chrona_devices.router)
 app.include_router(chrona_sync.router)
 app.include_router(chrona_dashboard.router)

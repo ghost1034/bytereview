@@ -3627,6 +3627,289 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/connector/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Catalog
+         * @description Full provider catalog with per-user availability/connected flags.
+         */
+        get: operations["get_catalog_api_connector_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/connector/catalog/{service}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Provider Detail */
+        get: operations["get_provider_detail_api_connector_catalog__service__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/connector/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Connections */
+        get: operations["list_connections_api_connector_connections_get"];
+        put?: never;
+        /** Create Connection */
+        post: operations["create_connection_api_connector_connections_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/connector/connections/{connection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Connection
+         * @description Connection status; pending OAuth rows are re-probed against the runtime
+         *     (this is what the dashboard polls after opening the consent popup).
+         */
+        get: operations["get_connection_api_connector_connections__connection_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Connection */
+        delete: operations["delete_connection_api_connector_connections__connection_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/connector/connections/{connection_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Connection
+         * @description Verify the credential still exists at the runtime.
+         */
+        post: operations["test_connection_api_connector_connections__connection_id__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/connector/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Actions */
+        get: operations["list_actions_api_connector_actions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/connector/actions/{action_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Execute Action */
+        post: operations["execute_action_api_connector_actions__action_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/connector/tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tokens */
+        get: operations["list_tokens_api_connector_tokens_get"];
+        put?: never;
+        /** Create Token */
+        post: operations["create_token_api_connector_tokens_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/connector/tokens/{token_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Token */
+        delete: operations["revoke_token_api_connector_tokens__token_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/connector/mcp/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mcp Tools Preview
+         * @description Non-MCP sanity endpoint mirroring the runtime's GET /mcp/tools.
+         */
+        get: operations["mcp_tools_preview_api_connector_mcp_tools_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/connector/mcp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mcp Method Not Allowed */
+        get: operations["mcp_method_not_allowed_api_connector_mcp_get"];
+        put?: never;
+        /**
+         * Mcp Endpoint
+         * @description Stateless MCP streamable-HTTP endpoint for Claw agents (JSON responses).
+         */
+        post: operations["mcp_endpoint_api_connector_mcp_post"];
+        /** Mcp Method Not Allowed */
+        delete: operations["mcp_method_not_allowed_api_connector_mcp_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/connector/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Connector Health */
+        get: operations["connector_health_api_admin_connector_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/connector/oauth-configs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Oauth Configs */
+        get: operations["list_oauth_configs_api_admin_connector_oauth_configs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/connector/oauth-configs/{service}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Upsert Oauth Config
+         * @description Register CPAAutomation's OAuth app for a provider (runtime + mirror row).
+         */
+        put: operations["upsert_oauth_config_api_admin_connector_oauth_configs__service__put"];
+        post?: never;
+        /** Delete Oauth Config */
+        delete: operations["delete_oauth_config_api_admin_connector_oauth_configs__service__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/connector/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Runs
+         * @description Debug passthrough of the runtime's execution history.
+         */
+        get: operations["list_runs_api_admin_connector_runs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/chrona/pairing-codes": {
         parameters: {
             query?: never;
@@ -3798,6 +4081,32 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ActionInfo */
+        ActionInfo: {
+            /** Id */
+            id: string;
+            /** Service */
+            service: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /** Input Schema */
+            input_schema?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** ActionsResponse */
+        ActionsResponse: {
+            /** Success */
+            success: boolean;
+            /** Message */
+            message?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Actions */
+            actions: components["schemas"]["ActionInfo"][];
+        };
         /**
          * ActivateRequest
          * @description Redeem a six-digit activation code from the activation_codes allowlist.
@@ -4621,6 +4930,65 @@ export interface components {
              */
             expires_in_seconds: number;
         };
+        /**
+         * CatalogProvider
+         * @description One provider in the catalog listing, with per-user availability flags.
+         */
+        CatalogProvider: {
+            /** Service */
+            service: string;
+            /** Display Name */
+            display_name: string;
+            /**
+             * Categories
+             * @default []
+             */
+            categories: string[];
+            /**
+             * Auth Types
+             * @default []
+             */
+            auth_types: string[];
+            /**
+             * Action Count
+             * @default 0
+             */
+            action_count: number;
+            /** Available */
+            available: boolean;
+            /**
+             * Oauth Configured
+             * @default false
+             */
+            oauth_configured: boolean;
+            /**
+             * Connected
+             * @default false
+             */
+            connected: boolean;
+        };
+        /** CatalogResponse */
+        CatalogResponse: {
+            /** Success */
+            success: boolean;
+            /** Message */
+            message?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Providers */
+            providers: components["schemas"]["CatalogProvider"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /**
+             * Categories
+             * @default []
+             */
+            categories: string[];
+        };
         /** ChatMessage */
         ChatMessage: {
             /**
@@ -4959,6 +5327,87 @@ export interface components {
             /** Version */
             version?: number;
         };
+        /** ConnectionInfo */
+        ConnectionInfo: {
+            /** Id */
+            id: string;
+            /** Service */
+            service: string;
+            /** Display Name */
+            display_name?: string | null;
+            /** Label */
+            label?: string | null;
+            /** Auth Type */
+            auth_type: string;
+            /** Status */
+            status: string;
+            /** Error Message */
+            error_message?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Last Used At */
+            last_used_at?: string | null;
+        };
+        /** ConnectionStatusResponse */
+        ConnectionStatusResponse: {
+            /** Success */
+            success: boolean;
+            /** Message */
+            message?: string | null;
+            /** Error */
+            error?: string | null;
+            connection: components["schemas"]["ConnectionInfo"];
+        };
+        /** ConnectionsResponse */
+        ConnectionsResponse: {
+            /** Success */
+            success: boolean;
+            /** Message */
+            message?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Connections */
+            connections: components["schemas"]["ConnectionInfo"][];
+        };
+        /** ConnectorHealthResponse */
+        ConnectorHealthResponse: {
+            /** Success */
+            success: boolean;
+            /** Message */
+            message?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Configured */
+            configured: boolean;
+            /** Reachable */
+            reachable: boolean;
+            /** Provider Count */
+            provider_count?: number | null;
+        };
+        /** ConnectorTokenInfo */
+        ConnectorTokenInfo: {
+            /** Id */
+            id: string;
+            /** Token Prefix */
+            token_prefix: string;
+            /** Name */
+            name?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Last Used At */
+            last_used_at?: string | null;
+            /**
+             * Revoked
+             * @default false
+             */
+            revoked: boolean;
+        };
         /** ContactRequest */
         ContactRequest: {
             /** Name */
@@ -5051,6 +5500,31 @@ export interface components {
              */
             cancel_url: string;
         };
+        /** CreateConnectionRequest */
+        CreateConnectionRequest: {
+            /** Service */
+            service: string;
+            /** Auth Type */
+            auth_type: string;
+            /** Label */
+            label?: string | null;
+            /** Values */
+            values?: {
+                [key: string]: string;
+            } | null;
+        };
+        /** CreateConnectionResponse */
+        CreateConnectionResponse: {
+            /** Success */
+            success: boolean;
+            /** Message */
+            message?: string | null;
+            /** Error */
+            error?: string | null;
+            connection: components["schemas"]["ConnectionInfo"];
+            /** Authorization Url */
+            authorization_url?: string | null;
+        };
         /**
          * CreateCpeSheetRequest
          * @description Request to create a new CPE sheet
@@ -5084,6 +5558,50 @@ export interface components {
              * @description URL to return to from the portal
              */
             return_url: string;
+        };
+        /** CreateTokenRequest */
+        CreateTokenRequest: {
+            /** Name */
+            name?: string | null;
+        };
+        /**
+         * CreateTokenResponse
+         * @description ``token`` is the full plaintext value, shown exactly once.
+         */
+        CreateTokenResponse: {
+            /** Success */
+            success: boolean;
+            /** Message */
+            message?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Token */
+            token: string;
+            token_info: components["schemas"]["ConnectorTokenInfo"];
+        };
+        /**
+         * CredentialField
+         * @description One input the user must supply for an api_key/custom_credential connect.
+         */
+        CredentialField: {
+            /** Key */
+            key: string;
+            /** Label */
+            label?: string | null;
+            /** Placeholder */
+            placeholder?: string | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Required
+             * @default true
+             */
+            required: boolean;
+            /**
+             * Secret
+             * @default true
+             */
+            secret: boolean;
         };
         /**
          * DataTypeResponse
@@ -5748,6 +6266,32 @@ export interface components {
         EsignVoidRequest: {
             /** Reason */
             reason: string;
+        };
+        /** ExecuteActionRequest */
+        ExecuteActionRequest: {
+            /** Input */
+            input?: {
+                [key: string]: unknown;
+            };
+            /** Connection Id */
+            connection_id?: string | null;
+            /** Idempotency Key */
+            idempotency_key?: string | null;
+        };
+        /** ExecuteActionResponse */
+        ExecuteActionResponse: {
+            /** Success */
+            success: boolean;
+            /** Message */
+            message?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Data */
+            data?: unknown | null;
+            /** Meta */
+            meta?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** ExportRef */
         ExportRef: {
@@ -7775,6 +8319,43 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** OAuthConfigInfo */
+        OAuthConfigInfo: {
+            /** Service */
+            service: string;
+            /** Client Id Hint */
+            client_id_hint?: string | null;
+            /** Enabled */
+            enabled: boolean;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** OAuthConfigRequest */
+        OAuthConfigRequest: {
+            /** Client Id */
+            client_id: string;
+            /** Client Secret */
+            client_secret: string;
+            /** Extra */
+            extra?: {
+                [key: string]: string;
+            } | null;
+            /** Secret Extra */
+            secret_extra?: {
+                [key: string]: string;
+            } | null;
+        };
+        /** OAuthConfigsResponse */
+        OAuthConfigsResponse: {
+            /** Success */
+            success: boolean;
+            /** Message */
+            message?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Configs */
+            configs: components["schemas"]["OAuthConfigInfo"][];
+        };
         /** PairRequest */
         PairRequest: {
             /** Code */
@@ -7843,6 +8424,70 @@ export interface components {
          * @enum {string}
          */
         ProcessingMode: "individual" | "combined" | "manual";
+        /** ProviderActionSummary */
+        ProviderActionSummary: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+        };
+        /** ProviderDetailResponse */
+        ProviderDetailResponse: {
+            /** Success */
+            success: boolean;
+            /** Message */
+            message?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Service */
+            service: string;
+            /** Display Name */
+            display_name: string;
+            /**
+             * Categories
+             * @default []
+             */
+            categories: string[];
+            /**
+             * Auth Types
+             * @default []
+             */
+            auth_types: string[];
+            /** Available */
+            available: boolean;
+            /**
+             * Oauth Configured
+             * @default false
+             */
+            oauth_configured: boolean;
+            /**
+             * Connected
+             * @default false
+             */
+            connected: boolean;
+            /**
+             * Api Key Fields
+             * @default []
+             */
+            api_key_fields: components["schemas"]["CredentialField"][];
+            /**
+             * Custom Credential Fields
+             * @default []
+             */
+            custom_credential_fields: components["schemas"]["CredentialField"][];
+            /**
+             * Actions
+             * @default []
+             */
+            actions: components["schemas"]["ProviderActionSummary"][];
+            /**
+             * Action Count
+             * @default 0
+             */
+            action_count: number;
+        };
         /** ReconciliationAdditionalPassRequest */
         ReconciliationAdditionalPassRequest: {
             /** Instructions */
@@ -8086,10 +8731,18 @@ export interface components {
         /**
          * ResolveResponse
          * @description The real build-time bundle secret that decrypts the requested Claw image.
+         *
+         *     ``connector_mcp_url`` / ``connector_token`` provision the container's access
+         *     to the user's CPAAutomation integrations (MCP proxy). Both are null when the
+         *     integration broker is not configured; older containers ignore them.
          */
         ResolveResponse: {
             /** Bundle Secret */
             bundle_secret: string;
+            /** Connector Mcp Url */
+            connector_mcp_url?: string | null;
+            /** Connector Token */
+            connector_token?: string | null;
         };
         /** ResultRowCreateRequest */
         ResultRowCreateRequest: {
@@ -8288,6 +8941,17 @@ export interface components {
             fields?: components["schemas"]["FieldConfig"][] | null;
             /** Is Public */
             is_public?: boolean | null;
+        };
+        /** TokensResponse */
+        TokensResponse: {
+            /** Success */
+            success: boolean;
+            /** Message */
+            message?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Tokens */
+            tokens: components["schemas"]["ConnectorTokenInfo"][];
         };
         /** UpdateProfileRequest */
         UpdateProfileRequest: {
@@ -16109,6 +16773,611 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BundleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_catalog_api_connector_catalog_get: {
+        parameters: {
+            query?: {
+                search?: string | null;
+                category?: string | null;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_provider_detail_api_connector_catalog__service__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_connections_api_connector_connections_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionsResponse"];
+                };
+            };
+        };
+    };
+    create_connection_api_connector_connections_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateConnectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateConnectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_connection_api_connector_connections__connection_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_connection_api_connector_connections__connection_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_connection_api_connector_connections__connection_id__test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_actions_api_connector_actions_get: {
+        parameters: {
+            query: {
+                service: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    execute_action_api_connector_actions__action_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                action_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExecuteActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecuteActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tokens_api_connector_tokens_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokensResponse"];
+                };
+            };
+        };
+    };
+    create_token_api_connector_tokens_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateTokenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_token_api_connector_tokens__token_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokensResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mcp_tools_preview_api_connector_mcp_tools_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    mcp_method_not_allowed_api_connector_mcp_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    mcp_endpoint_api_connector_mcp_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    mcp_method_not_allowed_api_connector_mcp_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    connector_health_api_admin_connector_health_get: {
+        parameters: {
+            query: {
+                admin_token: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectorHealthResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_oauth_configs_api_admin_connector_oauth_configs_get: {
+        parameters: {
+            query: {
+                admin_token: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthConfigsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upsert_oauth_config_api_admin_connector_oauth_configs__service__put: {
+        parameters: {
+            query: {
+                admin_token: string;
+            };
+            header?: never;
+            path: {
+                service: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthConfigsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_oauth_config_api_admin_connector_oauth_configs__service__delete: {
+        parameters: {
+            query: {
+                admin_token: string;
+            };
+            header?: never;
+            path: {
+                service: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthConfigsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_runs_api_admin_connector_runs_get: {
+        parameters: {
+            query: {
+                admin_token: string;
+                limit?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

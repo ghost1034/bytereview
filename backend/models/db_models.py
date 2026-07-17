@@ -98,6 +98,8 @@ class User(Base):
         foreign_keys="Project.assigned_to_user_id",
     )
     activation_keys = relationship("ActivationKey", back_populates="user", cascade="all, delete-orphan")
+    connector_connections = relationship("ConnectorConnection", back_populates="user", cascade="all, delete-orphan")
+    connector_tokens = relationship("ConnectorToken", back_populates="user", cascade="all, delete-orphan")
 
 class ActivationKey(Base):
     """Per-user AccountingClaw activation key.
@@ -1533,3 +1535,127 @@ class AnalyticsComment(Base):
     deleted_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
     firm = relationship("Firm", back_populates="comments")
+
+
+# ---------------------------------------------------------------------------
+# OpenConnector integrations (broker over the self-hosted runtime)
+#
+# The runtime at OPENCONNECTOR_URL is single-tenant: connections are global,
+# distinguished only by connectionName. The backend brokers multi-tenancy by
+# naming every runtime connection u_{user_id} / u_{user_id}__{label} and
+# injecting that alias on every call. These tables are the Postgres side of
+# that contract: per-user listing/status (the runtime has no per-user view),
+# OAuth-app availability for the catalog UI, Claw MCP tokens, and audit.
+# Credential values themselves are never stored here — they live encrypted in
+# the runtime's SQLite.
+# ---------------------------------------------------------------------------
+
+
+class ConnectorConnection(Base):
+    """A user's connection to one OpenConnector provider service.
+
+    Mirror row only: existence/status/labels for dashboards and lookups. The
+    actual credential is stored (encrypted) by the runtime under
+    ``connection_name``. ``status`` is 'pending' while an OAuth grant is in
+    flight, then 'active'; 'error' marks connections the runtime rejected.
+    """
+    __tablename__ = "connector_connections"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    service = Column(String(100), nullable=False)  # runtime service slug, e.g. 'github'
+    connection_name = Column(String(200), nullable=False, unique=True)  # u_{user_id}[__{label_slug}]
+    label = Column(String(100), nullable=True)  # user-facing name for extra connections
+    auth_type = Column(String(30), nullable=False)  # 'oauth2' | 'api_key' | 'custom_credential'
+    status = Column(String(20), nullable=False, server_default="pending")
+    error_message = Column(Text, nullable=True)
+    last_verified_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    last_used_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User", back_populates="connector_connections")
+
+    __table_args__ = (
+        CheckConstraint(
+            "auth_type IN ('oauth2', 'api_key', 'custom_credential', 'no_auth')",
+            name="ck_connector_connections_auth_type",
+        ),
+        CheckConstraint(
+            "status IN ('pending', 'active', 'error', 'revoked')",
+            name="ck_connector_connections_status",
+        ),
+        # One default (label-less) connection per user+service; labeled extras
+        # are unique by name. NULLs are distinct in Postgres, hence coalesce.
+        Index(
+            "uq_connector_connections_user_service_label",
+            "user_id",
+            "service",
+            text("coalesce(label, '')"),
+            unique=True,
+        ),
+    )
+
+
+class ConnectorOAuthConfig(Base):
+    """Mirror of a runtime-global provider OAuth app registration.
+
+    The runtime stores the actual clientId/clientSecret (one OAuth app per
+    service, shared by all users). This row only records that the service is
+    OAuth-ready so the catalog UI can badge providers without an admin call to
+    the runtime. ``client_id_hint`` is a truncated, non-secret display value.
+    """
+    __tablename__ = "connector_oauth_configs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    service = Column(String(100), nullable=False, unique=True)
+    client_id_hint = Column(String(64), nullable=True)
+    enabled = Column(Boolean, nullable=False, server_default=expression.true())
+    configured_by = Column(String(128), nullable=True)  # admin identifier, informational
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class ConnectorToken(Base):
+    """Per-user bearer token for the Claw MCP proxy (/api/connector/mcp).
+
+    Same storage scheme as ActivationKey: only a SHA-256 hash is kept, with an
+    indexed non-secret prefix for O(1) lookup and constant-time verification.
+    Minted during Claw activation (named ``claw:{fingerprint}``, rotating older
+    tokens of the same name) or manually from the integrations page. Grants
+    access ONLY to the MCP proxy — never to the broker REST routes.
+    """
+    __tablename__ = "connector_tokens"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_lookup = Column(String(16), nullable=False, unique=True)  # non-secret lookup handle
+    token_hash = Column(String(64), nullable=False)  # sha256 hex of the full token
+    token_prefix = Column(String(24), nullable=False)  # masked value for display, e.g. "cpaa_conn_AbCd…"
+    name = Column(String(128), nullable=True)  # e.g. 'claw:<fingerprint>' or a user-chosen label
+    last_used_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    revoked_at = Column(TIMESTAMP(timezone=True), nullable=True)  # non-null => revoked
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    user = relationship("User", back_populates="connector_tokens")
+
+
+class ConnectorActionLog(Base):
+    """Audit trail of connector action executions across all entry points."""
+    __tablename__ = "connector_action_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    source = Column(String(20), nullable=False)  # 'web' | 'platform' | 'mcp'
+    service = Column(String(100), nullable=False)
+    action_id = Column(String(200), nullable=False)  # e.g. 'github.get_current_user'
+    connection_name = Column(String(200), nullable=True)
+    success = Column(Boolean, nullable=True)  # null when the runtime was unreachable
+    status_code = Column(Integer, nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("source IN ('web', 'platform', 'mcp')", name="ck_connector_action_logs_source"),
+        Index("ix_connector_action_logs_user_created", "user_id", "created_at"),
+    )

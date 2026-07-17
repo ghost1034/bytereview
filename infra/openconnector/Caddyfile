@@ -1,0 +1,18 @@
+# Reverse proxy for the OpenConnector runtime (connect.cpaautomation.ai).
+#
+# Public surface is deliberately narrow:
+#   /oauth/*  - provider OAuth browser callbacks (must be reachable by users)
+#   /health   - uptime checks
+# Token-gated surfaces (/v1, /mcp, /api) stay proxied because the CPAA backend
+# on Cloud Run has no fixed egress IP; the runtime enforces bearer tokens on
+# them. The web console and API docs are blocked outright in production —
+# admin operations go through the CPAA backend's /api/admin/connector routes.
+
+connect.cpaautomation.ai {
+	encode gzip
+
+	@blocked path /docs /docs/* /console /console/* /assets/* /
+	respond @blocked 404
+
+	reverse_proxy open-connector:3000
+}

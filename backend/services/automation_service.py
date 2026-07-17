@@ -302,6 +302,17 @@ class AutomationService:
                 except Exception as notify_err:
                     logger.warning(f"Failed to send automation notification email: {notify_err}")
 
+            # Optional Slack notification through the user's connected Slack
+            # (OpenConnector). Opt-in per automation via
+            # trigger_config.notifications.slack_channel_id; silently skipped
+            # when unset, when the user has no active Slack connection, or when
+            # the connector runtime is unavailable.
+            if automation and automation_name and status in ('completed', 'failed'):
+                try:
+                    await self._notify_slack(automation, automation_name, status, automation_run)
+                except Exception as notify_err:
+                    logger.warning(f"Failed to send automation Slack notification: {notify_err}")
+
             return automation_run
 
         except Exception as e:
@@ -309,6 +320,43 @@ class AutomationService:
             logger.error(f"Failed to update automation run {run_id}: {e}")
             raise
     
+    async def _notify_slack(self, automation, automation_name: str, status: str, automation_run) -> None:
+        """Post a run-finished message to the user's connected Slack channel."""
+        trigger_config = automation.trigger_config or {}
+        channel_id = (trigger_config.get('notifications') or {}).get('slack_channel_id')
+        if not channel_id:
+            return
+
+        from services.connector_service import (
+            ConnectorError,
+            ConnectorNotConnectedError,
+            connector_service,
+        )
+        if not connector_service.is_configured():
+            return
+
+        if status == 'completed':
+            text = f"✅ Automation \"{automation_name}\" completed (run {automation_run.id})."
+        else:
+            reason = automation_run.error_message or 'unknown error'
+            text = f"❌ Automation \"{automation_name}\" failed (run {automation_run.id}): {reason}"
+
+        try:
+            await connector_service.execute_for_user(
+                user_id=str(automation.user_id),
+                service='slack',
+                action_id='slack.post_message',
+                input_data={'channelId': channel_id, 'text': text},
+            )
+        except ConnectorNotConnectedError:
+            logger.info(
+                "Automation %s wants Slack notifications but user %s has no active Slack connection",
+                automation.id,
+                automation.user_id,
+            )
+        except ConnectorError as exc:
+            logger.warning(f"Slack notification failed for automation {automation.id}: {exc}")
+
     async def _check_automation_limits(self, db: Session, user_id: str) -> None:
         """Check if user can enable another automation based on their plan limits"""
         try:

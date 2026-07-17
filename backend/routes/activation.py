@@ -284,13 +284,40 @@ async def resolve(req: ResolveRequest, request: Request):
             raise HTTPException(status_code=503, detail="Activation is not currently available.")
 
         _stamp_resolution(row, req.fingerprint, req.install_type, default_type="docker")
+
+        # Provision the container's integrations access: a per-user connector
+        # token for the MCP proxy, rotated per (product, fingerprint) so a
+        # re-activated container replaces its predecessor's credential. Skipped
+        # (nulls) when the OpenConnector broker is not configured.
+        connector_token = None
+        connector_mcp_url = None
+        try:
+            from services.connector_service import connector_service
+            from services.connector_token_service import mint_token
+            if connector_service.is_configured():
+                token_name = f"claw:{req.product}:{(req.fingerprint or 'unknown')[:64]}"
+                connector_token, _ = mint_token(db, str(row.user_id), name=token_name, rotate_same_name=True)
+                connector_mcp_url = os.getenv(
+                    "CONNECTOR_MCP_PUBLIC_URL",
+                    "https://api.cpaautomation.ai/api/connector/mcp",
+                )
+        except Exception as connector_err:
+            # Activation must keep working even if token minting fails.
+            connector_token = None
+            connector_mcp_url = None
+            logger.warning("Connector token provisioning failed during resolve: %s", connector_err)
+
         db.commit()
 
         logger.info(
-            "Resolved %s bundle for key_lookup=%s user_id=%s ip=%s",
-            req.product, row.key_lookup, row.user_id, ip,
+            "Resolved %s bundle for key_lookup=%s user_id=%s ip=%s connector=%s",
+            req.product, row.key_lookup, row.user_id, ip, bool(connector_token),
         )
-        return ResolveResponse(bundle_secret=bundle_secret)
+        return ResolveResponse(
+            bundle_secret=bundle_secret,
+            connector_mcp_url=connector_mcp_url,
+            connector_token=connector_token,
+        )
     except HTTPException:
         raise
     except Exception as e:

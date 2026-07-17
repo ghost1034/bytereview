@@ -47,8 +47,15 @@ class ResolveRequest(BaseModel):
 
 
 class ResolveResponse(BaseModel):
-    """The real build-time bundle secret that decrypts the requested Claw image."""
+    """The real build-time bundle secret that decrypts the requested Claw image.
+
+    ``connector_mcp_url`` / ``connector_token`` provision the container's access
+    to the user's CPAAutomation integrations (MCP proxy). Both are null when the
+    integration broker is not configured; older containers ignore them.
+    """
     bundle_secret: str
+    connector_mcp_url: Optional[str] = None
+    connector_token: Optional[str] = None
 
 
 class BundleRequest(BaseModel):

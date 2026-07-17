@@ -5,8 +5,58 @@ DATA_DIR="${HERMES_DATA_DIR:-/opt/data}"
 BUNDLE_PATH="${ACCOUNTINGCLAW_BUNDLE:-/opt/cpaa/accountingclaw-profile.tar.gz.enc}"
 MARKER_FILE="$DATA_DIR/.cpaa/accountingclaw-installed"
 ACTIVATION_URL="${CPAA_ACTIVATION_URL:-https://api.cpaautomation.ai/api/activation/resolve}"
+PRODUCT="accountingclaw"
 
 mkdir -p "$DATA_DIR/.cpaa" "$DATA_DIR/skills"
+
+# Exchange the personal activation key for the resolve payload (bundle secret
+# plus, when the platform has integrations enabled, a per-user connector token
+# for the CPAAutomation MCP proxy). Echoes the raw JSON response.
+resolve_activation() {
+  local fingerprint
+  fingerprint="$(cat /etc/machine-id 2>/dev/null || hostname 2>/dev/null || echo unknown)"
+  curl -sS -X POST "$ACTIVATION_URL" \
+    -H 'Content-Type: application/json' \
+    --data "$(jq -nc --arg k "$CPAA_ACTIVATION_KEY" --arg f "$fingerprint" --arg p "$PRODUCT" \
+              '{activation_key:$k,fingerprint:$f,product:$p}')"
+}
+
+# Wire the CPAAutomation integrations gateway into Hermes: persist the token
+# (root-only) and (re)write a managed mcp_servers block in the Hermes config.
+# The block is replaced wholesale on every start so token rotation Just Works;
+# profile bundles must therefore never define their own mcp_servers key.
+configure_connector() {
+  local url="$1" token="$2"
+  local cfg="$DATA_DIR/config.yaml"
+  local env_file="$DATA_DIR/.cpaa/connector.env"
+
+  (
+    umask 077
+    {
+      echo "CPAA_CONNECTOR_MCP_URL=$url"
+      echo "CPAA_CONNECTOR_TOKEN=$token"
+    } > "$env_file"
+  )
+
+  if [ -f "$cfg" ]; then
+    awk '/# >>> cpaa-connector >>>/{skip=1; next} /# <<< cpaa-connector <<</{skip=0; next} !skip' \
+      "$cfg" > "$cfg.tmp" && mv "$cfg.tmp" "$cfg"
+  fi
+  cat >> "$cfg" <<EOF
+# >>> cpaa-connector >>>
+# Managed by the ${PRODUCT} entrypoint on every start; do not edit.
+mcp_servers:
+  cpaa-connector:
+    url: "$url"
+    headers:
+      Authorization: "Bearer $token"
+# <<< cpaa-connector <<<
+EOF
+  chmod 600 "$cfg"
+  echo "CPAAutomation integrations enabled (MCP: $url)."
+}
+
+activation_response=""
 
 if [ ! -s "$MARKER_FILE" ]; then
   if [ ! -s "$BUNDLE_PATH" ]; then
@@ -38,21 +88,16 @@ if [ ! -s "$MARKER_FILE" ]; then
       exit 64
     fi
 
-    fingerprint="$(cat /etc/machine-id 2>/dev/null || hostname 2>/dev/null || echo unknown)"
-
     # No -f: a rejected key returns an HTTP error body we want to inspect, while
     # a genuine connection failure makes curl exit non-zero (handled as exit 75).
-    if ! response="$(curl -sS -X POST "$ACTIVATION_URL" \
-        -H 'Content-Type: application/json' \
-        --data "$(jq -nc --arg k "$CPAA_ACTIVATION_KEY" --arg f "$fingerprint" \
-                  '{activation_key:$k,fingerprint:$f}')")"; then
+    if ! activation_response="$(resolve_activation)"; then
       echo "Activation server unreachable: $ACTIVATION_URL"
       exit 75
     fi
 
     # `|| true` so a malformed/non-JSON response yields the friendly exit 77
     # below (via the empty-file check) instead of aborting under `set -e`.
-    ( umask 077; printf '%s' "$response" | jq -r '.bundle_secret // empty' > "$secret_file" ) || true
+    ( umask 077; printf '%s' "$activation_response" | jq -r '.bundle_secret // empty' > "$secret_file" ) || true
     if [ ! -s "$secret_file" ]; then
       echo "Activation failed: invalid or revoked CPAA_ACTIVATION_KEY."
       exit 77
@@ -75,6 +120,26 @@ if [ ! -s "$MARKER_FILE" ]; then
   tar -xzf "$tmp_dir/accountingclaw-profile.tar.gz" -C "$DATA_DIR"
 
   date -u +%Y-%m-%dT%H:%M:%SZ > "$MARKER_FILE"
+fi
+
+# --- CPAAutomation integrations (runs on every start, marker or not) --------
+# Explicit env overrides win (local dev against a local backend); otherwise the
+# connector credential comes from the activation resolve response — reusing the
+# install-time response when we just activated, or re-resolving on restarts so
+# a revoked token is replaced. Every failure path is silent: integrations are
+# optional and must never block the agent from starting. If resolution fails,
+# any previously written managed config keeps working until the next start.
+connector_url="${CPAA_CONNECTOR_MCP_URL:-}"
+connector_token="${CPAA_CONNECTOR_TOKEN:-}"
+if [ -z "$connector_token" ] && [ -n "${CPAA_ACTIVATION_KEY:-}" ]; then
+  if [ -z "$activation_response" ]; then
+    activation_response="$(resolve_activation 2>/dev/null || true)"
+  fi
+  connector_url="$(printf '%s' "$activation_response" | jq -r '.connector_mcp_url // empty' 2>/dev/null || true)"
+  connector_token="$(printf '%s' "$activation_response" | jq -r '.connector_token // empty' 2>/dev/null || true)"
+fi
+if [ -n "$connector_url" ] && [ -n "$connector_token" ]; then
+  configure_connector "$connector_url" "$connector_token"
 fi
 
 # Hand off to the base image's real entrypoint so the container starts the

@@ -5,10 +5,13 @@
 'use client'
 
 import {
+  Bot,
   CheckCircle,
   FolderOpen,
+  Grid3x3,
   Info,
   Mail,
+  Plug,
   RefreshCw,
   Settings as SettingsIcon,
   Shield,
@@ -24,6 +27,9 @@ import { Section } from '@/components/ui/section'
 import { Separator } from '@/components/ui/separator'
 import { useGoogleIntegration } from '@/hooks/useGoogleIntegration'
 import { IntegrationBanner } from '@/components/integrations/IntegrationBanner'
+import { ConnectionsList } from '@/components/integrations/connector/ConnectionsList'
+import { ConnectorTokensCard } from '@/components/integrations/connector/ConnectorTokensCard'
+import { ProviderCatalog } from '@/components/integrations/connector/ProviderCatalog'
 
 function GoogleLogo({ className }: { className?: string }) {
   return (
@@ -43,18 +49,6 @@ function GoogleLogo({ className }: { className?: string }) {
       <path
         fill="#EA4335"
         d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-      />
-    </svg>
-  )
-}
-
-function MicrosoftLogo({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="#0078D4" aria-hidden>
-      <path d="M21.53 4.306v15.363A.631.631 0 0 1 20.9 20.3H3.1a.631.631 0 0 1-.63-.631V4.306a.631.631 0 0 1 .63-.631H20.9a.631.631 0 0 1 .63.631z" />
-      <path
-        fill="#fff"
-        d="M10.79 15.906v-3.574h-.79v3.574h-.79v-3.574h-.79v3.574H7.63v-4.363h3.95v4.363h-.79zm2.37 0v-4.363h.79v3.574h1.58v.789h-2.37zm2.37 0v-4.363h.79v4.363h-.79z"
       />
     </svg>
   )
@@ -282,31 +276,64 @@ export default function IntegrationsPage() {
         </div>
       </Section>
 
-      {/* Microsoft 365 placeholder */}
+      {/* Connected integrations (OpenConnector) */}
       <Section
         variant="card"
-        className="opacity-70"
         title={
           <div className="flex items-center gap-3">
-            <IconTile size="lg" tone="neutral" className="bg-surface ring-border">
-              <MicrosoftLogo className="size-5" />
-            </IconTile>
+            <IconTile icon={Plug} tone="brand" size="lg" />
             <div className="space-y-0.5">
               <span className="block text-base font-semibold text-foreground">
-                Microsoft 365
+                Connected integrations
               </span>
               <span className="block text-xs font-normal text-foreground-muted">
-                OneDrive, Outlook, and SharePoint integration
+                Accounts connected through the integration catalog
               </span>
             </div>
           </div>
         }
-        action={<Badge variant="secondary">Coming soon</Badge>}
       >
-        <div className="flex items-center gap-2 text-sm text-foreground-muted">
-          <Info className="size-4" aria-hidden />
-          <span>Microsoft 365 integration will be available in a future update.</span>
-        </div>
+        <ConnectionsList />
+      </Section>
+
+      {/* Integration catalog */}
+      <Section
+        variant="card"
+        title={
+          <div className="flex items-center gap-3">
+            <IconTile icon={Grid3x3} tone="brand" size="lg" />
+            <div className="space-y-0.5">
+              <span className="block text-base font-semibold text-foreground">
+                Integration catalog
+              </span>
+              <span className="block text-xs font-normal text-foreground-muted">
+                Connect 1,000+ services — usable in CPAAutomation and your Claw agents
+              </span>
+            </div>
+          </div>
+        }
+      >
+        <ProviderCatalog />
+      </Section>
+
+      {/* Claw agent access tokens */}
+      <Section
+        variant="card"
+        title={
+          <div className="flex items-center gap-3">
+            <IconTile icon={Bot} tone="brand" size="lg" />
+            <div className="space-y-0.5">
+              <span className="block text-base font-semibold text-foreground">
+                Claw agent access
+              </span>
+              <span className="block text-xs font-normal text-foreground-muted">
+                Tokens your Claw agents use to reach these integrations
+              </span>
+            </div>
+          </div>
+        }
+      >
+        <ConnectorTokensCard />
       </Section>
 
       {/* Security notice */}

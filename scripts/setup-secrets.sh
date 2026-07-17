@@ -35,3 +35,26 @@ gcloud secrets create TASK_MAINTENANCE_URL --data-file=- <<< "https://task-maint
 gcloud secrets versions add TASK_MAINTENANCE_URL --data-file=- <<< "https://task-maintenance-oyrpyor7wq-uc.a.run.app"
 
 echo -e "${GREEN}✅ Task service URL secrets ensured${NC}"
+
+# OpenConnector integration secrets. The three tokens are generated once and
+# then left alone (rotating OOMOL_CONNECT_ENCRYPTION_KEY requires the
+# runtime's key-rotation flow — see infra/openconnector/README.md). The URL
+# secret points the backend broker at the runtime VM.
+echo -e "${BLUE}=== OpenConnector ===${NC}"
+ensure_generated_secret() {
+    local name="$1"
+    if gcloud secrets describe "$name" >/dev/null 2>&1; then
+        echo "Secret $name already exists (left unchanged)"
+    else
+        openssl rand -hex 32 | tr -d '\n' | gcloud secrets create "$name" --data-file=-
+        echo "Created secret $name"
+    fi
+}
+ensure_generated_secret OPENCONNECTOR_ADMIN_TOKEN
+ensure_generated_secret OPENCONNECTOR_RUNTIME_TOKEN
+ensure_generated_secret OOMOL_CONNECT_ENCRYPTION_KEY
+
+gcloud secrets create OPENCONNECTOR_URL --data-file=- <<< "https://connect.cpaautomation.ai" || \
+gcloud secrets versions add OPENCONNECTOR_URL --data-file=- <<< "https://connect.cpaautomation.ai"
+
+echo -e "${GREEN}✅ OpenConnector secrets ensured${NC}"

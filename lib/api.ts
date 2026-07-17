@@ -577,6 +577,72 @@ export class ApiClient {
     return this.request(`/api/integrations/gmail/attachments?${params}`)
   }
 
+  // OpenConnector integration broker endpoints
+  async getConnectorCatalog(params: { search?: string; category?: string; page?: number; pageSize?: number } = {}): Promise<import('./connector-types').ConnectorCatalogResponse> {
+    const searchParams = new URLSearchParams()
+    if (params.search) searchParams.set('search', params.search)
+    if (params.category) searchParams.set('category', params.category)
+    if (params.page) searchParams.set('page', String(params.page))
+    if (params.pageSize) searchParams.set('page_size', String(params.pageSize))
+    const qs = searchParams.toString()
+    return this.request(`/api/connector/catalog${qs ? `?${qs}` : ''}`)
+  }
+
+  async getConnectorProvider(service: string): Promise<import('./connector-types').ConnectorProviderDetail> {
+    return this.request(`/api/connector/catalog/${encodeURIComponent(service)}`)
+  }
+
+  async listConnectorConnections(): Promise<import('./connector-types').ConnectorConnectionsResponse> {
+    return this.request('/api/connector/connections')
+  }
+
+  async createConnectorConnection(data: import('./connector-types').CreateConnectorConnectionRequest): Promise<import('./connector-types').CreateConnectorConnectionResponse> {
+    return this.request('/api/connector/connections', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getConnectorConnection(connectionId: string): Promise<import('./connector-types').ConnectorConnectionStatusResponse> {
+    return this.request(`/api/connector/connections/${encodeURIComponent(connectionId)}`)
+  }
+
+  async deleteConnectorConnection(connectionId: string): Promise<import('./connector-types').ConnectorConnectionStatusResponse> {
+    return this.request(`/api/connector/connections/${encodeURIComponent(connectionId)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async testConnectorConnection(connectionId: string): Promise<import('./connector-types').ConnectorConnectionStatusResponse> {
+    return this.request(`/api/connector/connections/${encodeURIComponent(connectionId)}/test`, {
+      method: 'POST',
+    })
+  }
+
+  async executeConnectorAction(actionId: string, input: Record<string, unknown> = {}, connectionId?: string): Promise<import('./connector-types').ConnectorExecuteResponse> {
+    return this.request(`/api/connector/actions/${encodeURIComponent(actionId)}`, {
+      method: 'POST',
+      body: JSON.stringify({ input, connection_id: connectionId }),
+    })
+  }
+
+  async listConnectorTokens(): Promise<import('./connector-types').ConnectorTokensResponse> {
+    return this.request('/api/connector/tokens')
+  }
+
+  async createConnectorToken(name?: string): Promise<import('./connector-types').CreateConnectorTokenResponse> {
+    return this.request('/api/connector/tokens', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    })
+  }
+
+  async revokeConnectorToken(tokenId: string): Promise<import('./connector-types').ConnectorTokensResponse> {
+    return this.request(`/api/connector/tokens/${encodeURIComponent(tokenId)}`, {
+      method: 'DELETE',
+    })
+  }
+
   // File Import endpoints (Epic 3)
   async importDriveFiles(jobId: string, fileIds: string[]): Promise<{ success: boolean; import_job_id: string; message: string; file_count: number }> {
     return this.request(`/api/jobs/${jobId}/files:gdrive`, {
