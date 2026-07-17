@@ -165,10 +165,18 @@ class ConnectorService:
         with self._client_lock:
             client = self._clients.get(loop)
             if client is None or client.is_closed:
-                client = httpx.AsyncClient(
-                    base_url=self.base_url,
-                    timeout=httpx.Timeout(30.0, read=120.0),
-                )
+                try:
+                    client = httpx.AsyncClient(
+                        base_url=self.base_url,
+                        timeout=httpx.Timeout(30.0, read=120.0),
+                    )
+                except httpx.InvalidURL as exc:
+                    # e.g. a secret value with an embedded newline; surface as a
+                    # clean 502 instead of an unhandled 500.
+                    logger.error("OPENCONNECTOR_URL is malformed: %s", exc)
+                    raise ConnectorError(
+                        "Integration service is misconfigured.", 502, "connector_misconfigured"
+                    )
                 self._clients[loop] = client
         return client
 
