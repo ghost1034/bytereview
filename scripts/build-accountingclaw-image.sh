@@ -15,12 +15,20 @@ PLATFORM="${ACCOUNTINGCLAW_PLATFORM:-linux/amd64}"
 PUSH="${PUSH:-false}"
 PUSH_TARGET="${PUSH_TARGET:-artifact-registry}"
 
+ENV_FILE="backend/.env"
+if [ -f "$ENV_FILE" ]; then
+  CPAA_BUNDLE_SECRET="$(grep -m 1 '^CPAA_BUNDLE_SECRET=' "$ENV_FILE" | cut -d= -f2- || true)"
+  CPAA_BUNDLE_SECRET="${CPAA_BUNDLE_SECRET%\"}"; CPAA_BUNDLE_SECRET="${CPAA_BUNDLE_SECRET#\"}"
+  CPAA_BUNDLE_SECRET="${CPAA_BUNDLE_SECRET%\'}"; CPAA_BUNDLE_SECRET="${CPAA_BUNDLE_SECRET#\'}"
+fi
+export CPAA_BUNDLE_SECRET
+
 # CPAA_BUNDLE_SECRET encrypts the bundle at build time. The SAME value must be
 # set as CPAA_BUNDLE_SECRET in the backend environment, because the activation
 # resolve endpoint returns it to containers to decrypt this image. If the two
 # diverge, activated containers will fail to decrypt the bundle.
 if [ -z "${CPAA_BUNDLE_SECRET:-}" ]; then
-  echo "CPAA_BUNDLE_SECRET is required to encrypt the AccountingClaw bundle."
+  echo "CPAA_BUNDLE_SECRET is required in ${ENV_FILE} to encrypt the AccountingClaw bundle."
   exit 64
 fi
 

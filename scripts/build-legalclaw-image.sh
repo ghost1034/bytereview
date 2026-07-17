@@ -15,13 +15,21 @@ PLATFORM="${LEGALCLAW_PLATFORM:-linux/amd64}"
 PUSH="${PUSH:-false}"
 PUSH_TARGET="${PUSH_TARGET:-artifact-registry}"
 
+ENV_FILE="backend/.env"
+if [ -f "$ENV_FILE" ]; then
+  CPAA_LEGALCLAW_BUNDLE_SECRET="$(grep -m 1 '^CPAA_LEGALCLAW_BUNDLE_SECRET=' "$ENV_FILE" | cut -d= -f2- || true)"
+  CPAA_LEGALCLAW_BUNDLE_SECRET="${CPAA_LEGALCLAW_BUNDLE_SECRET%\"}"; CPAA_LEGALCLAW_BUNDLE_SECRET="${CPAA_LEGALCLAW_BUNDLE_SECRET#\"}"
+  CPAA_LEGALCLAW_BUNDLE_SECRET="${CPAA_LEGALCLAW_BUNDLE_SECRET%\'}"; CPAA_LEGALCLAW_BUNDLE_SECRET="${CPAA_LEGALCLAW_BUNDLE_SECRET#\'}"
+fi
+export CPAA_LEGALCLAW_BUNDLE_SECRET
+
 # CPAA_LEGALCLAW_BUNDLE_SECRET encrypts the bundle at build time. The SAME value
 # must be set as CPAA_LEGALCLAW_BUNDLE_SECRET in the backend environment, because
 # the activation resolve endpoint returns it to containers (product=legalclaw)
 # to decrypt this image. If the two diverge, activated containers will fail to
 # decrypt the bundle.
 if [ -z "${CPAA_LEGALCLAW_BUNDLE_SECRET:-}" ]; then
-  echo "CPAA_LEGALCLAW_BUNDLE_SECRET is required to encrypt the LegalClaw bundle."
+  echo "CPAA_LEGALCLAW_BUNDLE_SECRET is required in ${ENV_FILE} to encrypt the LegalClaw bundle."
   exit 64
 fi
 
