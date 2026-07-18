@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 import fitz
+from pathlib import Path
 from sqlalchemy.orm import Session, joinedload
 
 from core.database import db_config
@@ -52,7 +53,25 @@ SEAL_FIELD_NAME = "CPAAutomationSeal"
 
 # PyMuPDF base-14 font aliases
 _FONT_TEXT = "helv"
-_FONT_SIGNATURE = "tiit"  # Times-Italic — cursive-adjacent, embeds cleanly
+_FONT_SIGNATURE_FALLBACK = "tiit"  # Times-Italic, if the script font file is missing
+
+# Embedded script fonts for typed signatures, keyed by the typed_font slug the
+# signer adopted (see ALLOWED_TYPED_FONTS in signing_service).
+_FONTS_DIR = Path(__file__).resolve().parent.parent.parent / "assets" / "fonts"
+_TYPED_FONT_FILES = {
+    "dancing-script": _FONTS_DIR / "DancingScript-Regular.ttf",
+}
+_DEFAULT_TYPED_FONT = "dancing-script"
+
+
+def _signature_font(typed_font: Optional[str]) -> tuple[str, Optional[str]]:
+    """(fontname, fontfile) for a typed signature; base-14 italic as fallback."""
+    slug = typed_font or _DEFAULT_TYPED_FONT
+    path = _TYPED_FONT_FILES.get(slug)
+    if path is not None and path.is_file():
+        return slug, str(path)
+    logger.warning("Typed signature font %r unavailable; falling back to Times-Italic", slug)
+    return _FONT_SIGNATURE_FALLBACK, None
 
 
 def _display_rect(page: fitz.Page, pos_x: float, pos_y: float, width: float, height: float) -> fitz.Rect:
@@ -78,6 +97,7 @@ def _fit_textbox(
     fontname: str,
     rotate: int,
     max_fontsize: float,
+    fontfile: Optional[str] = None,
 ) -> None:
     """Insert text shrinking the font until it fits the box."""
     fontsize = max_fontsize
@@ -86,6 +106,7 @@ def _fit_textbox(
             rect,
             text,
             fontname=fontname,
+            fontfile=fontfile,
             fontsize=fontsize,
             rotate=rotate,
             align=fitz.TEXT_ALIGN_LEFT,
@@ -94,7 +115,7 @@ def _fit_textbox(
             return
         fontsize -= 1
     # Last resort: insert at minimum size even if it overflows slightly.
-    page.insert_textbox(rect, text, fontname=fontname, fontsize=4, rotate=rotate)
+    page.insert_textbox(rect, text, fontname=fontname, fontfile=fontfile, fontsize=4, rotate=rotate)
 
 
 def _initials_from_name(name: str) -> str:
@@ -117,12 +138,16 @@ def _stamp_field(
     if field.field_type in (EsignFieldType.SIGNATURE, EsignFieldType.INITIALS):
         if field.field_type == EsignFieldType.INITIALS:
             text = _initials_from_name(recipient.name if recipient else "")
-            _fit_textbox(page, rect, text, fontname=_FONT_SIGNATURE, rotate=rotate, max_fontsize=display_height * 0.8)
+            fontname, fontfile = _signature_font(
+                signature_record.typed_font if signature_record is not None else None
+            )
+            _fit_textbox(page, rect, text, fontname=fontname, fontfile=fontfile, rotate=rotate, max_fontsize=display_height * 0.8)
         elif signature_record is not None and signature_record.signature_type == EsignSignatureType.DRAWN and image_bytes:
             page.insert_image(rect, stream=image_bytes, rotate=rotate, keep_proportion=True)
         elif signature_record is not None:
             text = signature_record.typed_text or (recipient.name if recipient else "")
-            _fit_textbox(page, rect, text, fontname=_FONT_SIGNATURE, rotate=rotate, max_fontsize=display_height * 0.7)
+            fontname, fontfile = _signature_font(signature_record.typed_font)
+            _fit_textbox(page, rect, text, fontname=fontname, fontfile=fontfile, rotate=rotate, max_fontsize=display_height * 0.7)
     elif field.field_type == EsignFieldType.CHECKBOX:
         if (field.value or "").lower() == "true":
             _fit_textbox(page, rect, "X", fontname=_FONT_TEXT, rotate=rotate, max_fontsize=display_height * 0.9)
