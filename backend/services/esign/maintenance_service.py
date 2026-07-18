@@ -1,13 +1,14 @@
-"""Hourly e-sign maintenance: expire overdue envelopes and send auto-reminders.
+"""Hourly e-sign maintenance: expiration warnings, expiry, and auto-reminders.
 
 Invoked by the Cloud Scheduler job 'esign-maintenance' via the maintenance
-task service. Both operations are threshold-filtered, so duplicate or delayed
-runs are naturally idempotent.
+task service. Every operation is threshold-filtered (or stamped once), so
+duplicate or delayed runs are naturally idempotent.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -19,12 +20,16 @@ from models.db_models import (
     EsignEnvelopeStatus,
     EsignEventType,
 )
-from services.esign import audit_service
-from services.esign.signing_service import esign_signing_service
+from services.esign import audit_service, email_templates
+from services.esign.email_templates import EmailContent
+from services.esign.signing_service import esign_signing_service, signing_url
 
 logger = logging.getLogger(__name__)
 
 ACTIVE_STATUSES = (EsignEnvelopeStatus.SENT, EsignEnvelopeStatus.IN_PROGRESS)
+
+# How far before expiry the one-time warning goes out.
+EXPIRATION_WARNING_DAYS = int(os.getenv("ESIGN_EXPIRATION_WARNING_DAYS", "3"))
 
 
 class EsignMaintenanceService:
@@ -33,12 +38,13 @@ class EsignMaintenanceService:
 
     async def run(self) -> dict[str, Any]:
         expired = await self._expire_envelopes()
+        warned = await self._send_expiration_warnings()
         reminded = await self._send_due_reminders()
-        return {"expired": expired, "reminders_sent": reminded}
+        return {"expired": expired, "expiration_warnings": warned, "reminders_sent": reminded}
 
     async def _expire_envelopes(self) -> int:
         now = datetime.now(timezone.utc)
-        notifications: list[tuple[str, str]] = []  # (sender_email, title)
+        notifications: list[tuple[str, EmailContent]] = []
         db = self._get_session()
         try:
             envelopes = (
@@ -61,7 +67,15 @@ class EsignMaintenanceService:
                 )
                 sender_email = envelope.user.email if envelope.user else None
                 if sender_email:
-                    notifications.append((sender_email, envelope.title))
+                    notifications.append(
+                        (
+                            sender_email,
+                            email_templates.expired(
+                                title=envelope.title,
+                                url=esign_signing_service.sender_envelope_url(envelope.id),
+                            ),
+                        )
+                    )
             db.commit()
             count = len(envelopes)
         except Exception:
@@ -71,22 +85,86 @@ class EsignMaintenanceService:
         finally:
             db.close()
 
-        for sender_email, title in notifications:
-            await esign_signing_service._send_simple_email(
-                sender_email,
-                f"Envelope expired: {title}",
-                (
-                    f"Hello,\n\n"
-                    f"Your envelope \"{title}\" reached its expiration date before all parties "
-                    f"signed, and is now expired. You can create a new envelope to try again.\n\n"
-                    f"— CPAAutomation E-Signature"
-                ),
-            )
+        for sender_email, content in notifications:
+            await esign_signing_service._send_content(sender_email, content)
         return count
+
+    async def _send_expiration_warnings(self) -> int:
+        """One-time heads-up to the pending signers and the sender before expiry."""
+        now = datetime.now(timezone.utc)
+        cutoff = now + timedelta(days=EXPIRATION_WARNING_DAYS)
+        notifications: list[tuple[str, EmailContent]] = []
+        db = self._get_session()
+        try:
+            envelopes = (
+                db.query(EsignEnvelope)
+                .options(joinedload(EsignEnvelope.recipients))
+                .filter(
+                    EsignEnvelope.status.in_(ACTIVE_STATUSES),
+                    EsignEnvelope.expires_at.isnot(None),
+                    EsignEnvelope.expires_at >= now,
+                    EsignEnvelope.expires_at <= cutoff,
+                    EsignEnvelope.expiration_warning_sent_at.is_(None),
+                )
+                .all()
+            )
+            warned = 0
+            for envelope in envelopes:
+                targets = esign_signing_service.current_tranche_pending_signers(envelope)
+                envelope.expiration_warning_sent_at = now
+                sender_email = envelope.user.email if envelope.user else None
+                audit_service.record_event(
+                    db,
+                    envelope_id=envelope.id,
+                    event_type=EsignEventType.EXPIRATION_WARNING,
+                    details={
+                        "expires_at": envelope.expires_at.isoformat(),
+                        "recipients": [t.email for t in targets],
+                    },
+                )
+                for target in targets:
+                    notifications.append(
+                        (
+                            target.email,
+                            email_templates.expiration_warning(
+                                recipient_name=target.name,
+                                title=envelope.title,
+                                url=signing_url(envelope.id),
+                                expires_at=envelope.expires_at,
+                                is_sender=False,
+                            ),
+                        )
+                    )
+                if sender_email:
+                    notifications.append(
+                        (
+                            sender_email,
+                            email_templates.expiration_warning(
+                                recipient_name=(envelope.user.display_name or "").strip()
+                                or sender_email,
+                                title=envelope.title,
+                                url=esign_signing_service.sender_envelope_url(envelope.id),
+                                expires_at=envelope.expires_at,
+                                is_sender=True,
+                            ),
+                        )
+                    )
+                warned += 1
+            db.commit()
+        except Exception:
+            db.rollback()
+            logger.exception("esign expiration warning sweep failed")
+            raise
+        finally:
+            db.close()
+
+        for email, content in notifications:
+            await esign_signing_service._send_content(email, content)
+        return warned
 
     async def _send_due_reminders(self) -> int:
         now = datetime.now(timezone.utc)
-        reminders: list[tuple[str, str, str, str, str]] = []  # (email, name, sender, title, env_id)
+        reminders: list[tuple[str, EmailContent]] = []
         db = self._get_session()
         try:
             envelopes = (
@@ -98,7 +176,6 @@ class EsignMaintenanceService:
                 )
                 .all()
             )
-            sent_count = 0
             for envelope in envelopes:
                 interval = int(envelope.reminder_interval_hours or 0)
                 if interval <= 0:
@@ -110,7 +187,7 @@ class EsignMaintenanceService:
                 if not targets:
                     continue
                 envelope.last_reminder_at = now
-                sender_email = envelope.user.email if envelope.user else ""
+                sender_name = esign_signing_service._sender_name(envelope)
                 audit_service.record_event(
                     db,
                     envelope_id=envelope.id,
@@ -119,9 +196,19 @@ class EsignMaintenanceService:
                 )
                 for target in targets:
                     reminders.append(
-                        (target.email, target.name, sender_email, envelope.title, str(envelope.id))
+                        (
+                            target.email,
+                            email_templates.signature_request(
+                                recipient_name=target.name,
+                                sender_name=sender_name,
+                                title=envelope.title,
+                                message=None,
+                                url=signing_url(envelope.id),
+                                expires_at=envelope.expires_at,
+                                reminder=True,
+                            ),
+                        )
                     )
-                sent_count += 1
             db.commit()
         except Exception:
             db.rollback()
@@ -130,16 +217,8 @@ class EsignMaintenanceService:
         finally:
             db.close()
 
-        for email, name, sender_email, title, env_id in reminders:
-            await esign_signing_service._send_signature_request_email(
-                to_email=email,
-                recipient_name=name,
-                sender_email=sender_email,
-                title=title,
-                message=None,
-                envelope_id=env_id,
-                reminder=True,
-            )
+        for email, content in reminders:
+            await esign_signing_service._send_content(email, content)
         return len(reminders)
 
 

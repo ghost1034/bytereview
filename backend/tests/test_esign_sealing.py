@@ -175,5 +175,136 @@ class EsignSealingPipelineTests(unittest.TestCase):
         self.assertIsNone(result["signature_valid"])
 
 
+class AdoptionStampingTests(unittest.TestCase):
+    """Initials come from the adopted record; uploaded signatures stamp as images."""
+
+    def _page(self):
+        doc = fitz.open()
+        return doc, doc.new_page(width=612, height=792)
+
+    def _field(self, field_type, value="sig-id"):
+        return NS(
+            id=uuid.uuid4(), document_id=uuid.uuid4(), recipient_id=uuid.uuid4(),
+            field_type=field_type, page_number=0,
+            pos_x=0.1, pos_y=0.4, width=0.3, height=0.05, value=value, label=None,
+        )
+
+    def _png(self) -> bytes:
+        pm = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 40, 16))
+        pm.clear_with(255)
+        return pm.tobytes("png")
+
+    def test_initials_stamped_from_adopted_record(self) -> None:
+        from models.db_models import EsignFieldType, EsignSignatureType
+        from services.esign.sealing_service import _stamp_field
+
+        doc, page = self._page()
+        recipient = NS(name="Jane Q. Client", email="jane@example.com")
+        record = NS(
+            signature_type=EsignSignatureType.TYPED, typed_text="Jane Q. Client",
+            typed_font="dancing-script", initials_text="JQX",
+            initials_image_gcs_object_name=None,
+        )
+        _stamp_field(page, self._field(EsignFieldType.INITIALS), recipient, record, None)
+        text = page.get_text()
+        doc.close()
+        self.assertIn("JQX", text)
+        self.assertNotIn("JQC", text)  # not derived from the account name
+
+    def test_initials_fall_back_to_name_for_legacy_records(self) -> None:
+        from models.db_models import EsignFieldType, EsignSignatureType
+        from services.esign.sealing_service import _stamp_field
+
+        doc, page = self._page()
+        recipient = NS(name="Jane Q. Client", email="jane@example.com")
+        legacy = NS(  # pre-044 record: no initials_* attributes at all
+            signature_type=EsignSignatureType.TYPED, typed_text="Jane Q. Client",
+            typed_font="dancing-script",
+        )
+        _stamp_field(page, self._field(EsignFieldType.INITIALS), recipient, legacy, None)
+        text = page.get_text()
+        doc.close()
+        self.assertIn("JQC", text)
+
+    def test_uploaded_signature_stamped_as_image(self) -> None:
+        from models.db_models import EsignFieldType, EsignSignatureType
+        from services.esign.sealing_service import _stamp_field
+
+        doc, page = self._page()
+        recipient = NS(name="Jane", email="jane@example.com")
+        record = NS(
+            signature_type=EsignSignatureType.UPLOADED, typed_text=None, typed_font=None,
+            initials_text="J", initials_image_gcs_object_name=None,
+        )
+        _stamp_field(page, self._field(EsignFieldType.SIGNATURE), recipient, record, self._png())
+        images = page.get_images(full=True)
+        doc.close()
+        self.assertEqual(len(images), 1)
+
+    def test_all_typed_fonts_are_embedded(self) -> None:
+        from services.esign.sealing_service import _TYPED_FONT_FILES
+        from services.esign.signing_service import ALLOWED_TYPED_FONTS
+
+        self.assertEqual(set(_TYPED_FONT_FILES), ALLOWED_TYPED_FONTS)
+        for slug, path in _TYPED_FONT_FILES.items():
+            self.assertTrue(path.is_file(), f"missing font file for {slug}: {path}")
+
+
+class CertificateContentTests(unittest.TestCase):
+    def _build(self, recipients, signature_records):
+        from services.esign.certificate_service import build_certificate_pdf
+
+        now = datetime.now(timezone.utc)
+        envelope = NS(
+            id=uuid.uuid4(), title="Cert test", sent_at=now, user_id="u1",
+            signing_type=NS(value="sequential"), status=NS(value="in_progress"),
+            user=NS(display_name="Ian Stewart", email="cpa@firm.com"),
+        )
+        document = NS(
+            id=uuid.uuid4(), original_filename="letter.pdf",
+            original_sha256="aa" * 32, flattened_sha256="bb" * 32, display_order=0,
+        )
+        return build_certificate_pdf(
+            envelope=envelope, documents=[document], recipients=recipients,
+            consent_records=[], signature_records=signature_records,
+            events=[
+                NS(created_at=now, event_type="signed", actor_email="jane@example.com",
+                   ip_address="9.8.7.6", mfa_verified=True,
+                   recipient_id=recipients[0].id),
+            ],
+            sender_email="cpa@firm.com", flattened_hashes={},
+        )
+
+    def test_certificate_lists_cc_ip_and_adoption_style(self) -> None:
+        from models.db_models import EsignRecipientRole, EsignSignatureType
+
+        now = datetime.now(timezone.utc)
+        signer_id = uuid.uuid4()
+        signer = NS(
+            id=signer_id, name="Jane Q. Client", email="jane@example.com",
+            role=EsignRecipientRole.SIGNER, routing_order=1,
+            viewed_at=now, consented_at=now, signed_at=now,
+        )
+        cc = NS(
+            id=uuid.uuid4(), name="Copy Person", email="copy@example.com",
+            role=EsignRecipientRole.CC, routing_order=1,
+            status=NS(value="viewed"), viewed_at=now,
+        )
+        record = NS(
+            recipient_id=signer_id, signature_type=EsignSignatureType.TYPED,
+            typed_text="Jane Q. Client", typed_font="caveat",
+            image_sha256=None, initials_text="JQC", initials_image_sha256=None,
+        )
+        pdf_bytes = self._build([signer, cc], [record])
+        with fitz.open(stream=pdf_bytes, filetype="pdf") as pdf:
+            text = "".join(page.get_text() for page in pdf)
+        self.assertIn("Carbon Copy Recipients", text)
+        self.assertIn("copy@example.com", text)
+        self.assertIn("from IP 9.8.7.6", text)
+        self.assertIn("Pre-selected style (Caveat)", text)
+        self.assertIn("Security level", text)
+        self.assertIn("Ian Stewart", text)
+
+
 if __name__ == "__main__":
     unittest.main()

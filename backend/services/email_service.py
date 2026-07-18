@@ -6,6 +6,7 @@ import os
 import base64
 import logging
 from typing import Optional
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from google.oauth2 import service_account
@@ -67,6 +68,37 @@ class EmailService:
             return True
         except Exception as e:
             logger.error(f"Failed to send email to {to_email}: {e}")
+            return False
+
+    def send_html_email(
+        self,
+        to_email: str,
+        subject: str,
+        html_body: str,
+        text_body: str,
+        reply_to: Optional[str] = None,
+    ) -> bool:
+        """Send a multipart/alternative email (HTML with plain-text fallback)."""
+        try:
+            service = self._get_gmail_service()
+            if not service:
+                raise RuntimeError("Gmail service is unavailable")
+
+            message = MIMEMultipart("alternative")
+            message["to"] = to_email
+            message["from"] = self.FROM_ALIAS
+            message["subject"] = subject
+            if reply_to:
+                message["reply-to"] = reply_to
+            # Order matters: last part is preferred by capable clients.
+            message.attach(MIMEText(text_body, "plain"))
+            message.attach(MIMEText(html_body, "html"))
+            raw = base64.urlsafe_b64encode(message.as_bytes()).decode("utf-8")
+            result = service.users().messages().send(userId="me", body={"raw": raw}).execute()
+            logger.info(f"HTML email sent to {to_email}: messageId={result.get('id')}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send HTML email to {to_email}: {e}")
             return False
 
     def send_automation_notification(self, to_email: str, automation_name: str, status: str, run_id: Optional[str] = None, error_message: Optional[str] = None):

@@ -1172,6 +1172,7 @@ class EsignFieldType(str, enum.Enum):
 class EsignSignatureType(str, enum.Enum):
     DRAWN = "drawn"
     TYPED = "typed"
+    UPLOADED = "uploaded"
 
 
 class EsignEventType(str, enum.Enum):
@@ -1186,6 +1187,7 @@ class EsignEventType(str, enum.Enum):
     REMINDER_SENT = "reminder_sent"
     SEALED = "sealed"
     EXPIRED = "expired"
+    EXPIRATION_WARNING = "expiration_warning"
 
 
 def _esign_enum(enum_cls, type_name: str):
@@ -1234,6 +1236,7 @@ class EsignEnvelope(Base):
     expires_at = Column(TIMESTAMP(timezone=True), nullable=True)
     reminder_interval_hours = Column(Integer, nullable=True)
     last_reminder_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    expiration_warning_sent_at = Column(TIMESTAMP(timezone=True), nullable=True)
     voided_reason = Column(Text, nullable=True)
     sealed_gcs_object_name = Column(Text, nullable=True)
     sealed_sha256 = Column(String(64), nullable=True)
@@ -1347,6 +1350,9 @@ class EsignField(Base):
     required = Column(Boolean, nullable=False, default=True, server_default=expression.true())
     label = Column(String(255), nullable=True)
     value = Column(Text, nullable=True)
+    # In-progress value saved by the signer ("Finish Later"); cleared when the
+    # final value is written at submit. Never part of the sealed evidence.
+    draft_value = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
@@ -1376,6 +1382,11 @@ class EsignSignatureRecord(Base):
     image_sha256 = Column(String(64), nullable=True)
     typed_text = Column(Text, nullable=True)
     typed_font = Column(String(100), nullable=True)
+    # Adopted initials: text always recorded (explicit or derived at adoption);
+    # image only when the signer uploaded/drew dedicated initials.
+    initials_text = Column(String(20), nullable=True)
+    initials_image_gcs_object_name = Column(Text, nullable=True)
+    initials_image_sha256 = Column(String(64), nullable=True)
     adopted_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     recipient = relationship("EsignRecipient", back_populates="signature_records")

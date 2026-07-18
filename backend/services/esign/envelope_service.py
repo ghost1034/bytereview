@@ -152,6 +152,7 @@ class EsignEnvelopeService:
             required=bool(field.required),
             label=field.label,
             value=field.value,
+            draft_value=field.draft_value,
         )
 
     def _serialize_recipient(self, recipient: EsignRecipient) -> EsignRecipientResponse:

@@ -26,6 +26,8 @@ from models.esign import (
     EsignEnvelopeUpdateRequest,
     EsignFieldsReplaceRequest,
     EsignInboxResponse,
+    EsignProgressRequest,
+    EsignProgressResponse,
     EsignRecipientsReplaceRequest,
     EsignSigningSessionResponse,
     EsignSubmitRequest,
@@ -476,6 +478,25 @@ async def record_consent(
             envelope_id=envelope_id,
             meta=extract_request_meta(request, token),
         )
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.put("/sign/{envelope_id}/progress", response_model=EsignProgressResponse)
+async def save_signing_progress(
+    envelope_id: str,
+    payload: EsignProgressRequest,
+    token: dict = Depends(verify_firebase_token),
+):
+    """Finish Later: save the signer's in-progress text/checkbox entries."""
+    try:
+        saved = esign_signing_service.save_progress(
+            user_id=_uid(token),
+            user_email=_email(token),
+            envelope_id=envelope_id,
+            field_values=payload.field_values,
+        )
+        return EsignProgressResponse(saved_count=saved)
     except Exception as exc:
         _raise_http(exc)
 

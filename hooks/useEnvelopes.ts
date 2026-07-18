@@ -208,6 +208,16 @@ export function useRecordConsent(envelopeId: string) {
   })
 }
 
+export function useSaveSigningProgress(envelopeId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (fieldValues: { field_id: string; value?: string | null }[]) =>
+      apiClient.saveEsignSigningProgress(envelopeId, fieldValues),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['esign', 'signing-session', envelopeId] }),
+  })
+}
+
 export function useSubmitSignature(envelopeId: string) {
   const invalidate = useInvalidateEnvelope()
   return useMutation({

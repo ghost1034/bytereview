@@ -4,6 +4,7 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import {
+  ArrowDown,
   CheckCircle2,
   Download,
   FileBadge,
@@ -16,9 +17,11 @@ import {
 import { openPdfFromUrl, participantColor, type PdfDocument } from '@/components/esign/pdf'
 import { PdfPageCanvas } from '@/components/esign/PdfPageCanvas'
 import { ConsentGate } from '@/components/esign/sign/ConsentGate'
+import { formatDateSigned } from '@/components/esign/sign/dateSigned'
 import { DeclineDialog } from '@/components/esign/sign/DeclineDialog'
 import {
   SignatureAdoptionModal,
+  signatureFontFamily,
   type AdoptedSignature,
 } from '@/components/esign/sign/SignatureAdoptionModal'
 import { Button } from '@/components/ui/button'
@@ -28,6 +31,7 @@ import { useToast } from '@/hooks/use-toast'
 import {
   useDeclineEnvelope,
   useRecordConsent,
+  useSaveSigningProgress,
   useSigningSession,
   useSubmitSignature,
 } from '@/hooks/useEnvelopes'
@@ -41,6 +45,7 @@ function SignedDocViewer({
   fields,
   fieldValues,
   adopted,
+  activeFieldId,
   onFieldClick,
   onTextChange,
 }: {
@@ -49,6 +54,7 @@ function SignedDocViewer({
   fields: EsignFieldResponse[]
   fieldValues: Record<string, string>
   adopted: AdoptedSignature | null
+  activeFieldId: string | null
   onFieldClick: (field: EsignFieldResponse) => void
   onTextChange: (fieldId: string, value: string) => void
 }) {
@@ -98,18 +104,28 @@ function SignedDocViewer({
                       width: field.width * size.width,
                       height: field.height * size.height,
                     }
+                    const isActive = field.id === activeFieldId
+                    const activeRing = isActive ? 'ring-2 ring-warning ring-offset-1' : ''
                     const isSignature =
                       field.field_type === 'signature' || field.field_type === 'initials'
                     if (isSignature) {
                       const complete = !!adopted
+                      const isInitials = field.field_type === 'initials'
+                      const imageUrl = isInitials
+                        ? adopted?.initialsImageDataUrl
+                        : adopted?.signatureType !== 'typed'
+                          ? adopted?.imageDataUrl
+                          : undefined
                       return (
                         <button
                           key={field.id}
+                          id={`esign-field-${field.id}`}
                           type="button"
                           onClick={() => onFieldClick(field)}
                           className={cn(
                             'absolute flex items-center justify-center overflow-hidden rounded-sm border text-xs font-medium transition-colors',
                             complete ? 'border-success bg-white' : 'animate-none border-2',
+                            activeRing,
                           )}
                           style={{
                             ...style,
@@ -119,44 +135,52 @@ function SignedDocViewer({
                           }}
                         >
                           {complete ? (
-                            adopted?.signatureType === 'drawn' && adopted.imageDataUrl ? (
+                            imageUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
-                                src={adopted.imageDataUrl}
-                                alt="Your signature"
+                                src={imageUrl}
+                                alt={isInitials ? 'Your initials' : 'Your signature'}
                                 className="max-h-full max-w-full object-contain"
                               />
                             ) : (
                               <span
                                 className="truncate px-1 text-lg leading-none text-gray-900"
-                                style={{ fontFamily: 'var(--font-signature), cursive' }}
+                                style={{ fontFamily: signatureFontFamily(adopted?.typedFont) }}
                               >
-                                {field.field_type === 'initials'
-                                  ? (adopted?.typedText ?? '')
-                                      .split(/\s+/)
-                                      .map((p) => p[0]?.toUpperCase() ?? '')
-                                      .join('')
-                                  : adopted?.typedText}
+                                {isInitials ? adopted?.initialsText : adopted?.typedText}
                               </span>
                             )
                           ) : (
                             <span className="inline-flex items-center gap-1 truncate px-1">
                               <PenLine className="size-3.5" />
-                              {field.field_type === 'initials' ? 'Initial' : 'Sign here'}
+                              {isInitials ? 'Initial' : 'Sign here'}
                             </span>
                           )}
                         </button>
                       )
                     }
                     if (field.field_type === 'date_signed') {
+                      // Stamped the moment the signer adopts, in the exact
+                      // format the sealed PDF will carry.
+                      const stamped = !!adopted
                       return (
                         <div
                           key={field.id}
-                          className="absolute flex items-center overflow-hidden rounded-sm border border-border bg-surface-muted px-1 text-xs text-foreground-muted"
+                          id={`esign-field-${field.id}`}
+                          className={cn(
+                            'absolute flex items-center overflow-hidden rounded-sm border px-1 text-xs',
+                            stamped
+                              ? 'border-success bg-white text-gray-900'
+                              : 'border-border bg-surface-muted text-foreground-muted',
+                          )}
                           style={style}
-                          title="Filled automatically when you finish signing"
+                          title={
+                            stamped
+                              ? 'Date signed'
+                              : 'Filled automatically when you adopt your signature'
+                          }
                         >
-                          {new Date().toLocaleDateString()}
+                          {formatDateSigned()}
                         </div>
                       )
                     }
@@ -165,11 +189,13 @@ function SignedDocViewer({
                       return (
                         <button
                           key={field.id}
+                          id={`esign-field-${field.id}`}
                           type="button"
                           onClick={() => onTextChange(field.id, checked ? 'false' : 'true')}
                           className={cn(
                             'absolute flex items-center justify-center rounded-sm border text-sm font-bold',
                             checked ? 'border-success bg-white text-gray-900' : 'border-2',
+                            activeRing,
                           )}
                           style={{
                             ...style,
@@ -186,11 +212,15 @@ function SignedDocViewer({
                     return (
                       <input
                         key={field.id}
+                        id={`esign-field-${field.id}`}
                         type="text"
                         value={fieldValues[field.id] ?? ''}
                         onChange={(e) => onTextChange(field.id, e.target.value)}
                         placeholder={field.label || 'Text'}
-                        className="absolute rounded-sm border-2 bg-white px-1 text-xs text-gray-900 focus:outline-none"
+                        className={cn(
+                          'absolute rounded-sm border-2 bg-white px-1 text-xs text-gray-900 focus:outline-none',
+                          activeRing,
+                        )}
                         style={{ ...style, borderColor: color.border }}
                       />
                     )
@@ -215,6 +245,7 @@ export default function SigningCeremonyPage() {
   const recordConsent = useRecordConsent(envelopeId!)
   const submitSignature = useSubmitSignature(envelopeId!)
   const declineEnvelope = useDeclineEnvelope(envelopeId!)
+  const saveProgress = useSaveSigningProgress(envelopeId!)
 
   const [ceremonyState, setCeremonyState] = React.useState<CeremonyState>('signing')
   const [adopted, setAdopted] = React.useState<AdoptedSignature | null>(null)
@@ -222,8 +253,21 @@ export default function SigningCeremonyPage() {
   const [declineOpen, setDeclineOpen] = React.useState(false)
   const [fieldValues, setFieldValues] = React.useState<Record<string, string>>({})
   const [downloading, setDownloading] = React.useState<'sealed' | 'certificate' | null>(null)
+  const [guideStarted, setGuideStarted] = React.useState(false)
+  const [activeFieldId, setActiveFieldId] = React.useState<string | null>(null)
 
   const session = sessionQuery.data
+
+  // Restore Finish Later drafts without clobbering anything typed this visit.
+  React.useEffect(() => {
+    const drafts: Record<string, string> = {}
+    for (const f of session?.fields ?? []) {
+      if (f.draft_value) drafts[f.id] = f.draft_value
+    }
+    if (Object.keys(drafts).length) {
+      setFieldValues((prev) => ({ ...drafts, ...prev }))
+    }
+  }, [session])
 
   // ---- error / terminal states -------------------------------------------
   if (sessionQuery.isLoading) {
@@ -342,8 +386,62 @@ export default function SigningCeremonyPage() {
     )
   }
 
+  // ---- copy recipient (read-only) ----------------------------------------
+  if (session.recipient_role === 'cc') {
+    return (
+      <div className="space-y-4">
+        <div className="sticky top-0 z-40 -mx-1 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface/95 px-4 py-3 backdrop-blur">
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-semibold">{session.title}</h1>
+            <p className="text-xs text-foreground-muted">
+              From {session.sender_email} · You&apos;re receiving a copy — no action is needed
+            </p>
+          </div>
+          <span className="rounded-full bg-surface-muted px-3 py-1 text-xs font-medium text-foreground-muted">
+            Copy
+          </span>
+        </div>
+        {session.message && (
+          <p className="rounded-lg border border-border bg-surface p-4 text-sm text-foreground-muted">
+            {session.message}
+          </p>
+        )}
+        <div className="space-y-8 rounded-lg bg-surface-muted p-3 sm:p-5">
+          {(session.documents ?? []).map((doc) => (
+            <div key={doc.id} className="space-y-2">
+              {(session.documents ?? []).length > 1 && (
+                <h2 className="text-sm font-medium text-foreground-muted">
+                  {doc.original_filename}
+                </h2>
+              )}
+              <SignedDocViewer
+                url={doc.download_url}
+                name={doc.original_filename}
+                fields={[]}
+                fieldValues={{}}
+                adopted={null}
+                activeFieldId={null}
+                onFieldClick={() => {}}
+                onTextChange={() => {}}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   // ---- signing ------------------------------------------------------------
-  const myFields = session.fields
+  // Reading order (document, page, top-to-bottom, left-to-right) so guided
+  // navigation walks the envelope the way a person reads it.
+  const documentOrder = new Map((session.documents ?? []).map((d, i) => [d.id, i]))
+  const myFields = [...(session.fields ?? [])].sort(
+    (a, b) =>
+      (documentOrder.get(a.document_id) ?? 0) - (documentOrder.get(b.document_id) ?? 0) ||
+      a.page_number - b.page_number ||
+      a.pos_y - b.pos_y ||
+      a.pos_x - b.pos_x,
+  )
   const signatureFields = myFields.filter(
     (f) => f.field_type === 'signature' || f.field_type === 'initials',
   )
@@ -367,6 +465,25 @@ export default function SigningCeremonyPage() {
     requiredTextFields.every((f) => (fieldValues[f.id] ?? '').trim()) &&
     requiredCheckboxes.every((f) => fieldValues[f.id] === 'true')
 
+  const incompleteFields = myFields.filter((f) => {
+    if (f.field_type === 'signature' || f.field_type === 'initials') return !adopted
+    if (f.field_type === 'text') return f.required && !(fieldValues[f.id] ?? '').trim()
+    if (f.field_type === 'checkbox') return f.required && fieldValues[f.id] !== 'true'
+    return false
+  })
+
+  const goToNextField = () => {
+    setGuideStarted(true)
+    const next = incompleteFields[0]
+    if (!next) return
+    setActiveFieldId(next.id)
+    const el = document.getElementById(`esign-field-${next.id}`)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (next.field_type === 'text') {
+      ;(el as HTMLInputElement | null)?.focus({ preventScroll: true })
+    }
+  }
+
   const handleFieldClick = () => {
     setAdoptionOpen(true)
   }
@@ -380,6 +497,8 @@ export default function SigningCeremonyPage() {
           image_data_url: adopted.imageDataUrl,
           typed_text: adopted.typedText,
           typed_font: adopted.typedFont,
+          initials_text: adopted.initialsText,
+          initials_image_data_url: adopted.initialsImageDataUrl,
         },
         field_values: Object.entries(fieldValues).map(([field_id, value]) => ({ field_id, value })),
       })
@@ -393,6 +512,25 @@ export default function SigningCeremonyPage() {
     } catch (error) {
       toast({
         title: 'Failed to submit signature',
+        description: error instanceof Error ? error.message : undefined,
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleFinishLater = async () => {
+    try {
+      await saveProgress.mutateAsync(
+        Object.entries(fieldValues).map(([field_id, value]) => ({ field_id, value })),
+      )
+      toast({
+        title: 'Progress saved',
+        description: 'You can resume signing anytime from your E-Signature inbox.',
+      })
+      router.push('/dashboard/esign')
+    } catch (error) {
+      toast({
+        title: 'Failed to save progress',
         description: error instanceof Error ? error.message : undefined,
         variant: 'destructive',
       })
@@ -421,12 +559,25 @@ export default function SigningCeremonyPage() {
           <h1 className="truncate text-base font-semibold">{session.title}</h1>
           <p className="text-xs text-foreground-muted">
             From {session.sender_email} · {completedCount} of {totalRequired} required fields complete
+            {session.expires_at && (
+              <> · Expires {new Date(session.expires_at).toLocaleDateString()}</>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setDeclineOpen(true)}>
             Decline
           </Button>
+          {!session.consent_required && (
+            <Button
+              variant="outline"
+              onClick={handleFinishLater}
+              disabled={saveProgress.isPending}
+            >
+              {saveProgress.isPending && <Loader2 className="mr-1.5 size-4 animate-spin" />}
+              Finish Later
+            </Button>
+          )}
           {!adopted ? (
             <Button onClick={() => setAdoptionOpen(true)}>
               <PenLine className="mr-1.5 size-4" /> Adopt signature
@@ -450,6 +601,27 @@ export default function SigningCeremonyPage() {
         </p>
       )}
 
+      {/* Floating guided-navigation button (DocuSign-style Start/Next). */}
+      {!session.consent_required && (
+        <div className="fixed left-2 top-1/2 z-40 -translate-y-1/2 sm:left-4">
+          {incompleteFields.length > 0 ? (
+            <Button size="sm" className="shadow-lg" onClick={goToNextField}>
+              {guideStarted ? 'Next' : 'Start'}
+              <ArrowDown className="ml-1.5 size-3.5" />
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="shadow-lg"
+              onClick={handleFinish}
+              disabled={!canFinish || submitSignature.isPending}
+            >
+              Finish
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Documents (blurred + inert until consent) */}
       <div
         className={cn(
@@ -469,6 +641,7 @@ export default function SigningCeremonyPage() {
               fields={myFields.filter((f) => f.document_id === doc.id)}
               fieldValues={fieldValues}
               adopted={adopted}
+              activeFieldId={activeFieldId}
               onFieldClick={handleFieldClick}
               onTextChange={(fieldId, value) =>
                 setFieldValues((prev) => ({ ...prev, [fieldId]: value }))

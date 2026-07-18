@@ -2331,6 +2331,16 @@ export class ApiClient {
     return this.request(`/api/esign/sign/${envelopeId}/consent`, { method: 'POST', body: '{}' })
   }
 
+  async saveEsignSigningProgress(
+    envelopeId: string,
+    fieldValues: { field_id: string; value?: string | null }[],
+  ): Promise<{ saved_count: number }> {
+    return this.request(`/api/esign/sign/${envelopeId}/progress`, {
+      method: 'PUT',
+      body: JSON.stringify({ field_values: fieldValues }),
+    })
+  }
+
   async submitEsignSignature(envelopeId: string, payload: EsignSubmitRequest): Promise<EsignSubmitResponse> {
     return this.request(`/api/esign/sign/${envelopeId}/submit`, {
       method: 'POST',

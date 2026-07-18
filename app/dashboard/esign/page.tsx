@@ -66,7 +66,8 @@ export default function EsignDashboardPage() {
   const inboxItems = inboxQuery.data?.items ?? []
   const pendingItems = inboxItems.filter((item) => item.envelope_status !== 'completed')
   const completedItems = inboxItems.filter((item) => item.envelope_status === 'completed')
-  const inboxCount = pendingItems.length
+  // Only actual signing turns count toward the tab badge; copies are read-only.
+  const inboxCount = pendingItems.filter((item) => item.role !== 'cc').length
 
   return (
     <div className="space-y-6">
@@ -146,7 +147,7 @@ export default function EsignDashboardPage() {
                 <Skeleton className="h-9 w-full" />
                 <Skeleton className="h-9 w-full" />
               </div>
-            ) : inboxCount === 0 ? (
+            ) : pendingItems.length === 0 ? (
               <EmptyState
                 icon={Inbox}
                 title="Nothing waiting for you"
@@ -169,7 +170,9 @@ export default function EsignDashboardPage() {
                       <TableCell className="font-medium">{item.title}</TableCell>
                       <TableCell className="text-foreground-muted">{item.sender_email}</TableCell>
                       <TableCell>
-                        {item.is_my_turn ? (
+                        {item.role === 'cc' ? (
+                          <span className="text-sm text-foreground-muted">Copy — no action needed</span>
+                        ) : item.is_my_turn ? (
                           <span className="text-sm font-medium text-info">Your turn</span>
                         ) : (
                           <span className="text-sm text-foreground-muted">Waiting on others</span>
@@ -177,13 +180,23 @@ export default function EsignDashboardPage() {
                       </TableCell>
                       <TableCell className="text-foreground-muted">{formatDate(item.expires_at)}</TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          disabled={!item.is_my_turn}
-                          onClick={() => router.push(`/dashboard/esign/sign/${item.envelope_id}`)}
-                        >
-                          Review & sign
-                        </Button>
+                        {item.role === 'cc' ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => router.push(`/dashboard/esign/sign/${item.envelope_id}`)}
+                          >
+                            View documents
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            disabled={!item.is_my_turn}
+                            onClick={() => router.push(`/dashboard/esign/sign/${item.envelope_id}`)}
+                          >
+                            Review & sign
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

@@ -45,8 +45,9 @@ from models.esign import (
     EsignSigningSessionResponse,
     EsignSubmitResponse,
 )
-from services.esign import audit_service
+from services.esign import audit_service, email_templates
 from services.esign.audit_service import EsignRequestMeta
+from services.esign.email_templates import EmailContent
 from services.esign.envelope_service import (
     DOWNLOAD_URL_MINUTES,
     DEFAULT_EXPIRES_DAYS,
@@ -64,6 +65,11 @@ MAX_SIGNATURE_IMAGE_BYTES = int(os.getenv("ESIGN_MAX_SIGNATURE_IMAGE_BYTES", str
 ALLOWED_TYPED_FONTS = {"dancing-script", "caveat", "great-vibes", "homemade-apple"}
 
 ACTIVE_ENVELOPE_STATUSES = (EsignEnvelopeStatus.SENT, EsignEnvelopeStatus.IN_PROGRESS)
+
+# Must match formatDateSigned in components/esign/sign/dateSigned.ts — the
+# signer sees this exact stamp in the ceremony before submitting.
+def format_date_signed(dt: datetime) -> str:
+    return f"{dt.month}/{dt.day}/{dt.year}"
 
 # Most recent completed envelopes to keep in a signer's inbox.
 COMPLETED_INBOX_LIMIT = int(os.getenv("ESIGN_COMPLETED_INBOX_LIMIT", "25"))
@@ -161,10 +167,23 @@ class EsignSigningService:
     # Send
     # ------------------------------------------------------------------
 
+    def _cc_recipients_due(
+        self, envelope: EsignEnvelope, active_order: int
+    ) -> list[EsignRecipient]:
+        """Pending CC recipients whose turn has arrived (all of them in parallel)."""
+        ccs = [
+            r
+            for r in (envelope.recipients or [])
+            if r.role == EsignRecipientRole.CC and r.status == EsignRecipientStatus.PENDING
+        ]
+        if envelope.signing_type == EsignSigningType.PARALLEL:
+            return ccs
+        return [c for c in ccs if int(c.routing_order) <= active_order]
+
     async def send_envelope(
         self, *, user_id: str, user_email: str, envelope_id: str, meta: EsignRequestMeta
     ) -> EsignEnvelopeResponse:
-        notifications: list[tuple[str, str, EsignEnvelope]] = []
+        emails: list[tuple[str, EmailContent]] = []
         db = self._get_session()
         try:
             envelope = esign_envelope_service._load_envelope(db, user_id, envelope_id)
@@ -203,9 +222,39 @@ class EsignSigningService:
                 tranche = signers
             else:
                 tranche = [s for s in signers if int(s.routing_order) == first_order]
+            cc_tranche = self._cc_recipients_due(envelope, first_order)
+            sender_name = self._sender_name(envelope) or user_email
+            url = signing_url(envelope.id)
             for signer in tranche:
                 signer.status = EsignRecipientStatus.NOTIFIED
-                notifications.append((signer.email, signer.name, envelope))
+                emails.append(
+                    (
+                        signer.email,
+                        email_templates.signature_request(
+                            recipient_name=signer.name,
+                            sender_name=sender_name,
+                            title=envelope.title,
+                            message=envelope.message,
+                            url=url,
+                            expires_at=envelope.expires_at,
+                        ),
+                    )
+                )
+            for cc in cc_tranche:
+                cc.status = EsignRecipientStatus.NOTIFIED
+                emails.append(
+                    (
+                        cc.email,
+                        email_templates.cc_copy(
+                            recipient_name=cc.name,
+                            sender_name=sender_name,
+                            title=envelope.title,
+                            message=envelope.message,
+                            url=url,
+                            expires_at=envelope.expires_at,
+                        ),
+                    )
+                )
 
             audit_service.record_event(
                 db,
@@ -218,15 +267,12 @@ class EsignSigningService:
                     "recipient_count": len(signers),
                     "first_routing_order": first_order,
                     "notified": [s.email for s in tranche],
+                    "cc_notified": [c.email for c in cc_tranche],
                 },
             )
             db.commit()
             db.refresh(envelope)
             response = esign_envelope_service._serialize_envelope(envelope)
-            sender_email = user_email
-            envelope_title = envelope.title
-            envelope_message = envelope.message
-            env_id = str(envelope.id)
         except Exception:
             db.rollback()
             raise
@@ -234,15 +280,8 @@ class EsignSigningService:
             db.close()
 
         # Best-effort emails after commit — a mail failure must not undo the send.
-        for to_email, name, _env in notifications:
-            await self._send_signature_request_email(
-                to_email=to_email,
-                recipient_name=name,
-                sender_email=sender_email,
-                title=envelope_title,
-                message=envelope_message,
-                envelope_id=env_id,
-            )
+        for to_email, content in emails:
+            await self._send_content(to_email, content)
         return response
 
     # ------------------------------------------------------------------
@@ -253,13 +292,11 @@ class EsignSigningService:
         email = (user_email or "").strip().lower()
         db = self._get_session()
         try:
+            # Signers and CCs both appear — CCs as read-only "copy" entries.
             base = (
                 db.query(EsignRecipient, EsignEnvelope)
                 .join(EsignEnvelope, EsignRecipient.envelope_id == EsignEnvelope.id)
-                .filter(
-                    EsignRecipient.email == email,
-                    EsignRecipient.role == EsignRecipientRole.SIGNER,
-                )
+                .filter(EsignRecipient.email == email)
             )
             rows = (
                 base.filter(
@@ -294,8 +331,12 @@ class EsignSigningService:
                         sender_email=self._sender_email(db, envelope),
                         status=recipient.status.value if hasattr(recipient.status, "value") else str(recipient.status),
                         envelope_status=envelope.status.value if hasattr(envelope.status, "value") else str(envelope.status),
+                        role=recipient.role.value if hasattr(recipient.role, "value") else str(recipient.role),
                         routing_order=int(recipient.routing_order),
-                        is_my_turn=self._is_recipients_turn(envelope, recipient),
+                        is_my_turn=(
+                            recipient.role == EsignRecipientRole.SIGNER
+                            and self._is_recipients_turn(envelope, recipient)
+                        ),
                         expires_at=envelope.expires_at,
                         sent_at=envelope.sent_at,
                         completed_at=envelope.completed_at,
@@ -312,6 +353,16 @@ class EsignSigningService:
         if envelope.user and envelope.user.email:
             return envelope.user.email
         return ""
+
+    def _sender_name(self, envelope: EsignEnvelope) -> str:
+        """Display name for email copy; falls back to the sender's email."""
+        user = envelope.user
+        if user is None:
+            return ""
+        return (user.display_name or "").strip() or (user.email or "")
+
+    def sender_envelope_url(self, envelope_id) -> str:
+        return f"{_app_base_url()}/dashboard/esign/{envelope_id}"
 
     async def get_signing_session(
         self, *, user_id: str, user_email: str, envelope_id: str, meta: EsignRequestMeta
@@ -336,6 +387,9 @@ class EsignSigningService:
                     recipient_status=recipient.status.value
                     if hasattr(recipient.status, "value")
                     else str(recipient.status),
+                    recipient_role=recipient.role.value
+                    if hasattr(recipient.role, "value")
+                    else str(recipient.role),
                     is_my_turn=False,
                     consent_required=False,
                     consent_disclosure_text=envelope.consent_disclosure_text,
@@ -344,13 +398,70 @@ class EsignSigningService:
                     expires_at=envelope.expires_at,
                 )
 
-            recipient = self._find_recipient(envelope, user_email)
+            recipient = self._find_recipient(envelope, user_email, signer_only=False)
             self._backfill_recipient_user(recipient, user_id)
 
             if envelope.status not in ACTIVE_ENVELOPE_STATUSES:
                 raise EsignConflict(
                     f"This envelope is no longer available for signing (status: {envelope.status.value})"
                 )
+
+            if recipient.role == EsignRecipientRole.CC:
+                # Copy recipients get a read-only view of the documents — no
+                # consent gate, no fields, no signing turn.
+                if recipient.viewed_at is None:
+                    recipient.viewed_at = datetime.now(timezone.utc)
+                    if recipient.status in (
+                        EsignRecipientStatus.PENDING,
+                        EsignRecipientStatus.NOTIFIED,
+                    ):
+                        recipient.status = EsignRecipientStatus.VIEWED
+                    audit_service.record_event(
+                        db,
+                        envelope_id=envelope.id,
+                        event_type=EsignEventType.VIEWED,
+                        actor_user_id=user_id,
+                        actor_email=user_email,
+                        recipient_id=recipient.id,
+                        meta=meta,
+                    )
+                db.commit()
+                db.refresh(recipient)
+                documents = []
+                for doc in sorted(envelope.documents or [], key=lambda d: d.display_order):
+                    url = await self.storage.generate_presigned_get_url(
+                        doc.gcs_object_name, expiration_minutes=DOWNLOAD_URL_MINUTES
+                    )
+                    documents.append(
+                        EsignSigningDocument(
+                            id=str(doc.id),
+                            display_order=int(doc.display_order or 0),
+                            original_filename=doc.original_filename,
+                            page_count=int(doc.page_count or 0),
+                            download_url=url,
+                        )
+                    )
+                return EsignSigningSessionResponse(
+                    envelope_id=str(envelope.id),
+                    recipient_id=str(recipient.id),
+                    title=envelope.title,
+                    message=envelope.message,
+                    sender_email=self._sender_email(db, envelope),
+                    envelope_status=envelope.status.value
+                    if hasattr(envelope.status, "value")
+                    else str(envelope.status),
+                    recipient_status=recipient.status.value
+                    if hasattr(recipient.status, "value")
+                    else str(recipient.status),
+                    recipient_role=EsignRecipientRole.CC.value,
+                    is_my_turn=False,
+                    consent_required=False,
+                    consent_disclosure_text=envelope.consent_disclosure_text,
+                    documents=documents,
+                    fields=[],
+                    expires_at=envelope.expires_at,
+                )
+
             if not self._is_recipients_turn(envelope, recipient):
                 if recipient.status == EsignRecipientStatus.SIGNED:
                     raise EsignConflict("You have already signed this envelope")
@@ -415,6 +526,7 @@ class EsignSigningService:
                 sender_email=self._sender_email(db, envelope),
                 envelope_status=envelope.status.value if hasattr(envelope.status, "value") else str(envelope.status),
                 recipient_status=recipient.status.value if hasattr(recipient.status, "value") else str(recipient.status),
+                recipient_role=EsignRecipientRole.SIGNER.value,
                 is_my_turn=True,
                 consent_required=not consent_exists,
                 consent_disclosure_text=envelope.consent_disclosure_text,
@@ -498,17 +610,64 @@ class EsignSigningService:
             db.close()
 
     # ------------------------------------------------------------------
+    # Finish Later (save in-progress field entries)
+    # ------------------------------------------------------------------
+
+    def save_progress(
+        self,
+        *,
+        user_id: str,
+        user_email: str,
+        envelope_id: str,
+        field_values: list[EsignFieldValueInput],
+    ) -> int:
+        """Persist text/checkbox drafts so the signer can leave and resume.
+
+        Drafts are working state, not evidence: no audit event is written, and
+        submit clears them when the final values land.
+        """
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope_any(db, envelope_id)
+            recipient = self._find_recipient(envelope, user_email)
+            self._backfill_recipient_user(recipient, user_id)
+            if envelope.status not in ACTIVE_ENVELOPE_STATUSES:
+                raise EsignConflict("This envelope is no longer active")
+            if not self._is_recipients_turn(envelope, recipient):
+                raise PermissionError("It is not your turn to sign yet")
+
+            values_by_field = {str(v.field_id): v.value for v in field_values}
+            saved = 0
+            for field in envelope.fields or []:
+                if str(field.recipient_id) != str(recipient.id):
+                    continue
+                if field.field_type not in (EsignFieldType.TEXT, EsignFieldType.CHECKBOX):
+                    continue
+                if str(field.id) not in values_by_field:
+                    continue
+                provided = values_by_field[str(field.id)]
+                field.draft_value = (provided or "").strip() or None
+                saved += 1
+            db.commit()
+            return saved
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    # ------------------------------------------------------------------
     # Submit ("Adopt and Sign")
     # ------------------------------------------------------------------
 
     def _decode_signature_image(self, data_url: str) -> bytes:
         prefix = "data:image/png;base64,"
         if not data_url or not data_url.startswith(prefix):
-            raise EsignError("Drawn signature must be a base64 PNG data URL")
+            raise EsignError("Signature image must be a base64 PNG data URL")
         try:
             content = base64.b64decode(data_url[len(prefix):], validate=True)
         except Exception:
-            raise EsignError("Drawn signature is not valid base64")
+            raise EsignError("Signature image is not valid base64")
         if len(content) > MAX_SIGNATURE_IMAGE_BYTES:
             raise EsignError("Signature image is too large")
         if not content.startswith(b"\x89PNG\r\n\x1a\n"):
@@ -527,7 +686,10 @@ class EsignSigningService:
     ) -> EsignSubmitResponse:
         # Validate + upload the signature image before opening the transaction.
         image_bytes: Optional[bytes] = None
-        if signature.signature_type == EsignSignatureType.DRAWN.value:
+        if signature.signature_type in (
+            EsignSignatureType.DRAWN.value,
+            EsignSignatureType.UPLOADED.value,
+        ):
             image_bytes = self._decode_signature_image(signature.image_data_url or "")
         elif signature.signature_type == EsignSignatureType.TYPED.value:
             if not (signature.typed_text or "").strip():
@@ -536,9 +698,12 @@ class EsignSigningService:
                 raise EsignError(f"Unsupported signature font: {signature.typed_font}")
         else:
             raise EsignError(f"Invalid signature type: {signature.signature_type}")
+        initials_image_bytes: Optional[bytes] = None
+        if signature.initials_image_data_url:
+            initials_image_bytes = self._decode_signature_image(signature.initials_image_data_url)
 
         sealing_enqueued = False
-        next_tranche_emails: list[tuple[str, str]] = []
+        emails: list[tuple[str, EmailContent]] = []
         db = self._get_session()
         try:
             # Serialize concurrent submits on the same envelope (two final
@@ -581,6 +746,24 @@ class EsignSigningService:
                 await self.storage.upload_file_content(image_bytes, image_object_name)
                 image_sha = sha256_hex(image_bytes)
 
+            # Adopted initials: explicit text wins; otherwise derive from the
+            # adopted name so initials fields never render a full name.
+            initials_text = (signature.initials_text or "").strip()[:20] or None
+            if initials_text is None:
+                source = (signature.typed_text or "").strip() or recipient.name or ""
+                initials_text = (
+                    "".join(p[0].upper() for p in source.split() if p)[:20] or None
+                )
+            initials_object_name = None
+            initials_sha = None
+            if initials_image_bytes is not None:
+                initials_object_name = (
+                    f"esign/{envelope.user_id}/{envelope.id}/signatures/"
+                    f"{recipient.id}_{uuid.uuid4().hex[:8]}_initials.png"
+                )
+                await self.storage.upload_file_content(initials_image_bytes, initials_object_name)
+                initials_sha = sha256_hex(initials_image_bytes)
+
             signature_record = EsignSignatureRecord(
                 id=uuid.uuid4(),
                 envelope_id=envelope.id,
@@ -590,6 +773,9 @@ class EsignSigningService:
                 image_sha256=image_sha,
                 typed_text=(signature.typed_text or "").strip() or None,
                 typed_font=signature.typed_font,
+                initials_text=initials_text,
+                initials_image_gcs_object_name=initials_object_name,
+                initials_image_sha256=initials_sha,
             )
             db.add(signature_record)
             db.flush()
@@ -598,10 +784,11 @@ class EsignSigningService:
             values_by_field = {str(v.field_id): v.value for v in field_values}
             my_fields = [f for f in (envelope.fields or []) if str(f.recipient_id) == str(recipient.id)]
             for field in my_fields:
+                field.draft_value = None  # final values supersede Finish Later drafts
                 if field.field_type in (EsignFieldType.SIGNATURE, EsignFieldType.INITIALS):
                     field.value = str(signature_record.id)
                 elif field.field_type == EsignFieldType.DATE_SIGNED:
-                    field.value = now.strftime("%Y-%m-%d")
+                    field.value = format_date_signed(now)
                 else:
                     provided = values_by_field.get(str(field.id))
                     if field.field_type == EsignFieldType.CHECKBOX:
@@ -628,12 +815,17 @@ class EsignSigningService:
                     "signature_record_id": str(signature_record.id),
                     "signature_type": signature.signature_type,
                     "signature_image_sha256": image_sha,
+                    "initials_text": initials_text,
+                    "initials_image_sha256": initials_sha,
                     "field_count": len(my_fields),
                     "consent_record_id": str(consent.id),
                 },
             )
 
             # Routing advancement (still under the advisory lock).
+            sender_email = self._sender_email(db, envelope)
+            sender_name = self._sender_name(envelope)
+            url = signing_url(envelope.id)
             signers = [r for r in (envelope.recipients or []) if r.role == EsignRecipientRole.SIGNER]
             unsigned = [r for r in signers if r.status != EsignRecipientStatus.SIGNED]
             if not unsigned:
@@ -647,15 +839,54 @@ class EsignSigningService:
                     for r in unsigned:
                         if int(r.routing_order) == next_order and r.status == EsignRecipientStatus.PENDING:
                             r.status = EsignRecipientStatus.NOTIFIED
-                            next_tranche_emails.append((r.email, r.name))
+                            emails.append(
+                                (
+                                    r.email,
+                                    email_templates.signature_request(
+                                        recipient_name=r.name,
+                                        sender_name=sender_name,
+                                        title=envelope.title,
+                                        message=envelope.message,
+                                        url=url,
+                                        expires_at=envelope.expires_at,
+                                    ),
+                                )
+                            )
+                    for cc in self._cc_recipients_due(envelope, next_order):
+                        cc.status = EsignRecipientStatus.NOTIFIED
+                        emails.append(
+                            (
+                                cc.email,
+                                email_templates.cc_copy(
+                                    recipient_name=cc.name,
+                                    sender_name=sender_name,
+                                    title=envelope.title,
+                                    message=envelope.message,
+                                    url=url,
+                                    expires_at=envelope.expires_at,
+                                ),
+                            )
+                        )
+
+            # The sender is told about every completed signature; the final one
+            # is covered by the richer completion email instead.
+            if sender_email and not sealing_enqueued:
+                emails.append(
+                    (
+                        sender_email,
+                        email_templates.recipient_signed(
+                            signer_name=recipient.name,
+                            signer_email=recipient.email,
+                            title=envelope.title,
+                            url=self.sender_envelope_url(envelope.id),
+                        ),
+                    )
+                )
 
             db.commit()
             envelope_status_value = (
                 envelope.status.value if hasattr(envelope.status, "value") else str(envelope.status)
             )
-            sender_email = self._sender_email(db, envelope)
-            envelope_title = envelope.title
-            envelope_message = envelope.message
             env_id = str(envelope.id)
         except Exception:
             db.rollback()
@@ -668,15 +899,8 @@ class EsignSigningService:
 
             await cloud_run_task_service.enqueue_envelope_seal_task(env_id)
 
-        for to_email, name in next_tranche_emails:
-            await self._send_signature_request_email(
-                to_email=to_email,
-                recipient_name=name,
-                sender_email=sender_email,
-                title=envelope_title,
-                message=envelope_message,
-                envelope_id=env_id,
-            )
+        for to_email, content in emails:
+            await self._send_content(to_email, content)
 
         return EsignSubmitResponse(
             envelope_status=envelope_status_value,
@@ -691,6 +915,7 @@ class EsignSigningService:
     async def decline(
         self, *, user_id: str, user_email: str, envelope_id: str, reason: str, meta: EsignRequestMeta
     ) -> EsignSubmitResponse:
+        emails: list[tuple[str, EmailContent]] = []
         db = self._get_session()
         try:
             acquire_envelope_lock(db, envelope_id)
@@ -719,26 +944,35 @@ class EsignSigningService:
                 meta=meta,
                 details={"reason": reason},
             )
-            db.commit()
+
+            # Notify the sender and every recipient who was already involved
+            # (anyone past PENDING), excluding the decliner themselves.
+            content = email_templates.declined(
+                decliner_name=recipient.name,
+                decliner_email=recipient.email,
+                title=envelope.title,
+                reason=reason,
+            )
             sender_email = self._sender_email(db, envelope)
-            envelope_title = envelope.title
+            if sender_email:
+                emails.append((sender_email, content))
+            for other in envelope.recipients or []:
+                if str(other.id) == str(recipient.id):
+                    continue
+                if other.status == EsignRecipientStatus.PENDING:
+                    continue
+                if sender_email and other.email == sender_email.lower():
+                    continue
+                emails.append((other.email, content))
+            db.commit()
         except Exception:
             db.rollback()
             raise
         finally:
             db.close()
 
-        if sender_email:
-            await self._send_simple_email(
-                sender_email,
-                f"Envelope declined: {envelope_title}",
-                (
-                    f"Hello,\n\n"
-                    f"{user_email} declined to sign \"{envelope_title}\".\n\n"
-                    f"Reason: {reason}\n\n"
-                    f"— CPAAutomation E-Signature"
-                ),
-            )
+        for to_email, item in emails:
+            await self._send_content(to_email, item)
         return EsignSubmitResponse(
             envelope_status=EsignEnvelopeStatus.DECLINED.value,
             recipient_status=EsignRecipientStatus.DECLINED.value,
@@ -763,12 +997,13 @@ class EsignSigningService:
             envelope.status = EsignEnvelopeStatus.VOIDED
             envelope.voided_at = datetime.now(timezone.utc)
             envelope.voided_reason = reason
+            # Every recipient already involved (signer or CC) hears about the void.
             notified = [
                 r.email
                 for r in (envelope.recipients or [])
-                if r.role == EsignRecipientRole.SIGNER
-                and r.status not in (EsignRecipientStatus.PENDING,)
+                if r.status not in (EsignRecipientStatus.PENDING,)
             ]
+            sender_name = self._sender_name(envelope) or user_email
             audit_service.record_event(
                 db,
                 envelope_id=envelope.id,
@@ -788,16 +1023,9 @@ class EsignSigningService:
         finally:
             db.close()
 
+        content = email_templates.voided(sender_name=sender_name, title=envelope_title, reason=reason)
         for email in notified:
-            await self._send_simple_email(
-                email,
-                f"Envelope voided: {envelope_title}",
-                (
-                    f"Hello,\n\n"
-                    f"The envelope \"{envelope_title}\" has been voided by the sender and can no "
-                    f"longer be signed.\n\nReason: {reason}\n\n— CPAAutomation E-Signature"
-                ),
-            )
+            await self._send_content(email, content)
         return response
 
     async def send_reminders(
@@ -819,29 +1047,33 @@ class EsignSigningService:
                 meta=meta,
                 details={"recipients": [t.email for t in targets], "manual": True},
             )
+            sender_name = self._sender_name(envelope) or user_email
+            url = signing_url(envelope.id)
+            reminder_emails = [
+                (
+                    t.email,
+                    email_templates.signature_request(
+                        recipient_name=t.name,
+                        sender_name=sender_name,
+                        title=envelope.title,
+                        message=envelope.message,
+                        url=url,
+                        expires_at=envelope.expires_at,
+                        reminder=True,
+                    ),
+                )
+                for t in targets
+            ]
             db.commit()
-            sender_email = self._sender_email(db, envelope)
-            reminder_targets = [(t.email, t.name) for t in targets]
-            envelope_title = envelope.title
-            envelope_message = envelope.message
-            env_id = str(envelope.id)
         except Exception:
             db.rollback()
             raise
         finally:
             db.close()
 
-        for email, name in reminder_targets:
-            await self._send_signature_request_email(
-                to_email=email,
-                recipient_name=name,
-                sender_email=sender_email,
-                title=envelope_title,
-                message=envelope_message,
-                envelope_id=env_id,
-                reminder=True,
-            )
-        return {"reminded": [email for email, _ in reminder_targets]}
+        for email, content in reminder_emails:
+            await self._send_content(email, content)
+        return {"reminded": [email for email, _ in reminder_emails]}
 
     def current_tranche_pending_signers(self, envelope: EsignEnvelope) -> list[EsignRecipient]:
         signers = [
@@ -860,42 +1092,21 @@ class EsignSigningService:
     # Emails
     # ------------------------------------------------------------------
 
-    async def _send_simple_email(self, to_email: str, subject: str, body: str) -> None:
+    async def _send_content(self, to_email: str, content: EmailContent) -> None:
         import asyncio
 
         from services.email_service import email_service
 
         try:
-            await asyncio.to_thread(email_service.send_email, to_email, subject, body)
+            await asyncio.to_thread(
+                email_service.send_html_email,
+                to_email,
+                content.subject,
+                content.html,
+                content.text,
+            )
         except Exception:
             logger.exception("Failed to send esign email to %s", to_email)
-
-    async def _send_signature_request_email(
-        self,
-        *,
-        to_email: str,
-        recipient_name: str,
-        sender_email: str,
-        title: str,
-        message: Optional[str],
-        envelope_id: str,
-        reminder: bool = False,
-    ) -> None:
-        url = signing_url(envelope_id)
-        prefix = "Reminder: " if reminder else ""
-        subject = f"{prefix}{sender_email} sent you a document to sign: {title}"
-        note = f"\nMessage from the sender:\n{message}\n" if message else ""
-        body = (
-            f"Hello {recipient_name},\n\n"
-            f"{sender_email} has requested your electronic signature on \"{title}\".\n"
-            f"{note}\n"
-            f"Review and sign here:\n{url}\n\n"
-            f"You will need to sign in to your CPAAutomation account (or create one with "
-            f"this email address) and verify your phone number. This verification is part "
-            f"of the signature's identity evidence.\n\n"
-            f"— CPAAutomation E-Signature"
-        )
-        await self._send_simple_email(to_email, subject, body)
 
     async def send_completion_emails(self, envelope_id: str) -> None:
         """Called by the sealing worker after an envelope completes."""
@@ -910,24 +1121,17 @@ class EsignSigningService:
 
         # The sender views the envelope on their dashboard detail page; recipients
         # are not the envelope owner, so they view it via the signer-facing page.
-        sender_url = f"{_app_base_url()}/dashboard/esign/{envelope_id}"
+        sender_url = self.sender_envelope_url(envelope_id)
         recipient_url = signing_url(envelope_id)
-        targets: dict[str, str] = {email: recipient_url for email in recipients}
+        targets: dict[str, tuple[str, bool]] = {
+            email: (recipient_url, False) for email in recipients
+        }
         if sender_email:
-            targets[sender_email.lower()] = sender_url
-        for email, url in sorted(targets.items()):
-            await self._send_simple_email(
+            targets[sender_email.lower()] = (sender_url, True)
+        for email, (url, is_sender) in sorted(targets.items()):
+            await self._send_content(
                 email,
-                f"Completed: {envelope_title}",
-                (
-                    f"Hello,\n\n"
-                    f"All parties have signed \"{envelope_title}\". The completed, digitally "
-                    f"sealed document and its certificate of completion are available in "
-                    f"CPAAutomation:\n{url}\n\n"
-                    f"The sealed PDF carries an embedded digital signature — any modification "
-                    f"after completion will invalidate it.\n\n"
-                    f"— CPAAutomation E-Signature"
-                ),
+                email_templates.completed(title=envelope_title, url=url, is_sender=is_sender),
             )
 
 

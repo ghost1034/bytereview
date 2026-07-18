@@ -36,6 +36,34 @@ _MUTED = colors.HexColor("#4b5563")
 _BORDER = colors.HexColor("#d1d5db")
 _HEADER_BG = colors.HexColor("#f3f4f6")
 
+_FONT_DISPLAY_NAMES = {
+    "dancing-script": "Dancing Script",
+    "caveat": "Caveat",
+    "great-vibes": "Great Vibes",
+    "homemade-apple": "Homemade Apple",
+}
+
+
+def _signature_description(sig) -> str:
+    kind = _enum_val(sig.signature_type)
+    if kind == "typed":
+        font = _FONT_DISPLAY_NAMES.get(sig.typed_font or "", sig.typed_font or "default")
+        return f"Pre-selected style ({font}) — \"{sig.typed_text}\""
+    if kind == "uploaded":
+        return f"Uploaded image (SHA-256 {sig.image_sha256 or '—'})"
+    return f"Drawn on device (image SHA-256 {sig.image_sha256 or '—'})"
+
+
+def _initials_description(sig) -> str:
+    # getattr: records adopted before the initials columns existed.
+    initials_image_sha = getattr(sig, "initials_image_sha256", None)
+    if initials_image_sha:
+        return f"Adopted image (SHA-256 {initials_image_sha})"
+    initials_text = getattr(sig, "initials_text", None)
+    if initials_text:
+        return f"\"{initials_text}\""
+    return "—"
+
 
 def _fmt_dt(value) -> str:
     if not value:
@@ -75,10 +103,25 @@ def build_certificate_pdf(
 
     consent_by_recipient = {str(c.recipient_id): c for c in consent_records}
     signature_by_recipient = {str(s.recipient_id): s for s in signature_records}
+    signed_ip_by_recipient = {
+        str(getattr(e, "recipient_id", None)): e.ip_address
+        for e in events
+        if _enum_val(e.event_type) == "signed" and getattr(e, "recipient_id", None) is not None
+    }
+    sender_name = ""
+    sender_user = getattr(envelope, "user", None)
+    if sender_user is not None:
+        sender_name = (sender_user.display_name or "").strip()
 
     story = []
     story.append(Paragraph("Certificate of Completion", title_style))
-    story.append(_para("CPAAutomation E-Signature — tamper-evident record of electronic signing", small))
+    story.append(
+        _para(
+            "CPAAutomation E-Signature — tamper-evident record of electronic signing. "
+            "All times are UTC.",
+            small,
+        )
+    )
     story.append(Spacer(1, 10))
 
     # ------------------------------------------------------------------
@@ -87,7 +130,10 @@ def build_certificate_pdf(
     summary_rows = [
         [_para("Envelope ID", small), _para(str(envelope.id), mono)],
         [_para("Title", small), _para(envelope.title, body)],
-        [_para("Sender", small), _para(sender_email, body)],
+        [
+            _para("Sender", small),
+            _para(f"{sender_name} <{sender_email}>" if sender_name else sender_email, body),
+        ],
         [_para("Status", small), _para("Completed", body)],
         [_para("Sent", small), _para(_fmt_dt(envelope.sent_at), body)],
         [_para("Completed", small), _para(_fmt_dt(datetime.now(timezone.utc)), body)],
@@ -154,17 +200,17 @@ def build_certificate_pdf(
             continue
         consent = consent_by_recipient.get(str(recipient.id))
         sig = signature_by_recipient.get(str(recipient.id))
-        sig_desc = "—"
-        if sig is not None:
-            kind = _enum_val(sig.signature_type)
-            if kind == "typed":
-                sig_desc = f"Typed (\"{sig.typed_text}\", font {sig.typed_font or 'default'})"
-            else:
-                sig_desc = f"Drawn (image SHA-256 {sig.image_sha256 or '—'})"
+        sig_desc = _signature_description(sig) if sig is not None else "—"
+        initials_desc = _initials_description(sig) if sig is not None else "—"
+        signed_ip = signed_ip_by_recipient.get(str(recipient.id))
         rows = [
             [_para("Signer", small), _para(f"{recipient.name} <{recipient.email}>", body)],
-            [_para("Identity verification", small), _para("CPAAutomation account login + SMS phone MFA (Firebase)", body)],
+            [
+                _para("Security level", small),
+                _para("Email, CPAAutomation Account Authentication, SMS phone MFA (Firebase)", body),
+            ],
             [_para("Routing order", small), _para(str(recipient.routing_order), body)],
+            [_para("Sent", small), _para(_fmt_dt(envelope.sent_at), body)],
             [_para("Viewed", small), _para(_fmt_dt(recipient.viewed_at), body)],
             [
                 _para("ESIGN consent", small),
@@ -175,8 +221,16 @@ def build_certificate_pdf(
                     body,
                 ),
             ],
-            [_para("Signed", small), _para(_fmt_dt(recipient.signed_at), body)],
+            [
+                _para("Signed", small),
+                _para(
+                    f"{_fmt_dt(recipient.signed_at)}"
+                    + (f" — from IP {signed_ip}" if signed_ip else ""),
+                    body,
+                ),
+            ],
             [_para("Signature adopted", small), _para(sig_desc, body)],
+            [_para("Initials adopted", small), _para(initials_desc, body)],
         ]
         table = Table(rows, colWidths=[1.4 * inch, 5.4 * inch])
         table.setStyle(
@@ -193,6 +247,44 @@ def build_certificate_pdf(
         )
         story.append(table)
         story.append(Spacer(1, 8))
+
+    # ------------------------------------------------------------------
+    # Carbon copy recipients
+    # ------------------------------------------------------------------
+    cc_recipients = [r for r in recipients if r.role == EsignRecipientRole.CC]
+    if cc_recipients:
+        story.append(Paragraph("Carbon Copy Recipients", h2))
+        cc_rows = [
+            [
+                _para("Recipient", small),
+                _para("Routing order", small),
+                _para("Status", small),
+                _para("Viewed", small),
+            ]
+        ]
+        for recipient in cc_recipients:
+            cc_rows.append(
+                [
+                    _para(f"{recipient.name} <{recipient.email}>", body),
+                    _para(str(recipient.routing_order), body),
+                    _para(_enum_val(recipient.status), body),
+                    _para(_fmt_dt(recipient.viewed_at), body),
+                ]
+            )
+        cc_table = Table(cc_rows, colWidths=[3.4 * inch, 1.0 * inch, 1.0 * inch, 1.4 * inch])
+        cc_table.setStyle(
+            TableStyle(
+                [
+                    ("GRID", (0, 0), (-1, -1), 0.5, _BORDER),
+                    ("BACKGROUND", (0, 0), (-1, 0), _HEADER_BG),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 5),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ]
+            )
+        )
+        story.append(cc_table)
 
     # ------------------------------------------------------------------
     # Full event history

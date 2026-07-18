@@ -40,6 +40,7 @@ class EsignFieldResponse(BaseModel):
     required: bool
     label: Optional[str] = None
     value: Optional[str] = None
+    draft_value: Optional[str] = None  # signer's saved in-progress entry
 
 
 class EsignRecipientInput(BaseModel):
@@ -184,6 +185,7 @@ class EsignInboxItem(BaseModel):
     sender_email: str
     status: str  # recipient status
     envelope_status: str
+    role: str = "signer"  # signer | cc ("receives a copy")
     routing_order: int
     is_my_turn: bool
     expires_at: Optional[datetime] = None
@@ -212,6 +214,7 @@ class EsignSigningSessionResponse(BaseModel):
     sender_email: str
     envelope_status: str
     recipient_status: str
+    recipient_role: str = "signer"  # signer | cc (cc sessions are read-only)
     is_my_turn: bool
     consent_required: bool  # false once consent has been recorded
     consent_disclosure_text: str
@@ -226,10 +229,12 @@ class EsignConsentResponse(BaseModel):
 
 
 class EsignSignatureInput(BaseModel):
-    signature_type: str  # drawn | typed
-    image_data_url: Optional[str] = None  # base64 PNG data URL for drawn
+    signature_type: str  # drawn | typed | uploaded
+    image_data_url: Optional[str] = None  # base64 PNG data URL for drawn/uploaded
     typed_text: Optional[str] = None
     typed_font: Optional[str] = None
+    initials_text: Optional[str] = Field(default=None, max_length=20)
+    initials_image_data_url: Optional[str] = None  # base64 PNG data URL, optional
 
 
 class EsignFieldValueInput(BaseModel):
@@ -240,6 +245,16 @@ class EsignFieldValueInput(BaseModel):
 class EsignSubmitRequest(BaseModel):
     signature: EsignSignatureInput
     field_values: list[EsignFieldValueInput] = Field(default_factory=list)
+
+
+class EsignProgressRequest(BaseModel):
+    """Finish Later: in-progress text/checkbox entries saved mid-ceremony."""
+
+    field_values: list[EsignFieldValueInput] = Field(default_factory=list)
+
+
+class EsignProgressResponse(BaseModel):
+    saved_count: int = 0
 
 
 class EsignSubmitResponse(BaseModel):

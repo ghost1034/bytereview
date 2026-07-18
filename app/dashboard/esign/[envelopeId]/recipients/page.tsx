@@ -38,7 +38,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
-import { useReplaceRecipients } from '@/hooks/useEnvelopes'
+import { useEsignTemplate, useReplaceRecipients } from '@/hooks/useEnvelopes'
 import type { EsignEnvelopeResponse } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -48,6 +48,14 @@ interface RecipientRow {
   email: string
   name: string
   role: 'signer' | 'cc'
+  /** Placeholder role label when sending from a template (e.g. "Client"). */
+  roleLabel?: string
+}
+
+interface TemplateRole {
+  label?: string
+  role?: string
+  routing_order?: number
 }
 
 let rowCounter = 0
@@ -86,6 +94,7 @@ function SortableRecipientRow({
   signerNumber,
   sequential,
   removable,
+  locked,
   onChange,
   onRemove,
 }: {
@@ -95,11 +104,14 @@ function SortableRecipientRow({
   signerNumber: number | null
   sequential: boolean
   removable: boolean
+  /** Template sends: structure (order/role/count) is fixed by the template. */
+  locked: boolean
   onChange: (patch: Partial<RecipientRow>) => void
   onRemove: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: row.key,
+    disabled: locked,
   })
   const color = participantColor(index)
 
@@ -112,15 +124,17 @@ function SortableRecipientRow({
         isDragging && 'z-10 opacity-80 shadow-md',
       )}
     >
-      <button
-        type="button"
-        className="mb-2 cursor-grab touch-none text-foreground-subtle hover:text-foreground active:cursor-grabbing"
-        aria-label="Drag to reorder"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical className="size-4" />
-      </button>
+      {!locked && (
+        <button
+          type="button"
+          className="mb-2 cursor-grab touch-none text-foreground-subtle hover:text-foreground active:cursor-grabbing"
+          aria-label="Drag to reorder"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="size-4" />
+        </button>
+      )}
       {sequential && (
         <span
           className={cn(
@@ -139,6 +153,11 @@ function SortableRecipientRow({
         style={{ backgroundColor: color.border }}
         aria-hidden
       />
+      {row.roleLabel && (
+        <span className="mb-2 inline-flex shrink-0 items-center rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-medium text-primary">
+          {row.roleLabel}
+        </span>
+      )}
       <div className="min-w-40 flex-1 space-y-1">
         <Label className="text-xs">Name</Label>
         <Input
@@ -158,7 +177,11 @@ function SortableRecipientRow({
       </div>
       <div className="w-28 space-y-1">
         <Label className="text-xs">Role</Label>
-        <Select value={row.role} onValueChange={(v) => onChange({ role: v as 'signer' | 'cc' })}>
+        <Select
+          value={row.role}
+          onValueChange={(v) => onChange({ role: v as 'signer' | 'cc' })}
+          disabled={locked}
+        >
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
@@ -168,17 +191,19 @@ function SortableRecipientRow({
           </SelectContent>
         </Select>
       </div>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="mb-0.5 text-foreground-muted hover:text-destructive"
-        onClick={onRemove}
-        disabled={!removable}
-        aria-label="Remove recipient"
-      >
-        <Trash2 className="size-4" />
-      </Button>
+      {!locked && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="mb-0.5 text-foreground-muted hover:text-destructive"
+          onClick={onRemove}
+          disabled={!removable}
+          aria-label="Remove recipient"
+        >
+          <Trash2 className="size-4" />
+        </Button>
+      )}
     </div>
   )
 }
@@ -199,17 +224,49 @@ export default function EnvelopeRecipientsPage() {
 
   const envelopeQuery = useDraftEnvelope(envelopeId)
   const envelope = envelopeQuery.data
+  const templateQuery = useEsignTemplate(templateIdFromQuery)
+  const template = templateQuery.data
 
   const [rows, setRows] = React.useState<RecipientRow[]>([])
   const [hydratedFor, setHydratedFor] = React.useState<string | null>(null)
 
   const replaceRecipients = useReplaceRecipients(envelopeId!)
 
+  // Template sends: the field layout is bound to the template's placeholder
+  // roles by sorted index, so the row structure is fixed — one row per role.
+  const templateRoles: TemplateRole[] = React.useMemo(
+    () =>
+      [...((template?.recipient_roles as TemplateRole[] | undefined) ?? [])].sort(
+        (a, b) => (a.routing_order ?? 1) - (b.routing_order ?? 1),
+      ),
+    [template],
+  )
+  const templateLocked = !!templateIdFromQuery && templateRoles.length > 0
+
   React.useEffect(() => {
     if (!envelope || hydratedFor === envelope.id) return
-    setRows(rowsFromEnvelope(envelope))
+    // Wait for the template before hydrating so role placeholders can seed rows.
+    if (templateIdFromQuery && !template) return
+    if ((envelope.recipients ?? []).length === 0 && templateRoles.length > 0) {
+      setRows(
+        templateRoles.map((role) => ({
+          key: nextRowKey(),
+          email: '',
+          name: '',
+          role: (role.role as 'signer' | 'cc') ?? 'signer',
+          roleLabel: role.label || 'Recipient',
+        })),
+      )
+    } else {
+      const hydrated = rowsFromEnvelope(envelope)
+      setRows(
+        templateRoles.length > 0
+          ? hydrated.map((row, i) => ({ ...row, roleLabel: templateRoles[i]?.label }))
+          : hydrated,
+      )
+    }
     setHydratedFor(envelope.id)
-  }, [envelope, hydratedFor])
+  }, [envelope, hydratedFor, template, templateIdFromQuery, templateRoles])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -239,6 +296,14 @@ export default function EnvelopeRecipientsPage() {
       .filter((r) => r.email && r.name)
     if (cleaned.length === 0) {
       toast({ title: 'Add at least one recipient with a name and email', variant: 'destructive' })
+      return
+    }
+    if (templateLocked && cleaned.length !== templateRoles.length) {
+      toast({
+        title: `This template needs ${templateRoles.length} recipient${templateRoles.length === 1 ? '' : 's'}`,
+        description: 'Fill in a name and email for every role listed.',
+        variant: 'destructive',
+      })
       return
     }
     // Unchanged recipients: skip the save so already-placed fields survive.
@@ -296,7 +361,10 @@ export default function EnvelopeRecipientsPage() {
             Every signer must sign in with a CPAAutomation account matching this email — identity is
             verified with SMS phone MFA at every login.
             {sequential &&
+              !templateLocked &&
               ' Drag recipients to set the signing order; each signer is notified only after the previous one completes.'}
+            {templateLocked &&
+              ' This template defines the recipient roles below — fill in a name and email for each.'}
           </p>
         </div>
 
@@ -313,6 +381,7 @@ export default function EnvelopeRecipientsPage() {
                     signerNumber={signerNumber}
                     sequential={sequential}
                     removable={rows.length > 1}
+                    locked={templateLocked}
                     onChange={(patch) =>
                       setRows((prev) => prev.map((r) => (r.key === row.key ? { ...r, ...patch } : r)))
                     }
@@ -324,16 +393,18 @@ export default function EnvelopeRecipientsPage() {
           </SortableContext>
         </DndContext>
 
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            setRows((prev) => [...prev, { key: nextRowKey(), email: '', name: '', role: 'signer' }])
-          }
-        >
-          <Plus className="mr-1.5 size-4" /> Add recipient
-        </Button>
+        {!templateLocked && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setRows((prev) => [...prev, { key: nextRowKey(), email: '', name: '', role: 'signer' }])
+            }
+          >
+            <Plus className="mr-1.5 size-4" /> Add recipient
+          </Button>
+        )}
       </div>
     </EsignWizardFrame>
   )

@@ -147,11 +147,14 @@ class EsignLifecyclePgTests(unittest.TestCase):
         esign_verification_service.storage = cls.storage
         esign_sealing_service._download_bytes = lambda name: cls.storage.objects[name]
 
-        # Silence outbound email
-        async def _no_email(*args, **kwargs):
-            return None
+        # Capture outbound email (maintenance service routes through the same
+        # _send_content, so its sends are captured too).
+        cls.sent_emails: list[tuple[str, str]] = []  # (to_email, subject)
 
-        esign_signing_service._send_simple_email = _no_email
+        async def _capture_email(to_email, content, *args, **kwargs):
+            cls.sent_emails.append((to_email, content.subject))
+
+        esign_signing_service._send_content = _capture_email
 
         cls.meta = EsignRequestMeta(
             ip_address="203.0.113.5",
@@ -169,12 +172,15 @@ class EsignLifecyclePgTests(unittest.TestCase):
         cls.signer1_email = f"esign-signer1-{suffix}@esign-test.example.com"
         cls.signer2_uid = f"esign-test-s2-{suffix}"
         cls.signer2_email = f"esign-signer2-{suffix}@esign-test.example.com"
+        cls.cc_uid = f"esign-test-cc-{suffix}"
+        cls.cc_email = f"esign-cc-{suffix}@esign-test.example.com"
         db = db_config.get_session()
         try:
             for uid, email in [
                 (cls.sender_uid, cls.sender_email),
                 (cls.signer1_uid, cls.signer1_email),
                 (cls.signer2_uid, cls.signer2_email),
+                (cls.cc_uid, cls.cc_email),
             ]:
                 db.add(User(id=uid, email=email, display_name="Test"))
             db.commit()
@@ -202,7 +208,7 @@ class EsignLifecyclePgTests(unittest.TestCase):
                 )
                 db.execute(text("DELETE FROM esign_envelopes WHERE id = :e"), {"e": envelope_id})
             db.execute(text("ALTER TABLE esign_events ENABLE TRIGGER trg_esign_events_append_only"))
-            for uid in (cls.sender_uid, cls.signer1_uid, cls.signer2_uid):
+            for uid in (cls.sender_uid, cls.signer1_uid, cls.signer2_uid, cls.cc_uid):
                 db.execute(text("DELETE FROM users WHERE id = :u"), {"u": uid})
             db.commit()
         finally:
@@ -575,6 +581,232 @@ class EsignLifecyclePgTests(unittest.TestCase):
         )
         self.assertEqual(voided.status, "voided")
         self.assertEqual(voided.voided_reason, "Sent in error")
+
+    # ------------------------------------------------------------------
+    # Parity additions: CC recipients, Finish Later, date format, warnings
+    # ------------------------------------------------------------------
+
+    def _create_cc_envelope(self) -> str:
+        """One signer (signature + required text + date field) plus a CC."""
+        from models.esign import EsignFieldInput, EsignRecipientInput
+
+        envelope = self._run(
+            self.envelope_service.create_envelope(
+                user_id=self.sender_uid,
+                user_email=self.sender_email,
+                title="PG cc/finish-later test",
+                message="please sign",
+                signing_type="sequential",
+                files=[("agreement.pdf", _make_pdf())],
+                template_id=None,
+                expires_in_days=10,
+                reminder_interval_hours=None,
+                meta=self.meta,
+            )
+        )
+        self.__class__._created_envelope_ids.append(envelope.id)
+        envelope = self.envelope_service.replace_recipients(
+            self.sender_uid,
+            envelope.id,
+            [
+                EsignRecipientInput(email=self.signer1_email, name="Signer One", routing_order=1),
+                EsignRecipientInput(
+                    email=self.cc_email, name="Copy Recipient", role="cc", routing_order=1
+                ),
+            ],
+        )
+        doc_id = envelope.documents[0].id
+        signer = next(r for r in envelope.recipients if r.email == self.signer1_email)
+        self.envelope_service.replace_fields(
+            self.sender_uid,
+            envelope.id,
+            [
+                EsignFieldInput(
+                    document_id=doc_id, recipient_id=signer.id,
+                    field_type="signature", page_number=0,
+                    pos_x=0.1, pos_y=0.7, width=0.3, height=0.05,
+                ),
+                EsignFieldInput(
+                    document_id=doc_id, recipient_id=signer.id,
+                    field_type="text", page_number=0, label="Company",
+                    pos_x=0.1, pos_y=0.5, width=0.3, height=0.03,
+                ),
+                EsignFieldInput(
+                    document_id=doc_id, recipient_id=signer.id,
+                    field_type="date_signed", page_number=0,
+                    pos_x=0.5, pos_y=0.7, width=0.2, height=0.03,
+                ),
+            ],
+        )
+        self._run(
+            self.signing_service.send_envelope(
+                user_id=self.sender_uid, user_email=self.sender_email,
+                envelope_id=envelope.id, meta=self.meta,
+            )
+        )
+        return envelope.id
+
+    def test_cc_notification_readonly_session_and_void_fanout(self) -> None:
+        from services.esign.envelope_service import EsignNotFound
+
+        self.__class__.sent_emails.clear()
+        envelope_id = self._create_cc_envelope()
+
+        # CC is notified at send with distinct copy.
+        envelope = self.envelope_service.get_envelope(self.sender_uid, envelope_id)
+        cc = next(r for r in envelope.recipients if r.email == self.cc_email)
+        self.assertEqual(cc.status, "notified")
+        cc_sends = [s for to, s in self.sent_emails if to == self.cc_email]
+        self.assertTrue(any("sent you a copy" in s for s in cc_sends), cc_sends)
+
+        # CC gets a read-only session (documents, no fields, no consent gate)
+        # and their first view is recorded.
+        session = self._run(
+            self.signing_service.get_signing_session(
+                user_id=self.cc_uid, user_email=self.cc_email,
+                envelope_id=envelope_id, meta=self.meta,
+            )
+        )
+        self.assertEqual(session.recipient_role, "cc")
+        self.assertFalse(session.is_my_turn)
+        self.assertFalse(session.consent_required)
+        self.assertEqual(session.fields, [])
+        self.assertEqual(len(session.documents), 1)
+        envelope = self.envelope_service.get_envelope(self.sender_uid, envelope_id)
+        cc = next(r for r in envelope.recipients if r.email == self.cc_email)
+        self.assertEqual(cc.status, "viewed")
+
+        # CCs cannot sign or save progress.
+        with self.assertRaises(EsignNotFound):
+            self.signing_service.save_progress(
+                user_id=self.cc_uid, user_email=self.cc_email,
+                envelope_id=envelope_id, field_values=[],
+            )
+
+        # Void notifies the CC too (already involved).
+        self.__class__.sent_emails.clear()
+        self._run(
+            self.signing_service.void_envelope(
+                user_id=self.sender_uid, user_email=self.sender_email,
+                envelope_id=envelope_id, reason="Testing void fan-out", meta=self.meta,
+            )
+        )
+        void_targets = [to for to, s in self.sent_emails if "voided" in s]
+        self.assertIn(self.cc_email, void_targets)
+        self.assertIn(self.signer1_email, void_targets)
+
+    def test_finish_later_and_date_signed_format(self) -> None:
+        from models.esign import EsignFieldValueInput, EsignSignatureInput
+
+        envelope_id = self._create_cc_envelope()
+        session = self._run(
+            self.signing_service.get_signing_session(
+                user_id=self.signer1_uid, user_email=self.signer1_email,
+                envelope_id=envelope_id, meta=self.meta,
+            )
+        )
+        text_field = next(f for f in session.fields if f.field_type == "text")
+
+        # Save progress, then reopen: the draft value comes back.
+        saved = self.signing_service.save_progress(
+            user_id=self.signer1_uid, user_email=self.signer1_email,
+            envelope_id=envelope_id,
+            field_values=[EsignFieldValueInput(field_id=text_field.id, value="Acme LLC")],
+        )
+        self.assertEqual(saved, 1)
+        session = self._run(
+            self.signing_service.get_signing_session(
+                user_id=self.signer1_uid, user_email=self.signer1_email,
+                envelope_id=envelope_id, meta=self.meta,
+            )
+        )
+        text_field = next(f for f in session.fields if f.field_type == "text")
+        self.assertEqual(text_field.draft_value, "Acme LLC")
+        self.assertIsNone(text_field.value)
+
+        # A non-recipient can't save progress on this envelope.
+        from services.esign.envelope_service import EsignNotFound
+
+        with self.assertRaises(EsignNotFound):
+            self.signing_service.save_progress(
+                user_id=self.signer2_uid, user_email=self.signer2_email,
+                envelope_id=envelope_id, field_values=[],
+            )
+
+        # Submit with adopted initials; drafts are cleared and the date stamp
+        # uses the ceremony's M/D/YYYY format.
+        self.signing_service.record_consent(
+            user_id=self.signer1_uid, user_email=self.signer1_email,
+            envelope_id=envelope_id, meta=self.meta,
+        )
+        base = self._signature_payload()
+        signature = EsignSignatureInput(
+            signature_type=base.signature_type,
+            image_data_url=base.image_data_url,
+            initials_text="S1X",
+        )
+        self._run(
+            self.signing_service.submit_signature(
+                user_id=self.signer1_uid, user_email=self.signer1_email,
+                envelope_id=envelope_id, signature=signature,
+                field_values=[EsignFieldValueInput(field_id=text_field.id, value="Acme LLC")],
+                meta=self.meta,
+            )
+        )
+        envelope = self.envelope_service.get_envelope(self.sender_uid, envelope_id)
+        fields = {f.field_type: f for f in envelope.fields}
+        now = datetime.now(timezone.utc)
+        self.assertEqual(fields["date_signed"].value, f"{now.month}/{now.day}/{now.year}")
+        self.assertEqual(fields["text"].value, "Acme LLC")
+        self.assertIsNone(fields["text"].draft_value)
+
+        from models.db_models import EsignSignatureRecord
+
+        db = self.db_config.get_session()
+        try:
+            record = (
+                db.query(EsignSignatureRecord)
+                .filter(EsignSignatureRecord.envelope_id == uuid.UUID(envelope_id))
+                .one()
+            )
+            self.assertEqual(record.initials_text, "S1X")
+        finally:
+            db.close()
+
+    def test_expiration_warning_sweep_is_one_time(self) -> None:
+        from sqlalchemy import text
+
+        from services.esign.maintenance_service import esign_maintenance_service
+
+        envelope_id = self._create_sent_envelope()
+        db = self.db_config.get_session()
+        try:
+            db.execute(
+                text("UPDATE esign_envelopes SET expires_at = :e WHERE id = :id"),
+                {"e": datetime.now(timezone.utc) + timedelta(days=1), "id": envelope_id},
+            )
+            db.commit()
+        finally:
+            db.close()
+
+        self.__class__.sent_emails.clear()
+        result = self._run(esign_maintenance_service.run())
+        self.assertGreaterEqual(result["expiration_warnings"], 1)
+        warned = [to for to, s in self.sent_emails if s.startswith("Expiring soon")]
+        self.assertIn(self.signer1_email, warned)  # current tranche only
+        self.assertIn(self.sender_email, warned)
+        self.assertNotIn(self.signer2_email, warned)
+
+        audit = self.envelope_service.get_audit_trail(self.sender_uid, envelope_id)
+        self.assertIn("expiration_warning", [e.event_type for e in audit.events])
+
+        # Second run: already stamped, nothing new goes out for this envelope.
+        self.__class__.sent_emails.clear()
+        self._run(esign_maintenance_service.run())
+        self.assertNotIn(
+            self.signer1_email,
+            [to for to, s in self.sent_emails if s.startswith("Expiring soon")],
+        )
 
 
 if __name__ == "__main__":

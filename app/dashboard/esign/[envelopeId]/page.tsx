@@ -77,6 +77,22 @@ const EVENT_LABEL: Record<string, string> = {
   reminder_sent: 'Reminder sent',
   sealed: 'Digitally sealed',
   expired: 'Expired',
+  expiration_warning: 'Expiration warning sent',
+}
+
+/** "Viewed Jul 3, 2:14 PM · Consented … · Signed …" from recipient timestamps. */
+function recipientTimeline(recipient: {
+  viewed_at?: string | null
+  consented_at?: string | null
+  signed_at?: string | null
+  declined_at?: string | null
+}): string {
+  const parts: string[] = []
+  if (recipient.viewed_at) parts.push(`Viewed ${formatDateTime(recipient.viewed_at)}`)
+  if (recipient.consented_at) parts.push(`Consented ${formatDateTime(recipient.consented_at)}`)
+  if (recipient.signed_at) parts.push(`Signed ${formatDateTime(recipient.signed_at)}`)
+  if (recipient.declined_at) parts.push(`Declined ${formatDateTime(recipient.declined_at)}`)
+  return parts.join(' · ')
 }
 
 export default function EnvelopeDetailPage() {
@@ -233,38 +249,56 @@ export default function EnvelopeDetailPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Recipients timeline */}
         <section className="space-y-3 rounded-lg border border-border bg-surface p-5">
-          <h2 className="text-base font-semibold">Signers</h2>
+          <h2 className="text-base font-semibold">Recipients</h2>
           <ol className="space-y-3">
             {[...signers]
               .sort((a, b) => a.routing_order - b.routing_order)
+              .map((recipient) => {
+                const timeline = recipientTimeline(recipient)
+                return (
+                  <li key={recipient.id} className="flex items-start gap-3">
+                    {recipient.status === 'signed' ? (
+                      <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" />
+                    ) : recipient.status === 'declined' ? (
+                      <XCircle className="mt-0.5 size-5 shrink-0 text-destructive" />
+                    ) : (
+                      <Circle className="mt-0.5 size-5 shrink-0 text-foreground-subtle" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">
+                        {recipient.routing_order}. {recipient.name}
+                        <span className="ml-2 font-normal text-foreground-muted">{recipient.email}</span>
+                      </p>
+                      <p className="text-xs text-foreground-muted">
+                        {RECIPIENT_STATUS_LABEL[recipient.status] ?? recipient.status}
+                        {timeline && ` · ${timeline}`}
+                        {recipient.declined_reason && ` — "${recipient.declined_reason}"`}
+                      </p>
+                    </div>
+                  </li>
+                )
+              })}
+            {envelope.recipients
+              .filter((r) => r.role === 'cc')
               .map((recipient) => (
                 <li key={recipient.id} className="flex items-start gap-3">
-                  {recipient.status === 'signed' ? (
-                    <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" />
-                  ) : recipient.status === 'declined' ? (
-                    <XCircle className="mt-0.5 size-5 shrink-0 text-destructive" />
-                  ) : (
-                    <Circle className="mt-0.5 size-5 shrink-0 text-foreground-subtle" />
-                  )}
+                  <Circle className="mt-0.5 size-5 shrink-0 text-foreground-subtle" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">
-                      {recipient.routing_order}. {recipient.name}
+                      {recipient.name}
                       <span className="ml-2 font-normal text-foreground-muted">{recipient.email}</span>
+                      <span className="ml-2 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-normal text-foreground-muted">
+                        Receives a copy
+                      </span>
                     </p>
                     <p className="text-xs text-foreground-muted">
                       {RECIPIENT_STATUS_LABEL[recipient.status] ?? recipient.status}
-                      {recipient.signed_at && ` · ${formatDateTime(recipient.signed_at)}`}
-                      {recipient.declined_reason && ` — "${recipient.declined_reason}"`}
+                      {recipient.viewed_at && ` · Viewed ${formatDateTime(recipient.viewed_at)}`}
                     </p>
                   </div>
                 </li>
               ))}
           </ol>
-          {envelope.recipients.some((r) => r.role === 'cc') && (
-            <p className="text-xs text-foreground-subtle">
-              CC: {envelope.recipients.filter((r) => r.role === 'cc').map((r) => r.email).join(', ')}
-            </p>
-          )}
         </section>
 
         {/* Documents + hashes */}

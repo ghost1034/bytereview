@@ -60,8 +60,14 @@ _FONT_SIGNATURE_FALLBACK = "tiit"  # Times-Italic, if the script font file is mi
 _FONTS_DIR = Path(__file__).resolve().parent.parent.parent / "assets" / "fonts"
 _TYPED_FONT_FILES = {
     "dancing-script": _FONTS_DIR / "DancingScript-Regular.ttf",
+    "caveat": _FONTS_DIR / "Caveat-Regular.ttf",
+    "great-vibes": _FONTS_DIR / "GreatVibes-Regular.ttf",
+    "homemade-apple": _FONTS_DIR / "HomemadeApple-Regular.ttf",
 }
 _DEFAULT_TYPED_FONT = "dancing-script"
+
+# Signature types stamped from a stored PNG rather than typed text.
+_IMAGE_SIGNATURE_TYPES = (EsignSignatureType.DRAWN, EsignSignatureType.UPLOADED)
 
 
 def _signature_font(typed_font: Optional[str]) -> tuple[str, Optional[str]]:
@@ -171,12 +177,21 @@ def _stamp_field(
 
     if field.field_type in (EsignFieldType.SIGNATURE, EsignFieldType.INITIALS):
         if field.field_type == EsignFieldType.INITIALS:
-            text = _initials_from_name(recipient.name if recipient else "")
+            if image_bytes:
+                # Signer adopted dedicated initials as an image.
+                page.insert_image(_derotate(page, box), stream=image_bytes, rotate=rotate, keep_proportion=True)
+                return
+            # getattr: records adopted before the initials columns existed.
+            text = (
+                getattr(signature_record, "initials_text", None)
+                if signature_record is not None
+                else None
+            ) or _initials_from_name(recipient.name if recipient else "")
             fontname, fontfile = _signature_font(
                 signature_record.typed_font if signature_record is not None else None
             )
             _fit_textbox(page, box, text, fontname=fontname, fontfile=fontfile, rotate=rotate, max_fontsize=display_height * 0.8, align=fitz.TEXT_ALIGN_CENTER)
-        elif signature_record is not None and signature_record.signature_type == EsignSignatureType.DRAWN and image_bytes:
+        elif signature_record is not None and signature_record.signature_type in _IMAGE_SIGNATURE_TYPES and image_bytes:
             page.insert_image(_derotate(page, box), stream=image_bytes, rotate=rotate, keep_proportion=True)
         elif signature_record is not None:
             text = signature_record.typed_text or (recipient.name if recipient else "")
@@ -230,17 +245,20 @@ class EsignSealingService:
                 image_bytes = None
                 if field.field_type in (EsignFieldType.SIGNATURE, EsignFieldType.INITIALS) and field.value:
                     signature_record = signature_records_by_id.get(str(field.value))
-                    if (
-                        signature_record is not None
-                        and signature_record.signature_type == EsignSignatureType.DRAWN
-                        and signature_record.image_gcs_object_name
-                    ):
-                        cache_key = signature_record.image_gcs_object_name
-                        if cache_key not in image_cache:
-                            image_cache[cache_key] = await asyncio.to_thread(
-                                self._download_bytes, cache_key
+                    object_name = None
+                    if signature_record is not None:
+                        if field.field_type == EsignFieldType.INITIALS:
+                            object_name = getattr(
+                                signature_record, "initials_image_gcs_object_name", None
                             )
-                        image_bytes = image_cache[cache_key]
+                        elif signature_record.signature_type in _IMAGE_SIGNATURE_TYPES:
+                            object_name = signature_record.image_gcs_object_name
+                    if object_name:
+                        if object_name not in image_cache:
+                            image_cache[object_name] = await asyncio.to_thread(
+                                self._download_bytes, object_name
+                            )
+                        image_bytes = image_cache[object_name]
                 _stamp_field(page, field, recipient, signature_record, image_bytes)
             return pdf.tobytes(deflate=True, garbage=3)
 

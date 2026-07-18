@@ -109,6 +109,15 @@ class SignaturePayloadTests(unittest.TestCase):
         self.assertEqual(_initials_from_name("ian"), "I")
         self.assertEqual(_initials_from_name(""), "??")
 
+    def test_date_signed_format_matches_ceremony_preview(self) -> None:
+        from datetime import datetime
+
+        from services.esign.signing_service import format_date_signed
+
+        # No zero-padding — must mirror formatDateSigned in dateSigned.ts.
+        self.assertEqual(format_date_signed(datetime(2026, 7, 4)), "7/4/2026")
+        self.assertEqual(format_date_signed(datetime(2026, 11, 23)), "11/23/2026")
+
 
 class RequestMetaTests(unittest.TestCase):
     def _request(self, headers: dict, host: str | None = "10.0.0.9"):

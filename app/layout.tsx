@@ -1,5 +1,12 @@
 import type { Metadata } from 'next'
-import { IBM_Plex_Sans, IBM_Plex_Mono, Dancing_Script } from 'next/font/google'
+import {
+  IBM_Plex_Sans,
+  IBM_Plex_Mono,
+  Dancing_Script,
+  Caveat,
+  Great_Vibes,
+  Homemade_Apple,
+} from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
 
@@ -19,11 +26,34 @@ const ibmPlexMono = IBM_Plex_Mono({
   display: 'swap',
 })
 
-// Cursive face for the e-signature "type your signature" adoption flow.
+// Cursive faces for the e-signature "type your signature" adoption flow. The
+// slugs must stay in sync with ALLOWED_TYPED_FONTS (backend signing service)
+// and the embedded TTFs used at sealing time (backend/assets/fonts).
 const dancingScript = Dancing_Script({
   subsets: ['latin'],
   weight: ['400', '700'],
   variable: '--font-signature',
+  display: 'swap',
+})
+
+const caveat = Caveat({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-signature-caveat',
+  display: 'swap',
+})
+
+const greatVibes = Great_Vibes({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-signature-great-vibes',
+  display: 'swap',
+})
+
+const homemadeApple = Homemade_Apple({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-signature-homemade-apple',
   display: 'swap',
 })
 
@@ -107,7 +137,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} ${dancingScript.variable}`}>
+    <html
+      lang="en"
+      className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} ${dancingScript.variable} ${caveat.variable} ${greatVibes.variable} ${homemadeApple.variable}`}
+    >
       <body className="font-sans antialiased">
         <script
           type="application/ld+json"

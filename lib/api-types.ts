@@ -1708,7 +1708,11 @@ export interface paths {
         /** Update Envelope */
         put: operations["update_envelope_api_esign_envelopes__envelope_id__put"];
         post?: never;
-        delete?: never;
+        /**
+         * Delete Envelope
+         * @description Hard-delete a draft envelope. Sent envelopes must be voided instead.
+         */
+        delete: operations["delete_envelope_api_esign_envelopes__envelope_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1973,6 +1977,26 @@ export interface paths {
         put?: never;
         /** Record Consent */
         post: operations["record_consent_api_esign_sign__envelope_id__consent_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/sign/{envelope_id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Signing Progress
+         * @description Finish Later: save the signer's in-progress text/checkbox entries.
+         */
+        put: operations["save_signing_progress_api_esign_sign__envelope_id__progress_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5934,6 +5958,8 @@ export interface components {
             label?: string | null;
             /** Value */
             value?: string | null;
+            /** Draft Value */
+            draft_value?: string | null;
         };
         /** EsignFieldValueInput */
         EsignFieldValueInput: {
@@ -5963,6 +5989,11 @@ export interface components {
             status: string;
             /** Envelope Status */
             envelope_status: string;
+            /**
+             * Role
+             * @default signer
+             */
+            role: string;
             /** Routing Order */
             routing_order: number;
             /** Is My Turn */
@@ -5983,6 +6014,22 @@ export interface components {
         EsignInboxResponse: {
             /** Items */
             items?: components["schemas"]["EsignInboxItem"][];
+        };
+        /**
+         * EsignProgressRequest
+         * @description Finish Later: in-progress text/checkbox entries saved mid-ceremony.
+         */
+        EsignProgressRequest: {
+            /** Field Values */
+            field_values?: components["schemas"]["EsignFieldValueInput"][];
+        };
+        /** EsignProgressResponse */
+        EsignProgressResponse: {
+            /**
+             * Saved Count
+             * @default 0
+             */
+            saved_count: number;
         };
         /** EsignRecipientInput */
         EsignRecipientInput: {
@@ -6044,6 +6091,10 @@ export interface components {
             typed_text?: string | null;
             /** Typed Font */
             typed_font?: string | null;
+            /** Initials Text */
+            initials_text?: string | null;
+            /** Initials Image Data Url */
+            initials_image_data_url?: string | null;
         };
         /** EsignSigningDocument */
         EsignSigningDocument: {
@@ -6074,6 +6125,11 @@ export interface components {
             envelope_status: string;
             /** Recipient Status */
             recipient_status: string;
+            /**
+             * Recipient Role
+             * @default signer
+             */
+            recipient_role: string;
             /** Is My Turn */
             is_my_turn: boolean;
             /** Consent Required */
@@ -12318,6 +12374,37 @@ export interface operations {
             };
         };
     };
+    delete_envelope_api_esign_envelopes__envelope_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     add_documents_api_esign_envelopes__envelope_id__documents_post: {
         parameters: {
             query?: never;
@@ -12783,6 +12870,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EsignConsentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_signing_progress_api_esign_sign__envelope_id__progress_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignProgressRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignProgressResponse"];
                 };
             };
             /** @description Validation Error */
