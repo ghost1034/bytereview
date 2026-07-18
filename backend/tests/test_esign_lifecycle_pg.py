@@ -371,6 +371,48 @@ class EsignLifecyclePgTests(unittest.TestCase):
                 )
             )
 
+    def test_delete_draft_envelope(self) -> None:
+        from models.db_models import EsignEnvelope, EsignEvent
+        from services.esign.envelope_service import EsignConflict
+
+        envelope = self._run(
+            self.envelope_service.create_envelope(
+                user_id=self.sender_uid,
+                user_email=self.sender_email,
+                title="PG draft delete test",
+                message=None,
+                signing_type="sequential",
+                files=[("doomed.pdf", _make_pdf(1))],
+                template_id=None,
+                expires_in_days=None,
+                reminder_interval_hours=None,
+                meta=self.meta,
+            )
+        )
+        self.__class__._created_envelope_ids.append(envelope.id)
+        prefix = f"esign/{self.sender_uid}/{envelope.id}/"
+        self.assertTrue(any(name.startswith(prefix) for name in self.storage.objects))
+
+        self._run(self.envelope_service.delete_envelope(self.sender_uid, envelope.id))
+
+        db = self.db_config.get_session()
+        try:
+            env_uuid = uuid.UUID(envelope.id)
+            self.assertIsNone(
+                db.query(EsignEnvelope).filter(EsignEnvelope.id == env_uuid).first()
+            )
+            self.assertEqual(
+                db.query(EsignEvent).filter(EsignEvent.envelope_id == env_uuid).count(), 0
+            )
+        finally:
+            db.close()
+        self.assertFalse(any(name.startswith(prefix) for name in self.storage.objects))
+
+        # Anything past draft keeps its audit trail and cannot be deleted.
+        sent_id = self._create_sent_envelope()
+        with self.assertRaises(EsignConflict):
+            self._run(self.envelope_service.delete_envelope(self.sender_uid, sent_id))
+
     def test_full_sequential_lifecycle_with_seal_and_verify(self) -> None:
         from services.esign.envelope_service import EsignConflict, EsignError
 

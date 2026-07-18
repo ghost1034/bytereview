@@ -3,8 +3,18 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { FileSignature, Inbox, Plus, Scale, ShieldCheck } from 'lucide-react'
+import { FileSignature, Inbox, Plus, Scale, ShieldCheck, Trash2 } from 'lucide-react'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { EnvelopeStatusBadge } from '@/components/ui/envelope-status-badge'
@@ -26,7 +36,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useEnvelopes, useEsignInbox } from '@/hooks/useEnvelopes'
+import { useToast } from '@/hooks/use-toast'
+import { useDeleteEnvelope, useEnvelopes, useEsignInbox } from '@/hooks/useEnvelopes'
 
 const PAGE_SIZE = 25
 
@@ -48,6 +59,9 @@ export default function EsignDashboardPage() {
   const listStatus = tab === 'drafts' ? 'draft' : statusFilter !== 'any' ? statusFilter : undefined
   const envelopesQuery = useEnvelopes(PAGE_SIZE, offset, listStatus)
   const inboxQuery = useEsignInbox()
+  const deleteEnvelope = useDeleteEnvelope()
+  const { toast } = useToast()
+  const [deleteTarget, setDeleteTarget] = React.useState<{ id: string; title: string } | null>(null)
 
   const inboxItems = inboxQuery.data?.items ?? []
   const pendingItems = inboxItems.filter((item) => item.envelope_status !== 'completed')
@@ -254,6 +268,7 @@ export default function EsignDashboardPage() {
                     <TableHead>Signers</TableHead>
                     <TableHead>Sent</TableHead>
                     <TableHead>Completed</TableHead>
+                    <TableHead className="w-12" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -278,6 +293,22 @@ export default function EsignDashboardPage() {
                       </TableCell>
                       <TableCell className="text-foreground-muted">{formatDate(envelope.sent_at)}</TableCell>
                       <TableCell className="text-foreground-muted">{formatDate(envelope.completed_at)}</TableCell>
+                      <TableCell className="text-right">
+                        {envelope.status === 'draft' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-foreground-muted hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setDeleteTarget({ id: envelope.id, title: envelope.title })
+                            }}
+                            aria-label={`Delete ${envelope.title}`}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -312,6 +343,46 @@ export default function EsignDashboardPage() {
           )}
         </div>
       )}
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete draft envelope?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{deleteTarget?.title}” and its uploaded documents will be permanently deleted. This
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteEnvelope.isPending}
+              onClick={async () => {
+                if (!deleteTarget) return
+                try {
+                  await deleteEnvelope.mutateAsync(deleteTarget.id)
+                  toast({ title: 'Draft deleted' })
+                } catch (error) {
+                  toast({
+                    title: 'Failed to delete draft',
+                    description: error instanceof Error ? error.message : undefined,
+                    variant: 'destructive',
+                  })
+                } finally {
+                  setDeleteTarget(null)
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

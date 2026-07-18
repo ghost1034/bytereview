@@ -239,6 +239,16 @@ async def get_envelope(envelope_id: str, token: dict = Depends(verify_firebase_t
         _raise_http(exc)
 
 
+@router.delete("/envelopes/{envelope_id}")
+async def delete_envelope(envelope_id: str, token: dict = Depends(verify_firebase_token)):
+    """Hard-delete a draft envelope. Sent envelopes must be voided instead."""
+    try:
+        await esign_envelope_service.delete_envelope(_uid(token), envelope_id)
+        return {"message": "Envelope deleted"}
+    except Exception as exc:
+        _raise_http(exc)
+
+
 @router.put("/envelopes/{envelope_id}", response_model=EsignEnvelopeResponse)
 async def update_envelope(
     envelope_id: str,

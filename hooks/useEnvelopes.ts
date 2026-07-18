@@ -113,6 +113,18 @@ export function useUpdateEnvelope(envelopeId: string) {
   })
 }
 
+export function useDeleteEnvelope() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (envelopeId: string) => apiClient.deleteEsignEnvelope(envelopeId),
+    onSuccess: (_data, envelopeId) => {
+      queryClient.invalidateQueries({ queryKey: ['esign', 'envelopes'] })
+      queryClient.removeQueries({ queryKey: ['esign', 'envelope', envelopeId] })
+      queryClient.removeQueries({ queryKey: ['esign', 'audit', envelopeId] })
+    },
+  })
+}
+
 export function useAddDocuments(envelopeId: string) {
   const invalidate = useInvalidateEnvelope()
   return useMutation({

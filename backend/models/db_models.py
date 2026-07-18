@@ -1205,9 +1205,11 @@ def _esign_enum(enum_cls, type_name: str):
 class EsignEnvelope(Base):
     """An e-signature envelope: one or more PDFs sent for signing.
 
-    Envelopes are never hard-deleted (void instead) — the append-only
-    esign_events audit trail references them with ondelete=RESTRICT, which is
-    the legally correct retention behavior for signed documents.
+    Once sent, envelopes are never hard-deleted (void instead) — the
+    append-only esign_events audit trail references them with
+    ondelete=RESTRICT, which is the legally correct retention behavior for
+    signed documents. Drafts are the one exception: nothing has been signed,
+    so they can be deleted outright (see migration 043).
     """
     __tablename__ = "esign_envelopes"
 
@@ -1395,9 +1397,9 @@ class EsignConsentRecord(Base):
 
 
 class EsignEvent(Base):
-    """Append-only audit trail. A Postgres trigger (migration 039) raises on
-    any UPDATE or DELETE; envelope FK is RESTRICT so envelopes with history
-    can never be hard-deleted."""
+    """Append-only audit trail. A Postgres trigger (migrations 039/043)
+    raises on any UPDATE, and on DELETE unless the envelope is still a draft;
+    the RESTRICT envelope FK means only drafts can ever be hard-deleted."""
     __tablename__ = "esign_events"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

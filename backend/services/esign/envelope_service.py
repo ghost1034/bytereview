@@ -528,6 +528,44 @@ class EsignEnvelopeService:
         finally:
             db.close()
 
+    async def delete_envelope(self, user_id: str, envelope_id: str) -> None:
+        """Hard-delete a draft envelope, including its uploaded files.
+
+        Only drafts can be deleted: the esign_events append-only trigger
+        (migration 043) permits deleting audit events only while the envelope
+        is still in draft status. Anything that has been sent keeps its audit
+        trail and must be voided instead.
+        """
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            if envelope.status != EsignEnvelopeStatus.DRAFT:
+                raise EsignConflict("Only draft envelopes can be deleted; void sent envelopes instead")
+
+            gcs_objects = [
+                name
+                for doc in envelope.documents or []
+                for name in (doc.gcs_object_name, doc.flattened_gcs_object_name)
+                if name
+            ]
+            # Events must go first: their FK is RESTRICT.
+            db.query(EsignEvent).filter(EsignEvent.envelope_id == envelope.id).delete()
+            db.delete(envelope)  # cascades documents, recipients, fields
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+        for object_name in gcs_objects:
+            try:
+                await self.storage.delete_file(object_name)
+            except Exception:
+                logger.warning(
+                    "Failed to delete GCS object %s for deleted draft envelope", object_name
+                )
+
     def update_envelope(
         self, user_id: str, envelope_id: str, payload: EsignEnvelopeUpdateRequest
     ) -> EsignEnvelopeResponse:
