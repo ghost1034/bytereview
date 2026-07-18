@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import fitz
 
-from services.esign.sealing_service import _display_rect, _fit_textbox
+from services.esign.sealing_service import _display_box, _display_rect, _fit_textbox
 
 
 def _page_with_rotation(rotation: int) -> fitz.Document:
@@ -69,9 +69,9 @@ class EsignCoordinateTests(unittest.TestCase):
                 doc = _page_with_rotation(rotation)
                 page = doc[0]
                 pw, ph = page.rect.width, page.rect.height
-                target = _display_rect(page, frac["pos_x"], frac["pos_y"], frac["width"], frac["height"])
+                box = _display_box(page, frac["pos_x"], frac["pos_y"], frac["width"], frac["height"])
                 _fit_textbox(
-                    page, target, "HELLO", fontname="helv", rotate=page.rotation, max_fontsize=16
+                    page, box, "HELLO", fontname="helv", rotate=page.rotation, max_fontsize=16
                 )
                 min_x, min_y, max_x, max_y = _ink_bbox(page)
                 self.assertGreater(max_x, 0, "no ink rendered")
@@ -86,6 +86,15 @@ class EsignCoordinateTests(unittest.TestCase):
                 self.assertLessEqual(max_y, ey1 + slack, f"rot {rotation}: ink below box")
                 # Text must read horizontally in display space (wider than tall)
                 self.assertGreater(max_x - min_x, max_y - min_y, f"rot {rotation}: text not horizontal")
+                # Text must be vertically centered in the box (previews center
+                # content, so the flatten must too).
+                ink_center_y = (min_y + max_y) / 2
+                box_center_y = (ey0 + ey1) / 2
+                self.assertLessEqual(
+                    abs(ink_center_y - box_center_y),
+                    0.15 * (ey1 - ey0),
+                    f"rot {rotation}: text not vertically centered",
+                )
 
     def test_image_lands_in_display_rect_for_all_rotations(self) -> None:
         pm = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 40, 20))

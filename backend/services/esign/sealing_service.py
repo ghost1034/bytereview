@@ -74,48 +74,82 @@ def _signature_font(typed_font: Optional[str]) -> tuple[str, Optional[str]]:
     return _FONT_SIGNATURE_FALLBACK, None
 
 
-def _display_rect(page: fitz.Page, pos_x: float, pos_y: float, width: float, height: float) -> fitz.Rect:
-    """Fraction coords (top-left origin, rotation-aware display space) -> the
-    unrotated rect PyMuPDF insert_* methods expect.
+def _display_box(page: fitz.Page, pos_x: float, pos_y: float, width: float, height: float) -> fitz.Rect:
+    """Fraction coords -> rect in rotation-aware display space (top-left origin)."""
+    pw, ph = page.rect.width, page.rect.height
+    return fitz.Rect(pos_x * pw, pos_y * ph, (pos_x + width) * pw, (pos_y + height) * ph)
+
+
+def _derotate(page: fitz.Page, rect: fitz.Rect) -> fitz.Rect:
+    """Display-space rect -> the unrotated rect PyMuPDF insert_* methods expect.
 
     Convention locked by test (see tests/test_esign_coordinates.py):
     page.rect is rotation-aware; insert_textbox/insert_image take unrotated
     coordinates plus rotate=page.rotation to keep content upright.
     """
-    pw, ph = page.rect.width, page.rect.height
-    rect = fitz.Rect(pos_x * pw, pos_y * ph, (pos_x + width) * pw, (pos_y + height) * ph)
     target = rect * page.derotation_matrix
     target.normalize()
     return target
 
 
+def _display_rect(page: fitz.Page, pos_x: float, pos_y: float, width: float, height: float) -> fitz.Rect:
+    return _derotate(page, _display_box(page, pos_x, pos_y, width, height))
+
+
 def _fit_textbox(
     page: fitz.Page,
-    rect: fitz.Rect,
+    box: fitz.Rect,
     text: str,
     *,
     fontname: str,
     rotate: int,
     max_fontsize: float,
     fontfile: Optional[str] = None,
+    align: int = fitz.TEXT_ALIGN_LEFT,
 ) -> None:
-    """Insert text shrinking the font until it fits the box."""
-    fontsize = max_fontsize
-    while fontsize >= 4:
-        leftover = page.insert_textbox(
-            rect,
-            text,
-            fontname=fontname,
-            fontfile=fontfile,
-            fontsize=fontsize,
-            rotate=rotate,
-            align=fitz.TEXT_ALIGN_LEFT,
-        )
-        if leftover >= 0:
-            return
-        fontsize -= 1
-    # Last resort: insert at minimum size even if it overflows slightly.
-    page.insert_textbox(rect, text, fontname=fontname, fontfile=fontfile, fontsize=4, rotate=rotate)
+    """Insert text sized to fit `box` (display space) and centered vertically.
+
+    The field editor and signer previews center content inside the field box,
+    so the flattened output must match; insert_textbox alone pins text to the
+    top of the rect, which made stamps land visibly above where they were
+    placed. Sizing is dry-run on a scratch page because insert_textbox's fit
+    logic doesn't match Font metrics; its leftover return value is the exact
+    unused box height, which is what centering needs.
+    """
+    target = _derotate(page, box)
+    with fitz.open() as scratch:
+        spage = scratch.new_page(width=page.mediabox.width, height=page.mediabox.height)
+        if rotate:
+            spage.set_rotation(rotate)
+        fontsize = max(max_fontsize, 4.0)
+        leftover = -1.0
+        while fontsize >= 4:
+            leftover = spage.insert_textbox(
+                target,
+                text,
+                fontname=fontname,
+                fontfile=fontfile,
+                fontsize=fontsize,
+                rotate=rotate,
+                align=align,
+            )
+            if leftover >= 0:
+                break
+            fontsize -= 1
+    if leftover < 0:
+        # Overflows even at minimum size; anchor to the full box and let it spill.
+        page.insert_textbox(target, text, fontname=fontname, fontfile=fontfile, fontsize=4, rotate=rotate, align=align)
+        return
+    centered = fitz.Rect(box.x0, box.y0 + leftover / 2.0, box.x1, box.y1)
+    page.insert_textbox(
+        _derotate(page, centered),
+        text,
+        fontname=fontname,
+        fontfile=fontfile,
+        fontsize=fontsize,
+        rotate=rotate,
+        align=align,
+    )
 
 
 def _initials_from_name(name: str) -> str:
@@ -130,10 +164,10 @@ def _stamp_field(
     signature_record: Optional[EsignSignatureRecord],
     image_bytes: Optional[bytes],
 ) -> None:
-    rect = _display_rect(page, float(field.pos_x), float(field.pos_y), float(field.width), float(field.height))
+    box = _display_box(page, float(field.pos_x), float(field.pos_y), float(field.width), float(field.height))
     rotate = page.rotation
     # Field height as seen by the user (display space, rotation-aware page.rect).
-    display_height = float(field.height) * page.rect.height
+    display_height = box.height
 
     if field.field_type in (EsignFieldType.SIGNATURE, EsignFieldType.INITIALS):
         if field.field_type == EsignFieldType.INITIALS:
@@ -141,19 +175,19 @@ def _stamp_field(
             fontname, fontfile = _signature_font(
                 signature_record.typed_font if signature_record is not None else None
             )
-            _fit_textbox(page, rect, text, fontname=fontname, fontfile=fontfile, rotate=rotate, max_fontsize=display_height * 0.8)
+            _fit_textbox(page, box, text, fontname=fontname, fontfile=fontfile, rotate=rotate, max_fontsize=display_height * 0.8, align=fitz.TEXT_ALIGN_CENTER)
         elif signature_record is not None and signature_record.signature_type == EsignSignatureType.DRAWN and image_bytes:
-            page.insert_image(rect, stream=image_bytes, rotate=rotate, keep_proportion=True)
+            page.insert_image(_derotate(page, box), stream=image_bytes, rotate=rotate, keep_proportion=True)
         elif signature_record is not None:
             text = signature_record.typed_text or (recipient.name if recipient else "")
             fontname, fontfile = _signature_font(signature_record.typed_font)
-            _fit_textbox(page, rect, text, fontname=fontname, fontfile=fontfile, rotate=rotate, max_fontsize=display_height * 0.7)
+            _fit_textbox(page, box, text, fontname=fontname, fontfile=fontfile, rotate=rotate, max_fontsize=display_height * 0.7, align=fitz.TEXT_ALIGN_CENTER)
     elif field.field_type == EsignFieldType.CHECKBOX:
         if (field.value or "").lower() == "true":
-            _fit_textbox(page, rect, "X", fontname=_FONT_TEXT, rotate=rotate, max_fontsize=display_height * 0.9)
+            _fit_textbox(page, box, "X", fontname=_FONT_TEXT, rotate=rotate, max_fontsize=display_height * 0.9, align=fitz.TEXT_ALIGN_CENTER)
     else:  # date_signed / text
         if field.value:
-            _fit_textbox(page, rect, str(field.value), fontname=_FONT_TEXT, rotate=rotate, max_fontsize=display_height * 0.7)
+            _fit_textbox(page, box, str(field.value), fontname=_FONT_TEXT, rotate=rotate, max_fontsize=display_height * 0.7)
 
 
 class EsignSealingService:
