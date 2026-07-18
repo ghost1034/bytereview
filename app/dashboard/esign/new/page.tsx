@@ -59,12 +59,12 @@ export default function NewEnvelopePage() {
         files: usingTemplate ? undefined : files,
       })
       const envelopeId = result.envelope.id
-      // Template envelopes already carry documents and fields, so the wizard
-      // starts at recipients; fresh envelopes start at documents.
+      // Documents are already attached (uploaded here or from the template),
+      // so the wizard starts at recipients rather than re-presenting upload.
       router.push(
         usingTemplate
           ? `/dashboard/esign/${envelopeId}/recipients?template=${templateId}`
-          : `/dashboard/esign/${envelopeId}/documents`,
+          : `/dashboard/esign/${envelopeId}/recipients`,
       )
     } catch (error) {
       toast({

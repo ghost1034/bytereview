@@ -20,13 +20,13 @@ From **E-Signature**, click **New envelope**. Complete the available settings:
 | **Expires in (days)** | How long the request remains active. The default is 30 days. |
 | **Remind every (hours)** | The interval after which CPAAutomation can send another reminder. The default is 72 hours. |
 
-Click **Create & add recipients** when the documents and settings are ready. Envelopes started from a template open at the **Recipients** step; envelopes with uploaded PDFs open at **Documents**.
+Click **Create & add recipients** when the documents and settings are ready. The wizard opens at the **Recipients** step — the PDFs you uploaded (or the template's documents) are already attached.
 
 > **Note:** The expiration date is set when you create the draft. If a draft sits unsent for several days, those days count toward the selected expiration period.
 
 ## Step 1: Documents
 
-The **Documents** step lists the PDFs attached to the draft. You can drop in additional PDFs or remove one you no longer need — removing a document also removes any fields already placed on it. An envelope always keeps at least one document.
+The **Documents** step lists the PDFs attached to the draft. You normally skip past it — the wizard opens at **Recipients** — but you can return to it with the step indicator or the **Back** button to drop in additional PDFs or remove one you no longer need. Removing a document also removes any fields already placed on it. An envelope always keeps at least one document.
 
 ### PDF requirements
 
