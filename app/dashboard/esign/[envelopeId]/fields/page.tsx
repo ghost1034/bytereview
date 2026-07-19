@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react'
 
 import {
   PdfFieldEditor,
+  coerceEditorProperties,
   type EditorField,
   type EditorFieldType,
 } from '@/components/esign/editor/PdfFieldEditor'
@@ -18,7 +19,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { useReplaceFields } from '@/hooks/useEnvelopes'
-import { apiClient } from '@/lib/api'
+import { apiClient, type EsignFieldInput } from '@/lib/api'
 
 export default function EnvelopeFieldsPage() {
   const params = useParams<{ envelopeId: string }>()
@@ -50,6 +51,7 @@ export default function EnvelopeFieldsPage() {
         height: f.height,
         required: f.required,
         label: f.label ?? undefined,
+        properties: coerceEditorProperties(f.properties),
       })),
     )
     setHydratedFor(envelope.id)
@@ -79,6 +81,7 @@ export default function EnvelopeFieldsPage() {
     try {
       await replaceFields.mutateAsync(
         editorFields.map((f) => ({
+          id: f.id,
           document_id: f.documentId,
           recipient_id: f.participantId,
           field_type: f.fieldType,
@@ -89,6 +92,7 @@ export default function EnvelopeFieldsPage() {
           height: f.height,
           required: f.required,
           label: f.label,
+          properties: f.properties as EsignFieldInput['properties'],
         })),
       )
       router.push(stepHref('review'))

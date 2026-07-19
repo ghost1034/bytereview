@@ -30,6 +30,7 @@ from models.db_models import (
     EsignRecipient,
     EsignRecipientRole,
     EsignSignatureRecord,
+    EsignSignerAttachment,
 )
 
 _MUTED = colors.HexColor("#4b5563")
@@ -92,6 +93,7 @@ def build_certificate_pdf(
     events: Iterable[EsignEvent],
     sender_email: str,
     flattened_hashes: dict[str, str],
+    attachments: Iterable[EsignSignerAttachment] = (),
 ) -> bytes:
     """Render the certificate of completion as PDF bytes."""
     styles = getSampleStyleSheet()
@@ -190,6 +192,35 @@ def build_certificate_pdf(
             small,
         )
     )
+
+    attachment_list = list(attachments)
+    if attachment_list:
+        story.append(Paragraph("Signer Attachments", h2))
+        attachment_rows = [[
+            _para("Filename", small),
+            _para("Uploader", small),
+            _para("Size", small),
+            _para("SHA-256", small),
+        ]]
+        recipients_by_id = {str(recipient.id): recipient for recipient in recipients}
+        for attachment in attachment_list:
+            uploader = recipients_by_id.get(str(attachment.recipient_id))
+            attachment_rows.append([
+                _para(attachment.original_filename, body),
+                _para(f"{uploader.name} <{uploader.email}>" if uploader else "—", body),
+                _para(f"{int(attachment.file_size_bytes):,} bytes", body),
+                _para(attachment.sha256, mono),
+            ])
+        attachment_table = Table(attachment_rows, colWidths=[1.7 * inch, 2.2 * inch, 0.9 * inch, 2.0 * inch])
+        attachment_table.setStyle(TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.5, _BORDER),
+            ("BACKGROUND", (0, 0), (-1, 0), _HEADER_BG),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        story.append(attachment_table)
 
     # ------------------------------------------------------------------
     # Signers

@@ -16,6 +16,7 @@ uploaded — a KMS/GCS failure raises and Cloud Tasks retries.
 from __future__ import annotations
 
 import io
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -40,11 +41,13 @@ from models.db_models import (
     EsignRecipientStatus,
     EsignSignatureRecord,
     EsignSignatureType,
+    EsignSignerAttachment,
 )
 from services.esign import audit_service
 from services.esign.certificate_service import build_certificate_pdf
 from services.esign.envelope_service import sha256_hex
 from services.esign.signing_service import acquire_envelope_lock
+from services.esign.field_logic import compute_formulas, resolve_visibility
 from services.gcs_service import get_storage_service
 
 logger = logging.getLogger(__name__)
@@ -169,6 +172,7 @@ def _stamp_field(
     recipient: Optional[EsignRecipient],
     signature_record: Optional[EsignSignatureRecord],
     image_bytes: Optional[bytes],
+    attachment: Optional[EsignSignerAttachment] = None,
 ) -> None:
     box = _display_box(page, float(field.pos_x), float(field.pos_y), float(field.width), float(field.height))
     rotate = page.rotation
@@ -200,6 +204,22 @@ def _stamp_field(
     elif field.field_type == EsignFieldType.CHECKBOX:
         if (field.value or "").lower() == "true":
             _fit_textbox(page, box, "X", fontname=_FONT_TEXT, rotate=rotate, max_fontsize=display_height * 0.9, align=fitz.TEXT_ALIGN_CENTER)
+    elif field.field_type == EsignFieldType.RADIO:
+        if (field.value or "").lower() == "true":
+            target = _derotate(page, box)
+            radius = min(target.width, target.height) * 0.35
+            center = fitz.Point((target.x0 + target.x1) / 2, (target.y0 + target.y1) / 2)
+            page.draw_circle(center, radius, color=(0, 0, 0), fill=(0, 0, 0), overlay=True)
+    elif field.field_type == EsignFieldType.ATTACHMENT:
+        if attachment is not None:
+            _fit_textbox(
+                page,
+                box,
+                f"Attachment: {attachment.original_filename}",
+                fontname=_FONT_TEXT,
+                rotate=rotate,
+                max_fontsize=display_height * 0.55,
+            )
     else:  # date_signed / text
         if field.value:
             _fit_textbox(page, box, str(field.value), fontname=_FONT_TEXT, rotate=rotate, max_fontsize=display_height * 0.7)
@@ -218,6 +238,7 @@ class EsignSealingService:
         fields: list[EsignField],
         recipients_by_id: dict[str, EsignRecipient],
         signature_records_by_id: dict[str, EsignSignatureRecord],
+        attachments_by_id: Optional[dict[str, EsignSignerAttachment]] = None,
     ) -> bytes:
         """Download the original PDF and stamp all field values in one pass."""
         import asyncio
@@ -259,7 +280,8 @@ class EsignSealingService:
                                 self._download_bytes, object_name
                             )
                         image_bytes = image_cache[object_name]
-                _stamp_field(page, field, recipient, signature_record, image_bytes)
+                attachment = (attachments_by_id or {}).get(str(field.value)) if field.value else None
+                _stamp_field(page, field, recipient, signature_record, image_bytes, attachment)
             return pdf.tobytes(deflate=True, garbage=3)
 
     def _download_bytes(self, object_name: str) -> bytes:
@@ -336,6 +358,13 @@ class EsignSealingService:
                 .filter(EsignConsentRecord.envelope_id == envelope.id)
                 .all()
             )
+            attachments = (
+                db.query(EsignSignerAttachment)
+                .filter(EsignSignerAttachment.envelope_id == envelope.id)
+                .order_by(EsignSignerAttachment.uploaded_at.asc())
+                .all()
+            )
+            attachments_by_id = {str(item.id): item for item in attachments}
             events = (
                 db.query(EsignEvent)
                 .filter(EsignEvent.envelope_id == envelope.id)
@@ -345,14 +374,22 @@ class EsignSealingService:
             sender_email = envelope.user.email if envelope.user else ""
 
             documents = sorted(envelope.documents, key=lambda d: d.display_order)
-            fields = list(envelope.fields or [])
+            all_fields = list(envelope.fields or [])
+            field_values = {str(field.id): field.value for field in all_fields}
+            for field_id, result in compute_formulas(all_fields, field_values).items():
+                field = next((item for item in all_fields if str(item.id) == field_id), None)
+                if field is not None:
+                    field.value = result or None
+                    field_values[field_id] = field.value
+            visible = resolve_visibility(all_fields, field_values)
+            fields = [field for field in all_fields if visible.get(str(field.id), True)]
 
             # 1) Flatten each document and record flattened hashes.
             flattened: list[tuple[EsignDocument, bytes]] = []
             flattened_hashes: dict[str, str] = {}
             for document in documents:
                 flat_bytes = await self._flatten_document(
-                    document, fields, recipients_by_id, signature_records_by_id
+                    document, fields, recipients_by_id, signature_records_by_id, attachments_by_id
                 )
                 digest = sha256_hex(flat_bytes)
                 object_name = f"esign/{envelope.user_id}/{envelope.id}/flattened/{document.id}.pdf"
@@ -372,6 +409,7 @@ class EsignSealingService:
                 events=events,
                 sender_email=sender_email,
                 flattened_hashes=flattened_hashes,
+                attachments=attachments,
             )
             certificate_object = f"esign/{envelope.user_id}/{envelope.id}/certificate.pdf"
             await self.storage.upload_file_content(certificate_bytes, certificate_object)
@@ -381,14 +419,27 @@ class EsignSealingService:
             for _document, flat_bytes in flattened:
                 with fitz.open(stream=flat_bytes, filetype="pdf") as part:
                     combined.insert_pdf(part)
+            for attachment in attachments:
+                attachment_bytes = await asyncio.to_thread(
+                    self._download_bytes, attachment.gcs_object_name
+                )
+                if attachment.content_type == "application/pdf":
+                    with fitz.open(stream=attachment_bytes, filetype="pdf") as attachment_pdf:
+                        combined.insert_pdf(attachment_pdf)
+                else:
+                    page = combined.new_page(width=612, height=792)
+                    margin = 36
+                    page.insert_image(
+                        fitz.Rect(margin, margin, 612 - margin, 792 - margin),
+                        stream=attachment_bytes,
+                        keep_proportion=True,
+                    )
             with fitz.open(stream=certificate_bytes, filetype="pdf") as cert_pdf:
                 combined.insert_pdf(cert_pdf)
             combined_bytes = combined.tobytes(deflate=True, garbage=3)
             combined.close()
 
             # 4) PAdES seal — the final byte-altering operation.
-            import asyncio
-
             sealed_bytes, seal_evidence = await asyncio.to_thread(
                 self._seal_pdf, combined_bytes, envelope
             )

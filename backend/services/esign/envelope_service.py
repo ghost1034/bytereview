@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import asyncio
 import logging
 import os
 import uuid
@@ -48,9 +49,12 @@ from models.esign import (
     EsignTemplateFieldResponse,
     EsignTemplateResponse,
     EsignTemplateRoleInput,
+    EsignAnchorMatch,
+    EsignAnchorSearchResponse,
 )
 from services.esign import audit_service
 from services.esign.audit_service import EsignRequestMeta
+from services.esign.field_logic import FieldLogicError, remap_property_references, validate_field_graph
 from services.gcs_service import get_storage_service
 
 logger = logging.getLogger(__name__)
@@ -153,6 +157,7 @@ class EsignEnvelopeService:
             label=field.label,
             value=field.value,
             draft_value=field.draft_value,
+            properties=dict(getattr(field, "properties", None) or {}),
         )
 
     def _serialize_recipient(self, recipient: EsignRecipient) -> EsignRecipientResponse:
@@ -415,6 +420,8 @@ class EsignEnvelopeService:
         docs_by_order = {d.display_order: d for d in (envelope.documents or [])}
         tdocs_by_id = {str(td.id): td for td in (template.documents or [])}
 
+        id_map = {str(tfield.id): str(uuid.uuid4()) for tfield in (template.fields or [])}
+        pending: list[EsignField] = []
         for tfield in template.fields or []:
             if tfield.recipient_index >= len(recipients):
                 raise EsignError(
@@ -426,9 +433,9 @@ class EsignEnvelopeService:
             doc = docs_by_order.get(tdoc.display_order)
             if not doc:
                 continue
-            db.add(
+            pending.append(
                 EsignField(
-                    id=uuid.uuid4(),
+                    id=uuid.UUID(id_map[str(tfield.id)]),
                     envelope_id=envelope.id,
                     document_id=doc.id,
                     recipient_id=recipients[tfield.recipient_index].id,
@@ -440,8 +447,14 @@ class EsignEnvelopeService:
                     height=tfield.height,
                     required=tfield.required,
                     label=tfield.label,
+                    properties=remap_property_references(tfield.properties, id_map),
                 )
             )
+        try:
+            validate_field_graph(pending)
+        except FieldLogicError as exc:
+            raise EsignError(str(exc))
+        db.add_all(pending)
         db.flush()
 
     async def add_documents(
@@ -659,10 +672,8 @@ class EsignEnvelopeService:
 
             doc_ids = {str(d.id): d for d in envelope.documents or []}
             recipient_ids = {str(r.id): r for r in envelope.recipients or []}
-
-            db.query(EsignField).filter(EsignField.envelope_id == envelope.id).delete()
-            db.flush()
-
+            seen_ids: set[uuid.UUID] = set()
+            pending: list[EsignField] = []
             for f in fields:
                 doc = doc_ids.get(str(f.document_id))
                 if not doc:
@@ -680,9 +691,19 @@ class EsignEnvelopeService:
                     )
                 if f.pos_x + f.width > 1.0001 or f.pos_y + f.height > 1.0001:
                     raise EsignError("Field extends beyond the page bounds")
-                db.add(
+                try:
+                    field_id = uuid.UUID(str(f.id)) if f.id else uuid.uuid4()
+                except ValueError:
+                    raise EsignError(f"Invalid field id: {f.id}")
+                if field_id in seen_ids:
+                    raise EsignError(f"Duplicate field id: {field_id}")
+                seen_ids.add(field_id)
+                owner = db.query(EsignField.envelope_id).filter(EsignField.id == field_id).first()
+                if owner and str(owner[0]) != str(envelope.id):
+                    raise EsignError(f"Field id {field_id} belongs to another envelope")
+                pending.append(
                     EsignField(
-                        id=uuid.uuid4(),
+                        id=field_id,
                         envelope_id=envelope.id,
                         document_id=doc.id,
                         recipient_id=recipient.id,
@@ -694,8 +715,16 @@ class EsignEnvelopeService:
                         height=f.height,
                         required=f.required,
                         label=f.label,
+                        properties=f.properties.model_dump(exclude_none=True),
                     )
                 )
+            try:
+                validate_field_graph(pending)
+            except FieldLogicError as exc:
+                raise EsignError(str(exc))
+            db.query(EsignField).filter(EsignField.envelope_id == envelope.id).delete()
+            db.flush()
+            db.add_all(pending)
             db.commit()
             db.expire(envelope, ["fields"])
             db.refresh(envelope)
@@ -893,6 +922,7 @@ class EsignEnvelopeService:
                     height=float(f.height),
                     required=bool(f.required),
                     label=f.label,
+                    properties=dict(f.properties or {}),
                 )
                 for f in (template.fields or [])
             ],
@@ -993,8 +1023,8 @@ class EsignEnvelopeService:
             if fields is not None:
                 doc_ids = {str(d.id) for d in template.documents or []}
                 role_count = len(template.recipient_roles or [])
-                db.query(EsignTemplateField).filter(EsignTemplateField.template_id == template.id).delete()
-                db.flush()
+                pending: list[EsignTemplateField] = []
+                seen_ids: set[uuid.UUID] = set()
                 for f in fields:
                     if str(f.template_document_id) not in doc_ids:
                         raise EsignError(f"Unknown template document: {f.template_document_id}")
@@ -1002,9 +1032,19 @@ class EsignEnvelopeService:
                         raise EsignError("Field recipient_index exceeds recipient roles")
                     if f.field_type not in {t.value for t in EsignFieldType}:
                         raise EsignError(f"Invalid field type: {f.field_type}")
-                    db.add(
+                    try:
+                        field_id = uuid.UUID(str(f.id)) if f.id else uuid.uuid4()
+                    except ValueError:
+                        raise EsignError(f"Invalid field id: {f.id}")
+                    if field_id in seen_ids:
+                        raise EsignError(f"Duplicate field id: {field_id}")
+                    seen_ids.add(field_id)
+                    owner = db.query(EsignTemplateField.template_id).filter(EsignTemplateField.id == field_id).first()
+                    if owner and str(owner[0]) != str(template.id):
+                        raise EsignError(f"Field id {field_id} belongs to another template")
+                    pending.append(
                         EsignTemplateField(
-                            id=uuid.uuid4(),
+                            id=field_id,
                             template_id=template.id,
                             template_document_id=uuid.UUID(str(f.template_document_id)),
                             recipient_index=f.recipient_index,
@@ -1016,8 +1056,16 @@ class EsignEnvelopeService:
                             height=f.height,
                             required=f.required,
                             label=f.label,
+                            properties=f.properties.model_dump(exclude_none=True),
                         )
                     )
+                try:
+                    validate_field_graph(pending)
+                except FieldLogicError as exc:
+                    raise EsignError(str(exc))
+                db.query(EsignTemplateField).filter(EsignTemplateField.template_id == template.id).delete()
+                db.flush()
+                db.add_all(pending)
             db.commit()
             db.expire(template, ["fields"])
             db.refresh(template)
@@ -1068,6 +1116,86 @@ class EsignEnvelopeService:
                 filename=document.original_filename,
                 sha256=document.sha256,
                 expires_in_minutes=DOWNLOAD_URL_MINUTES,
+            )
+        finally:
+            db.close()
+
+    async def _search_anchors(
+        self,
+        documents: list[Any],
+        *,
+        anchor: str,
+        case_sensitive: bool,
+        document_ids: Optional[list[str]],
+    ) -> EsignAnchorSearchResponse:
+        selected = set(document_ids or [])
+        matches: list[EsignAnchorMatch] = []
+        for document in documents:
+            if selected and str(document.id) not in selected:
+                continue
+            content = await asyncio.to_thread(
+                self.storage.bucket.blob(document.gcs_object_name).download_as_bytes
+            )
+            with fitz.open(stream=content, filetype="pdf") as pdf:
+                for page_number, page in enumerate(pdf):
+                    for raw_rect in page.search_for(anchor):
+                        if case_sensitive and page.get_textbox(raw_rect).strip() != anchor:
+                            continue
+                        rect = raw_rect * page.rotation_matrix
+                        rect.normalize()
+                        matches.append(
+                            EsignAnchorMatch(
+                                document_id=str(document.id),
+                                page_number=page_number,
+                                x=max(0.0, min(1.0, rect.x0 / page.rect.width)),
+                                y=max(0.0, min(1.0, rect.y0 / page.rect.height)),
+                                width=max(0.0, min(1.0, rect.width / page.rect.width)),
+                                height=max(0.0, min(1.0, rect.height / page.rect.height)),
+                            )
+                        )
+                        if len(matches) >= 500:
+                            return EsignAnchorSearchResponse(matches=matches)
+        return EsignAnchorSearchResponse(matches=matches)
+
+    async def search_envelope_anchors(
+        self,
+        user_id: str,
+        envelope_id: str,
+        *,
+        anchor: str,
+        case_sensitive: bool = False,
+        document_ids: Optional[list[str]] = None,
+    ) -> EsignAnchorSearchResponse:
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            self._require_draft(envelope)
+            return await self._search_anchors(
+                list(envelope.documents or []),
+                anchor=anchor,
+                case_sensitive=case_sensitive,
+                document_ids=document_ids,
+            )
+        finally:
+            db.close()
+
+    async def search_template_anchors(
+        self,
+        user_id: str,
+        template_id: str,
+        *,
+        anchor: str,
+        case_sensitive: bool = False,
+        document_ids: Optional[list[str]] = None,
+    ) -> EsignAnchorSearchResponse:
+        db = self._get_session()
+        try:
+            template = self._load_template(db, user_id, template_id)
+            return await self._search_anchors(
+                list(template.documents or []),
+                anchor=anchor,
+                case_sensitive=case_sensitive,
+                document_ids=document_ids,
             )
         finally:
             db.close()
@@ -1142,14 +1270,16 @@ class EsignEnvelopeService:
                 tdoc_by_envelope_doc[str(doc.id)] = tdoc
             db.flush()
 
+            id_map = {str(field.id): str(uuid.uuid4()) for field in (envelope.fields or [])}
+            pending_fields: list[EsignTemplateField] = []
             for field in envelope.fields or []:
                 idx = recipient_index_by_id.get(str(field.recipient_id))
                 tdoc = tdoc_by_envelope_doc.get(str(field.document_id))
                 if idx is None or tdoc is None:
                     continue
-                db.add(
+                pending_fields.append(
                     EsignTemplateField(
-                        id=uuid.uuid4(),
+                        id=uuid.UUID(id_map[str(field.id)]),
                         template_id=template.id,
                         template_document_id=tdoc.id,
                         recipient_index=idx,
@@ -1161,8 +1291,14 @@ class EsignEnvelopeService:
                         height=field.height,
                         required=field.required,
                         label=field.label,
+                        properties=remap_property_references(field.properties, id_map),
                     )
                 )
+            try:
+                validate_field_graph(pending_fields)
+            except FieldLogicError as exc:
+                raise EsignError(str(exc))
+            db.add_all(pending_fields)
             db.commit()
             db.refresh(template)
             return self._serialize_template(template)

@@ -9,7 +9,9 @@ import {
   Download,
   FileBadge,
   Loader2,
+  Paperclip,
   PenLine,
+  Trash2,
   ShieldAlert,
   ShieldCheck,
 } from 'lucide-react'
@@ -36,6 +38,8 @@ import {
   useSubmitSignature,
 } from '@/hooks/useEnvelopes'
 import { ApiError, apiClient, type EsignFieldResponse } from '@/lib/api'
+import type { EsignSignerAttachmentResponse } from '@/lib/api'
+import { computeFormulas, incompleteFields as findIncompleteFields, isFieldRequired, resolveVisibility } from '@/lib/esign/fieldLogic'
 
 type CeremonyState = 'signing' | 'submitted' | 'declined'
 
@@ -48,6 +52,9 @@ function SignedDocViewer({
   activeFieldId,
   onFieldClick,
   onTextChange,
+  attachments,
+  onAttachmentUpload,
+  onAttachmentDelete,
 }: {
   url: string
   name: string
@@ -57,6 +64,9 @@ function SignedDocViewer({
   activeFieldId: string | null
   onFieldClick: (field: EsignFieldResponse) => void
   onTextChange: (fieldId: string, value: string) => void
+  attachments: EsignSignerAttachmentResponse[]
+  onAttachmentUpload: (fieldId: string, file: File) => void
+  onAttachmentDelete: (attachmentId: string) => void
 }) {
   const [pdf, setPdf] = React.useState<PdfDocument | null>(null)
   const [error, setError] = React.useState<string | null>(null)
@@ -144,7 +154,7 @@ function SignedDocViewer({
                               />
                             ) : (
                               <span
-                                className="truncate px-1 text-lg leading-none text-gray-900"
+                                className="truncate px-1 text-lg leading-none text-foreground"
                                 style={{ fontFamily: signatureFontFamily(adopted?.typedFont) }}
                               >
                                 {isInitials ? adopted?.initialsText : adopted?.typedText}
@@ -170,7 +180,7 @@ function SignedDocViewer({
                           className={cn(
                             'absolute flex items-center overflow-hidden rounded-sm border px-1 text-xs',
                             stamped
-                              ? 'border-success bg-white text-gray-900'
+                              ? 'border-success bg-surface text-foreground'
                               : 'border-border bg-surface-muted text-foreground-muted',
                           )}
                           style={style}
@@ -194,7 +204,7 @@ function SignedDocViewer({
                           onClick={() => onTextChange(field.id, checked ? 'false' : 'true')}
                           className={cn(
                             'absolute flex items-center justify-center rounded-sm border text-sm font-bold',
-                            checked ? 'border-success bg-white text-gray-900' : 'border-2',
+                            checked ? 'border-success bg-surface text-foreground' : 'border-2',
                             activeRing,
                           )}
                           style={{
@@ -208,6 +218,41 @@ function SignedDocViewer({
                         </button>
                       )
                     }
+                    if (field.field_type === 'radio') {
+                      const selected = fieldValues[field.id] === 'true'
+                      return (
+                        <button key={field.id} id={`esign-field-${field.id}`} type="button"
+                          aria-pressed={selected} aria-label={field.properties?.option_value || field.label || 'Radio option'}
+                          onClick={() => {
+                            const group = field.properties?.group?.id
+                            fields.filter((item) => item.field_type === 'radio' && item.properties?.group?.id === group)
+                              .forEach((item) => onTextChange(item.id, item.id === field.id ? 'true' : 'false'))
+                          }}
+                          className={cn('absolute flex items-center justify-center rounded-full border-2', activeRing)}
+                          style={{ ...style, borderColor: color.border, backgroundColor: 'white' }}>
+                          {selected && <span className="size-2/3 rounded-full" style={{ backgroundColor: color.border }} />}
+                        </button>
+                      )
+                    }
+                    if (field.field_type === 'dropdown') {
+                      return <select key={field.id} id={`esign-field-${field.id}`} value={fieldValues[field.id] ?? ''}
+                        onChange={(event) => onTextChange(field.id, event.target.value)} className={cn('absolute rounded-sm border-2 bg-surface px-1 text-xs text-foreground', activeRing)} style={{ ...style, borderColor: color.border }}>
+                        <option value="">Select…</option>{(field.properties?.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </select>
+                    }
+                    if (field.field_type === 'attachment') {
+                      const attachment = attachments.find((item) => item.field_id === field.id)
+                      return <div key={field.id} id={`esign-field-${field.id}`} className={cn('absolute flex items-center gap-1 overflow-hidden rounded-sm border-2 bg-surface px-1 text-[10px] text-foreground', activeRing)} style={{ ...style, borderColor: color.border }}>
+                        {attachment ? <><Paperclip className="size-3 shrink-0" /><span className="truncate">{attachment.original_filename}</span><button type="button" className="ml-auto" onClick={() => onAttachmentDelete(attachment.id)} aria-label="Remove attachment"><Trash2 className="size-3" /></button></>
+                          : <label className="flex h-full w-full cursor-pointer items-center justify-center gap-1"><Paperclip className="size-3" /> Attach file<input type="file" className="hidden" accept="application/pdf,image/png,image/jpeg" onChange={(event) => { const file = event.target.files?.[0]; if (file) onAttachmentUpload(field.id, file) }} /></label>}
+                      </div>
+                    }
+                    if (field.field_type === 'formula') {
+                      return <div key={field.id} id={`esign-field-${field.id}`} className="absolute flex items-center overflow-hidden rounded-sm border bg-surface px-1 text-xs text-foreground" style={style}>{fieldValues[field.id] ?? ''}</div>
+                    }
+                    if (field.field_type === 'auto_fill' && field.properties?.auto_source !== 'company') {
+                      return <div key={field.id} id={`esign-field-${field.id}`} className="absolute flex items-center overflow-hidden rounded-sm border bg-surface-muted px-1 text-xs text-foreground" style={style}>{fieldValues[field.id] ?? ''}</div>
+                    }
                     // text field
                     return (
                       <input
@@ -218,7 +263,7 @@ function SignedDocViewer({
                         onChange={(e) => onTextChange(field.id, e.target.value)}
                         placeholder={field.label || 'Text'}
                         className={cn(
-                          'absolute rounded-sm border-2 bg-white px-1 text-xs text-gray-900 focus:outline-none',
+                          'absolute rounded-sm border-2 bg-surface px-1 text-xs text-foreground focus:outline-none',
                           activeRing,
                         )}
                         style={{ ...style, borderColor: color.border }}
@@ -252,6 +297,7 @@ export default function SigningCeremonyPage() {
   const [adoptionOpen, setAdoptionOpen] = React.useState(false)
   const [declineOpen, setDeclineOpen] = React.useState(false)
   const [fieldValues, setFieldValues] = React.useState<Record<string, string>>({})
+  const [attachments, setAttachments] = React.useState<EsignSignerAttachmentResponse[]>([])
   const [downloading, setDownloading] = React.useState<'sealed' | 'certificate' | null>(null)
   const [guideStarted, setGuideStarted] = React.useState(false)
   const [activeFieldId, setActiveFieldId] = React.useState<string | null>(null)
@@ -267,6 +313,22 @@ export default function SigningCeremonyPage() {
     if (Object.keys(drafts).length) {
       setFieldValues((prev) => ({ ...drafts, ...prev }))
     }
+  }, [session])
+
+  React.useEffect(() => {
+    if (!session) return
+    setAttachments(session.attachments ?? [])
+    const automatic: Record<string, string> = {}
+    for (const attachment of session.attachments ?? []) automatic[attachment.field_id] = attachment.id
+    for (const field of session.fields ?? []) {
+      if (field.field_type !== 'auto_fill') continue
+      const source = field.properties?.auto_source
+      if (source === 'recipient_name') automatic[field.id] = session.recipient_name
+      else if (source === 'recipient_email') automatic[field.id] = session.recipient_email
+      else if (source === 'company') automatic[field.id] = session.recipient_company ?? ''
+      else if (source === 'date_sent' && session.sent_at) automatic[field.id] = formatDateSigned(new Date(session.sent_at))
+    }
+    setFieldValues((previous) => ({ ...automatic, ...previous }))
   }, [session])
 
   // ---- error / terminal states -------------------------------------------
@@ -423,6 +485,9 @@ export default function SigningCeremonyPage() {
                 activeFieldId={null}
                 onFieldClick={() => {}}
                 onTextChange={() => {}}
+                attachments={[]}
+                onAttachmentUpload={() => {}}
+                onAttachmentDelete={() => {}}
               />
             </div>
           ))}
@@ -435,42 +500,35 @@ export default function SigningCeremonyPage() {
   // Reading order (document, page, top-to-bottom, left-to-right) so guided
   // navigation walks the envelope the way a person reads it.
   const documentOrder = new Map((session.documents ?? []).map((d, i) => [d.id, i]))
-  const myFields = [...(session.fields ?? [])].sort(
+  const contextValues = Object.fromEntries((session.context_fields ?? []).map((field) => [field.id, field.value ?? '']))
+  const logicFields = [...(session.fields ?? []), ...(session.context_fields ?? [])]
+  const baseValues = { ...contextValues, ...fieldValues }
+  const displayValues = { ...baseValues, ...computeFormulas(logicFields, baseValues) }
+  const visibility = resolveVisibility(logicFields, displayValues)
+  const myFields = [...(session.fields ?? [])].filter((field) => visibility[field.id]).sort(
     (a, b) =>
       (documentOrder.get(a.document_id) ?? 0) - (documentOrder.get(b.document_id) ?? 0) ||
       a.page_number - b.page_number ||
       a.pos_y - b.pos_y ||
       a.pos_x - b.pos_x,
   )
-  const signatureFields = myFields.filter(
-    (f) => f.field_type === 'signature' || f.field_type === 'initials',
-  )
-  const requiredTextFields = myFields.filter((f) => f.field_type === 'text' && f.required)
-  const requiredCheckboxes = myFields.filter((f) => f.field_type === 'checkbox' && f.required)
-
-  const completedCount =
-    (adopted ? signatureFields.length : 0) +
-    myFields.filter((f) => f.field_type === 'date_signed').length +
-    requiredTextFields.filter((f) => (fieldValues[f.id] ?? '').trim()).length +
-    requiredCheckboxes.filter((f) => fieldValues[f.id] === 'true').length
-
-  const totalRequired =
-    signatureFields.length +
-    myFields.filter((f) => f.field_type === 'date_signed').length +
-    requiredTextFields.length +
-    requiredCheckboxes.length
-
-  const canFinish =
-    !!adopted &&
-    requiredTextFields.every((f) => (fieldValues[f.id] ?? '').trim()) &&
-    requiredCheckboxes.every((f) => fieldValues[f.id] === 'true')
-
-  const incompleteFields = myFields.filter((f) => {
-    if (f.field_type === 'signature' || f.field_type === 'initials') return !adopted
-    if (f.field_type === 'text') return f.required && !(fieldValues[f.id] ?? '').trim()
-    if (f.field_type === 'checkbox') return f.required && fieldValues[f.id] !== 'true'
-    return false
-  })
+  const incompleteFields = findIncompleteFields(logicFields, displayValues, !!adopted)
+    .filter((field) => myFields.some((candidate) => candidate.id === field.id)) as EsignFieldResponse[]
+  const countedRadioGroups = new Set<string>()
+  const totalRequired = myFields.filter((field) => {
+    if (['signature', 'initials', 'date_signed'].includes(field.field_type)) return true
+    if (field.field_type === 'formula') return false
+    if (field.field_type === 'radio') {
+      const group = field.properties?.group?.id ?? field.id
+      if (countedRadioGroups.has(group)) return false
+      countedRadioGroups.add(group)
+      return myFields.filter((member) => member.field_type === 'radio' && member.properties?.group?.id === group)
+        .some((member) => isFieldRequired(member, logicFields, displayValues, visibility))
+    }
+    return isFieldRequired(field, logicFields, displayValues, visibility)
+  }).length
+  const completedCount = Math.max(0, totalRequired - incompleteFields.length)
+  const canFinish = !!adopted && incompleteFields.length === 0
 
   const goToNextField = () => {
     setGuideStarted(true)
@@ -479,13 +537,34 @@ export default function SigningCeremonyPage() {
     setActiveFieldId(next.id)
     const el = document.getElementById(`esign-field-${next.id}`)
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    if (next.field_type === 'text') {
+    if (next.field_type === 'text' || next.field_type === 'dropdown' || next.field_type === 'auto_fill') {
       ;(el as HTMLInputElement | null)?.focus({ preventScroll: true })
     }
   }
 
   const handleFieldClick = () => {
     setAdoptionOpen(true)
+  }
+
+  const handleAttachmentUpload = async (fieldId: string, file: File) => {
+    try {
+      const uploaded = await apiClient.uploadEsignSignerAttachment(session.envelope_id, fieldId, file)
+      setAttachments((previous) => [...previous.filter((item) => item.field_id !== fieldId), uploaded])
+      setFieldValues((previous) => ({ ...previous, [fieldId]: uploaded.id }))
+    } catch (error) {
+      toast({ title: 'Attachment upload failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' })
+    }
+  }
+
+  const handleAttachmentDelete = async (attachmentId: string) => {
+    try {
+      const item = attachments.find((attachment) => attachment.id === attachmentId)
+      await apiClient.deleteEsignSignerAttachment(session.envelope_id, attachmentId)
+      setAttachments((previous) => previous.filter((attachment) => attachment.id !== attachmentId))
+      if (item) setFieldValues((previous) => ({ ...previous, [item.field_id]: '' }))
+    } catch (error) {
+      toast({ title: 'Could not remove attachment', description: error instanceof Error ? error.message : undefined, variant: 'destructive' })
+    }
   }
 
   const handleFinish = async () => {
@@ -639,13 +718,16 @@ export default function SigningCeremonyPage() {
               url={doc.download_url}
               name={doc.original_filename}
               fields={myFields.filter((f) => f.document_id === doc.id)}
-              fieldValues={fieldValues}
+              fieldValues={displayValues}
               adopted={adopted}
               activeFieldId={activeFieldId}
               onFieldClick={handleFieldClick}
               onTextChange={(fieldId, value) =>
                 setFieldValues((prev) => ({ ...prev, [fieldId]: value }))
               }
+              attachments={attachments}
+              onAttachmentUpload={handleAttachmentUpload}
+              onAttachmentDelete={handleAttachmentDelete}
             />
           </div>
         ))}

@@ -17,6 +17,8 @@ from pydantic import BaseModel, ValidationError
 from dependencies.auth import verify_firebase_token
 from models.esign import (
     EsignAuditTrailResponse,
+    EsignAnchorSearchRequest,
+    EsignAnchorSearchResponse,
     EsignConsentResponse,
     EsignDeclineRequest,
     EsignDownloadResponse,
@@ -30,6 +32,7 @@ from models.esign import (
     EsignProgressResponse,
     EsignRecipientsReplaceRequest,
     EsignSigningSessionResponse,
+    EsignSignerAttachmentResponse,
     EsignSubmitRequest,
     EsignSubmitResponse,
     EsignTemplateListResponse,
@@ -133,6 +136,20 @@ async def list_templates(token: dict = Depends(verify_firebase_token)):
 async def get_template(template_id: str, token: dict = Depends(verify_firebase_token)):
     try:
         return esign_envelope_service.get_template(_uid(token), template_id)
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.post("/templates/{template_id}/anchor-search", response_model=EsignAnchorSearchResponse)
+async def search_template_anchors(
+    template_id: str,
+    payload: EsignAnchorSearchRequest,
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return await esign_envelope_service.search_template_anchors(
+            _uid(token), template_id, **payload.model_dump()
+        )
     except Exception as exc:
         _raise_http(exc)
 
@@ -320,6 +337,20 @@ async def replace_fields(
         _raise_http(exc)
 
 
+@router.post("/envelopes/{envelope_id}/anchor-search", response_model=EsignAnchorSearchResponse)
+async def search_envelope_anchors(
+    envelope_id: str,
+    payload: EsignAnchorSearchRequest,
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return await esign_envelope_service.search_envelope_anchors(
+            _uid(token), envelope_id, **payload.model_dump()
+        )
+    except Exception as exc:
+        _raise_http(exc)
+
+
 @router.post("/envelopes/{envelope_id}/send", response_model=EsignEnvelopeResponse)
 async def send_envelope(
     envelope_id: str,
@@ -497,6 +528,45 @@ async def save_signing_progress(
             field_values=payload.field_values,
         )
         return EsignProgressResponse(saved_count=saved)
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.post("/sign/{envelope_id}/attachments", response_model=EsignSignerAttachmentResponse)
+async def upload_signer_attachment(
+    envelope_id: str,
+    field_id: str = Form(...),
+    file: UploadFile = File(...),
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return await esign_signing_service.upload_attachment(
+            user_id=_uid(token),
+            user_email=_email(token),
+            envelope_id=envelope_id,
+            field_id=field_id,
+            filename=file.filename or "attachment",
+            content_type=file.content_type or "application/octet-stream",
+            content=await file.read(),
+        )
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.delete("/sign/{envelope_id}/attachments/{attachment_id}")
+async def delete_signer_attachment(
+    envelope_id: str,
+    attachment_id: str,
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        await esign_signing_service.delete_attachment(
+            user_id=_uid(token),
+            user_email=_email(token),
+            envelope_id=envelope_id,
+            attachment_id=attachment_id,
+        )
+        return {"message": "Attachment deleted"}
     except Exception as exc:
         _raise_http(exc)
 

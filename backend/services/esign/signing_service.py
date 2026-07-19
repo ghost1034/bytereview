@@ -9,12 +9,14 @@ trail is the product.
 from __future__ import annotations
 
 import base64
+import hashlib
 import logging
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import fitz
 from sqlalchemy import text
 from sqlalchemy.orm import Session, joinedload
 
@@ -30,8 +32,10 @@ from models.db_models import (
     EsignRecipientRole,
     EsignRecipientStatus,
     EsignSignatureRecord,
+    EsignSignerAttachment,
     EsignSignatureType,
     EsignSigningType,
+    User,
 )
 from models.esign import (
     EsignConsentResponse,
@@ -44,6 +48,8 @@ from models.esign import (
     EsignSigningDocument,
     EsignSigningSessionResponse,
     EsignSubmitResponse,
+    EsignSignerAttachmentResponse,
+    EsignContextField,
 )
 from services.esign import audit_service, email_templates
 from services.esign.audit_service import EsignRequestMeta
@@ -57,11 +63,13 @@ from services.esign.envelope_service import (
     esign_envelope_service,
     sha256_hex,
 )
+from services.esign.field_logic import resolve_required, resolve_visibility
 from services.gcs_service import get_storage_service
 
 logger = logging.getLogger(__name__)
 
 MAX_SIGNATURE_IMAGE_BYTES = int(os.getenv("ESIGN_MAX_SIGNATURE_IMAGE_BYTES", str(1024 * 1024)))
+MAX_ATTACHMENT_BYTES = int(os.getenv("ESIGN_MAX_ATTACHMENT_BYTES", str(25 * 1024 * 1024)))
 ALLOWED_TYPED_FONTS = {"dancing-script", "caveat", "great-vibes", "homemade-apple"}
 
 ACTIVE_ENVELOPE_STATUSES = (EsignEnvelopeStatus.SENT, EsignEnvelopeStatus.IN_PROGRESS)
@@ -115,6 +123,18 @@ class EsignSigningService:
 
     def _get_session(self) -> Session:
         return db_config.get_session()
+
+    @staticmethod
+    def _serialize_attachment(item: EsignSignerAttachment) -> EsignSignerAttachmentResponse:
+        return EsignSignerAttachmentResponse(
+            id=str(item.id),
+            field_id=str(item.field_id),
+            original_filename=item.original_filename,
+            sha256=item.sha256,
+            file_size_bytes=int(item.file_size_bytes),
+            content_type=item.content_type,
+            uploaded_at=item.uploaded_at,
+        )
 
     # ------------------------------------------------------------------
     # Recipient resolution
@@ -517,6 +537,26 @@ class EsignSigningService:
                 for f in (envelope.fields or [])
                 if str(f.recipient_id) == str(recipient.id)
             ]
+            context_fields = [
+                EsignContextField(
+                    id=str(f.id),
+                    field_type=f.field_type.value if hasattr(f.field_type, "value") else str(f.field_type),
+                    value=f.value,
+                    properties=dict(f.properties or {}),
+                )
+                for f in (envelope.fields or [])
+                if str(f.recipient_id) != str(recipient.id)
+            ]
+            attachment_rows = (
+                db.query(EsignSignerAttachment)
+                .filter(
+                    EsignSignerAttachment.envelope_id == envelope.id,
+                    EsignSignerAttachment.recipient_id == recipient.id,
+                )
+                .all()
+            )
+            signer_user = db.query(User).filter(User.id == user_id).first()
+            company = signer_user.firm.name if signer_user and signer_user.firm else None
 
             return EsignSigningSessionResponse(
                 envelope_id=str(envelope.id),
@@ -532,6 +572,12 @@ class EsignSigningService:
                 consent_disclosure_text=envelope.consent_disclosure_text,
                 documents=documents,
                 fields=my_fields,
+                context_fields=context_fields,
+                recipient_name=recipient.name,
+                recipient_email=recipient.email,
+                recipient_company=company,
+                attachments=[self._serialize_attachment(item) for item in attachment_rows],
+                sent_at=envelope.sent_at,
                 expires_at=envelope.expires_at,
             )
         except Exception:
@@ -641,12 +687,29 @@ class EsignSigningService:
             for field in envelope.fields or []:
                 if str(field.recipient_id) != str(recipient.id):
                     continue
-                if field.field_type not in (EsignFieldType.TEXT, EsignFieldType.CHECKBOX):
+                editable = field.field_type in (
+                    EsignFieldType.TEXT,
+                    EsignFieldType.CHECKBOX,
+                    EsignFieldType.DROPDOWN,
+                    EsignFieldType.RADIO,
+                ) or (
+                    field.field_type == EsignFieldType.AUTO_FILL
+                    and (field.properties or {}).get("auto_source") == "company"
+                )
+                if not editable:
                     continue
                 if str(field.id) not in values_by_field:
                     continue
                 provided = values_by_field[str(field.id)]
-                field.draft_value = (provided or "").strip() or None
+                if field.field_type in (EsignFieldType.CHECKBOX, EsignFieldType.RADIO):
+                    field.draft_value = "true" if str(provided).lower() in ("true", "1", "yes", "on") else "false"
+                elif field.field_type == EsignFieldType.DROPDOWN:
+                    options = {str(option.get("value")) for option in (field.properties or {}).get("options", [])}
+                    if provided and str(provided) not in options:
+                        raise EsignError(f"Invalid option for '{field.label or 'dropdown'}'")
+                    field.draft_value = (provided or "").strip() or None
+                else:
+                    field.draft_value = (provided or "").strip() or None
                 saved += 1
             db.commit()
             return saved
@@ -655,6 +718,153 @@ class EsignSigningService:
             raise
         finally:
             db.close()
+
+    # ------------------------------------------------------------------
+    # Signer attachments
+    # ------------------------------------------------------------------
+
+    async def upload_attachment(
+        self,
+        *,
+        user_id: str,
+        user_email: str,
+        envelope_id: str,
+        field_id: str,
+        filename: str,
+        content_type: str,
+        content: bytes,
+    ) -> EsignSignerAttachmentResponse:
+        if not content or len(content) > MAX_ATTACHMENT_BYTES:
+            raise EsignError("Attachment must be between 1 byte and 25 MB")
+        suffix = os.path.splitext(filename or "")[1].lower()
+        normalized_type = {
+            ".pdf": "application/pdf",
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+        }.get(suffix)
+        if not normalized_type:
+            raise EsignError("Attachments must be PDF, PNG, or JPG")
+        if normalized_type == "application/pdf":
+            try:
+                with fitz.open(stream=content, filetype="pdf") as pdf:
+                    if pdf.needs_pass or pdf.page_count < 1:
+                        raise EsignError("Attachment PDF is encrypted or has no pages")
+            except EsignError:
+                raise
+            except Exception as exc:
+                raise EsignError(f"Attachment is not a valid PDF: {exc}")
+        elif normalized_type == "image/png" and not content.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise EsignError("Attachment is not a valid PNG")
+        elif normalized_type == "image/jpeg" and not content.startswith(b"\xff\xd8\xff"):
+            raise EsignError("Attachment is not a valid JPG")
+
+        db = self._get_session()
+        old_object: Optional[str] = None
+        object_name: Optional[str] = None
+        try:
+            envelope = self._load_envelope_any(db, envelope_id)
+            recipient = self._find_recipient(envelope, user_email)
+            self._backfill_recipient_user(recipient, user_id)
+            if not self._is_recipients_turn(envelope, recipient):
+                raise PermissionError("It is not your turn to sign yet")
+            field = next((f for f in envelope.fields or [] if str(f.id) == str(field_id)), None)
+            if not field or field.recipient_id != recipient.id or field.field_type != EsignFieldType.ATTACHMENT:
+                raise EsignError("Attachment field not found")
+
+            existing = (
+                db.query(EsignSignerAttachment)
+                .filter(EsignSignerAttachment.field_id == field.id)
+                .first()
+            )
+            attachment_id = uuid.uuid4()
+            safe_name = os.path.basename(filename or f"attachment{suffix}")
+            object_name = f"esign/{envelope.user_id}/{envelope.id}/attachments/{attachment_id}_{safe_name}"
+            await self.storage.upload_file_content(content, object_name)
+            if existing:
+                old_object = existing.gcs_object_name
+                db.delete(existing)
+                db.flush()
+            item = EsignSignerAttachment(
+                id=attachment_id,
+                envelope_id=envelope.id,
+                recipient_id=recipient.id,
+                field_id=field.id,
+                gcs_object_name=object_name,
+                original_filename=safe_name,
+                sha256=hashlib.sha256(content).hexdigest(),
+                file_size_bytes=len(content),
+                content_type=normalized_type,
+            )
+            db.add(item)
+            field.draft_value = str(attachment_id)
+            db.commit()
+            db.refresh(item)
+            result = self._serialize_attachment(item)
+        except Exception:
+            db.rollback()
+            if object_name:
+                try:
+                    await self.storage.delete_file(object_name)
+                except Exception:
+                    logger.warning("Could not clean up failed attachment upload %s", object_name)
+            raise
+        finally:
+            db.close()
+        if old_object:
+            try:
+                await self.storage.delete_file(old_object)
+            except Exception:
+                logger.warning("Could not clean up replaced attachment %s", old_object)
+        return result
+
+    async def delete_attachment(
+        self,
+        *,
+        user_id: str,
+        user_email: str,
+        envelope_id: str,
+        attachment_id: str,
+    ) -> None:
+        db = self._get_session()
+        object_name: Optional[str] = None
+        try:
+            envelope = self._load_envelope_any(db, envelope_id)
+            recipient = self._find_recipient(envelope, user_email)
+            self._backfill_recipient_user(recipient, user_id)
+            if not self._is_recipients_turn(envelope, recipient):
+                raise PermissionError("It is not your turn to sign yet")
+            try:
+                parsed_id = uuid.UUID(str(attachment_id))
+            except ValueError:
+                raise EsignNotFound("Attachment not found")
+            item = (
+                db.query(EsignSignerAttachment)
+                .filter(
+                    EsignSignerAttachment.id == parsed_id,
+                    EsignSignerAttachment.envelope_id == envelope.id,
+                    EsignSignerAttachment.recipient_id == recipient.id,
+                )
+                .first()
+            )
+            if not item:
+                raise EsignNotFound("Attachment not found")
+            object_name = item.gcs_object_name
+            field = next((f for f in envelope.fields or [] if f.id == item.field_id), None)
+            if field:
+                field.draft_value = None
+            db.delete(item)
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+        if object_name:
+            try:
+                await self.storage.delete_file(object_name)
+            except Exception:
+                logger.warning("Could not delete attachment object %s", object_name)
 
     # ------------------------------------------------------------------
     # Submit ("Adopt and Sign")
@@ -780,23 +990,92 @@ class EsignSigningService:
             db.add(signature_record)
             db.flush()
 
-            # Apply field values.
+            # Apply field values. Visibility and requiredness are recomputed on
+            # the server; the client cannot bypass a conditional requirement.
             values_by_field = {str(v.field_id): v.value for v in field_values}
-            my_fields = [f for f in (envelope.fields or []) if str(f.recipient_id) == str(recipient.id)]
+            all_fields = list(envelope.fields or [])
+            my_fields = [f for f in all_fields if str(f.recipient_id) == str(recipient.id)]
+            signer_user = db.query(User).filter(User.id == user_id).first()
+            company = signer_user.firm.name if signer_user and signer_user.firm else None
+            attachments = (
+                db.query(EsignSignerAttachment)
+                .filter(
+                    EsignSignerAttachment.envelope_id == envelope.id,
+                    EsignSignerAttachment.recipient_id == recipient.id,
+                )
+                .all()
+            )
+            attachment_by_field = {str(item.field_id): item for item in attachments}
+
             for field in my_fields:
-                field.draft_value = None  # final values supersede Finish Later drafts
+                field.draft_value = None
+                provided = values_by_field.get(str(field.id))
                 if field.field_type in (EsignFieldType.SIGNATURE, EsignFieldType.INITIALS):
                     field.value = str(signature_record.id)
                 elif field.field_type == EsignFieldType.DATE_SIGNED:
                     field.value = format_date_signed(now)
+                elif field.field_type == EsignFieldType.AUTO_FILL:
+                    source = (field.properties or {}).get("auto_source")
+                    if source == "recipient_name":
+                        field.value = recipient.name
+                    elif source == "recipient_email":
+                        field.value = recipient.email
+                    elif source == "date_sent":
+                        field.value = format_date_signed(envelope.sent_at or now)
+                    else:  # company remains editable, but is authoritatively prefilled
+                        field.value = (provided or company or "").strip() or None
+                elif field.field_type in (EsignFieldType.CHECKBOX, EsignFieldType.RADIO):
+                    field.value = "true" if str(provided).lower() in ("true", "1", "yes", "on") else "false"
+                elif field.field_type == EsignFieldType.DROPDOWN:
+                    options = {str(option.get("value")) for option in (field.properties or {}).get("options", [])}
+                    field.value = (provided or "").strip() or None
+                    if field.value and field.value not in options:
+                        raise EsignError(f"Invalid option for '{field.label or 'dropdown'}'")
+                elif field.field_type == EsignFieldType.ATTACHMENT:
+                    item = attachment_by_field.get(str(field.id))
+                    field.value = str(item.id) if item else None
+                elif field.field_type == EsignFieldType.FORMULA:
+                    field.value = None  # finalized only after all signers finish
                 else:
-                    provided = values_by_field.get(str(field.id))
-                    if field.field_type == EsignFieldType.CHECKBOX:
-                        field.value = "true" if str(provided).lower() in ("true", "1", "yes", "on") else "false"
-                    else:
-                        field.value = (provided or "").strip() or None
-                    if field.required and field.field_type == EsignFieldType.TEXT and not field.value:
-                        raise EsignError(f"Required field '{field.label or 'text'}' is missing a value")
+                    field.value = (provided or "").strip() or None
+
+            final_values = {str(field.id): field.value for field in all_fields}
+            visible = resolve_visibility(all_fields, final_values)
+            for field in my_fields:
+                if not visible.get(str(field.id), True):
+                    field.value = None
+
+            radio_groups: dict[str, list[EsignField]] = {}
+            for field in my_fields:
+                if field.field_type == EsignFieldType.RADIO and visible.get(str(field.id), True):
+                    group_id = str(((field.properties or {}).get("group") or {}).get("id", ""))
+                    radio_groups.setdefault(group_id, []).append(field)
+            for group_id, members in radio_groups.items():
+                selected = [member for member in members if member.value == "true"]
+                if len(selected) > 1:
+                    raise EsignError(f"Radio group '{group_id}' allows only one selection")
+                required = any(resolve_required(member, all_fields, final_values, visible) for member in members)
+                if required and len(selected) != 1:
+                    label = ((members[0].properties or {}).get("group") or {}).get("label") or "radio group"
+                    raise EsignError(f"Required field '{label}' is missing a selection")
+
+            for field in my_fields:
+                if field.field_type in (EsignFieldType.FORMULA, EsignFieldType.RADIO):
+                    continue
+                if not resolve_required(field, all_fields, final_values, visible):
+                    continue
+                label = field.label or field.field_type.value.replace("_", " ")
+                if field.field_type == EsignFieldType.CHECKBOX and field.value != "true":
+                    raise EsignError(f"Required field '{label}' must be checked")
+                if field.field_type == EsignFieldType.ATTACHMENT and not field.value:
+                    raise EsignError(f"Required attachment '{label}' is missing")
+                if field.field_type not in (
+                    EsignFieldType.SIGNATURE,
+                    EsignFieldType.INITIALS,
+                    EsignFieldType.DATE_SIGNED,
+                    EsignFieldType.CHECKBOX,
+                ) and not field.value:
+                    raise EsignError(f"Required field '{label}' is missing a value")
 
             recipient.status = EsignRecipientStatus.SIGNED
             recipient.signed_at = now

@@ -241,6 +241,28 @@ class AdoptionStampingTests(unittest.TestCase):
         doc.close()
         self.assertEqual(len(images), 1)
 
+    def test_radio_selection_draws_filled_dot(self) -> None:
+        from models.db_models import EsignFieldType
+        from services.esign.sealing_service import _stamp_field
+
+        doc, page = self._page()
+        _stamp_field(page, self._field(EsignFieldType.RADIO, value="true"), None, None, None)
+        drawings = page.get_drawings()
+        doc.close()
+        self.assertTrue(drawings)
+        self.assertIsNotNone(drawings[0]["fill"])
+
+    def test_attachment_field_stamps_filename(self) -> None:
+        from models.db_models import EsignFieldType
+        from services.esign.sealing_service import _stamp_field
+
+        doc, page = self._page()
+        attachment = NS(original_filename="support.pdf")
+        _stamp_field(page, self._field(EsignFieldType.ATTACHMENT, value="attachment-id"), None, None, None, attachment)
+        text = page.get_text()
+        doc.close()
+        self.assertIn("Attachment: support.pdf", text)
+
     def test_all_typed_fonts_are_embedded(self) -> None:
         from services.esign.sealing_service import _TYPED_FONT_FILES
         from services.esign.signing_service import ALLOWED_TYPED_FONTS

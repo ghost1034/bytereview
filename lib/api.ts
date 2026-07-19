@@ -2277,6 +2277,24 @@ export class ApiClient {
     })
   }
 
+  async searchEsignAnchors(
+    envelopeId: string,
+    payload: { anchor: string; case_sensitive?: boolean; document_ids?: string[] },
+  ): Promise<EsignAnchorSearchResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/anchor-search`, {
+      method: 'POST', body: JSON.stringify(payload),
+    })
+  }
+
+  async searchEsignTemplateAnchors(
+    templateId: string,
+    payload: { anchor: string; case_sensitive?: boolean; document_ids?: string[] },
+  ): Promise<EsignAnchorSearchResponse> {
+    return this.request(`/api/esign/templates/${templateId}/anchor-search`, {
+      method: 'POST', body: JSON.stringify(payload),
+    })
+  }
+
   async sendEsignEnvelope(envelopeId: string): Promise<EsignEnvelopeResponse> {
     return this.request(`/api/esign/envelopes/${envelopeId}/send`, { method: 'POST', body: '{}' })
   }
@@ -2339,6 +2357,17 @@ export class ApiClient {
       method: 'PUT',
       body: JSON.stringify({ field_values: fieldValues }),
     })
+  }
+
+  async uploadEsignSignerAttachment(envelopeId: string, fieldId: string, file: File): Promise<EsignSignerAttachmentResponse> {
+    const formData = new FormData()
+    formData.append('field_id', fieldId)
+    formData.append('file', file)
+    return this.requestMultipart(`/api/esign/sign/${envelopeId}/attachments`, formData)
+  }
+
+  async deleteEsignSignerAttachment(envelopeId: string, attachmentId: string): Promise<{ message: string }> {
+    return this.request(`/api/esign/sign/${envelopeId}/attachments/${attachmentId}`, { method: 'DELETE' })
   }
 
   async submitEsignSignature(envelopeId: string, payload: EsignSubmitRequest): Promise<EsignSubmitResponse> {
@@ -2451,6 +2480,7 @@ export type EsignRecipientInput = apiComponents['schemas']['EsignRecipientInput'
 export type EsignRecipientResponse = apiComponents['schemas']['EsignRecipientResponse']
 export type EsignFieldInput = apiComponents['schemas']['EsignFieldInput']
 export type EsignFieldResponse = apiComponents['schemas']['EsignFieldResponse']
+export type EsignAnchorSearchResponse = apiComponents['schemas']['EsignAnchorSearchResponse']
 export type EsignDocumentResponse = apiComponents['schemas']['EsignDocumentResponse']
 export type EsignAuditTrailResponse = apiComponents['schemas']['EsignAuditTrailResponse']
 export type EsignEventResponse = apiComponents['schemas']['EsignEventResponse']
@@ -2459,6 +2489,7 @@ export type EsignInboxResponse = apiComponents['schemas']['EsignInboxResponse']
 export type EsignInboxItem = apiComponents['schemas']['EsignInboxItem']
 export type EsignSigningSessionResponse = apiComponents['schemas']['EsignSigningSessionResponse']
 export type EsignSigningDocument = apiComponents['schemas']['EsignSigningDocument']
+export type EsignSignerAttachmentResponse = apiComponents['schemas']['EsignSignerAttachmentResponse']
 export type EsignConsentResponse = apiComponents['schemas']['EsignConsentResponse']
 export type EsignSubmitRequest = apiComponents['schemas']['EsignSubmitRequest']
 export type EsignSubmitResponse = apiComponents['schemas']['EsignSubmitResponse']

@@ -12,7 +12,8 @@
     "postinstall": "node -e \"const fs=require('fs');fs.mkdirSync('public',{recursive:true});const s='node_modules/pdfjs-dist/build/pdf.worker.min.mjs';if(fs.existsSync(s)){fs.copyFileSync(s,'public/pdf-worker.min.mjs')}else{console.warn('postinstall: pdf worker not found at '+s+'; using committed copy')}\"",
     "backend": "cd backend && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000",
     "generate-types": "cd backend && npm run generate-types",
-    "dev:with-types": "npm run generate-types && npm run dev"
+    "dev:with-types": "npm run generate-types && npm run dev",
+    "test:unit": "vitest run"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -124,7 +125,8 @@
     "openapi-typescript": "^7.8.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.7"
   },
   "overrides": {
     "@typescript-eslint/parser": "^8.38.0",

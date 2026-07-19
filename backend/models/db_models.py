@@ -1167,6 +1167,11 @@ class EsignFieldType(str, enum.Enum):
     DATE_SIGNED = "date_signed"
     TEXT = "text"
     CHECKBOX = "checkbox"
+    AUTO_FILL = "auto_fill"
+    ATTACHMENT = "attachment"
+    RADIO = "radio"
+    DROPDOWN = "dropdown"
+    FORMULA = "formula"
 
 
 class EsignSignatureType(str, enum.Enum):
@@ -1353,12 +1358,19 @@ class EsignField(Base):
     # In-progress value saved by the signer ("Finish Later"); cleared when the
     # final value is written at submit. Never part of the sealed evidence.
     draft_value = Column(Text, nullable=True)
+    properties = Column(
+        MutableDict.as_mutable(JSONB),
+        nullable=False,
+        default=dict,
+        server_default=expression.text("'{}'::jsonb"),
+    )
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
     envelope = relationship("EsignEnvelope", back_populates="fields")
     document = relationship("EsignDocument", back_populates="fields")
     recipient = relationship("EsignRecipient", back_populates="fields")
+    attachments = relationship("EsignSignerAttachment", back_populates="field")
 
     __table_args__ = (
         CheckConstraint("pos_x >= 0 AND pos_x <= 1", name="ck_esign_fields_pos_x"),
@@ -1368,6 +1380,26 @@ class EsignField(Base):
         CheckConstraint("page_number >= 0", name="ck_esign_fields_page_number"),
         Index("ix_esign_fields_envelope", "envelope_id"),
     )
+
+
+class EsignSignerAttachment(Base):
+    """Signer-supplied evidence retained with the completed envelope."""
+    __tablename__ = "esign_signer_attachments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="RESTRICT"), nullable=False)
+    recipient_id = Column(UUID(as_uuid=True), ForeignKey("esign_recipients.id", ondelete="RESTRICT"), nullable=False)
+    field_id = Column(UUID(as_uuid=True), ForeignKey("esign_fields.id", ondelete="RESTRICT"), nullable=False)
+    gcs_object_name = Column(Text, nullable=False)
+    original_filename = Column(Text, nullable=False)
+    sha256 = Column(String(64), nullable=False)
+    file_size_bytes = Column(BigInteger, nullable=False)
+    content_type = Column(String(100), nullable=False)
+    uploaded_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    field = relationship("EsignField", back_populates="attachments")
+
+    __table_args__ = (Index("ix_esign_signer_attachments_envelope", "envelope_id"),)
 
 
 class EsignSignatureRecord(Base):
@@ -1502,6 +1534,12 @@ class EsignTemplateField(Base):
     height = Column(Numeric(12, 10), nullable=False)
     required = Column(Boolean, nullable=False, default=True, server_default=expression.true())
     label = Column(String(255), nullable=True)
+    properties = Column(
+        MutableDict.as_mutable(JSONB),
+        nullable=False,
+        default=dict,
+        server_default=expression.text("'{}'::jsonb"),
+    )
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     template = relationship("EsignTemplate", back_populates="fields")

@@ -1661,6 +1661,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/esign/templates/{template_id}/anchor-search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Search Template Anchors */
+        post: operations["search_template_anchors_api_esign_templates__template_id__anchor_search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/esign/templates/{template_id}/documents/{document_id}/download": {
         parameters: {
             query?: never;
@@ -1790,6 +1807,23 @@ export interface paths {
         /** Replace Fields */
         put: operations["replace_fields_api_esign_envelopes__envelope_id__fields_put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/envelopes/{envelope_id}/anchor-search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Search Envelope Anchors */
+        post: operations["search_envelope_anchors_api_esign_envelopes__envelope_id__anchor_search_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1998,6 +2032,40 @@ export interface paths {
         put: operations["save_signing_progress_api_esign_sign__envelope_id__progress_put"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/sign/{envelope_id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Signer Attachment */
+        post: operations["upload_signer_attachment_api_esign_sign__envelope_id__attachments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/sign/{envelope_id}/attachments/{attachment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Signer Attachment */
+        delete: operations["delete_signer_attachment_api_esign_sign__envelope_id__attachments__attachment_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4548,6 +4616,23 @@ export interface components {
             /** Memo Content */
             memo_content?: string | null;
         };
+        /** AnchorProps */
+        AnchorProps: {
+            /** Text */
+            text?: string | null;
+            /** Anchor */
+            anchor?: string | null;
+            /**
+             * Offset X
+             * @default 0
+             */
+            offset_x: number;
+            /**
+             * Offset Y
+             * @default 0
+             */
+            offset_y: number;
+        };
         /** AssistantStreamRequest */
         AssistantStreamRequest: {
             /** Messages */
@@ -4912,6 +4997,13 @@ export interface components {
             recipient_roles?: string | null;
             /** Files */
             files: string[];
+        };
+        /** Body_upload_signer_attachment_api_esign_sign__envelope_id__attachments_post */
+        Body_upload_signer_attachment_api_esign_sign__envelope_id__attachments_post: {
+            /** Field Id */
+            field_id: string;
+            /** File */
+            file: string;
         };
         /** Body_verify_document_api_esign_verify_post */
         Body_verify_document_api_esign_verify_post: {
@@ -5351,6 +5443,24 @@ export interface components {
             /** Mentioned User Ids */
             mentioned_user_ids?: string[] | null;
         };
+        /** ConditionalRule */
+        ConditionalRule: {
+            /** Parent Field Id */
+            parent_field_id: string;
+            /**
+             * Operator
+             * @enum {string}
+             */
+            operator: "equals" | "not_equals" | "any_of" | "checked" | "unchecked" | "not_empty";
+            /** Values */
+            values?: string[];
+            /**
+             * Action
+             * @default show
+             * @enum {string}
+             */
+            action: "show" | "require";
+        };
         /** ConfigStepRequest */
         ConfigStepRequest: {
             /** Config Step */
@@ -5681,6 +5791,45 @@ export interface components {
             /** File Ids */
             file_ids: string[];
         };
+        /** DropdownOption */
+        DropdownOption: {
+            /** Value */
+            value: string;
+            /** Label */
+            label: string;
+        };
+        /** EsignAnchorMatch */
+        EsignAnchorMatch: {
+            /** Document Id */
+            document_id: string;
+            /** Page Number */
+            page_number: number;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+        };
+        /** EsignAnchorSearchRequest */
+        EsignAnchorSearchRequest: {
+            /** Anchor */
+            anchor: string;
+            /**
+             * Case Sensitive
+             * @default false
+             */
+            case_sensitive: boolean;
+            /** Document Ids */
+            document_ids?: string[] | null;
+        };
+        /** EsignAnchorSearchResponse */
+        EsignAnchorSearchResponse: {
+            /** Matches */
+            matches?: components["schemas"]["EsignAnchorMatch"][];
+        };
         /** EsignAuditTrailResponse */
         EsignAuditTrailResponse: {
             /** Envelope Id */
@@ -5697,6 +5846,16 @@ export interface components {
             consented_at: string;
             /** Consent Text Sha256 */
             consent_text_sha256: string;
+        };
+        /** EsignContextField */
+        EsignContextField: {
+            /** Id */
+            id: string;
+            /** Field Type */
+            field_type: string;
+            /** Value */
+            value?: string | null;
+            properties?: components["schemas"]["EsignFieldProperties"];
         };
         /** EsignDeclineRequest */
         EsignDeclineRequest: {
@@ -5787,7 +5946,7 @@ export interface components {
         /** EsignEnvelopeListResponse */
         EsignEnvelopeListResponse: {
             /** Envelopes */
-            envelopes?: components["schemas"]["EsignEnvelopeListItem"][];
+            envelopes: components["schemas"]["EsignEnvelopeListItem"][];
             /**
              * Total
              * @default 0
@@ -5857,11 +6016,11 @@ export interface components {
              */
             updated_at: string;
             /** Documents */
-            documents?: components["schemas"]["EsignDocumentResponse"][];
+            documents: components["schemas"]["EsignDocumentResponse"][];
             /** Recipients */
-            recipients?: components["schemas"]["EsignRecipientResponse"][];
+            recipients: components["schemas"]["EsignRecipientResponse"][];
             /** Fields */
-            fields?: components["schemas"]["EsignFieldResponse"][];
+            fields: components["schemas"]["EsignFieldResponse"][];
         };
         /** EsignEnvelopeUpdateRequest */
         EsignEnvelopeUpdateRequest: {
@@ -5906,6 +6065,8 @@ export interface components {
         };
         /** EsignFieldInput */
         EsignFieldInput: {
+            /** Id */
+            id?: string | null;
             /** Document Id */
             document_id: string;
             /** Recipient Id */
@@ -5929,6 +6090,24 @@ export interface components {
             required: boolean;
             /** Label */
             label?: string | null;
+            properties?: components["schemas"]["EsignFieldProperties"];
+        };
+        /** EsignFieldProperties */
+        EsignFieldProperties: {
+            group?: components["schemas"]["RadioGroupProps"] | null;
+            /** Option Value */
+            option_value?: string | null;
+            /** Options */
+            options?: components["schemas"]["DropdownOption"][] | null;
+            conditional?: components["schemas"]["ConditionalRule"] | null;
+            formula?: components["schemas"]["FormulaProps"] | null;
+            /** Auto Source */
+            auto_source?: ("recipient_name" | "recipient_email" | "company" | "date_sent") | null;
+            /** Allowed Types */
+            allowed_types?: string[] | null;
+            anchor?: components["schemas"]["AnchorProps"] | null;
+        } & {
+            [key: string]: unknown;
         };
         /** EsignFieldResponse */
         EsignFieldResponse: {
@@ -5960,6 +6139,7 @@ export interface components {
             value?: string | null;
             /** Draft Value */
             draft_value?: string | null;
+            properties?: components["schemas"]["EsignFieldProperties"];
         };
         /** EsignFieldValueInput */
         EsignFieldValueInput: {
@@ -6096,6 +6276,26 @@ export interface components {
             /** Initials Image Data Url */
             initials_image_data_url?: string | null;
         };
+        /** EsignSignerAttachmentResponse */
+        EsignSignerAttachmentResponse: {
+            /** Id */
+            id: string;
+            /** Field Id */
+            field_id: string;
+            /** Original Filename */
+            original_filename: string;
+            /** Sha256 */
+            sha256: string;
+            /** File Size Bytes */
+            file_size_bytes: number;
+            /** Content Type */
+            content_type: string;
+            /**
+             * Uploaded At
+             * Format: date-time
+             */
+            uploaded_at: string;
+        };
         /** EsignSigningDocument */
         EsignSigningDocument: {
             /** Id */
@@ -6137,9 +6337,27 @@ export interface components {
             /** Consent Disclosure Text */
             consent_disclosure_text: string;
             /** Documents */
-            documents?: components["schemas"]["EsignSigningDocument"][];
+            documents: components["schemas"]["EsignSigningDocument"][];
             /** Fields */
-            fields?: components["schemas"]["EsignFieldResponse"][];
+            fields: components["schemas"]["EsignFieldResponse"][];
+            /** Context Fields */
+            context_fields?: components["schemas"]["EsignContextField"][];
+            /**
+             * Recipient Name
+             * @default
+             */
+            recipient_name: string;
+            /**
+             * Recipient Email
+             * @default
+             */
+            recipient_email: string;
+            /** Recipient Company */
+            recipient_company?: string | null;
+            /** Attachments */
+            attachments?: components["schemas"]["EsignSignerAttachmentResponse"][];
+            /** Sent At */
+            sent_at?: string | null;
             /** Expires At */
             expires_at?: string | null;
         };
@@ -6180,6 +6398,8 @@ export interface components {
         };
         /** EsignTemplateFieldInput */
         EsignTemplateFieldInput: {
+            /** Id */
+            id?: string | null;
             /** Template Document Id */
             template_document_id: string;
             /** Recipient Index */
@@ -6203,6 +6423,7 @@ export interface components {
             required: boolean;
             /** Label */
             label?: string | null;
+            properties?: components["schemas"]["EsignFieldProperties"];
         };
         /** EsignTemplateFieldResponse */
         EsignTemplateFieldResponse: {
@@ -6228,11 +6449,12 @@ export interface components {
             required: boolean;
             /** Label */
             label?: string | null;
+            properties?: components["schemas"]["EsignFieldProperties"];
         };
         /** EsignTemplateListResponse */
         EsignTemplateListResponse: {
             /** Templates */
-            templates?: components["schemas"]["EsignTemplateResponse"][];
+            templates: components["schemas"]["EsignTemplateResponse"][];
         };
         /** EsignTemplateResponse */
         EsignTemplateResponse: {
@@ -6253,9 +6475,9 @@ export interface components {
                 [key: string]: unknown;
             }[];
             /** Documents */
-            documents?: components["schemas"]["EsignTemplateDocumentResponse"][];
+            documents: components["schemas"]["EsignTemplateDocumentResponse"][];
             /** Fields */
-            fields?: components["schemas"]["EsignTemplateFieldResponse"][];
+            fields: components["schemas"]["EsignTemplateFieldResponse"][];
             /**
              * Created At
              * Format: date-time
@@ -6841,6 +7063,16 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** FormulaProps */
+        FormulaProps: {
+            /** Expression */
+            expression: string;
+            /**
+             * Decimal Places
+             * @default 2
+             */
+            decimal_places: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -8553,6 +8785,13 @@ export interface components {
              */
             action_count: number;
         };
+        /** RadioGroupProps */
+        RadioGroupProps: {
+            /** Id */
+            id: string;
+            /** Label */
+            label?: string | null;
+        };
         /** ReconciliationAdditionalPassRequest */
         ReconciliationAdditionalPassRequest: {
             /** Instructions */
@@ -9132,6 +9371,10 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
         };
         /** VarianceAnalyzeRequest */
         VarianceAnalyzeRequest: {
@@ -12210,6 +12453,41 @@ export interface operations {
             };
         };
     };
+    search_template_anchors_api_esign_templates__template_id__anchor_search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignAnchorSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignAnchorSearchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     download_template_document_api_esign_templates__template_id__documents__document_id__download_get: {
         parameters: {
             query?: never;
@@ -12531,6 +12809,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EsignEnvelopeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_envelope_anchors_api_esign_envelopes__envelope_id__anchor_search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignAnchorSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignAnchorSearchResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12905,6 +13218,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EsignProgressResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_signer_attachment_api_esign_sign__envelope_id__attachments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_signer_attachment_api_esign_sign__envelope_id__attachments_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignSignerAttachmentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_signer_attachment_api_esign_sign__envelope_id__attachments__attachment_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+                attachment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

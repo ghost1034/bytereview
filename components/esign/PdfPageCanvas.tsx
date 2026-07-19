@@ -86,7 +86,7 @@ export function PdfPageCanvas({ pdf, pageNumber, className, overlay }: PdfPageCa
       const context = canvas.getContext('2d')
       if (!context) return
       renderTaskRef.current?.cancel()
-      const task = page.render({ canvasContext: context, viewport })
+      const task = page.render({ canvas, canvasContext: context, viewport })
       renderTaskRef.current = task
       try {
         await task.promise

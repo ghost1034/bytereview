@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2, Save, Send } from 'lucide-react'
 
 import {
   PdfFieldEditor,
+  coerceEditorProperties,
   type EditorField,
   type EditorFieldType,
 } from '@/components/esign/editor/PdfFieldEditor'
@@ -16,7 +17,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import { useEsignTemplate, useUpdateEsignTemplate } from '@/hooks/useEnvelopes'
-import { apiClient } from '@/lib/api'
+import { apiClient, type EsignTemplateFieldInput } from '@/lib/api'
 
 /**
  * Template field editor — the same PdfFieldEditor as the envelope wizard, but
@@ -51,6 +52,7 @@ export default function EsignTemplateEditPage() {
         height: f.height,
         required: f.required,
         label: f.label ?? undefined,
+        properties: coerceEditorProperties(f.properties),
       })),
     )
     setHydratedFor(template.id)
@@ -90,6 +92,7 @@ export default function EsignTemplateEditPage() {
     try {
       await updateTemplate.mutateAsync({
         fields: editorFields.map((f) => ({
+          id: f.id,
           template_document_id: f.documentId,
           recipient_index: Number(f.participantId),
           field_type: f.fieldType,
@@ -100,6 +103,7 @@ export default function EsignTemplateEditPage() {
           height: f.height,
           required: f.required,
           label: f.label,
+          properties: f.properties as EsignTemplateFieldInput['properties'],
         })),
       })
       toast({ title: 'Template saved' })

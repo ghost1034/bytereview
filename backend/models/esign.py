@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -13,7 +13,84 @@ from pydantic import BaseModel, EmailStr, Field
 # ---------------------------------------------------------------------------
 
 
+class RadioGroupProps(BaseModel):
+    id: str
+    label: Optional[str] = None
+
+
+class DropdownOption(BaseModel):
+    value: str
+    label: str
+
+
+class ConditionalRule(BaseModel):
+    parent_field_id: str
+    operator: Literal["equals", "not_equals", "any_of", "checked", "unchecked", "not_empty"]
+    values: list[str] = Field(default_factory=list)
+    action: Literal["show", "require"] = "show"
+
+
+class FormulaProps(BaseModel):
+    expression: str
+    decimal_places: int = Field(default=2, ge=0, le=10)
+
+
+class AutoFillProps(BaseModel):
+    auto_source: Literal["recipient_name", "recipient_email", "company", "date_sent"]
+
+
+class AttachmentProps(BaseModel):
+    allowed_types: list[str] = Field(default_factory=lambda: ["application/pdf", "image/png", "image/jpeg"])
+
+
+class AnchorProps(BaseModel):
+    text: Optional[str] = None
+    anchor: Optional[str] = None
+    offset_x: float = 0
+    offset_y: float = 0
+
+
+class EsignFieldProperties(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    group: Optional[RadioGroupProps] = None
+    option_value: Optional[str] = None
+    options: Optional[list[DropdownOption]] = None
+    conditional: Optional[ConditionalRule] = None
+    formula: Optional[FormulaProps] = None
+    auto_source: Optional[Literal["recipient_name", "recipient_email", "company", "date_sent"]] = None
+    allowed_types: Optional[list[str]] = None
+    anchor: Optional[AnchorProps] = None
+
+
+def _validated_properties(field_type: str, value: Any) -> EsignFieldProperties:
+    props = value.model_dump(exclude_none=True) if isinstance(value, BaseModel) else dict(value or {})
+    if "conditional" in props and props["conditional"] is not None:
+        props["conditional"] = ConditionalRule.model_validate(props["conditional"]).model_dump()
+    if field_type == "radio":
+        props["group"] = RadioGroupProps.model_validate(props.get("group")).model_dump()
+        option = str(props.get("option_value", "")).strip()
+        if not option:
+            raise ValueError("radio fields require option_value")
+        props["option_value"] = option
+    elif field_type == "dropdown":
+        options = [DropdownOption.model_validate(item).model_dump() for item in props.get("options", [])]
+        if not options:
+            raise ValueError("dropdown fields require at least one option")
+        if len({o["value"] for o in options}) != len(options):
+            raise ValueError("dropdown option values must be unique")
+        props["options"] = options
+    elif field_type == "formula":
+        props["formula"] = FormulaProps.model_validate(props.get("formula")).model_dump()
+    elif field_type == "auto_fill":
+        props.update(AutoFillProps.model_validate(props).model_dump())
+    elif field_type == "attachment":
+        props.update(AttachmentProps.model_validate(props).model_dump())
+    return EsignFieldProperties.model_validate(props)
+
+
 class EsignFieldInput(BaseModel):
+    id: Optional[str] = None
     document_id: str
     recipient_id: str
     field_type: str  # signature | initials | date_signed | text | checkbox
@@ -24,6 +101,14 @@ class EsignFieldInput(BaseModel):
     height: float = Field(gt=0, le=1)
     required: bool = True
     label: Optional[str] = None
+    properties: EsignFieldProperties = Field(default_factory=EsignFieldProperties)
+
+    @model_validator(mode="after")
+    def validate_properties(self):
+        self.properties = _validated_properties(self.field_type, self.properties)
+        if self.field_type == "formula":
+            self.required = False
+        return self
 
 
 class EsignFieldResponse(BaseModel):
@@ -41,6 +126,7 @@ class EsignFieldResponse(BaseModel):
     label: Optional[str] = None
     value: Optional[str] = None
     draft_value: Optional[str] = None  # signer's saved in-progress entry
+    properties: EsignFieldProperties = Field(default_factory=EsignFieldProperties)
 
 
 class EsignRecipientInput(BaseModel):
@@ -206,6 +292,13 @@ class EsignSigningDocument(BaseModel):
     download_url: str
 
 
+class EsignContextField(BaseModel):
+    id: str
+    field_type: str
+    value: Optional[str] = None
+    properties: EsignFieldProperties = Field(default_factory=EsignFieldProperties)
+
+
 class EsignSigningSessionResponse(BaseModel):
     envelope_id: str
     recipient_id: str
@@ -220,6 +313,12 @@ class EsignSigningSessionResponse(BaseModel):
     consent_disclosure_text: str
     documents: list[EsignSigningDocument] = Field(default_factory=list)
     fields: list[EsignFieldResponse] = Field(default_factory=list)  # this signer's fields only
+    context_fields: list[EsignContextField] = Field(default_factory=list)
+    recipient_name: str = ""
+    recipient_email: str = ""
+    recipient_company: Optional[str] = None
+    attachments: list["EsignSignerAttachmentResponse"] = Field(default_factory=list)
+    sent_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
 
 
@@ -255,6 +354,16 @@ class EsignProgressRequest(BaseModel):
 
 class EsignProgressResponse(BaseModel):
     saved_count: int = 0
+
+
+class EsignSignerAttachmentResponse(BaseModel):
+    id: str
+    field_id: str
+    original_filename: str
+    sha256: str
+    file_size_bytes: int
+    content_type: str
+    uploaded_at: datetime
 
 
 class EsignSubmitResponse(BaseModel):
@@ -298,6 +407,7 @@ class EsignTemplateRoleInput(BaseModel):
 
 
 class EsignTemplateFieldInput(BaseModel):
+    id: Optional[str] = None
     template_document_id: str
     recipient_index: int = Field(ge=0)
     field_type: str
@@ -308,6 +418,14 @@ class EsignTemplateFieldInput(BaseModel):
     height: float = Field(gt=0, le=1)
     required: bool = True
     label: Optional[str] = None
+    properties: EsignFieldProperties = Field(default_factory=EsignFieldProperties)
+
+    @model_validator(mode="after")
+    def validate_properties(self):
+        self.properties = _validated_properties(self.field_type, self.properties)
+        if self.field_type == "formula":
+            self.required = False
+        return self
 
 
 class EsignTemplateUpdateRequest(BaseModel):
@@ -342,6 +460,26 @@ class EsignTemplateFieldResponse(BaseModel):
     height: float
     required: bool
     label: Optional[str] = None
+    properties: EsignFieldProperties = Field(default_factory=EsignFieldProperties)
+
+
+class EsignAnchorSearchRequest(BaseModel):
+    anchor: str = Field(min_length=1, max_length=500)
+    case_sensitive: bool = False
+    document_ids: Optional[list[str]] = None
+
+
+class EsignAnchorMatch(BaseModel):
+    document_id: str
+    page_number: int
+    x: float
+    y: float
+    width: float
+    height: float
+
+
+class EsignAnchorSearchResponse(BaseModel):
+    matches: list[EsignAnchorMatch] = Field(default_factory=list)
 
 
 class EsignTemplateResponse(BaseModel):

@@ -119,6 +119,24 @@ class SignaturePayloadTests(unittest.TestCase):
         self.assertEqual(format_date_signed(datetime(2026, 11, 23)), "11/23/2026")
 
 
+class AttachmentValidationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_unsupported_extension_before_storage(self) -> None:
+        with self.assertRaisesRegex(EsignError, "PDF, PNG, or JPG"):
+            await esign_signing_service.upload_attachment(
+                user_id="u", user_email="a@b.com", envelope_id=str(uuid.uuid4()),
+                field_id=str(uuid.uuid4()), filename="malware.exe",
+                content_type="application/octet-stream", content=b"MZ",
+            )
+
+    async def test_rejects_fake_image_before_storage(self) -> None:
+        with self.assertRaisesRegex(EsignError, "valid PNG"):
+            await esign_signing_service.upload_attachment(
+                user_id="u", user_email="a@b.com", envelope_id=str(uuid.uuid4()),
+                field_id=str(uuid.uuid4()), filename="fake.png",
+                content_type="image/png", content=b"not a png",
+            )
+
+
 class RequestMetaTests(unittest.TestCase):
     def _request(self, headers: dict, host: str | None = "10.0.0.9"):
         header_map = {k.lower(): v for k, v in headers.items()}
