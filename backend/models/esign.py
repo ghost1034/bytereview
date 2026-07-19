@@ -130,6 +130,7 @@ class EsignFieldResponse(BaseModel):
 
 
 class EsignRecipientInput(BaseModel):
+    id: Optional[str] = None
     email: EmailStr
     name: str
     role: str = "signer"  # signer | cc
@@ -206,9 +207,9 @@ class EsignEnvelopeResponse(BaseModel):
     voided_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
-    documents: list[EsignDocumentResponse] = Field(default_factory=list)
-    recipients: list[EsignRecipientResponse] = Field(default_factory=list)
-    fields: list[EsignFieldResponse] = Field(default_factory=list)
+    documents: list[EsignDocumentResponse]
+    recipients: list[EsignRecipientResponse]
+    fields: list[EsignFieldResponse]
 
 
 class EsignEnvelopeListItem(BaseModel):
@@ -219,6 +220,7 @@ class EsignEnvelopeListItem(BaseModel):
     recipient_count: int = 0
     signed_count: int = 0
     document_count: int = 0
+    recipient_preview: list[EsignRecipientResponse]
     expires_at: Optional[datetime] = None
     sent_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
@@ -227,10 +229,15 @@ class EsignEnvelopeListItem(BaseModel):
 
 
 class EsignEnvelopeListResponse(BaseModel):
-    envelopes: list[EsignEnvelopeListItem] = Field(default_factory=list)
+    envelopes: list[EsignEnvelopeListItem]
     total: int = 0
     limit: int = 25
     offset: int = 0
+    status_counts: dict[str, int]
+
+
+class EsignDocumentOrderRequest(BaseModel):
+    document_ids: list[str]
 
 
 class EsignEventResponse(BaseModel):
@@ -281,7 +288,7 @@ class EsignInboxItem(BaseModel):
 
 
 class EsignInboxResponse(BaseModel):
-    items: list[EsignInboxItem] = Field(default_factory=list)
+    items: list[EsignInboxItem]
 
 
 class EsignSigningDocument(BaseModel):
@@ -311,7 +318,7 @@ class EsignSigningSessionResponse(BaseModel):
     is_my_turn: bool
     consent_required: bool  # false once consent has been recorded
     consent_disclosure_text: str
-    documents: list[EsignSigningDocument] = Field(default_factory=list)
+    documents: list[EsignSigningDocument]
     fields: list[EsignFieldResponse] = Field(default_factory=list)  # this signer's fields only
     context_fields: list[EsignContextField] = Field(default_factory=list)
     recipient_name: str = ""
@@ -489,15 +496,15 @@ class EsignTemplateResponse(BaseModel):
     title: Optional[str] = None
     message: Optional[str] = None
     signing_type: str
-    recipient_roles: list[dict[str, Any]] = Field(default_factory=list)
-    documents: list[EsignTemplateDocumentResponse] = Field(default_factory=list)
-    fields: list[EsignTemplateFieldResponse] = Field(default_factory=list)
+    recipient_roles: list[dict[str, Any]]
+    documents: list[EsignTemplateDocumentResponse]
+    fields: list[EsignTemplateFieldResponse]
     created_at: datetime
     updated_at: datetime
 
 
 class EsignTemplateListResponse(BaseModel):
-    templates: list[EsignTemplateResponse] = Field(default_factory=list)
+    templates: list[EsignTemplateResponse]
 
 
 class EsignEnvelopeCreateResponse(BaseModel):

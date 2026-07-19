@@ -59,12 +59,10 @@ export default function NewEnvelopePage() {
         files: usingTemplate ? undefined : files,
       })
       const envelopeId = result.envelope.id
-      // Documents are already attached (uploaded here or from the template),
-      // so the wizard starts at recipients rather than re-presenting upload.
       router.push(
         usingTemplate
-          ? `/dashboard/esign/${envelopeId}/recipients?template=${templateId}`
-          : `/dashboard/esign/${envelopeId}/recipients`,
+          ? `/dashboard/esign/${envelopeId}/prepare?template=${templateId}`
+          : `/dashboard/esign/${envelopeId}/prepare`,
       )
     } catch (error) {
       toast({
@@ -208,7 +206,7 @@ export default function NewEnvelopePage() {
           </Button>
           <Button onClick={handleCreate} disabled={!canCreate || createEnvelope.isPending}>
             {createEnvelope.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-            Create & add recipients
+            Create & prepare
           </Button>
         </div>
       </div>

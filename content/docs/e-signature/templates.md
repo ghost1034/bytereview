@@ -16,7 +16,7 @@ An E-Signature template stores one or more PDFs, named signer roles, and the fie
 4. Under **Signer roles**, name each role in signing order, such as *Client* and *Partner*.
 5. Upload the PDF documents.
 6. Click **Create & place fields**.
-7. Select each signer role, place its fields on the document, and click **Save fields**.
+7. Select each signer role and place its fields on the document. Field changes save automatically.
 
 The template editor uses roles instead of real recipients. When you create an envelope from the template, CPAAutomation maps those role positions to the people you enter.
 
@@ -24,8 +24,8 @@ The template editor uses roles instead of real recipients. When you create an en
 
 You can also create a template while preparing a draft envelope:
 
-1. Complete the recipients and field-placement steps.
-2. On **Review & send**, click **Save as template**.
+1. Complete Prepare and field placement.
+2. Open **Review & send** and use the **Save as template** section.
 3. Enter a template name and click **Save template**.
 
 This keeps the draft's documents and field layout as a reusable template. Saving the template does not send the current envelope.
@@ -37,12 +37,12 @@ You can start from either location:
 - From **Templates**, click **Use** next to a template.
 - From **New envelope**, choose it under **Start from template**.
 
-Set the envelope title, message, expiration, and reminder interval, then click **Create & add recipients**. Add real signers in the same order as the template's roles. The saved fields appear after the recipients are saved; review their assignments and positions before sending.
+Set the envelope title, message, expiration, and reminder interval, then click **Create & prepare**. Add real signers in the same order as the template's roles. The saved fields appear after the recipients are saved; review their assignments and positions before sending.
 
 The envelope receives its own copy of the template documents and fields. Later edits to or deletion of the template do not change envelopes already created from it.
 
 ## Edit or delete a template
 
-Click a template row to open its field editor. You can move, resize, add, or remove fields, then click **Save fields**. Click **Use template** to start an envelope from the updated layout.
+Click a template row to open the immersive field editor. You can move, resize, add, or remove fields; changes save automatically. Click **Use template** to start an envelope from the updated layout.
 
 To delete a template, use the delete button in the **Templates** table. Deleting a template removes it from future use but does not remove envelopes previously created from it.

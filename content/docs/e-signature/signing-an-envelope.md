@@ -27,19 +27,24 @@ Click **Adopt signature** or select a signature field. In the dialog, choose one
 
 - **Type** - enter your name and preview it in the signature style.
 - **Draw** - draw your signature with a mouse, trackpad, touchscreen, or pointer.
+- **Upload** - upload a signature image and inspect its preview before adopting it.
 
 Click **Adopt and Sign**. The adopted signature is applied to every signature field assigned to you in the envelope. Initials fields use initials generated from your recipient name.
 
 ## Step 3: Complete your fields
+
+Click **Start**, then use **Next** to move through required fields in document reading order. CPAAutomation centers and focuses each field automatically.
 
 Work through the highlighted fields assigned to you:
 
 - Signature and initials fields use the signature you adopted.
 - **Date signed** fields are completed automatically.
 - Enter a value in each required text field.
-- Select each required checkbox.
+- Complete required checkboxes, radio groups, dropdowns, attachments, and editable auto-fill fields.
 
-The action bar shows how many required fields are complete. **Finish signing** remains unavailable until you have adopted a signature and completed the required text and checkbox fields.
+The action bar shows how many required fields are complete. Entries save automatically while you work. **Finish Later** saves once more and returns to the E-Signature inbox.
+
+On phones, Start, Next, Finish Later, Finish, and Decline remain in a viewport-safe bottom bar with touch-sized controls. PDF pages scale to the available width and guided navigation centers the active field.
 
 ## Step 4: Finish signing
 

@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 import fitz
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from core.database import db_config
@@ -542,6 +543,30 @@ class EsignEnvelopeService:
         finally:
             db.close()
 
+    def reorder_documents(
+        self, user_id: str, envelope_id: str, document_ids: list[str]
+    ) -> EsignEnvelopeResponse:
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            self._require_draft(envelope)
+            current = {str(document.id): document for document in envelope.documents or []}
+            if len(document_ids) != len(current) or len(set(document_ids)) != len(document_ids):
+                raise EsignError("document_ids must contain every current document exactly once")
+            if set(document_ids) != set(current):
+                raise EsignError("document_ids must contain every current document exactly once")
+            for display_order, document_id in enumerate(document_ids):
+                current[document_id].display_order = display_order
+            db.commit()
+            db.expire(envelope, ["documents"])
+            db.refresh(envelope)
+            return self._serialize_envelope(envelope)
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
     async def delete_envelope(self, user_id: str, envelope_id: str) -> None:
         """Hard-delete a draft envelope, including its uploaded files.
 
@@ -626,29 +651,51 @@ class EsignEnvelopeService:
             envelope = self._load_envelope(db, user_id, envelope_id)
             self._require_draft(envelope)
 
-            # Replacing recipients drops existing fields (they reference recipients).
-            db.query(EsignField).filter(EsignField.envelope_id == envelope.id).delete()
-            db.query(EsignRecipient).filter(EsignRecipient.envelope_id == envelope.id).delete()
-            db.flush()
-
+            existing = {str(recipient.id): recipient for recipient in envelope.recipients or []}
+            existing_by_email = {
+                _normalize_email(recipient.email): recipient for recipient in envelope.recipients or []
+            }
+            kept_ids: set[str] = set()
             for r in recipients:
                 if r.role not in (EsignRecipientRole.SIGNER.value, EsignRecipientRole.CC.value):
                     raise EsignError(f"Invalid recipient role: {r.role}")
-                db.add(
-                    EsignRecipient(
+                recipient = None
+                if r.id:
+                    try:
+                        recipient = existing.get(str(uuid.UUID(str(r.id))))
+                    except ValueError:
+                        raise EsignError(f"Invalid recipient id: {r.id}")
+                    if recipient is None:
+                        raise EsignError(f"Recipient id {r.id} does not belong to this envelope")
+                if recipient is None:
+                    candidate = existing_by_email.get(_normalize_email(r.email))
+                    if candidate and str(candidate.id) not in kept_ids:
+                        recipient = candidate
+                if recipient is None:
+                    recipient = EsignRecipient(
                         id=uuid.uuid4(),
                         envelope_id=envelope.id,
-                        email=_normalize_email(r.email),
-                        name=r.name.strip()[:255],
-                        role=EsignRecipientRole(r.role),
-                        routing_order=int(r.routing_order),
                         status=EsignRecipientStatus.PENDING,
                     )
+                    db.add(recipient)
+                recipient.email = _normalize_email(r.email)
+                recipient.name = r.name.strip()[:255]
+                recipient.role = EsignRecipientRole(r.role)
+                recipient.routing_order = int(r.routing_order)
+                kept_ids.add(str(recipient.id))
+
+            deleted_ids = [recipient.id for key, recipient in existing.items() if key not in kept_ids]
+            if deleted_ids:
+                db.query(EsignField).filter(EsignField.recipient_id.in_(deleted_ids)).delete(
+                    synchronize_session=False
+                )
+                db.query(EsignRecipient).filter(EsignRecipient.id.in_(deleted_ids)).delete(
+                    synchronize_session=False
                 )
             db.flush()
             db.expire(envelope, ["recipients", "fields"])
 
-            if template_id:
+            if template_id and not (envelope.fields or []):
                 template = self._load_template(db, user_id, template_id)
                 self.instantiate_template_fields(db, envelope, template)
                 db.expire(envelope, ["fields"])
@@ -736,20 +783,51 @@ class EsignEnvelopeService:
             db.close()
 
     def list_envelopes(
-        self, user_id: str, *, limit: int = 25, offset: int = 0, status: Optional[str] = None
+        self, user_id: str, *, limit: int = 25, offset: int = 0,
+        status: Optional[str] = None, q: Optional[str] = None,
+        sort_by: str = "updated_at", sort_dir: str = "desc",
     ) -> EsignEnvelopeListResponse:
         db = self._get_session()
         try:
-            query = db.query(EsignEnvelope).filter(EsignEnvelope.user_id == user_id)
+            base = db.query(EsignEnvelope).filter(EsignEnvelope.user_id == user_id)
+            count_rows = (
+                db.query(EsignEnvelope.status, func.count(EsignEnvelope.id))
+                .filter(EsignEnvelope.user_id == user_id)
+                .group_by(EsignEnvelope.status)
+                .all()
+            )
+            status_counts = {
+                (key.value if hasattr(key, "value") else str(key)): int(value)
+                for key, value in count_rows
+            }
+            for envelope_status in EsignEnvelopeStatus:
+                status_counts.setdefault(envelope_status.value, 0)
+            query = base
             if status:
-                try:
-                    query = query.filter(EsignEnvelope.status == EsignEnvelopeStatus(status))
-                except ValueError:
-                    raise EsignError(f"Invalid status filter: {status}")
+                if status == "active":
+                    query = query.filter(EsignEnvelope.status.in_(ACTIVE_STATUSES))
+                else:
+                    try:
+                        query = query.filter(EsignEnvelope.status == EsignEnvelopeStatus(status))
+                    except ValueError:
+                        raise EsignError(f"Invalid status filter: {status}")
+            if q and q.strip():
+                query = query.filter(EsignEnvelope.title.ilike(f"%{q.strip()}%"))
             total = query.count()
+            sort_columns = {
+                "updated_at": EsignEnvelope.updated_at,
+                "created_at": EsignEnvelope.created_at,
+                "sent_at": EsignEnvelope.sent_at,
+                "completed_at": EsignEnvelope.completed_at,
+                "title": EsignEnvelope.title,
+            }
+            sort_column = sort_columns.get(sort_by)
+            if sort_column is None:
+                raise EsignError(f"Invalid sort field: {sort_by}")
+            ordering = sort_column.asc() if sort_dir == "asc" else sort_column.desc()
             envelopes = (
                 query.options(joinedload(EsignEnvelope.recipients), joinedload(EsignEnvelope.documents))
-                .order_by(EsignEnvelope.created_at.desc())
+                .order_by(ordering, EsignEnvelope.id.desc())
                 .limit(limit)
                 .offset(offset)
                 .all()
@@ -766,6 +844,12 @@ class EsignEnvelopeService:
                         recipient_count=len(signers),
                         signed_count=len([r for r in signers if r.status == EsignRecipientStatus.SIGNED]),
                         document_count=len(env.documents or []),
+                        recipient_preview=[
+                            self._serialize_recipient(recipient)
+                            for recipient in sorted(
+                                env.recipients or [], key=lambda item: int(item.routing_order)
+                            )[:3]
+                        ],
                         expires_at=env.expires_at,
                         sent_at=env.sent_at,
                         completed_at=env.completed_at,
@@ -773,7 +857,10 @@ class EsignEnvelopeService:
                         updated_at=env.updated_at,
                     )
                 )
-            return EsignEnvelopeListResponse(envelopes=items, total=total, limit=limit, offset=offset)
+            return EsignEnvelopeListResponse(
+                envelopes=items, total=total, limit=limit, offset=offset,
+                status_counts=status_counts,
+            )
         finally:
             db.close()
 

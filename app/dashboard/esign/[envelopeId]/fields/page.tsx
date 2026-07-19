@@ -3,154 +3,160 @@
 import * as React from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader2, Save, Send } from 'lucide-react'
 
+import { ComposerShell, type ComposerSaveState } from '@/components/esign/composer/ComposerShell'
 import {
   PdfFieldEditor,
   coerceEditorProperties,
   type EditorField,
   type EditorFieldType,
 } from '@/components/esign/editor/PdfFieldEditor'
-import {
-  EsignWizardFrame,
-  EsignWizardFooter,
-  useDraftEnvelope,
-} from '@/components/esign/wizard/EsignWizardFrame'
+import { useDraftEnvelope } from '@/components/esign/wizard/EsignWizardFrame'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { useToast } from '@/hooks/use-toast'
-import { useReplaceFields } from '@/hooks/useEnvelopes'
+import { useReplaceFields, useSaveAsTemplate, useSendEnvelope } from '@/hooks/useEnvelopes'
 import { apiClient, type EsignFieldInput } from '@/lib/api'
+import { collectFieldIssues } from '@/lib/esign/composerValidation'
 
 export default function EnvelopeFieldsPage() {
-  const params = useParams<{ envelopeId: string }>()
-  const envelopeId = params?.envelopeId
+  const { envelopeId } = useParams<{ envelopeId: string }>()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
-
   const envelopeQuery = useDraftEnvelope(envelopeId)
   const envelope = envelopeQuery.data
-
+  const replaceFields = useReplaceFields(envelopeId)
+  const sendEnvelope = useSendEnvelope(envelopeId)
+  const saveAsTemplate = useSaveAsTemplate(envelopeId)
   const [editorFields, setEditorFields] = React.useState<EditorField[]>([])
-  const [hydratedFor, setHydratedFor] = React.useState<string | null>(null)
-
-  const replaceFields = useReplaceFields(envelopeId!)
+  const [hydrated, setHydrated] = React.useState(false)
+  const [saveState, setSaveState] = React.useState<ComposerSaveState>('idle')
+  const [reviewOpen, setReviewOpen] = React.useState(searchParams.get('review') === 'open')
+  const [focusFieldId, setFocusFieldId] = React.useState<string | null>(null)
+  const [templateName, setTemplateName] = React.useState('')
+  const lastSaved = React.useRef('')
 
   React.useEffect(() => {
-    if (!envelope || hydratedFor === envelope.id) return
-    setEditorFields(
-      envelope.fields.map((f) => ({
-        id: f.id,
-        documentId: f.document_id,
-        participantId: f.recipient_id,
-        fieldType: f.field_type as EditorFieldType,
-        pageNumber: f.page_number,
-        posX: f.pos_x,
-        posY: f.pos_y,
-        width: f.width,
-        height: f.height,
-        required: f.required,
-        label: f.label ?? undefined,
-        properties: coerceEditorProperties(f.properties),
-      })),
-    )
-    setHydratedFor(envelope.id)
-  }, [envelope, hydratedFor])
+    if (!envelope || hydrated) return
+    const initial = envelope.fields.map((field) => ({
+      id: field.id,
+      documentId: field.document_id,
+      participantId: field.recipient_id,
+      fieldType: field.field_type as EditorFieldType,
+      pageNumber: field.page_number,
+      posX: field.pos_x,
+      posY: field.pos_y,
+      width: field.width,
+      height: field.height,
+      required: field.required,
+      label: field.label ?? undefined,
+      properties: coerceEditorProperties(field.properties),
+    }))
+    setEditorFields(initial)
+    lastSaved.current = JSON.stringify(initial)
+    setHydrated(true)
+  }, [envelope, hydrated])
 
-  // Signed URLs for the field editor (refetched when documents change).
+  const payload = React.useCallback((fields: EditorField[]) => fields.map((field) => ({
+    id: field.id,
+    document_id: field.documentId,
+    recipient_id: field.participantId,
+    field_type: field.fieldType,
+    page_number: field.pageNumber,
+    pos_x: field.posX,
+    pos_y: field.posY,
+    width: field.width,
+    height: field.height,
+    required: field.required,
+    label: field.label,
+    properties: field.properties as EsignFieldInput['properties'],
+  })), [])
+
+  const saveNow = React.useCallback(async () => {
+    const snapshot = JSON.stringify(editorFields)
+    if (snapshot === lastSaved.current) return true
+    setSaveState('saving')
+    try {
+      await replaceFields.mutateAsync(payload(editorFields))
+      lastSaved.current = snapshot
+      setSaveState('saved')
+      return true
+    } catch (error) {
+      setSaveState('error')
+      toast({ title: 'Fields were not saved', description: error instanceof Error ? error.message : 'Try again before sending.', variant: 'destructive' })
+      return false
+    }
+  }, [editorFields, payload, replaceFields, toast])
+
+  React.useEffect(() => {
+    if (!hydrated || JSON.stringify(editorFields) === lastSaved.current) return
+    const timer = window.setTimeout(() => { void saveNow() }, 750)
+    return () => window.clearTimeout(timer)
+  }, [editorFields, hydrated, saveNow])
+
   const documentUrlsQuery = useQuery({
-    queryKey: ['esign', 'doc-urls', envelopeId, envelope?.documents.map((d) => d.id).join(',')],
+    queryKey: ['esign', 'doc-urls', envelopeId, envelope?.documents.map((document) => document.id).join(',')],
     queryFn: async () => {
       const urls: Record<string, string> = {}
-      for (const doc of envelope!.documents) {
-        const download = await apiClient.getEsignDocumentDownload(envelope!.id, doc.id)
-        urls[doc.id] = download.url
-      }
+      for (const document of envelope!.documents) urls[document.id] = (await apiClient.getEsignDocumentDownload(envelope!.id, document.id)).url
       return urls
     },
-    enabled: !!envelope && envelope.documents.length > 0,
+    enabled: !!envelope?.documents.length,
     staleTime: 10 * 60 * 1000,
   })
 
-  const stepHref = (step: string) => {
-    const query = searchParams?.toString()
-    return `/dashboard/esign/${envelopeId}/${step}${query ? `?${query}` : ''}`
+  const signers = envelope?.recipients.filter((recipient) => recipient.role === 'signer') ?? []
+  const issues = collectFieldIssues(editorFields, signers.map((recipient) => recipient.id))
+  const openReview = async () => { if (await saveNow()) setReviewOpen(true) }
+  const handleSend = async () => {
+    if (issues.length || !await saveNow()) return
+    try { await sendEnvelope.mutateAsync(); toast({ title: 'Envelope sent', description: 'Recipients will be notified according to the routing order.' }); router.push(`/dashboard/esign/${envelopeId}`) }
+    catch (error) { toast({ title: 'Could not send envelope', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) }
   }
-
-  const saveAndContinue = async () => {
-    try {
-      await replaceFields.mutateAsync(
-        editorFields.map((f) => ({
-          id: f.id,
-          document_id: f.documentId,
-          recipient_id: f.participantId,
-          field_type: f.fieldType,
-          page_number: f.pageNumber,
-          pos_x: f.posX,
-          pos_y: f.posY,
-          width: f.width,
-          height: f.height,
-          required: f.required,
-          label: f.label,
-          properties: f.properties as EsignFieldInput['properties'],
-        })),
-      )
-      router.push(stepHref('review'))
-    } catch (error) {
-      toast({
-        title: 'Failed to save fields',
-        description: error instanceof Error ? error.message : undefined,
-        variant: 'destructive',
-      })
-    }
-  }
-
-  const signerRecipients = envelope?.recipients.filter((r) => r.role === 'signer') ?? []
 
   return (
-    <EsignWizardFrame
-      step="fields"
-      envelope={envelope}
-      footer={
-        <EsignWizardFooter
-          back={
-            <Button variant="outline" onClick={() => router.push(stepHref('recipients'))}>
-              <ArrowLeft className="mr-1.5 size-4" /> Back
-            </Button>
-          }
-          primary={
-            <Button onClick={saveAndContinue} disabled={replaceFields.isPending}>
-              {replaceFields.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-              Continue to review <ArrowRight className="ml-1.5 size-4" />
-            </Button>
-          }
-        />
-      }
-    >
+    <ComposerShell title={envelope?.title ?? 'Add fields'} stage="fields" saveState={saveState} onClose={() => router.push('/dashboard/esign')} onBack={() => { const query = searchParams.toString(); router.push(`/dashboard/esign/${envelopeId}/prepare${query ? `?${query}` : ''}`) }} primary={<Button onClick={openReview}>Review & send <Send className="ml-1.5 size-4" /></Button>}>
       {!envelope || documentUrlsQuery.isLoading || !documentUrlsQuery.data ? (
-        <div className="flex items-center justify-center rounded-lg border border-border bg-surface py-16 text-foreground-muted">
-          <Loader2 className="mr-2 size-4 animate-spin" /> Preparing documents…
-        </div>
-      ) : signerRecipients.length === 0 ? (
-        <p className="rounded-lg border border-border bg-surface p-6 text-sm text-foreground-muted">
-          Save recipients first — fields are assigned to individual signers.
-        </p>
+        <div className="flex h-full items-center justify-center text-sm text-foreground-muted"><Loader2 className="mr-2 size-4 animate-spin" /> Preparing documents…</div>
+      ) : signers.length === 0 ? (
+        <div className="mx-auto mt-12 max-w-md rounded-xl border border-warning/30 bg-warning-soft p-6 text-sm">Return to Prepare and add at least one signer before placing fields.</div>
       ) : (
-        <PdfFieldEditor
-          documents={envelope.documents.map((d) => ({
-            id: d.id,
-            name: d.original_filename,
-            url: documentUrlsQuery.data[d.id],
-            pageCount: d.page_count,
-          }))}
-          participants={signerRecipients.map((r) => ({
-            id: r.id,
-            label: `${r.name} (${r.email})`,
-          }))}
-          fields={editorFields}
-          onChange={setEditorFields}
-        />
+        <div className="h-full p-3 sm:p-4">
+          <PdfFieldEditor
+            className="min-h-full"
+            documents={envelope.documents.map((document) => ({ id: document.id, name: document.original_filename, url: documentUrlsQuery.data[document.id], pageCount: document.page_count }))}
+            participants={signers.map((recipient) => ({ id: recipient.id, label: `${recipient.name} · ${recipient.email}` }))}
+            fields={editorFields}
+            onChange={setEditorFields}
+            focusFieldId={focusFieldId}
+          />
+        </div>
       )}
-    </EsignWizardFrame>
+
+      <Sheet open={reviewOpen} onOpenChange={setReviewOpen}>
+        <SheetContent className="flex w-[min(92vw,480px)] flex-col sm:max-w-lg">
+          <SheetHeader><SheetTitle>Review & send</SheetTitle><SheetDescription>Confirm the envelope and resolve any issues before sending.</SheetDescription></SheetHeader>
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto py-4">
+            <section><h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-subtle">Documents</h3><ul className="mt-2 space-y-1 text-sm">{envelope?.documents.map((document) => <li key={document.id}>{document.original_filename} · {document.page_count} page{document.page_count === 1 ? '' : 's'}</li>)}</ul></section>
+            <section><h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-subtle">Recipients & routing</h3><ol className="mt-2 space-y-2 text-sm">{envelope?.recipients.map((recipient) => <li key={recipient.id}><span className="font-medium">{recipient.routing_order}. {recipient.name}</span><span className="block text-xs text-foreground-muted">{recipient.email} · {recipient.role === 'cc' ? 'Receives a copy' : 'Signer'}</span></li>)}</ol></section>
+            <section><h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-subtle">Message & delivery</h3><p className="mt-2 whitespace-pre-wrap text-sm text-foreground-muted">{envelope?.message || 'No message'}</p><p className="mt-2 text-xs text-foreground-muted">{envelope?.signing_type === 'sequential' ? 'Recipients sign in order' : 'Recipients may sign in any order'}{envelope?.expires_at ? ` · Expires ${new Date(envelope.expires_at).toLocaleDateString()}` : ''}{envelope?.reminder_interval_hours ? ` · Reminders every ${envelope.reminder_interval_hours} hours` : ''}</p></section>
+            <section className="rounded-lg border border-border p-3"><div className="flex items-center gap-2">{issues.length ? <AlertCircle className="size-4 text-warning" /> : <CheckCircle2 className="size-4 text-success" />}<h3 className="text-sm font-semibold">{issues.length ? `${issues.length} issue${issues.length === 1 ? '' : 's'} to fix` : 'Ready to send'}</h3></div>{issues.length > 0 && <ul className="mt-2 space-y-1">{issues.map((issue) => <li key={issue.id}><button type="button" className="text-left text-sm text-warning underline-offset-2 hover:underline" onClick={() => { if (issue.fieldId) { setFocusFieldId(issue.fieldId); setReviewOpen(false) } }}>{issue.message}</button></li>)}</ul>}</section>
+            <section className="space-y-2 border-t border-border pt-4"><Label htmlFor="review-template-name">Save as template</Label><div className="flex gap-2"><Input id="review-template-name" value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name" /><Button variant="outline" disabled={!templateName.trim() || saveAsTemplate.isPending} onClick={async () => { try { await saveAsTemplate.mutateAsync({ name: templateName.trim() }); toast({ title: 'Template saved' }); setTemplateName('') } catch (error) { toast({ title: 'Could not save template', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><Save className="mr-1.5 size-4" /> Save</Button></div></section>
+          </div>
+          <SheetFooter><Button variant="outline" onClick={() => setReviewOpen(false)}>Back to fields</Button><Button onClick={handleSend} disabled={issues.length > 0 || sendEnvelope.isPending}>{sendEnvelope.isPending && <Loader2 className="mr-1.5 size-4 animate-spin" />} Send envelope</Button></SheetFooter>
+        </SheetContent>
+      </Sheet>
+    </ComposerShell>
   )
 }

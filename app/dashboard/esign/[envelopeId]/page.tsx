@@ -27,6 +27,7 @@ import {
 import { EnvelopeStatusBadge } from '@/components/ui/envelope-status-badge'
 import { PageHeader } from '@/components/ui/page-header'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Table,
   TableBody,
@@ -114,7 +115,7 @@ export default function EnvelopeDetailPage() {
 
   React.useEffect(() => {
     if (envelope && envelope.status === 'draft') {
-      router.replace(`/dashboard/esign/${envelope.id}/documents`)
+      router.replace(`/dashboard/esign/${envelope.id}/prepare`)
     }
   }, [envelope, router])
 
@@ -246,7 +247,25 @@ export default function EnvelopeDetailPage() {
         </p>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <Tabs defaultValue="summary" className="space-y-4">
+        <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-none border-b border-border bg-transparent p-0">
+          <TabsTrigger value="summary" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">Summary</TabsTrigger>
+          <TabsTrigger value="recipients" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">Recipients</TabsTrigger>
+          <TabsTrigger value="documents" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">Documents</TabsTrigger>
+          <TabsTrigger value="history" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">History</TabsTrigger>
+        </TabsList>
+        <TabsContent value="summary">
+          <section className="rounded-lg border border-border bg-surface p-5">
+            <h2 className="text-base font-semibold">Status timeline</h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-4">
+              <div><p className="text-xs text-foreground-subtle">Created</p><p className="mt-1 text-sm font-medium">{formatDateTime(envelope.created_at)}</p></div>
+              <div><p className="text-xs text-foreground-subtle">Sent</p><p className="mt-1 text-sm font-medium">{formatDateTime(envelope.sent_at)}</p></div>
+              <div><p className="text-xs text-foreground-subtle">Progress</p><p className="mt-1 text-sm font-medium">{signers.filter((recipient) => recipient.status === 'signed').length} of {signers.length} signed</p></div>
+              <div><p className="text-xs text-foreground-subtle">Completed</p><p className="mt-1 text-sm font-medium">{formatDateTime(envelope.completed_at)}</p></div>
+            </div>
+          </section>
+        </TabsContent>
+        <TabsContent value="recipients">
         {/* Recipients timeline */}
         <section className="space-y-3 rounded-lg border border-border bg-surface p-5">
           <h2 className="text-base font-semibold">Recipients</h2>
@@ -300,8 +319,10 @@ export default function EnvelopeDetailPage() {
               ))}
           </ol>
         </section>
+        </TabsContent>
 
         {/* Documents + hashes */}
+        <TabsContent value="documents">
         <section className="space-y-3 rounded-lg border border-border bg-surface p-5">
           <h2 className="text-base font-semibold">Documents & integrity</h2>
           <ul className="space-y-3">
@@ -330,9 +351,10 @@ export default function EnvelopeDetailPage() {
             ))}
           </ul>
         </section>
-      </div>
+        </TabsContent>
 
       {/* Audit trail */}
+      <TabsContent value="history">
       <section className="space-y-3 rounded-lg border border-border bg-surface p-5">
         <h2 className="text-base font-semibold">Audit trail</h2>
         <p className="text-xs text-foreground-muted">
@@ -381,6 +403,8 @@ export default function EnvelopeDetailPage() {
           </div>
         )}
       </section>
+      </TabsContent>
+      </Tabs>
 
       <Dialog open={voidOpen} onOpenChange={setVoidOpen}>
         <DialogContent className="sm:max-w-md">

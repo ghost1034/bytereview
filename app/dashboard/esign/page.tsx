@@ -2,8 +2,18 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { FileSignature, Inbox, Plus, Scale, ShieldCheck, Trash2 } from 'lucide-react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import {
+  BellRing,
+  ChevronLeft,
+  ChevronRight,
+  FileSignature,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from 'lucide-react'
 
 import {
   AlertDialog,
@@ -16,18 +26,16 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { EmptyState } from '@/components/ui/empty-state'
 import { EnvelopeStatusBadge } from '@/components/ui/envelope-status-badge'
-import { PageHeader } from '@/components/ui/page-header'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -38,362 +46,216 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import { useDeleteEnvelope, useEnvelopes, useEsignInbox } from '@/hooks/useEnvelopes'
+import { apiClient } from '@/lib/api'
+import { cn } from '@/lib/utils'
 
-const PAGE_SIZE = 25
+const PAGE_SIZE = 20
 
-function formatDate(value?: string | null) {
+type QuickView = 'all' | 'inbox' | 'draft' | 'active' | 'completed' | 'declined' | 'voided' | 'expired'
+type SortBy = 'updated_at' | 'created_at' | 'sent_at' | 'completed_at' | 'title'
+
+const QUICK_VIEWS: { id: QuickView; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'inbox', label: 'Awaiting my signature' },
+  { id: 'draft', label: 'Drafts' },
+  { id: 'active', label: 'Sent / In progress' },
+  { id: 'completed', label: 'Completed' },
+  { id: 'declined', label: 'Declined' },
+  { id: 'voided', label: 'Voided' },
+  { id: 'expired', label: 'Expired' },
+]
+
+function formatActivity(value?: string | null) {
   if (!value) return '—'
-  return new Date(value).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+  }).format(new Date(value))
 }
 
-export default function EsignDashboardPage() {
+export default function EsignManagePage() {
   const router = useRouter()
-  const [tab, setTab] = React.useState<'all' | 'inbox' | 'drafts'>('all')
-  const [statusFilter, setStatusFilter] = React.useState<string>('any')
-  const [offset, setOffset] = React.useState(0)
-
-  const listStatus = tab === 'drafts' ? 'draft' : statusFilter !== 'any' ? statusFilter : undefined
-  const envelopesQuery = useEnvelopes(PAGE_SIZE, offset, listStatus)
-  const inboxQuery = useEsignInbox()
-  const deleteEnvelope = useDeleteEnvelope()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
+  const view = (searchParams.get('view') as QuickView | null) ?? 'all'
+  const offset = Math.max(0, Number(searchParams.get('offset') ?? 0) || 0)
+  const sortBy = (searchParams.get('sort_by') as SortBy | null) ?? 'updated_at'
+  const sortDir = searchParams.get('sort_dir') === 'asc' ? 'asc' : 'desc'
+  const query = searchParams.get('q') ?? ''
+  const [search, setSearch] = React.useState(query)
   const [deleteTarget, setDeleteTarget] = React.useState<{ id: string; title: string } | null>(null)
 
-  const inboxItems = inboxQuery.data?.items ?? []
-  const pendingItems = inboxItems.filter((item) => item.envelope_status !== 'completed')
-  const completedItems = inboxItems.filter((item) => item.envelope_status === 'completed')
-  // Only actual signing turns count toward the tab badge; copies are read-only.
-  const inboxCount = pendingItems.filter((item) => item.role !== 'cc').length
+  const setParams = React.useCallback((patch: Record<string, string | null>) => {
+    const next = new URLSearchParams(searchParams.toString())
+    Object.entries(patch).forEach(([key, value]) => {
+      if (!value || (key === 'offset' && value === '0')) next.delete(key)
+      else next.set(key, value)
+    })
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false })
+  }, [pathname, router, searchParams])
+
+  React.useEffect(() => setSearch(query), [query])
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (search.trim() !== query) setParams({ q: search.trim() || null, offset: null })
+    }, 350)
+    return () => window.clearTimeout(timer)
+  }, [query, search, setParams])
+
+  const status = view === 'all' || view === 'inbox' ? undefined : view
+  const envelopesQuery = useEnvelopes({
+    limit: PAGE_SIZE,
+    offset,
+    status,
+    q: query || undefined,
+    sortBy,
+    sortDir,
+  })
+  const inboxQuery = useEsignInbox({ q: query || undefined, state: 'pending' })
+  const deleteEnvelope = useDeleteEnvelope()
+  const inboxItems = (inboxQuery.data?.items ?? []).filter((item) => item.role !== 'cc')
+  const counts = (envelopesQuery.data as typeof envelopesQuery.data & { status_counts?: Record<string, number> })?.status_counts ?? {}
+  const activeCount = (counts.sent ?? 0) + (counts.in_progress ?? 0)
+
+  const countFor = (id: QuickView) => {
+    if (id === 'all') return Object.values(counts).reduce((sum, count) => sum + count, 0)
+    if (id === 'inbox') return inboxItems.length
+    if (id === 'active') return activeCount
+    return counts[id] ?? 0
+  }
+
+  const isLoading = view === 'inbox' ? inboxQuery.isLoading : envelopesQuery.isLoading
+  const total = view === 'inbox' ? inboxItems.length : envelopesQuery.data?.total ?? 0
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="E-Signature"
-        title="Envelopes"
-        description="Send documents for legally defensible electronic signature — MFA-verified signers, append-only audit trail, and a tamper-evident digital seal."
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" asChild>
-              <Link href="/dashboard/esign/legal">
-                <Scale className="mr-1.5 size-4" /> Legal basis
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/dashboard/esign/verify">
-                <ShieldCheck className="mr-1.5 size-4" /> Verify
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/dashboard/esign/templates">Templates</Link>
-            </Button>
-            <Button asChild>
-              <Link href="/dashboard/esign/new">
-                <Plus className="mr-1.5 size-4" /> New envelope
-              </Link>
-            </Button>
-          </div>
-        }
-      />
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Tabs
-          value={tab}
-          onValueChange={(v) => {
-            setTab(v as typeof tab)
-            setOffset(0)
-          }}
-        >
-          <TabsList>
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="inbox">
-              Awaiting my signature{inboxCount > 0 ? ` (${inboxCount})` : ''}
-            </TabsTrigger>
-            <TabsTrigger value="drafts">Drafts</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        {tab === 'all' && (
-          <Select
-            value={statusFilter}
-            onValueChange={(v) => {
-              setStatusFilter(v)
-              setOffset(0)
-            }}
-          >
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="Any status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="any">Any status</SelectItem>
-              <SelectItem value="sent">Sent</SelectItem>
-              <SelectItem value="in_progress">In progress</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="declined">Declined</SelectItem>
-              <SelectItem value="voided">Voided</SelectItem>
-              <SelectItem value="expired">Expired</SelectItem>
-            </SelectContent>
-          </Select>
-        )}
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-primary">Manage</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Envelopes</h1>
+          <p className="mt-1 text-sm text-foreground-muted">Track documents, recipients, and signing progress.</p>
+        </div>
+        <Button asChild>
+          <Link href="/dashboard/esign/new"><Plus className="mr-1.5 size-4" /> New envelope</Link>
+        </Button>
       </div>
 
-      {tab === 'inbox' ? (
-        <div className="space-y-6">
-          <div className="rounded-lg border border-border bg-surface">
-            {inboxQuery.isLoading ? (
-              <div className="space-y-2 p-4">
-                <Skeleton className="h-9 w-full" />
-                <Skeleton className="h-9 w-full" />
-              </div>
-            ) : pendingItems.length === 0 ? (
-              <EmptyState
-                icon={Inbox}
-                title="Nothing waiting for you"
-                description="Envelopes sent to your email address will appear here when it's your turn to sign."
+      <div className="grid min-h-[560px] overflow-hidden rounded-xl border border-border bg-surface shadow-sm md:grid-cols-[220px_minmax(0,1fr)]">
+        <aside className="border-b border-border bg-surface-muted/40 p-3 md:border-b-0 md:border-r">
+          <p className="px-2 pb-2 pt-1 text-xs font-semibold uppercase tracking-wider text-foreground-subtle">Quick views</p>
+          <nav className="space-y-0.5" aria-label="Envelope quick views">
+            {QUICK_VIEWS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setParams({ view: item.id === 'all' ? null : item.id, offset: null })}
+                className={cn(
+                  'flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  view === item.id ? 'bg-primary-soft font-medium text-primary' : 'text-foreground-muted hover:bg-surface hover:text-foreground',
+                )}
+              >
+                <span>{item.label}</span>
+                <span className="ml-2 tabular-nums text-xs opacity-75">{countFor(item.id)}</span>
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        <section className="min-w-0">
+          <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-foreground-subtle" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search envelopes"
+                aria-label="Search envelopes"
+                className="pl-9"
               />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Envelope</TableHead>
-                    <TableHead>From</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Expires</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pendingItems.map((item) => (
-                    <TableRow key={item.envelope_id}>
-                      <TableCell className="font-medium">{item.title}</TableCell>
-                      <TableCell className="text-foreground-muted">{item.sender_email}</TableCell>
-                      <TableCell>
-                        {item.role === 'cc' ? (
-                          <span className="text-sm text-foreground-muted">Copy — no action needed</span>
-                        ) : item.is_my_turn ? (
-                          <span className="text-sm font-medium text-info">Your turn</span>
-                        ) : (
-                          <span className="text-sm text-foreground-muted">Waiting on others</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-foreground-muted">{formatDate(item.expires_at)}</TableCell>
-                      <TableCell className="text-right">
-                        {item.role === 'cc' ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => router.push(`/dashboard/esign/sign/${item.envelope_id}`)}
-                          >
-                            View documents
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            disabled={!item.is_my_turn}
-                            onClick={() => router.push(`/dashboard/esign/sign/${item.envelope_id}`)}
-                          >
-                            Review & sign
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            </div>
+            {view !== 'inbox' && (
+              <Select value={`${sortBy}:${sortDir}`} onValueChange={(value) => {
+                const [nextSort, nextDir] = value.split(':')
+                setParams({ sort_by: nextSort, sort_dir: nextDir, offset: null })
+              }}>
+                <SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="updated_at:desc">Recently updated</SelectItem>
+                  <SelectItem value="created_at:desc">Recently created</SelectItem>
+                  <SelectItem value="title:asc">Title A–Z</SelectItem>
+                  <SelectItem value="sent_at:desc">Recently sent</SelectItem>
+                  <SelectItem value="completed_at:desc">Recently completed</SelectItem>
+                </SelectContent>
+              </Select>
             )}
           </div>
-          {completedItems.length > 0 && (
-            <section className="space-y-2">
-              <h2 className="text-base font-semibold">Completed</h2>
-              <p className="text-sm text-foreground-muted">
-                Documents you signed that every party has now completed. Open one to download the
-                sealed PDF and its certificate of completion.
-              </p>
-              <div className="rounded-lg border border-border bg-surface">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Envelope</TableHead>
-                      <TableHead>From</TableHead>
-                      <TableHead>Completed</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {completedItems.map((item) => (
-                      <TableRow key={item.envelope_id}>
-                        <TableCell className="font-medium">{item.title}</TableCell>
-                        <TableCell className="text-foreground-muted">{item.sender_email}</TableCell>
-                        <TableCell className="text-foreground-muted">
-                          {formatDate(item.completed_at)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => router.push(`/dashboard/esign/sign/${item.envelope_id}`)}
-                          >
-                            View document
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </section>
-          )}
-        </div>
-      ) : (
-        <div className="rounded-lg border border-border bg-surface">
-          {envelopesQuery.isLoading ? (
-            <div className="space-y-2 p-4">
-              <Skeleton className="h-9 w-full" />
-              <Skeleton className="h-9 w-full" />
-              <Skeleton className="h-9 w-full" />
-            </div>
-          ) : envelopesQuery.isError ? (
-            <p className="p-6 text-sm text-destructive">
-              Failed to load envelopes: {(envelopesQuery.error as Error)?.message}
-            </p>
-          ) : (envelopesQuery.data?.envelopes.length ?? 0) === 0 ? (
-            <EmptyState
-              icon={FileSignature}
-              title={tab === 'drafts' ? 'No drafts' : 'No envelopes yet'}
-              description="Create an envelope to send documents for signature."
-              action={
-                <Button asChild>
-                  <Link href="/dashboard/esign/new">
-                    <Plus className="mr-1.5 size-4" /> New envelope
-                  </Link>
-                </Button>
-              }
-            />
-          ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Envelope</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Signers</TableHead>
-                    <TableHead>Sent</TableHead>
-                    <TableHead>Completed</TableHead>
-                    <TableHead className="w-12" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {envelopesQuery.data!.envelopes.map((envelope) => (
-                    <TableRow
-                      key={envelope.id}
-                      className="cursor-pointer"
-                      onClick={() =>
-                        router.push(
-                          envelope.status === 'draft'
-                            ? `/dashboard/esign/${envelope.id}/documents`
-                            : `/dashboard/esign/${envelope.id}`,
-                        )
-                      }
-                    >
-                      <TableCell className="font-medium">{envelope.title}</TableCell>
-                      <TableCell>
-                        <EnvelopeStatusBadge status={envelope.status} />
-                      </TableCell>
-                      <TableCell className="tabular-nums text-foreground-muted">
-                        {envelope.signed_count}/{envelope.recipient_count}
-                      </TableCell>
-                      <TableCell className="text-foreground-muted">{formatDate(envelope.sent_at)}</TableCell>
-                      <TableCell className="text-foreground-muted">{formatDate(envelope.completed_at)}</TableCell>
-                      <TableCell className="text-right">
-                        {envelope.status === 'draft' && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-foreground-muted hover:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setDeleteTarget({ id: envelope.id, title: envelope.title })
-                            }}
-                            aria-label={`Delete ${envelope.title}`}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {(envelopesQuery.data!.total ?? 0) > PAGE_SIZE && (
-                <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm">
-                  <span className="text-foreground-muted">
-                    {offset + 1}–{Math.min(offset + PAGE_SIZE, envelopesQuery.data!.total)} of{' '}
-                    {envelopesQuery.data!.total}
-                  </span>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={offset === 0}
-                      onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={offset + PAGE_SIZE >= envelopesQuery.data!.total}
-                      onClick={() => setOffset(offset + PAGE_SIZE)}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
 
-      <AlertDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null)
-        }}
-      >
+          {isLoading ? (
+            <div className="space-y-3 p-4"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>
+          ) : view === 'inbox' ? (
+            inboxItems.length === 0 ? (
+              <EmptyState icon={FileSignature} title="Nothing waiting for you" description="Signature requests assigned to you appear here." />
+            ) : (
+              <ul className="divide-y divide-border">
+                {inboxItems.map((item) => (
+                  <li key={item.envelope_id}>
+                    <button type="button" onClick={() => router.push(`/dashboard/esign/sign/${item.envelope_id}`)} className="grid w-full gap-2 px-4 py-3 text-left hover:bg-surface-muted/50 sm:grid-cols-[minmax(0,1fr)_180px_130px] sm:items-center">
+                      <span className="min-w-0"><span className="block truncate text-sm font-medium">{item.title}</span><span className="block truncate text-xs text-foreground-muted">From {item.sender_email}</span></span>
+                      <span className="text-xs text-foreground-muted">{item.is_my_turn ? 'Ready for your signature' : 'Waiting on others'}</span>
+                      <span className="text-xs text-foreground-muted">{formatActivity(item.sent_at)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )
+          ) : (envelopesQuery.data?.envelopes.length ?? 0) === 0 ? (
+            <EmptyState icon={FileSignature} title={query ? 'No matching envelopes' : 'No envelopes in this view'} description={query ? 'Try another search term or quick view.' : 'Create an envelope to send documents for signature.'} />
+          ) : (
+            <ul className="divide-y divide-border">
+              {envelopesQuery.data!.envelopes.map((envelope) => {
+                const preview = (envelope as typeof envelope & { recipient_preview?: { id: string; name: string; status: string }[] }).recipient_preview ?? []
+                const href = envelope.status === 'draft' ? `/dashboard/esign/${envelope.id}/prepare` : `/dashboard/esign/${envelope.id}`
+                return (
+                  <li key={envelope.id} className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4 py-3 hover:bg-surface-muted/40 sm:grid-cols-[minmax(0,1fr)_150px_170px_44px]">
+                    <button type="button" onClick={() => router.push(href)} className="min-w-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      <span className="block truncate text-sm font-medium">{envelope.title}</span>
+                      <span className="mt-0.5 block truncate text-xs text-foreground-muted">
+                        {envelope.document_count} document{envelope.document_count === 1 ? '' : 's'}
+                        {preview.length ? ` · ${preview.map((recipient) => recipient.name).join(', ')}` : ' · No recipients'}
+                      </span>
+                    </button>
+                    <div><EnvelopeStatusBadge status={envelope.status} /><span className="mt-1 block text-[11px] tabular-nums text-foreground-subtle">{envelope.signed_count}/{envelope.recipient_count} signed</span></div>
+                    <div className="hidden text-xs text-foreground-muted sm:block"><span className="block text-foreground-subtle">Last activity</span>{formatActivity(envelope.updated_at)}</div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" aria-label={`Actions for ${envelope.title}`}><MoreHorizontal className="size-4" /></Button></DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => router.push(href)}><Pencil /> {envelope.status === 'draft' ? 'Resume draft' : 'View details'}</DropdownMenuItem>
+                        {(envelope.status === 'sent' || envelope.status === 'in_progress') && <DropdownMenuItem onClick={async () => { try { await apiClient.remindEsignEnvelope(envelope.id); toast({ title: 'Reminder sent' }) } catch (error) { toast({ title: 'Reminder failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><BellRing /> Send reminder</DropdownMenuItem>}
+                        {envelope.status === 'draft' && <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget({ id: envelope.id, title: envelope.title })}><Trash2 /> Delete draft</DropdownMenuItem></>}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+
+          {view !== 'inbox' && total > 0 && (
+            <div className="flex items-center justify-between border-t border-border px-4 py-3 text-xs text-foreground-muted">
+              <span>{offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total}</span>
+              <div className="flex gap-1">
+                <Button size="icon" variant="outline" disabled={offset === 0} onClick={() => setParams({ offset: String(Math.max(0, offset - PAGE_SIZE)) })} aria-label="Previous page"><ChevronLeft className="size-4" /></Button>
+                <Button size="icon" variant="outline" disabled={offset + PAGE_SIZE >= total} onClick={() => setParams({ offset: String(offset + PAGE_SIZE) })} aria-label="Next page"><ChevronRight className="size-4" /></Button>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete draft envelope?</AlertDialogTitle>
-            <AlertDialogDescription>
-              “{deleteTarget?.title}” and its uploaded documents will be permanently deleted. This
-              cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={deleteEnvelope.isPending}
-              onClick={async () => {
-                if (!deleteTarget) return
-                try {
-                  await deleteEnvelope.mutateAsync(deleteTarget.id)
-                  toast({ title: 'Draft deleted' })
-                } catch (error) {
-                  toast({
-                    title: 'Failed to delete draft',
-                    description: error instanceof Error ? error.message : undefined,
-                    variant: 'destructive',
-                  })
-                } finally {
-                  setDeleteTarget(null)
-                }
-              }}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle>Delete draft envelope?</AlertDialogTitle><AlertDialogDescription>“{deleteTarget?.title}” and its documents will be permanently deleted.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction disabled={deleteEnvelope.isPending} onClick={async () => { if (!deleteTarget) return; try { await deleteEnvelope.mutateAsync(deleteTarget.id); toast({ title: 'Draft deleted' }) } catch (error) { toast({ title: 'Failed to delete draft', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } finally { setDeleteTarget(null) } }}>Delete</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

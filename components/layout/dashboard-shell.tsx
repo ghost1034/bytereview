@@ -74,6 +74,10 @@ export function DashboardShell({
   const isWideRoute =
     pathname.startsWith('/dashboard/cpe-tracker') ||
     pathname.startsWith('/dashboard/inkwise')
+  const isImmersiveEsign =
+    pathname.startsWith('/dashboard/esign/sign/') ||
+    /\/dashboard\/esign\/[^/]+\/(prepare|fields|review|documents|recipients)$/.test(pathname) ||
+    /\/dashboard\/esign\/templates\/[^/]+/.test(pathname)
   const [paletteOpen, setPaletteOpen] = React.useState(false)
 
   React.useEffect(() => {
@@ -94,6 +98,14 @@ export function DashboardShell({
     },
     [],
   )
+
+  if (isImmersiveEsign) {
+    return (
+      <main id="main-content" tabIndex={-1} className="min-h-dvh bg-surface outline-none">
+        <ProductTourProvider>{children}</ProductTourProvider>
+      </main>
+    )
+  }
 
   return (
     <SidebarProvider defaultOpen={defaultSidebarOpen}>

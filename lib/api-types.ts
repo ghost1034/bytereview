@@ -1775,6 +1775,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/esign/envelopes/{envelope_id}/documents/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Reorder Documents
+         * @description Reorder every document in a draft envelope.
+         */
+        patch: operations["reorder_documents_api_esign_envelopes__envelope_id__documents_order_patch"];
+        trace?: never;
+    };
     "/api/esign/envelopes/{envelope_id}/recipients": {
         parameters: {
             query?: never;
@@ -5862,6 +5882,11 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** EsignDocumentOrderRequest */
+        EsignDocumentOrderRequest: {
+            /** Document Ids */
+            document_ids: string[];
+        };
         /** EsignDocumentResponse */
         EsignDocumentResponse: {
             /** Id */
@@ -5926,6 +5951,8 @@ export interface components {
              * @default 0
              */
             document_count: number;
+            /** Recipient Preview */
+            recipient_preview: components["schemas"]["EsignRecipientResponse"][];
             /** Expires At */
             expires_at?: string | null;
             /** Sent At */
@@ -5962,6 +5989,10 @@ export interface components {
              * @default 0
              */
             offset: number;
+            /** Status Counts */
+            status_counts: {
+                [key: string]: number;
+            };
         };
         /** EsignEnvelopeResponse */
         EsignEnvelopeResponse: {
@@ -6193,7 +6224,7 @@ export interface components {
         /** EsignInboxResponse */
         EsignInboxResponse: {
             /** Items */
-            items?: components["schemas"]["EsignInboxItem"][];
+            items: components["schemas"]["EsignInboxItem"][];
         };
         /**
          * EsignProgressRequest
@@ -6213,6 +6244,8 @@ export interface components {
         };
         /** EsignRecipientInput */
         EsignRecipientInput: {
+            /** Id */
+            id?: string | null;
             /**
              * Email
              * Format: email
@@ -6339,7 +6372,7 @@ export interface components {
             /** Documents */
             documents: components["schemas"]["EsignSigningDocument"][];
             /** Fields */
-            fields: components["schemas"]["EsignFieldResponse"][];
+            fields?: components["schemas"]["EsignFieldResponse"][];
             /** Context Fields */
             context_fields?: components["schemas"]["EsignContextField"][];
             /**
@@ -6471,7 +6504,7 @@ export interface components {
             /** Signing Type */
             signing_type: string;
             /** Recipient Roles */
-            recipient_roles?: {
+            recipient_roles: {
                 [key: string]: unknown;
             }[];
             /** Documents */
@@ -12526,6 +12559,9 @@ export interface operations {
                 limit?: number;
                 offset?: number;
                 status?: string | null;
+                q?: string | null;
+                sort_by?: "updated_at" | "created_at" | "sent_at" | "completed_at" | "title";
+                sort_dir?: "asc" | "desc";
             };
             header?: never;
             path?: never;
@@ -12729,6 +12765,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignEnvelopeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reorder_documents_api_esign_envelopes__envelope_id__documents_order_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignDocumentOrderRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -13116,7 +13187,10 @@ export interface operations {
     };
     get_inbox_api_esign_inbox_get: {
         parameters: {
-            query?: never;
+            query?: {
+                q?: string | null;
+                state?: ("pending" | "completed") | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -13130,6 +13204,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EsignInboxResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

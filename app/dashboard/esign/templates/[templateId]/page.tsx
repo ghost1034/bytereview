@@ -1,10 +1,9 @@
 'use client'
 
 import * as React from 'react'
-import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Loader2, Save, Send } from 'lucide-react'
+import { Loader2, Send } from 'lucide-react'
 
 import {
   PdfFieldEditor,
@@ -12,8 +11,8 @@ import {
   type EditorField,
   type EditorFieldType,
 } from '@/components/esign/editor/PdfFieldEditor'
+import { ComposerShell, type ComposerSaveState } from '@/components/esign/composer/ComposerShell'
 import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/ui/page-header'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import { useEsignTemplate, useUpdateEsignTemplate } from '@/hooks/useEnvelopes'
@@ -36,11 +35,12 @@ export default function EsignTemplateEditPage() {
 
   const [editorFields, setEditorFields] = React.useState<EditorField[]>([])
   const [hydratedFor, setHydratedFor] = React.useState<string | null>(null)
+  const [saveState, setSaveState] = React.useState<ComposerSaveState>('idle')
+  const lastSaved = React.useRef('')
 
   React.useEffect(() => {
     if (!template || hydratedFor === template.id) return
-    setEditorFields(
-      template.fields.map((f) => ({
+    const initial = template.fields.map((f) => ({
         id: f.id,
         documentId: f.template_document_id,
         participantId: String(f.recipient_index),
@@ -53,8 +53,9 @@ export default function EsignTemplateEditPage() {
         required: f.required,
         label: f.label ?? undefined,
         properties: coerceEditorProperties(f.properties),
-      })),
-    )
+      }))
+    setEditorFields(initial)
+    lastSaved.current = JSON.stringify(initial)
     setHydratedFor(template.id)
   }, [template, hydratedFor])
 
@@ -72,16 +73,7 @@ export default function EsignTemplateEditPage() {
     staleTime: 10 * 60 * 1000,
   })
 
-  if (templateQuery.isLoading || !template) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-48 w-full" />
-      </div>
-    )
-  }
-
-  const roles = (template.recipient_roles as { label?: string }[]).map(
+  const roles = ((template?.recipient_roles as { label?: string }[] | undefined) ?? []).map(
     (role, index) => ({
       id: String(index),
       label: role.label || `Signer ${index + 1}`,
@@ -89,6 +81,8 @@ export default function EsignTemplateEditPage() {
   )
 
   const handleSave = async () => {
+    if (!template) return
+    setSaveState('saving')
     try {
       await updateTemplate.mutateAsync({
         fields: editorFields.map((f) => ({
@@ -106,8 +100,10 @@ export default function EsignTemplateEditPage() {
           properties: f.properties as EsignTemplateFieldInput['properties'],
         })),
       })
-      toast({ title: 'Template saved' })
+      lastSaved.current = JSON.stringify(editorFields)
+      setSaveState('saved')
     } catch (error) {
+      setSaveState('error')
       toast({
         title: 'Failed to save template',
         description: error instanceof Error ? error.message : undefined,
@@ -116,34 +112,26 @@ export default function EsignTemplateEditPage() {
     }
   }
 
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="E-Signature template"
-        title={template.name}
-        description={`${template.documents.length} document${template.documents.length === 1 ? '' : 's'} · roles: ${roles.map((r) => r.label).join(', ')}`}
-        actions={
-          <div className="flex gap-2">
-            <Button variant="ghost" asChild>
-              <Link href="/dashboard/esign/templates">
-                <ArrowLeft className="mr-1.5 size-4" /> Templates
-              </Link>
-            </Button>
-            <Button variant="outline" onClick={handleSave} disabled={updateTemplate.isPending}>
-              {updateTemplate.isPending ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              ) : (
-                <Save className="mr-1.5 size-4" />
-              )}
-              Save fields
-            </Button>
-            <Button onClick={() => router.push(`/dashboard/esign/new?template=${template.id}`)}>
-              <Send className="mr-1.5 size-4" /> Use template
-            </Button>
-          </div>
-        }
-      />
+  React.useEffect(() => {
+    if (!hydratedFor || JSON.stringify(editorFields) === lastSaved.current) return
+    const timer = window.setTimeout(() => { void handleSave() }, 750)
+    return () => window.clearTimeout(timer)
+    // handleSave intentionally follows the current editor field collection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editorFields, hydratedFor])
 
+  if (templateQuery.isLoading || !template) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    )
+  }
+
+  return (
+    <ComposerShell title={template.name} stage="fields" saveState={saveState} onClose={() => router.push('/dashboard/esign/templates')} primary={<Button onClick={async () => { await handleSave(); router.push(`/dashboard/esign/new?template=${template.id}`) }}><Send className="mr-1.5 size-4" /> Use template</Button>}>
+      <div className="p-3 sm:p-4">
       {documentUrlsQuery.isLoading || !documentUrlsQuery.data ? (
         <div className="flex items-center justify-center rounded-lg border border-border bg-surface py-16 text-foreground-muted">
           <Loader2 className="mr-2 size-4 animate-spin" /> Preparing documents…
@@ -161,6 +149,7 @@ export default function EsignTemplateEditPage() {
           onChange={setEditorFields}
         />
       )}
-    </div>
+      </div>
+    </ComposerShell>
   )
 }

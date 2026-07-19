@@ -308,7 +308,10 @@ class EsignSigningService:
     # Inbox / signing session
     # ------------------------------------------------------------------
 
-    def get_inbox(self, *, user_id: str, user_email: str) -> EsignInboxResponse:
+    def get_inbox(
+        self, *, user_id: str, user_email: str, q: str | None = None,
+        state: str | None = None,
+    ) -> EsignInboxResponse:
         email = (user_email or "").strip().lower()
         db = self._get_session()
         try:
@@ -318,6 +321,8 @@ class EsignSigningService:
                 .join(EsignEnvelope, EsignRecipient.envelope_id == EsignEnvelope.id)
                 .filter(EsignRecipient.email == email)
             )
+            if q and q.strip():
+                base = base.filter(EsignEnvelope.title.ilike(f"%{q.strip()}%"))
             rows = (
                 base.filter(
                     EsignEnvelope.status.in_(ACTIVE_ENVELOPE_STATUSES),
@@ -326,7 +331,7 @@ class EsignSigningService:
                     ),
                 )
                 .order_by(EsignEnvelope.sent_at.desc())
-                .all()
+                .all() if state != "completed" else []
             )
             # Completed envelopes stay listed so signers can reach the sealed
             # document and certificate after the fact.
@@ -334,7 +339,7 @@ class EsignSigningService:
                 base.filter(EsignEnvelope.status == EsignEnvelopeStatus.COMPLETED)
                 .order_by(EsignEnvelope.completed_at.desc())
                 .limit(COMPLETED_INBOX_LIMIT)
-                .all()
+                .all() if state != "pending" else []
             )
             items = []
             dirty = False

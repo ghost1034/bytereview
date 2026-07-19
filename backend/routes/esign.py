@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel, ValidationError
@@ -22,6 +23,7 @@ from models.esign import (
     EsignConsentResponse,
     EsignDeclineRequest,
     EsignDownloadResponse,
+    EsignDocumentOrderRequest,
     EsignEnvelopeCreateResponse,
     EsignEnvelopeListResponse,
     EsignEnvelopeResponse,
@@ -241,10 +243,14 @@ async def list_envelopes(
     limit: int = Query(default=25, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     status: str | None = Query(default=None),
+    q: str | None = Query(default=None, max_length=255),
+    sort_by: Literal["updated_at", "created_at", "sent_at", "completed_at", "title"] = Query(default="updated_at"),
+    sort_dir: Literal["asc", "desc"] = Query(default="desc"),
 ):
     try:
         return esign_envelope_service.list_envelopes(
-            _uid(token), limit=limit, offset=offset, status=status
+            _uid(token), limit=limit, offset=offset, status=status, q=q,
+            sort_by=sort_by, sort_dir=sort_dir,
         )
     except Exception as exc:
         _raise_http(exc)
@@ -304,6 +310,21 @@ async def delete_document(
     """Remove a document (and any fields placed on it) from a draft envelope."""
     try:
         return await esign_envelope_service.delete_document(_uid(token), envelope_id, document_id)
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.patch("/envelopes/{envelope_id}/documents/order", response_model=EsignEnvelopeResponse)
+async def reorder_documents(
+    envelope_id: str,
+    payload: EsignDocumentOrderRequest,
+    token: dict = Depends(verify_firebase_token),
+):
+    """Reorder every document in a draft envelope."""
+    try:
+        return esign_envelope_service.reorder_documents(
+            _uid(token), envelope_id, payload.document_ids
+        )
     except Exception as exc:
         _raise_http(exc)
 
@@ -472,9 +493,15 @@ async def download_certificate(envelope_id: str, token: dict = Depends(verify_fi
 
 
 @router.get("/inbox", response_model=EsignInboxResponse)
-async def get_inbox(token: dict = Depends(verify_firebase_token)):
+async def get_inbox(
+    token: dict = Depends(verify_firebase_token),
+    q: str | None = Query(default=None, max_length=255),
+    state: Literal["pending", "completed"] | None = Query(default=None),
+):
     try:
-        return esign_signing_service.get_inbox(user_id=_uid(token), user_email=_email(token))
+        return esign_signing_service.get_inbox(
+            user_id=_uid(token), user_email=_email(token), q=q, state=state
+        )
     except Exception as exc:
         _raise_http(exc)
 

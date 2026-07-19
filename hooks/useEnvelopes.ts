@@ -19,11 +19,20 @@ import type {
 
 const TERMINAL_STATUSES = new Set(['completed', 'declined', 'voided', 'expired'])
 
-export function useEnvelopes(limit = 25, offset = 0, status?: string) {
+export interface EsignEnvelopeListParams {
+  limit?: number
+  offset?: number
+  status?: string
+  q?: string
+  sortBy?: 'updated_at' | 'created_at' | 'sent_at' | 'completed_at' | 'title'
+  sortDir?: 'asc' | 'desc'
+}
+
+export function useEnvelopes(params: EsignEnvelopeListParams = {}) {
   const { user } = useAuth()
   return useQuery({
-    queryKey: ['esign', 'envelopes', limit, offset, status ?? 'all'],
-    queryFn: () => apiClient.listEsignEnvelopes(limit, offset, status),
+    queryKey: ['esign', 'envelopes', params],
+    queryFn: () => apiClient.listEsignEnvelopes(params),
     enabled: !!user,
     refetchInterval: (query) => {
       const envelopes = query.state.data?.envelopes ?? []
@@ -55,11 +64,11 @@ export function useEnvelopeAudit(envelopeId: string | undefined) {
   })
 }
 
-export function useEsignInbox() {
+export function useEsignInbox(params: { q?: string; state?: 'pending' | 'completed' } = {}) {
   const { user } = useAuth()
   return useQuery({
-    queryKey: ['esign', 'inbox'],
-    queryFn: () => apiClient.getEsignInbox(),
+    queryKey: ['esign', 'inbox', params],
+    queryFn: () => apiClient.getEsignInbox(params),
     enabled: !!user,
     refetchInterval: 30000,
   })
@@ -137,6 +146,14 @@ export function useDeleteDocument(envelopeId: string) {
   const invalidate = useInvalidateEnvelope()
   return useMutation({
     mutationFn: (documentId: string) => apiClient.deleteEsignDocument(envelopeId, documentId),
+    onSuccess: () => invalidate(envelopeId),
+  })
+}
+
+export function useReorderDocuments(envelopeId: string) {
+  const invalidate = useInvalidateEnvelope()
+  return useMutation({
+    mutationFn: (documentIds: string[]) => apiClient.reorderEsignDocuments(envelopeId, documentIds),
     onSuccess: () => invalidate(envelopeId),
   })
 }

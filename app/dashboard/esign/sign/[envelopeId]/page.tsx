@@ -315,6 +315,20 @@ export default function SigningCeremonyPage() {
     }
   }, [session])
 
+  // Save signer entries as they work; Finish Later remains an explicit exit.
+  React.useEffect(() => {
+    if (!session || session.consent_required || session.recipient_role === 'cc') return
+    if (Object.keys(fieldValues).length === 0) return
+    const timer = window.setTimeout(() => {
+      saveProgress.mutate(
+        Object.entries(fieldValues).map(([field_id, value]) => ({ field_id, value })),
+      )
+    }, 1000)
+    return () => window.clearTimeout(timer)
+    // The mutation object is intentionally excluded; field/session changes drive autosave.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fieldValues, session?.consent_required, session?.recipient_role])
+
   React.useEffect(() => {
     if (!session) return
     setAttachments(session.attachments ?? [])
@@ -631,9 +645,9 @@ export default function SigningCeremonyPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="min-h-dvh space-y-4 bg-surface-muted/50 pb-24 sm:pb-4">
       {/* Sticky action bar */}
-      <div className="sticky top-0 z-40 -mx-1 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface/95 px-4 py-3 backdrop-blur">
+      <div className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface/95 px-4 py-3 backdrop-blur sm:px-6">
         <div className="min-w-0">
           <h1 className="truncate text-base font-semibold">{session.title}</h1>
           <p className="text-xs text-foreground-muted">
@@ -643,7 +657,7 @@ export default function SigningCeremonyPage() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="hidden items-center gap-2 sm:flex">
           <Button variant="outline" onClick={() => setDeclineOpen(true)}>
             Decline
           </Button>
@@ -674,6 +688,16 @@ export default function SigningCeremonyPage() {
         </div>
       </div>
 
+      <div className="fixed inset-x-0 bottom-0 z-50 flex min-h-16 items-center gap-2 border-t border-border bg-surface/95 px-3 py-2 pb-[max(.5rem,env(safe-area-inset-bottom))] backdrop-blur sm:hidden">
+        <Button variant="outline" className="min-h-11 flex-1" onClick={handleFinishLater} disabled={saveProgress.isPending}>Finish later</Button>
+        {incompleteFields.length > 0 ? (
+          <Button className="min-h-11 flex-1" onClick={goToNextField}>{guideStarted ? 'Next' : 'Start'} <ArrowDown className="ml-1.5 size-4" /></Button>
+        ) : (
+          <Button className="min-h-11 flex-1" onClick={handleFinish} disabled={!canFinish || submitSignature.isPending}>Finish</Button>
+        )}
+        <Button variant="ghost" size="icon" className="min-h-11 min-w-11 text-destructive" onClick={() => setDeclineOpen(true)} aria-label="Decline envelope"><ShieldAlert className="size-5" /></Button>
+      </div>
+
       {session.message && (
         <p className="rounded-lg border border-border bg-surface p-4 text-sm text-foreground-muted">
           {session.message}
@@ -682,7 +706,7 @@ export default function SigningCeremonyPage() {
 
       {/* Floating guided-navigation button (DocuSign-style Start/Next). */}
       {!session.consent_required && (
-        <div className="fixed left-2 top-1/2 z-40 -translate-y-1/2 sm:left-4">
+        <div className="fixed left-4 top-1/2 z-40 hidden -translate-y-1/2 sm:block">
           {incompleteFields.length > 0 ? (
             <Button size="sm" className="shadow-lg" onClick={goToNextField}>
               {guideStarted ? 'Next' : 'Start'}
@@ -704,7 +728,7 @@ export default function SigningCeremonyPage() {
       {/* Documents (blurred + inert until consent) */}
       <div
         className={cn(
-          'space-y-8 rounded-lg bg-surface-muted p-3 sm:p-5',
+          'mx-auto max-w-5xl space-y-8 p-3 sm:p-5',
           session.consent_required && 'pointer-events-none select-none blur-sm',
         )}
         aria-hidden={session.consent_required || undefined}

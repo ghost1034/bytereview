@@ -7,6 +7,8 @@ import {
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { validateFormula } from '@/lib/esign/fieldLogic'
@@ -62,6 +64,7 @@ interface PdfFieldEditorProps {
   fields: EditorField[]
   onChange: (fields: EditorField[]) => void
   className?: string
+  focusFieldId?: string | null
 }
 
 const FIELD_TYPES: Array<{ type: EditorFieldType; label: string; icon: React.ComponentType<{ className?: string }> }> = [
@@ -178,7 +181,7 @@ function PropertiesPanel({ field, fields, update, remove }: {
   </div>
 }
 
-export function PdfFieldEditor({ documents, participants, fields, onChange, className }: PdfFieldEditorProps) {
+export function PdfFieldEditor({ documents, participants, fields, onChange, className, focusFieldId }: PdfFieldEditorProps) {
   const [activeDocumentId, setActiveDocumentId] = React.useState(documents[0]?.id)
   const [activeParticipantId, setActiveParticipantId] = React.useState(participants[0]?.id)
   const [armedType, setArmedType] = React.useState<EditorFieldType | null>(null)
@@ -188,6 +191,9 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   const [loadError, setLoadError] = React.useState<string | null>(null)
   const [guides, setGuides] = React.useState<SnapGuide[]>([])
   const [marquee, setMarquee] = React.useState<{ page: number; x: number; y: number; width: number; height: number } | null>(null)
+  const [anchorOpen, setAnchorOpen] = React.useState(false)
+  const [anchorText, setAnchorText] = React.useState('')
+  const [anchorResult, setAnchorResult] = React.useState('')
   const past = React.useRef<EditorField[][]>([])
   const future = React.useRef<EditorField[][]>([])
   const clipboard = React.useRef<EditorField[]>([])
@@ -203,6 +209,18 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
       .catch((error) => { if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Failed to load PDF') })
     return () => { cancelled = true }
   }, [activeDocument])
+
+  React.useEffect(() => {
+    if (!focusFieldId) return
+    const field = fields.find((item) => item.id === focusFieldId)
+    if (!field) return
+    setActiveDocumentId(field.documentId)
+    setActiveParticipantId(field.participantId)
+    setSelectedIds(new Set([field.id]))
+    window.setTimeout(() => {
+      document.getElementById(`esign-editor-field-${field.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 100)
+  }, [fields, focusFieldId])
 
   const commit = React.useCallback((next: EditorField[], before = fields) => {
     if (next === before) return
@@ -314,7 +332,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
 
   const placeByAnchor = async () => {
     if (!pdf || !activeDocument || !activeParticipantId) return
-    const anchor = window.prompt('Anchor text to find'); if (!anchor) return
+    const anchor = anchorText.trim(); if (!anchor) return
     const type = armedType && !['radio', 'attachment'].includes(armedType) ? armedType : 'text'; const size = DEFAULT_SIZES[type]
     const generated: EditorField[] = []
     for (let pageIndex = 0; pageIndex < pdf.numPages && generated.length < 500; pageIndex += 1) {
@@ -327,8 +345,10 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           width: size.width, height: size.height, required: type !== 'formula', properties: { ...defaultProperties(type, null), anchor: { text: anchor, offset_x: item.width / viewport.width, offset_y: 0 } } })
       }
     }
-    if (generated.length) { commit([...fields, ...generated]); setSelectedIds(new Set(generated.map((field) => field.id))) }
-    else window.alert(`No matches found for “${anchor}”.`)
+    if (generated.length) {
+      commit([...fields, ...generated]); setSelectedIds(new Set(generated.map((field) => field.id)))
+      setAnchorResult(`Placed ${generated.length} field${generated.length === 1 ? '' : 's'} for “${anchor}”.`)
+    } else setAnchorResult(`No matches found for “${anchor}”.`)
   }
 
   if (!documents.length || !participants.length) return <p className="text-sm text-foreground-muted">Add documents and recipients before placing fields.</p>
@@ -344,7 +364,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
         <div className="grid grid-cols-2 gap-1.5">{FIELD_TYPES.map(({ type, label, icon: Icon }) => <button key={type} type="button" title={label}
           onClick={() => { const next = armedType === type ? null : type; setArmedType(next); setRadioGroup(next === 'radio' ? newId() : null) }}
           className={cn('flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs', armedType === type ? 'border-primary bg-primary-soft text-primary' : 'border-border bg-surface')}><Icon className="size-3.5" />{label}</button>)}</div>
-        <Button type="button" variant="outline" size="sm" className="w-full" onClick={placeByAnchor}><Search className="mr-1.5 size-3.5" /> Place by anchor</Button>
+        <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => { setAnchorResult(''); setAnchorOpen(true) }}><Search className="mr-1.5 size-3.5" /> Place by anchor</Button>
         <div className="flex gap-1"><Button type="button" variant="ghost" size="sm" onClick={undo} title="Undo"><Undo2 className="size-4" /></Button><Button type="button" variant="ghost" size="sm" onClick={redo} title="Redo"><Redo2 className="size-4" /></Button><Button type="button" variant="ghost" size="sm" onClick={() => duplicate(fields.filter((field) => selectedIds.has(field.id)))} title="Duplicate"><Copy className="size-4" /></Button></div>
         <p className="text-xs text-foreground-subtle">{armedType ? armedType === 'radio' ? 'Click repeatedly to add options; Escape ends the group.' : 'Click a page to place.' : 'Shift/Cmd-click or drag a marquee to multi-select. Alt disables snapping.'}</p>
       </div>
@@ -364,7 +384,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           <AlignmentGuides guides={guides} width={size.width} height={size.height} />
           {marquee?.page === pageIndex && <span className="pointer-events-none absolute border border-primary bg-primary/10" style={{ left: Math.min(marquee.x, marquee.x + marquee.width) * size.width, top: Math.min(marquee.y, marquee.y + marquee.height) * size.height, width: Math.abs(marquee.width) * size.width, height: Math.abs(marquee.height) * size.height }} />}
           {fields.filter((field) => field.documentId === activeDocument.id && field.pageNumber === pageIndex).map((field) => { const color = participantColor(participantIndexById.get(field.participantId) ?? 0); const selected = selectedIds.has(field.id); const isConditionalParent = selectedField?.properties?.conditional?.parent_field_id === field.id
-            return <div key={field.id} onPointerDown={(event) => startInteraction(event, field, 'move', size)} onPointerMove={moveInteraction} onPointerUp={endInteraction}
+            return <div key={field.id} id={`esign-editor-field-${field.id}`} onPointerDown={(event) => startInteraction(event, field, 'move', size)} onPointerMove={moveInteraction} onPointerUp={endInteraction}
               className={cn('absolute flex touch-none select-none items-center justify-center overflow-visible rounded-sm border text-[10px] font-medium', selected && 'ring-2 ring-offset-1', isConditionalParent && 'ring-2 ring-fuchsia-500 ring-offset-1')}
               style={{ left: field.posX * size.width, top: field.posY * size.height, width: field.width * size.width, height: field.height * size.height, borderColor: color.border, backgroundColor: color.bg, color: color.text, cursor: 'move' }}>
               <span className="pointer-events-none truncate px-1">{SHORT[field.fieldType]}</span>{field.properties?.conditional && <span className="absolute -right-1 -top-1 size-2 rounded-full bg-fuchsia-500" />}
@@ -373,5 +393,12 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
             </div>})}
         </div>} /></div>)}
     </main>
+    <Dialog open={anchorOpen} onOpenChange={setAnchorOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle>Place fields by anchor</DialogTitle><DialogDescription>Find matching text in the active document and place a field after each match.</DialogDescription></DialogHeader>
+        <div className="space-y-2"><label htmlFor="esign-anchor-text" className="text-sm font-medium">Anchor text</label><Input id="esign-anchor-text" value={anchorText} onChange={(event) => setAnchorText(event.target.value)} placeholder="e.g. Client signature" autoFocus />{anchorResult && <p className="text-sm text-foreground-muted" role="status" aria-live="polite">{anchorResult}</p>}</div>
+        <DialogFooter><Button variant="outline" onClick={() => setAnchorOpen(false)}>Close</Button><Button onClick={placeByAnchor} disabled={!anchorText.trim()}>Find & place</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 }

@@ -18,11 +18,11 @@ The **E-Signature** dashboard shows every envelope you sent and each request awa
 | **Voided** | The sender stopped the request before completion. |
 | **Expired** | The expiration date passed before all signers finished. |
 
-Use the status menu in the **All** view to filter the list. The **Signers** column shows completed signers against the total number of recipients.
+Use **Quick views** for All, Awaiting my signature, Drafts, Sent / In progress, Completed, Declined, Voided, and Expired. Search, sorting, pagination, and the selected view are stored in the page URL, so a filtered Manage view can be bookmarked. Dense rows show recipient preview, signing progress, and last activity; the row menu exposes only actions supported for that status.
 
 ## Monitor recipients and documents
 
-The envelope detail page contains:
+The envelope detail page organizes information into **Summary**, **Recipients**, **Documents**, and **History** tabs:
 
 - **Signers** - each signer's routing order, current state, signing time, and any decline reason.
 - **Documents & integrity** - original documents and their SHA-256 hashes, plus flattened-document hashes after processing.

@@ -2223,9 +2223,22 @@ export class ApiClient {
     return this.requestMultipart('/api/esign/envelopes', formData)
   }
 
-  async listEsignEnvelopes(limit = 25, offset = 0, status?: string): Promise<EsignEnvelopeListResponse> {
-    const searchParams = new URLSearchParams({ limit: String(limit), offset: String(offset) })
-    if (status) searchParams.set('status', status)
+  async listEsignEnvelopes(params: {
+    limit?: number
+    offset?: number
+    status?: string
+    q?: string
+    sortBy?: 'updated_at' | 'created_at' | 'sent_at' | 'completed_at' | 'title'
+    sortDir?: 'asc' | 'desc'
+  } = {}): Promise<EsignEnvelopeListResponse> {
+    const searchParams = new URLSearchParams({
+      limit: String(params.limit ?? 25),
+      offset: String(params.offset ?? 0),
+    })
+    if (params.status) searchParams.set('status', params.status)
+    if (params.q) searchParams.set('q', params.q)
+    if (params.sortBy) searchParams.set('sort_by', params.sortBy)
+    if (params.sortDir) searchParams.set('sort_dir', params.sortDir)
     return this.request(`/api/esign/envelopes?${searchParams.toString()}`)
   }
 
@@ -2255,6 +2268,13 @@ export class ApiClient {
   async deleteEsignDocument(envelopeId: string, documentId: string): Promise<EsignEnvelopeResponse> {
     return this.request(`/api/esign/envelopes/${envelopeId}/documents/${documentId}`, {
       method: 'DELETE',
+    })
+  }
+
+  async reorderEsignDocuments(envelopeId: string, documentIds: string[]): Promise<EsignEnvelopeResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/documents/order`, {
+      method: 'PATCH',
+      body: JSON.stringify({ document_ids: documentIds }),
     })
   }
 
@@ -2337,8 +2357,12 @@ export class ApiClient {
     return this.request(`/api/esign/envelopes/${envelopeId}/certificate/download`)
   }
 
-  async getEsignInbox(): Promise<EsignInboxResponse> {
-    return this.request('/api/esign/inbox')
+  async getEsignInbox(params: { q?: string; state?: 'pending' | 'completed' } = {}): Promise<EsignInboxResponse> {
+    const searchParams = new URLSearchParams()
+    if (params.q) searchParams.set('q', params.q)
+    if (params.state) searchParams.set('state', params.state)
+    const query = searchParams.toString()
+    return this.request(`/api/esign/inbox${query ? `?${query}` : ''}`)
   }
 
   async getEsignSigningSession(envelopeId: string): Promise<EsignSigningSessionResponse> {
