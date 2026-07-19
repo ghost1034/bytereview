@@ -19,7 +19,9 @@ import { snapRect, type SnapGuide } from './snapping'
 
 export type EditorFieldType =
   | 'signature' | 'initials' | 'date_signed' | 'text' | 'checkbox'
-  | 'auto_fill' | 'attachment' | 'radio' | 'dropdown' | 'formula'
+  | 'auto_fill' | 'attachment' | 'radio' | 'dropdown' | 'formula' | 'stamp'
+  | 'date' | 'number' | 'first_name' | 'last_name' | 'full_name' | 'email'
+  | 'company' | 'title' | 'note'
 
 export interface EditorDocument { id: string; name: string; url: string; pageCount: number }
 export interface EditorParticipant { id: string; label: string }
@@ -35,8 +37,23 @@ export interface EditorFieldProperties {
     values?: string[]
     action: 'show' | 'require'
   }
-  anchor?: { text: string; offset_x: number; offset_y: number }
+  anchor?: {
+    text?: string; anchor: string; rule_id: string; match_index?: number
+    case_sensitive: boolean; whole_word: boolean; document_ids?: string[]; page_numbers?: number[]
+    horizontal_alignment: 'left' | 'center' | 'right' | 'after'; offset_x: number; offset_y: number
+    offset_unit: 'point' | 'mm' | 'inch'; match_mode: 'first' | 'all'; missing_policy: 'fail' | 'ignore'
+  }
   allowed_types?: string[]
+  data_label?: string
+  tooltip?: string
+  sender_prefill?: string
+  read_only?: boolean
+  shared_value?: boolean
+  text_validation?: { max_length?: number; regex?: string }
+  number_validation?: { minimum?: number; maximum?: number; decimal_places?: number; allow_negative?: boolean }
+  date_validation?: { minimum?: string; maximum?: string }
+  selection_validation?: { minimum_selected?: number; maximum_selected?: number }
+  appearance?: { font?: string; font_size?: number; color?: string; alignment?: 'left' | 'center' | 'right'; bold?: boolean; italic?: boolean; underline?: boolean }
   [key: string]: unknown
 }
 
@@ -65,19 +82,33 @@ interface PdfFieldEditorProps {
   onChange: (fields: EditorField[]) => void
   className?: string
   focusFieldId?: string | null
+  onAnchorSearch?: (payload: {
+    anchor: string; case_sensitive: boolean; whole_word: boolean; document_ids: string[]
+    match_mode: 'first' | 'all'; horizontal_alignment: 'left' | 'center' | 'right' | 'after'
+    offset_x: number; offset_y: number; offset_unit: 'point' | 'mm' | 'inch'
+  }) => Promise<{ matches?: Array<{ document_id: string; page_number: number; x: number; y: number; width: number; height: number }> }>
 }
 
 const FIELD_TYPES: Array<{ type: EditorFieldType; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { type: 'signature', label: 'Signature', icon: PenLine },
   { type: 'initials', label: 'Initials', icon: Type },
+  { type: 'stamp', label: 'Stamp', icon: PenLine },
   { type: 'date_signed', label: 'Date signed', icon: CalendarDays },
+  { type: 'date', label: 'Date', icon: CalendarDays },
+  { type: 'number', label: 'Number', icon: Calculator },
   { type: 'text', label: 'Text', icon: Type },
+  { type: 'first_name', label: 'First name', icon: UserRound },
+  { type: 'last_name', label: 'Last name', icon: UserRound },
+  { type: 'full_name', label: 'Full name', icon: UserRound },
+  { type: 'email', label: 'Email', icon: UserRound },
+  { type: 'company', label: 'Company', icon: UserRound },
+  { type: 'title', label: 'Title', icon: UserRound },
+  { type: 'note', label: 'Note', icon: Type },
   { type: 'checkbox', label: 'Checkbox', icon: CheckSquare },
   { type: 'radio', label: 'Radio group', icon: CircleDot },
   { type: 'dropdown', label: 'Dropdown', icon: ListChecks },
   { type: 'attachment', label: 'Attachment', icon: Paperclip },
   { type: 'formula', label: 'Formula', icon: Calculator },
-  { type: 'auto_fill', label: 'Auto-fill', icon: UserRound },
 ]
 
 const DEFAULT_SIZES: Record<EditorFieldType, { width: number; height: number }> = {
@@ -86,11 +117,18 @@ const DEFAULT_SIZES: Record<EditorFieldType, { width: number; height: number }> 
   checkbox: { width: 0.03, height: 0.022 }, radio: { width: 0.03, height: 0.022 },
   dropdown: { width: 0.24, height: 0.035 }, attachment: { width: 0.28, height: 0.04 },
   formula: { width: 0.2, height: 0.03 }, auto_fill: { width: 0.24, height: 0.03 },
+  stamp: { width: 0.16, height: 0.08 }, date: { width: 0.16, height: 0.03 },
+  number: { width: 0.16, height: 0.03 }, first_name: { width: 0.18, height: 0.03 },
+  last_name: { width: 0.18, height: 0.03 }, full_name: { width: 0.24, height: 0.03 },
+  email: { width: 0.24, height: 0.03 }, company: { width: 0.24, height: 0.03 },
+  title: { width: 0.2, height: 0.03 }, note: { width: 0.28, height: 0.04 },
 }
 
 const SHORT: Record<EditorFieldType, string> = {
   signature: 'Sign', initials: 'Initials', date_signed: 'Date', text: 'Text', checkbox: '☐',
   radio: '○', dropdown: 'Select ▾', attachment: 'Attach', formula: 'ƒx', auto_fill: 'Auto',
+  stamp: 'Stamp', date: 'Date', number: '123', first_name: 'First name', last_name: 'Last name',
+  full_name: 'Full name', email: 'Email', company: 'Company', title: 'Title', note: 'Note',
 }
 const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const
 type Handle = typeof HANDLES[number]
@@ -120,9 +158,35 @@ function PropertiesPanel({ field, fields, update, remove }: {
     <p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">Field properties</p>
     <input className="w-full rounded border border-border bg-background px-2 py-1" value={field.label ?? ''}
       onChange={(event) => update({ label: event.target.value })} placeholder="Label" />
-    {!['signature', 'initials', 'date_signed', 'formula'].includes(field.fieldType) && <label className="flex gap-2">
+    <input className="w-full rounded border border-border bg-background px-2 py-1" value={properties.data_label ?? ''}
+      onChange={(event) => setProperties({ data_label: event.target.value })} placeholder="Data label" />
+    <input className="w-full rounded border border-border bg-background px-2 py-1" value={properties.tooltip ?? ''}
+      onChange={(event) => setProperties({ tooltip: event.target.value })} placeholder="Tooltip" />
+    {!['signature', 'initials', 'stamp', 'date_signed', 'formula', 'note'].includes(field.fieldType) && <label className="flex gap-2">
       <input type="checkbox" checked={field.required} onChange={(event) => update({ required: event.target.checked })} /> Required
     </label>}
+    {!['signature', 'initials', 'stamp'].includes(field.fieldType) && <label className="flex gap-2">
+      <input type="checkbox" checked={properties.shared_value ?? false} onChange={(event) => setProperties({ shared_value: event.target.checked })} /> Share values with this data label
+    </label>}
+    {!['signature', 'initials', 'stamp', 'date_signed', 'formula'].includes(field.fieldType) && <label className="flex gap-2">
+      <input type="checkbox" checked={properties.read_only ?? false} onChange={(event) => setProperties({ read_only: event.target.checked })} /> Read only
+    </label>}
+    {(properties.read_only || field.fieldType === 'note') && <input className="w-full rounded border border-border bg-background px-2 py-1" value={properties.sender_prefill ?? ''}
+      onChange={(event) => setProperties({ sender_prefill: event.target.value })} placeholder="Sender prefill" />}
+    {['text', 'number', 'date', 'company', 'title'].includes(field.fieldType) && <details>
+      <summary className="cursor-pointer text-xs font-medium">Validation & appearance</summary>
+      <div className="mt-2 space-y-2">
+        <div className="grid grid-cols-2 gap-2"><input type="number" min={1} className="rounded border border-border bg-background px-2 py-1" value={properties.text_validation?.max_length ?? ''}
+          onChange={(event) => setProperties({ text_validation: { ...properties.text_validation, max_length: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Max length" />
+        <input className="rounded border border-border bg-background px-2 py-1" value={properties.text_validation?.regex ?? ''}
+          onChange={(event) => setProperties({ text_validation: { ...properties.text_validation, regex: event.target.value || undefined } })} placeholder="Regex" /></div>
+        {field.fieldType === 'number' && <div className="grid grid-cols-2 gap-2"><input type="number" className="rounded border border-border bg-background px-2 py-1" value={properties.number_validation?.minimum ?? ''} onChange={(event) => setProperties({ number_validation: { ...properties.number_validation, minimum: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Minimum" /><input type="number" className="rounded border border-border bg-background px-2 py-1" value={properties.number_validation?.maximum ?? ''} onChange={(event) => setProperties({ number_validation: { ...properties.number_validation, maximum: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Maximum" /></div>}
+        {field.fieldType === 'date' && <div className="grid grid-cols-2 gap-2"><input type="date" className="rounded border border-border bg-background px-2 py-1" value={properties.date_validation?.minimum ?? ''} onChange={(event) => setProperties({ date_validation: { ...properties.date_validation, minimum: event.target.value || undefined } })} /><input type="date" className="rounded border border-border bg-background px-2 py-1" value={properties.date_validation?.maximum ?? ''} onChange={(event) => setProperties({ date_validation: { ...properties.date_validation, maximum: event.target.value || undefined } })} /></div>}
+        <div className="grid grid-cols-2 gap-2"><input type="number" min={4} max={144} className="rounded border border-border bg-background px-2 py-1" value={properties.appearance?.font_size ?? ''} onChange={(event) => setProperties({ appearance: { ...properties.appearance, font_size: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Font size" /><input type="color" className="h-8 w-full rounded border border-border bg-background" value={properties.appearance?.color ?? '#000000'} onChange={(event) => setProperties({ appearance: { ...properties.appearance, color: event.target.value } })} /></div>
+        <select className="w-full rounded border border-border bg-background px-2 py-1" value={properties.appearance?.alignment ?? 'left'} onChange={(event) => setProperties({ appearance: { ...properties.appearance, alignment: event.target.value as 'left' | 'center' | 'right' } })}><option value="left">Left align</option><option value="center">Center align</option><option value="right">Right align</option></select>
+        <div className="flex gap-3"><label><input type="checkbox" checked={properties.appearance?.bold ?? false} onChange={(event) => setProperties({ appearance: { ...properties.appearance, bold: event.target.checked } })} /> Bold</label><label><input type="checkbox" checked={properties.appearance?.italic ?? false} onChange={(event) => setProperties({ appearance: { ...properties.appearance, italic: event.target.checked } })} /> Italic</label><label><input type="checkbox" checked={properties.appearance?.underline ?? false} onChange={(event) => setProperties({ appearance: { ...properties.appearance, underline: event.target.checked } })} /> Underline</label></div>
+      </div>
+    </details>}
     {field.fieldType === 'auto_fill' && <label className="block">Source
       <select className="mt-1 w-full rounded border border-border bg-background px-2 py-1" value={properties.auto_source ?? 'recipient_name'}
         onChange={(event) => setProperties({ auto_source: event.target.value as EditorFieldProperties['auto_source'] })}>
@@ -151,7 +215,7 @@ function PropertiesPanel({ field, fields, update, remove }: {
           setProperties({ formula: { decimal_places: properties.formula?.decimal_places ?? 2, expression: `${properties.formula?.expression ?? ''}[${event.target.value}]` } })
         }}>
         <option value="">Insert field reference…</option>
-        {fields.filter((item) => item.id !== field.id && !['signature', 'initials', 'attachment'].includes(item.fieldType)).map((item) => <option key={item.id} value={item.id}>{item.label || SHORT[item.fieldType]}</option>)}
+        {fields.filter((item) => item.id !== field.id && item.participantId === field.participantId && !['signature', 'initials', 'stamp', 'attachment'].includes(item.fieldType)).map((item) => <option key={item.id} value={item.properties?.data_label ?? item.id}>{item.label || SHORT[item.fieldType]}</option>)}
       </select>
       {formulaError && <span className="text-xs text-destructive">{formulaError}</span>}
     </label>}
@@ -159,7 +223,7 @@ function PropertiesPanel({ field, fields, update, remove }: {
       <select className="mt-1 w-full rounded border border-border bg-background px-2 py-1"
         value={conditional ? conditional.action : 'none'} onChange={(event) => {
           if (event.target.value === 'none') setProperties({ conditional: undefined })
-          else setProperties({ conditional: { parent_field_id: fields.find((item) => item.id !== field.id)?.id ?? '', operator: 'not_empty', values: [], action: event.target.value as 'show' | 'require' } })
+          else setProperties({ conditional: { parent_field_id: fields.find((item) => item.id !== field.id && item.participantId === field.participantId)?.id ?? '', operator: 'not_empty', values: [], action: event.target.value as 'show' | 'require' } })
         }}>
         <option value="none">Always visible</option><option value="show">Show when…</option><option value="require">Require when…</option>
       </select>
@@ -167,7 +231,7 @@ function PropertiesPanel({ field, fields, update, remove }: {
     {conditional && <>
       <select className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.parent_field_id}
         onChange={(event) => setProperties({ conditional: { ...conditional, parent_field_id: event.target.value } })}>
-        {fields.filter((item) => item.id !== field.id && !['signature', 'initials', 'attachment', 'formula'].includes(item.fieldType)).map((item) => <option key={item.id} value={item.id}>{item.label || SHORT[item.fieldType]}</option>)}
+        {fields.filter((item) => item.id !== field.id && item.participantId === field.participantId && !['signature', 'initials', 'stamp', 'attachment', 'formula'].includes(item.fieldType)).map((item) => <option key={item.id} value={item.id}>{item.label || SHORT[item.fieldType]}</option>)}
       </select>
       <select className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.operator}
         onChange={(event) => setProperties({ conditional: { ...conditional, operator: event.target.value as NonNullable<EditorFieldProperties['conditional']>['operator'] } })}>
@@ -181,7 +245,7 @@ function PropertiesPanel({ field, fields, update, remove }: {
   </div>
 }
 
-export function PdfFieldEditor({ documents, participants, fields, onChange, className, focusFieldId }: PdfFieldEditorProps) {
+export function PdfFieldEditor({ documents, participants, fields, onChange, className, focusFieldId, onAnchorSearch }: PdfFieldEditorProps) {
   const [activeDocumentId, setActiveDocumentId] = React.useState(documents[0]?.id)
   const [activeParticipantId, setActiveParticipantId] = React.useState(participants[0]?.id)
   const [armedType, setArmedType] = React.useState<EditorFieldType | null>(null)
@@ -194,6 +258,15 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   const [anchorOpen, setAnchorOpen] = React.useState(false)
   const [anchorText, setAnchorText] = React.useState('')
   const [anchorResult, setAnchorResult] = React.useState('')
+  const [anchorCaseSensitive, setAnchorCaseSensitive] = React.useState(false)
+  const [anchorWholeWord, setAnchorWholeWord] = React.useState(false)
+  const [anchorFirstOnly, setAnchorFirstOnly] = React.useState(false)
+  const [anchorAlignment, setAnchorAlignment] = React.useState<'left' | 'center' | 'right' | 'after'>('after')
+  const [anchorOffsetX, setAnchorOffsetX] = React.useState(0)
+  const [anchorOffsetY, setAnchorOffsetY] = React.useState(0)
+  const [anchorOffsetUnit, setAnchorOffsetUnit] = React.useState<'point' | 'mm' | 'inch'>('point')
+  const [anchorIgnoreMissing, setAnchorIgnoreMissing] = React.useState(false)
+  const [anchorSearching, setAnchorSearching] = React.useState(false)
   const past = React.useRef<EditorField[][]>([])
   const future = React.useRef<EditorField[][]>([])
   const clipboard = React.useRef<EditorField[]>([])
@@ -290,7 +363,8 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
     const id = newId()
     const field: EditorField = { id, documentId: activeDocument.id, participantId: activeParticipantId, fieldType: armedType,
       pageNumber, posX: clamp(x - size.width / 2, 0, 1 - size.width), posY: clamp(y - size.height / 2, 0, 1 - size.height),
-      width: size.width, height: size.height, required: armedType !== 'formula', properties: defaultProperties(armedType, radioGroup) }
+      width: size.width, height: size.height, required: !['formula', 'note'].includes(armedType),
+      properties: { ...defaultProperties(armedType, radioGroup), data_label: `${armedType}_${newId().slice(0, 8)}`, read_only: armedType === 'note' } }
     commit([...fields, field]); setSelectedIds(new Set([id]))
     if (armedType === 'radio') setRadioGroup(field.properties?.group?.id ?? radioGroup)
     else setArmedType(null)
@@ -323,7 +397,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
       const original = state.field; const handle = state.handle ?? 'se'; let x = original.posX, y = original.posY, w = original.width, h = original.height
       if (handle.includes('e')) w += dx; if (handle.includes('s')) h += dy
       if (handle.includes('w')) { x += dx; w -= dx } if (handle.includes('n')) { y += dy; h -= dy }
-      if (event.shiftKey && ['signature', 'initials'].includes(original.fieldType)) { const ratio = original.width / original.height; if (Math.abs(dx) > Math.abs(dy)) h = w / ratio; else w = h * ratio }
+      if (event.shiftKey && ['signature', 'initials', 'stamp'].includes(original.fieldType)) { const ratio = original.width / original.height; if (Math.abs(dx) > Math.abs(dy)) h = w / ratio; else w = h * ratio }
       w = clamp(w, 0.02, 1 - x); h = clamp(h, 0.012, 1 - y); x = clamp(x, 0, original.posX + original.width - 0.02); y = clamp(y, 0, original.posY + original.height - 0.012)
       onChange(state.before.map((field) => field.id === original.id ? { ...field, posX: x, posY: y, width: w, height: h } : field))
     }
@@ -331,24 +405,25 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   const endInteraction = () => { const state = drag.current; if (!state) return; past.current.push(state.before); future.current = []; drag.current = null; setGuides([]) }
 
   const placeByAnchor = async () => {
-    if (!pdf || !activeDocument || !activeParticipantId) return
+    if (!activeDocument || !activeParticipantId || !onAnchorSearch) { setAnchorResult('Server anchor search is unavailable.'); return }
     const anchor = anchorText.trim(); if (!anchor) return
     const type = armedType && !['radio', 'attachment'].includes(armedType) ? armedType : 'text'; const size = DEFAULT_SIZES[type]
-    const generated: EditorField[] = []
-    for (let pageIndex = 0; pageIndex < pdf.numPages && generated.length < 500; pageIndex += 1) {
-      const page = await pdf.getPage(pageIndex + 1); const viewport = page.getViewport({ scale: 1 }); const content = await page.getTextContent()
-      for (const item of content.items) {
-        if (!('str' in item) || !String(item.str).toLocaleLowerCase().includes(anchor.toLocaleLowerCase())) continue
-        const [vx, vy] = viewport.convertToViewportPoint(item.transform[4], item.transform[5])
-        generated.push({ id: newId(), documentId: activeDocument.id, participantId: activeParticipantId, fieldType: type,
-          pageNumber: pageIndex, posX: clamp((vx + item.width) / viewport.width, 0, 1 - size.width), posY: clamp(vy / viewport.height, 0, 1 - size.height),
-          width: size.width, height: size.height, required: type !== 'formula', properties: { ...defaultProperties(type, null), anchor: { text: anchor, offset_x: item.width / viewport.width, offset_y: 0 } } })
-      }
-    }
-    if (generated.length) {
-      commit([...fields, ...generated]); setSelectedIds(new Set(generated.map((field) => field.id)))
-      setAnchorResult(`Placed ${generated.length} field${generated.length === 1 ? '' : 's'} for “${anchor}”.`)
-    } else setAnchorResult(`No matches found for “${anchor}”.`)
+    const ruleId = newId(); setAnchorSearching(true)
+    try {
+      const result = await onAnchorSearch({ anchor, case_sensitive: anchorCaseSensitive, whole_word: anchorWholeWord,
+        document_ids: [activeDocument.id], match_mode: anchorFirstOnly ? 'first' : 'all', horizontal_alignment: anchorAlignment, offset_x: anchorOffsetX, offset_y: anchorOffsetY, offset_unit: anchorOffsetUnit })
+      const generated = (result.matches ?? []).map((match, matchIndex): EditorField => ({ id: newId(), documentId: match.document_id,
+        participantId: activeParticipantId, fieldType: type, pageNumber: match.page_number,
+        posX: clamp(match.x, 0, 1 - size.width), posY: clamp(match.y, 0, 1 - size.height), width: size.width, height: size.height,
+        required: !['formula', 'note'].includes(type), properties: { ...defaultProperties(type, null), data_label: `${type}_${ruleId.slice(0, 8)}${['signature', 'initials', 'stamp'].includes(type) ? `_${matchIndex + 1}` : ''}`,
+          shared_value: !['signature', 'initials', 'stamp'].includes(type), read_only: type === 'note',
+          anchor: { anchor, rule_id: ruleId, match_index: matchIndex, case_sensitive: anchorCaseSensitive, whole_word: anchorWholeWord,
+            document_ids: [activeDocument.id], horizontal_alignment: anchorAlignment, offset_x: anchorOffsetX, offset_y: anchorOffsetY, offset_unit: anchorOffsetUnit,
+            match_mode: anchorFirstOnly ? 'first' : 'all', missing_policy: anchorIgnoreMissing ? 'ignore' : 'fail' } } }))
+      if (generated.length) { commit([...fields, ...generated]); setSelectedIds(new Set(generated.map((field) => field.id))); setAnchorResult(`Placed ${generated.length} field${generated.length === 1 ? '' : 's'} for “${anchor}”.`) }
+      else setAnchorResult(`No matches found for “${anchor}”. Required anchors will prevent sending.`)
+    } catch (error) { setAnchorResult(error instanceof Error ? error.message : 'Anchor search failed.') }
+    finally { setAnchorSearching(false) }
   }
 
   if (!documents.length || !participants.length) return <p className="text-sm text-foreground-muted">Add documents and recipients before placing fields.</p>
@@ -396,8 +471,15 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
     <Dialog open={anchorOpen} onOpenChange={setAnchorOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader><DialogTitle>Place fields by anchor</DialogTitle><DialogDescription>Find matching text in the active document and place a field after each match.</DialogDescription></DialogHeader>
-        <div className="space-y-2"><label htmlFor="esign-anchor-text" className="text-sm font-medium">Anchor text</label><Input id="esign-anchor-text" value={anchorText} onChange={(event) => setAnchorText(event.target.value)} placeholder="e.g. Client signature" autoFocus />{anchorResult && <p className="text-sm text-foreground-muted" role="status" aria-live="polite">{anchorResult}</p>}</div>
-        <DialogFooter><Button variant="outline" onClick={() => setAnchorOpen(false)}>Close</Button><Button onClick={placeByAnchor} disabled={!anchorText.trim()}>Find & place</Button></DialogFooter>
+        <div className="space-y-2"><label htmlFor="esign-anchor-text" className="text-sm font-medium">Anchor text</label><Input id="esign-anchor-text" value={anchorText} onChange={(event) => setAnchorText(event.target.value)} placeholder="e.g. Client signature" autoFocus />
+          <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorCaseSensitive} onChange={(event) => setAnchorCaseSensitive(event.target.checked)} /> Case sensitive</label>
+          <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorWholeWord} onChange={(event) => setAnchorWholeWord(event.target.checked)} /> Whole word</label>
+          <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorFirstOnly} onChange={(event) => setAnchorFirstOnly(event.target.checked)} /> First match only</label>
+          <div className="grid grid-cols-2 gap-2"><select className="rounded border border-border bg-background px-2 py-1 text-sm" value={anchorAlignment} onChange={(event) => setAnchorAlignment(event.target.value as typeof anchorAlignment)}><option value="after">After anchor</option><option value="left">Left edge</option><option value="center">Center</option><option value="right">Right edge</option></select><select className="rounded border border-border bg-background px-2 py-1 text-sm" value={anchorOffsetUnit} onChange={(event) => setAnchorOffsetUnit(event.target.value as typeof anchorOffsetUnit)}><option value="point">Points</option><option value="mm">Millimeters</option><option value="inch">Inches</option></select></div>
+          <div className="grid grid-cols-2 gap-2"><Input type="number" value={anchorOffsetX} onChange={(event) => setAnchorOffsetX(Number(event.target.value))} placeholder="Horizontal offset" /><Input type="number" value={anchorOffsetY} onChange={(event) => setAnchorOffsetY(Number(event.target.value))} placeholder="Vertical offset" /></div>
+          <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorIgnoreMissing} onChange={(event) => setAnchorIgnoreMissing(event.target.checked)} /> Allow missing anchor</label>
+          {anchorResult && <p className="text-sm text-foreground-muted" role="status" aria-live="polite">{anchorResult}</p>}</div>
+        <DialogFooter><Button variant="outline" onClick={() => setAnchorOpen(false)}>Close</Button><Button onClick={placeByAnchor} disabled={!anchorText.trim() || anchorSearching}>{anchorSearching && <Loader2 className="mr-1.5 size-4 animate-spin" />}Find & place</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   </div>

@@ -37,7 +37,7 @@ import {
   useSigningSession,
   useSubmitSignature,
 } from '@/hooks/useEnvelopes'
-import { ApiError, apiClient, type EsignFieldResponse } from '@/lib/api'
+import { ApiError, apiClient, type EsignFieldResponse, type EsignSubmitRequest } from '@/lib/api'
 import type { EsignSignerAttachmentResponse } from '@/lib/api'
 import { computeFormulas, incompleteFields as findIncompleteFields, isFieldRequired, resolveVisibility } from '@/lib/esign/fieldLogic'
 
@@ -55,6 +55,7 @@ function SignedDocViewer({
   attachments,
   onAttachmentUpload,
   onAttachmentDelete,
+  dateFormat = 'MM/DD/YYYY',
 }: {
   url: string
   name: string
@@ -67,6 +68,7 @@ function SignedDocViewer({
   attachments: EsignSignerAttachmentResponse[]
   onAttachmentUpload: (fieldId: string, file: File) => void
   onAttachmentDelete: (attachmentId: string) => void
+  dateFormat?: string
 }) {
   const [pdf, setPdf] = React.useState<PdfDocument | null>(null)
   const [error, setError] = React.useState<string | null>(null)
@@ -113,13 +115,18 @@ function SignedDocViewer({
                       top: field.pos_y * size.height,
                       width: field.width * size.width,
                       height: field.height * size.height,
+                      color: field.properties?.appearance?.color ?? undefined,
+                      fontSize: field.properties?.appearance?.font_size ?? undefined,
+                      fontWeight: field.properties?.appearance?.bold ? 700 : undefined,
+                      fontStyle: field.properties?.appearance?.italic ? 'italic' : undefined,
+                      textDecoration: field.properties?.appearance?.underline ? 'underline' : undefined,
+                      textAlign: field.properties?.appearance?.alignment ?? undefined,
                     }
                     const isActive = field.id === activeFieldId
                     const activeRing = isActive ? 'ring-2 ring-warning ring-offset-1' : ''
-                    const isSignature =
-                      field.field_type === 'signature' || field.field_type === 'initials'
+                    const isSignature = ['signature', 'initials', 'stamp'].includes(field.field_type)
                     if (isSignature) {
-                      const complete = !!adopted
+                      const complete = !!adopted && fieldValues[field.id] === 'true'
                       const isInitials = field.field_type === 'initials'
                       const imageUrl = isInitials
                         ? adopted?.initialsImageDataUrl
@@ -163,7 +170,7 @@ function SignedDocViewer({
                           ) : (
                             <span className="inline-flex items-center gap-1 truncate px-1">
                               <PenLine className="size-3.5" />
-                              {isInitials ? 'Initial' : 'Sign here'}
+                              {isInitials ? 'Initial' : field.field_type === 'stamp' ? 'Apply stamp' : 'Sign here'}
                             </span>
                           )}
                         </button>
@@ -190,7 +197,7 @@ function SignedDocViewer({
                               : 'Filled automatically when you adopt your signature'
                           }
                         >
-                          {formatDateSigned()}
+                          {formatDateSigned(new Date(), dateFormat)}
                         </div>
                       )
                     }
@@ -253,12 +260,14 @@ function SignedDocViewer({
                     if (field.field_type === 'auto_fill' && field.properties?.auto_source !== 'company') {
                       return <div key={field.id} id={`esign-field-${field.id}`} className="absolute flex items-center overflow-hidden rounded-sm border bg-surface-muted px-1 text-xs text-foreground" style={style}>{fieldValues[field.id] ?? ''}</div>
                     }
-                    // text field
+                    if (field.field_type === 'note' || field.properties?.read_only || ['first_name', 'last_name', 'full_name', 'email'].includes(field.field_type)) {
+                      return <div key={field.id} id={`esign-field-${field.id}`} className="absolute flex items-center overflow-hidden rounded-sm border bg-surface-muted px-1 text-xs text-foreground" style={style}>{fieldValues[field.id] ?? field.properties?.sender_prefill ?? ''}</div>
+                    }
                     return (
                       <input
                         key={field.id}
                         id={`esign-field-${field.id}`}
-                        type="text"
+                        type={field.field_type === 'date' ? 'text' : field.field_type === 'number' ? 'number' : 'text'}
                         value={fieldValues[field.id] ?? ''}
                         onChange={(e) => onTextChange(field.id, e.target.value)}
                         placeholder={field.label || 'Text'}
@@ -301,6 +310,7 @@ export default function SigningCeremonyPage() {
   const [downloading, setDownloading] = React.useState<'sealed' | 'certificate' | null>(null)
   const [guideStarted, setGuideStarted] = React.useState(false)
   const [activeFieldId, setActiveFieldId] = React.useState<string | null>(null)
+  const [pendingApplyFieldId, setPendingApplyFieldId] = React.useState<string | null>(null)
 
   const session = sessionQuery.data
 
@@ -335,12 +345,18 @@ export default function SigningCeremonyPage() {
     const automatic: Record<string, string> = {}
     for (const attachment of session.attachments ?? []) automatic[attachment.field_id] = attachment.id
     for (const field of session.fields ?? []) {
+      if (field.properties?.sender_prefill != null) automatic[field.id] = field.properties.sender_prefill
+      if (field.field_type === 'first_name') automatic[field.id] = session.recipient_name.split(/\s+/)[0] ?? ''
+      else if (field.field_type === 'last_name') { const names = session.recipient_name.split(/\s+/); automatic[field.id] = names[names.length - 1] ?? '' }
+      else if (field.field_type === 'full_name') automatic[field.id] = session.recipient_name
+      else if (field.field_type === 'email') automatic[field.id] = session.recipient_email
+      else if (field.field_type === 'company') automatic[field.id] = session.recipient_company ?? ''
       if (field.field_type !== 'auto_fill') continue
       const source = field.properties?.auto_source
       if (source === 'recipient_name') automatic[field.id] = session.recipient_name
       else if (source === 'recipient_email') automatic[field.id] = session.recipient_email
       else if (source === 'company') automatic[field.id] = session.recipient_company ?? ''
-      else if (source === 'date_sent' && session.sent_at) automatic[field.id] = formatDateSigned(new Date(session.sent_at))
+      else if (source === 'date_sent' && session.sent_at) automatic[field.id] = formatDateSigned(new Date(session.sent_at), session.date_format)
     }
     setFieldValues((previous) => ({ ...automatic, ...previous }))
   }, [session])
@@ -530,7 +546,8 @@ export default function SigningCeremonyPage() {
     .filter((field) => myFields.some((candidate) => candidate.id === field.id)) as EsignFieldResponse[]
   const countedRadioGroups = new Set<string>()
   const totalRequired = myFields.filter((field) => {
-    if (['signature', 'initials', 'date_signed'].includes(field.field_type)) return true
+    if (['signature', 'initials', 'stamp'].includes(field.field_type)) return isFieldRequired(field, logicFields, displayValues, visibility)
+    if (field.field_type === 'date_signed') return true
     if (field.field_type === 'formula') return false
     if (field.field_type === 'radio') {
       const group = field.properties?.group?.id ?? field.id
@@ -556,7 +573,12 @@ export default function SigningCeremonyPage() {
     }
   }
 
-  const handleFieldClick = () => {
+  const handleFieldClick = (field: EsignFieldResponse) => {
+    if (adopted) {
+      setFieldValues((previous) => ({ ...previous, [field.id]: previous[field.id] === 'true' ? 'false' : 'true' }))
+      return
+    }
+    setPendingApplyFieldId(field.id)
     setAdoptionOpen(true)
   }
 
@@ -581,9 +603,27 @@ export default function SigningCeremonyPage() {
     }
   }
 
+  const handleValueChange = (fieldId: string, value: string) => {
+    const source = myFields.find((field) => field.id === fieldId)
+    setFieldValues((previous) => {
+      const next = { ...previous, [fieldId]: value }
+      const label = source?.properties?.data_label
+      if (label && source?.properties?.shared_value) {
+        myFields.filter((field) => field.properties?.shared_value && field.properties?.data_label === label)
+          .forEach((field) => { next[field.id] = value })
+      }
+      return next
+    })
+  }
+
   const handleFinish = async () => {
     if (!adopted) return
     try {
+      const submittedFields: NonNullable<EsignSubmitRequest['field_values']> = []
+      for (const field of myFields) {
+        if (['signature', 'initials', 'stamp'].includes(field.field_type)) submittedFields.push({ field_id: field.id, completed: fieldValues[field.id] === 'true' })
+        else if (Object.prototype.hasOwnProperty.call(fieldValues, field.id)) submittedFields.push({ field_id: field.id, value: fieldValues[field.id] })
+      }
       const result = await submitSignature.mutateAsync({
         signature: {
           signature_type: adopted.signatureType,
@@ -593,7 +633,7 @@ export default function SigningCeremonyPage() {
           initials_text: adopted.initialsText,
           initials_image_data_url: adopted.initialsImageDataUrl,
         },
-        field_values: Object.entries(fieldValues).map(([field_id, value]) => ({ field_id, value })),
+        field_values: submittedFields,
       })
       setCeremonyState('submitted')
       if (result.sealing_enqueued) {
@@ -747,11 +787,12 @@ export default function SigningCeremonyPage() {
               activeFieldId={activeFieldId}
               onFieldClick={handleFieldClick}
               onTextChange={(fieldId, value) =>
-                setFieldValues((prev) => ({ ...prev, [fieldId]: value }))
+                handleValueChange(fieldId, value)
               }
               attachments={attachments}
               onAttachmentUpload={handleAttachmentUpload}
               onAttachmentDelete={handleAttachmentDelete}
+              dateFormat={session.date_format}
             />
           </div>
         ))}
@@ -781,7 +822,11 @@ export default function SigningCeremonyPage() {
         open={adoptionOpen}
         onOpenChange={setAdoptionOpen}
         defaultName={user?.displayName ?? ''}
-        onAdopt={setAdopted}
+        onAdopt={(artifact) => {
+          setAdopted(artifact)
+          if (pendingApplyFieldId) setFieldValues((previous) => ({ ...previous, [pendingApplyFieldId]: 'true' }))
+          setPendingApplyFieldId(null)
+        }}
       />
 
       <DeclineDialog

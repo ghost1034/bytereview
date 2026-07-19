@@ -32,6 +32,8 @@ from models.esign import (
     EsignInboxResponse,
     EsignProgressRequest,
     EsignProgressResponse,
+    EsignPdfWidgetConversionRequest,
+    EsignPdfWidgetInspectionResponse,
     EsignRecipientsReplaceRequest,
     EsignSigningSessionResponse,
     EsignSignerAttachmentResponse,
@@ -171,6 +173,7 @@ async def update_template(
             title=payload.title,
             message=payload.message,
             signing_type=payload.signing_type,
+            date_format=payload.date_format,
             recipient_roles=payload.recipient_roles,
             fields=payload.fields,
         )
@@ -324,6 +327,37 @@ async def reorder_documents(
     try:
         return esign_envelope_service.reorder_documents(
             _uid(token), envelope_id, payload.document_ids
+        )
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.get(
+    "/envelopes/{envelope_id}/documents/{document_id}/pdf-widgets",
+    response_model=EsignPdfWidgetInspectionResponse,
+)
+async def inspect_pdf_widgets(
+    envelope_id: str, document_id: str, token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return await esign_envelope_service.inspect_pdf_widgets(_uid(token), envelope_id, document_id)
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.post(
+    "/envelopes/{envelope_id}/documents/{document_id}/convert-pdf-fields",
+    response_model=EsignEnvelopeResponse,
+)
+async def convert_pdf_widgets(
+    envelope_id: str,
+    document_id: str,
+    payload: EsignPdfWidgetConversionRequest,
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return await esign_envelope_service.convert_pdf_widgets(
+            _uid(token), envelope_id, document_id, payload.mappings
         )
     except Exception as exc:
         _raise_http(exc)

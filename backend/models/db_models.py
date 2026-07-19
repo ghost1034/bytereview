@@ -1172,6 +1172,16 @@ class EsignFieldType(str, enum.Enum):
     RADIO = "radio"
     DROPDOWN = "dropdown"
     FORMULA = "formula"
+    STAMP = "stamp"
+    DATE = "date"
+    NUMBER = "number"
+    FIRST_NAME = "first_name"
+    LAST_NAME = "last_name"
+    FULL_NAME = "full_name"
+    EMAIL = "email"
+    COMPANY = "company"
+    TITLE = "title"
+    NOTE = "note"
 
 
 class EsignSignatureType(str, enum.Enum):
@@ -1234,6 +1244,8 @@ class EsignEnvelope(Base):
         nullable=False,
         server_default=EsignSigningType.SEQUENTIAL.value,
     )
+    # Sender-selected display format shared by editable dates and date-signed.
+    date_format = Column(String(32), nullable=False, default="MM/DD/YYYY", server_default="MM/DD/YYYY")
     current_routing_order = Column(Integer, nullable=True)  # set when sent
     # Snapshot of the ESIGN/UETA consent disclosure shown to signers; immutable
     # per envelope so consent records can be tied to the exact text.
@@ -1482,6 +1494,7 @@ class EsignTemplate(Base):
         nullable=False,
         server_default=EsignSigningType.SEQUENTIAL.value,
     )
+    date_format = Column(String(32), nullable=False, default="MM/DD/YYYY", server_default="MM/DD/YYYY")
     # Ordered list of recipient roles: [{"label": "Client", "role": "signer", "routing_order": 1}, ...]
     recipient_roles = Column(JSONB, nullable=False, default=list, server_default=expression.text("'[]'::jsonb"))
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())

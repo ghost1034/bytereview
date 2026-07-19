@@ -6,6 +6,7 @@ import hashlib
 import asyncio
 import logging
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -52,6 +53,9 @@ from models.esign import (
     EsignTemplateRoleInput,
     EsignAnchorMatch,
     EsignAnchorSearchResponse,
+    EsignPdfWidget,
+    EsignPdfWidgetInspectionResponse,
+    EsignPdfWidgetMapping,
 )
 from services.esign import audit_service
 from services.esign.audit_service import EsignRequestMeta
@@ -194,6 +198,7 @@ class EsignEnvelopeService:
             message=envelope.message,
             status=envelope.status.value if hasattr(envelope.status, "value") else str(envelope.status),
             signing_type=envelope.signing_type.value if hasattr(envelope.signing_type, "value") else str(envelope.signing_type),
+            date_format=getattr(envelope, "date_format", None) or "MM/DD/YYYY",
             current_routing_order=envelope.current_routing_order,
             consent_disclosure_text=envelope.consent_disclosure_text,
             expires_at=envelope.expires_at,
@@ -381,6 +386,7 @@ class EsignEnvelopeService:
         if template.message and not envelope.message:
             envelope.message = template.message
         envelope.signing_type = template.signing_type
+        envelope.date_format = getattr(template, "date_format", None) or "MM/DD/YYYY"
 
         # Copy template documents into the envelope's own GCS prefix so the
         # envelope's originals stay immutable even if the template changes.
@@ -618,6 +624,8 @@ class EsignEnvelopeService:
                 envelope.message = payload.message
             if payload.signing_type is not None:
                 envelope.signing_type = EsignSigningType(payload.signing_type)
+            if payload.date_format is not None:
+                envelope.date_format = payload.date_format
             if payload.expires_at is not None:
                 envelope.expires_at = payload.expires_at
             if payload.reminder_interval_hours is not None:
@@ -984,6 +992,7 @@ class EsignEnvelopeService:
             title=template.title,
             message=template.message,
             signing_type=template.signing_type.value if hasattr(template.signing_type, "value") else str(template.signing_type),
+            date_format=getattr(template, "date_format", None) or "MM/DD/YYYY",
             recipient_roles=template.recipient_roles if isinstance(template.recipient_roles, list) else [],
             documents=[
                 EsignTemplateDocumentResponse(
@@ -1088,6 +1097,7 @@ class EsignEnvelopeService:
         title: Optional[str] = None,
         message: Optional[str] = None,
         signing_type: Optional[str] = None,
+        date_format: Optional[str] = None,
         recipient_roles: Optional[list[EsignTemplateRoleInput]] = None,
         fields: Optional[list[EsignTemplateFieldInput]] = None,
     ) -> EsignTemplateResponse:
@@ -1104,6 +1114,8 @@ class EsignEnvelopeService:
                 template.message = message
             if signing_type is not None:
                 template.signing_type = EsignSigningType(signing_type)
+            if date_format is not None:
+                template.date_format = date_format
             if recipient_roles is not None:
                 template.recipient_roles = [r.model_dump() for r in recipient_roles]
 
@@ -1207,15 +1219,161 @@ class EsignEnvelopeService:
         finally:
             db.close()
 
+    @staticmethod
+    def _pdf_widget_rows(content: bytes, document_id: str) -> list[EsignPdfWidget]:
+        type_map = {
+            getattr(fitz, "PDF_WIDGET_TYPE_TEXT", 7): "text",
+            getattr(fitz, "PDF_WIDGET_TYPE_SIGNATURE", 6): "signature",
+            getattr(fitz, "PDF_WIDGET_TYPE_CHECKBOX", 2): "checkbox",
+            getattr(fitz, "PDF_WIDGET_TYPE_RADIOBUTTON", 5): "radio",
+            getattr(fitz, "PDF_WIDGET_TYPE_COMBOBOX", 3): "dropdown",
+            getattr(fitz, "PDF_WIDGET_TYPE_LISTBOX", 4): "dropdown",
+        }
+        rows: list[EsignPdfWidget] = []
+        with fitz.open(stream=content, filetype="pdf") as pdf:
+            for page_number, page in enumerate(pdf):
+                for index, widget in enumerate(list(page.widgets() or [])):
+                    rect = widget.rect * page.rotation_matrix
+                    rect.normalize()
+                    name = str(widget.field_name or f"Field {page_number + 1}-{index + 1}")
+                    suggested = type_map.get(widget.field_type)
+                    lowered = f"{name} {widget.field_label or ''}".lower()
+                    if suggested == "text" and "date" in lowered:
+                        suggested = "date"
+                    elif suggested == "text" and any(word in lowered for word in ("amount", "number", "total")):
+                        suggested = "number"
+                    choices = [str(item) for item in (getattr(widget, "choice_values", None) or [])]
+                    rows.append(EsignPdfWidget(
+                        widget_id=f"{page_number}:{index}:{name}",
+                        name=name,
+                        tooltip=str(widget.field_label) if widget.field_label else None,
+                        suggested_field_type=suggested,
+                        page_number=page_number,
+                        x=max(0.0, min(1.0, rect.x0 / page.rect.width)),
+                        y=max(0.0, min(1.0, rect.y0 / page.rect.height)),
+                        width=max(0.0001, min(1.0, rect.width / page.rect.width)),
+                        height=max(0.0001, min(1.0, rect.height / page.rect.height)),
+                        required=bool(int(widget.field_flags or 0) & 2),
+                        default_value=str(widget.field_value) if widget.field_value not in (None, "") else None,
+                        max_length=int(widget.text_maxlen) if getattr(widget, "text_maxlen", 0) else None,
+                        choices=choices,
+                        supported=suggested is not None,
+                    ))
+        return rows
+
+    async def inspect_pdf_widgets(
+        self, user_id: str, envelope_id: str, document_id: str,
+    ) -> EsignPdfWidgetInspectionResponse:
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            self._require_draft(envelope)
+            document = next((item for item in envelope.documents or [] if str(item.id) == str(document_id)), None)
+            if document is None:
+                raise EsignNotFound("Document not found")
+            content = await asyncio.to_thread(self.storage.bucket.blob(document.gcs_object_name).download_as_bytes)
+            return EsignPdfWidgetInspectionResponse(
+                document_id=str(document.id), widgets=self._pdf_widget_rows(content, str(document.id))
+            )
+        finally:
+            db.close()
+
+    async def convert_pdf_widgets(
+        self,
+        user_id: str,
+        envelope_id: str,
+        document_id: str,
+        mappings: list[EsignPdfWidgetMapping],
+    ) -> EsignEnvelopeResponse:
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            self._require_draft(envelope)
+            document = next((item for item in envelope.documents or [] if str(item.id) == str(document_id)), None)
+            if document is None:
+                raise EsignNotFound("Document not found")
+            recipients = {str(item.id) for item in envelope.recipients or []}
+            content = await asyncio.to_thread(self.storage.bucket.blob(document.gcs_object_name).download_as_bytes)
+            widgets = {item.widget_id: item for item in self._pdf_widget_rows(content, str(document.id))}
+            pending = list(envelope.fields or [])
+            converted_ids = {
+                str((field.properties or {}).get("acroform_widget_id"))
+                for field in pending if str(field.document_id) == str(document.id)
+            }
+            for mapping in mappings:
+                widget = widgets.get(mapping.widget_id)
+                if widget is None or not widget.supported:
+                    raise EsignError(f"PDF widget '{mapping.widget_id}' is missing or unsupported")
+                if str(mapping.recipient_id) not in recipients:
+                    raise EsignError("Converted PDF field has an unknown recipient")
+                if mapping.widget_id in converted_ids:
+                    raise EsignConflict(f"PDF widget '{widget.name}' has already been converted")
+                props: dict[str, Any] = {
+                    "data_label": mapping.data_label or (
+                        f"{widget.name}:{mapping.widget_id}" if mapping.field_type in {"radio", "checkbox", "signature"} else widget.name
+                    ),
+                    "tooltip": widget.tooltip,
+                    "sender_prefill": widget.default_value,
+                    "shared_value": mapping.field_type in {"text", "dropdown", "number", "date"},
+                    "acroform_name": widget.name,
+                    "acroform_widget_id": mapping.widget_id,
+                    "conversion_source": "acroform",
+                }
+                if widget.max_length:
+                    props["text_validation"] = {"max_length": widget.max_length}
+                if mapping.field_type == "dropdown":
+                    props["options"] = [{"value": choice, "label": choice} for choice in widget.choices]
+                if mapping.field_type == "radio":
+                    props["group"] = {"id": f"acroform:{widget.name}", "label": widget.tooltip or widget.name}
+                    props["option_value"] = widget.default_value or mapping.widget_id
+                pending.append(EsignField(
+                    id=uuid.uuid4(), envelope_id=envelope.id, document_id=document.id,
+                    recipient_id=uuid.UUID(str(mapping.recipient_id)), field_type=EsignFieldType(mapping.field_type),
+                    page_number=widget.page_number, pos_x=widget.x, pos_y=widget.y,
+                    width=widget.width, height=widget.height,
+                    required=widget.required if mapping.required is None else mapping.required,
+                    label=widget.tooltip or widget.name, properties={key: value for key, value in props.items() if value is not None},
+                ))
+            validate_field_graph(pending)
+            db.add_all(pending[len(envelope.fields or []):])
+            db.commit()
+            db.expire(envelope, ["fields"])
+            db.refresh(envelope)
+            return self._serialize_envelope(envelope)
+        except FieldLogicError as exc:
+            logger.warning(
+                "PDF form conversion validation failed envelope=%s document=%s",
+                envelope_id, document_id,
+            )
+            db.rollback()
+            raise EsignError(str(exc)) from exc
+        except Exception:
+            logger.warning(
+                "PDF form conversion failed envelope=%s document=%s field_types=%s",
+                envelope_id, document_id, sorted({mapping.field_type for mapping in mappings}), exc_info=True,
+            )
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
     async def _search_anchors(
         self,
         documents: list[Any],
         *,
         anchor: str,
         case_sensitive: bool,
-        document_ids: Optional[list[str]],
+        whole_word: bool = False,
+        document_ids: Optional[list[str]] = None,
+        page_numbers: Optional[list[int]] = None,
+        match_mode: str = "all",
+        horizontal_alignment: str = "after",
+        offset_x: float = 0,
+        offset_y: float = 0,
+        offset_unit: str = "point",
     ) -> EsignAnchorSearchResponse:
         selected = set(document_ids or [])
+        selected_pages = set(page_numbers or [])
         matches: list[EsignAnchorMatch] = []
         for document in documents:
             if selected and str(document.id) not in selected:
@@ -1225,21 +1383,41 @@ class EsignEnvelopeService:
             )
             with fitz.open(stream=content, filetype="pdf") as pdf:
                 for page_number, page in enumerate(pdf):
+                    if selected_pages and page_number not in selected_pages:
+                        continue
                     for raw_rect in page.search_for(anchor):
-                        if case_sensitive and page.get_textbox(raw_rect).strip() != anchor:
+                        found_text = page.get_textbox(raw_rect).strip()
+                        if case_sensitive and found_text != anchor:
                             continue
+                        if whole_word:
+                            escaped = re.escape(anchor)
+                            flags = 0 if case_sensitive else re.IGNORECASE
+                            if re.fullmatch(rf"\b{escaped}\b", found_text, flags=flags) is None:
+                                continue
                         rect = raw_rect * page.rotation_matrix
                         rect.normalize()
+                        factor = 1.0 if offset_unit == "point" else (72.0 / 25.4 if offset_unit == "mm" else 72.0)
+                        dx, dy = offset_x * factor, offset_y * factor
+                        if horizontal_alignment == "left":
+                            x = rect.x0 + dx
+                        elif horizontal_alignment == "center":
+                            x = (rect.x0 + rect.x1) / 2 + dx
+                        elif horizontal_alignment == "right":
+                            x = rect.x1 + dx
+                        else:
+                            x = rect.x1 + dx
                         matches.append(
                             EsignAnchorMatch(
                                 document_id=str(document.id),
                                 page_number=page_number,
-                                x=max(0.0, min(1.0, rect.x0 / page.rect.width)),
-                                y=max(0.0, min(1.0, rect.y0 / page.rect.height)),
+                                x=max(0.0, min(1.0, x / page.rect.width)),
+                                y=max(0.0, min(1.0, (rect.y0 + dy) / page.rect.height)),
                                 width=max(0.0, min(1.0, rect.width / page.rect.width)),
                                 height=max(0.0, min(1.0, rect.height / page.rect.height)),
                             )
                         )
+                        if match_mode == "first":
+                            return EsignAnchorSearchResponse(matches=matches)
                         if len(matches) >= 500:
                             return EsignAnchorSearchResponse(matches=matches)
         return EsignAnchorSearchResponse(matches=matches)
@@ -1251,7 +1429,14 @@ class EsignEnvelopeService:
         *,
         anchor: str,
         case_sensitive: bool = False,
+        whole_word: bool = False,
         document_ids: Optional[list[str]] = None,
+        page_numbers: Optional[list[int]] = None,
+        match_mode: str = "all",
+        horizontal_alignment: str = "after",
+        offset_x: float = 0,
+        offset_y: float = 0,
+        offset_unit: str = "point",
     ) -> EsignAnchorSearchResponse:
         db = self._get_session()
         try:
@@ -1261,7 +1446,14 @@ class EsignEnvelopeService:
                 list(envelope.documents or []),
                 anchor=anchor,
                 case_sensitive=case_sensitive,
+                whole_word=whole_word,
                 document_ids=document_ids,
+                page_numbers=page_numbers,
+                match_mode=match_mode,
+                horizontal_alignment=horizontal_alignment,
+                offset_x=offset_x,
+                offset_y=offset_y,
+                offset_unit=offset_unit,
             )
         finally:
             db.close()
@@ -1273,7 +1465,14 @@ class EsignEnvelopeService:
         *,
         anchor: str,
         case_sensitive: bool = False,
+        whole_word: bool = False,
         document_ids: Optional[list[str]] = None,
+        page_numbers: Optional[list[int]] = None,
+        match_mode: str = "all",
+        horizontal_alignment: str = "after",
+        offset_x: float = 0,
+        offset_y: float = 0,
+        offset_unit: str = "point",
     ) -> EsignAnchorSearchResponse:
         db = self._get_session()
         try:
@@ -1282,7 +1481,14 @@ class EsignEnvelopeService:
                 list(template.documents or []),
                 anchor=anchor,
                 case_sensitive=case_sensitive,
+                whole_word=whole_word,
                 document_ids=document_ids,
+                page_numbers=page_numbers,
+                match_mode=match_mode,
+                horizontal_alignment=horizontal_alignment,
+                offset_x=offset_x,
+                offset_y=offset_y,
+                offset_unit=offset_unit,
             )
         finally:
             db.close()
@@ -1330,6 +1536,7 @@ class EsignEnvelopeService:
                 title=envelope.title,
                 message=envelope.message,
                 signing_type=envelope.signing_type,
+                date_format=getattr(envelope, "date_format", None) or "MM/DD/YYYY",
                 recipient_roles=roles,
             )
             db.add(template)

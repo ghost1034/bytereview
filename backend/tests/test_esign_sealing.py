@@ -5,6 +5,7 @@ using a local EC key + self-signed cert so no GCP access is needed.
 from __future__ import annotations
 
 import hashlib
+import asyncio
 import os
 import sys
 import types
@@ -144,6 +145,27 @@ class EsignSealingPipelineTests(unittest.TestCase):
 
         sealed, evidence = esign_sealing_service._seal_pdf(combined_bytes, envelope)
         return sealed, NS(evidence=evidence)
+
+    def test_flatten_removes_interactive_acroform_widgets(self) -> None:
+        from services.esign.sealing_service import EsignSealingService
+
+        source = fitz.open()
+        page = source.new_page()
+        widget = fitz.Widget()
+        widget.field_name = "Client name"
+        widget.field_type = fitz.PDF_WIDGET_TYPE_TEXT
+        widget.field_value = "Jane Client"
+        widget.rect = fitz.Rect(72, 72, 240, 100)
+        page.add_widget(widget)
+        source_bytes = source.tobytes()
+        source.close()
+
+        service = EsignSealingService.__new__(EsignSealingService)
+        service._download_bytes = lambda _name: source_bytes
+        document = NS(id=uuid.uuid4(), gcs_object_name="source.pdf")
+        flattened = asyncio.run(service._flatten_document(document, [], {}, {}, {}))
+        with fitz.open(stream=flattened, filetype="pdf") as result:
+            self.assertEqual(list(result[0].widgets() or []), [])
 
     def test_seal_and_verify_round_trip(self) -> None:
         from services.esign.verification_service import esign_verification_service

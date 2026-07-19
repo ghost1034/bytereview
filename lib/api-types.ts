@@ -1795,6 +1795,40 @@ export interface paths {
         patch: operations["reorder_documents_api_esign_envelopes__envelope_id__documents_order_patch"];
         trace?: never;
     };
+    "/api/esign/envelopes/{envelope_id}/documents/{document_id}/pdf-widgets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect Pdf Widgets */
+        get: operations["inspect_pdf_widgets_api_esign_envelopes__envelope_id__documents__document_id__pdf_widgets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/envelopes/{envelope_id}/documents/{document_id}/convert-pdf-fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Convert Pdf Widgets */
+        post: operations["convert_pdf_widgets_api_esign_envelopes__envelope_id__documents__document_id__convert_pdf_fields_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/esign/envelopes/{envelope_id}/recipients": {
         parameters: {
             query?: never;
@@ -4642,6 +4676,30 @@ export interface components {
             text?: string | null;
             /** Anchor */
             anchor?: string | null;
+            /** Rule Id */
+            rule_id?: string | null;
+            /** Match Index */
+            match_index?: number | null;
+            /**
+             * Case Sensitive
+             * @default false
+             */
+            case_sensitive: boolean;
+            /**
+             * Whole Word
+             * @default false
+             */
+            whole_word: boolean;
+            /** Document Ids */
+            document_ids?: string[] | null;
+            /** Page Numbers */
+            page_numbers?: number[] | null;
+            /**
+             * Horizontal Alignment
+             * @default after
+             * @enum {string}
+             */
+            horizontal_alignment: "left" | "center" | "right" | "after";
             /**
              * Offset X
              * @default 0
@@ -4652,6 +4710,24 @@ export interface components {
              * @default 0
              */
             offset_y: number;
+            /**
+             * Offset Unit
+             * @default point
+             * @enum {string}
+             */
+            offset_unit: "point" | "mm" | "inch";
+            /**
+             * Match Mode
+             * @default all
+             * @enum {string}
+             */
+            match_mode: "first" | "all";
+            /**
+             * Missing Policy
+             * @default fail
+             * @enum {string}
+             */
+            missing_policy: "fail" | "ignore";
         };
         /** AssistantStreamRequest */
         AssistantStreamRequest: {
@@ -5782,6 +5858,13 @@ export interface components {
             /** Display Order */
             display_order: number;
         };
+        /** DateValidation */
+        DateValidation: {
+            /** Minimum */
+            minimum?: string | null;
+            /** Maximum */
+            maximum?: string | null;
+        };
         /** DocumentExtractRequest */
         DocumentExtractRequest: {
             /** Documenttext */
@@ -5842,8 +5925,43 @@ export interface components {
              * @default false
              */
             case_sensitive: boolean;
+            /**
+             * Whole Word
+             * @default false
+             */
+            whole_word: boolean;
             /** Document Ids */
             document_ids?: string[] | null;
+            /** Page Numbers */
+            page_numbers?: number[] | null;
+            /**
+             * Match Mode
+             * @default all
+             * @enum {string}
+             */
+            match_mode: "first" | "all";
+            /**
+             * Horizontal Alignment
+             * @default after
+             * @enum {string}
+             */
+            horizontal_alignment: "left" | "center" | "right" | "after";
+            /**
+             * Offset X
+             * @default 0
+             */
+            offset_x: number;
+            /**
+             * Offset Y
+             * @default 0
+             */
+            offset_y: number;
+            /**
+             * Offset Unit
+             * @default point
+             * @enum {string}
+             */
+            offset_unit: "point" | "mm" | "inch";
         };
         /** EsignAnchorSearchResponse */
         EsignAnchorSearchResponse: {
@@ -6006,6 +6124,11 @@ export interface components {
             status: string;
             /** Signing Type */
             signing_type: string;
+            /**
+             * Date Format
+             * @default MM/DD/YYYY
+             */
+            date_format: string;
             /** Current Routing Order */
             current_routing_order?: number | null;
             /** Consent Disclosure Text */
@@ -6065,6 +6188,8 @@ export interface components {
             expires_at?: string | null;
             /** Reminder Interval Hours */
             reminder_interval_hours?: number | null;
+            /** Date Format */
+            date_format?: ("MM/DD/YYYY" | "DD/MM/YYYY" | "YYYY-MM-DD" | "MMM D, YYYY") | null;
         };
         /** EsignEventResponse */
         EsignEventResponse: {
@@ -6137,6 +6262,27 @@ export interface components {
             /** Allowed Types */
             allowed_types?: string[] | null;
             anchor?: components["schemas"]["AnchorProps"] | null;
+            /** Data Label */
+            data_label?: string | null;
+            /** Tooltip */
+            tooltip?: string | null;
+            /** Sender Prefill */
+            sender_prefill?: string | null;
+            /**
+             * Read Only
+             * @default false
+             */
+            read_only: boolean;
+            /**
+             * Shared Value
+             * @default false
+             */
+            shared_value: boolean;
+            text_validation?: components["schemas"]["TextValidation"] | null;
+            number_validation?: components["schemas"]["NumberValidation"] | null;
+            date_validation?: components["schemas"]["DateValidation"] | null;
+            selection_validation?: components["schemas"]["SelectionValidation"] | null;
+            appearance?: components["schemas"]["FieldAppearance"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -6178,6 +6324,8 @@ export interface components {
             field_id: string;
             /** Value */
             value?: string | null;
+            /** Completed */
+            completed?: boolean | null;
         };
         /** EsignFieldsReplaceRequest */
         EsignFieldsReplaceRequest: {
@@ -6225,6 +6373,71 @@ export interface components {
         EsignInboxResponse: {
             /** Items */
             items: components["schemas"]["EsignInboxItem"][];
+        };
+        /** EsignPdfWidget */
+        EsignPdfWidget: {
+            /** Widget Id */
+            widget_id: string;
+            /** Name */
+            name: string;
+            /** Tooltip */
+            tooltip?: string | null;
+            /** Suggested Field Type */
+            suggested_field_type?: string | null;
+            /** Page Number */
+            page_number: number;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /**
+             * Required
+             * @default false
+             */
+            required: boolean;
+            /** Default Value */
+            default_value?: string | null;
+            /** Max Length */
+            max_length?: number | null;
+            /** Choices */
+            choices?: string[];
+            /**
+             * Supported
+             * @default true
+             */
+            supported: boolean;
+        };
+        /** EsignPdfWidgetConversionRequest */
+        EsignPdfWidgetConversionRequest: {
+            /** Mappings */
+            mappings: components["schemas"]["EsignPdfWidgetMapping"][];
+        };
+        /** EsignPdfWidgetInspectionResponse */
+        EsignPdfWidgetInspectionResponse: {
+            /** Document Id */
+            document_id: string;
+            /** Widgets */
+            widgets?: components["schemas"]["EsignPdfWidget"][];
+        };
+        /** EsignPdfWidgetMapping */
+        EsignPdfWidgetMapping: {
+            /** Widget Id */
+            widget_id: string;
+            /** Recipient Id */
+            recipient_id: string;
+            /**
+             * Field Type
+             * @enum {string}
+             */
+            field_type: "text" | "signature" | "checkbox" | "radio" | "dropdown" | "number" | "date";
+            /** Required */
+            required?: boolean | null;
+            /** Data Label */
+            data_label?: string | null;
         };
         /**
          * EsignProgressRequest
@@ -6387,6 +6600,11 @@ export interface components {
             recipient_email: string;
             /** Recipient Company */
             recipient_company?: string | null;
+            /**
+             * Date Format
+             * @default MM/DD/YYYY
+             */
+            date_format: string;
             /** Attachments */
             attachments?: components["schemas"]["EsignSignerAttachmentResponse"][];
             /** Sent At */
@@ -6503,6 +6721,11 @@ export interface components {
             message?: string | null;
             /** Signing Type */
             signing_type: string;
+            /**
+             * Date Format
+             * @default MM/DD/YYYY
+             */
+            date_format: string;
             /** Recipient Roles */
             recipient_roles: {
                 [key: string]: unknown;
@@ -6549,6 +6772,8 @@ export interface components {
             message?: string | null;
             /** Signing Type */
             signing_type?: string | null;
+            /** Date Format */
+            date_format?: ("MM/DD/YYYY" | "DD/MM/YYYY" | "YYYY-MM-DD" | "MMM D, YYYY") | null;
             /** Recipient Roles */
             recipient_roles?: components["schemas"]["EsignTemplateRoleInput"][] | null;
             /** Fields */
@@ -6666,6 +6891,42 @@ export interface components {
              * @default 0
              */
             result_set_index: number;
+        };
+        /** FieldAppearance */
+        FieldAppearance: {
+            /**
+             * Font
+             * @default Helvetica
+             */
+            font: string;
+            /** Font Size */
+            font_size?: number | null;
+            /**
+             * Color
+             * @default #000000
+             */
+            color: string;
+            /**
+             * Alignment
+             * @default left
+             * @enum {string}
+             */
+            alignment: "left" | "center" | "right";
+            /**
+             * Bold
+             * @default false
+             */
+            bold: boolean;
+            /**
+             * Italic
+             * @default false
+             */
+            italic: boolean;
+            /**
+             * Underline
+             * @default false
+             */
+            underline: boolean;
         };
         /** FieldConfig */
         FieldConfig: {
@@ -8649,6 +8910,20 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** NumberValidation */
+        NumberValidation: {
+            /** Minimum */
+            minimum?: number | null;
+            /** Maximum */
+            maximum?: number | null;
+            /** Decimal Places */
+            decimal_places?: number | null;
+            /**
+             * Allow Negative
+             * @default true
+             */
+            allow_negative: boolean;
+        };
         /** OAuthConfigInfo */
         OAuthConfigInfo: {
             /** Service */
@@ -9106,6 +9381,16 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** SelectionValidation */
+        SelectionValidation: {
+            /**
+             * Minimum Selected
+             * @default 0
+             */
+            minimum_selected: number;
+            /** Maximum Selected */
+            maximum_selected?: number | null;
+        };
         /**
          * StartCpeSheetResponse
          * @description Response after starting CPE sheet processing
@@ -9278,6 +9563,13 @@ export interface components {
             fields?: components["schemas"]["FieldConfig"][] | null;
             /** Is Public */
             is_public?: boolean | null;
+        };
+        /** TextValidation */
+        TextValidation: {
+            /** Max Length */
+            max_length?: number | null;
+            /** Regex */
+            regex?: string | null;
         };
         /** TokensResponse */
         TokensResponse: {
@@ -12798,6 +13090,74 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["EsignDocumentOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignEnvelopeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    inspect_pdf_widgets_api_esign_envelopes__envelope_id__documents__document_id__pdf_widgets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignPdfWidgetInspectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    convert_pdf_widgets_api_esign_envelopes__envelope_id__documents__document_id__convert_pdf_fields_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignPdfWidgetConversionRequest"];
             };
         };
         responses: {

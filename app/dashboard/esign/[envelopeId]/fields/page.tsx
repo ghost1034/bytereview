@@ -140,6 +140,7 @@ export default function EnvelopeFieldsPage() {
             fields={editorFields}
             onChange={setEditorFields}
             focusFieldId={focusFieldId}
+            onAnchorSearch={(request) => apiClient.searchEsignAnchors(envelopeId, request)}
           />
         </div>
       )}

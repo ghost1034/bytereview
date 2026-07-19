@@ -47,7 +47,7 @@ from services.esign import audit_service
 from services.esign.certificate_service import build_certificate_pdf
 from services.esign.envelope_service import sha256_hex
 from services.esign.signing_service import acquire_envelope_lock
-from services.esign.field_logic import compute_formulas, resolve_visibility
+from services.esign.field_logic import compute_formulas, resolve_display_value, resolve_visibility
 from services.gcs_service import get_storage_service
 
 logger = logging.getLogger(__name__)
@@ -115,6 +115,8 @@ def _fit_textbox(
     max_fontsize: float,
     fontfile: Optional[str] = None,
     align: int = fitz.TEXT_ALIGN_LEFT,
+    color: tuple[float, float, float] = (0, 0, 0),
+    underline: bool = False,
 ) -> None:
     """Insert text sized to fit `box` (display space) and centered vertically.
 
@@ -141,13 +143,14 @@ def _fit_textbox(
                 fontsize=fontsize,
                 rotate=rotate,
                 align=align,
+                color=color,
             )
             if leftover >= 0:
                 break
             fontsize -= 1
     if leftover < 0:
         # Overflows even at minimum size; anchor to the full box and let it spill.
-        page.insert_textbox(target, text, fontname=fontname, fontfile=fontfile, fontsize=4, rotate=rotate, align=align)
+        page.insert_textbox(target, text, fontname=fontname, fontfile=fontfile, fontsize=4, rotate=rotate, align=align, color=color)
         return
     centered = fitz.Rect(box.x0, box.y0 + leftover / 2.0, box.x1, box.y1)
     page.insert_textbox(
@@ -158,7 +161,11 @@ def _fit_textbox(
         fontsize=fontsize,
         rotate=rotate,
         align=align,
+        color=color,
     )
+    if underline:
+        target = _derotate(page, box)
+        page.draw_line((target.x0, target.y1 - 1), (target.x1, target.y1 - 1), color=color, width=0.6, overlay=True)
 
 
 def _initials_from_name(name: str) -> str:
@@ -179,7 +186,7 @@ def _stamp_field(
     # Field height as seen by the user (display space, rotation-aware page.rect).
     display_height = box.height
 
-    if field.field_type in (EsignFieldType.SIGNATURE, EsignFieldType.INITIALS):
+    if field.field_type in (EsignFieldType.SIGNATURE, EsignFieldType.INITIALS, EsignFieldType.STAMP):
         if field.field_type == EsignFieldType.INITIALS:
             if image_bytes:
                 # Signer adopted dedicated initials as an image.
@@ -220,9 +227,30 @@ def _stamp_field(
                 rotate=rotate,
                 max_fontsize=display_height * 0.55,
             )
-    else:  # date_signed / text
-        if field.value:
-            _fit_textbox(page, box, str(field.value), fontname=_FONT_TEXT, rotate=rotate, max_fontsize=display_height * 0.7)
+    else:
+        display_value = resolve_display_value(field, field.value, recipient=recipient)
+        if display_value:
+            properties = getattr(field, "properties", None) or {}
+            appearance = dict(properties.get("appearance") or {})
+            bold, italic = bool(appearance.get("bold")), bool(appearance.get("italic"))
+            family = str(appearance.get("font") or "Helvetica").lower()
+            aliases = (
+                ("tibi", "tibo", "tiit", "tiro") if "times" in family else
+                ("cobi", "cobo", "coit", "cour") if "courier" in family else
+                ("hebi", "hebo", "heit", _FONT_TEXT)
+            )
+            fontname = aliases[0] if bold and italic else aliases[1] if bold else aliases[2] if italic else aliases[3]
+            alignment = {"left": fitz.TEXT_ALIGN_LEFT, "center": fitz.TEXT_ALIGN_CENTER, "right": fitz.TEXT_ALIGN_RIGHT}.get(
+                appearance.get("alignment"), fitz.TEXT_ALIGN_LEFT
+            )
+            raw_color = str(appearance.get("color") or "#000000").lstrip("#")
+            color = tuple(int(raw_color[index:index + 2], 16) / 255 for index in (0, 2, 4)) if len(raw_color) == 6 else (0, 0, 0)
+            requested_size = appearance.get("font_size")
+            _fit_textbox(
+                page, box, display_value, fontname=fontname, rotate=rotate,
+                max_fontsize=min(float(requested_size), display_height * 0.9) if requested_size else display_height * 0.7,
+                align=alignment, color=color, underline=bool(appearance.get("underline")),
+            )
 
 
 class EsignSealingService:
@@ -250,6 +278,14 @@ class EsignSealingService:
         image_cache: dict[str, bytes] = {}
 
         with fitz.open(stream=original.getvalue(), filetype="pdf") as pdf:
+            # Bake AcroForm appearances and remove every interactive widget
+            # before our deterministic single-pass stamping and PAdES seal.
+            try:
+                pdf.bake(annots=True, widgets=True)
+            except (AttributeError, TypeError):
+                for source_page in pdf:
+                    for widget in list(source_page.widgets() or []):
+                        source_page.delete_widget(widget)
             for field in fields:
                 if str(field.document_id) != str(document.id):
                     continue
@@ -264,7 +300,7 @@ class EsignSealingService:
                 recipient = recipients_by_id.get(str(field.recipient_id))
                 signature_record = None
                 image_bytes = None
-                if field.field_type in (EsignFieldType.SIGNATURE, EsignFieldType.INITIALS) and field.value:
+                if field.field_type in (EsignFieldType.SIGNATURE, EsignFieldType.INITIALS, EsignFieldType.STAMP) and field.value:
                     signature_record = signature_records_by_id.get(str(field.value))
                     object_name = None
                     if signature_record is not None:

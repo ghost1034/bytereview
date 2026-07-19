@@ -7,13 +7,14 @@ and sealing and makes them straightforward to unit test.
 
 from __future__ import annotations
 
+import ast
 import re
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any, Iterable, Mapping
 
 
-_REF_RE = re.compile(r"\[([0-9a-fA-F-]{36})\]")
-_NUMBER_RE = re.compile(r"(?:\d+(?:\.\d*)?|\.\d+)")
+_REF_RE = re.compile(r"\[([^\[\]]+)\]")
 
 
 class FieldLogicError(ValueError):
@@ -40,92 +41,131 @@ def formula_references(expression: str) -> list[str]:
     return _REF_RE.findall(expression or "")
 
 
-class _FormulaParser:
+def _formula_source(expression: str) -> str:
+    """Turn stable ``[data label]`` references into safe AST calls."""
+    return _REF_RE.sub(lambda m: f"REF({m.group(1)!r})", expression or "")
+
+
+def _number(value: Any) -> Decimal:
+    if isinstance(value, bool):
+        return Decimal(1 if value else 0)
+    try:
+        return Decimal(str(value).replace("$", "").replace(",", "").strip())
+    except (InvalidOperation, AttributeError) as exc:
+        raise FieldLogicError(f"{value!r} is not numeric") from exc
+
+
+def _date(value: Any) -> date:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    text = str(value).strip()
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%b %d, %Y", "%B %d, %Y"):
+        try:
+            return datetime.strptime(text, fmt).date()
+        except ValueError:
+            pass
+    raise FieldLogicError(f"{value!r} is not a supported date")
+
+
+class _FormulaEvaluator:
+    FUNCTIONS = {"IF", "ROUND", "MIN", "MAX", "SUM", "FLOOR", "CEILING", "DATEADD", "DATEDIFF"}
+
     def __init__(self, expression: str, values: Mapping[str, Any]):
-        self.expression = expression or ""
         self.values = values
-        self.pos = 0
+        try:
+            self.tree = ast.parse(_formula_source(expression), mode="eval")
+        except SyntaxError as exc:
+            raise FieldLogicError("Invalid formula syntax") from exc
 
-    def parse(self) -> Decimal:
-        result = self._expression()
-        self._space()
-        if self.pos != len(self.expression):
-            raise FieldLogicError(f"Unexpected token at position {self.pos + 1}")
-        return result
+    def parse(self) -> Any:
+        return self._eval(self.tree.body)
 
-    def _space(self) -> None:
-        while self.pos < len(self.expression) and self.expression[self.pos].isspace():
-            self.pos += 1
-
-    def _expression(self) -> Decimal:
-        value = self._term()
-        while True:
-            self._space()
-            if self._take("+"):
-                value += self._term()
-            elif self._take("-"):
-                value -= self._term()
-            else:
-                return value
-
-    def _term(self) -> Decimal:
-        value = self._factor()
-        while True:
-            self._space()
-            if self._take("*"):
-                value *= self._factor()
-            elif self._take("/"):
-                divisor = self._factor()
-                if divisor == 0:
-                    raise FieldLogicError("Division by zero")
-                value /= divisor
-            else:
-                return value
-
-    def _factor(self) -> Decimal:
-        self._space()
-        if self._take("+"):
-            return self._factor()
-        if self._take("-"):
-            return -self._factor()
-        if self._take("("):
-            value = self._expression()
-            self._space()
-            if not self._take(")"):
-                raise FieldLogicError("Missing closing parenthesis")
-            return value
-        if self.pos < len(self.expression) and self.expression[self.pos] == "[":
-            end = self.expression.find("]", self.pos + 1)
-            if end < 0:
-                raise FieldLogicError("Unclosed field reference")
-            ref = self.expression[self.pos + 1 : end]
-            if not re.fullmatch(r"[0-9a-fA-F-]{36}", ref):
-                raise FieldLogicError("Invalid field reference")
-            self.pos = end + 1
-            raw = self.values.get(ref)
-            if raw is None or str(raw).strip() == "":
-                raise FieldLogicError(f"Unresolved field reference [{ref}]")
-            try:
-                return Decimal(str(raw).replace("$", "").replace(",", "").strip())
-            except InvalidOperation as exc:
-                raise FieldLogicError(f"Field [{ref}] is not numeric") from exc
-        match = _NUMBER_RE.match(self.expression, self.pos)
-        if match:
-            self.pos = match.end()
-            return Decimal(match.group(0))
-        raise FieldLogicError(f"Expected a number, field, or parenthesis at position {self.pos + 1}")
-
-    def _take(self, token: str) -> bool:
-        if self.expression.startswith(token, self.pos):
-            self.pos += len(token)
+    def _eval(self, node: ast.AST) -> Any:
+        if isinstance(node, ast.Constant) and isinstance(node.value, (str, int, float, bool)):
+            return Decimal(str(node.value)) if isinstance(node.value, (int, float)) and not isinstance(node.value, bool) else node.value
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+            value = _number(self._eval(node.operand))
+            return value if isinstance(node.op, ast.UAdd) else -value
+        if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div)):
+            left, right = _number(self._eval(node.left)), _number(self._eval(node.right))
+            if isinstance(node.op, ast.Add): return left + right
+            if isinstance(node.op, ast.Sub): return left - right
+            if isinstance(node.op, ast.Mult): return left * right
+            if right == 0: raise FieldLogicError("Division by zero")
+            return left / right
+        if isinstance(node, ast.BoolOp) and isinstance(node.op, (ast.And, ast.Or)):
+            values = [bool(self._eval(value)) for value in node.values]
+            return all(values) if isinstance(node.op, ast.And) else any(values)
+        if isinstance(node, ast.Compare):
+            left = self._eval(node.left)
+            for operator, comparator in zip(node.ops, node.comparators):
+                right = self._eval(comparator)
+                if isinstance(left, Decimal) or isinstance(right, Decimal) or isinstance(operator, (ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
+                    try:
+                        left, right = _number(left), _number(right)
+                    except FieldLogicError:
+                        left, right = str(left), str(right)
+                if isinstance(operator, ast.Eq): ok = left == right
+                elif isinstance(operator, ast.NotEq): ok = left != right
+                elif isinstance(operator, ast.Lt): ok = left < right
+                elif isinstance(operator, ast.LtE): ok = left <= right
+                elif isinstance(operator, ast.Gt): ok = left > right
+                elif isinstance(operator, ast.GtE): ok = left >= right
+                else: raise FieldLogicError("Unsupported comparison")
+                if not ok: return False
+                left = right
             return True
-        return False
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            name = node.func.id.upper()
+            if node.keywords or (name not in self.FUNCTIONS and name != "REF"):
+                raise FieldLogicError("Unsupported formula function")
+            if name == "IF":
+                if len(node.args) != 3: raise FieldLogicError("IF requires condition, true value, false value")
+                return self._eval(node.args[1]) if bool(self._eval(node.args[0])) else self._eval(node.args[2])
+            args = [self._eval(arg) for arg in node.args]
+            if name == "REF":
+                if len(args) != 1: raise FieldLogicError("REF requires one field label")
+                ref = str(args[0])
+                raw = self.values.get(ref)
+                if raw is None or str(raw).strip() == "": raise FieldLogicError(f"Unresolved field reference [{ref}]")
+                return raw
+            if name in {"MIN", "MAX", "SUM"}:
+                numbers = [_number(item) for arg in args for item in (arg if isinstance(arg, (list, tuple)) else [arg])]
+                if not numbers: raise FieldLogicError(f"{name} requires values")
+                return sum(numbers, Decimal(0)) if name == "SUM" else (min(numbers) if name == "MIN" else max(numbers))
+            if name == "ROUND":
+                if not 1 <= len(args) <= 2: raise FieldLogicError("ROUND requires a value and optional places")
+                places = int(_number(args[1])) if len(args) == 2 else 0
+                return _number(args[0]).quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP)
+            if name in {"FLOOR", "CEILING"}:
+                if len(args) != 1: raise FieldLogicError(f"{name} requires one value")
+                rounding = "ROUND_FLOOR" if name == "FLOOR" else "ROUND_CEILING"
+                return _number(args[0]).to_integral_value(rounding=rounding)
+            if name == "DATEADD":
+                if len(args) not in (2, 3): raise FieldLogicError("DATEADD requires date, amount, and optional unit")
+                unit = str(args[2]).lower() if len(args) == 3 else "day"
+                amount = int(_number(args[1]))
+                if unit not in {"day", "days"}: raise FieldLogicError("DATEADD currently supports days")
+                return _date(args[0]) + timedelta(days=amount)
+            if name == "DATEDIFF":
+                if len(args) not in (2, 3): raise FieldLogicError("DATEDIFF requires two dates and optional unit")
+                unit = str(args[2]).lower() if len(args) == 3 else "day"
+                if unit not in {"day", "days"}: raise FieldLogicError("DATEDIFF currently supports days")
+                return Decimal((_date(args[1]) - _date(args[0])).days)
+        raise FieldLogicError("Unsupported formula expression")
 
 
 def evaluate_formula(expression: str, values: Mapping[str, Any], decimal_places: int = 2) -> str:
-    """Evaluate a safe arithmetic expression; invalid/unresolved results are empty."""
+    """Evaluate a safe expression; invalid/unresolved results are empty."""
     try:
-        result = _FormulaParser(expression, values).parse()
+        result = _FormulaEvaluator(expression, values).parse()
+        if isinstance(result, (date, datetime)):
+            return result.strftime("%Y-%m-%d")
+        if isinstance(result, bool):
+            return "true" if result else "false"
+        result = _number(result)
         places = max(0, min(int(decimal_places), 10))
         quantum = Decimal(1).scaleb(-places)
         return f"{result.quantize(quantum, rounding=ROUND_HALF_UP):.{places}f}"
@@ -134,10 +174,22 @@ def evaluate_formula(expression: str, values: Mapping[str, Any], decimal_places:
 
 
 def validate_formula(expression: str) -> list[str]:
-    """Parse syntax while allowing unresolved refs and return referenced IDs."""
+    """Validate the AST without executing it and return stable labels/legacy IDs."""
     refs = formula_references(expression)
-    sentinel = {ref: "1" for ref in refs}
-    _FormulaParser(expression, sentinel).parse()
+    evaluator = _FormulaEvaluator(expression, {})
+    allowed_nodes = (
+        ast.Expression, ast.Constant, ast.UnaryOp, ast.UAdd, ast.USub, ast.BinOp,
+        ast.Add, ast.Sub, ast.Mult, ast.Div, ast.BoolOp, ast.And, ast.Or,
+        ast.Compare, ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE,
+        ast.Call, ast.Name, ast.Load,
+    )
+    for node in ast.walk(evaluator.tree):
+        if not isinstance(node, allowed_nodes):
+            raise FieldLogicError("Unsupported formula expression")
+        if isinstance(node, ast.Name) and node.id.upper() not in evaluator.FUNCTIONS | {"REF"}:
+            raise FieldLogicError(f"Unsupported formula function: {node.id}")
+        if isinstance(node, ast.Call) and (not isinstance(node.func, ast.Name) or node.keywords):
+            raise FieldLogicError("Unsupported formula call")
     return refs
 
 
@@ -216,16 +268,27 @@ def resolve_required(field: Any, fields: Iterable[Any], values: Mapping[str, Any
 def compute_formulas(fields: Iterable[Any], values: Mapping[str, Any]) -> dict[str, str]:
     items = list(fields)
     resolved = {str(k): v for k, v in values.items()}
+    labels_by_owner: dict[str, dict[str, str]] = {}
+    for field in items:
+        label = str((_props(field).get("data_label") or "")).strip()
+        owner = str(_get(field, "recipient_id", _get(field, "recipient_index")))
+        if label:
+            labels_by_owner.setdefault(owner, {})[label] = str(_get(field, "id"))
     pending = {str(_get(f, "id")): f for f in items if _type(f) == "formula"}
     for _ in range(len(pending) + 1):
         progressed = False
         for field_id, field in list(pending.items()):
             formula = _props(field).get("formula") or {}
             refs = formula_references(str(formula.get("expression", "")))
-            if any(ref in pending for ref in refs):
+            owner = str(_get(field, "recipient_id", _get(field, "recipient_index")))
+            labels = labels_by_owner.get(owner, {})
+            if any((labels.get(ref, ref)) in pending for ref in refs):
                 continue
+            formula_values = dict(resolved)
+            for label, referenced_id in labels.items():
+                formula_values[label] = resolved.get(referenced_id)
             resolved[field_id] = evaluate_formula(
-                str(formula.get("expression", "")), resolved, int(formula.get("decimal_places", 2))
+                str(formula.get("expression", "")), formula_values, int(formula.get("decimal_places", 2))
             )
             pending.pop(field_id)
             progressed = True
@@ -244,6 +307,18 @@ def validate_field_graph(fields: Iterable[Any]) -> None:
         by_id[field_id] = field
 
     edges: dict[str, set[str]] = {field_id: set() for field_id in by_id}
+    by_label: dict[tuple[str, str], Any] = {}
+    for field in items:
+        label = str((_props(field).get("data_label") or "")).strip()
+        owner = str(_get(field, "recipient_id", _get(field, "recipient_index")))
+        if label:
+            key = (owner, label)
+            if key in by_label:
+                # A repeated label is intentional only for explicitly shared fields.
+                if not (_props(field).get("shared_value") and _props(by_label[key]).get("shared_value")):
+                    raise FieldLogicError(f"Data label '{label}' must be unique unless shared_value is enabled")
+            else:
+                by_label[key] = field
     radio_groups: dict[str, list[Any]] = {}
     for field_id, field in by_id.items():
         props = _props(field)
@@ -254,17 +329,28 @@ def validate_field_graph(fields: Iterable[Any]) -> None:
                 raise FieldLogicError(f"Conditional parent field {parent} does not exist")
             if parent == field_id:
                 raise FieldLogicError("A field cannot depend on itself")
+            if str(_get(by_id[parent], "recipient_id", _get(by_id[parent], "recipient_index"))) != str(
+                _get(field, "recipient_id", _get(field, "recipient_index"))
+            ):
+                raise FieldLogicError("Conditional fields must belong to the same recipient")
             edges[field_id].add(parent)
         if _type(field) == "formula":
             formula = props.get("formula") or {}
             refs = validate_formula(str(formula.get("expression", "")))
+            owner = str(_get(field, "recipient_id", _get(field, "recipient_index")))
             for ref in refs:
-                target = by_id.get(ref)
+                target = by_label.get((owner, ref)) or by_id.get(ref)  # UUID lookup is the legacy path.
                 if target is None:
+                    if any(label == ref for (_other_owner, label) in by_label):
+                        raise FieldLogicError("Formula fields may only reference the same recipient")
                     raise FieldLogicError(f"Formula field reference {ref} does not exist")
-                if _type(target) in {"signature", "initials", "attachment"}:
-                    raise FieldLogicError("Formula fields cannot reference signature, initials, or attachment fields")
-                edges[field_id].add(ref)
+                if _type(target) in {"signature", "initials", "stamp", "attachment"}:
+                    raise FieldLogicError("Formula fields cannot reference signature-like or attachment fields")
+                if str(_get(target, "recipient_id", _get(target, "recipient_index"))) != str(
+                    _get(field, "recipient_id", _get(field, "recipient_index"))
+                ):
+                    raise FieldLogicError("Formula fields may only reference the same recipient")
+                edges[field_id].add(str(_get(target, "id")))
         if _type(field) == "radio":
             group_id = str((props.get("group") or {}).get("id", ""))
             if not group_id:
@@ -312,4 +398,105 @@ def remap_property_references(properties: Mapping[str, Any] | None, id_map: Mapp
         result["formula"]["expression"] = _REF_RE.sub(
             lambda match: f"[{id_map.get(match.group(1), match.group(1))}]", expression
         )
+    return result
+
+
+def validate_field_value(field: Any, value: Any, *, date_format: str = "MM/DD/YYYY") -> str | None:
+    """Normalize and validate one signer-entered value without logging it."""
+    props = _props(field)
+    field_type = _type(field)
+    text = "" if value is None else str(value).strip()
+    if props.get("read_only"):
+        expected = "" if props.get("sender_prefill") is None else str(props.get("sender_prefill"))
+        if text and text != expected:
+            raise FieldLogicError(f"Field '{_get(field, 'label') or field_type}' is read-only")
+        return expected or None
+    text_rules = props.get("text_validation") or {}
+    maximum = text_rules.get("max_length")
+    if maximum is not None and len(text) > int(maximum):
+        raise FieldLogicError(f"Field '{_get(field, 'label') or field_type}' exceeds {maximum} characters")
+    pattern = text_rules.get("regex")
+    if text and pattern and re.fullmatch(str(pattern), text) is None:
+        raise FieldLogicError(f"Field '{_get(field, 'label') or field_type}' has an invalid format")
+    if field_type == "number" and text:
+        number = _number(text)
+        rules = props.get("number_validation") or {}
+        if not rules.get("allow_negative", True) and number < 0:
+            raise FieldLogicError(f"Field '{_get(field, 'label') or field_type}' cannot be negative")
+        if rules.get("minimum") is not None and number < _number(rules["minimum"]):
+            raise FieldLogicError(f"Field '{_get(field, 'label') or field_type}' is below its minimum")
+        if rules.get("maximum") is not None and number > _number(rules["maximum"]):
+            raise FieldLogicError(f"Field '{_get(field, 'label') or field_type}' exceeds its maximum")
+        places = rules.get("decimal_places")
+        if places is not None and max(0, -number.as_tuple().exponent) > int(places):
+            raise FieldLogicError(f"Field '{_get(field, 'label') or field_type}' has too many decimal places")
+        return text
+    if field_type == "date" and text:
+        parsed = parse_date_value(text, date_format)
+        rules = props.get("date_validation") or {}
+        if rules.get("minimum") and parsed < date.fromisoformat(str(rules["minimum"])):
+            raise FieldLogicError(f"Field '{_get(field, 'label') or field_type}' is before its minimum")
+        if rules.get("maximum") and parsed > date.fromisoformat(str(rules["maximum"])):
+            raise FieldLogicError(f"Field '{_get(field, 'label') or field_type}' is after its maximum")
+        return format_date_value(parsed, date_format)
+    if field_type == "dropdown" and text:
+        allowed = {str(item.get("value")) for item in props.get("options", [])}
+        if text not in allowed:
+            raise FieldLogicError(f"Invalid option for '{_get(field, 'label') or 'dropdown'}'")
+    return text or None
+
+
+_DATE_FORMATS = {
+    "MM/DD/YYYY": "%m/%d/%Y", "DD/MM/YYYY": "%d/%m/%Y",
+    "YYYY-MM-DD": "%Y-%m-%d", "MMM D, YYYY": "%b %d, %Y",
+}
+
+
+def parse_date_value(value: str, date_format: str) -> date:
+    try:
+        return datetime.strptime(value.strip(), _DATE_FORMATS.get(date_format, "%m/%d/%Y")).date()
+    except ValueError as exc:
+        raise FieldLogicError(f"Date must use {date_format}") from exc
+
+
+def format_date_value(value: date | datetime, date_format: str) -> str:
+    result = value.strftime(_DATE_FORMATS.get(date_format, "%m/%d/%Y"))
+    return result.replace(" 0", " ") if date_format == "MMM D, YYYY" else result
+
+
+def resolve_display_value(field: Any, value: Any, *, recipient: Any = None) -> str:
+    """Canonical display used by signer overlays and PDF flattening."""
+    props = _props(field)
+    field_type = _type(field)
+    text = "" if value is None else str(value)
+    if field_type == "dropdown":
+        for option in props.get("options", []):
+            if str(option.get("value")) == text:
+                return str(option.get("label", text))
+    if field_type == "note":
+        return str(props.get("sender_prefill") or text)
+    if field_type in {"first_name", "last_name", "full_name", "email"} and recipient is not None:
+        name = str(_get(recipient, "name", ""))
+        if field_type == "first_name": return name.split()[0] if name.split() else ""
+        if field_type == "last_name": return name.split()[-1] if name.split() else ""
+        if field_type == "full_name": return name
+        return str(_get(recipient, "email", ""))
+    return text
+
+
+def synchronize_shared_values(fields: Iterable[Any], values: Mapping[str, Any]) -> dict[str, Any]:
+    """Copy a supplied value only among same-recipient fields opting into sharing."""
+    result = {str(key): value for key, value in values.items()}
+    groups: dict[tuple[str, str], list[Any]] = {}
+    for field in fields:
+        props = _props(field)
+        label = str(props.get("data_label") or "").strip()
+        if label and props.get("shared_value"):
+            owner = str(_get(field, "recipient_id", _get(field, "recipient_index")))
+            groups.setdefault((owner, label), []).append(field)
+    for members in groups.values():
+        supplied = next((result[str(_get(field, "id"))] for field in members if str(_get(field, "id")) in result), None)
+        if supplied is not None:
+            for field in members:
+                result[str(_get(field, "id"))] = supplied
     return result

@@ -147,6 +147,7 @@ export default function EsignTemplateEditPage() {
           participants={roles}
           fields={editorFields}
           onChange={setEditorFields}
+          onAnchorSearch={(request) => apiClient.searchEsignTemplateAnchors(template.id, request)}
         />
       )}
       </div>

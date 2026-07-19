@@ -1,4 +1,4 @@
-import { validateFormula } from './fieldLogic'
+import { formulaReferences, validateFormula } from './fieldLogic'
 
 export interface RecipientDraft {
   name: string
@@ -17,6 +17,8 @@ export interface ComposerField {
     option_value?: string
     formula?: { expression: string; decimal_places: number }
     conditional?: { parent_field_id: string }
+    data_label?: string
+    shared_value?: boolean
   }
 }
 
@@ -48,11 +50,19 @@ export function collectFieldIssues(fields: ComposerField[], signerIds: string[])
     if (field.fieldType === 'dropdown' && !field.properties?.options?.length) issues.push({ id: `options-${field.id}`, fieldId: field.id, message: 'Dropdown needs at least one option.' })
     if (field.fieldType === 'radio' && (!field.properties?.group?.id || !field.properties?.option_value?.trim())) issues.push({ id: `radio-${field.id}`, fieldId: field.id, message: 'Radio option needs a group and value.' })
     if (field.fieldType === 'formula') {
-      try { validateFormula(field.properties?.formula?.expression ?? '') }
+      try {
+        const expression = field.properties?.formula?.expression ?? ''
+        validateFormula(expression)
+        const candidates = fields.filter((candidate) => candidate.participantId === field.participantId)
+        if (formulaReferences(expression).some((reference) => !candidates.some((candidate) => candidate.id === reference || candidate.properties?.data_label === reference))) {
+          issues.push({ id: `formula-owner-${field.id}`, fieldId: field.id, message: 'Formula references must belong to the same signer.' })
+        }
+      }
       catch { issues.push({ id: `formula-${field.id}`, fieldId: field.id, message: 'Formula expression is invalid.' }) }
     }
     const parent = field.properties?.conditional?.parent_field_id
     if (parent && !fields.some((candidate) => candidate.id === parent)) issues.push({ id: `condition-${field.id}`, fieldId: field.id, message: 'Conditional field references a missing field.' })
+    else if (parent && !fields.some((candidate) => candidate.id === parent && candidate.participantId === field.participantId)) issues.push({ id: `condition-owner-${field.id}`, fieldId: field.id, message: 'Conditional fields must belong to the same signer.' })
   })
   return issues
 }

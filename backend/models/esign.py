@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
@@ -31,7 +31,7 @@ class ConditionalRule(BaseModel):
 
 
 class FormulaProps(BaseModel):
-    expression: str
+    expression: str = Field(min_length=1, max_length=4_000)
     decimal_places: int = Field(default=2, ge=0, le=10)
 
 
@@ -44,10 +44,81 @@ class AttachmentProps(BaseModel):
 
 
 class AnchorProps(BaseModel):
+    # ``text`` is retained for envelopes authored by the browser-only anchor tool.
     text: Optional[str] = None
-    anchor: Optional[str] = None
+    anchor: Optional[str] = Field(default=None, max_length=500)
+    rule_id: Optional[str] = None
+    match_index: Optional[int] = Field(default=None, ge=0)
+    case_sensitive: bool = False
+    whole_word: bool = False
+    document_ids: Optional[list[str]] = None
+    page_numbers: Optional[list[int]] = None
+    horizontal_alignment: Literal["left", "center", "right", "after"] = "after"
     offset_x: float = 0
     offset_y: float = 0
+    offset_unit: Literal["point", "mm", "inch"] = "point"
+    match_mode: Literal["first", "all"] = "all"
+    missing_policy: Literal["fail", "ignore"] = "fail"
+
+
+class TextValidation(BaseModel):
+    max_length: Optional[int] = Field(default=None, ge=1, le=100_000)
+    regex: Optional[str] = Field(default=None, max_length=2_000)
+
+    @model_validator(mode="after")
+    def valid_regex(self):
+        if self.regex:
+            import re
+            try:
+                re.compile(self.regex)
+            except re.error as exc:
+                raise ValueError(f"invalid validation regex: {exc}") from exc
+        return self
+
+
+class NumberValidation(BaseModel):
+    minimum: Optional[float] = None
+    maximum: Optional[float] = None
+    decimal_places: Optional[int] = Field(default=None, ge=0, le=10)
+    allow_negative: bool = True
+
+    @model_validator(mode="after")
+    def valid_range(self):
+        if self.minimum is not None and self.maximum is not None and self.minimum > self.maximum:
+            raise ValueError("number minimum cannot exceed maximum")
+        return self
+
+
+class DateValidation(BaseModel):
+    minimum: Optional[date] = None
+    maximum: Optional[date] = None
+
+    @model_validator(mode="after")
+    def valid_range(self):
+        if self.minimum and self.maximum and self.minimum > self.maximum:
+            raise ValueError("date minimum cannot exceed maximum")
+        return self
+
+
+class SelectionValidation(BaseModel):
+    minimum_selected: int = Field(default=0, ge=0)
+    maximum_selected: Optional[int] = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def valid_range(self):
+        if self.maximum_selected is not None and self.minimum_selected > self.maximum_selected:
+            raise ValueError("minimum_selected cannot exceed maximum_selected")
+        return self
+
+
+class FieldAppearance(BaseModel):
+    font: str = Field(default="Helvetica", max_length=100)
+    font_size: Optional[float] = Field(default=None, ge=4, le=144)
+    color: str = Field(default="#000000", pattern=r"^#[0-9a-fA-F]{6}$")
+    alignment: Literal["left", "center", "right"] = "left"
+    bold: bool = False
+    italic: bool = False
+    underline: bool = False
 
 
 class EsignFieldProperties(BaseModel):
@@ -61,12 +132,29 @@ class EsignFieldProperties(BaseModel):
     auto_source: Optional[Literal["recipient_name", "recipient_email", "company", "date_sent"]] = None
     allowed_types: Optional[list[str]] = None
     anchor: Optional[AnchorProps] = None
+    data_label: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    tooltip: Optional[str] = Field(default=None, max_length=2_000)
+    sender_prefill: Optional[str] = None
+    read_only: bool = False
+    shared_value: bool = False
+    text_validation: Optional[TextValidation] = None
+    number_validation: Optional[NumberValidation] = None
+    date_validation: Optional[DateValidation] = None
+    selection_validation: Optional[SelectionValidation] = None
+    appearance: Optional[FieldAppearance] = None
 
 
 def _validated_properties(field_type: str, value: Any) -> EsignFieldProperties:
     props = value.model_dump(exclude_none=True) if isinstance(value, BaseModel) else dict(value or {})
     if "conditional" in props and props["conditional"] is not None:
         props["conditional"] = ConditionalRule.model_validate(props["conditional"]).model_dump()
+    for key, model in (
+        ("text_validation", TextValidation), ("number_validation", NumberValidation),
+        ("date_validation", DateValidation), ("selection_validation", SelectionValidation),
+        ("appearance", FieldAppearance), ("anchor", AnchorProps),
+    ):
+        if props.get(key) is not None:
+            props[key] = model.model_validate(props[key]).model_dump(exclude_none=True, mode="json")
     if field_type == "radio":
         props["group"] = RadioGroupProps.model_validate(props.get("group")).model_dump()
         option = str(props.get("option_value", "")).strip()
@@ -173,6 +261,7 @@ class EsignEnvelopeUpdateRequest(BaseModel):
     signing_type: Optional[str] = None  # sequential | parallel
     expires_at: Optional[datetime] = None
     reminder_interval_hours: Optional[int] = Field(default=None, ge=1, le=24 * 30)
+    date_format: Optional[Literal["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD", "MMM D, YYYY"]] = None
 
 
 class EsignRecipientsReplaceRequest(BaseModel):
@@ -193,6 +282,7 @@ class EsignEnvelopeResponse(BaseModel):
     message: Optional[str] = None
     status: str
     signing_type: str
+    date_format: str = "MM/DD/YYYY"
     current_routing_order: Optional[int] = None
     consent_disclosure_text: Optional[str] = None
     expires_at: Optional[datetime] = None
@@ -324,6 +414,7 @@ class EsignSigningSessionResponse(BaseModel):
     recipient_name: str = ""
     recipient_email: str = ""
     recipient_company: Optional[str] = None
+    date_format: str = "MM/DD/YYYY"
     attachments: list["EsignSignerAttachmentResponse"] = Field(default_factory=list)
     sent_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
@@ -346,6 +437,9 @@ class EsignSignatureInput(BaseModel):
 class EsignFieldValueInput(BaseModel):
     field_id: str
     value: Optional[str] = None  # text value / "true"|"false" for checkbox
+    # None is the legacy-client compatibility path (signature-like fields were
+    # previously completed by adoption); current clients always send a boolean.
+    completed: Optional[bool] = None
 
 
 class EsignSubmitRequest(BaseModel):
@@ -441,6 +535,7 @@ class EsignTemplateUpdateRequest(BaseModel):
     title: Optional[str] = None
     message: Optional[str] = None
     signing_type: Optional[str] = None
+    date_format: Optional[Literal["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD", "MMM D, YYYY"]] = None
     recipient_roles: Optional[list[EsignTemplateRoleInput]] = None
     fields: Optional[list[EsignTemplateFieldInput]] = None
 
@@ -473,7 +568,14 @@ class EsignTemplateFieldResponse(BaseModel):
 class EsignAnchorSearchRequest(BaseModel):
     anchor: str = Field(min_length=1, max_length=500)
     case_sensitive: bool = False
+    whole_word: bool = False
     document_ids: Optional[list[str]] = None
+    page_numbers: Optional[list[int]] = None
+    match_mode: Literal["first", "all"] = "all"
+    horizontal_alignment: Literal["left", "center", "right", "after"] = "after"
+    offset_x: float = 0
+    offset_y: float = 0
+    offset_unit: Literal["point", "mm", "inch"] = "point"
 
 
 class EsignAnchorMatch(BaseModel):
@@ -489,6 +591,40 @@ class EsignAnchorSearchResponse(BaseModel):
     matches: list[EsignAnchorMatch] = Field(default_factory=list)
 
 
+class EsignPdfWidget(BaseModel):
+    widget_id: str
+    name: str
+    tooltip: Optional[str] = None
+    suggested_field_type: Optional[str] = None
+    page_number: int
+    x: float
+    y: float
+    width: float
+    height: float
+    required: bool = False
+    default_value: Optional[str] = None
+    max_length: Optional[int] = None
+    choices: list[str] = Field(default_factory=list)
+    supported: bool = True
+
+
+class EsignPdfWidgetInspectionResponse(BaseModel):
+    document_id: str
+    widgets: list[EsignPdfWidget] = Field(default_factory=list)
+
+
+class EsignPdfWidgetMapping(BaseModel):
+    widget_id: str
+    recipient_id: str
+    field_type: Literal["text", "signature", "checkbox", "radio", "dropdown", "number", "date"]
+    required: Optional[bool] = None
+    data_label: Optional[str] = Field(default=None, max_length=255)
+
+
+class EsignPdfWidgetConversionRequest(BaseModel):
+    mappings: list[EsignPdfWidgetMapping]
+
+
 class EsignTemplateResponse(BaseModel):
     id: str
     name: str
@@ -496,6 +632,7 @@ class EsignTemplateResponse(BaseModel):
     title: Optional[str] = None
     message: Optional[str] = None
     signing_type: str
+    date_format: str = "MM/DD/YYYY"
     recipient_roles: list[dict[str, Any]]
     documents: list[EsignTemplateDocumentResponse]
     fields: list[EsignTemplateFieldResponse]

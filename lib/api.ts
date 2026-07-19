@@ -2278,6 +2278,20 @@ export class ApiClient {
     })
   }
 
+  async inspectEsignPdfWidgets(envelopeId: string, documentId: string): Promise<EsignPdfWidgetInspectionResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/documents/${documentId}/pdf-widgets`)
+  }
+
+  async convertEsignPdfWidgets(
+    envelopeId: string,
+    documentId: string,
+    payload: EsignPdfWidgetConversionRequest,
+  ): Promise<EsignEnvelopeResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/documents/${documentId}/convert-pdf-fields`, {
+      method: 'POST', body: JSON.stringify(payload),
+    })
+  }
+
   async replaceEsignRecipients(
     envelopeId: string,
     recipients: EsignRecipientInput[],
@@ -2299,7 +2313,7 @@ export class ApiClient {
 
   async searchEsignAnchors(
     envelopeId: string,
-    payload: { anchor: string; case_sensitive?: boolean; document_ids?: string[] },
+    payload: { anchor: string; case_sensitive?: boolean; whole_word?: boolean; document_ids?: string[]; page_numbers?: number[]; match_mode?: 'first' | 'all'; horizontal_alignment?: 'left' | 'center' | 'right' | 'after'; offset_x?: number; offset_y?: number; offset_unit?: 'point' | 'mm' | 'inch' },
   ): Promise<EsignAnchorSearchResponse> {
     return this.request(`/api/esign/envelopes/${envelopeId}/anchor-search`, {
       method: 'POST', body: JSON.stringify(payload),
@@ -2308,7 +2322,7 @@ export class ApiClient {
 
   async searchEsignTemplateAnchors(
     templateId: string,
-    payload: { anchor: string; case_sensitive?: boolean; document_ids?: string[] },
+    payload: { anchor: string; case_sensitive?: boolean; whole_word?: boolean; document_ids?: string[]; page_numbers?: number[]; match_mode?: 'first' | 'all'; horizontal_alignment?: 'left' | 'center' | 'right' | 'after'; offset_x?: number; offset_y?: number; offset_unit?: 'point' | 'mm' | 'inch' },
   ): Promise<EsignAnchorSearchResponse> {
     return this.request(`/api/esign/templates/${templateId}/anchor-search`, {
       method: 'POST', body: JSON.stringify(payload),
@@ -2516,6 +2530,11 @@ export type EsignSigningDocument = apiComponents['schemas']['EsignSigningDocumen
 export type EsignSignerAttachmentResponse = apiComponents['schemas']['EsignSignerAttachmentResponse']
 export type EsignConsentResponse = apiComponents['schemas']['EsignConsentResponse']
 export type EsignSubmitRequest = apiComponents['schemas']['EsignSubmitRequest']
+export type EsignFieldValueInput = apiComponents['schemas']['EsignFieldValueInput']
+export type EsignFieldProperties = apiComponents['schemas']['EsignFieldProperties']
+export type EsignPdfWidget = apiComponents['schemas']['EsignPdfWidget']
+export type EsignPdfWidgetInspectionResponse = apiComponents['schemas']['EsignPdfWidgetInspectionResponse']
+export type EsignPdfWidgetConversionRequest = apiComponents['schemas']['EsignPdfWidgetConversionRequest']
 export type EsignSubmitResponse = apiComponents['schemas']['EsignSubmitResponse']
 export type EsignSignatureInput = apiComponents['schemas']['EsignSignatureInput']
 export type EsignVerifyResponse = apiComponents['schemas']['EsignVerifyResponse']

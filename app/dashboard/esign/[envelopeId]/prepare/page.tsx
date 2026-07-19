@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Dropzone } from '@/components/ui/dropzone'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -49,7 +50,7 @@ import {
   useReplaceRecipients,
   useUpdateEnvelope,
 } from '@/hooks/useEnvelopes'
-import type { EsignDocumentResponse, EsignRecipientInput } from '@/lib/api'
+import { apiClient, type EsignDocumentResponse, type EsignPdfWidget, type EsignRecipientInput } from '@/lib/api'
 import { recipientValidationError } from '@/lib/esign/composerValidation'
 import { cn } from '@/lib/utils'
 
@@ -104,6 +105,7 @@ export default function EnvelopePreparePage() {
   const [title, setTitle] = React.useState('')
   const [message, setMessage] = React.useState('')
   const [signingType, setSigningType] = React.useState('sequential')
+  const [dateFormat, setDateFormat] = React.useState('MM/DD/YYYY')
   const [reminderHours, setReminderHours] = React.useState('')
   const [expiresAt, setExpiresAt] = React.useState('')
   const [rows, setRows] = React.useState<RecipientRow[]>([])
@@ -111,6 +113,9 @@ export default function EnvelopePreparePage() {
   const [hydrated, setHydrated] = React.useState(false)
   const [saveState, setSaveState] = React.useState<ComposerSaveState>('idle')
   const [removeTarget, setRemoveTarget] = React.useState<{ type: 'document' | 'recipient'; id: string; label: string; fieldCount: number } | null>(null)
+  const [widgetDialog, setWidgetDialog] = React.useState<{ documentId: string; widgets: EsignPdfWidget[] } | null>(null)
+  const [widgetMappings, setWidgetMappings] = React.useState<Record<string, { recipient_id: string; field_type: 'text' | 'signature' | 'checkbox' | 'radio' | 'dropdown' | 'number' | 'date'; included: boolean }>>({})
+  const [convertingWidgets, setConvertingWidgets] = React.useState(false)
   const lastMetadata = React.useRef('')
 
   React.useEffect(() => {
@@ -118,6 +123,7 @@ export default function EnvelopePreparePage() {
     setTitle(envelope.title)
     setMessage(envelope.message ?? '')
     setSigningType(envelope.signing_type)
+    setDateFormat(envelope.date_format)
     setReminderHours(envelope.reminder_interval_hours ? String(envelope.reminder_interval_hours) : '')
     setExpiresAt(envelope.expires_at ? envelope.expires_at.slice(0, 10) : '')
     setRows(envelope.recipients.length
@@ -126,13 +132,13 @@ export default function EnvelopePreparePage() {
         ? templateRoles.map((role) => ({ ...newRecipient(), role: (role.role as 'signer' | 'cc') ?? 'signer', roleLabel: role.label || 'Recipient' }))
         : [newRecipient()])
     setDocuments([...envelope.documents].sort((a, b) => a.display_order - b.display_order))
-    lastMetadata.current = JSON.stringify({ title: envelope.title, message: envelope.message ?? '', signingType: envelope.signing_type, reminderHours: envelope.reminder_interval_hours ? String(envelope.reminder_interval_hours) : '', expiresAt: envelope.expires_at ? envelope.expires_at.slice(0, 10) : '' })
+    lastMetadata.current = JSON.stringify({ title: envelope.title, message: envelope.message ?? '', signingType: envelope.signing_type, dateFormat: envelope.date_format, reminderHours: envelope.reminder_interval_hours ? String(envelope.reminder_interval_hours) : '', expiresAt: envelope.expires_at ? envelope.expires_at.slice(0, 10) : '' })
     setHydrated(true)
   }, [envelope, hydrated, template, templateId, templateRoles])
 
   React.useEffect(() => {
     if (!hydrated) return
-    const snapshot = JSON.stringify({ title, message, signingType, reminderHours, expiresAt })
+    const snapshot = JSON.stringify({ title, message, signingType, dateFormat, reminderHours, expiresAt })
     if (snapshot === lastMetadata.current || !title.trim()) return
     const timer = window.setTimeout(async () => {
       setSaveState('saving')
@@ -141,6 +147,7 @@ export default function EnvelopePreparePage() {
           title: title.trim(),
           message,
           signing_type: signingType,
+          date_format: dateFormat as 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | 'MMM D, YYYY',
           reminder_interval_hours: reminderHours ? Number(reminderHours) : undefined,
           expires_at: expiresAt ? new Date(`${expiresAt}T23:59:59`).toISOString() : undefined,
         })
@@ -151,7 +158,7 @@ export default function EnvelopePreparePage() {
       }
     }, 750)
     return () => window.clearTimeout(timer)
-  }, [expiresAt, hydrated, message, reminderHours, signingType, title, updateEnvelope])
+  }, [dateFormat, expiresAt, hydrated, message, reminderHours, signingType, title, updateEnvelope])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -204,6 +211,31 @@ export default function EnvelopePreparePage() {
     router.push(`/dashboard/esign/${envelopeId}/fields${query ? `?${query}` : ''}`)
   }
 
+  const inspectWidgets = async (documentId: string) => {
+    try {
+      const result = await apiClient.inspectEsignPdfWidgets(envelopeId, documentId)
+      if (!(result.widgets ?? []).length) { toast({ title: 'No fillable PDF fields found' }); return }
+      const firstSigner = envelope?.recipients.find((recipient) => recipient.role === 'signer')?.id ?? ''
+      const mappings: typeof widgetMappings = {}
+      for (const widget of result.widgets ?? []) mappings[widget.widget_id] = { recipient_id: firstSigner, field_type: (widget.suggested_field_type || 'text') as typeof mappings[string]['field_type'], included: widget.supported }
+      setWidgetMappings(mappings); setWidgetDialog({ documentId, widgets: result.widgets ?? [] })
+    } catch (error) { toast({ title: 'Could not inspect PDF fields', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) }
+  }
+
+  const convertWidgets = async () => {
+    if (!widgetDialog) return
+    setConvertingWidgets(true)
+    try {
+      await apiClient.convertEsignPdfWidgets(envelopeId, widgetDialog.documentId, { mappings: widgetDialog.widgets.flatMap((widget) => {
+        const mapping = widgetMappings[widget.widget_id]
+        return mapping?.included && mapping.recipient_id ? [{ widget_id: widget.widget_id, recipient_id: mapping.recipient_id, field_type: mapping.field_type, required: widget.required, data_label: widget.name }] : []
+      }) })
+      toast({ title: 'PDF fields converted', description: 'Review their placement and ownership on the Fields step.' })
+      setWidgetDialog(null)
+    } catch (error) { toast({ title: 'Could not convert PDF fields', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) }
+    finally { setConvertingWidgets(false) }
+  }
+
   return (
     <ComposerShell title={title || envelope?.title || 'Untitled envelope'} onTitleChange={setTitle} stage="prepare" saveState={saveState} onClose={() => router.push('/dashboard/esign')} primary={<Button onClick={continueToFields} disabled={!envelope || replaceRecipients.isPending}>Next <ArrowRight className="ml-1.5 size-4" /></Button>}>
       <div className="mx-auto grid max-w-6xl gap-5 p-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:p-6">
@@ -211,7 +243,7 @@ export default function EnvelopePreparePage() {
           <section className="rounded-xl border border-border bg-surface p-5 shadow-sm">
             <div className="mb-4 flex items-start justify-between gap-3"><div><h2 className="font-semibold">Documents</h2><p className="text-sm text-foreground-muted">Drag to set the order signers will review.</p></div><Upload className="size-5 text-foreground-subtle" /></div>
             <Dropzone onFiles={async (files) => { const pdfs = files.filter((file) => file.name.toLowerCase().endsWith('.pdf')); if (!pdfs.length) return; try { const result = await addDocuments.mutateAsync(pdfs); setDocuments([...result.documents].sort((a, b) => a.display_order - b.display_order)) } catch (error) { toast({ title: 'Upload failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }} accept="application/pdf,.pdf" title="Drop PDFs here or browse" description="PDF only, up to 25 MB each." />
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDocumentDrag}><SortableContext items={documents.map((item) => item.id)} strategy={verticalListSortingStrategy}><ul className="mt-4 divide-y divide-border rounded-lg border border-border">{documents.map((document) => <li key={document.id} className="flex items-center gap-2 px-2 py-2.5"><SortHandle id={document.id} label={document.original_filename} /><FileText className="size-4 shrink-0 text-primary" /><span className="min-w-0 flex-1 truncate text-sm font-medium">{document.original_filename}</span><span className="text-xs text-foreground-subtle">{document.page_count} page{document.page_count === 1 ? '' : 's'}</span><Button variant="ghost" size="icon" disabled={documents.length <= 1} onClick={() => setRemoveTarget({ type: 'document', id: document.id, label: document.original_filename, fieldCount: envelope?.fields.filter((field) => field.document_id === document.id).length ?? 0 })} aria-label={`Remove ${document.original_filename}`}><Trash2 className="size-4" /></Button></li>)}</ul></SortableContext></DndContext>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDocumentDrag}><SortableContext items={documents.map((item) => item.id)} strategy={verticalListSortingStrategy}><ul className="mt-4 divide-y divide-border rounded-lg border border-border">{documents.map((document) => <li key={document.id} className="flex items-center gap-2 px-2 py-2.5"><SortHandle id={document.id} label={document.original_filename} /><FileText className="size-4 shrink-0 text-primary" /><span className="min-w-0 flex-1 truncate text-sm font-medium">{document.original_filename}</span><span className="text-xs text-foreground-subtle">{document.page_count} page{document.page_count === 1 ? '' : 's'}</span><Button variant="outline" size="sm" onClick={() => void inspectWidgets(document.id)}>Convert PDF fields</Button><Button variant="ghost" size="icon" disabled={documents.length <= 1} onClick={() => setRemoveTarget({ type: 'document', id: document.id, label: document.original_filename, fieldCount: envelope?.fields.filter((field) => field.document_id === document.id).length ?? 0 })} aria-label={`Remove ${document.original_filename}`}><Trash2 className="size-4" /></Button></li>)}</ul></SortableContext></DndContext>
           </section>
 
           <section className="rounded-xl border border-border bg-surface p-5 shadow-sm">
@@ -224,11 +256,12 @@ export default function EnvelopePreparePage() {
 
         <aside className="space-y-5">
           <section className="rounded-xl border border-border bg-surface p-5 shadow-sm"><h2 className="mb-4 font-semibold">Message</h2><Label htmlFor="prepare-message">Email message</Label><Textarea id="prepare-message" rows={7} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Add a note for recipients…" /></section>
-          <section className="space-y-4 rounded-xl border border-border bg-surface p-5 shadow-sm"><h2 className="font-semibold">Delivery settings</h2><div><Label>Signing order</Label><Select value={signingType} onValueChange={setSigningType}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="sequential">In the order shown</SelectItem><SelectItem value="parallel">Any order</SelectItem></SelectContent></Select></div><div><Label htmlFor="prepare-expires">Expiration date</Label><Input id="prepare-expires" type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></div><div><Label htmlFor="prepare-reminders">Remind every (hours)</Label><Input id="prepare-reminders" type="number" min={1} max={720} value={reminderHours} onChange={(event) => setReminderHours(event.target.value)} /></div></section>
+          <section className="space-y-4 rounded-xl border border-border bg-surface p-5 shadow-sm"><h2 className="font-semibold">Delivery settings</h2><div><Label>Signing order</Label><Select value={signingType} onValueChange={setSigningType}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="sequential">In the order shown</SelectItem><SelectItem value="parallel">Any order</SelectItem></SelectContent></Select></div><div><Label>Date format</Label><Select value={dateFormat} onValueChange={setDateFormat}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem><SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem><SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem><SelectItem value="MMM D, YYYY">MMM D, YYYY</SelectItem></SelectContent></Select></div><div><Label htmlFor="prepare-expires">Expiration date</Label><Input id="prepare-expires" type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></div><div><Label htmlFor="prepare-reminders">Remind every (hours)</Label><Input id="prepare-reminders" type="number" min={1} max={720} value={reminderHours} onChange={(event) => setReminderHours(event.target.value)} /></div></section>
         </aside>
       </div>
 
       <AlertDialog open={!!removeTarget} onOpenChange={(open) => { if (!open) setRemoveTarget(null) }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Remove {removeTarget?.type}?</AlertDialogTitle><AlertDialogDescription>Removing “{removeTarget?.label}” will also remove {removeTarget?.fieldCount ?? 0} placed field{removeTarget?.fieldCount === 1 ? '' : 's'} assigned to it. This cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={async () => { if (!removeTarget) return; if (removeTarget.type === 'document') { try { const result = await deleteDocument.mutateAsync(removeTarget.id); setDocuments([...result.documents].sort((a, b) => a.display_order - b.display_order)) } catch (error) { toast({ title: 'Could not remove document', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } } else { const next = rows.filter((row) => row.key !== removeTarget.id); setRows(next); await saveRecipients(next) } setRemoveTarget(null) }}>Remove</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+      <Dialog open={!!widgetDialog} onOpenChange={(open) => { if (!open) setWidgetDialog(null) }}><DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Convert PDF fields</DialogTitle><DialogDescription>Confirm each suggested field type and signer. Unsupported widgets stay in the source appearance but are removed from the completed PDF.</DialogDescription></DialogHeader><div className="space-y-2">{widgetDialog?.widgets.map((widget) => { const mapping = widgetMappings[widget.widget_id]; return <div key={widget.widget_id} className="grid grid-cols-[auto_1fr_140px_170px] items-center gap-2 rounded border border-border p-2 text-sm"><input type="checkbox" checked={mapping?.included ?? false} disabled={!widget.supported} onChange={(event) => setWidgetMappings((current) => ({ ...current, [widget.widget_id]: { ...current[widget.widget_id], included: event.target.checked } }))} /><span className="truncate" title={widget.tooltip ?? widget.name}>{widget.name}</span><select className="rounded border border-border bg-background p-1" value={mapping?.field_type ?? 'text'} onChange={(event) => setWidgetMappings((current) => ({ ...current, [widget.widget_id]: { ...current[widget.widget_id], field_type: event.target.value as typeof mapping.field_type } }))}>{['text', 'signature', 'checkbox', 'radio', 'dropdown', 'number', 'date'].map((type) => <option key={type} value={type}>{type}</option>)}</select><select className="rounded border border-border bg-background p-1" value={mapping?.recipient_id ?? ''} onChange={(event) => setWidgetMappings((current) => ({ ...current, [widget.widget_id]: { ...current[widget.widget_id], recipient_id: event.target.value } }))}><option value="">Choose signer…</option>{envelope?.recipients.filter((recipient) => recipient.role === 'signer').map((recipient) => <option key={recipient.id} value={recipient.id}>{recipient.name}</option>)}</select></div> })}</div><DialogFooter><Button variant="outline" onClick={() => setWidgetDialog(null)}>Cancel</Button><Button onClick={convertWidgets} disabled={convertingWidgets || !Object.values(widgetMappings).some((mapping) => mapping.included && mapping.recipient_id)}>Convert selected</Button></DialogFooter></DialogContent></Dialog>
     </ComposerShell>
   )
 }

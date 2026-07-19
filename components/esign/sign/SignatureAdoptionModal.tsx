@@ -322,7 +322,7 @@ export function SignatureAdoptionModal({
           <DialogTitle>Adopt your signature and initials</DialogTitle>
           <DialogDescription>
             Confirm your name and initials, then choose how your signature should look. It will be
-            applied to every signature and initials field assigned to you.
+            available to apply to each signature, initials, or stamp field you choose.
           </DialogDescription>
         </DialogHeader>
 

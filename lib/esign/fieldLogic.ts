@@ -1,5 +1,7 @@
 export interface LogicField {
   id: string
+  recipient_id?: string
+  recipient_index?: number
   field_type: string
   required?: boolean
   properties?: {
@@ -7,6 +9,13 @@ export interface LogicField {
     option_value?: string | null
     formula?: { expression?: string | null; decimal_places?: number | null } | null
     conditional?: ConditionalRule | null
+    data_label?: string | null
+    shared_value?: boolean | null
+    read_only?: boolean | null
+    text_validation?: { max_length?: number | null; regex?: string | null } | null
+    number_validation?: { minimum?: number | null; maximum?: number | null; decimal_places?: number | null; allow_negative?: boolean | null } | null
+    date_validation?: { minimum?: string | null; maximum?: string | null } | null
+    options?: Array<{ value: string; label?: string }> | null
     [key: string]: unknown
   } | null
 }
@@ -18,14 +27,16 @@ export interface ConditionalRule {
   action?: 'show' | 'require'
 }
 
-const REF = /\[([0-9a-fA-F-]{36})\]/g
+const REF = /\[([^\[\]]+)\]/g
+
+type FormulaValue = number | string | boolean | Date
 
 class FormulaParser {
   private pos = 0
   constructor(private readonly source: string, private readonly values: Record<string, unknown>) {}
 
-  parse(): number {
-    const value = this.expression()
+  parse(): FormulaValue {
+    const value = this.comparison()
     this.space()
     if (this.pos !== this.source.length) throw new Error(`Unexpected token at ${this.pos + 1}`)
     return value
@@ -35,33 +46,53 @@ class FormulaParser {
     if (this.source.startsWith(value, this.pos)) { this.pos += value.length; return true }
     return false
   }
-  private expression(): number {
+  private comparison(): FormulaValue {
+    let value = this.expression()
+    this.space()
+    for (const operator of ['>=', '<=', '!=', '==', '>', '<']) {
+      if (!this.take(operator)) continue
+      const right = this.expression()
+      if (operator === '==') return value === right
+      if (operator === '!=') return value !== right
+      if (operator === '>') return value > right
+      if (operator === '<') return value < right
+      if (operator === '>=') return value >= right
+      return value <= right
+    }
+    return value
+  }
+  private numeric(value: FormulaValue): number {
+    const result = typeof value === 'number' ? value : Number(String(value).replace(/[$,]/g, '').trim())
+    if (!Number.isFinite(result)) throw new Error('Value is not numeric')
+    return result
+  }
+  private expression(): FormulaValue {
     let value = this.term()
     for (;;) {
       this.space()
-      if (this.take('+')) value += this.term()
-      else if (this.take('-')) value -= this.term()
+      if (this.take('+')) value = this.numeric(value) + this.numeric(this.term())
+      else if (this.take('-')) value = this.numeric(value) - this.numeric(this.term())
       else return value
     }
   }
-  private term(): number {
+  private term(): FormulaValue {
     let value = this.factor()
     for (;;) {
       this.space()
-      if (this.take('*')) value *= this.factor()
+      if (this.take('*')) value = this.numeric(value) * this.numeric(this.factor())
       else if (this.take('/')) {
-        const divisor = this.factor()
+        const divisor = this.numeric(this.factor())
         if (divisor === 0) throw new Error('Division by zero')
-        value /= divisor
+        value = this.numeric(value) / divisor
       } else return value
     }
   }
-  private factor(): number {
+  private factor(): FormulaValue {
     this.space()
-    if (this.take('+')) return this.factor()
-    if (this.take('-')) return -this.factor()
+    if (this.take('+')) return this.numeric(this.factor())
+    if (this.take('-')) return -this.numeric(this.factor())
     if (this.take('(')) {
-      const value = this.expression(); this.space()
+      const value = this.comparison(); this.space()
       if (!this.take(')')) throw new Error('Missing closing parenthesis')
       return value
     }
@@ -69,18 +100,82 @@ class FormulaParser {
       const end = this.source.indexOf(']', this.pos)
       if (end < 0) throw new Error('Unclosed field reference')
       const id = this.source.slice(this.pos, end)
-      if (!/^[0-9a-fA-F-]{36}$/.test(id)) throw new Error('Invalid field reference')
       this.pos = end + 1
       const raw = this.values[id]
       if (raw === null || raw === undefined || String(raw).trim() === '') throw new Error('Unresolved field')
       const numeric = Number(String(raw).replace(/[$,]/g, '').trim())
-      if (!Number.isFinite(numeric)) throw new Error('Referenced field is not numeric')
-      return numeric
+      return Number.isFinite(numeric) ? numeric : String(raw)
+    }
+    const quoted = /^(['"])(.*?)\1/.exec(this.source.slice(this.pos))
+    if (quoted) { this.pos += quoted[0].length; return quoted[2] }
+    const fn = /^([A-Za-z][A-Za-z0-9_]*)\s*\(/.exec(this.source.slice(this.pos))
+    if (fn) {
+      this.pos += fn[0].length
+      if (fn[1].toUpperCase() === 'IF') {
+        const sources = this.readCallArguments()
+        if (sources.length !== 3) throw new Error('IF requires three arguments')
+        const condition = new FormulaParser(sources[0], this.values).parse()
+        return new FormulaParser(condition ? sources[1] : sources[2], this.values).parse()
+      }
+      const args: FormulaValue[] = []
+      this.space()
+      if (!this.take(')')) {
+        for (;;) {
+          args.push(this.comparison()); this.space()
+          if (this.take(')')) break
+          if (!this.take(',')) throw new Error('Expected comma')
+        }
+      }
+      return this.call(fn[1].toUpperCase(), args)
     }
     const match = /^(?:\d+(?:\.\d*)?|\.\d+)/.exec(this.source.slice(this.pos))
     if (!match) throw new Error(`Expected a value at ${this.pos + 1}`)
     this.pos += match[0].length
     return Number(match[0])
+  }
+  private readCallArguments(): string[] {
+    const args: string[] = []
+    let start = this.pos, depth = 0, quote = ''
+    for (; this.pos < this.source.length; this.pos += 1) {
+      const char = this.source[this.pos]
+      if (quote) { if (char === quote && this.source[this.pos - 1] !== '\\') quote = ''; continue }
+      if (char === '"' || char === "'") { quote = char; continue }
+      if (char === '(') { depth += 1; continue }
+      if (char === ')') {
+        if (depth > 0) { depth -= 1; continue }
+        args.push(this.source.slice(start, this.pos).trim()); this.pos += 1; return args
+      }
+      if (char === ',' && depth === 0) { args.push(this.source.slice(start, this.pos).trim()); start = this.pos + 1 }
+    }
+    throw new Error('Unclosed function call')
+  }
+  private call(name: string, args: FormulaValue[]): FormulaValue {
+    const numbers = () => args.map((value) => this.numeric(value))
+    const dateValue = (value: FormulaValue) => value instanceof Date ? new Date(value.valueOf()) : new Date(`${String(value)}T00:00:00Z`)
+    if (name === 'IF' && args.length === 3) return args[0] ? args[1] : args[2]
+    if (name === 'ROUND' && args.length >= 1 && args.length <= 2) {
+      const places = args.length === 2 ? this.numeric(args[1]) : 0
+      const factor = 10 ** places
+      return Math.round(this.numeric(args[0]) * factor) / factor
+    }
+    if (name === 'MIN' && args.length) return Math.min(...numbers())
+    if (name === 'MAX' && args.length) return Math.max(...numbers())
+    if (name === 'SUM') return numbers().reduce((total, value) => total + value, 0)
+    if (name === 'FLOOR' && args.length === 1) return Math.floor(this.numeric(args[0]))
+    if (name === 'CEILING' && args.length === 1) return Math.ceil(this.numeric(args[0]))
+    if (name === 'DATEADD' && (args.length === 2 || args.length === 3)) {
+      if (args[2] && !['day', 'days'].includes(String(args[2]).toLowerCase())) throw new Error('Unsupported date unit')
+      const result = dateValue(args[0])
+      if (Number.isNaN(result.valueOf())) throw new Error('Invalid date')
+      result.setUTCDate(result.getUTCDate() + this.numeric(args[1])); return result
+    }
+    if (name === 'DATEDIFF' && (args.length === 2 || args.length === 3)) {
+      if (args[2] && !['day', 'days'].includes(String(args[2]).toLowerCase())) throw new Error('Unsupported date unit')
+      const start = dateValue(args[0]), end = dateValue(args[1])
+      if ([start, end].some((value) => Number.isNaN(value.valueOf()))) throw new Error('Invalid date')
+      return Math.round((end.valueOf() - start.valueOf()) / 86_400_000)
+    }
+    throw new Error(`Unsupported function ${name}`)
   }
 }
 
@@ -101,7 +196,10 @@ export function evaluateFormula(
 ): string {
   try {
     const result = new FormulaParser(expression, values).parse()
-    return Number.isFinite(result) ? result.toFixed(Math.max(0, Math.min(10, decimalPlaces))) : ''
+    if (result instanceof Date) return result.toISOString().slice(0, 10)
+    if (typeof result === 'boolean') return result ? 'true' : 'false'
+    if (typeof result === 'number' && Number.isFinite(result)) return result.toFixed(Math.max(0, Math.min(10, decimalPlaces)))
+    return String(result)
   } catch {
     return ''
   }
@@ -166,14 +264,23 @@ export function isFieldRequired(
 
 export function computeFormulas(fields: LogicField[], values: Record<string, string>): Record<string, string> {
   const resolved = { ...values }
+  const owner = (field: LogicField) => field.recipient_id ?? String(field.recipient_index ?? '')
+  const labelsByOwner = new Map<string, Map<string, string>>()
+  for (const field of fields) if (field.properties?.data_label) {
+    const labels = labelsByOwner.get(owner(field)) ?? new Map<string, string>()
+    labels.set(field.properties.data_label, field.id); labelsByOwner.set(owner(field), labels)
+  }
   const pending = new Map(fields.filter((f) => f.field_type === 'formula').map((f) => [f.id, f]))
   for (let pass = 0; pass <= pending.size; pass += 1) {
     let progressed = false
     for (const [id, field] of [...pending]) {
       const formula = field.properties?.formula
       const refs = formulaReferences(formula?.expression ?? '')
-      if (refs.some((ref) => pending.has(ref))) continue
-      resolved[id] = evaluateFormula(formula?.expression ?? '', resolved, formula?.decimal_places ?? 2)
+      const labels = labelsByOwner.get(owner(field)) ?? new Map<string, string>()
+      if (refs.some((ref) => pending.has(labels.get(ref) ?? ref))) continue
+      const formulaValues = { ...resolved }
+      for (const [label, referencedId] of labels) formulaValues[label] = resolved[referencedId] ?? ''
+      resolved[id] = evaluateFormula(formula?.expression ?? '', formulaValues, formula?.decimal_places ?? 2)
       pending.delete(id); progressed = true
     }
     if (!progressed) break
@@ -190,7 +297,9 @@ export function incompleteFields(
   const seenRadioGroups = new Set<string>()
   return fields.filter((field) => {
     if (!visible[field.id]) return false
-    if (field.field_type === 'signature' || field.field_type === 'initials') return !signatureAdopted
+    if (['signature', 'initials', 'stamp'].includes(field.field_type)) {
+      return isFieldRequired(field, fields, values, visible) && (!signatureAdopted || values[field.id] !== 'true')
+    }
     if (field.field_type === 'date_signed' || field.field_type === 'formula') return false
     if (field.field_type === 'radio') {
       const group = field.properties?.group?.id ?? field.id
@@ -202,6 +311,33 @@ export function incompleteFields(
     }
     if (!isFieldRequired(field, fields, values, visible)) return false
     if (field.field_type === 'checkbox') return values[field.id] !== 'true'
-    return !(values[field.id] ?? '').trim()
+    const value = (values[field.id] ?? '').trim()
+    return !value || !!fieldValueError(field, value)
   })
+}
+
+export function fieldValueError(field: LogicField, value: string): string | null {
+  const rules = field.properties?.text_validation
+  if (rules?.max_length && value.length > rules.max_length) return `Maximum length is ${rules.max_length}`
+  if (rules?.regex) {
+    try { if (!new RegExp(`^(?:${rules.regex})$`).test(value)) return 'Invalid format' }
+    catch { return 'Invalid validation pattern' }
+  }
+  if (field.field_type === 'dropdown' && value && !field.properties?.options?.some((option) => option.value === value)) return 'Select a listed option'
+  if (field.field_type === 'number' && value) {
+    const numeric = Number(value), numberRules = field.properties?.number_validation
+    if (!Number.isFinite(numeric)) return 'Enter a number'
+    if (numberRules?.allow_negative === false && numeric < 0) return 'Negative values are not allowed'
+    if (numberRules?.minimum != null && numeric < numberRules.minimum) return `Minimum is ${numberRules.minimum}`
+    if (numberRules?.maximum != null && numeric > numberRules.maximum) return `Maximum is ${numberRules.maximum}`
+    const decimals = value.split('.')[1]?.length ?? 0
+    if (numberRules?.decimal_places != null && decimals > numberRules.decimal_places) return `Use at most ${numberRules.decimal_places} decimal places`
+  }
+  if (field.field_type === 'date' && value) {
+    const parsed = Date.parse(value), dateRules = field.properties?.date_validation
+    if (Number.isNaN(parsed)) return 'Enter a valid date'
+    if (dateRules?.minimum && parsed < Date.parse(dateRules.minimum)) return `Date must be on or after ${dateRules.minimum}`
+    if (dateRules?.maximum && parsed > Date.parse(dateRules.maximum)) return `Date must be on or before ${dateRules.maximum}`
+  }
+  return null
 }
