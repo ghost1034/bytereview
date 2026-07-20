@@ -100,10 +100,11 @@ DEFAULT_CONSENT_DISCLOSURE = (
     "signing will not prevent you from doing business with the sender on "
     "paper. You may also request paper copies of completed documents from the "
     "sender.\n\n"
-    "Your identity is verified through your CPAAutomation account, which "
-    "requires SMS phone verification (multi-factor authentication) at every "
-    "login. The date, time, network address, and verification method of each "
-    "action you take are recorded in a tamper-evident audit trail."
+    "Access to this envelope is provided through a secure link delivered to "
+    "the recipient email address selected by the sender. Anyone with that link "
+    "may be able to act as the recipient, so do not forward it. The date, time, "
+    "network address, browser information, access method, and each action you "
+    "take are recorded in a tamper-evident audit trail."
 )
 
 ACTIVE_STATUSES = (EsignEnvelopeStatus.SENT, EsignEnvelopeStatus.IN_PROGRESS)
@@ -232,6 +233,7 @@ class EsignEnvelopeService:
             routing_version=int(getattr(envelope, "routing_version", 1) or 1),
             allow_reassignment=bool(getattr(envelope, "allow_reassignment", False)),
             consent_disclosure_text=envelope.consent_disclosure_text,
+            recipient_access_mode=getattr(envelope, "recipient_access_mode", "account"),
             expires_at=envelope.expires_at,
             reminder_interval_hours=envelope.reminder_interval_hours,
             last_reminder_at=envelope.last_reminder_at,
@@ -393,6 +395,7 @@ class EsignEnvelopeService:
                 status=EsignEnvelopeStatus.DRAFT,
                 signing_type=EsignSigningType(effective_signing_type),
                 consent_disclosure_text=DEFAULT_CONSENT_DISCLOSURE,
+                recipient_access_mode="email_link",
                 reminder_interval_hours=effective_reminder,
                 date_format=settings.date_format if settings else "MM/DD/YYYY",
                 allow_reassignment=bool(settings.allow_reassignment) if settings else False,

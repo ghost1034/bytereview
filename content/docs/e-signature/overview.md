@@ -33,8 +33,8 @@ The seal and audit trail provide evidence about the document and signing process
 ## Who does what
 
 - **Senders** create envelopes, assign fields, monitor progress, send reminders, void active requests, and download completed files.
-- **Signers** use a CPAAutomation account with the exact email address invited by the sender, consent to electronic records, and complete their assigned fields.
-- **CC recipients** are included in the completion notification but do not sign and cannot be assigned fields.
+- **Signers** open the secure link delivered to the email address selected by the sender, consent to electronic records, and complete their assigned fields. No CPAAutomation account is required.
+- **CC recipients** use their secure link for read-only access and are included in the completion notification.
 
 ## Where to find it
 
@@ -43,7 +43,7 @@ Open **E-Signature** in the CPAAutomation sidebar (`/dashboard/esign`). The page
 | View | What it contains |
 | --- | --- |
 | **All** | Envelopes you sent, with status filters and signing progress. |
-| **Awaiting my signature** | Envelopes sent to your account email, including requests waiting for an earlier signer. |
+| **Awaiting my signature** | An optional inbox for signed-in users whose account email also appears on an envelope. |
 | **Drafts** | Envelopes you have started but not sent. |
 
 Use the buttons at the top of the page to open **Legal basis**, **Templates**, **Verify**, or create a **New envelope**.

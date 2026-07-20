@@ -26,6 +26,9 @@ class EsignRequestMeta:
     mfa_verified: Optional[bool] = None
     mfa_method: Optional[str] = None
     mfa_phone_last4: Optional[str] = None
+    access_method: Optional[str] = None
+    invitation_id: Optional[str] = None
+    session_id: Optional[str] = None
 
 
 def extract_request_meta(request: Request, token_data: Optional[dict] = None) -> EsignRequestMeta:
@@ -81,6 +84,13 @@ def record_event(
     Raises on failure — callers on the signing path must let this roll back
     the whole action.
     """
+    evidence = dict(details or {})
+    if meta and meta.access_method:
+        evidence["access_method"] = meta.access_method
+    if meta and meta.invitation_id:
+        evidence["invitation_id"] = meta.invitation_id
+    if meta and meta.session_id:
+        evidence["session_id"] = meta.session_id
     event = EsignEvent(
         envelope_id=envelope_id,
         event_type=event_type,
@@ -92,7 +102,7 @@ def record_event(
         mfa_verified=meta.mfa_verified if meta else None,
         mfa_method=meta.mfa_method if meta else None,
         mfa_phone_last4=meta.mfa_phone_last4 if meta else None,
-        details=details,
+        details=evidence or None,
     )
     db.add(event)
     db.flush()  # surface DB errors (e.g. enum/constraint) inside the transaction

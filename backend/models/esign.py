@@ -327,6 +327,7 @@ class EsignEnvelopeResponse(BaseModel):
     current_routing_order: Optional[int] = None
     routing_version: int = 1
     allow_reassignment: bool = False
+    recipient_access_mode: Literal["account", "email_link"] = "email_link"
     consent_disclosure_text: Optional[str] = None
     expires_at: Optional[datetime] = None
     reminder_interval_hours: Optional[int] = None
@@ -504,6 +505,9 @@ class EsignSigningSessionResponse(BaseModel):
     sent_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
     brand: Optional[dict[str, Any]] = None
+    access_purpose: Literal["ceremony", "completed_copy"] = "ceremony"
+    has_sealed_document: bool = False
+    has_certificate: bool = False
 
 
 class EsignConsentResponse(BaseModel):
@@ -628,6 +632,8 @@ class EsignGuestExchangeRequest(BaseModel):
 class EsignGuestExchangeResponse(BaseModel):
     envelope_id: str
     recipient_id: str
+    session_id: str
+    purpose: Literal["ceremony", "completed_copy"] = "ceremony"
     csrf_token: str
     routing_version: int
 

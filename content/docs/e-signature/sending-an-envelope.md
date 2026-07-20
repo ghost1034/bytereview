@@ -23,7 +23,7 @@ Prepare keeps the complete delivery setup on one screen:
 - Set sequential or any-order signing.
 - Edit the email message, expiration date, and reminder interval.
 
-Every recipient needs a name and unique email address, and at least one recipient must be a signer. Use the exact email address associated with the recipient's CPAAutomation account.
+Every recipient needs a name and unique email address, and at least one recipient must be a signer. CPAAutomation sends a private access link to that address; recipients do not need CPAAutomation accounts.
 
 Removing a document also removes fields placed on that document. Removing a recipient removes only fields assigned to that recipient. CPAAutomation shows the exact number of affected fields before either destructive change. Editing a recipient's name, email, role, or routing position preserves that recipient's identity and placed fields.
 

@@ -4,11 +4,11 @@ description: "Open a signature request, consent to electronic records, complete 
 order: 3
 ---
 
-You can open an envelope from the link in its signature-request email or from **E-Signature > Awaiting my signature** in CPAAutomation.
+Open the secure link in the signature-request email. A CPAAutomation account and phone verification are not required. Signed-in users may also use **E-Signature > Awaiting my signature** when their account email matches the recipient email.
 
 ## Before you begin
 
-Sign in to a CPAAutomation account that uses the exact email address invited by the sender. If you do not have an account for that address, create one from the sign-in flow. CPAAutomation may also require phone verification as part of the identity evidence recorded for the signing process.
+The email link is a bearer credential intended only for the named recipient. Do not forward the email or share the link. If you close the browser, reopen the same email link to resume saved progress until the envelope expires.
 
 For sequential envelopes, the inbox can show **Waiting on others**. The **Review & sign** button becomes available when all signers in earlier routing orders have finished.
 
@@ -42,7 +42,7 @@ Work through the highlighted fields assigned to you:
 - Enter a value in each required text field.
 - Complete required checkboxes, radio groups, dropdowns, attachments, and editable auto-fill fields.
 
-The action bar shows how many required fields are complete. Entries save automatically while you work. **Finish Later** saves once more and returns to the E-Signature inbox.
+The action bar shows how many required fields are complete. Entries save automatically while you work. **Finish Later** saves once more; reopen the email link when you are ready to continue.
 
 On phones, Start, Next, Finish Later, Finish, and Decline remain in a viewport-safe bottom bar with touch-sized controls. PDF pages scale to the available width and guided navigation centers the active field.
 
@@ -51,6 +51,8 @@ On phones, Start, Next, Finish Later, Finish, and Decline remain in a viewport-s
 Review the documents and click **Finish signing**. Your signature and field values are recorded, and you cannot revise them afterward.
 
 If other signatures are still needed, CPAAutomation keeps the envelope active and, for sequential requests, advances to the next signing group. After the final signer submits, CPAAutomation prepares and digitally seals the completed PDF in the background. Participants receive a completion notification when that process finishes.
+
+The completion email contains a fresh read-only link to the sealed PDF and certificate. That link remains available for 30 days.
 
 ## Decline an envelope
 

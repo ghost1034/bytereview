@@ -47,6 +47,14 @@ const nextConfig = {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
         ],
       },
+      {
+        source: '/esign/guest',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store' },
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+        ],
+      },
     ]
   },
   output: 'standalone',

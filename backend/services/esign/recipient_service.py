@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -16,30 +17,24 @@ from models.db_models import (
     EsignEnvelope,
     EsignEnvelopeStatus,
     EsignEventType,
-    EsignFieldType,
     EsignGuestInvitation,
     EsignGuestSession,
     EsignRecipient,
     EsignRecipientChange,
     EsignRecipientRole,
     EsignRecipientStatus,
-    EsignSignatureRecord,
-    EsignSignatureType,
 )
 from models.esign import (
     EsignCorrectionRequest,
     EsignEnvelopeResponse,
     EsignGuestExchangeResponse,
     EsignGuestInvitationResponse,
-    EsignGuestSessionResponse,
-    EsignGuestSubmitRequest,
     EsignInPersonStartRequest,
     EsignManagedRecipientsRequest,
     EsignManagedRecipientsResponse,
-    EsignProgressRequest,
     EsignRecipientResponse,
     EsignReassignRequest,
-    EsignSigningDocument,
+    EsignSigningSessionResponse,
     EsignSubmitResponse,
     EsignWitnessRequest,
 )
@@ -57,7 +52,6 @@ from services.esign.routing_engine import (
     MANAGER_ROLES,
     SIGNATURE_ROLES,
     assert_routing_version,
-    available_actions,
     incomplete_blocking,
     is_eligible,
     recompute_current_routing_order,
@@ -68,9 +62,6 @@ from services.gcs_service import get_storage_service
 
 GUEST_IDLE_MINUTES = 30
 GUEST_ABSOLUTE_HOURS = 2
-GUEST_INVITATION_DAYS = 7
-
-
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -145,7 +136,17 @@ class EsignRecipientService:
         return envelope
 
     @staticmethod
-    def _actor_recipient(envelope: EsignEnvelope, email: str) -> EsignRecipient:
+    def _actor_recipient(
+        envelope: EsignEnvelope, email: str, recipient_id: Optional[str] = None,
+    ) -> EsignRecipient:
+        if recipient_id:
+            recipient = next(
+                (item for item in envelope.recipients or [] if str(item.id) == str(recipient_id)),
+                None,
+            )
+            if recipient:
+                return recipient
+            raise EsignNotFound("Envelope not found")
         normalized = _normalize_email(email)
         for recipient in envelope.recipients or []:
             if recipient.email == normalized or recipient.host_email == normalized:
@@ -211,13 +212,14 @@ class EsignRecipientService:
     def correct_recipients(
         self, *, user_id: str, user_email: str, envelope_id: str,
         payload: EsignCorrectionRequest, meta: EsignRequestMeta,
+        actor_recipient_id: Optional[str] = None,
     ) -> EsignEnvelopeResponse:
         db = self._get_session()
         try:
             acquire_envelope_lock(db, envelope_id)
             envelope = self._load(db, envelope_id)
             if envelope.user_id != user_id:
-                editor = self._actor_recipient(envelope, user_email)
+                editor = self._actor_recipient(envelope, user_email, actor_recipient_id)
                 if role_value(editor) != EsignRecipientRole.EDITOR or not is_eligible(envelope, editor):
                     raise EsignNotFound("Envelope not found")
             if envelope.status not in ACTIVE_ENVELOPE_STATUSES:
@@ -352,12 +354,13 @@ class EsignRecipientService:
     def reassign(
         self, *, user_id: str, user_email: str, envelope_id: str,
         payload: EsignReassignRequest, meta: EsignRequestMeta,
+        actor_recipient_id: Optional[str] = None,
     ) -> EsignRecipientResponse:
         db = self._get_session()
         try:
             acquire_envelope_lock(db, envelope_id)
             envelope = self._load(db, envelope_id)
-            recipient = self._actor_recipient(envelope, user_email)
+            recipient = self._actor_recipient(envelope, user_email, actor_recipient_id)
             assert_routing_version(envelope, payload.expected_routing_version)
             if envelope.status not in ACTIVE_ENVELOPE_STATUSES or recipient.action_completed_at is not None:
                 raise EsignConflict("This recipient can no longer be reassigned")
@@ -394,13 +397,14 @@ class EsignRecipientService:
     async def approve(
         self, *, user_id: str, user_email: str, envelope_id: str,
         expected_routing_version: int, meta: EsignRequestMeta,
+        actor_recipient_id: Optional[str] = None,
     ) -> EsignSubmitResponse:
         should_seal = False
         db = self._get_session()
         try:
             acquire_envelope_lock(db, envelope_id)
             envelope = self._load(db, envelope_id)
-            recipient = self._actor_recipient(envelope, user_email)
+            recipient = self._actor_recipient(envelope, user_email, actor_recipient_id)
             assert_routing_version(envelope, expected_routing_version)
             if role_value(recipient) != EsignRecipientRole.APPROVER or not is_eligible(envelope, recipient):
                 raise PermissionError("Approval is not available")
@@ -426,17 +430,21 @@ class EsignRecipientService:
         finally:
             db.close()
         await self._enqueue_if_complete(envelope_id, should_seal)
+        if not should_seal:
+            from services.esign.signing_service import esign_signing_service
+            await esign_signing_service.notify_current_recipients(envelope_id)
         return EsignSubmitResponse(envelope_status=EsignEnvelopeStatus.IN_PROGRESS.value, recipient_status=status, sealing_enqueued=should_seal)
 
     def manage_recipients(
         self, *, user_id: str, user_email: str, envelope_id: str,
         payload: EsignManagedRecipientsRequest, meta: EsignRequestMeta,
+        actor_recipient_id: Optional[str] = None,
     ) -> EsignManagedRecipientsResponse:
         db = self._get_session()
         try:
             acquire_envelope_lock(db, envelope_id)
             envelope = self._load(db, envelope_id)
-            manager = self._actor_recipient(envelope, user_email)
+            manager = self._actor_recipient(envelope, user_email, actor_recipient_id)
             assert_routing_version(envelope, payload.expected_routing_version)
             if role_value(manager) not in MANAGER_ROLES or not is_eligible(envelope, manager):
                 raise PermissionError("Recipient management is not available")
@@ -485,13 +493,14 @@ class EsignRecipientService:
     async def manager_complete(
         self, *, user_id: str, user_email: str, envelope_id: str,
         expected_routing_version: int, meta: EsignRequestMeta,
+        actor_recipient_id: Optional[str] = None,
     ) -> EsignSubmitResponse:
         should_seal = False
         db = self._get_session()
         try:
             acquire_envelope_lock(db, envelope_id)
             envelope = self._load(db, envelope_id)
-            manager = self._actor_recipient(envelope, user_email)
+            manager = self._actor_recipient(envelope, user_email, actor_recipient_id)
             assert_routing_version(envelope, expected_routing_version)
             if role_value(manager) not in MANAGER_ROLES or not is_eligible(envelope, manager):
                 raise PermissionError("Manager completion is not available")
@@ -518,34 +527,53 @@ class EsignRecipientService:
         finally:
             db.close()
         await self._enqueue_if_complete(envelope_id, should_seal)
+        if not should_seal:
+            from services.esign.signing_service import esign_signing_service
+            await esign_signing_service.notify_current_recipients(envelope_id)
         return EsignSubmitResponse(envelope_status="in_progress", recipient_status="managed", sealing_enqueued=should_seal)
 
-    def _issue_invitation(self, db: Session, envelope: EsignEnvelope, recipient: EsignRecipient) -> EsignGuestInvitationResponse:
-        self._revoke_guest_access(db, [recipient.id])
-        token = secrets.token_urlsafe(32)
+    def _issue_invitation(
+        self, db: Session, envelope: EsignEnvelope, recipient: EsignRecipient,
+        *, purpose: str = "ceremony",
+    ) -> EsignGuestInvitationResponse:
+        if purpose not in ("ceremony", "completed_copy"):
+            raise EsignError("Invalid guest invitation purpose")
         now = _now()
-        seven_days = now + timedelta(days=GUEST_INVITATION_DAYS)
-        expires_at = min(seven_days, envelope.expires_at) if envelope.expires_at else seven_days
+        # Rotating an emailed bearer link invalidates older links while an
+        # already-open, short-lived browser session may finish uninterrupted.
+        db.query(EsignGuestInvitation).filter(
+            EsignGuestInvitation.recipient_id == recipient.id,
+            EsignGuestInvitation.purpose == purpose,
+            EsignGuestInvitation.revoked_at.is_(None),
+        ).update({EsignGuestInvitation.revoked_at: now}, synchronize_session=False)
+        token = secrets.token_urlsafe(32)
+        if purpose == "completed_copy":
+            expires_at = now + timedelta(days=30)
+        else:
+            expires_at = envelope.expires_at or (now + timedelta(days=30))
         db.add(EsignGuestInvitation(
             id=uuid.uuid4(), envelope_id=envelope.id, recipient_id=recipient.id,
+            purpose=purpose,
             token_sha256=_hash_secret(token), routing_version=envelope.routing_version,
             expires_at=expires_at,
         ))
+        base = os.getenv("ESIGN_APP_BASE_URL", "http://localhost:3000").rstrip("/")
         return EsignGuestInvitationResponse(
             invitation_token=token,
-            guest_url=f"/esign/guest?token={token}",
+            guest_url=f"{base}/esign/guest?token={token}",
             expires_at=expires_at,
         )
 
     def configure_witness(
         self, *, user_id: str, user_email: str, envelope_id: str,
         payload: EsignWitnessRequest, meta: EsignRequestMeta,
+        actor_recipient_id: Optional[str] = None,
     ) -> EsignGuestInvitationResponse:
         db = self._get_session()
         try:
             acquire_envelope_lock(db, envelope_id)
             envelope = self._load(db, envelope_id)
-            signer = self._actor_recipient(envelope, user_email)
+            signer = self._actor_recipient(envelope, user_email, actor_recipient_id)
             assert_routing_version(envelope, payload.expected_routing_version)
             if role_value(signer) != EsignRecipientRole.SIGNER or not is_eligible(envelope, signer):
                 raise PermissionError("Witness selection is not available")
@@ -610,18 +638,28 @@ class EsignRecipientService:
         try:
             now = _now()
             invitation = db.query(EsignGuestInvitation).filter(EsignGuestInvitation.token_sha256 == _hash_secret(invitation_token)).first()
-            if invitation is None or invitation.exchanged_at or invitation.revoked_at or invitation.expires_at <= now:
+            if invitation is None or invitation.revoked_at or invitation.expires_at <= now:
                 raise EsignNotFound("Guest invitation is invalid or expired")
             envelope = self._load(db, str(invitation.envelope_id))
-            assert_routing_version(envelope, invitation.routing_version)
             recipient = next(item for item in envelope.recipients if item.id == invitation.recipient_id)
-            if role_value(recipient) not in (EsignRecipientRole.WITNESS, EsignRecipientRole.IN_PERSON_SIGNER):
-                raise PermissionError("Guest access is not available for this recipient")
+            purpose = getattr(invitation, "purpose", "ceremony") or "ceremony"
+            if purpose == "completed_copy":
+                if envelope.status != EsignEnvelopeStatus.COMPLETED:
+                    raise PermissionError("Completed-copy access is not available")
+            elif purpose == "ceremony":
+                special_guest = role_value(recipient) in (
+                    EsignRecipientRole.WITNESS, EsignRecipientRole.IN_PERSON_SIGNER,
+                ) or getattr(envelope, "source_type", None) == "powerform"
+                if getattr(envelope, "recipient_access_mode", "account") != "email_link" and not special_guest:
+                    raise PermissionError("Guest access is not available for this recipient")
+                if envelope.status not in ACTIVE_ENVELOPE_STATUSES:
+                    raise EsignConflict("This envelope is no longer active")
             session_token = secrets.token_urlsafe(32)
             csrf_token = secrets.token_urlsafe(32)
             invitation.exchanged_at = now
+            session_id = uuid.uuid4()
             db.add(EsignGuestSession(
-                id=uuid.uuid4(), envelope_id=envelope.id, recipient_id=recipient.id,
+                id=session_id, envelope_id=envelope.id, recipient_id=recipient.id,
                 invitation_id=invitation.id, token_sha256=_hash_secret(session_token),
                 csrf_sha256=_hash_secret(csrf_token), routing_version=envelope.routing_version,
                 last_seen_at=now, idle_expires_at=now + timedelta(minutes=GUEST_IDLE_MINUTES),
@@ -635,6 +673,7 @@ class EsignRecipientService:
             db.commit()
             return EsignGuestExchangeResponse(
                 envelope_id=str(envelope.id), recipient_id=str(recipient.id),
+                session_id=str(session_id), purpose=purpose,
                 csrf_token=csrf_token, routing_version=envelope.routing_version,
             ), session_token, csrf_token
         except Exception:
@@ -643,52 +682,53 @@ class EsignRecipientService:
         finally:
             db.close()
 
-    def _guest_context(self, db: Session, session_token: str, csrf_token: Optional[str] = None, *, touch: bool = True):
+    def _guest_context(
+        self, db: Session, session_token: str, csrf_token: Optional[str] = None,
+        *, session_id: Optional[str] = None, touch: bool = True,
+    ):
         now = _now()
         session = db.query(EsignGuestSession).filter(EsignGuestSession.token_sha256 == _hash_secret(session_token)).first()
         if session is None or session.revoked_at or session.consumed_at or session.idle_expires_at <= now or session.absolute_expires_at <= now:
             raise EsignNotFound("Guest session is invalid or expired")
+        if session_id and str(session.id) != str(session_id):
+            raise EsignNotFound("Guest session is invalid or expired")
         if csrf_token is not None and not secrets.compare_digest(session.csrf_sha256, _hash_secret(csrf_token)):
             raise PermissionError("Invalid guest CSRF token")
         envelope = self._load(db, str(session.envelope_id))
-        assert_routing_version(envelope, session.routing_version)
         recipient = next(item for item in envelope.recipients if item.id == session.recipient_id)
         if touch:
             session.last_seen_at = now
             session.idle_expires_at = min(now + timedelta(minutes=GUEST_IDLE_MINUTES), session.absolute_expires_at)
         return session, envelope, recipient
 
-    def _locked_guest_context(self, db: Session, session_token: str, csrf_token: str):
-        session = db.query(EsignGuestSession).filter(EsignGuestSession.token_sha256 == _hash_secret(session_token)).first()
-        if session is None:
-            raise EsignNotFound("Guest session is invalid or expired")
-        acquire_envelope_lock(db, str(session.envelope_id))
-        db.expire(session)
-        return self._guest_context(db, session_token, csrf_token)
-
-    async def guest_session(self, session_token: str) -> EsignGuestSessionResponse:
+    def resolve_guest_access(
+        self, session_id: str, session_token: str, csrf_token: Optional[str] = None,
+        *, required_purpose: Optional[str] = None,
+    ) -> dict:
+        """Resolve an opaque cookie session to a recipient without an account."""
         db = self._get_session()
         try:
-            session, envelope, recipient = self._guest_context(db, session_token)
-            if not is_eligible(envelope, recipient):
-                raise PermissionError("This guest step is not currently active")
-            documents = []
-            for document in sorted(envelope.documents or [], key=lambda item: item.display_order):
-                url = await self.storage.generate_presigned_get_url(document.gcs_object_name, expiration_minutes=DOWNLOAD_URL_MINUTES)
-                documents.append(EsignSigningDocument(
-                    id=str(document.id), display_order=document.display_order,
-                    original_filename=document.original_filename, page_count=document.page_count,
-                    download_url=url,
-                ))
-            consent = self._valid_consent(db, envelope, recipient)
-            result = EsignGuestSessionResponse(
-                envelope_id=str(envelope.id), recipient_id=str(recipient.id), title=envelope.title,
-                recipient_name=recipient.name, recipient_role=role_value(recipient).value,
-                routing_version=envelope.routing_version, consent_required=consent is None,
-                consent_disclosure_text=envelope.consent_disclosure_text,
-                available_actions=available_actions(envelope, recipient), documents=documents,
-                fields=[esign_envelope_service._serialize_field(item) for item in envelope.fields or [] if item.recipient_id == recipient.id],
+            session, envelope, recipient = self._guest_context(
+                db, session_token, csrf_token, session_id=session_id,
             )
+            invitation = db.query(EsignGuestInvitation).filter(
+                EsignGuestInvitation.id == session.invitation_id
+            ).first()
+            # A reminder may rotate the emailed link while an already-open
+            # short-lived session continues. Identity corrections and terminal
+            # transitions revoke the session row itself.
+            if invitation is None:
+                raise EsignNotFound("Guest session is invalid or expired")
+            purpose = getattr(invitation, "purpose", "ceremony") or "ceremony"
+            if required_purpose and purpose != required_purpose:
+                raise PermissionError("This guest session cannot perform that action")
+            result = {
+                "session_id": str(session.id), "invitation_id": str(invitation.id),
+                "purpose": purpose, "envelope_id": str(envelope.id),
+                "recipient_id": str(recipient.id), "recipient_email": recipient.email or "",
+                "recipient_role": role_value(recipient).value,
+                "routing_version": int(envelope.routing_version),
+            }
             db.commit()
             return result
         except Exception:
@@ -697,132 +737,97 @@ class EsignRecipientService:
         finally:
             db.close()
 
-    def guest_consent(self, session_token: str, csrf_token: str, expected_version: int, meta: EsignRequestMeta):
-        db = self._get_session()
-        try:
-            session, envelope, recipient = self._locked_guest_context(db, session_token, csrf_token)
-            assert_routing_version(envelope, expected_version)
-            existing = self._valid_consent(db, envelope, recipient)
-            if existing is None:
-                existing = EsignConsentRecord(
-                    id=uuid.uuid4(), envelope_id=envelope.id, recipient_id=recipient.id,
-                    consent_text_sha256=sha256_hex(envelope.consent_disclosure_text.encode("utf-8")),
-                    ip_address=meta.ip_address, user_agent=meta.user_agent,
-                    consented_at=_now(),
+    async def guest_signing_session(
+        self, session_id: str, session_token: str, meta: EsignRequestMeta,
+    ) -> EsignSigningSessionResponse:
+        access = self.resolve_guest_access(session_id, session_token)
+        meta.access_method = "email_link"
+        meta.invitation_id = access["invitation_id"]
+        meta.session_id = access["session_id"]
+        if access["purpose"] == "completed_copy":
+            db = self._get_session()
+            try:
+                envelope = self._load(db, access["envelope_id"])
+                recipient = next(item for item in envelope.recipients if str(item.id) == access["recipient_id"])
+                if envelope.status != EsignEnvelopeStatus.COMPLETED:
+                    raise EsignConflict("Completed documents are not available")
+                return EsignSigningSessionResponse(
+                    envelope_id=str(envelope.id), recipient_id=str(recipient.id), title=envelope.title,
+                    message=envelope.message, sender_email=envelope.user.email if envelope.user else "",
+                    envelope_status=envelope.status.value, recipient_status=recipient.status.value,
+                    recipient_role=role_value(recipient).value, routing_version=envelope.routing_version,
+                    is_my_turn=False, consent_required=False,
+                    consent_disclosure_text=envelope.consent_disclosure_text, documents=[], fields=[],
+                    recipient_name=recipient.name or "", recipient_email=recipient.email or "",
+                    expires_at=envelope.expires_at, brand=dict(envelope.brand_snapshot or {}) or None,
+                    access_purpose="completed_copy", has_sealed_document=bool(envelope.sealed_gcs_object_name),
+                    has_certificate=bool(envelope.certificate_gcs_object_name),
                 )
-                db.add(existing)
-                audit_service.record_event(
-                    db, envelope_id=envelope.id, event_type=EsignEventType.GUEST_CONSENT_GIVEN,
-                    recipient_id=recipient.id, meta=meta,
-                    details={"session_id": str(session.id), "routing_version": envelope.routing_version},
-                )
-            db.commit()
-            return {"consented": True}
-        except Exception:
-            db.rollback()
-            raise
-        finally:
-            db.close()
+            finally:
+                db.close()
+        from services.esign.signing_service import esign_signing_service
+        result = await esign_signing_service.get_signing_session(
+            user_id=None, user_email=access["recipient_email"], envelope_id=access["envelope_id"],
+            recipient_id=access["recipient_id"], meta=meta,
+        )
+        return result.model_copy(update={"access_purpose": "ceremony"})
 
-    def guest_progress(self, session_token: str, csrf_token: str, payload: EsignProgressRequest) -> dict:
+    async def guest_completed_download(
+        self, session_id: str, session_token: str, kind: str,
+    ) -> dict[str, str]:
+        access = self.resolve_guest_access(
+            session_id, session_token, required_purpose="completed_copy",
+        )
         db = self._get_session()
         try:
-            _, envelope, recipient = self._locked_guest_context(db, session_token, csrf_token)
-            assert_routing_version(envelope, payload.expected_routing_version)
-            values = {item.field_id: item.value for item in payload.field_values}
-            saved = 0
-            for field in envelope.fields or []:
-                if field.recipient_id == recipient.id and str(field.id) in values:
-                    field.draft_value = values[str(field.id)]
-                    saved += 1
-            db.commit()
-            return {"saved_count": saved}
-        except Exception:
-            db.rollback()
-            raise
-        finally:
-            db.close()
-
-    async def guest_submit(
-        self, session_token: str, csrf_token: str, payload: EsignGuestSubmitRequest, meta: EsignRequestMeta,
-    ) -> EsignSubmitResponse:
-        image_bytes = None
-        if payload.signature.signature_type in ("drawn", "uploaded"):
-            from services.esign.signing_service import esign_signing_service
-            image_bytes = esign_signing_service._decode_signature_image(payload.signature.image_data_url or "")
-        elif payload.signature.signature_type == "typed":
-            if not (payload.signature.typed_text or "").strip():
-                raise EsignError("Typed signature text is required")
-        else:
-            raise EsignError("Invalid signature type")
-        should_seal = False
-        db = self._get_session()
-        try:
-            session, envelope, recipient = self._locked_guest_context(db, session_token, csrf_token)
-            assert_routing_version(envelope, payload.expected_routing_version)
-            if not is_eligible(envelope, recipient):
-                raise PermissionError("This guest step is not currently active")
-            consent = self._valid_consent(db, envelope, recipient)
-            if consent is None:
-                raise EsignError("Electronic-record consent is required")
-            if role_value(recipient) == EsignRecipientRole.WITNESS and (not payload.occupation or not payload.address):
-                raise EsignError("Witness occupation and address are required")
-            if envelope.status == EsignEnvelopeStatus.SENT:
-                envelope.status = EsignEnvelopeStatus.IN_PROGRESS
-            object_name = None
-            image_sha = None
-            if image_bytes:
-                object_name = f"esign/{envelope.user_id}/{envelope.id}/signatures/{recipient.id}_{uuid.uuid4().hex[:8]}.png"
-                await self.storage.upload_file_content(image_bytes, object_name)
-                image_sha = sha256_hex(image_bytes)
-            record = EsignSignatureRecord(
-                id=uuid.uuid4(), envelope_id=envelope.id, recipient_id=recipient.id,
-                signature_type=EsignSignatureType(payload.signature.signature_type),
-                image_gcs_object_name=object_name, image_sha256=image_sha,
-                typed_text=(payload.signature.typed_text or "").strip() or None,
-                typed_font=payload.signature.typed_font,
-                initials_text=payload.signature.initials_text,
+            envelope = self._load(db, access["envelope_id"])
+            if envelope.status != EsignEnvelopeStatus.COMPLETED:
+                raise EsignConflict("Completed documents are not available")
+            if kind == "sealed":
+                object_name = envelope.sealed_gcs_object_name
+                filename = f"{envelope.title}-completed.pdf"
+            elif kind == "certificate":
+                object_name = envelope.certificate_gcs_object_name
+                filename = f"{envelope.title}-certificate.pdf"
+            else:
+                raise EsignNotFound("Download not found")
+            if not object_name:
+                raise EsignNotFound("Download not found")
+            url = await self.storage.generate_presigned_get_url(
+                object_name, expiration_minutes=DOWNLOAD_URL_MINUTES,
+                download_filename=filename,
             )
-            db.add(record)
-            values = {item.field_id: item for item in payload.field_values}
-            for field in envelope.fields or []:
-                if field.recipient_id != recipient.id:
-                    continue
-                submitted = values.get(str(field.id))
-                if field.field_type in (EsignFieldType.SIGNATURE, EsignFieldType.INITIALS, EsignFieldType.STAMP):
-                    completed = submitted.completed if submitted and submitted.completed is not None else True
-                    field.value = str(record.id) if completed else None
-                else:
-                    field.value = submitted.value if submitted else field.value
-                if field.required and not field.value:
-                    raise EsignError(f"Required field '{field.label or field.field_type.value}' is missing")
+            return {
+                "url": url, "filename": filename,
+                "sha256": envelope.sealed_sha256 if kind == "sealed" else None,
+                "expires_in_minutes": DOWNLOAD_URL_MINUTES,
+            }
+        finally:
+            db.close()
+
+    def consume_guest_access(self, session_id: str, session_token: str) -> None:
+        db = self._get_session()
+        try:
+            session, _, recipient = self._guest_context(
+                db, session_token, session_id=session_id, touch=False,
+            )
             now = _now()
-            recipient.status = EsignRecipientStatus.SIGNED
-            recipient.signed_at = now
-            recipient.action_completed_at = now
             session.consumed_at = now
-            audit_service.record_event(
-                db, envelope_id=envelope.id, event_type=EsignEventType.SIGNED,
-                recipient_id=recipient.id, meta=meta,
-                details={
-                    "guest_session_id": str(session.id), "signature_record_id": str(record.id),
-                    "role": role_value(recipient).value, "occupation": payload.occupation,
-                    "address": payload.address, "self_declared_identity": True,
-                    "verified_host_user_id": recipient.host_user_id,
-                },
-            )
-            old, new = recompute_current_routing_order(envelope)
-            self._activate_eligible(envelope)
-            self._record_advance(db, envelope, old, new, meta)
-            should_seal = not incomplete_blocking(envelope.recipients or [])
+            db.query(EsignGuestInvitation).filter(
+                EsignGuestInvitation.recipient_id == recipient.id,
+                EsignGuestInvitation.purpose == "ceremony",
+                EsignGuestInvitation.revoked_at.is_(None),
+            ).update({EsignGuestInvitation.revoked_at: now}, synchronize_session=False)
+            db.query(EsignGuestSession).filter(
+                EsignGuestSession.recipient_id == recipient.id,
+                EsignGuestSession.revoked_at.is_(None),
+                EsignGuestSession.id != session.id,
+            ).update({EsignGuestSession.revoked_at: now}, synchronize_session=False)
             db.commit()
         except Exception:
             db.rollback()
             raise
         finally:
             db.close()
-        await self._enqueue_if_complete(str(envelope.id), should_seal)
-        return EsignSubmitResponse(envelope_status="in_progress", recipient_status="signed", sealing_enqueued=should_seal)
-
 
 esign_recipient_service = EsignRecipientService()

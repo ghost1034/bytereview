@@ -110,6 +110,11 @@ def build_certificate_pdf(
         for e in events
         if _enum_val(e.event_type) == "signed" and getattr(e, "recipient_id", None) is not None
     }
+    signed_event_by_recipient = {
+        str(getattr(e, "recipient_id", None)): e
+        for e in events
+        if _enum_val(e.event_type) == "signed" and getattr(e, "recipient_id", None) is not None
+    }
     sender_name = ""
     sender_user = getattr(envelope, "user", None)
     if sender_user is not None:
@@ -238,17 +243,24 @@ def build_certificate_pdf(
         sig_desc = _signature_description(sig) if sig is not None else "—"
         initials_desc = _initials_description(sig) if sig is not None else "—"
         signed_ip = signed_ip_by_recipient.get(str(recipient.id))
+        signed_event = signed_event_by_recipient.get(str(recipient.id))
+        event_details = dict(getattr(signed_event, "details", None) or {})
+        access_method = event_details.get("access_method")
+        if recipient.role == EsignRecipientRole.IN_PERSON_SIGNER:
+            security_level = "Verified host account; signer identity self-declared during hosted handoff"
+        elif access_method == "email_link":
+            security_level = "Secure link delivered to the recipient email address; no CPAAutomation account required"
+        elif getattr(signed_event, "mfa_verified", False):
+            security_level = "CPAAutomation account authentication with recorded phone MFA"
+        else:
+            security_level = "CPAAutomation account authentication"
         rows = [
             [_para("Role", small), _para(_enum_val(recipient.role).replace("_", " ").title(), body)],
             [_para("Signer", small), _para(f"{recipient.name or 'Self-declared guest'} <{recipient.email or 'guest'}>", body)],
             [
                 _para("Security level", small),
                 _para(
-                    "Verified host account with SMS phone MFA; signer identity self-declared"
-                    if recipient.role == EsignRecipientRole.IN_PERSON_SIGNER
-                    else "Audited guest invitation and ceremony session"
-                    if recipient.role == EsignRecipientRole.WITNESS
-                    else "Email, CPAAutomation Account Authentication, SMS phone MFA (Firebase)",
+                    security_level,
                     body,
                 ),
             ],
@@ -406,8 +418,8 @@ def build_certificate_pdf(
     story.append(
         _para(
             "This envelope was executed electronically under the U.S. ESIGN Act and UETA. Each signer "
-            "authenticated with a CPAAutomation account protected by SMS multi-factor authentication, "
-            "consented to electronic records before viewing, and explicitly adopted their signature. "
+            "used the access method recorded above, consented to electronic records, and explicitly "
+            "adopted their signature. "
             "The combined document (including this certificate) carries an embedded PAdES digital "
             "signature; any modification after completion invalidates that signature. Verify at any time "
             "in CPAAutomation under E-Signature → Verify.",

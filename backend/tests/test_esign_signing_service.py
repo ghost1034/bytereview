@@ -12,6 +12,7 @@ import types
 import unittest
 import uuid
 from pathlib import Path
+from unittest.mock import ANY, patch
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -82,6 +83,29 @@ class RoutingTurnTests(unittest.TestCase):
         env.recipients = [first, second, third, cc]
         pending = esign_signing_service.current_tranche_pending_signers(env)
         self.assertEqual(pending, [second])
+
+
+class RecipientAccessUrlTests(unittest.TestCase):
+    def test_existing_account_mode_keeps_authenticated_url(self) -> None:
+        envelope = NS(id=uuid.uuid4(), recipient_access_mode="account", source_type="manual", source_id=None)
+        recipient = NS(id=uuid.uuid4(), role=EsignRecipientRole.SIGNER, email="guest@example.com")
+        url = esign_signing_service.recipient_signing_url(NS(), envelope, recipient)
+        self.assertIn(f"/dashboard/esign/sign/{envelope.id}", url)
+
+    def test_email_link_mode_issues_guest_invitation(self) -> None:
+        envelope = NS(id=uuid.uuid4(), recipient_access_mode="email_link", source_type="manual", source_id=None)
+        recipient = NS(id=uuid.uuid4(), role=EsignRecipientRole.SIGNER, email="guest@example.com")
+        invitation = NS(guest_url="https://cpaautomation.ai/esign/guest?token=secret")
+        with patch("services.esign.recipient_service.esign_recipient_service._issue_invitation", return_value=invitation) as issue:
+            url = esign_signing_service.recipient_signing_url(NS(), envelope, recipient)
+        self.assertEqual(url, invitation.guest_url)
+        issue.assert_called_once_with(ANY, envelope, recipient)
+
+    def test_in_person_host_stays_authenticated(self) -> None:
+        envelope = NS(id=uuid.uuid4(), recipient_access_mode="email_link", source_type="manual", source_id=None)
+        recipient = NS(id=uuid.uuid4(), role=EsignRecipientRole.IN_PERSON_SIGNER, email=None)
+        url = esign_signing_service.recipient_signing_url(NS(), envelope, recipient)
+        self.assertIn("/dashboard/esign/sign/", url)
 
 
 class SignaturePayloadTests(unittest.TestCase):

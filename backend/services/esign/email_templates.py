@@ -125,9 +125,8 @@ def signature_request(
     subject = f"{prefix}{sender_name} sent you a document to review and sign"
     expires = _expires_line(expires_at)
     auth_note = (
-        "You will need to sign in to your CPAAutomation account (or create one with this email "
-        "address) and verify your phone number. This verification is part of the signature's "
-        "identity evidence."
+        "This secure link is intended only for you. You do not need a CPAAutomation account; "
+        "do not forward the email or share the link."
     )
     body = [
         f"{_esc(sender_name)} has requested your electronic signature on <strong>{_esc(title)}</strong>.",

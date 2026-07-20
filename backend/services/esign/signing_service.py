@@ -209,8 +209,22 @@ class EsignSigningService:
                 return recipient
         raise EsignNotFound("Envelope not found")  # don't leak existence to non-recipients
 
+    def _resolve_recipient(
+        self, envelope: EsignEnvelope, user_email: str, recipient_id: Optional[str] = None,
+        *, signer_only: bool = True,
+    ) -> EsignRecipient:
+        if recipient_id:
+            recipient = next(
+                (item for item in envelope.recipients or [] if str(item.id) == str(recipient_id)),
+                None,
+            )
+            if recipient and (not signer_only or recipient.role in SIGNATURE_ROLES):
+                return recipient
+            raise EsignNotFound("Envelope not found")
+        return self._find_recipient(envelope, user_email, signer_only=signer_only)
+
     def _backfill_recipient_user(self, recipient: EsignRecipient, user_id: str) -> None:
-        if recipient.recipient_user_id is None:
+        if user_id and recipient.recipient_user_id is None:
             recipient.recipient_user_id = user_id
 
     @staticmethod
@@ -237,24 +251,21 @@ class EsignSigningService:
     # ------------------------------------------------------------------
 
     def recipient_signing_url(self, db: Session, envelope: EsignEnvelope, recipient: EsignRecipient) -> str:
-        """Return an account URL or issue a fresh guest link for PowerForm visitors."""
-        if getattr(envelope, "source_type", None) != "powerform" or not getattr(envelope, "source_id", None):
+        """Return the correct snapshotted access URL for this recipient."""
+        if recipient.role == EsignRecipientRole.IN_PERSON_SIGNER:
             return signing_url(envelope.id)
-        form = db.query(EsignPowerForm).filter(EsignPowerForm.id == envelope.source_id).first()
-        preset_emails = {str(item.get("email") or "").lower() for item in (form.role_config if form else [])
-            if item.get("identity_source") == "preset"}
-        if (recipient.email or "").lower() in preset_emails:
+        accountless = getattr(envelope, "recipient_access_mode", "account") == "email_link"
+        if not accountless and getattr(envelope, "source_type", None) == "powerform" and getattr(envelope, "source_id", None):
+            form = db.query(EsignPowerForm).filter(EsignPowerForm.id == envelope.source_id).first()
+            preset_emails = {
+                str(item.get("email") or "").lower() for item in (form.role_config if form else [])
+                if item.get("identity_source") == "preset"
+            }
+            accountless = (recipient.email or "").lower() not in preset_emails
+        if not accountless:
             return signing_url(envelope.id)
-        now = datetime.now(timezone.utc)
-        db.query(EsignGuestInvitation).filter(EsignGuestInvitation.recipient_id == recipient.id,
-            EsignGuestInvitation.exchanged_at.is_(None), EsignGuestInvitation.revoked_at.is_(None)).update(
-                {EsignGuestInvitation.revoked_at: now}, synchronize_session=False)
-        token = secrets.token_urlsafe(32)
-        expiry = min(now + timedelta(days=7), envelope.expires_at) if envelope.expires_at else now + timedelta(days=7)
-        db.add(EsignGuestInvitation(id=uuid.uuid4(), envelope_id=envelope.id, recipient_id=recipient.id,
-            token_sha256=hashlib.sha256(token.encode()).hexdigest(), routing_version=envelope.routing_version,
-            expires_at=expiry))
-        return f"{_app_base_url()}/esign/guest?token={token}"
+        from services.esign.recipient_service import esign_recipient_service
+        return esign_recipient_service._issue_invitation(db, envelope, recipient).guest_url
 
     def _cc_recipients_due(
         self, envelope: EsignEnvelope, active_order: int
@@ -438,7 +449,7 @@ class EsignSigningService:
                             sender_name=sender_name,
                             title=envelope.title,
                             message=envelope.message,
-                            url=signing_url(envelope.id),
+                            url=self.recipient_signing_url(db, envelope, cc),
                             expires_at=envelope.expires_at,
                         ),
                     )
@@ -565,7 +576,8 @@ class EsignSigningService:
         return recipient.name or recipient.role_label or "Recipient"
 
     async def get_signing_session(
-        self, *, user_id: str, user_email: str, envelope_id: str, meta: EsignRequestMeta
+        self, *, user_id: Optional[str], user_email: str, envelope_id: str, meta: EsignRequestMeta,
+        recipient_id: Optional[str] = None,
     ) -> EsignSigningSessionResponse:
         db = self._get_session()
         try:
@@ -575,7 +587,7 @@ class EsignSigningService:
             if envelope.status == EsignEnvelopeStatus.COMPLETED:
                 # Completed envelopes stay viewable to every recipient (signers
                 # and CCs) so they can reach the sealed document and certificate.
-                recipient = self._find_recipient(envelope, user_email, signer_only=False)
+                recipient = self._resolve_recipient(envelope, user_email, recipient_id, signer_only=False)
                 self._backfill_recipient_user(recipient, user_id)
                 db.commit()
                 return EsignSigningSessionResponse(
@@ -603,7 +615,7 @@ class EsignSigningService:
                     expires_at=envelope.expires_at,
                 )
 
-            recipient = self._find_recipient(envelope, user_email, signer_only=False)
+            recipient = self._resolve_recipient(envelope, user_email, recipient_id, signer_only=False)
             self._backfill_recipient_user(recipient, user_id)
 
             if envelope.status not in ACTIVE_ENVELOPE_STATUSES:
@@ -611,7 +623,7 @@ class EsignSigningService:
                     f"This envelope is no longer available for signing (status: {envelope.status.value})"
                 )
 
-            if recipient.role == EsignRecipientRole.WITNESS:
+            if recipient.role == EsignRecipientRole.WITNESS and not recipient_id:
                 raise PermissionError("Witnesses must use their secure guest invitation")
 
             if recipient.role == EsignRecipientRole.CC:
@@ -721,6 +733,8 @@ class EsignSigningService:
             if recipient.role == EsignRecipientRole.CERTIFIED_DELIVERY and not incomplete_blocking(envelope.recipients or []):
                 from services.cloud_run_task_service import cloud_run_task_service
                 await cloud_run_task_service.enqueue_envelope_seal_task(str(envelope.id))
+            elif recipient.role == EsignRecipientRole.CERTIFIED_DELIVERY:
+                await self.notify_current_recipients(str(envelope.id))
 
             consent_exists = self._valid_consent(db, envelope, recipient) is not None
 
@@ -787,9 +801,18 @@ class EsignSigningService:
                 is_my_turn=is_eligible(envelope, recipient),
                 routing_version=int(getattr(envelope, "routing_version", 1) or 1),
                 private_message=recipient.private_message,
-                available_actions=available_actions(envelope, recipient),
+                available_actions=(
+                    available_actions(envelope, recipient)
+                    if recipient_id and role == EsignRecipientRole.SIGNER
+                    else ["consent", "sign", "decline"]
+                    if recipient_id and role in (EsignRecipientRole.WITNESS, EsignRecipientRole.IN_PERSON_SIGNER)
+                    else available_actions(envelope, recipient)
+                ),
                 managed_recipients=managed_recipients,
-                consent_required=(role == EsignRecipientRole.SIGNER and not consent_exists),
+                consent_required=(
+                    (role == EsignRecipientRole.SIGNER or (recipient_id and role in SIGNATURE_ROLES))
+                    and not consent_exists
+                ),
                 consent_disclosure_text=envelope.consent_disclosure_text,
                 documents=documents,
                 fields=role_fields,
@@ -815,15 +838,15 @@ class EsignSigningService:
 
     def record_consent(
         self, *, user_id: str, user_email: str, envelope_id: str,
-        expected_routing_version: int, meta: EsignRequestMeta
+        expected_routing_version: int, meta: EsignRequestMeta, recipient_id: Optional[str] = None,
     ) -> EsignConsentResponse:
         db = self._get_session()
         try:
             acquire_envelope_lock(db, envelope_id)
             envelope = self._load_envelope_any(db, envelope_id)
             assert_routing_version(envelope, expected_routing_version)
-            recipient = self._find_recipient(envelope, user_email)
-            if recipient.role != EsignRecipientRole.SIGNER:
+            recipient = self._resolve_recipient(envelope, user_email, recipient_id)
+            if recipient.role not in SIGNATURE_ROLES or (not recipient_id and recipient.role != EsignRecipientRole.SIGNER):
                 raise PermissionError("Electronic-record consent is not available for this role")
             self._backfill_recipient_user(recipient, user_id)
             if not self._is_recipients_turn(envelope, recipient):
@@ -889,6 +912,7 @@ class EsignSigningService:
         user_email: str,
         envelope_id: str,
         field_values: list[EsignFieldValueInput], expected_routing_version: int,
+        recipient_id: Optional[str] = None,
     ) -> int:
         """Persist text/checkbox drafts so the signer can leave and resume.
 
@@ -900,8 +924,8 @@ class EsignSigningService:
             acquire_envelope_lock(db, envelope_id)
             envelope = self._load_envelope_any(db, envelope_id)
             assert_routing_version(envelope, expected_routing_version)
-            recipient = self._find_recipient(envelope, user_email)
-            if recipient.role != EsignRecipientRole.SIGNER:
+            recipient = self._resolve_recipient(envelope, user_email, recipient_id)
+            if recipient.role not in SIGNATURE_ROLES or (not recipient_id and recipient.role != EsignRecipientRole.SIGNER):
                 raise PermissionError("Signing progress is not available for this role")
             self._backfill_recipient_user(recipient, user_id)
             if envelope.status not in ACTIVE_ENVELOPE_STATUSES:
@@ -969,6 +993,7 @@ class EsignSigningService:
         filename: str,
         content_type: str,
         content: bytes,
+        recipient_id: Optional[str] = None,
     ) -> EsignSignerAttachmentResponse:
         if not content or len(content) > MAX_ATTACHMENT_BYTES:
             raise EsignError("Attachment must be between 1 byte and 25 MB")
@@ -1000,8 +1025,8 @@ class EsignSigningService:
         object_name: Optional[str] = None
         try:
             envelope = self._load_envelope_any(db, envelope_id)
-            recipient = self._find_recipient(envelope, user_email)
-            if recipient.role != EsignRecipientRole.SIGNER:
+            recipient = self._resolve_recipient(envelope, user_email, recipient_id)
+            if recipient.role not in SIGNATURE_ROLES or (not recipient_id and recipient.role != EsignRecipientRole.SIGNER):
                 raise PermissionError("Attachments are not available for this role")
             self._backfill_recipient_user(recipient, user_id)
             if not self._is_recipients_turn(envelope, recipient):
@@ -1063,13 +1088,14 @@ class EsignSigningService:
         user_email: str,
         envelope_id: str,
         attachment_id: str,
+        recipient_id: Optional[str] = None,
     ) -> None:
         db = self._get_session()
         object_name: Optional[str] = None
         try:
             envelope = self._load_envelope_any(db, envelope_id)
-            recipient = self._find_recipient(envelope, user_email)
-            if recipient.role != EsignRecipientRole.SIGNER:
+            recipient = self._resolve_recipient(envelope, user_email, recipient_id)
+            if recipient.role not in SIGNATURE_ROLES or (not recipient_id and recipient.role != EsignRecipientRole.SIGNER):
                 raise PermissionError("Attachments are not available for this role")
             self._backfill_recipient_user(recipient, user_id)
             if not self._is_recipients_turn(envelope, recipient):
@@ -1134,6 +1160,9 @@ class EsignSigningService:
         field_values: list[EsignFieldValueInput],
         expected_routing_version: int,
         meta: EsignRequestMeta,
+        recipient_id: Optional[str] = None,
+        occupation: Optional[str] = None,
+        address: Optional[str] = None,
     ) -> EsignSubmitResponse:
         submission_types: set[str] = set()
         # Validate + upload the signature image before opening the transaction.
@@ -1164,9 +1193,9 @@ class EsignSigningService:
 
             envelope = self._load_envelope_any(db, envelope_id)
             assert_routing_version(envelope, expected_routing_version)
-            recipient = self._find_recipient(envelope, user_email)
-            if recipient.role != EsignRecipientRole.SIGNER:
-                raise PermissionError("Authenticated signature submission is not available for this role")
+            recipient = self._resolve_recipient(envelope, user_email, recipient_id)
+            if recipient.role not in SIGNATURE_ROLES or (not recipient_id and recipient.role != EsignRecipientRole.SIGNER):
+                raise PermissionError("Signature submission is not available for this role")
             self._backfill_recipient_user(recipient, user_id)
 
             if recipient.status == EsignRecipientStatus.SIGNED:
@@ -1181,6 +1210,8 @@ class EsignSigningService:
             consent = self._valid_consent(db, envelope, recipient)
             if not consent:
                 raise EsignError("You must consent to electronic records before signing")
+            if recipient.role == EsignRecipientRole.WITNESS and (not occupation or not address):
+                raise EsignError("Witness occupation and address are required")
 
             now = datetime.now(timezone.utc)
 
@@ -1388,6 +1419,8 @@ class EsignSigningService:
                     "initials_image_sha256": initials_sha,
                     "field_count": len(my_fields),
                     "consent_record_id": str(consent.id),
+                    "occupation": occupation,
+                    "address": address,
                 },
             )
 
@@ -1435,7 +1468,7 @@ class EsignSigningService:
                                 sender_name=sender_name,
                                 title=envelope.title,
                                 message=envelope.message,
-                                url=url,
+                                url=self.recipient_signing_url(db, envelope, cc),
                                 expires_at=envelope.expires_at,
                             ),
                         )
@@ -1491,7 +1524,8 @@ class EsignSigningService:
 
     async def decline(
         self, *, user_id: str, user_email: str, envelope_id: str, reason: str,
-        expected_routing_version: int, meta: EsignRequestMeta
+        expected_routing_version: int, meta: EsignRequestMeta,
+        recipient_id: Optional[str] = None,
     ) -> EsignSubmitResponse:
         emails: list[tuple[str, EmailContent]] = []
         db = self._get_session()
@@ -1499,7 +1533,7 @@ class EsignSigningService:
             acquire_envelope_lock(db, envelope_id)
             envelope = self._load_envelope_any(db, envelope_id)
             assert_routing_version(envelope, expected_routing_version)
-            recipient = self._find_recipient(envelope, user_email, signer_only=False)
+            recipient = self._resolve_recipient(envelope, user_email, recipient_id, signer_only=False)
             self._backfill_recipient_user(recipient, user_id)
 
             if recipient.status == EsignRecipientStatus.SIGNED:
@@ -1514,6 +1548,7 @@ class EsignSigningService:
             recipient.declined_at = now
             recipient.declined_reason = reason
             envelope.status = EsignEnvelopeStatus.DECLINED
+            self._revoke_guest_access(db, envelope.id)
 
             audit_service.record_event(
                 db,
@@ -1656,6 +1691,71 @@ class EsignSigningService:
             await self._send_content(email, content)
         return {"reminded": [email for email, _ in reminder_emails]}
 
+    async def notify_reassigned_recipient(self, envelope_id: str, recipient_id: str) -> None:
+        """Deliver a fresh invitation immediately after a recipient transfer."""
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope_any(db, envelope_id)
+            recipient = next(
+                (item for item in envelope.recipients or [] if str(item.id) == str(recipient_id)),
+                None,
+            )
+            if recipient is None or not recipient.email or not is_eligible(envelope, recipient):
+                return
+            url = self.recipient_signing_url(db, envelope, recipient)
+            recipient.status = EsignRecipientStatus.NOTIFIED
+            content = email_templates.signature_request(
+                recipient_name=self.recipient_notification_name(recipient),
+                sender_name=self._sender_name(envelope), title=envelope.title,
+                message=envelope.message, url=url, expires_at=envelope.expires_at,
+            )
+            email = recipient.email
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+        await self._send_content(email, content)
+
+    async def notify_current_recipients(self, envelope_id: str) -> None:
+        """Notify recipients activated by a non-signature routing step."""
+        pending: list[tuple[str, EmailContent]] = []
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope_any(db, envelope_id)
+            if envelope.status not in ACTIVE_ENVELOPE_STATUSES:
+                return
+            sender_name = self._sender_name(envelope)
+            for recipient in incomplete_blocking(envelope.recipients or []):
+                if not is_eligible(envelope, recipient) or recipient.status != EsignRecipientStatus.PENDING:
+                    continue
+                email = self.recipient_notification_email(recipient)
+                if not email:
+                    continue
+                recipient.status = EsignRecipientStatus.NOTIFIED
+                pending.append((email, email_templates.signature_request(
+                    recipient_name=self.recipient_notification_name(recipient), sender_name=sender_name,
+                    title=envelope.title, message=envelope.message,
+                    url=self.recipient_signing_url(db, envelope, recipient), expires_at=envelope.expires_at,
+                )))
+            if envelope.current_routing_order is not None:
+                for cc in self._cc_recipients_due(envelope, int(envelope.current_routing_order)):
+                    cc.status = EsignRecipientStatus.NOTIFIED
+                    pending.append((cc.email, email_templates.cc_copy(
+                        recipient_name=cc.name, sender_name=sender_name, title=envelope.title,
+                        message=envelope.message, url=self.recipient_signing_url(db, envelope, cc),
+                        expires_at=envelope.expires_at,
+                    )))
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+        for email, content in pending:
+            await self._send_content(email, content)
+
     def current_tranche_pending_signers(self, envelope: EsignEnvelope) -> list[EsignRecipient]:
         signers = [
             r
@@ -1693,17 +1793,34 @@ class EsignSigningService:
         try:
             envelope = self._load_envelope_any(db, envelope_id)
             sender_email = self._sender_email(db, envelope)
-            recipients = [self.recipient_notification_email(r) for r in (envelope.recipients or [])]
+            recipients = list(envelope.recipients or [])
             envelope_title = envelope.title
+            accountless = getattr(envelope, "recipient_access_mode", "account") == "email_link"
+            recipient_targets: list[tuple[str, str]] = []
+            if accountless:
+                from services.esign.recipient_service import esign_recipient_service
+                self._revoke_guest_access(db, envelope.id)
+                for recipient in recipients:
+                    email = self.recipient_notification_email(recipient)
+                    if email:
+                        invitation = esign_recipient_service._issue_invitation(
+                            db, envelope, recipient, purpose="completed_copy",
+                        )
+                        recipient_targets.append((email, invitation.guest_url))
+                db.commit()
+            else:
+                recipient_targets = [
+                    (email, signing_url(envelope_id))
+                    for email in (self.recipient_notification_email(r) for r in recipients) if email
+                ]
         finally:
             db.close()
 
         # The sender views the envelope on their dashboard detail page; recipients
         # are not the envelope owner, so they view it via the signer-facing page.
         sender_url = self.sender_envelope_url(envelope_id)
-        recipient_url = signing_url(envelope_id)
         targets: dict[str, tuple[str, bool]] = {
-            email: (recipient_url, False) for email in recipients if email
+            email: (url, False) for email, url in recipient_targets
         }
         if sender_email:
             targets[sender_email.lower()] = (sender_url, True)

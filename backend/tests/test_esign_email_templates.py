@@ -34,6 +34,8 @@ class SignatureRequestTests(unittest.TestCase):
         self.assertIn("Please sign by Friday", content.html)
         self.assertIn("Please sign by Friday", content.text)
         self.assertIn("August 1, 2026", content.text)
+        self.assertIn("do not need a CPAAutomation account", content.text)
+        self.assertNotIn("create one", content.text)
 
     def test_reminder_prefix(self) -> None:
         content = email_templates.signature_request(

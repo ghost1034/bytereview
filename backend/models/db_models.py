@@ -1281,6 +1281,10 @@ class EsignEnvelope(Base):
     current_routing_order = Column(Integer, nullable=True)  # set when sent
     routing_version = Column(Integer, nullable=False, default=1, server_default="1")
     allow_reassignment = Column(Boolean, nullable=False, default=False, server_default=expression.false())
+    # Access policy is snapshotted per envelope so already-sent envelopes keep
+    # their original account-authenticated ceremony after email-link signing
+    # becomes the default.
+    recipient_access_mode = Column(String(32), nullable=False, default="email_link", server_default="email_link")
     # Snapshot of the ESIGN/UETA consent disclosure shown to signers; immutable
     # per envelope so consent records can be tied to the exact text.
     consent_disclosure_text = Column(Text, nullable=False)
@@ -1436,12 +1440,13 @@ class EsignRecipientChange(Base):
 
 
 class EsignGuestInvitation(Base):
-    """Single-use, hashed invitation for a witness or hosted signer."""
+    """Hashed bearer invitation for a recipient ceremony or completed copy."""
     __tablename__ = "esign_guest_invitations"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="RESTRICT"), nullable=False)
     recipient_id = Column(UUID(as_uuid=True), nullable=False)
+    purpose = Column(String(32), nullable=False, default="ceremony", server_default="ceremony")
     token_sha256 = Column(String(64), unique=True, nullable=False)
     routing_version = Column(Integer, nullable=False)
     expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
@@ -1449,7 +1454,14 @@ class EsignGuestInvitation(Base):
     revoked_at = Column(TIMESTAMP(timezone=True), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
-    __table_args__ = (Index("ix_esign_guest_invitations_recipient", "recipient_id"),)
+    __table_args__ = (
+        Index("ix_esign_guest_invitations_recipient", "recipient_id"),
+        Index(
+            "uq_esign_guest_invitations_active_purpose",
+            "recipient_id", "purpose", unique=True,
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
+    )
 
 
 class EsignGuestSession(Base):

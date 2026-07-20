@@ -3121,7 +3121,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/esign/guest/session": {
+    "/api/esign/guest/sessions/{session_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -3129,7 +3129,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Guest Session */
-        get: operations["get_guest_session_api_esign_guest_session_get"];
+        get: operations["get_guest_session_api_esign_guest_sessions__session_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3138,7 +3138,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/esign/guest/consent": {
+    "/api/esign/guest/sessions/{session_id}/consent": {
         parameters: {
             query?: never;
             header?: never;
@@ -3148,14 +3148,65 @@ export interface paths {
         get?: never;
         put?: never;
         /** Record Guest Consent */
-        post: operations["record_guest_consent_api_esign_guest_consent_post"];
+        post: operations["record_guest_consent_api_esign_guest_sessions__session_id__consent_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/esign/guest/submit": {
+    "/api/esign/guest/sessions/{session_id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save Guest Progress */
+        put: operations["save_guest_progress_api_esign_guest_sessions__session_id__progress_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/guest/sessions/{session_id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Guest Attachment */
+        post: operations["upload_guest_attachment_api_esign_guest_sessions__session_id__attachments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/guest/sessions/{session_id}/attachments/{attachment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Guest Attachment */
+        delete: operations["delete_guest_attachment_api_esign_guest_sessions__session_id__attachments__attachment_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/guest/sessions/{session_id}/submit": {
         parameters: {
             query?: never;
             header?: never;
@@ -3165,14 +3216,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Submit Guest Signature */
-        post: operations["submit_guest_signature_api_esign_guest_submit_post"];
+        post: operations["submit_guest_signature_api_esign_guest_sessions__session_id__submit_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/esign/guest/progress": {
+    "/api/esign/guest/sessions/{session_id}/decline": {
         parameters: {
             query?: never;
             header?: never;
@@ -3180,8 +3231,127 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Save Guest Progress */
-        put: operations["save_guest_progress_api_esign_guest_progress_put"];
+        put?: never;
+        /** Decline Guest Envelope */
+        post: operations["decline_guest_envelope_api_esign_guest_sessions__session_id__decline_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/guest/sessions/{session_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Guest Envelope */
+        post: operations["approve_guest_envelope_api_esign_guest_sessions__session_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/guest/sessions/{session_id}/reassign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reassign Guest Recipient */
+        post: operations["reassign_guest_recipient_api_esign_guest_sessions__session_id__reassign_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/guest/sessions/{session_id}/managed-recipients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Guest Managed Recipients */
+        patch: operations["update_guest_managed_recipients_api_esign_guest_sessions__session_id__managed_recipients_patch"];
+        trace?: never;
+    };
+    "/api/esign/guest/sessions/{session_id}/manager-complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete Guest Manager Step */
+        post: operations["complete_guest_manager_step_api_esign_guest_sessions__session_id__manager_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/guest/sessions/{session_id}/corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Correct Guest Recipients */
+        post: operations["correct_guest_recipients_api_esign_guest_sessions__session_id__corrections_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/guest/sessions/{session_id}/witness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Configure Guest Witness */
+        put: operations["configure_guest_witness_api_esign_guest_sessions__session_id__witness_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/guest/sessions/{session_id}/completed/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download Guest Completed */
+        get: operations["download_guest_completed_api_esign_guest_sessions__session_id__completed__kind__get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -6144,6 +6314,13 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_upload_guest_attachment_api_esign_guest_sessions__session_id__attachments_post */
+        Body_upload_guest_attachment_api_esign_guest_sessions__session_id__attachments_post: {
+            /** Field Id */
+            field_id: string;
+            /** File */
+            file: string;
+        };
         /** Body_upload_signer_attachment_api_esign_sign__envelope_id__attachments_post */
         Body_upload_signer_attachment_api_esign_sign__envelope_id__attachments_post: {
             /** Field Id */
@@ -7380,6 +7557,12 @@ export interface components {
              * @default false
              */
             allow_reassignment: boolean;
+            /**
+             * Recipient Access Mode
+             * @default email_link
+             * @enum {string}
+             */
+            recipient_access_mode: "account" | "email_link";
             /** Consent Disclosure Text */
             consent_disclosure_text?: string | null;
             /** Expires At */
@@ -7634,6 +7817,14 @@ export interface components {
             envelope_id: string;
             /** Recipient Id */
             recipient_id: string;
+            /** Session Id */
+            session_id: string;
+            /**
+             * Purpose
+             * @default ceremony
+             * @enum {string}
+             */
+            purpose: "ceremony" | "completed_copy";
             /** Csrf Token */
             csrf_token: string;
             /** Routing Version */
@@ -7650,31 +7841,6 @@ export interface components {
              * Format: date-time
              */
             expires_at: string;
-        };
-        /** EsignGuestSessionResponse */
-        EsignGuestSessionResponse: {
-            /** Envelope Id */
-            envelope_id: string;
-            /** Recipient Id */
-            recipient_id: string;
-            /** Title */
-            title: string;
-            /** Recipient Name */
-            recipient_name?: string | null;
-            /** Recipient Role */
-            recipient_role: string;
-            /** Routing Version */
-            routing_version: number;
-            /** Consent Required */
-            consent_required: boolean;
-            /** Consent Disclosure Text */
-            consent_disclosure_text: string;
-            /** Available Actions */
-            available_actions?: string[];
-            /** Documents */
-            documents?: components["schemas"]["EsignSigningDocument"][];
-            /** Fields */
-            fields?: components["schemas"]["EsignFieldResponse"][];
         };
         /** EsignGuestSubmitRequest */
         EsignGuestSubmitRequest: {
@@ -8265,6 +8431,22 @@ export interface components {
             brand?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Access Purpose
+             * @default ceremony
+             * @enum {string}
+             */
+            access_purpose: "ceremony" | "completed_copy";
+            /**
+             * Has Sealed Document
+             * @default false
+             */
+            has_sealed_document: boolean;
+            /**
+             * Has Certificate
+             * @default false
+             */
+            has_certificate: boolean;
         };
         /** EsignSubmitRequest */
         EsignSubmitRequest: {
@@ -17580,14 +17762,14 @@ export interface operations {
             };
         };
     };
-    get_guest_session_api_esign_guest_session_get: {
+    get_guest_session_api_esign_guest_sessions__session_id__get: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
-            cookie?: {
-                esign_guest_session?: string | null;
+            path: {
+                session_id: string;
             };
+            cookie?: never;
         };
         requestBody?: never;
         responses: {
@@ -17597,7 +17779,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EsignGuestSessionResponse"];
+                    "application/json": components["schemas"]["EsignSigningSessionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -17611,22 +17793,130 @@ export interface operations {
             };
         };
     };
-    record_guest_consent_api_esign_guest_consent_post: {
+    record_guest_consent_api_esign_guest_sessions__session_id__consent_post: {
         parameters: {
             query?: never;
             header?: {
                 "X-CSRF-Token"?: string | null;
             };
-            path?: never;
-            cookie?: {
-                esign_guest_session?: string | null;
+            path: {
+                session_id: string;
             };
+            cookie?: never;
         };
         requestBody: {
             content: {
                 "application/json": components["schemas"]["EsignConsentRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignConsentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_guest_progress_api_esign_guest_sessions__session_id__progress_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignProgressRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignProgressResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_guest_attachment_api_esign_guest_sessions__session_id__attachments_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_guest_attachment_api_esign_guest_sessions__session_id__attachments_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignSignerAttachmentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_guest_attachment_api_esign_guest_sessions__session_id__attachments__attachment_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                session_id: string;
+                attachment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -17648,16 +17938,16 @@ export interface operations {
             };
         };
     };
-    submit_guest_signature_api_esign_guest_submit_post: {
+    submit_guest_signature_api_esign_guest_sessions__session_id__submit_post: {
         parameters: {
             query?: never;
             header?: {
                 "X-CSRF-Token"?: string | null;
             };
-            path?: never;
-            cookie?: {
-                esign_guest_session?: string | null;
+            path: {
+                session_id: string;
             };
+            cookie?: never;
         };
         requestBody: {
             content: {
@@ -17685,20 +17975,20 @@ export interface operations {
             };
         };
     };
-    save_guest_progress_api_esign_guest_progress_put: {
+    decline_guest_envelope_api_esign_guest_sessions__session_id__decline_post: {
         parameters: {
             query?: never;
             header?: {
                 "X-CSRF-Token"?: string | null;
             };
-            path?: never;
-            cookie?: {
-                esign_guest_session?: string | null;
+            path: {
+                session_id: string;
             };
+            cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["EsignProgressRequest"];
+                "application/json": components["schemas"]["EsignDeclineRequest"];
             };
         };
         responses: {
@@ -17708,7 +17998,261 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EsignProgressResponse"];
+                    "application/json": components["schemas"]["EsignSubmitResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_guest_envelope_api_esign_guest_sessions__session_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignApproveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignSubmitResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reassign_guest_recipient_api_esign_guest_sessions__session_id__reassign_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignReassignRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignRecipientResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_guest_managed_recipients_api_esign_guest_sessions__session_id__managed_recipients_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignManagedRecipientsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignManagedRecipientsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_guest_manager_step_api_esign_guest_sessions__session_id__manager_complete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignVersionedActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignSubmitResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    correct_guest_recipients_api_esign_guest_sessions__session_id__corrections_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignCorrectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignEnvelopeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    configure_guest_witness_api_esign_guest_sessions__session_id__witness_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignWitnessRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignGuestInvitationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_guest_completed_api_esign_guest_sessions__session_id__completed__kind__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+                kind: "sealed" | "certificate";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignDownloadResponse"];
                 };
             };
             /** @description Validation Error */

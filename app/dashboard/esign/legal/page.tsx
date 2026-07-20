@@ -42,8 +42,8 @@ const requirements = [
     statute: 'UETA attribution and authentication evidence',
     icon: Fingerprint,
     status: 'Met with authentication evidence',
-    description: 'Signers authenticate to a CPAAutomation account, and signing routes normally require a current phone MFA claim. Signer authorization is matched to the recipient email on the envelope.',
-    evidence: 'Firebase UID/email, recipient match, phone MFA claims when required, IP address, user agent, and event timestamps.',
+    description: 'Recipients are authorized by a hashed, expiring bearer link delivered to the sender-selected email address. Account authentication remains available as an optional stronger access path.',
+    evidence: 'Recipient and invitation IDs, access method, IP address, user agent, event timestamps, and Firebase/MFA evidence when an account path is used.',
   },
   {
     title: 'Association of signature with record',
@@ -101,7 +101,7 @@ const esraRequirements = [
   {
     requirement: 'Attribution and signer identity',
     status: 'Met',
-    detail: 'Signer access is limited to the authenticated recipient email, backed by Firebase account identity and phone MFA evidence when required for the signing route.',
+    detail: 'Signer access is limited by a hashed secure-link credential tied to one envelope recipient, with account and phone-MFA evidence recorded only when that access path is used.',
   },
   {
     requirement: 'Capable of verification',
@@ -199,7 +199,7 @@ export default function EsignLegalPage() {
                   <KeyRound className="size-4 text-success" aria-hidden />
                   Authentication
                 </div>
-                <p className="mt-2 text-sm leading-6 text-foreground-muted">Account authentication is required, with phone MFA evidence captured when required for signing access.</p>
+                <p className="mt-2 text-sm leading-6 text-foreground-muted">Recipients may use a secure email link without an account. Account and phone-MFA evidence is captured when that optional access path is used.</p>
               </div>
               <div className="rounded-xl border border-border bg-surface p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
