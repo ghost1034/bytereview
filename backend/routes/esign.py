@@ -92,6 +92,7 @@ from services.rate_limit import rate_limiter
 from services.esign.scale_service import esign_scale_service
 from services.esign.email_templates import EmailContent, _shell
 from services.esign.admin_service import esign_admin_service
+from services.esign.url_service import app_base_url
 
 logger = logging.getLogger(__name__)
 
@@ -542,7 +543,7 @@ async def request_powerform_verification(public_token: str, payload: EsignPowerF
                 raise PermissionError("Too many verification requests")
         email, verification = esign_scale_service.request_powerform_verification(
             public_token, payload.model_dump(mode="json"), extract_request_meta(request, None))
-        base = __import__("os").getenv("ESIGN_APP_BASE_URL", "http://localhost:3000").rstrip("/")
+        base = app_base_url()
         url = f"{base}/esign/guest?powerform_token={verification}"
         content = EmailContent(subject="Verify your email to start signing",
             html=_shell(heading="Verify your email", body_paragraphs=["Use this single-use link within 15 minutes to begin signing."],

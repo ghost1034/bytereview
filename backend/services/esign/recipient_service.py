@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -58,6 +57,7 @@ from services.esign.routing_engine import (
     role_value,
 )
 from services.esign.signing_service import ACTIVE_ENVELOPE_STATUSES, acquire_envelope_lock
+from services.esign.url_service import app_base_url
 from services.gcs_service import get_storage_service
 
 GUEST_IDLE_MINUTES = 30
@@ -557,7 +557,7 @@ class EsignRecipientService:
             token_sha256=_hash_secret(token), routing_version=envelope.routing_version,
             expires_at=expires_at,
         ))
-        base = os.getenv("ESIGN_APP_BASE_URL", "http://localhost:3000").rstrip("/")
+        base = app_base_url()
         return EsignGuestInvitationResponse(
             invitation_token=token,
             guest_url=f"{base}/esign/guest?token={token}",

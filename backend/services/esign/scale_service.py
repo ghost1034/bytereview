@@ -63,6 +63,7 @@ from services.esign.envelope_service import (
 )
 from services.esign.field_logic import remap_property_references, validate_field_graph
 from services.esign.signing_service import esign_signing_service
+from services.esign.url_service import app_base_url
 from services.esign.authorization_service import esign_authorization_service
 
 MAX_CSV_BYTES = 10 * 1024 * 1024
@@ -251,7 +252,7 @@ class EsignScaleService:
 
     @staticmethod
     def _powerform_response(row: EsignPowerForm, public_token: Optional[str] = None) -> EsignPowerFormResponse:
-        base = os.getenv("ESIGN_APP_BASE_URL", "http://localhost:3000").rstrip("/")
+        base = app_base_url()
         return EsignPowerFormResponse(id=str(row.id), name=row.name, template_version_id=str(row.template_version_id),
             state=row.state, starts_at=row.starts_at, ends_at=row.ends_at, submission_cap=row.submission_cap,
             submission_count=row.submission_count, role_config=row.role_config, public_fields=row.public_fields or [],

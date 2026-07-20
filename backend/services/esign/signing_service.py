@@ -89,6 +89,7 @@ from services.esign.routing_engine import (
     recompute_current_routing_order,
     role_value,
 )
+from services.esign.url_service import app_base_url
 from services.gcs_service import get_storage_service
 
 logger = logging.getLogger(__name__)
@@ -110,17 +111,8 @@ def format_date_signed(dt: datetime, date_format: Optional[str] = None) -> str:
 COMPLETED_INBOX_LIMIT = int(os.getenv("ESIGN_COMPLETED_INBOX_LIMIT", "25"))
 
 
-def _app_base_url() -> str:
-    explicit = os.getenv("ESIGN_APP_BASE_URL")
-    if explicit:
-        return explicit.rstrip("/")
-    if os.getenv("ENVIRONMENT") == "production":
-        return "https://cpaautomation.ai"
-    return "http://localhost:3000"
-
-
 def signing_url(envelope_id) -> str:
-    return f"{_app_base_url()}/dashboard/esign/sign/{envelope_id}"
+    return f"{app_base_url()}/dashboard/esign/sign/{envelope_id}"
 
 
 def _advisory_lock_keys(lock_id: str) -> tuple[int, int]:
@@ -563,7 +555,7 @@ class EsignSigningService:
         return (user.display_name or "").strip() or (user.email or "")
 
     def sender_envelope_url(self, envelope_id) -> str:
-        return f"{_app_base_url()}/dashboard/esign/{envelope_id}"
+        return f"{app_base_url()}/dashboard/esign/{envelope_id}"
 
     @staticmethod
     def recipient_notification_email(recipient: EsignRecipient) -> Optional[str]:

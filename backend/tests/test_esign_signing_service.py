@@ -29,7 +29,9 @@ from services.esign.sealing_service import _initials_from_name
 from services.esign.signing_service import (
     _advisory_lock_keys,
     esign_signing_service,
+    signing_url,
 )
+from services.esign.url_service import app_base_url
 
 NS = types.SimpleNamespace
 
@@ -86,6 +88,26 @@ class RoutingTurnTests(unittest.TestCase):
 
 
 class RecipientAccessUrlTests(unittest.TestCase):
+    def test_unconfigured_email_link_defaults_to_production_domain(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(app_base_url(), "https://cpaautomation.ai")
+            self.assertEqual(
+                signing_url("envelope-id"),
+                "https://cpaautomation.ai/dashboard/esign/sign/envelope-id",
+            )
+
+    def test_local_environment_keeps_local_development_links(self) -> None:
+        with patch.dict(os.environ, {"ENVIRONMENT": "local"}, clear=True):
+            self.assertEqual(app_base_url(), "http://localhost:3000")
+
+    def test_explicit_base_url_override_wins_and_trims_trailing_slash(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"ENVIRONMENT": "production", "ESIGN_APP_BASE_URL": "https://sign.example.com/"},
+            clear=True,
+        ):
+            self.assertEqual(app_base_url(), "https://sign.example.com")
+
     def test_existing_account_mode_keeps_authenticated_url(self) -> None:
         envelope = NS(id=uuid.uuid4(), recipient_access_mode="account", source_type="manual", source_id=None)
         recipient = NS(id=uuid.uuid4(), role=EsignRecipientRole.SIGNER, email="guest@example.com")
