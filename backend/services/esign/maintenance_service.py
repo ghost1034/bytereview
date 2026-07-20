@@ -40,13 +40,33 @@ class EsignMaintenanceService:
         # Minute-level deployments invoke this same idempotent worker. The
         # bounded claims make duplicate Cloud Scheduler/Tasks delivery safe.
         from services.esign.scale_service import esign_scale_service
+        from services.esign.webhook_service import esign_webhook_service
         bulk_rows = await esign_scale_service.process_queued_rows()
         scheduled = await esign_scale_service.dispatch_due()
+        webhook_tasks = await self._enqueue_due_webhooks()
+        webhook_retention_eligible = esign_webhook_service.cleanup_retention() if datetime.now(timezone.utc).hour == 3 else 0
         expired = await self._expire_envelopes()
         warned = await self._send_expiration_warnings()
         reminded = await self._send_due_reminders()
-        return {"bulk_rows": bulk_rows, "scheduled_dispatched": scheduled,
+        return {"bulk_rows": bulk_rows, "scheduled_dispatched": scheduled, "webhook_tasks": webhook_tasks,
+                "webhook_retention_deleted": webhook_retention_eligible,
                 "expired": expired, "expiration_warnings": warned, "reminders_sent": reminded}
+
+    async def _enqueue_due_webhooks(self) -> int:
+        from services.cloud_run_task_service import cloud_run_task_service
+        from services.esign.webhook_service import esign_webhook_service
+        if os.getenv("ESIGN_WEBHOOK_DISPATCH_ENABLED", "false").lower() not in ("1", "true", "yes"):
+            return 0
+        delivery_ids = esign_webhook_service.claim_due(limit=100)
+        enqueued = 0
+        for delivery_id in delivery_ids:
+            try:
+                await cloud_run_task_service.enqueue_esign_webhook_task(delivery_id)
+                enqueued += 1
+            except Exception:
+                logger.exception("Failed to enqueue E-Signature webhook delivery %s", delivery_id)
+                esign_webhook_service.release_claim(delivery_id)
+        return enqueued
 
     async def _expire_envelopes(self) -> int:
         now = datetime.now(timezone.utc)

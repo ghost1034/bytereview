@@ -27,6 +27,8 @@ from models.db_models import (
     EsignConsentRecord,
     EsignEnvelope,
     EsignEnvelopeStatus,
+    EsignFirmSettings,
+    EsignBrandProfile,
     EsignEventType,
     EsignField,
     EsignFieldType,
@@ -68,6 +70,7 @@ from services.esign.envelope_service import (
     esign_envelope_service,
     sha256_hex,
 )
+from services.esign.authorization_service import esign_authorization_service
 from services.esign.field_logic import (
     FieldLogicError,
     format_date_value,
@@ -278,6 +281,49 @@ class EsignSigningService:
                 return esign_envelope_service._serialize_envelope(envelope)
             if envelope.status != EsignEnvelopeStatus.DRAFT:
                 raise EsignConflict(f"Envelope cannot be sent from status '{envelope.status.value}'")
+
+            principal = esign_authorization_service.principal(db, user_id)
+            if principal and not principal.can("send"):
+                raise EsignNotFound("Envelope not found")
+            settings = db.query(EsignFirmSettings).filter(EsignFirmSettings.firm_id == envelope.firm_id).first()
+            if settings:
+                overrides = dict(settings.sender_overrides or {})
+                if not overrides.get("date_format", True): envelope.date_format = settings.date_format
+                if not overrides.get("signing_type", True): envelope.signing_type = EsignSigningType(settings.signing_type)
+                if not overrides.get("reminders", True): envelope.reminder_interval_hours = settings.reminder_interval_hours
+                if not overrides.get("reassignment", True): envelope.allow_reassignment = settings.allow_reassignment
+                if not overrides.get("brand", True): envelope.brand_id = settings.default_brand_id
+                envelope.settings_snapshot = {
+                    "version": settings.version, "date_format": envelope.date_format,
+                    "signing_type": getattr(envelope.signing_type, "value", envelope.signing_type),
+                    "reminder_interval_hours": envelope.reminder_interval_hours,
+                    "allow_reassignment": envelope.allow_reassignment,
+                    "features": dict(settings.features or {}),
+                }
+                features = dict(settings.features or {})
+                advanced_roles = {EsignRecipientRole.APPROVER, EsignRecipientRole.CERTIFIED_DELIVERY,
+                                  EsignRecipientRole.AGENT, EsignRecipientRole.EDITOR,
+                                  EsignRecipientRole.WITNESS, EsignRecipientRole.IN_PERSON_SIGNER}
+                if any(recipient.role in advanced_roles for recipient in envelope.recipients or []):
+                    if not features.get("advanced_recipients", True) or (principal and not principal.can("advanced_recipients")):
+                        raise EsignError("Advanced recipient roles are disabled for this firm or sender")
+                if envelope.allow_reassignment and not features.get("recipient_reassignment", True):
+                    raise EsignError("Recipient reassignment is disabled for this firm")
+            brand = db.query(EsignBrandProfile).filter(EsignBrandProfile.id == envelope.brand_id,
+                                                      EsignBrandProfile.firm_id == envelope.firm_id,
+                                                      EsignBrandProfile.active.is_(True)).first() if envelope.brand_id else None
+            if brand and brand.allowed_profile_ids and principal and not principal.is_admin and principal.profile_id not in brand.allowed_profile_ids:
+                raise EsignError("The selected brand is no longer available to your permission profile")
+            if brand:
+                envelope.brand_snapshot = {
+                    "id": str(brand.id), "name": brand.name, "logo_asset_id": str(brand.logo_asset_id) if brand.logo_asset_id else None,
+                    "primary_color": brand.primary_color, "accent_color": brand.accent_color,
+                    "email_header": brand.email_header, "email_footer": brand.email_footer,
+                    "reply_to_address": brand.reply_to_address, "signing_welcome_text": brand.signing_welcome_text,
+                    "support_url": brand.support_url,
+                }
+            else:
+                envelope.brand_snapshot = {"name": "CPAAutomation", "primary_color": "#1D4ED8", "accent_color": "#0F172A"}
 
             # Durable anchors are resolved from the immutable server PDF at
             # send time. Browser text extraction is never authoritative.
@@ -553,6 +599,7 @@ class EsignSigningService:
                     consent_disclosure_text=envelope.consent_disclosure_text,
                     documents=[],
                     fields=[],
+                    brand=dict(envelope.brand_snapshot or {}) or None,
                     expires_at=envelope.expires_at,
                 )
 
@@ -623,6 +670,7 @@ class EsignSigningService:
                     consent_disclosure_text=envelope.consent_disclosure_text,
                     documents=documents,
                     fields=[],
+                    brand=dict(envelope.brand_snapshot or {}) or None,
                     expires_at=envelope.expires_at,
                 )
 
@@ -753,6 +801,7 @@ class EsignSigningService:
                 attachments=role_attachments,
                 sent_at=envelope.sent_at,
                 expires_at=envelope.expires_at,
+                brand=dict(envelope.brand_snapshot or {}) or None,
             )
         except Exception:
             db.rollback()

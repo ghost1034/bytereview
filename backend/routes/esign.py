@@ -9,6 +9,8 @@ from the platform's phone-MFA login, recorded in the audit trail.
 from __future__ import annotations
 
 import json
+import csv
+import io
 import logging
 from datetime import datetime
 from typing import Literal
@@ -73,6 +75,14 @@ from models.esign import (
     EsignPowerFormVerificationRequest,
     EsignPowerFormVerificationExchange,
     EsignReportSummary,
+    EsignContextResponse,
+    EsignSettingsUpdateRequest,
+    EsignPermissionProfileRequest,
+    EsignPermissionAssignmentRequest,
+    EsignEnvelopeGrantRequest,
+    EsignCustodyTransferRequest,
+    EsignBrandProfileRequest,
+    EsignWebhookConfigurationRequest,
 )
 from services.esign.audit_service import extract_request_meta
 from services.esign.envelope_service import (
@@ -87,6 +97,7 @@ from services.esign.verification_service import esign_verification_service
 from services.rate_limit import rate_limiter
 from services.esign.scale_service import esign_scale_service
 from services.esign.email_templates import EmailContent, _shell
+from services.esign.admin_service import esign_admin_service
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +138,176 @@ async def _read_uploads(files: list[UploadFile] | None) -> list[tuple[str, bytes
 
 
 # ---------------------------------------------------------------------------
+# Firm context and administration
+# ---------------------------------------------------------------------------
+
+
+@router.get("/context", response_model=EsignContextResponse)
+async def get_esign_context(token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.context(_uid(token))
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/admin/overview")
+async def esign_admin_overview(token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.overview(_uid(token))
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/admin/custody-review")
+async def esign_admin_custody_review(token: dict = Depends(verify_firebase_token)):
+    try: return {"assets": esign_admin_service.custody_review(_uid(token))}
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/admin/settings")
+async def get_esign_admin_settings(token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.get_settings(_uid(token))
+    except Exception as exc: _raise_http(exc)
+
+
+@router.put("/admin/settings")
+async def update_esign_admin_settings(payload: EsignSettingsUpdateRequest, token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.update_settings(_uid(token), payload)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/admin/permission-profiles")
+async def list_esign_permission_profiles(token: dict = Depends(verify_firebase_token)):
+    try: return {"profiles": esign_admin_service.list_profiles(_uid(token))}
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/admin/permission-profiles", status_code=201)
+async def create_esign_permission_profile(payload: EsignPermissionProfileRequest, token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.create_profile(_uid(token), payload)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.put("/admin/permission-profiles/{profile_id}")
+async def update_esign_permission_profile(profile_id: str, payload: EsignPermissionProfileRequest, token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.update_profile(_uid(token), profile_id, payload)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.put("/admin/users/{user_id}/permission-profile")
+async def assign_esign_permission_profile(user_id: str, payload: EsignPermissionAssignmentRequest, token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.assign_profile(_uid(token), user_id, payload.profile_id)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/admin/brands")
+async def list_esign_brands(token: dict = Depends(verify_firebase_token)):
+    try: return {"brands": esign_admin_service.list_brands(_uid(token))}
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/admin/brands", status_code=201)
+async def create_esign_brand(payload: EsignBrandProfileRequest, token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.create_brand(_uid(token), payload)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.put("/admin/brands/{brand_id}")
+async def update_esign_brand(brand_id: str, payload: EsignBrandProfileRequest, token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.update_brand(_uid(token), brand_id, payload)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/admin/brand-assets", status_code=201)
+async def upload_esign_brand_asset(file: UploadFile = File(...), token: dict = Depends(verify_firebase_token)):
+    try: return await esign_admin_service.upload_brand_asset(_uid(token), file.filename or "logo", file.content_type or "", await file.read())
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/admin/webhooks")
+async def list_esign_firm_webhooks(token: dict = Depends(verify_firebase_token)):
+    try: return {"configurations": esign_admin_service.list_webhooks(_uid(token))}
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/admin/webhooks", status_code=201)
+async def create_esign_firm_webhook(payload: EsignWebhookConfigurationRequest, token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.create_webhook(_uid(token), payload)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.put("/admin/webhooks/{configuration_id}")
+async def update_esign_webhook(configuration_id: str, payload: EsignWebhookConfigurationRequest, token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.update_webhook(_uid(token), configuration_id, payload)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/admin/webhooks/{configuration_id}/rotate-secret")
+async def rotate_esign_webhook_secret(configuration_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.rotate_secret(_uid(token), configuration_id)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/admin/webhooks/{configuration_id}/test")
+async def test_esign_webhook(configuration_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.test_webhook(_uid(token), configuration_id)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.delete("/admin/webhooks/{configuration_id}")
+async def disable_esign_firm_webhook(configuration_id: str, token: dict = Depends(verify_firebase_token)):
+    try:
+        esign_admin_service.disable_webhook(_uid(token), configuration_id)
+        return {"success": True}
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/admin/webhook-deliveries")
+async def list_esign_webhook_deliveries(status: str | None = Query(default=None), limit: int = Query(default=100, ge=1, le=250), token: dict = Depends(verify_firebase_token)):
+    try: return {"deliveries": esign_admin_service.deliveries(_uid(token), status=status, limit=limit)}
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/admin/webhook-metrics")
+async def get_esign_webhook_metrics(token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.webhook_metrics(_uid(token))
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/admin/webhook-deliveries/{delivery_id}/attempts")
+async def list_esign_webhook_attempts(delivery_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return {"attempts": esign_admin_service.attempts(_uid(token), delivery_id)}
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/admin/webhook-deliveries/{delivery_id}/replay")
+async def replay_esign_webhook(delivery_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.replay(_uid(token), delivery_id)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/admin/audit")
+async def list_esign_admin_audit(limit: int = Query(default=500, ge=1, le=5000), token: dict = Depends(verify_firebase_token)):
+    try: return {"events": esign_admin_service.audit_events(_uid(token), limit=limit)}
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/admin/audit.csv", response_class=PlainTextResponse)
+async def export_esign_admin_audit(token: dict = Depends(verify_firebase_token)):
+    try:
+        output = io.StringIO(newline=""); writer = csv.writer(output)
+        writer.writerow(["id", "created_at", "event_type", "actor_email", "target_type", "target_id", "details"])
+        for event in esign_admin_service.audit_events(_uid(token), limit=5000):
+            writer.writerow([event["id"], event["created_at"].isoformat(), event["event_type"], event["actor_email"],
+                             event["target_type"], event["target_id"], json.dumps(event["details"] or {}, sort_keys=True)])
+        return PlainTextResponse(output.getvalue(), media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="esign-admin-audit.csv"'})
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/admin/users/{user_id}/offboard")
+async def offboard_esign_user(user_id: str, payload: EsignCustodyTransferRequest, token: dict = Depends(verify_firebase_token)):
+    try: return {"transferred": esign_admin_service.offboard(_uid(token), user_id, payload.successor_user_id)}
+    except Exception as exc: _raise_http(exc)
+
+
+# ---------------------------------------------------------------------------
 # Templates (sender)
 # ---------------------------------------------------------------------------
 
@@ -138,6 +319,7 @@ async def create_template(
     title: str | None = Form(default=None),
     message: str | None = Form(default=None),
     signing_type: str | None = Form(default=None),
+    brand_id: str | None = Form(default=None),
     recipient_roles: str | None = Form(default=None),  # JSON array
     files: list[UploadFile] = File(...),
     token: dict = Depends(verify_firebase_token),
@@ -158,6 +340,7 @@ async def create_template(
             signing_type=signing_type,
             recipient_roles=roles,
             files=await _read_uploads(files),
+            brand_id=brand_id,
         )
     except Exception as exc:
         _raise_http(exc)
@@ -208,6 +391,7 @@ async def update_template(
             date_format=payload.date_format,
             recipient_roles=payload.recipient_roles,
             fields=payload.fields,
+            brand_id=payload.brand_id,
         )
     except Exception as exc:
         _raise_http(exc)
@@ -451,6 +635,7 @@ async def create_envelope(
     signing_type: str | None = Form(default=None),
     expires_in_days: int | None = Form(default=None),
     reminder_interval_hours: int | None = Form(default=None),
+    brand_id: str | None = Form(default=None),
     template_id: str | None = Form(default=None),
     files: list[UploadFile] | None = File(default=None),
     token: dict = Depends(verify_firebase_token),
@@ -466,6 +651,7 @@ async def create_envelope(
             template_id=template_id,
             expires_in_days=expires_in_days,
             reminder_interval_hours=reminder_interval_hours,
+            brand_id=brand_id,
             meta=extract_request_meta(request, token),
         )
         return EsignEnvelopeCreateResponse(envelope=envelope)
@@ -507,12 +693,16 @@ async def list_envelopes(
     q: str | None = Query(default=None, max_length=255),
     sort_by: Literal["updated_at", "created_at", "sent_at", "completed_at", "title"] = Query(default="updated_at"),
     sort_dir: Literal["asc", "desc"] = Query(default="desc"),
+    scope: Literal["mine", "shared", "firm"] = Query(default="mine"),
+    owner_user_id: str | None = Query(default=None),
 ):
     try:
         return esign_envelope_service.list_envelopes(
             _uid(token), limit=limit, offset=offset, status=status, q=q,
             source_type=source_type, source_id=source_id, template_version_id=template_version_id,
             sort_by=sort_by, sort_dir=sort_dir,
+            scope=scope,
+            owner_user_id=owner_user_id,
         )
     except Exception as exc:
         _raise_http(exc)
@@ -524,6 +714,44 @@ async def get_envelope(envelope_id: str, token: dict = Depends(verify_firebase_t
         return esign_envelope_service.get_envelope(_uid(token), envelope_id)
     except Exception as exc:
         _raise_http(exc)
+
+
+@router.get("/envelopes/{envelope_id}/access")
+async def get_envelope_access(envelope_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.list_access(_uid(token), envelope_id)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.put("/envelopes/{envelope_id}/access")
+async def grant_envelope_access(envelope_id: str, payload: EsignEnvelopeGrantRequest, token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.grant_access(_uid(token), _email(token), envelope_id, payload.user_id, payload.access_level)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.delete("/envelopes/{envelope_id}/access/{user_id}")
+async def revoke_envelope_access(envelope_id: str, user_id: str, token: dict = Depends(verify_firebase_token)):
+    try:
+        esign_admin_service.revoke_access(_uid(token), _email(token), envelope_id, user_id)
+        return {"success": True}
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/envelopes/{envelope_id}/transfer")
+async def transfer_envelope_custody(envelope_id: str, payload: EsignCustodyTransferRequest, token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.transfer(_uid(token), _email(token), envelope_id, payload.successor_user_id, payload.retain_previous_owner_view)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/envelopes/{envelope_id}/webhooks")
+async def list_envelope_webhooks(envelope_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return {"configurations": esign_admin_service.list_webhooks(_uid(token), envelope_id)}
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/envelopes/{envelope_id}/webhooks", status_code=201)
+async def create_envelope_webhook(envelope_id: str, payload: EsignWebhookConfigurationRequest, token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.create_webhook(_uid(token), payload, envelope_id)
+    except Exception as exc: _raise_http(exc)
 
 
 @router.delete("/envelopes/{envelope_id}")

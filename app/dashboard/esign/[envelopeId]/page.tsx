@@ -14,6 +14,7 @@ import {
   Loader2,
   ShieldCheck,
   UserRoundPen,
+  Users,
   XCircle,
 } from 'lucide-react'
 
@@ -48,6 +49,7 @@ import {
   useVoidEnvelope,
 } from '@/hooks/useEnvelopes'
 import { apiClient } from '@/lib/api'
+import { useQuery } from '@tanstack/react-query'
 
 function formatDateTime(value?: string | null) {
   if (!value) return '—'
@@ -131,6 +133,11 @@ export default function EnvelopeDetailPage() {
   const [downloading, setDownloading] = React.useState<string | null>(null)
 
   const envelope = envelopeQuery.data
+  const accessQuery = useQuery({
+    queryKey: ['esign', 'envelope', envelopeId, 'access'],
+    queryFn: () => apiClient.getEsignEnvelopeAccess(envelopeId!),
+    enabled: !!envelopeId,
+  })
 
   React.useEffect(() => {
     if (envelope && envelope.status === 'draft') {
@@ -197,8 +204,8 @@ export default function EnvelopeDetailPage() {
             </Button>
             {isActive && (
               <>
-                {process.env.NEXT_PUBLIC_ESIGN_ADVANCED_RECIPIENTS_ENABLED === 'true' && <Button variant="outline" asChild><Link href={`/dashboard/esign/${envelope.id}/correct`}><UserRoundPen className="mr-1.5 size-4" /> Correct recipients</Link></Button>}
-                <Button
+                {envelope.available_actions?.includes('correct') && <Button variant="outline" asChild><Link href={`/dashboard/esign/${envelope.id}/correct`}><UserRoundPen className="mr-1.5 size-4" /> Correct recipients</Link></Button>}
+                {envelope.available_actions?.includes('remind') && <Button
                   variant="outline"
                   onClick={async () => {
                     try {
@@ -225,13 +232,13 @@ export default function EnvelopeDetailPage() {
                     <BellRing className="mr-1.5 size-4" />
                   )}
                   Remind
-                </Button>
-                <Button variant="outline" className="text-destructive" onClick={() => setVoidOpen(true)}>
+                </Button>}
+                {envelope.available_actions?.includes('void') && <Button variant="outline" className="text-destructive" onClick={() => setVoidOpen(true)}>
                   <XCircle className="mr-1.5 size-4" /> Void
-                </Button>
+                </Button>}
               </>
             )}
-            {envelope.status === 'scheduled' && <Button variant="outline" disabled={unschedule.isPending} onClick={async () => { try { await unschedule.mutateAsync(); toast({ title: 'Envelope returned to draft' }); router.push(`/dashboard/esign/${envelope.id}/prepare`) } catch (error) { toast({ title: 'Could not unschedule', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><CalendarClock className="mr-1.5 size-4" /> Unschedule & edit</Button>}
+            {envelope.status === 'scheduled' && envelope.available_actions?.includes('edit') && <Button variant="outline" disabled={unschedule.isPending} onClick={async () => { try { await unschedule.mutateAsync(); toast({ title: 'Envelope returned to draft' }); router.push(`/dashboard/esign/${envelope.id}/prepare`) } catch (error) { toast({ title: 'Could not unschedule', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><CalendarClock className="mr-1.5 size-4" /> Unschedule & edit</Button>}
           </div>
         }
       />
@@ -275,6 +282,7 @@ export default function EnvelopeDetailPage() {
           <TabsTrigger value="summary" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">Summary</TabsTrigger>
           <TabsTrigger value="recipients" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">Recipients</TabsTrigger>
           <TabsTrigger value="documents" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">Documents</TabsTrigger>
+          <TabsTrigger value="access" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">Access</TabsTrigger>
           <TabsTrigger value="history" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">History</TabsTrigger>
         </TabsList>
         <TabsContent value="summary">
@@ -286,6 +294,13 @@ export default function EnvelopeDetailPage() {
               <div><p className="text-xs text-foreground-subtle">Progress</p><p className="mt-1 text-sm font-medium">{signers.filter((recipient) => recipient.status === 'signed').length} of {signers.length} signed</p></div>
               <div><p className="text-xs text-foreground-subtle">Completed</p><p className="mt-1 text-sm font-medium">{formatDateTime(envelope.completed_at)}</p></div>
             </div>
+          </section>
+        </TabsContent>
+        <TabsContent value="access">
+          <section className="space-y-4 rounded-lg border border-border bg-surface p-5">
+            <div className="flex items-center gap-3"><Users className="size-5 text-primary" /><div><h2 className="text-base font-semibold">Envelope access</h2><p className="text-sm text-foreground-muted">Owner: {envelope.owner_name || envelope.owner_email || accessQuery.data?.owner_id || envelope.owner_id}</p></div></div>
+            {accessQuery.data?.grants.length ? <div className="divide-y divide-border rounded-md border border-border">{accessQuery.data.grants.map((grant) => <div key={String(grant.user_id)} className="flex items-center justify-between p-3 text-sm"><div><p className="font-medium">{String(grant.name || grant.email)}</p><p className="text-xs text-foreground-muted">{String(grant.email)}</p></div><span className="rounded-full bg-surface-muted px-2 py-1 text-xs capitalize">{String(grant.access_level)}</span></div>)}</div> : <p className="rounded-md border border-dashed border-border p-5 text-sm text-foreground-muted">This envelope has no direct sharing grants. Firm administrators still retain oversight.</p>}
+            {(envelope.access_level === 'owner' || envelope.access_level === 'admin') && <p className="text-xs text-foreground-muted">Owners and firm administrators can add grants or transfer custody through the E‑Signature API. Custody changes are recorded in the immutable audit trail.</p>}
           </section>
         </TabsContent>
         <TabsContent value="recipients">

@@ -85,6 +85,7 @@ export default function EsignManagePage() {
   const sortDir = searchParams.get('sort_dir') === 'asc' ? 'asc' : 'desc'
   const query = searchParams.get('q') ?? ''
   const source = searchParams.get('source') as 'manual' | 'bulk' | 'powerform' | null
+  const scope = (searchParams.get('scope') as 'mine' | 'shared' | 'firm' | null) ?? 'mine'
   const [search, setSearch] = React.useState(query)
   const [deleteTarget, setDeleteTarget] = React.useState<{ id: string; title: string } | null>(null)
 
@@ -114,6 +115,7 @@ export default function EsignManagePage() {
     sortBy,
     sortDir,
     sourceType: source ?? undefined,
+    scope,
   })
   const inboxQuery = useEsignInbox({ q: query || undefined, state: 'pending' })
   const deleteEnvelope = useDeleteEnvelope()
@@ -178,7 +180,7 @@ export default function EsignManagePage() {
               />
             </div>
             {view !== 'inbox' && (
-              <><Select value={source ?? 'all'} onValueChange={(value) => setParams({ source: value === 'all' ? null : value, offset: null })}><SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All sources</SelectItem><SelectItem value="manual">Manual</SelectItem><SelectItem value="bulk">Bulk</SelectItem><SelectItem value="powerform">PowerForm</SelectItem></SelectContent></Select><Select value={`${sortBy}:${sortDir}`} onValueChange={(value) => {
+              <><Select value={scope} onValueChange={(value) => setParams({ scope: value === 'mine' ? null : value, offset: null })}><SelectTrigger className="w-full sm:w-32"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="mine">My envelopes</SelectItem><SelectItem value="shared">Shared</SelectItem><SelectItem value="firm">Firm-wide</SelectItem></SelectContent></Select><Select value={source ?? 'all'} onValueChange={(value) => setParams({ source: value === 'all' ? null : value, offset: null })}><SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All sources</SelectItem><SelectItem value="manual">Manual</SelectItem><SelectItem value="bulk">Bulk</SelectItem><SelectItem value="powerform">PowerForm</SelectItem></SelectContent></Select><Select value={`${sortBy}:${sortDir}`} onValueChange={(value) => {
                 const [nextSort, nextDir] = value.split(':')
                 setParams({ sort_by: nextSort, sort_dir: nextDir, offset: null })
               }}>
@@ -226,6 +228,7 @@ export default function EsignManagePage() {
                       <span className="mt-0.5 block truncate text-xs text-foreground-muted">
                         {envelope.document_count} document{envelope.document_count === 1 ? '' : 's'}
                         {preview.length ? ` · ${preview.map((recipient) => recipient.name).join(', ')}` : ' · No recipients'}
+                        {(envelope as typeof envelope & { owner_name?: string; owner_email?: string }).owner_email ? ` · Owned by ${(envelope as typeof envelope & { owner_name?: string; owner_email?: string }).owner_name || (envelope as typeof envelope & { owner_email?: string }).owner_email}` : ''}
                       </span>
                     </button>
                     <div><EnvelopeStatusBadge status={envelope.status} /><span className="mt-1 block text-[11px] tabular-nums text-foreground-subtle">{envelope.signed_count}/{envelope.recipient_count} signed</span></div>
@@ -234,8 +237,8 @@ export default function EsignManagePage() {
                       <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" aria-label={`Actions for ${envelope.title}`}><MoreHorizontal className="size-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => router.push(href)}><Pencil /> {envelope.status === 'draft' ? 'Resume draft' : 'View details'}</DropdownMenuItem>
-                        {(envelope.status === 'sent' || envelope.status === 'in_progress') && <DropdownMenuItem onClick={async () => { try { await apiClient.remindEsignEnvelope(envelope.id); toast({ title: 'Reminder sent' }) } catch (error) { toast({ title: 'Reminder failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><BellRing /> Send reminder</DropdownMenuItem>}
-                        {envelope.status === 'draft' && <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget({ id: envelope.id, title: envelope.title })}><Trash2 /> Delete draft</DropdownMenuItem></>}
+                        {(envelope.status === 'sent' || envelope.status === 'in_progress') && envelope.available_actions?.includes('remind') && <DropdownMenuItem onClick={async () => { try { await apiClient.remindEsignEnvelope(envelope.id); toast({ title: 'Reminder sent' }) } catch (error) { toast({ title: 'Reminder failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><BellRing /> Send reminder</DropdownMenuItem>}
+                        {envelope.status === 'draft' && envelope.available_actions?.includes('delete_draft') && <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget({ id: envelope.id, title: envelope.title })}><Trash2 /> Delete draft</DropdownMenuItem></>}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </li>

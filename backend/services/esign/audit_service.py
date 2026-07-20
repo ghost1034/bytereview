@@ -96,4 +96,9 @@ def record_event(
     )
     db.add(event)
     db.flush()  # surface DB errors (e.g. enum/constraint) inside the transaction
+    # The outbox insert shares this transaction with the immutable event. A
+    # webhook can therefore never observe an event that did not commit, nor can
+    # a committed event silently miss an eligible delivery row.
+    from services.esign.webhook_service import create_event_deliveries
+    create_event_deliveries(db, event)
     return event

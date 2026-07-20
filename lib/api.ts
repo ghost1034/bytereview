@@ -39,6 +39,31 @@ export interface ActivationStatus {
   revoked: boolean
 }
 
+export interface EsignContext {
+  firm: { id: string; name: string }
+  profile: { id: string | null; name: string; capabilities: Record<string, boolean>; admin_override: boolean }
+  features: Record<string, boolean>
+  administrative_capabilities: Record<string, boolean>
+}
+
+export interface EsignAdminOverview {
+  envelopes: number
+  users: number
+  send_failures: number
+  expiring_envelopes: number
+  webhook_failures: number
+  custody_issues: number
+}
+
+export interface EsignPermissionProfile {
+  id: string; name: string; capabilities: Record<string, boolean>; built_in_key?: string | null; locked: boolean
+}
+
+export interface EsignWebhookConfiguration {
+  id: string; envelope_id?: string | null; endpoint_url: string; enabled: boolean
+  event_filters: string[]; include_completed_documents: boolean; secret?: string
+}
+
 function inferUploadContentType(file: File): string {
   if (file.type) return file.type
   const name = file.name.toLowerCase()
@@ -2208,6 +2233,7 @@ export class ApiClient {
     expiresInDays?: number
     reminderIntervalHours?: number
     templateId?: string
+    brandId?: string
     files?: File[]
   }): Promise<EsignEnvelopeCreateResponse> {
     const formData = new FormData()
@@ -2219,6 +2245,7 @@ export class ApiClient {
       formData.append('reminder_interval_hours', String(params.reminderIntervalHours))
     }
     if (params.templateId) formData.append('template_id', params.templateId)
+    if (params.brandId) formData.append('brand_id', params.brandId)
     params.files?.forEach((file) => formData.append('files', file))
     return this.requestMultipart('/api/esign/envelopes', formData)
   }
@@ -2233,6 +2260,8 @@ export class ApiClient {
     q?: string
     sortBy?: 'updated_at' | 'created_at' | 'sent_at' | 'completed_at' | 'title'
     sortDir?: 'asc' | 'desc'
+    scope?: 'mine' | 'shared' | 'firm'
+    ownerUserId?: string
   } = {}): Promise<EsignEnvelopeListResponse> {
     const searchParams = new URLSearchParams({
       limit: String(params.limit ?? 25),
@@ -2245,7 +2274,73 @@ export class ApiClient {
     if (params.q) searchParams.set('q', params.q)
     if (params.sortBy) searchParams.set('sort_by', params.sortBy)
     if (params.sortDir) searchParams.set('sort_dir', params.sortDir)
+    if (params.scope) searchParams.set('scope', params.scope)
+    if (params.ownerUserId) searchParams.set('owner_user_id', params.ownerUserId)
     return this.request(`/api/esign/envelopes?${searchParams.toString()}`)
+  }
+
+  async getEsignContext(): Promise<EsignContext> {
+    return this.request('/api/esign/context')
+  }
+
+  async getEsignAdminOverview(): Promise<EsignAdminOverview> {
+    return this.request('/api/esign/admin/overview')
+  }
+
+  async getEsignAdminSettings(): Promise<Record<string, any>> {
+    return this.request('/api/esign/admin/settings')
+  }
+
+  async updateEsignAdminSettings(payload: Record<string, any>): Promise<Record<string, any>> {
+    return this.request('/api/esign/admin/settings', { method: 'PUT', body: JSON.stringify(payload) })
+  }
+
+  async listEsignPermissionProfiles(): Promise<{ profiles: EsignPermissionProfile[] }> {
+    return this.request('/api/esign/admin/permission-profiles')
+  }
+
+  async createEsignPermissionProfile(payload: { name: string; capabilities: Record<string, boolean> }): Promise<EsignPermissionProfile> {
+    return this.request('/api/esign/admin/permission-profiles', { method: 'POST', body: JSON.stringify(payload) })
+  }
+
+  async assignEsignPermissionProfile(userId: string, profileId: string): Promise<Record<string, any>> {
+    return this.request(`/api/esign/admin/users/${userId}/permission-profile`, { method: 'PUT', body: JSON.stringify({ profile_id: profileId }) })
+  }
+
+  async listEsignBrands(): Promise<{ brands: Record<string, any>[] }> {
+    return this.request('/api/esign/admin/brands')
+  }
+
+  async createEsignBrand(payload: Record<string, any>): Promise<Record<string, any>> {
+    return this.request('/api/esign/admin/brands', { method: 'POST', body: JSON.stringify(payload) })
+  }
+
+  async listEsignFirmWebhooks(): Promise<{ configurations: EsignWebhookConfiguration[] }> {
+    return this.request('/api/esign/admin/webhooks')
+  }
+
+  async createEsignFirmWebhook(payload: { endpoint_url: string; enabled?: boolean; event_filters?: string[]; include_completed_documents?: boolean }): Promise<EsignWebhookConfiguration> {
+    return this.request('/api/esign/admin/webhooks', { method: 'POST', body: JSON.stringify(payload) })
+  }
+
+  async listEsignWebhookDeliveries(status?: string): Promise<{ deliveries: Record<string, any>[] }> {
+    return this.request(`/api/esign/admin/webhook-deliveries${status ? `?status=${encodeURIComponent(status)}` : ''}`)
+  }
+
+  async replayEsignWebhook(deliveryId: string): Promise<Record<string, any>> {
+    return this.request(`/api/esign/admin/webhook-deliveries/${deliveryId}/replay`, { method: 'POST' })
+  }
+
+  async getEsignEnvelopeAccess(envelopeId: string): Promise<{ owner_id: string; grants: Record<string, any>[] }> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/access`)
+  }
+
+  async grantEsignEnvelopeAccess(envelopeId: string, userId: string, accessLevel: 'view' | 'manage'): Promise<Record<string, any>> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/access`, { method: 'PUT', body: JSON.stringify({ user_id: userId, access_level: accessLevel }) })
+  }
+
+  async transferEsignEnvelope(envelopeId: string, successorUserId: string, retainPreviousOwnerView = true): Promise<Record<string, any>> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/transfer`, { method: 'POST', body: JSON.stringify({ successor_user_id: successorUserId, retain_previous_owner_view: retainPreviousOwnerView }) })
   }
 
   async getEsignEnvelope(envelopeId: string): Promise<EsignEnvelopeResponse> {
@@ -2487,6 +2582,7 @@ export class ApiClient {
     message?: string
     signingType?: string
     recipientRoles?: EsignTemplateRoleInput[]
+    brandId?: string
     files: File[]
   }): Promise<EsignTemplateResponse> {
     const formData = new FormData()
@@ -2496,6 +2592,7 @@ export class ApiClient {
     if (params.message) formData.append('message', params.message)
     if (params.signingType) formData.append('signing_type', params.signingType)
     if (params.recipientRoles) formData.append('recipient_roles', JSON.stringify(params.recipientRoles))
+    if (params.brandId) formData.append('brand_id', params.brandId)
     params.files.forEach((file) => formData.append('files', file))
     return this.requestMultipart('/api/esign/templates', formData)
   }

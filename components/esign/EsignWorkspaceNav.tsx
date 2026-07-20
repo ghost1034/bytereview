@@ -6,18 +6,25 @@ import { CircleHelp, FileCheck2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { useEsignContext } from '@/hooks/useEnvelopes'
 
-const items = [
+const items: { href: string; label: string; feature?: string; capability?: string }[] = [
   { href: '/dashboard/esign', label: 'Envelopes' },
-  { href: '/dashboard/esign/templates', label: 'Templates' },
-  { href: '/dashboard/esign/bulk', label: 'Bulk sends' },
-  { href: '/dashboard/esign/powerforms', label: 'PowerForms' },
-  { href: '/dashboard/esign/reports', label: 'Reports' },
+  { href: '/dashboard/esign/templates', label: 'Templates', capability: 'templates' },
+  { href: '/dashboard/esign/bulk', label: 'Bulk sends', feature: 'bulk_sends', capability: 'bulk_sends' },
+  { href: '/dashboard/esign/powerforms', label: 'PowerForms', feature: 'powerforms', capability: 'powerforms' },
+  { href: '/dashboard/esign/reports', label: 'Reports', capability: 'reports' },
   { href: '/dashboard/esign/verify', label: 'Verify' },
 ]
 
 export function EsignWorkspaceNav() {
   const pathname = usePathname() ?? ''
+  const context = useEsignContext()
+  const allowedItems = items.filter((item) => !context.data || context.data.profile.admin_override ||
+    (!item.feature || context.data.features[item.feature]) && (!item.capability || context.data.profile.capabilities[item.capability]))
+  const visibleItems = context.data?.profile.admin_override
+    ? [...allowedItems, { href: '/dashboard/esign/admin', label: 'Admin' }]
+    : allowedItems
   const immersive =
     /\/dashboard\/esign\/[^/]+\/(prepare|fields|review|documents|recipients)$/.test(pathname) ||
     pathname.startsWith('/dashboard/esign/sign/') ||
@@ -44,7 +51,7 @@ export function EsignWorkspaceNav() {
         </Button>
       </div>
       <nav aria-label="E-Signature workspace" className="flex gap-1 border-t border-border px-4">
-        {items.map((item) => {
+        {visibleItems.map((item) => {
           const active = item.href === '/dashboard/esign'
             ? pathname === item.href
             : pathname.startsWith(item.href)

@@ -225,6 +225,15 @@ class CloudRunTaskService:
             delay_seconds=delay_seconds,
         )
 
+    async def enqueue_esign_webhook_task(self, delivery_id: str, delay_seconds: int = 0) -> str:
+        """Enqueue one idempotent outbound E-Signature webhook attempt."""
+        return await self._create_cloud_task(
+            queue_name=self.queue_names["io"],
+            service_url=f"{self.task_services['io']}/execute",
+            task_data={"task_type": "deliver_esign_webhook", "delivery_id": str(delivery_id)},
+            delay_seconds=delay_seconds,
+        )
+
     async def enqueue_zip_unpack_task(
         self, 
         source_file_id: str, 

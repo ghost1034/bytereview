@@ -11,7 +11,11 @@ from typing import List, Optional, Tuple
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from models.db_models import AnalyticsUserPersona, AnalyticsUserRole, Firm, FirmInviteCode, User
+from models.db_models import (
+    AnalyticsUserPersona, AnalyticsUserRole, EsignAdminEvent, EsignBulkJob,
+    EsignEnvelope, EsignEnvelopeGrant, EsignPermissionAssignment, EsignPowerForm,
+    EsignTemplate, Firm, FirmInviteCode, User,
+)
 from services.analytics.firm_scope import get_user_firm
 
 logger = logging.getLogger(__name__)
@@ -163,7 +167,8 @@ def invite_member_by_email(db: Session, firm_id, email: str) -> Optional[User]:
     return user
 
 
-def remove_member(db: Session, firm_id, user_id: str) -> None:
+def remove_member(db: Session, firm_id, user_id: str, *, successor_user_id: str | None = None,
+                  actor_user_id: str | None = None) -> None:
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
@@ -174,8 +179,34 @@ def remove_member(db: Session, firm_id, user_id: str) -> None:
             status_code=400,
             detail="Cannot remove the last admin of this firm",
         )
+    owned = {
+        "envelopes": db.query(EsignEnvelope).filter(EsignEnvelope.firm_id == firm_id, EsignEnvelope.user_id == user.id).count(),
+        "templates": db.query(EsignTemplate).filter(EsignTemplate.firm_id == firm_id, EsignTemplate.user_id == user.id).count(),
+        "bulk_jobs": db.query(EsignBulkJob).filter(EsignBulkJob.firm_id == firm_id, EsignBulkJob.user_id == user.id).count(),
+        "powerforms": db.query(EsignPowerForm).filter(EsignPowerForm.firm_id == firm_id, EsignPowerForm.user_id == user.id).count(),
+    }
+    successor = None
+    if any(owned.values()):
+        if not successor_user_id:
+            raise HTTPException(status_code=409, detail="A same-firm E-Signature custody successor is required")
+        successor = db.query(User).filter(User.id == successor_user_id, User.firm_id == firm_id).first()
+        if successor is None or successor.id == user.id:
+            raise HTTPException(status_code=400, detail="Custody successor must be another member of this firm")
+        for model in (EsignEnvelope, EsignTemplate, EsignBulkJob, EsignPowerForm):
+            db.query(model).filter(model.firm_id == firm_id, model.user_id == user.id).update(
+                {model.user_id: successor.id}, synchronize_session=False
+            )
+    db.query(EsignEnvelopeGrant).filter(EsignEnvelopeGrant.user_id == user.id).delete(synchronize_session=False)
+    db.query(EsignPermissionAssignment).filter(EsignPermissionAssignment.user_id == user.id).delete(synchronize_session=False)
     user.firm_id = None
-    db.commit()
+    db.add(EsignAdminEvent(id=uuid.uuid4(), firm_id=firm_id, actor_user_id=actor_user_id,
+                           event_type="user.offboarded", target_type="user", target_id=user.id,
+                           details={"successor_user_id": successor.id if successor else None, "transferred": owned}))
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
 
 def update_member(

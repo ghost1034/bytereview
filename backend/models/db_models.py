@@ -8,7 +8,7 @@ from typing import Optional, cast
 
 import enum
 
-from sqlalchemy import Column, String, Integer, BigInteger, Boolean, Text, TIMESTAMP, ForeignKey, UUID, LargeBinary, ARRAY, CheckConstraint, Numeric, Date, Enum, Index
+from sqlalchemy import Column, String, Integer, BigInteger, Boolean, Text, TIMESTAMP, ForeignKey, UUID, LargeBinary, ARRAY, CheckConstraint, Numeric, Date, Enum, Index, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
@@ -1227,6 +1227,10 @@ class EsignEventType(str, enum.Enum):
     SCHEDULED = "scheduled"
     UNSCHEDULED = "unscheduled"
     SEND_FAILED = "send_failed"
+    ACCESS_GRANTED = "access_granted"
+    ACCESS_REVOKED = "access_revoked"
+    OWNERSHIP_TRANSFERRED = "ownership_transferred"
+    WEBHOOK_TEST = "webhook.test"
 
 
 def _esign_enum(enum_cls, type_name: str):
@@ -1296,6 +1300,9 @@ class EsignEnvelope(Base):
     schedule_claimed_at = Column(TIMESTAMP(timezone=True), nullable=True)
     send_error_code = Column(String(64), nullable=True)
     send_error_message = Column(Text, nullable=True)
+    brand_id = Column(UUID(as_uuid=True), ForeignKey("esign_brand_profiles.id", ondelete="SET NULL"), nullable=True)
+    brand_snapshot = Column(MutableDict.as_mutable(JSONB), nullable=True)
+    settings_snapshot = Column(MutableDict.as_mutable(JSONB), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
@@ -1318,6 +1325,7 @@ class EsignEnvelope(Base):
         back_populates="envelope",
         order_by="EsignEvent.created_at",
     )
+    grants = relationship("EsignEnvelopeGrant", back_populates="envelope", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("ix_esign_envelopes_user_created", "user_id", "created_at"),
@@ -1604,6 +1612,7 @@ class EsignTemplate(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=True)
+    brand_id = Column(UUID(as_uuid=True), ForeignKey("esign_brand_profiles.id", ondelete="SET NULL"), nullable=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     title = Column(String(255), nullable=True)  # default envelope title
@@ -1762,6 +1771,7 @@ class EsignPowerForm(Base):
     firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(String(128), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     template_version_id = Column(UUID(as_uuid=True), ForeignKey("esign_template_versions.id", ondelete="RESTRICT"), nullable=False)
+    brand_id = Column(UUID(as_uuid=True), ForeignKey("esign_brand_profiles.id", ondelete="SET NULL"), nullable=True)
     name = Column(String(255), nullable=False)
     public_token_sha256 = Column(String(64), nullable=False, unique=True)
     state = Column(String(20), nullable=False, server_default="active")
@@ -1954,3 +1964,187 @@ class ConnectorActionLog(Base):
         CheckConstraint("source IN ('web', 'platform', 'mcp')", name="ck_connector_action_logs_source"),
         Index("ix_connector_action_logs_user_created", "user_id", "created_at"),
     )
+
+
+# ===================================================================
+# E-Signature firm administration
+# ===================================================================
+
+
+class EsignFirmSettings(Base):
+    __tablename__ = "esign_firm_settings"
+
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), primary_key=True)
+    version = Column(Integer, nullable=False, default=1, server_default="1")
+    default_brand_id = Column(UUID(as_uuid=True), ForeignKey("esign_brand_profiles.id", ondelete="SET NULL"), nullable=True)
+    date_format = Column(String(32), nullable=False, server_default="MM/DD/YYYY")
+    signing_type = Column(String(20), nullable=False, server_default="sequential")
+    expiration_days = Column(Integer, nullable=True, server_default="30")
+    reminder_interval_hours = Column(Integer, nullable=True, server_default="72")
+    allow_reassignment = Column(Boolean, nullable=False, server_default=expression.true())
+    sender_overrides = Column(MutableDict.as_mutable(JSONB), nullable=False, default=dict, server_default=expression.text("'{}'::jsonb"))
+    features = Column(MutableDict.as_mutable(JSONB), nullable=False, default=dict, server_default=expression.text("'{}'::jsonb"))
+    updated_by_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class EsignBrandAsset(Base):
+    __tablename__ = "esign_brand_assets"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    gcs_object_name = Column(Text, nullable=False, unique=True)
+    content_type = Column(String(32), nullable=False)
+    sha256 = Column(String(64), nullable=False)
+    file_size_bytes = Column(BigInteger, nullable=False)
+    created_by_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    __table_args__ = (Index("ix_esign_brand_assets_firm", "firm_id", "created_at"),)
+
+
+class EsignBrandProfile(Base):
+    __tablename__ = "esign_brand_profiles"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    logo_asset_id = Column(UUID(as_uuid=True), ForeignKey("esign_brand_assets.id", ondelete="RESTRICT"), nullable=True)
+    primary_color = Column(String(7), nullable=False, server_default="#1D4ED8")
+    accent_color = Column(String(7), nullable=False, server_default="#0F172A")
+    email_header = Column(Text, nullable=True)
+    email_footer = Column(Text, nullable=True)
+    reply_to_address = Column(String(255), nullable=True)
+    signing_welcome_text = Column(Text, nullable=True)
+    support_url = Column(Text, nullable=True)
+    active = Column(Boolean, nullable=False, server_default=expression.true())
+    allowed_profile_ids = Column(ARRAY(UUID(as_uuid=True)), nullable=True)
+    created_by_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    __table_args__ = (UniqueConstraint("firm_id", "name", name="uq_esign_brand_profiles_firm_name"),)
+
+
+class EsignPermissionProfile(Base):
+    __tablename__ = "esign_permission_profiles"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    capabilities = Column(MutableDict.as_mutable(JSONB), nullable=False, default=dict)
+    built_in_key = Column(String(32), nullable=True)
+    locked = Column(Boolean, nullable=False, server_default=expression.false())
+    created_by_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    __table_args__ = (
+        UniqueConstraint("firm_id", "name", name="uq_esign_permission_profiles_firm_name"),
+        UniqueConstraint("firm_id", "built_in_key", name="uq_esign_permission_profiles_builtin"),
+    )
+
+
+class EsignPermissionAssignment(Base):
+    __tablename__ = "esign_permission_assignments"
+
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), primary_key=True)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    profile_id = Column(UUID(as_uuid=True), ForeignKey("esign_permission_profiles.id", ondelete="RESTRICT"), nullable=False)
+    assigned_by_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class EsignEnvelopeGrant(Base):
+    __tablename__ = "esign_envelope_grants"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="CASCADE"), nullable=False)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    access_level = Column(String(16), nullable=False)
+    granted_by_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    envelope = relationship("EsignEnvelope", back_populates="grants")
+    __table_args__ = (
+        UniqueConstraint("envelope_id", "user_id", name="uq_esign_envelope_grants_user"),
+        CheckConstraint("access_level IN ('view', 'manage')", name="ck_esign_envelope_grants_level"),
+        Index("ix_esign_envelope_grants_user", "firm_id", "user_id"),
+    )
+
+
+class EsignWebhookConfiguration(Base):
+    __tablename__ = "esign_webhook_configurations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="CASCADE"), nullable=True)
+    endpoint_url = Column(Text, nullable=False)
+    enabled = Column(Boolean, nullable=False, server_default=expression.true())
+    event_filters = Column(ARRAY(String(64)), nullable=False, default=list)
+    include_completed_documents = Column(Boolean, nullable=False, server_default=expression.false())
+    secret_current = Column(Text, nullable=False)
+    secret_previous = Column(Text, nullable=True)
+    secret_previous_expires_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    created_by_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    disabled_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    __table_args__ = (Index("ix_esign_webhook_configurations_scope", "firm_id", "envelope_id", "enabled"),)
+
+
+class EsignWebhookDelivery(Base):
+    __tablename__ = "esign_webhook_deliveries"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    configuration_id = Column(UUID(as_uuid=True), ForeignKey("esign_webhook_configurations.id", ondelete="RESTRICT"), nullable=False)
+    event_id = Column(UUID(as_uuid=True), ForeignKey("esign_events.id", ondelete="RESTRICT"), nullable=False)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="RESTRICT"), nullable=False)
+    payload = Column(MutableDict.as_mutable(JSONB), nullable=False)
+    status = Column(String(24), nullable=False, server_default="pending")
+    attempt_count = Column(Integer, nullable=False, server_default="0")
+    next_attempt_at = Column(TIMESTAMP(timezone=True), nullable=True, server_default=func.now())
+    claimed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    terminal_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    manual_retry_by_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    __table_args__ = (
+        UniqueConstraint("configuration_id", "event_id", name="uq_esign_webhook_delivery_event"),
+        Index("ix_esign_webhook_deliveries_due", "status", "next_attempt_at"),
+        Index("ix_esign_webhook_deliveries_firm", "firm_id", "created_at"),
+    )
+
+
+class EsignWebhookAttempt(Base):
+    __tablename__ = "esign_webhook_attempts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    delivery_id = Column(UUID(as_uuid=True), ForeignKey("esign_webhook_deliveries.id", ondelete="RESTRICT"), nullable=False)
+    attempt_number = Column(Integer, nullable=False)
+    started_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    completed_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    duration_ms = Column(Integer, nullable=False)
+    result = Column(String(24), nullable=False)
+    http_status = Column(Integer, nullable=True)
+    response_excerpt = Column(Text, nullable=True)
+    error = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    __table_args__ = (UniqueConstraint("delivery_id", "attempt_number", name="uq_esign_webhook_attempt_number"),)
+
+
+class EsignAdminEvent(Base):
+    __tablename__ = "esign_admin_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="RESTRICT"), nullable=False)
+    actor_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    actor_email = Column(String(255), nullable=True)
+    event_type = Column(String(64), nullable=False)
+    target_type = Column(String(32), nullable=True)
+    target_id = Column(String(128), nullable=True)
+    details = Column(MutableDict.as_mutable(JSONB), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    __table_args__ = (Index("ix_esign_admin_events_firm_created", "firm_id", "created_at"),)

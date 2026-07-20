@@ -30,6 +30,49 @@ export interface EsignEnvelopeListParams {
   q?: string
   sortBy?: 'updated_at' | 'created_at' | 'sent_at' | 'completed_at' | 'title'
   sortDir?: 'asc' | 'desc'
+  scope?: 'mine' | 'shared' | 'firm'
+  ownerUserId?: string
+}
+
+export function useEsignContext() {
+  const { user } = useAuth()
+  return useQuery({ queryKey: ['esign', 'context'], queryFn: () => apiClient.getEsignContext(), enabled: !!user })
+}
+
+export function useEsignAdminOverview() {
+  const { user } = useAuth()
+  return useQuery({ queryKey: ['esign', 'admin', 'overview'], queryFn: () => apiClient.getEsignAdminOverview(), enabled: !!user, retry: false })
+}
+
+export function useEsignAdminSettings() {
+  const { user } = useAuth()
+  return useQuery({ queryKey: ['esign', 'admin', 'settings'], queryFn: () => apiClient.getEsignAdminSettings(), enabled: !!user, retry: false })
+}
+
+export function useUpdateEsignAdminSettings() {
+  const queryClient = useQueryClient()
+  return useMutation({ mutationFn: (payload: Record<string, any>) => apiClient.updateEsignAdminSettings(payload),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['esign', 'admin'] }); queryClient.invalidateQueries({ queryKey: ['esign', 'context'] }) } })
+}
+
+export function useEsignPermissionProfiles() {
+  const { user } = useAuth()
+  return useQuery({ queryKey: ['esign', 'admin', 'profiles'], queryFn: () => apiClient.listEsignPermissionProfiles(), enabled: !!user, retry: false })
+}
+
+export function useEsignBrands() {
+  const { user } = useAuth()
+  return useQuery({ queryKey: ['esign', 'admin', 'brands'], queryFn: () => apiClient.listEsignBrands(), enabled: !!user, retry: false })
+}
+
+export function useEsignFirmWebhooks() {
+  const { user } = useAuth()
+  return useQuery({ queryKey: ['esign', 'admin', 'webhooks'], queryFn: () => apiClient.listEsignFirmWebhooks(), enabled: !!user, retry: false })
+}
+
+export function useEsignWebhookDeliveries(status?: string) {
+  const { user } = useAuth()
+  return useQuery({ queryKey: ['esign', 'admin', 'deliveries', status], queryFn: () => apiClient.listEsignWebhookDeliveries(status), enabled: !!user, retry: false })
 }
 
 export function useEnvelopes(params: EsignEnvelopeListParams = {}) {

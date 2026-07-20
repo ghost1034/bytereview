@@ -302,6 +302,7 @@ class EsignEnvelopeUpdateRequest(BaseModel):
     reminder_interval_hours: Optional[int] = Field(default=None, ge=1, le=24 * 30)
     date_format: Optional[Literal["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD", "MMM D, YYYY"]] = None
     allow_reassignment: Optional[bool] = None
+    brand_id: Optional[str] = None
 
 
 class EsignRecipientsReplaceRequest(BaseModel):
@@ -345,6 +346,12 @@ class EsignEnvelopeResponse(BaseModel):
     schedule_timezone: Optional[str] = None
     send_error_code: Optional[str] = None
     send_error_message: Optional[str] = None
+    owner_id: Optional[str] = None
+    owner_email: Optional[str] = None
+    owner_name: Optional[str] = None
+    access_level: Literal["owner", "manage", "view", "admin"] = "owner"
+    brand: Optional[dict[str, Any]] = None
+    available_actions: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
     documents: list[EsignDocumentResponse]
@@ -369,6 +376,12 @@ class EsignEnvelopeListItem(BaseModel):
     template_version_id: Optional[str] = None
     scheduled_at: Optional[datetime] = None
     schedule_timezone: Optional[str] = None
+    owner_id: Optional[str] = None
+    owner_email: Optional[str] = None
+    owner_name: Optional[str] = None
+    access_level: Literal["owner", "manage", "view", "admin"] = "owner"
+    brand: Optional[dict[str, Any]] = None
+    available_actions: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
@@ -490,6 +503,7 @@ class EsignSigningSessionResponse(BaseModel):
     attachments: list["EsignSignerAttachmentResponse"] = Field(default_factory=list)
     sent_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
+    brand: Optional[dict[str, Any]] = None
 
 
 class EsignConsentResponse(BaseModel):
@@ -704,6 +718,7 @@ class EsignTemplateUpdateRequest(BaseModel):
     date_format: Optional[Literal["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD", "MMM D, YYYY"]] = None
     recipient_roles: Optional[list[EsignTemplateRoleInput]] = None
     fields: Optional[list[EsignTemplateFieldInput]] = None
+    brand_id: Optional[str] = None
 
 
 class EsignTemplateDocumentResponse(BaseModel):
@@ -806,6 +821,7 @@ class EsignTemplateResponse(BaseModel):
     updated_at: datetime
     firm_id: Optional[str] = None
     latest_published_version: Optional[int] = None
+    brand_id: Optional[str] = None
 
 
 class EsignTemplateListResponse(BaseModel):
@@ -887,6 +903,7 @@ class EsignPowerFormCreateRequest(BaseModel):
     role_config: list[EsignPowerFormRoleConfig]
     public_fields: list[str] = Field(default_factory=list)
     instructions: Optional[str] = Field(default=None, max_length=10_000)
+    brand_id: Optional[str] = None
 
 
 class EsignPowerFormResponse(BaseModel):
@@ -904,6 +921,7 @@ class EsignPowerFormResponse(BaseModel):
     public_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    brand_id: Optional[str] = None
 
 
 class EsignPowerFormListResponse(BaseModel):
@@ -928,3 +946,66 @@ class EsignReportSummary(BaseModel):
     p90_completion_hours: Optional[float] = None
     aging: dict[str, int]
     exceptions: dict[str, int]
+
+
+# ---------------------------------------------------------------------------
+# Firm administration, access, branding, and outbound webhooks
+# ---------------------------------------------------------------------------
+
+
+class EsignContextResponse(BaseModel):
+    firm: dict[str, Any]
+    profile: dict[str, Any]
+    features: dict[str, bool]
+    administrative_capabilities: dict[str, bool]
+
+
+class EsignSettingsUpdateRequest(BaseModel):
+    date_format: Optional[Literal["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD", "MMM D, YYYY"]] = None
+    signing_type: Optional[Literal["sequential", "parallel"]] = None
+    expiration_days: Optional[int] = Field(default=None, ge=1, le=3650)
+    reminder_interval_hours: Optional[int] = Field(default=None, ge=1, le=720)
+    allow_reassignment: Optional[bool] = None
+    default_brand_id: Optional[str] = None
+    sender_overrides: Optional[dict[str, bool]] = None
+    features: Optional[dict[str, bool]] = None
+
+
+class EsignPermissionProfileRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    capabilities: dict[str, bool] = Field(default_factory=dict)
+
+
+class EsignPermissionAssignmentRequest(BaseModel):
+    profile_id: str
+
+
+class EsignEnvelopeGrantRequest(BaseModel):
+    user_id: str = Field(min_length=1, max_length=128)
+    access_level: Literal["view", "manage"]
+
+
+class EsignCustodyTransferRequest(BaseModel):
+    successor_user_id: str = Field(min_length=1, max_length=128)
+    retain_previous_owner_view: bool = True
+
+
+class EsignBrandProfileRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    logo_asset_id: Optional[str] = None
+    primary_color: str = "#1D4ED8"
+    accent_color: str = "#0F172A"
+    email_header: Optional[str] = Field(default=None, max_length=10_000)
+    email_footer: Optional[str] = Field(default=None, max_length=10_000)
+    reply_to_address: Optional[EmailStr] = None
+    signing_welcome_text: Optional[str] = Field(default=None, max_length=10_000)
+    support_url: Optional[str] = Field(default=None, max_length=2000)
+    active: bool = True
+    allowed_profile_ids: Optional[list[str]] = None
+
+
+class EsignWebhookConfigurationRequest(BaseModel):
+    endpoint_url: str = Field(min_length=1, max_length=2000)
+    enabled: bool = True
+    event_filters: list[str] = Field(default_factory=list, max_length=100)
+    include_completed_documents: bool = False

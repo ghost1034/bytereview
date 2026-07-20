@@ -63,6 +63,7 @@ from services.esign.envelope_service import (
 )
 from services.esign.field_logic import remap_property_references, validate_field_graph
 from services.esign.signing_service import esign_signing_service
+from services.esign.authorization_service import esign_authorization_service
 
 MAX_CSV_BYTES = 10 * 1024 * 1024
 MAX_BULK_ROWS = 1_000
@@ -77,6 +78,7 @@ def _slug(label: str) -> str:
 
 def _snapshot(template: EsignTemplate) -> dict[str, Any]:
     return {
+        "brand_id": str(template.brand_id) if getattr(template, "brand_id", None) else None,
         "name": template.name,
         "title": template.title,
         "message": template.message,
@@ -224,6 +226,12 @@ class EsignScaleService:
         return db_config.get_session()
 
     @staticmethod
+    def _require_feature(db: Session, user_id: str, feature: str, capability: str) -> None:
+        principal = esign_authorization_service.principal(db, user_id)
+        if principal and not esign_authorization_service.effective_feature(principal, feature, capability):
+            raise EsignNotFound("E-Signature feature not found")
+
+    @staticmethod
     def _version_response(row: EsignTemplateVersion) -> EsignTemplateVersionResponse:
         return EsignTemplateVersionResponse(id=str(row.id), template_id=str(row.template_id), version=row.version,
             published_at=row.published_at, published_by_user_id=row.published_by_user_id)
@@ -248,7 +256,8 @@ class EsignScaleService:
             state=row.state, starts_at=row.starts_at, ends_at=row.ends_at, submission_cap=row.submission_cap,
             submission_count=row.submission_count, role_config=row.role_config, public_fields=row.public_fields or [],
             instructions=row.instructions, public_url=f"{base}/esign/p/{public_token}" if public_token else None,
-            created_at=row.created_at, updated_at=row.updated_at)
+            created_at=row.created_at, updated_at=row.updated_at,
+            brand_id=str(row.brand_id) if getattr(row, "brand_id", None) else None)
 
     async def publish_template(self, user_id: str, template_id: str) -> EsignTemplateVersionResponse:
         db = self._get_session()
@@ -311,6 +320,7 @@ class EsignScaleService:
                         default_schedule_timezone: Optional[str] = None) -> EsignBulkJobResponse:
         db = self._get_session()
         try:
+            self._require_feature(db, user_id, "bulk_sends", "bulk_sends")
             version = self._owned_version(db, user_id, version_id)
             parsed = validate_bulk_csv(content, version.snapshot)
             default_utc = None
@@ -452,6 +462,7 @@ class EsignScaleService:
                 message=data.get("message") or snap.get("message"), status=EsignEnvelopeStatus.DRAFT,
                 signing_type=EsignSigningType(snap.get("signing_type", "sequential")),
                 date_format=snap.get("date_format") or "MM/DD/YYYY", consent_disclosure_text=DEFAULT_CONSENT_DISCLOSURE,
+                brand_id=uuid.UUID(snap["brand_id"]) if snap.get("brand_id") else None,
                 reminder_interval_hours=int(data["reminder_interval_hours"]) if data.get("reminder_interval_hours") else None)
             if data.get("expires_in_days"): env.expires_at = datetime.now(timezone.utc) + timedelta(days=int(data["expires_in_days"]))
             db.add(env); db.flush()
@@ -535,6 +546,7 @@ class EsignScaleService:
             if schedule_at < now + MIN_SCHEDULE or schedule_at > now + MAX_SCHEDULE: raise EsignError("Schedule must be 5 minutes to 365 days ahead")
         db = self._get_session()
         try:
+            self._require_feature(db, user_id, "scheduled_sending", "scheduling")
             env = esign_envelope_service._load_envelope(db, user_id, envelope_id)
             if env.status != EsignEnvelopeStatus.DRAFT: raise EsignConflict("Only a draft envelope can be scheduled")
             env.status = EsignEnvelopeStatus.SCHEDULED; env.scheduled_at = schedule_at; env.schedule_timezone = timezone_name
@@ -573,7 +585,14 @@ class EsignScaleService:
     def create_powerform(self, user_id: str, payload: EsignPowerFormCreateRequest) -> EsignPowerFormResponse:
         db = self._get_session()
         try:
+            self._require_feature(db, user_id, "powerforms", "powerforms")
             version = self._owned_version(db, user_id, payload.template_version_id)
+            selected_brand_id = uuid.UUID(payload.brand_id) if payload.brand_id else None
+            if selected_brand_id:
+                from models.db_models import EsignBrandProfile
+                if not db.query(EsignBrandProfile).filter(EsignBrandProfile.id == selected_brand_id,
+                    EsignBrandProfile.firm_id == version.firm_id, EsignBrandProfile.active.is_(True)).first():
+                    raise EsignNotFound("Brand not found")
             visitors = [r for r in payload.role_config if r.identity_source == "visitor" and r.initiating_signer]
             if len(visitors) != 1: raise EsignError("Exactly one visitor-provided role must be the initiating signer")
             role_count = len(version.snapshot.get("recipient_roles", []))
@@ -600,7 +619,7 @@ class EsignScaleService:
                 name=payload.name.strip(), public_token_sha256=hashlib.sha256(token.encode()).hexdigest(),
                 starts_at=payload.starts_at, ends_at=payload.ends_at, submission_cap=payload.submission_cap,
                 role_config=[r.model_dump(mode="json") for r in payload.role_config], public_fields=payload.public_fields,
-                instructions=payload.instructions)
+                instructions=payload.instructions, brand_id=selected_brand_id)
             db.add(row); db.commit(); db.refresh(row); return self._powerform_response(row, token)
         except Exception: db.rollback(); raise
         finally: db.close()
@@ -686,7 +705,7 @@ class EsignScaleService:
         The PowerForm row is locked while the cap is checked and incremented,
         preventing concurrent exchanges from oversubscribing the link.
         """
-        db = self._get_session(); row_id: Optional[uuid.UUID] = None; submission_id: Optional[uuid.UUID] = None
+        db = self._get_session(); row_id: Optional[uuid.UUID] = None; submission_id: Optional[uuid.UUID] = None; form_brand_id = None
         try:
             digest = hashlib.sha256(token.encode()).hexdigest(); now = datetime.now(timezone.utc)
             submission = db.query(EsignPowerFormSubmission).filter(
@@ -699,6 +718,7 @@ class EsignScaleService:
             if form.submission_cap is not None and form.submission_count >= form.submission_cap:
                 raise EsignConflict("This form has reached its submission limit")
             if not submission.consent: raise EsignError("Electronic signature consent is required")
+            form_brand_id = form.brand_id
             version = db.query(EsignTemplateVersion).filter(EsignTemplateVersion.id == form.template_version_id).first()
             data = {"envelope_title": version.snapshot.get("title") or form.name, "message": version.snapshot.get("message") or "",
                 "expires_in_days": "", "reminder_interval_hours": "", "schedule_at": "", "schedule_timezone": "",
@@ -734,6 +754,7 @@ class EsignScaleService:
                 raise EsignError(row.error_message if row else "PowerForm materialization failed")
             env = db.query(EsignEnvelope).options(joinedload(EsignEnvelope.recipients)).filter(EsignEnvelope.id == row.envelope_id).first()
             env.source_type = "powerform"; env.source_id = submission.powerform_id
+            if form_brand_id: env.brand_id = form_brand_id
             submission.envelope_id = env.id; submission.status = "submitted"
             recipient = next(r for r in env.recipients or [] if r.email == submission.initiating_email)
             from services.esign.recipient_service import esign_recipient_service
@@ -748,13 +769,15 @@ class EsignScaleService:
         try:
             user = db.query(User).filter(User.id == user_id).first()
             if not user: raise EsignNotFound("User not found")
+            principal = esign_authorization_service.principal(db, user_id)
+            if principal and not principal.can("reports"): raise EsignNotFound("E-Signature reports not found")
             q = db.query(EsignEnvelope).filter(EsignEnvelope.firm_id == require_firm_id(db, user_id))
-            if user.role not in (AnalyticsUserRole.ADMIN, AnalyticsUserRole.MANAGER): q = q.filter(EsignEnvelope.user_id == user_id)
+            if not principal or not (principal.is_admin or principal.can("firm_view")): q = q.filter(EsignEnvelope.user_id == user_id)
             if source: q = q.filter(EsignEnvelope.source_type == source)
             if status: q = q.filter(EsignEnvelope.status == status)
             if template_version_id: q = q.filter(EsignEnvelope.template_version_id == uuid.UUID(template_version_id))
             if sender_user_id:
-                if user.role not in (AnalyticsUserRole.ADMIN, AnalyticsUserRole.MANAGER) and sender_user_id != user_id:
+                if (not principal or not (principal.is_admin or principal.can("firm_view"))) and sender_user_id != user_id:
                     raise PermissionError("You may only report on envelopes you sent")
                 q = q.filter(EsignEnvelope.user_id == sender_user_id)
             if source_id: q = q.filter(EsignEnvelope.source_id == uuid.UUID(source_id))
@@ -791,9 +814,11 @@ class EsignScaleService:
         try:
             user = db.query(User).filter(User.id == user_id).first()
             if not user: raise EsignNotFound("User not found")
+            principal = esign_authorization_service.principal(db, user_id)
+            if principal and not principal.can("reports"): raise EsignNotFound("E-Signature reports not found")
             q = db.query(EsignEnvelope).filter(EsignEnvelope.firm_id == require_firm_id(db, user_id),
                 EsignEnvelope.sent_at >= start, EsignEnvelope.sent_at < end)
-            if user.role not in (AnalyticsUserRole.ADMIN, AnalyticsUserRole.MANAGER): q = q.filter(EsignEnvelope.user_id == user_id)
+            if not principal or not (principal.is_admin or principal.can("firm_view")): q = q.filter(EsignEnvelope.user_id == user_id)
             if source: q = q.filter(EsignEnvelope.source_type == source)
             buckets: dict[str, dict[str, Any]] = {}
             for env in q.all():
@@ -808,9 +833,11 @@ class EsignScaleService:
         try:
             user = db.query(User).filter(User.id == user_id).first()
             if not user: raise EsignNotFound("User not found")
+            principal = esign_authorization_service.principal(db, user_id)
+            if principal and not principal.can("exports"): raise EsignNotFound("E-Signature report export not found")
             q = db.query(EsignEnvelope).filter(EsignEnvelope.firm_id == require_firm_id(db, user_id),
                 EsignEnvelope.created_at >= start, EsignEnvelope.created_at < end)
-            if user.role not in (AnalyticsUserRole.ADMIN, AnalyticsUserRole.MANAGER): q = q.filter(EsignEnvelope.user_id == user_id)
+            if not principal or not (principal.is_admin or principal.can("firm_view")): q = q.filter(EsignEnvelope.user_id == user_id)
             output = io.StringIO(newline=""); writer = csv.writer(output)
             writer.writerow(["envelope_id", "title", "sender_user_id", "source", "source_id", "template_version_id",
                 "status", "scheduled_at", "sent_at", "completed_at", "created_at", "error_code", "error_message"])

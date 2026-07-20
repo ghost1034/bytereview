@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from core.database import get_db
@@ -214,11 +214,13 @@ async def update_member(
 @router.delete("/members/{member_user_id}")
 async def remove_member(
     member_user_id: str,
+    successor_user_id: str | None = Query(default=None),
     actor: User = Depends(require_role(AnalyticsUserRole.ADMIN)),
     db: Session = Depends(get_db),
 ):
     _, firm = get_or_create_user_firm(db, actor.id)
-    firms_service.remove_member(db, firm.id, member_user_id)
+    firms_service.remove_member(db, firm.id, member_user_id, successor_user_id=successor_user_id,
+                                actor_user_id=actor.id)
     return {"success": True}
 
 

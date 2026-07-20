@@ -1973,6 +1973,12 @@ async def process_envelope_seal(ctx: Dict[str, Any], envelope_id: str) -> Dict[s
     return await esign_sealing_service.process_envelope_seal(envelope_id)
 
 
+async def deliver_esign_webhook(ctx: Dict[str, Any], delivery_id: str) -> Dict[str, Any]:
+    from services.esign.webhook_service import esign_webhook_service
+    logger.info("Delivering E-Signature webhook %s", delivery_id)
+    return await esign_webhook_service.deliver(delivery_id)
+
+
 async def run_esign_maintenance(ctx: Dict[str, Any]) -> Dict[str, Any]:
     """Hourly e-sign sweep: expire overdue envelopes, send auto-reminders."""
     from services.esign.maintenance_service import esign_maintenance_service

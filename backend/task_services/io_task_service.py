@@ -19,7 +19,8 @@ from workers.worker import (
     import_gmail_attachments,
     export_job_to_google_drive,
     unpack_zip_file_task,
-    process_envelope_seal
+    process_envelope_seal,
+    deliver_esign_webhook,
 )
 
 logger = logging.getLogger(__name__)
@@ -99,6 +100,12 @@ async def execute_task(request: Request):
 
             logger.info(f"Executing envelope seal: envelope={envelope_id}")
             result = await process_envelope_seal(ctx, envelope_id)
+
+        elif task_type == "deliver_esign_webhook":
+            delivery_id = task_data.get("delivery_id")
+            if not delivery_id:
+                raise HTTPException(status_code=400, detail="delivery_id is required")
+            result = await deliver_esign_webhook(ctx, delivery_id)
 
         elif task_type == "unpack_zip_file_task":
             source_file_id = task_data.get("source_file_id")

@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 import fitz
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session, joinedload
 
 from core.database import db_config
@@ -33,6 +33,12 @@ from models.db_models import (
     EsignTemplate,
     EsignTemplateDocument,
     EsignTemplateField,
+    EsignEnvelopeGrant,
+    User,
+    EsignFirmSettings,
+    EsignBrandProfile,
+    EsignWebhookAttempt,
+    EsignWebhookDelivery,
 )
 from models.esign import (
     EsignAuditTrailResponse,
@@ -64,6 +70,7 @@ from services.esign.audit_service import EsignRequestMeta
 from services.esign.field_logic import FieldLogicError, remap_property_references, validate_field_graph
 from services.gcs_service import get_storage_service
 from services.analytics.firm_scope import require_firm_id
+from services.esign.authorization_service import esign_authorization_service
 
 logger = logging.getLogger(__name__)
 
@@ -202,7 +209,18 @@ class EsignEnvelopeService:
             file_size_bytes=int(document.file_size_bytes or 0),
         )
 
-    def _serialize_envelope(self, envelope: EsignEnvelope) -> EsignEnvelopeResponse:
+    @staticmethod
+    def _available_actions(envelope: EsignEnvelope, access_level: str) -> list[str]:
+        actions = ["view", "download"]
+        if access_level in ("owner", "manage", "admin"):
+            actions.extend(["edit", "send", "correct", "remind", "void", "webhooks"])
+        if access_level in ("owner", "admin"):
+            actions.extend(["delete_draft", "share", "transfer"])
+        return actions
+
+    def _serialize_envelope(self, envelope: EsignEnvelope, *, access_level: str | None = None) -> EsignEnvelopeResponse:
+        access_level = access_level or getattr(envelope, "_caller_access_level", "owner")
+        owner = getattr(envelope, "user", None)
         return EsignEnvelopeResponse(
             id=str(envelope.id),
             title=envelope.title,
@@ -232,6 +250,12 @@ class EsignEnvelopeService:
             schedule_timezone=getattr(envelope, "schedule_timezone", None),
             send_error_code=getattr(envelope, "send_error_code", None),
             send_error_message=getattr(envelope, "send_error_message", None),
+            owner_id=envelope.user_id,
+            owner_email=getattr(owner, "email", None),
+            owner_name=getattr(owner, "display_name", None),
+            access_level=access_level,
+            brand=dict(envelope.brand_snapshot or {}) or None,
+            available_actions=self._available_actions(envelope, access_level),
             created_at=envelope.created_at,
             updated_at=envelope.updated_at,
             documents=[self._serialize_document(d) for d in (envelope.documents or [])],
@@ -257,7 +281,10 @@ class EsignEnvelopeService:
     # Loading helpers
     # ------------------------------------------------------------------
 
-    def _load_envelope(self, db: Session, user_id: str, envelope_id: str) -> EsignEnvelope:
+    def _load_envelope(
+        self, db: Session, user_id: str, envelope_id: str, *, require_manage: bool = True,
+        owner_only: bool = False,
+    ) -> EsignEnvelope:
         try:
             env_uuid = uuid.UUID(str(envelope_id))
         except ValueError:
@@ -269,11 +296,15 @@ class EsignEnvelopeService:
                 joinedload(EsignEnvelope.recipients),
                 joinedload(EsignEnvelope.fields),
             )
-            .filter(EsignEnvelope.id == env_uuid, EsignEnvelope.user_id == user_id)
+            .filter(EsignEnvelope.id == env_uuid)
             .first()
         )
-        if not envelope:
+        access = esign_authorization_service.envelope_access(
+            db, user_id, envelope, require_manage=require_manage, owner_only=owner_only,
+        ) if envelope else None
+        if not envelope or not access:
             raise EsignNotFound("Envelope not found")
+        envelope._caller_access_level = access.level
         return envelope
 
     def _load_envelope_as_participant(
@@ -296,7 +327,9 @@ class EsignEnvelopeService:
         )
         if not envelope:
             raise EsignNotFound("Envelope not found")
-        if envelope.user_id == user_id:
+        access = esign_authorization_service.envelope_access(db, user_id, envelope, require_manage=False)
+        if access:
+            envelope._caller_access_level = access.level
             return envelope
         email = (user_email or "").strip().lower()
         if email and any(r.email == email for r in (envelope.recipients or [])):
@@ -324,6 +357,7 @@ class EsignEnvelopeService:
         expires_in_days: Optional[int],
         reminder_interval_hours: Optional[int],
         meta: EsignRequestMeta,
+        brand_id: Optional[str] = None,
     ) -> EsignEnvelopeResponse:
         if not files and not template_id:
             raise EsignError("Provide at least one PDF or a template_id")
@@ -332,21 +366,42 @@ class EsignEnvelopeService:
 
         db = self._get_session()
         try:
+            principal = esign_authorization_service.principal(db, user_id)
+            if principal and not principal.can("send"):
+                raise EsignNotFound("E-Signature sending not found")
+            firm_id = require_firm_id(db, user_id)
+            settings = db.query(EsignFirmSettings).filter(EsignFirmSettings.firm_id == firm_id).first()
+            overrides = dict(settings.sender_overrides or {}) if settings else {}
+            effective_signing_type = signing_type if (not settings or overrides.get("signing_type", True)) else settings.signing_type
+            if not effective_signing_type: effective_signing_type = settings.signing_type if settings else "sequential"
+            effective_reminder = reminder_interval_hours if (not settings or overrides.get("reminders", True)) else settings.reminder_interval_hours
+            effective_expiration = expires_in_days if (not settings or overrides.get("expiration", True)) else settings.expiration_days
+            resolved_brand_id = uuid.UUID(brand_id) if brand_id else (settings.default_brand_id if settings else None)
+            if resolved_brand_id:
+                brand = db.query(EsignBrandProfile).filter(EsignBrandProfile.id == resolved_brand_id,
+                                                          EsignBrandProfile.firm_id == firm_id,
+                                                          EsignBrandProfile.active.is_(True)).first()
+                if not brand: raise EsignNotFound("Brand not found")
+                if brand.allowed_profile_ids and principal and not principal.is_admin and principal.profile_id not in brand.allowed_profile_ids:
+                    raise EsignNotFound("Brand not found")
             envelope = EsignEnvelope(
                 id=uuid.uuid4(),
                 user_id=user_id,
-                firm_id=require_firm_id(db, user_id),
+                firm_id=firm_id,
                 title=(title or "Untitled envelope").strip()[:255],
                 message=message,
                 status=EsignEnvelopeStatus.DRAFT,
-                signing_type=EsignSigningType(signing_type) if signing_type else EsignSigningType.SEQUENTIAL,
+                signing_type=EsignSigningType(effective_signing_type),
                 consent_disclosure_text=DEFAULT_CONSENT_DISCLOSURE,
-                reminder_interval_hours=reminder_interval_hours,
+                reminder_interval_hours=effective_reminder,
+                date_format=settings.date_format if settings else "MM/DD/YYYY",
+                allow_reassignment=bool(settings.allow_reassignment) if settings else False,
+                brand_id=resolved_brand_id,
             )
-            if expires_in_days:
+            if effective_expiration:
                 from datetime import timedelta
 
-                envelope.expires_at = datetime.now(timezone.utc) + timedelta(days=int(expires_in_days))
+                envelope.expires_at = datetime.now(timezone.utc) + timedelta(days=int(effective_expiration))
             db.add(envelope)
             db.flush()
 
@@ -409,6 +464,8 @@ class EsignEnvelopeService:
             envelope.message = template.message
         envelope.signing_type = template.signing_type
         envelope.date_format = getattr(template, "date_format", None) or "MM/DD/YYYY"
+        if getattr(template, "brand_id", None):
+            envelope.brand_id = template.brand_id
 
         # Copy template documents into the envelope's own GCS prefix so the
         # envelope's originals stay immutable even if the template changes.
@@ -605,7 +662,7 @@ class EsignEnvelopeService:
         """
         db = self._get_session()
         try:
-            envelope = self._load_envelope(db, user_id, envelope_id)
+            envelope = self._load_envelope(db, user_id, envelope_id, owner_only=True)
             if envelope.status != EsignEnvelopeStatus.DRAFT:
                 raise EsignConflict("Only draft envelopes can be deleted; void sent envelopes instead")
 
@@ -616,6 +673,11 @@ class EsignEnvelopeService:
                 if name
             ]
             # Events must go first: their FK is RESTRICT.
+            delivery_ids = db.query(EsignWebhookDelivery.id).filter(EsignWebhookDelivery.envelope_id == envelope.id)
+            if getattr(getattr(db, "bind", None), "dialect", None) is not None and db.bind.dialect.name == "postgresql":
+                db.execute(text("SET LOCAL esign.retention_cleanup = 'on'"))
+            db.query(EsignWebhookAttempt).filter(EsignWebhookAttempt.delivery_id.in_(delivery_ids)).delete(synchronize_session=False)
+            db.query(EsignWebhookDelivery).filter(EsignWebhookDelivery.envelope_id == envelope.id).delete(synchronize_session=False)
             db.query(EsignEvent).filter(EsignEvent.envelope_id == envelope.id).delete()
             db.delete(envelope)  # cascades documents, recipients, fields
             db.commit()
@@ -654,6 +716,14 @@ class EsignEnvelopeService:
                 envelope.reminder_interval_hours = payload.reminder_interval_hours
             if payload.allow_reassignment is not None:
                 envelope.allow_reassignment = payload.allow_reassignment
+            if payload.brand_id is not None:
+                brand = db.query(EsignBrandProfile).filter(
+                    EsignBrandProfile.id == uuid.UUID(payload.brand_id),
+                    EsignBrandProfile.firm_id == envelope.firm_id,
+                    EsignBrandProfile.active.is_(True),
+                ).first()
+                if not brand: raise EsignNotFound("Brand not found")
+                envelope.brand_id = brand.id
             db.commit()
             db.refresh(envelope)
             return self._serialize_envelope(envelope)
@@ -856,14 +926,28 @@ class EsignEnvelopeService:
         status: Optional[str] = None, q: Optional[str] = None,
         source_type: Optional[str] = None, source_id: Optional[str] = None,
         template_version_id: Optional[str] = None,
-        sort_by: str = "updated_at", sort_dir: str = "desc",
+        sort_by: str = "updated_at", sort_dir: str = "desc", scope: str = "mine",
+        owner_user_id: Optional[str] = None,
     ) -> EsignEnvelopeListResponse:
         db = self._get_session()
         try:
-            base = db.query(EsignEnvelope).filter(EsignEnvelope.user_id == user_id)
+            principal = esign_authorization_service.principal(db, user_id)
+            if scope not in ("mine", "shared", "firm"):
+                raise EsignError("Invalid envelope scope")
+            if scope == "mine":
+                scope_filter = EsignEnvelope.user_id == user_id
+            elif scope == "shared":
+                scope_filter = EsignEnvelope.id.in_(
+                    db.query(EsignEnvelopeGrant.envelope_id).filter(EsignEnvelopeGrant.user_id == user_id)
+                )
+            elif principal and (principal.is_admin or principal.can("firm_view")):
+                scope_filter = EsignEnvelope.firm_id == principal.firm_id
+            else:
+                raise EsignNotFound("Envelope scope not found")
+            base = db.query(EsignEnvelope).filter(scope_filter)
             count_rows = (
                 db.query(EsignEnvelope.status, func.count(EsignEnvelope.id))
-                .filter(EsignEnvelope.user_id == user_id)
+                .filter(scope_filter)
                 .group_by(EsignEnvelope.status)
                 .all()
             )
@@ -874,6 +958,10 @@ class EsignEnvelopeService:
             for envelope_status in EsignEnvelopeStatus:
                 status_counts.setdefault(envelope_status.value, 0)
             query = base
+            if owner_user_id:
+                if owner_user_id != user_id and scope != "firm":
+                    raise EsignNotFound("Envelope scope not found")
+                query = query.filter(EsignEnvelope.user_id == owner_user_id)
             if status:
                 if status == "active":
                     query = query.filter(EsignEnvelope.status.in_(ACTIVE_STATUSES))
@@ -915,6 +1003,9 @@ class EsignEnvelopeService:
             )
             items = []
             for env in envelopes:
+                access = esign_authorization_service.envelope_access(db, user_id, env, require_manage=False)
+                access_level = access.level if access else "view"
+                owner = db.query(User).filter(User.id == env.user_id).first()
                 signers = [
                     r for r in (env.recipients or [])
                     if r.role in (EsignRecipientRole.SIGNER, EsignRecipientRole.WITNESS, EsignRecipientRole.IN_PERSON_SIGNER)
@@ -942,6 +1033,12 @@ class EsignEnvelopeService:
                         template_version_id=str(env.template_version_id) if getattr(env, "template_version_id", None) else None,
                         scheduled_at=getattr(env, "scheduled_at", None),
                         schedule_timezone=getattr(env, "schedule_timezone", None),
+                        owner_id=env.user_id,
+                        owner_email=getattr(owner, "email", None),
+                        owner_name=getattr(owner, "display_name", None),
+                        access_level=access_level,
+                        brand=dict(env.brand_snapshot or {}) or None,
+                        available_actions=self._available_actions(env, access_level),
                         created_at=env.created_at,
                         updated_at=env.updated_at,
                     )
@@ -956,15 +1053,16 @@ class EsignEnvelopeService:
     def get_envelope(self, user_id: str, envelope_id: str) -> EsignEnvelopeResponse:
         db = self._get_session()
         try:
-            envelope = self._load_envelope(db, user_id, envelope_id)
-            return self._serialize_envelope(envelope)
+            envelope = self._load_envelope(db, user_id, envelope_id, require_manage=False)
+            access = esign_authorization_service.envelope_access(db, user_id, envelope)
+            return self._serialize_envelope(envelope, access_level=access.level if access else "view")
         finally:
             db.close()
 
     def get_audit_trail(self, user_id: str, envelope_id: str) -> EsignAuditTrailResponse:
         db = self._get_session()
         try:
-            envelope = self._load_envelope(db, user_id, envelope_id)
+            envelope = self._load_envelope(db, user_id, envelope_id, require_manage=False)
             events = (
                 db.query(EsignEvent)
                 .filter(EsignEvent.envelope_id == envelope.id)
@@ -1000,7 +1098,7 @@ class EsignEnvelopeService:
     ) -> EsignDownloadResponse:
         db = self._get_session()
         try:
-            envelope = self._load_envelope(db, user_id, envelope_id)
+            envelope = self._load_envelope(db, user_id, envelope_id, require_manage=False)
             document = next((d for d in envelope.documents if str(d.id) == str(document_id)), None)
             if not document:
                 raise EsignNotFound("Document not found")
@@ -1071,10 +1169,12 @@ class EsignEnvelopeService:
         template = (
             db.query(EsignTemplate)
             .options(joinedload(EsignTemplate.documents), joinedload(EsignTemplate.fields))
-            .filter(EsignTemplate.id == tid, EsignTemplate.user_id == user_id)
+            .filter(EsignTemplate.id == tid)
             .first()
         )
-        if not template:
+        if not template or not esign_authorization_service.can_manage_firm_resource(
+            db, user_id, template.firm_id, template.user_id,
+        ):
             raise EsignNotFound("Template not found")
         return template
 
@@ -1120,6 +1220,7 @@ class EsignEnvelopeService:
             updated_at=template.updated_at,
             firm_id=str(template.firm_id) if getattr(template, "firm_id", None) else None,
             latest_published_version=max((v.version for v in getattr(template, "versions", []) or []), default=None),
+            brand_id=str(template.brand_id) if getattr(template, "brand_id", None) else None,
         )
 
     async def create_template(
@@ -1133,6 +1234,7 @@ class EsignEnvelopeService:
         signing_type: Optional[str],
         recipient_roles: list[EsignTemplateRoleInput],
         files: list[tuple[str, bytes]],
+        brand_id: Optional[str] = None,
     ) -> EsignTemplateResponse:
         if not name or not name.strip():
             raise EsignError("Template name is required")
@@ -1143,16 +1245,27 @@ class EsignEnvelopeService:
 
         db = self._get_session()
         try:
+            principal = esign_authorization_service.principal(db, user_id)
+            if principal and not principal.can("templates"):
+                raise EsignNotFound("E-Signature templates not found")
+            firm_id = require_firm_id(db, user_id)
+            selected_brand_id = uuid.UUID(brand_id) if brand_id else None
+            if selected_brand_id and not db.query(EsignBrandProfile).filter(
+                EsignBrandProfile.id == selected_brand_id, EsignBrandProfile.firm_id == firm_id,
+                EsignBrandProfile.active.is_(True),
+            ).first():
+                raise EsignNotFound("Brand not found")
             template = EsignTemplate(
                 id=uuid.uuid4(),
                 user_id=user_id,
-                firm_id=require_firm_id(db, user_id),
+                firm_id=firm_id,
                 name=name.strip()[:255],
                 description=description,
                 title=title,
                 message=message,
                 signing_type=EsignSigningType(signing_type) if signing_type else EsignSigningType.SEQUENTIAL,
                 recipient_roles=[r.model_dump() for r in recipient_roles],
+                brand_id=selected_brand_id,
             )
             db.add(template)
             db.flush()
@@ -1197,6 +1310,7 @@ class EsignEnvelopeService:
         date_format: Optional[str] = None,
         recipient_roles: Optional[list[EsignTemplateRoleInput]] = None,
         fields: Optional[list[EsignTemplateFieldInput]] = None,
+        brand_id: Optional[str] = None,
     ) -> EsignTemplateResponse:
         db = self._get_session()
         try:
@@ -1213,6 +1327,11 @@ class EsignEnvelopeService:
                 template.signing_type = EsignSigningType(signing_type)
             if date_format is not None:
                 template.date_format = date_format
+            if brand_id is not None:
+                brand = db.query(EsignBrandProfile).filter(EsignBrandProfile.id == uuid.UUID(brand_id),
+                    EsignBrandProfile.firm_id == template.firm_id, EsignBrandProfile.active.is_(True)).first()
+                if not brand: raise EsignNotFound("Brand not found")
+                template.brand_id = brand.id
             if recipient_roles is not None:
                 template.recipient_roles = [r.model_dump() for r in recipient_roles]
 
@@ -1275,10 +1394,12 @@ class EsignEnvelopeService:
     def list_templates(self, user_id: str) -> list[EsignTemplateResponse]:
         db = self._get_session()
         try:
+            principal = esign_authorization_service.principal(db, user_id)
+            scope_filter = (EsignTemplate.firm_id == principal.firm_id) if principal and (principal.is_admin or principal.can("firm_manage")) else (EsignTemplate.user_id == user_id)
             templates = (
                 db.query(EsignTemplate)
                 .options(joinedload(EsignTemplate.documents), joinedload(EsignTemplate.fields))
-                .filter(EsignTemplate.user_id == user_id)
+                .filter(scope_filter)
                 .order_by(EsignTemplate.updated_at.desc())
                 .all()
             )

@@ -1624,6 +1624,368 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/esign/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Esign Context */
+        get: operations["get_esign_context_api_esign_context_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Esign Admin Overview */
+        get: operations["esign_admin_overview_api_esign_admin_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/custody-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Esign Admin Custody Review */
+        get: operations["esign_admin_custody_review_api_esign_admin_custody_review_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Esign Admin Settings */
+        get: operations["get_esign_admin_settings_api_esign_admin_settings_get"];
+        /** Update Esign Admin Settings */
+        put: operations["update_esign_admin_settings_api_esign_admin_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/permission-profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Esign Permission Profiles */
+        get: operations["list_esign_permission_profiles_api_esign_admin_permission_profiles_get"];
+        put?: never;
+        /** Create Esign Permission Profile */
+        post: operations["create_esign_permission_profile_api_esign_admin_permission_profiles_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/permission-profiles/{profile_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Esign Permission Profile */
+        put: operations["update_esign_permission_profile_api_esign_admin_permission_profiles__profile_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/users/{user_id}/permission-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Assign Esign Permission Profile */
+        put: operations["assign_esign_permission_profile_api_esign_admin_users__user_id__permission_profile_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/brands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Esign Brands */
+        get: operations["list_esign_brands_api_esign_admin_brands_get"];
+        put?: never;
+        /** Create Esign Brand */
+        post: operations["create_esign_brand_api_esign_admin_brands_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/brands/{brand_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Esign Brand */
+        put: operations["update_esign_brand_api_esign_admin_brands__brand_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/brand-assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Esign Brand Asset */
+        post: operations["upload_esign_brand_asset_api_esign_admin_brand_assets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Esign Firm Webhooks */
+        get: operations["list_esign_firm_webhooks_api_esign_admin_webhooks_get"];
+        put?: never;
+        /** Create Esign Firm Webhook */
+        post: operations["create_esign_firm_webhook_api_esign_admin_webhooks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/webhooks/{configuration_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Esign Webhook */
+        put: operations["update_esign_webhook_api_esign_admin_webhooks__configuration_id__put"];
+        post?: never;
+        /** Disable Esign Firm Webhook */
+        delete: operations["disable_esign_firm_webhook_api_esign_admin_webhooks__configuration_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/webhooks/{configuration_id}/rotate-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate Esign Webhook Secret */
+        post: operations["rotate_esign_webhook_secret_api_esign_admin_webhooks__configuration_id__rotate_secret_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/webhooks/{configuration_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test Esign Webhook */
+        post: operations["test_esign_webhook_api_esign_admin_webhooks__configuration_id__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/webhook-deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Esign Webhook Deliveries */
+        get: operations["list_esign_webhook_deliveries_api_esign_admin_webhook_deliveries_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/webhook-metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Esign Webhook Metrics */
+        get: operations["get_esign_webhook_metrics_api_esign_admin_webhook_metrics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/webhook-deliveries/{delivery_id}/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Esign Webhook Attempts */
+        get: operations["list_esign_webhook_attempts_api_esign_admin_webhook_deliveries__delivery_id__attempts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/webhook-deliveries/{delivery_id}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replay Esign Webhook */
+        post: operations["replay_esign_webhook_api_esign_admin_webhook_deliveries__delivery_id__replay_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Esign Admin Audit */
+        get: operations["list_esign_admin_audit_api_esign_admin_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/audit.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Esign Admin Audit */
+        get: operations["export_esign_admin_audit_api_esign_admin_audit_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/admin/users/{user_id}/offboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Offboard Esign User */
+        post: operations["offboard_esign_user_api_esign_admin_users__user_id__offboard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/esign/templates": {
         parameters: {
             query?: never;
@@ -2107,6 +2469,76 @@ export interface paths {
          * @description Hard-delete a draft envelope. Sent envelopes must be voided instead.
          */
         delete: operations["delete_envelope_api_esign_envelopes__envelope_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/envelopes/{envelope_id}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Envelope Access */
+        get: operations["get_envelope_access_api_esign_envelopes__envelope_id__access_get"];
+        /** Grant Envelope Access */
+        put: operations["grant_envelope_access_api_esign_envelopes__envelope_id__access_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/envelopes/{envelope_id}/access/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Envelope Access */
+        delete: operations["revoke_envelope_access_api_esign_envelopes__envelope_id__access__user_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/envelopes/{envelope_id}/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transfer Envelope Custody */
+        post: operations["transfer_envelope_custody_api_esign_envelopes__envelope_id__transfer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/envelopes/{envelope_id}/webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Envelope Webhooks */
+        get: operations["list_envelope_webhooks_api_esign_envelopes__envelope_id__webhooks_get"];
+        put?: never;
+        /** Create Envelope Webhook */
+        post: operations["create_envelope_webhook_api_esign_envelopes__envelope_id__webhooks_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -5652,6 +6084,8 @@ export interface components {
             expires_in_days?: number | null;
             /** Reminder Interval Hours */
             reminder_interval_hours?: number | null;
+            /** Brand Id */
+            brand_id?: string | null;
             /** Template Id */
             template_id?: string | null;
             /** Files */
@@ -5698,10 +6132,17 @@ export interface components {
             message?: string | null;
             /** Signing Type */
             signing_type?: string | null;
+            /** Brand Id */
+            brand_id?: string | null;
             /** Recipient Roles */
             recipient_roles?: string | null;
             /** Files */
             files: string[];
+        };
+        /** Body_upload_esign_brand_asset_api_esign_admin_brand_assets_post */
+        Body_upload_esign_brand_asset_api_esign_admin_brand_assets_post: {
+            /** File */
+            file: string;
         };
         /** Body_upload_signer_attachment_api_esign_sign__envelope_id__attachments_post */
         Body_upload_signer_attachment_api_esign_sign__envelope_id__attachments_post: {
@@ -6591,6 +7032,40 @@ export interface components {
             /** Recipient Changes */
             recipient_changes?: components["schemas"]["EsignRecipientChangeResponse"][];
         };
+        /** EsignBrandProfileRequest */
+        EsignBrandProfileRequest: {
+            /** Name */
+            name: string;
+            /** Logo Asset Id */
+            logo_asset_id?: string | null;
+            /**
+             * Primary Color
+             * @default #1D4ED8
+             */
+            primary_color: string;
+            /**
+             * Accent Color
+             * @default #0F172A
+             */
+            accent_color: string;
+            /** Email Header */
+            email_header?: string | null;
+            /** Email Footer */
+            email_footer?: string | null;
+            /** Reply To Address */
+            reply_to_address?: string | null;
+            /** Signing Welcome Text */
+            signing_welcome_text?: string | null;
+            /** Support Url */
+            support_url?: string | null;
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Allowed Profile Ids */
+            allowed_profile_ids?: string[] | null;
+        };
         /** EsignBulkJobListResponse */
         EsignBulkJobListResponse: {
             /** Jobs */
@@ -6677,6 +7152,25 @@ export interface components {
             value?: string | null;
             properties?: components["schemas"]["EsignFieldProperties"];
         };
+        /** EsignContextResponse */
+        EsignContextResponse: {
+            /** Firm */
+            firm: {
+                [key: string]: unknown;
+            };
+            /** Profile */
+            profile: {
+                [key: string]: unknown;
+            };
+            /** Features */
+            features: {
+                [key: string]: boolean;
+            };
+            /** Administrative Capabilities */
+            administrative_capabilities: {
+                [key: string]: boolean;
+            };
+        };
         /** EsignCorrectionRequest */
         EsignCorrectionRequest: {
             /** Recipients */
@@ -6685,6 +7179,16 @@ export interface components {
             reason: string;
             /** Expected Routing Version */
             expected_routing_version: number;
+        };
+        /** EsignCustodyTransferRequest */
+        EsignCustodyTransferRequest: {
+            /** Successor User Id */
+            successor_user_id: string;
+            /**
+             * Retain Previous Owner View
+             * @default true
+             */
+            retain_previous_owner_view: boolean;
         };
         /** EsignDeclineRequest */
         EsignDeclineRequest: {
@@ -6737,6 +7241,16 @@ export interface components {
              */
             message: string;
         };
+        /** EsignEnvelopeGrantRequest */
+        EsignEnvelopeGrantRequest: {
+            /** User Id */
+            user_id: string;
+            /**
+             * Access Level
+             * @enum {string}
+             */
+            access_level: "view" | "manage";
+        };
         /** EsignEnvelopeListItem */
         EsignEnvelopeListItem: {
             /** Id */
@@ -6784,6 +7298,24 @@ export interface components {
             scheduled_at?: string | null;
             /** Schedule Timezone */
             schedule_timezone?: string | null;
+            /** Owner Id */
+            owner_id?: string | null;
+            /** Owner Email */
+            owner_email?: string | null;
+            /** Owner Name */
+            owner_name?: string | null;
+            /**
+             * Access Level
+             * @default owner
+             * @enum {string}
+             */
+            access_level: "owner" | "manage" | "view" | "admin";
+            /** Brand */
+            brand?: {
+                [key: string]: unknown;
+            } | null;
+            /** Available Actions */
+            available_actions?: string[];
             /**
              * Created At
              * Format: date-time
@@ -6896,6 +7428,24 @@ export interface components {
             send_error_code?: string | null;
             /** Send Error Message */
             send_error_message?: string | null;
+            /** Owner Id */
+            owner_id?: string | null;
+            /** Owner Email */
+            owner_email?: string | null;
+            /** Owner Name */
+            owner_name?: string | null;
+            /**
+             * Access Level
+             * @default owner
+             * @enum {string}
+             */
+            access_level: "owner" | "manage" | "view" | "admin";
+            /** Brand */
+            brand?: {
+                [key: string]: unknown;
+            } | null;
+            /** Available Actions */
+            available_actions?: string[];
             /**
              * Created At
              * Format: date-time
@@ -6929,6 +7479,8 @@ export interface components {
             date_format?: ("MM/DD/YYYY" | "DD/MM/YYYY" | "YYYY-MM-DD" | "MMM D, YYYY") | null;
             /** Allow Reassignment */
             allow_reassignment?: boolean | null;
+            /** Brand Id */
+            brand_id?: string | null;
         };
         /** EsignEventResponse */
         EsignEventResponse: {
@@ -7276,6 +7828,20 @@ export interface components {
             /** Data Label */
             data_label?: string | null;
         };
+        /** EsignPermissionAssignmentRequest */
+        EsignPermissionAssignmentRequest: {
+            /** Profile Id */
+            profile_id: string;
+        };
+        /** EsignPermissionProfileRequest */
+        EsignPermissionProfileRequest: {
+            /** Name */
+            name: string;
+            /** Capabilities */
+            capabilities?: {
+                [key: string]: boolean;
+            };
+        };
         /** EsignPowerFormCreateRequest */
         EsignPowerFormCreateRequest: {
             /** Name */
@@ -7294,6 +7860,8 @@ export interface components {
             public_fields?: string[];
             /** Instructions */
             instructions?: string | null;
+            /** Brand Id */
+            brand_id?: string | null;
         };
         /** EsignPowerFormListResponse */
         EsignPowerFormListResponse: {
@@ -7338,6 +7906,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Brand Id */
+            brand_id?: string | null;
         };
         /** EsignPowerFormRoleConfig */
         EsignPowerFormRoleConfig: {
@@ -7553,6 +8123,29 @@ export interface components {
             /** Schedule Timezone */
             schedule_timezone: string;
         };
+        /** EsignSettingsUpdateRequest */
+        EsignSettingsUpdateRequest: {
+            /** Date Format */
+            date_format?: ("MM/DD/YYYY" | "DD/MM/YYYY" | "YYYY-MM-DD" | "MMM D, YYYY") | null;
+            /** Signing Type */
+            signing_type?: ("sequential" | "parallel") | null;
+            /** Expiration Days */
+            expiration_days?: number | null;
+            /** Reminder Interval Hours */
+            reminder_interval_hours?: number | null;
+            /** Allow Reassignment */
+            allow_reassignment?: boolean | null;
+            /** Default Brand Id */
+            default_brand_id?: string | null;
+            /** Sender Overrides */
+            sender_overrides?: {
+                [key: string]: boolean;
+            } | null;
+            /** Features */
+            features?: {
+                [key: string]: boolean;
+            } | null;
+        };
         /** EsignSignatureInput */
         EsignSignatureInput: {
             /** Signature Type */
@@ -7668,6 +8261,10 @@ export interface components {
             sent_at?: string | null;
             /** Expires At */
             expires_at?: string | null;
+            /** Brand */
+            brand?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** EsignSubmitRequest */
         EsignSubmitRequest: {
@@ -7807,6 +8404,8 @@ export interface components {
             firm_id?: string | null;
             /** Latest Published Version */
             latest_published_version?: number | null;
+            /** Brand Id */
+            brand_id?: string | null;
         };
         /** EsignTemplateRoleInput */
         EsignTemplateRoleInput: {
@@ -7857,6 +8456,8 @@ export interface components {
             recipient_roles?: components["schemas"]["EsignTemplateRoleInput"][] | null;
             /** Fields */
             fields?: components["schemas"]["EsignTemplateFieldInput"][] | null;
+            /** Brand Id */
+            brand_id?: string | null;
         };
         /** EsignTemplateVersionListResponse */
         EsignTemplateVersionListResponse: {
@@ -7916,6 +8517,23 @@ export interface components {
         EsignVoidRequest: {
             /** Reason */
             reason: string;
+        };
+        /** EsignWebhookConfigurationRequest */
+        EsignWebhookConfigurationRequest: {
+            /** Endpoint Url */
+            endpoint_url: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Event Filters */
+            event_filters?: string[];
+            /**
+             * Include Completed Documents
+             * @default false
+             */
+            include_completed_documents: boolean;
         };
         /** EsignWitnessRequest */
         EsignWitnessRequest: {
@@ -13742,6 +14360,744 @@ export interface operations {
             };
         };
     };
+    get_esign_context_api_esign_context_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignContextResponse"];
+                };
+            };
+        };
+    };
+    esign_admin_overview_api_esign_admin_overview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    esign_admin_custody_review_api_esign_admin_custody_review_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_esign_admin_settings_api_esign_admin_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    update_esign_admin_settings_api_esign_admin_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignSettingsUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_esign_permission_profiles_api_esign_admin_permission_profiles_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    create_esign_permission_profile_api_esign_admin_permission_profiles_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignPermissionProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_esign_permission_profile_api_esign_admin_permission_profiles__profile_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignPermissionProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_esign_permission_profile_api_esign_admin_users__user_id__permission_profile_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignPermissionAssignmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_esign_brands_api_esign_admin_brands_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    create_esign_brand_api_esign_admin_brands_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignBrandProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_esign_brand_api_esign_admin_brands__brand_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                brand_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignBrandProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_esign_brand_asset_api_esign_admin_brand_assets_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_esign_brand_asset_api_esign_admin_brand_assets_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_esign_firm_webhooks_api_esign_admin_webhooks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    create_esign_firm_webhook_api_esign_admin_webhooks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignWebhookConfigurationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_esign_webhook_api_esign_admin_webhooks__configuration_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                configuration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignWebhookConfigurationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disable_esign_firm_webhook_api_esign_admin_webhooks__configuration_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                configuration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_esign_webhook_secret_api_esign_admin_webhooks__configuration_id__rotate_secret_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                configuration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_esign_webhook_api_esign_admin_webhooks__configuration_id__test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                configuration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_esign_webhook_deliveries_api_esign_admin_webhook_deliveries_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_esign_webhook_metrics_api_esign_admin_webhook_metrics_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    list_esign_webhook_attempts_api_esign_admin_webhook_deliveries__delivery_id__attempts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                delivery_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replay_esign_webhook_api_esign_admin_webhook_deliveries__delivery_id__replay_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                delivery_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_esign_admin_audit_api_esign_admin_audit_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_esign_admin_audit_api_esign_admin_audit_csv_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    offboard_esign_user_api_esign_admin_users__user_id__offboard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignCustodyTransferRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_templates_api_esign_templates_get: {
         parameters: {
             query?: never;
@@ -14652,6 +16008,8 @@ export interface operations {
                 q?: string | null;
                 sort_by?: "updated_at" | "created_at" | "sent_at" | "completed_at" | "title";
                 sort_dir?: "asc" | "desc";
+                scope?: "mine" | "shared" | "firm";
+                owner_user_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -14888,6 +16246,205 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_envelope_access_api_esign_envelopes__envelope_id__access_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    grant_envelope_access_api_esign_envelopes__envelope_id__access_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignEnvelopeGrantRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_envelope_access_api_esign_envelopes__envelope_id__access__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transfer_envelope_custody_api_esign_envelopes__envelope_id__transfer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignCustodyTransferRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_envelope_webhooks_api_esign_envelopes__envelope_id__webhooks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_envelope_webhook_api_esign_envelopes__envelope_id__webhooks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignWebhookConfigurationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -18156,7 +19713,9 @@ export interface operations {
     };
     remove_member_api_analytics_firm_members__member_user_id__delete: {
         parameters: {
-            query?: never;
+            query?: {
+                successor_user_id?: string | null;
+            };
             header?: never;
             path: {
                 member_user_id: string;
