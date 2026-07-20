@@ -2095,6 +2095,26 @@ class EsignEnvelopeService:
         finally:
             db.close()
 
+    @staticmethod
+    def _anchor_field_position(
+        reference_x: float,
+        reference_y: float,
+        *,
+        horizontal_alignment: str,
+        field_width: float,
+        field_height: float,
+    ) -> tuple[float, float]:
+        """Turn an anchor reference point into a bounded field top-left."""
+        x = reference_x
+        if horizontal_alignment == "center":
+            x -= field_width / 2
+        elif horizontal_alignment == "right":
+            x -= field_width
+        return (
+            max(0.0, min(max(0.0, 1.0 - field_width), x)),
+            max(0.0, min(max(0.0, 1.0 - field_height), reference_y)),
+        )
+
     async def _search_anchors(
         self,
         documents: list[Any],
@@ -2109,6 +2129,8 @@ class EsignEnvelopeService:
         offset_x: float = 0,
         offset_y: float = 0,
         offset_unit: str = "point",
+        field_width: float = 0,
+        field_height: float = 0,
     ) -> EsignAnchorSearchResponse:
         selected = set(document_ids or [])
         selected_pages = set(page_numbers or [])
@@ -2137,21 +2159,29 @@ class EsignEnvelopeService:
                         factor = 1.0 if offset_unit == "point" else (72.0 / 25.4 if offset_unit == "mm" else 72.0)
                         dx, dy = offset_x * factor, offset_y * factor
                         if horizontal_alignment == "left":
-                            x = rect.x0 + dx
+                            reference_x = (rect.x0 + dx) / page.rect.width
                         elif horizontal_alignment == "center":
-                            x = (rect.x0 + rect.x1) / 2 + dx
-                        elif horizontal_alignment == "right":
-                            x = rect.x1 + dx
-                        else:
-                            x = rect.x1 + dx
+                            reference_x = ((rect.x0 + rect.x1) / 2 + dx) / page.rect.width
+                        else:  # right-edge alignment and placement after the anchor
+                            reference_x = (rect.x1 + dx) / page.rect.width
+                        reference_y = (rect.y0 + dy) / page.rect.height
+                        field_x, field_y = self._anchor_field_position(
+                            reference_x,
+                            reference_y,
+                            horizontal_alignment=horizontal_alignment,
+                            field_width=field_width,
+                            field_height=field_height,
+                        )
                         matches.append(
                             EsignAnchorMatch(
                                 document_id=str(document.id),
                                 page_number=page_number,
-                                x=max(0.0, min(1.0, x / page.rect.width)),
-                                y=max(0.0, min(1.0, (rect.y0 + dy) / page.rect.height)),
+                                x=field_x,
+                                y=field_y,
                                 width=max(0.0, min(1.0, rect.width / page.rect.width)),
                                 height=max(0.0, min(1.0, rect.height / page.rect.height)),
+                                reference_x=reference_x,
+                                reference_y=reference_y,
                             )
                         )
                         if match_mode == "first":
@@ -2175,6 +2205,8 @@ class EsignEnvelopeService:
         offset_x: float = 0,
         offset_y: float = 0,
         offset_unit: str = "point",
+        field_width: float = 0,
+        field_height: float = 0,
     ) -> EsignAnchorSearchResponse:
         db = self._get_session()
         try:
@@ -2192,6 +2224,8 @@ class EsignEnvelopeService:
                 offset_x=offset_x,
                 offset_y=offset_y,
                 offset_unit=offset_unit,
+                field_width=field_width,
+                field_height=field_height,
             )
         finally:
             db.close()
@@ -2211,6 +2245,8 @@ class EsignEnvelopeService:
         offset_x: float = 0,
         offset_y: float = 0,
         offset_unit: str = "point",
+        field_width: float = 0,
+        field_height: float = 0,
     ) -> EsignAnchorSearchResponse:
         db = self._get_session()
         try:
@@ -2227,6 +2263,8 @@ class EsignEnvelopeService:
                 offset_x=offset_x,
                 offset_y=offset_y,
                 offset_unit=offset_unit,
+                field_width=field_width,
+                field_height=field_height,
             )
         finally:
             db.close()

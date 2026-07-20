@@ -16,6 +16,14 @@ from services.esign.envelope_service import EsignEnvelopeService
 
 
 class AnchorSearchTests(unittest.IsolatedAsyncioTestCase):
+    @staticmethod
+    def _service_for_pdf(content: bytes) -> EsignEnvelopeService:
+        blob = types.SimpleNamespace(download_as_bytes=lambda: content)
+        bucket = types.SimpleNamespace(blob=lambda _name: blob)
+        service = EsignEnvelopeService.__new__(EsignEnvelopeService)
+        service.storage = types.SimpleNamespace(bucket=bucket)
+        return service
+
     async def test_rotated_page_returns_display_fraction_coordinates(self) -> None:
         pdf = fitz.open()
         page = pdf.new_page(width=612, height=792)
@@ -24,10 +32,7 @@ class AnchorSearchTests(unittest.IsolatedAsyncioTestCase):
         content = pdf.tobytes()
         pdf.close()
 
-        blob = types.SimpleNamespace(download_as_bytes=lambda: content)
-        bucket = types.SimpleNamespace(blob=lambda _name: blob)
-        service = EsignEnvelopeService.__new__(EsignEnvelopeService)
-        service.storage = types.SimpleNamespace(bucket=bucket)
+        service = self._service_for_pdf(content)
         document_id = uuid.uuid4()
         document = types.SimpleNamespace(id=document_id, gcs_object_name="anchor.pdf")
 
@@ -42,6 +47,57 @@ class AnchorSearchTests(unittest.IsolatedAsyncioTestCase):
         for value in (match.x, match.y, match.width, match.height):
             self.assertGreaterEqual(value, 0)
             self.assertLessEqual(value, 1)
+
+    async def test_alignment_uses_the_corresponding_field_edge(self) -> None:
+        pdf = fitz.open()
+        page = pdf.new_page(width=612, height=792)
+        page.insert_text((144, 200), "ANCHOR")
+        content = pdf.tobytes()
+        pdf.close()
+        service = self._service_for_pdf(content)
+        document = types.SimpleNamespace(id=uuid.uuid4(), gcs_object_name="anchor.pdf")
+
+        matches = {}
+        for alignment in ("left", "center", "right", "after"):
+            result = await service._search_anchors(
+                [document], anchor="ANCHOR", case_sensitive=True,
+                horizontal_alignment=alignment, field_width=0.2, field_height=0.1,
+            )
+            matches[alignment] = result.matches[0]
+
+        self.assertAlmostEqual(matches["left"].x, matches["left"].reference_x)
+        self.assertAlmostEqual(matches["center"].x + 0.1, matches["center"].reference_x)
+        self.assertAlmostEqual(matches["right"].x + 0.2, matches["right"].reference_x)
+        self.assertAlmostEqual(matches["after"].x, matches["after"].reference_x)
+        self.assertLess(matches["right"].x, matches["after"].x)
+
+    async def test_field_box_is_clamped_inside_page_after_offsets(self) -> None:
+        pdf = fitz.open()
+        page = pdf.new_page(width=612, height=792)
+        page.insert_text((500, 700), "EDGE_ANCHOR")
+        content = pdf.tobytes()
+        pdf.close()
+        service = self._service_for_pdf(content)
+        document = types.SimpleNamespace(id=uuid.uuid4(), gcs_object_name="anchor.pdf")
+
+        result = await service._search_anchors(
+            [document], anchor="EDGE_ANCHOR", case_sensitive=True,
+            horizontal_alignment="after", offset_x=500, offset_y=500,
+            field_width=0.2, field_height=0.1,
+        )
+        match = result.matches[0]
+        self.assertAlmostEqual(match.x, 0.8)
+        self.assertAlmostEqual(match.y, 0.9)
+        self.assertLessEqual(match.x + 0.2, 1)
+        self.assertLessEqual(match.y + 0.1, 1)
+
+    def test_send_time_position_uses_resized_field_dimensions(self) -> None:
+        x, y = EsignEnvelopeService._anchor_field_position(
+            0.95, 0.98, horizontal_alignment="right",
+            field_width=0.3, field_height=0.12,
+        )
+        self.assertAlmostEqual(x, 0.65)
+        self.assertAlmostEqual(y, 0.88)
 
     def test_pdf_widget_inspection_preserves_metadata_and_geometry(self) -> None:
         pdf = fitz.open()

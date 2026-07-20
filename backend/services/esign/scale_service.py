@@ -292,7 +292,8 @@ class EsignScaleService:
                             document_ids=anchor.get("document_ids"), page_numbers=anchor.get("page_numbers"),
                             match_mode=str(anchor.get("match_mode", "all")), horizontal_alignment=str(anchor.get("horizontal_alignment", "after")),
                             offset_x=float(anchor.get("offset_x", 0)), offset_y=float(anchor.get("offset_y", 0)),
-                            offset_unit=str(anchor.get("offset_unit", "point")))
+                            offset_unit=str(anchor.get("offset_unit", "point")),
+                            field_width=float(field.width), field_height=float(field.height))
                         if not result.matches and field.required and anchor.get("missing_policy", "fail") == "fail":
                             raise EsignError(f"Required anchor '{anchor.get('anchor') or anchor.get('text')}' was not found")
                 if props.get("conversion_source") == "acroform" and not props.get("acroform_widget_id"):

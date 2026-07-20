@@ -811,6 +811,11 @@ class EsignAnchorSearchRequest(BaseModel):
     offset_x: float = 0
     offset_y: float = 0
     offset_unit: Literal["point", "mm", "inch"] = "point"
+    # The field box is needed to align centers/right edges and to keep the
+    # complete field on the page. Zero preserves the legacy point-only search
+    # behavior for older API clients.
+    field_width: float = Field(default=0, ge=0, le=1)
+    field_height: float = Field(default=0, ge=0, le=1)
 
 
 class EsignAnchorMatch(BaseModel):
@@ -820,6 +825,11 @@ class EsignAnchorMatch(BaseModel):
     y: float
     width: float
     height: float
+    # Unclamped alignment point after offsets. Send-time resolution reuses it
+    # with each field's current dimensions, including fields resized after the
+    # original anchor search.
+    reference_x: Optional[float] = None
+    reference_y: Optional[float] = None
 
 
 class EsignAnchorSearchResponse(BaseModel):

@@ -374,6 +374,7 @@ class EsignSigningService:
                     document_ids=rule.get("document_ids"), page_numbers=rule.get("page_numbers"),
                     match_mode=str(rule.get("match_mode", "all")), horizontal_alignment=str(rule.get("horizontal_alignment", "after")),
                     offset_x=float(rule.get("offset_x", 0)), offset_y=float(rule.get("offset_y", 0)), offset_unit=str(rule.get("offset_unit", "point")),
+                    field_width=float(members[0].width), field_height=float(members[0].height),
                 )
                 by_index = {int(((field.properties or {}).get("anchor") or {}).get("match_index", index)): field for index, field in enumerate(members)}
                 if not result.matches and str(rule.get("missing_policy", "fail")) == "fail" and any(field.required for field in members):
@@ -403,7 +404,17 @@ class EsignSigningService:
                         db.add(field); envelope.fields.append(field)
                     elif field is not None:
                         field.document_id = uuid.UUID(match.document_id)
-                        field.page_number, field.pos_x, field.pos_y = match.page_number, match.x, match.y
+                        field.page_number = match.page_number
+                        if match.reference_x is not None and match.reference_y is not None:
+                            field.pos_x, field.pos_y = esign_envelope_service._anchor_field_position(
+                                match.reference_x,
+                                match.reference_y,
+                                horizontal_alignment=str(rule.get("horizontal_alignment", "after")),
+                                field_width=float(field.width),
+                                field_height=float(field.height),
+                            )
+                        else:
+                            field.pos_x, field.pos_y = match.x, match.y
 
             documents = envelope.documents or []
             if not documents:

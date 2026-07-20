@@ -15,13 +15,14 @@ import { validateFormula } from '@/lib/esign/fieldLogic'
 import { openPdfFromUrl, participantColor, type PdfDocument } from '../pdf'
 import { PdfPageCanvas } from '../PdfPageCanvas'
 import { AlignmentGuides } from './AlignmentGuides'
+import {
+  anchorInstancesShareValue,
+  resolveAnchorFieldType,
+  type EditorFieldType,
+} from './anchorPlacement'
 import { snapRect, type SnapGuide } from './snapping'
 
-export type EditorFieldType =
-  | 'signature' | 'initials' | 'date_signed' | 'text' | 'checkbox'
-  | 'auto_fill' | 'attachment' | 'radio' | 'dropdown' | 'formula' | 'stamp'
-  | 'date' | 'number' | 'first_name' | 'last_name' | 'full_name' | 'email'
-  | 'company' | 'title' | 'note'
+export type { EditorFieldType } from './anchorPlacement'
 
 export interface EditorDocument { id: string; name: string; url: string; pageCount: number }
 export interface EditorParticipant { id: string; label: string }
@@ -85,7 +86,7 @@ interface PdfFieldEditorProps {
   onAnchorSearch?: (payload: {
     anchor: string; case_sensitive: boolean; whole_word: boolean; document_ids: string[]
     match_mode: 'first' | 'all'; horizontal_alignment: 'left' | 'center' | 'right' | 'after'
-    offset_x: number; offset_y: number; offset_unit: 'point' | 'mm' | 'inch'
+    offset_x: number; offset_y: number; offset_unit: 'point' | 'mm' | 'inch'; field_width: number; field_height: number
   }) => Promise<{ matches?: Array<{ document_id: string; page_number: number; x: number; y: number; width: number; height: number }> }>
 }
 
@@ -423,16 +424,18 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   const placeByAnchor = async () => {
     if (!activeDocument || !activeParticipantId || !onAnchorSearch) { setAnchorResult('Server anchor search is unavailable.'); return }
     const anchor = anchorText.trim(); if (!anchor) return
-    const type = armedType && !['radio', 'attachment'].includes(armedType) ? armedType : 'text'; const size = DEFAULT_SIZES[type]
+    const type = resolveAnchorFieldType(armedType); const size = DEFAULT_SIZES[type]
+    const anchorRadioGroup = type === 'radio' ? radioGroup ?? newId() : null
     const ruleId = newId(); setAnchorSearching(true)
     try {
       const result = await onAnchorSearch({ anchor, case_sensitive: anchorCaseSensitive, whole_word: anchorWholeWord,
-        document_ids: [activeDocument.id], match_mode: anchorFirstOnly ? 'first' : 'all', horizontal_alignment: anchorAlignment, offset_x: anchorOffsetX, offset_y: anchorOffsetY, offset_unit: anchorOffsetUnit })
+        document_ids: [activeDocument.id], match_mode: anchorFirstOnly ? 'first' : 'all', horizontal_alignment: anchorAlignment, offset_x: anchorOffsetX, offset_y: anchorOffsetY, offset_unit: anchorOffsetUnit,
+        field_width: size.width, field_height: size.height })
       const generated = (result.matches ?? []).map((match, matchIndex): EditorField => ({ id: newId(), documentId: match.document_id,
         participantId: activeParticipantId, fieldType: type, pageNumber: match.page_number,
         posX: clamp(match.x, 0, 1 - size.width), posY: clamp(match.y, 0, 1 - size.height), width: size.width, height: size.height,
-        required: !['formula', 'note'].includes(type), properties: { ...defaultProperties(type, null), data_label: `${type}_${ruleId.slice(0, 8)}${['signature', 'initials', 'stamp'].includes(type) ? `_${matchIndex + 1}` : ''}`,
-          shared_value: !['signature', 'initials', 'stamp'].includes(type), read_only: type === 'note',
+        required: !['formula', 'note'].includes(type), properties: { ...defaultProperties(type, anchorRadioGroup), data_label: `${type}_${ruleId.slice(0, 8)}${anchorInstancesShareValue(type) ? '' : `_${matchIndex + 1}`}`,
+          shared_value: anchorInstancesShareValue(type), read_only: type === 'note',
           anchor: { anchor, rule_id: ruleId, match_index: matchIndex, case_sensitive: anchorCaseSensitive, whole_word: anchorWholeWord,
             document_ids: [activeDocument.id], horizontal_alignment: anchorAlignment, offset_x: anchorOffsetX, offset_y: anchorOffsetY, offset_unit: anchorOffsetUnit,
             match_mode: anchorFirstOnly ? 'first' : 'all', missing_policy: anchorIgnoreMissing ? 'ignore' : 'fail' } } }))
@@ -486,12 +489,12 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
     </main>
     <Dialog open={anchorOpen} onOpenChange={setAnchorOpen}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader><DialogTitle>Place fields by anchor</DialogTitle><DialogDescription>Find matching text in the active document and place a field after each match.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Place fields by anchor</DialogTitle><DialogDescription>Find matching text in the active document and place the selected field at each match.</DialogDescription></DialogHeader>
         <div className="space-y-2"><label htmlFor="esign-anchor-text" className="text-sm font-medium">Anchor text</label><Input id="esign-anchor-text" value={anchorText} onChange={(event) => setAnchorText(event.target.value)} placeholder="e.g. Client signature" autoFocus />
           <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorCaseSensitive} onChange={(event) => setAnchorCaseSensitive(event.target.checked)} /> Case sensitive</label>
           <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorWholeWord} onChange={(event) => setAnchorWholeWord(event.target.checked)} /> Whole word</label>
           <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorFirstOnly} onChange={(event) => setAnchorFirstOnly(event.target.checked)} /> First match only</label>
-          <div className="grid grid-cols-2 gap-2"><select className="rounded border border-border bg-background px-2 py-1 text-sm" value={anchorAlignment} onChange={(event) => setAnchorAlignment(event.target.value as typeof anchorAlignment)}><option value="after">After anchor</option><option value="left">Left edge</option><option value="center">Center</option><option value="right">Right edge</option></select><select className="rounded border border-border bg-background px-2 py-1 text-sm" value={anchorOffsetUnit} onChange={(event) => setAnchorOffsetUnit(event.target.value as typeof anchorOffsetUnit)}><option value="point">Points</option><option value="mm">Millimeters</option><option value="inch">Inches</option></select></div>
+          <div className="grid grid-cols-2 gap-2"><select className="rounded border border-border bg-background px-2 py-1 text-sm" value={anchorAlignment} onChange={(event) => setAnchorAlignment(event.target.value as typeof anchorAlignment)}><option value="after">Place after anchor</option><option value="left">Align left edges</option><option value="center">Align centers</option><option value="right">Align right edges</option></select><select className="rounded border border-border bg-background px-2 py-1 text-sm" value={anchorOffsetUnit} onChange={(event) => setAnchorOffsetUnit(event.target.value as typeof anchorOffsetUnit)}><option value="point">Points</option><option value="mm">Millimeters</option><option value="inch">Inches</option></select></div>
           <div className="grid grid-cols-2 gap-2"><Input type="number" value={anchorOffsetX} onChange={(event) => setAnchorOffsetX(Number(event.target.value))} placeholder="Horizontal offset" /><Input type="number" value={anchorOffsetY} onChange={(event) => setAnchorOffsetY(Number(event.target.value))} placeholder="Vertical offset" /></div>
           <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorIgnoreMissing} onChange={(event) => setAnchorIgnoreMissing(event.target.checked)} /> Allow missing anchor</label>
           {anchorResult && <p className="text-sm text-foreground-muted" role="status" aria-live="polite">{anchorResult}</p>}</div>
