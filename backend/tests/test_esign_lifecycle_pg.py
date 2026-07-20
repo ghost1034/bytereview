@@ -78,6 +78,9 @@ class _FakeStorage:
     async def delete_file(self, object_name: str) -> None:
         self.objects.pop(object_name, None)
 
+    async def list_objects(self, prefix: str) -> list[dict]:
+        return []
+
 
 def _make_pdf(pages: int = 2) -> bytes:
     import fitz

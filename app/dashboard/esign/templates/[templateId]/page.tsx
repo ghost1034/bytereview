@@ -45,7 +45,7 @@ export default function EsignTemplateEditPage() {
     const initial = template.fields.map((f) => ({
         id: f.id,
         documentId: f.template_document_id,
-        participantId: String(f.recipient_index),
+        participantId: f.recipient_role_id ?? String(f.recipient_index),
         fieldType: f.field_type as EditorFieldType,
         pageNumber: f.page_number,
         posX: f.pos_x,
@@ -75,11 +75,11 @@ export default function EsignTemplateEditPage() {
     staleTime: 10 * 60 * 1000,
   })
 
-  const roles = ((template?.recipient_roles as { label?: string; role?: string }[] | undefined) ?? []).map(
+  const roles = ((template?.recipient_roles as { id?: string; label?: string; role?: string }[] | undefined) ?? []).map(
     (role, index) => ({ role, index }),
   ).filter(({ role }) => ['signer', 'witness', 'in_person_signer'].includes(role.role ?? 'signer')).map(
     ({ role, index }) => ({
-      id: String(index),
+      id: role.id ?? String(index),
       label: role.label || `Signer ${index + 1}`,
     }),
   )
@@ -89,20 +89,26 @@ export default function EsignTemplateEditPage() {
     setSaveState('saving')
     try {
       await updateTemplate.mutateAsync({
-        fields: editorFields.map((f) => ({
-          id: f.id,
-          template_document_id: f.documentId,
-          recipient_index: Number(f.participantId),
-          field_type: f.fieldType,
-          page_number: f.pageNumber,
-          pos_x: f.posX,
-          pos_y: f.posY,
-          width: f.width,
-          height: f.height,
-          required: f.required,
-          label: f.label,
-          properties: f.properties as EsignTemplateFieldInput['properties'],
-        })),
+        fields: editorFields.map((f) => {
+          const roleIndex = (template.recipient_roles as { id?: string }[])
+            .findIndex((role) => role.id === f.participantId)
+          const legacyIndex = Number.parseInt(f.participantId, 10)
+          return {
+            id: f.id,
+            template_document_id: f.documentId,
+            recipient_index: roleIndex >= 0 ? roleIndex : Math.max(0, Number.isNaN(legacyIndex) ? 0 : legacyIndex),
+            recipient_role_id: roleIndex >= 0 ? f.participantId : undefined,
+            field_type: f.fieldType,
+            page_number: f.pageNumber,
+            pos_x: f.posX,
+            pos_y: f.posY,
+            width: f.width,
+            height: f.height,
+            required: f.required,
+            label: f.label,
+            properties: f.properties as EsignTemplateFieldInput['properties'],
+          }
+        }),
       })
       lastSaved.current = JSON.stringify(editorFields)
       setSaveState('saved')

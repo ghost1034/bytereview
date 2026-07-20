@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import asyncio
+import json
 import logging
 import os
 import re
@@ -126,6 +127,51 @@ def sha256_hex(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
+def normalize_template_roles(roles: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    """Return role records with immutable IDs and stable relationship IDs.
+
+    Legacy index relationships remain readable but are converted in memory;
+    immutable published snapshots are never rewritten.
+    """
+    normalized: list[dict[str, Any]] = []
+    for index, role in enumerate(roles or []):
+        item = dict(role or {})
+        try:
+            item["id"] = str(uuid.UUID(str(item.get("id"))))
+        except (ValueError, TypeError, AttributeError):
+            fingerprint = json.dumps(item, sort_keys=True, separators=(",", ":"), default=str)
+            item["id"] = str(uuid.uuid5(
+                uuid.NAMESPACE_URL,
+                f"cpaautomation:esign:legacy-template-role:{index}:{fingerprint}",
+            ))
+        normalized.append(item)
+    for item in normalized:
+        for id_key, index_key in (
+            ("managed_by_role_id", "managed_by_recipient_index"),
+            ("witness_for_role_id", "witness_for_recipient_index"),
+        ):
+            if item.get(id_key):
+                try:
+                    item[id_key] = str(uuid.UUID(str(item[id_key])))
+                except (ValueError, TypeError):
+                    item[id_key] = None
+            if not item.get(id_key) and item.get(index_key) is not None:
+                index = int(item[index_key])
+                if 0 <= index < len(normalized):
+                    item[id_key] = normalized[index]["id"]
+    return normalized
+
+
+def template_field_role_id(field: Any, roles: list[dict[str, Any]]) -> str:
+    value = getattr(field, "recipient_role_id", None)
+    if value:
+        return str(value)
+    index = int(getattr(field, "recipient_index", -1))
+    if not 0 <= index < len(roles):
+        raise EsignError("Template field references an unknown recipient role")
+    return str(roles[index]["id"])
+
+
 def _validate_pdf(content: bytes, filename: str) -> int:
     """Validate that content is a readable, non-encrypted PDF; return page count."""
     try:
@@ -185,6 +231,7 @@ class EsignEnvelopeService:
             routing_order=int(recipient.routing_order),
             status=recipient.status.value if hasattr(recipient.status, "value") else str(recipient.status),
             role_label=getattr(recipient, "role_label", None),
+            template_role_id=str(recipient.template_role_id) if getattr(recipient, "template_role_id", None) else None,
             private_message=getattr(recipient, "private_message", None),
             managed_by_recipient_id=str(recipient.managed_by_recipient_id) if getattr(recipient, "managed_by_recipient_id", None) else None,
             witness_for_recipient_id=str(recipient.witness_for_recipient_id) if getattr(recipient, "witness_for_recipient_id", None) else None,
@@ -217,11 +264,16 @@ class EsignEnvelopeService:
             actions.extend(["edit", "send", "correct", "remind", "void", "webhooks"])
         if access_level in ("owner", "admin"):
             actions.extend(["delete_draft", "share", "transfer"])
+        if access_level in ("owner", "manage", "admin") and getattr(envelope, "sealing_state", None) in ("retry", "terminal"):
+            actions.append("retry_sealing")
         return actions
 
     def _serialize_envelope(self, envelope: EsignEnvelope, *, access_level: str | None = None) -> EsignEnvelopeResponse:
         access_level = access_level or getattr(envelope, "_caller_access_level", "owner")
         owner = getattr(envelope, "user", None)
+        delivery_summary: dict[str, int] = {}
+        for delivery in getattr(envelope, "email_deliveries", []) or []:
+            delivery_summary[delivery.state] = delivery_summary.get(delivery.state, 0) + 1
         return EsignEnvelopeResponse(
             id=str(envelope.id),
             title=envelope.title,
@@ -247,7 +299,11 @@ class EsignEnvelopeService:
             firm_id=str(envelope.firm_id) if getattr(envelope, "firm_id", None) else None,
             source_type=getattr(envelope, "source_type", None) or "manual",
             source_id=str(envelope.source_id) if getattr(envelope, "source_id", None) else None,
+            template_id=str(envelope.template_id) if getattr(envelope, "template_id", None) else None,
             template_version_id=str(envelope.template_version_id) if getattr(envelope, "template_version_id", None) else None,
+            sealing_state=getattr(envelope, "sealing_state", None) or "not_ready",
+            sealing_last_error=getattr(envelope, "sealing_last_error", None),
+            email_delivery_summary=delivery_summary,
             scheduled_at=getattr(envelope, "scheduled_at", None),
             schedule_timezone=getattr(envelope, "schedule_timezone", None),
             send_error_code=getattr(envelope, "send_error_code", None),
@@ -363,8 +419,13 @@ class EsignEnvelopeService:
     ) -> EsignEnvelopeResponse:
         if files and template_id:
             raise EsignError("Provide either PDFs or a template_id, not both")
+        if expires_in_days is not None and not 1 <= int(expires_in_days) <= 3650:
+            raise EsignError("Expiration days must be between 1 and 3650")
+        if reminder_interval_hours is not None and not 1 <= int(reminder_interval_hours) <= 720:
+            raise EsignError("Reminder interval must be between 1 and 720 hours")
 
         db = self._get_session()
+        created_objects: list[str] = []
         try:
             principal = esign_authorization_service.principal(db, user_id)
             if principal and not principal.can("send"):
@@ -407,9 +468,10 @@ class EsignEnvelopeService:
             db.flush()
 
             if template_id:
-                await self._materialize_template(db, user_id, template_id, envelope)
+                envelope.template_id = uuid.UUID(str(template_id))
+                await self._materialize_template(db, user_id, template_id, envelope, created_objects=created_objects)
             else:
-                await self._attach_documents(db, user_id, envelope, files)
+                await self._attach_documents(db, user_id, envelope, files, created_objects=created_objects)
 
             audit_service.record_event(
                 db,
@@ -425,12 +487,18 @@ class EsignEnvelopeService:
             return self._serialize_envelope(envelope)
         except Exception:
             db.rollback()
+            for object_name in created_objects:
+                try:
+                    await self.storage.delete_file(object_name)
+                except Exception:
+                    logger.warning("Could not compensate failed envelope object %s", object_name, exc_info=True)
             raise
         finally:
             db.close()
 
     async def _attach_documents(
-        self, db: Session, user_id: str, envelope: EsignEnvelope, files: list[tuple[str, bytes]]
+        self, db: Session, user_id: str, envelope: EsignEnvelope, files: list[tuple[str, bytes]],
+        *, created_objects: Optional[list[str]] = None,
     ) -> None:
         if len(files) > MAX_DOCUMENTS_PER_ENVELOPE:
             raise EsignError(f"At most {MAX_DOCUMENTS_PER_ENVELOPE} documents per envelope")
@@ -441,6 +509,8 @@ class EsignEnvelopeService:
             digest = sha256_hex(content)
             object_name = f"esign/{user_id}/{envelope.id}/original/{uuid.uuid4()}_{os.path.basename(filename)}"
             await self.storage.upload_file_content(content, object_name)
+            if created_objects is not None:
+                created_objects.append(object_name)
             db.add(
                 EsignDocument(
                     id=uuid.uuid4(),
@@ -456,7 +526,8 @@ class EsignEnvelopeService:
         db.flush()
 
     async def _materialize_template(
-        self, db: Session, user_id: str, template_id: str, envelope: EsignEnvelope
+        self, db: Session, user_id: str, template_id: str, envelope: EsignEnvelope,
+        *, created_objects: Optional[list[str]] = None,
     ) -> None:
         template = self._load_template(db, user_id, template_id)
         if template.title and (not envelope.title or envelope.title == "Untitled envelope"):
@@ -468,12 +539,19 @@ class EsignEnvelopeService:
         if getattr(template, "brand_id", None):
             envelope.brand_id = template.brand_id
 
+        roles = normalize_template_roles(template.recipient_roles if isinstance(template.recipient_roles, list) else [])
+        # Persist role IDs on mutable templates when handling a legacy draft.
+        if roles != (template.recipient_roles or []):
+            template.recipient_roles = roles
+
         # Copy template documents into the envelope's own GCS prefix so the
         # envelope's originals stay immutable even if the template changes.
         doc_id_map: dict[str, EsignDocument] = {}
         for tdoc in template.documents or []:
             object_name = f"esign/{user_id}/{envelope.id}/original/{uuid.uuid4()}_{os.path.basename(tdoc.original_filename)}"
             await self.storage.copy_object(tdoc.gcs_object_name, object_name)
+            if created_objects is not None:
+                created_objects.append(object_name)
             doc = EsignDocument(
                 id=uuid.uuid4(),
                 envelope_id=envelope.id,
@@ -488,12 +566,33 @@ class EsignEnvelopeService:
             doc_id_map[str(tdoc.id)] = doc
         db.flush()
 
-        # Template fields are bound to recipient role indices; they are
-        # materialized to concrete recipients when recipients are set
-        # (see replace_recipients), so stash the mapping in envelope details
-        # by keeping template fields in memory here is not possible across
-        # requests — instead the route materializes fields after recipients
-        # are provided via instantiate_template_fields().
+        # Create durable role placeholders and field bindings now. The sender
+        # fills identities in-place on the preparation page, so refresh/resume
+        # never depends on a template query parameter.
+        recipients_by_role_id: dict[str, EsignRecipient] = {}
+        for role in roles:
+            recipient = EsignRecipient(
+                id=uuid.uuid4(), envelope_id=envelope.id,
+                role=EsignRecipientRole(role.get("role", "signer")),
+                routing_order=int(role.get("routing_order", 1)),
+                role_label=role.get("label"), private_message=role.get("private_message"),
+                host_name=role.get("host_name"),
+                host_email=_normalize_email(role.get("host_email")) or None,
+                allow_reassignment=bool(role.get("allow_reassignment", False)),
+                template_role_id=uuid.UUID(role["id"]),
+                status=EsignRecipientStatus.PENDING,
+            )
+            db.add(recipient)
+            recipients_by_role_id[role["id"]] = recipient
+        db.flush()
+        for role in roles:
+            recipient = recipients_by_role_id[role["id"]]
+            managed = role.get("managed_by_role_id")
+            witnessed = role.get("witness_for_role_id")
+            recipient.managed_by_recipient_id = recipients_by_role_id[managed].id if managed in recipients_by_role_id else None
+            recipient.witness_for_recipient_id = recipients_by_role_id[witnessed].id if witnessed in recipients_by_role_id else None
+        db.flush()
+        self.instantiate_template_fields(db, envelope, template)
 
     def instantiate_template_fields(
         self, db: Session, envelope: EsignEnvelope, template: EsignTemplate
@@ -503,17 +602,24 @@ class EsignEnvelopeService:
         Recipients must already exist, ordered to match template.recipient_roles.
         Documents are matched by display_order.
         """
-        recipients = sorted(envelope.recipients or [], key=lambda r: (r.routing_order, r.created_at))
+        roles = normalize_template_roles(template.recipient_roles if isinstance(template.recipient_roles, list) else [])
+        recipients = sorted(envelope.recipients or [], key=lambda r: (r.routing_order, str(r.id)))
+        recipients_by_role = {
+            str(r.template_role_id): r for r in recipients if getattr(r, "template_role_id", None)
+        }
         docs_by_order = {d.display_order: d for d in (envelope.documents or [])}
         tdocs_by_id = {str(td.id): td for td in (template.documents or [])}
 
         id_map = {str(tfield.id): str(uuid.uuid4()) for tfield in (template.fields or [])}
         pending: list[EsignField] = []
         for tfield in template.fields or []:
-            if tfield.recipient_index >= len(recipients):
-                raise EsignError(
-                    f"Template needs {tfield.recipient_index + 1} recipients; only {len(recipients)} provided"
-                )
+            role_id = template_field_role_id(tfield, roles)
+            recipient = recipients_by_role.get(role_id)
+            if recipient is None:
+                index = int(tfield.recipient_index)
+                if index >= len(recipients):
+                    raise EsignError(f"Template needs {index + 1} recipients; only {len(recipients)} provided")
+                recipient = recipients[index]
             tdoc = tdocs_by_id.get(str(tfield.template_document_id))
             if not tdoc:
                 continue
@@ -525,7 +631,7 @@ class EsignEnvelopeService:
                     id=uuid.UUID(id_map[str(tfield.id)]),
                     envelope_id=envelope.id,
                     document_id=doc.id,
-                    recipient_id=recipients[tfield.recipient_index].id,
+                    recipient_id=recipient.id,
                     field_type=tfield.field_type,
                     page_number=tfield.page_number,
                     pos_x=tfield.pos_x,
@@ -703,28 +809,34 @@ class EsignEnvelopeService:
         try:
             envelope = self._load_envelope(db, user_id, envelope_id)
             self._require_draft(envelope)
-            if payload.title is not None:
+            supplied = payload.model_fields_set
+            if "title" in supplied and payload.title is not None:
                 envelope.title = payload.title.strip()[:255] or envelope.title
-            if payload.message is not None:
+            if "message" in supplied:
                 envelope.message = payload.message
-            if payload.signing_type is not None:
+            if "signing_type" in supplied and payload.signing_type is not None:
                 envelope.signing_type = EsignSigningType(payload.signing_type)
-            if payload.date_format is not None:
+            if "date_format" in supplied and payload.date_format is not None:
                 envelope.date_format = payload.date_format
-            if payload.expires_at is not None:
+            if "expires_at" in supplied:
+                if payload.expires_at is not None and payload.expires_at <= datetime.now(timezone.utc):
+                    raise EsignError("Expiration date must be in the future")
                 envelope.expires_at = payload.expires_at
-            if payload.reminder_interval_hours is not None:
+            if "reminder_interval_hours" in supplied:
                 envelope.reminder_interval_hours = payload.reminder_interval_hours
-            if payload.allow_reassignment is not None:
+            if "allow_reassignment" in supplied and payload.allow_reassignment is not None:
                 envelope.allow_reassignment = payload.allow_reassignment
-            if payload.brand_id is not None:
-                brand = db.query(EsignBrandProfile).filter(
-                    EsignBrandProfile.id == uuid.UUID(payload.brand_id),
-                    EsignBrandProfile.firm_id == envelope.firm_id,
-                    EsignBrandProfile.active.is_(True),
-                ).first()
-                if not brand: raise EsignNotFound("Brand not found")
-                envelope.brand_id = brand.id
+            if "brand_id" in supplied:
+                if payload.brand_id is None:
+                    envelope.brand_id = None
+                else:
+                    brand = db.query(EsignBrandProfile).filter(
+                        EsignBrandProfile.id == uuid.UUID(payload.brand_id),
+                        EsignBrandProfile.firm_id == envelope.firm_id,
+                        EsignBrandProfile.active.is_(True),
+                    ).first()
+                    if not brand: raise EsignNotFound("Brand not found")
+                    envelope.brand_id = brand.id
             db.commit()
             db.refresh(envelope)
             return self._serialize_envelope(envelope)
@@ -1180,6 +1292,9 @@ class EsignEnvelopeService:
         return template
 
     def _serialize_template(self, template: EsignTemplate) -> EsignTemplateResponse:
+        roles = normalize_template_roles(
+            template.recipient_roles if isinstance(template.recipient_roles, list) else []
+        )
         return EsignTemplateResponse(
             id=str(template.id),
             name=template.name,
@@ -1188,7 +1303,7 @@ class EsignEnvelopeService:
             message=template.message,
             signing_type=template.signing_type.value if hasattr(template.signing_type, "value") else str(template.signing_type),
             date_format=getattr(template, "date_format", None) or "MM/DD/YYYY",
-            recipient_roles=template.recipient_roles if isinstance(template.recipient_roles, list) else [],
+            recipient_roles=roles,
             documents=[
                 EsignTemplateDocumentResponse(
                     id=str(d.id),
@@ -1205,6 +1320,7 @@ class EsignEnvelopeService:
                     id=str(f.id),
                     template_document_id=str(f.template_document_id),
                     recipient_index=int(f.recipient_index),
+                    recipient_role_id=template_field_role_id(f, roles),
                     field_type=f.field_type.value if hasattr(f.field_type, "value") else str(f.field_type),
                     page_number=int(f.page_number),
                     pos_x=float(f.pos_x),
@@ -1256,6 +1372,7 @@ class EsignEnvelopeService:
                 EsignBrandProfile.active.is_(True),
             ).first():
                 raise EsignNotFound("Brand not found")
+            normalized_roles = normalize_template_roles([r.model_dump(exclude_none=True) for r in recipient_roles])
             template = EsignTemplate(
                 id=uuid.uuid4(),
                 user_id=user_id,
@@ -1265,7 +1382,7 @@ class EsignEnvelopeService:
                 title=title,
                 message=message,
                 signing_type=EsignSigningType(signing_type) if signing_type else EsignSigningType.SEQUENTIAL,
-                recipient_roles=[r.model_dump() for r in recipient_roles],
+                recipient_roles=normalized_roles,
                 brand_id=selected_brand_id,
             )
             db.add(template)
@@ -1312,6 +1429,7 @@ class EsignEnvelopeService:
         recipient_roles: Optional[list[EsignTemplateRoleInput]] = None,
         fields: Optional[list[EsignTemplateFieldInput]] = None,
         brand_id: Optional[str] = None,
+        brand_id_supplied: bool = False,
     ) -> EsignTemplateResponse:
         db = self._get_session()
         try:
@@ -1328,17 +1446,29 @@ class EsignEnvelopeService:
                 template.signing_type = EsignSigningType(signing_type)
             if date_format is not None:
                 template.date_format = date_format
-            if brand_id is not None:
-                brand = db.query(EsignBrandProfile).filter(EsignBrandProfile.id == uuid.UUID(brand_id),
-                    EsignBrandProfile.firm_id == template.firm_id, EsignBrandProfile.active.is_(True)).first()
-                if not brand: raise EsignNotFound("Brand not found")
-                template.brand_id = brand.id
+            if brand_id_supplied:
+                if brand_id is None:
+                    template.brand_id = None
+                else:
+                    brand = db.query(EsignBrandProfile).filter(EsignBrandProfile.id == uuid.UUID(brand_id),
+                        EsignBrandProfile.firm_id == template.firm_id, EsignBrandProfile.active.is_(True)).first()
+                    if not brand: raise EsignNotFound("Brand not found")
+                    template.brand_id = brand.id
             if recipient_roles is not None:
-                template.recipient_roles = [r.model_dump() for r in recipient_roles]
+                existing = normalize_template_roles(template.recipient_roles or [])
+                supplied = [r.model_dump(exclude_none=True) for r in recipient_roles]
+                # An omitted ID means "same role at this position" for legacy
+                # clients. Once assigned, IDs are never regenerated by reorder.
+                for index, role in enumerate(supplied):
+                    if not role.get("id") and index < len(existing):
+                        role["id"] = existing[index]["id"]
+                template.recipient_roles = normalize_template_roles(supplied)
 
             if fields is not None:
                 doc_ids = {str(d.id) for d in template.documents or []}
-                role_count = len(template.recipient_roles or [])
+                roles = normalize_template_roles(template.recipient_roles or [])
+                role_count = len(roles)
+                role_ids = {role["id"] for role in roles}
                 pending: list[EsignTemplateField] = []
                 seen_ids: set[uuid.UUID] = set()
                 for f in fields:
@@ -1346,6 +1476,14 @@ class EsignEnvelopeService:
                         raise EsignError(f"Unknown template document: {f.template_document_id}")
                     if f.recipient_index >= role_count:
                         raise EsignError("Field recipient_index exceeds recipient roles")
+                    role_id = f.recipient_role_id or roles[f.recipient_index]["id"]
+                    try:
+                        role_id = str(uuid.UUID(str(role_id)))
+                    except ValueError:
+                        raise EsignError("Field recipient_role_id is invalid")
+                    if role_id not in role_ids:
+                        raise EsignError("Field recipient_role_id exceeds recipient roles")
+                    stable_index = next(i for i, role in enumerate(roles) if role["id"] == role_id)
                     if f.field_type not in {t.value for t in EsignFieldType}:
                         raise EsignError(f"Invalid field type: {f.field_type}")
                     try:
@@ -1363,7 +1501,8 @@ class EsignEnvelopeService:
                             id=field_id,
                             template_id=template.id,
                             template_document_id=uuid.UUID(str(f.template_document_id)),
-                            recipient_index=f.recipient_index,
+                            recipient_index=stable_index,
+                            recipient_role_id=uuid.UUID(role_id),
                             field_type=EsignFieldType(f.field_type),
                             page_number=f.page_number,
                             pos_x=f.pos_x,
@@ -1738,11 +1877,19 @@ class EsignEnvelopeService:
                 key=lambda r: (r.routing_order, r.created_at),
             )
             recipient_index_by_id = {str(r.id): idx for idx, r in enumerate(recipients)}
+            role_id_by_recipient_id = {str(r.id): str(uuid.uuid4()) for r in recipients}
             roles = [
                 {
-                    "label": r.name or f"Signer {idx + 1}",
+                    "id": role_id_by_recipient_id[str(r.id)],
+                    "label": r.role_label or r.name or f"Recipient {idx + 1}",
                     "role": r.role.value if hasattr(r.role, "value") else str(r.role),
                     "routing_order": int(r.routing_order),
+                    "private_message": r.private_message,
+                    "managed_by_role_id": role_id_by_recipient_id.get(str(r.managed_by_recipient_id)),
+                    "witness_for_role_id": role_id_by_recipient_id.get(str(r.witness_for_recipient_id)),
+                    "host_name": r.host_name,
+                    "host_email": r.host_email,
+                    "allow_reassignment": bool(r.allow_reassignment),
                 }
                 for idx, r in enumerate(recipients)
             ]
@@ -1758,6 +1905,7 @@ class EsignEnvelopeService:
                 signing_type=envelope.signing_type,
                 date_format=getattr(envelope, "date_format", None) or "MM/DD/YYYY",
                 recipient_roles=roles,
+                brand_id=getattr(envelope, "brand_id", None),
             )
             db.add(template)
             db.flush()
@@ -1797,6 +1945,7 @@ class EsignEnvelopeService:
                         template_id=template.id,
                         template_document_id=tdoc.id,
                         recipient_index=idx,
+                        recipient_role_id=uuid.UUID(role_id_by_recipient_id[str(field.recipient_id)]),
                         field_type=field.field_type,
                         page_number=field.page_number,
                         pos_x=field.pos_x,

@@ -47,11 +47,7 @@ export default function NewEnvelopePage() {
         templateId: usingTemplate ? templateId : undefined,
       })
       const envelopeId = result.envelope.id
-      router.push(
-        usingTemplate
-          ? `/dashboard/esign/${envelopeId}/prepare?template=${templateId}`
-          : `/dashboard/esign/${envelopeId}/prepare`,
-      )
+      router.push(`/dashboard/esign/${envelopeId}/prepare`)
     } catch (error) {
       toast({
         title: 'Failed to create envelope',

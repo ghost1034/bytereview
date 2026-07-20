@@ -49,6 +49,7 @@ from services.esign.envelope_service import sha256_hex
 from services.esign.signing_service import acquire_envelope_lock
 from services.esign.routing_engine import incomplete_blocking
 from services.esign.field_logic import compute_formulas, resolve_display_value, resolve_visibility
+from services.esign.outbox_service import esign_outbox_service
 from services.gcs_service import get_storage_service
 
 logger = logging.getLogger(__name__)
@@ -382,6 +383,8 @@ class EsignSealingService:
                     "unsigned": [r.email or r.name or str(r.id) for r in unsigned],
                 }
 
+            esign_outbox_service.mark_seal_processing(db, envelope)
+
             recipients_by_id = {str(r.id): r for r in envelope.recipients}
             signature_records = (
                 db.query(EsignSignatureRecord)
@@ -508,22 +511,20 @@ class EsignSealingService:
                 event_type=EsignEventType.COMPLETED,
                 details={"completed_at": now.isoformat()},
             )
+            esign_outbox_service.mark_seal_completed(db, envelope)
+            from services.esign.signing_service import esign_signing_service
+            esign_signing_service.queue_completion_emails(db, envelope)
             db.commit()
             logger.info("Sealed envelope %s (sha256=%s)", envelope_id, sealed_sha)
-        except Exception:
+        except Exception as exc:
             db.rollback()
             logger.exception("Failed to seal envelope %s", envelope_id)
+            esign_outbox_service.mark_seal_failed(envelope_id, exc)
             raise
         finally:
             db.close()
 
-        # Best-effort notifications after commit.
-        try:
-            from services.esign.signing_service import esign_signing_service
-
-            await esign_signing_service.send_completion_emails(envelope_id)
-        except Exception:
-            logger.exception("Completion emails failed for envelope %s", envelope_id)
+        await esign_outbox_service.deliver_due_emails(envelope_id=envelope_id)
 
         return {"status": "sealed", "envelope_id": envelope_id, "sealed_sha256": sealed_sha}
 

@@ -60,6 +60,7 @@ from services.esign.envelope_service import (
     EsignError,
     EsignNotFound,
     esign_envelope_service,
+    normalize_template_roles,
 )
 from services.esign.field_logic import remap_property_references, validate_field_graph
 from services.esign.signing_service import esign_signing_service
@@ -78,6 +79,7 @@ def _slug(label: str) -> str:
 
 
 def _snapshot(template: EsignTemplate) -> dict[str, Any]:
+    roles = normalize_template_roles(list(template.recipient_roles or []))
     return {
         "brand_id": str(template.brand_id) if getattr(template, "brand_id", None) else None,
         "name": template.name,
@@ -85,7 +87,7 @@ def _snapshot(template: EsignTemplate) -> dict[str, Any]:
         "message": template.message,
         "signing_type": template.signing_type.value if hasattr(template.signing_type, "value") else str(template.signing_type),
         "date_format": template.date_format,
-        "recipient_roles": list(template.recipient_roles or []),
+        "recipient_roles": roles,
         "documents": [{
             "id": str(d.id), "display_order": int(d.display_order),
             "original_filename": d.original_filename, "gcs_object_name": d.gcs_object_name,
@@ -95,6 +97,7 @@ def _snapshot(template: EsignTemplate) -> dict[str, Any]:
         "fields": [{
             "id": str(f.id), "template_document_id": str(f.template_document_id),
             "recipient_index": int(f.recipient_index),
+            "recipient_role_id": str(f.recipient_role_id) if getattr(f, "recipient_role_id", None) else roles[int(f.recipient_index)]["id"],
             "field_type": f.field_type.value if hasattr(f.field_type, "value") else str(f.field_type),
             "page_number": int(f.page_number), "pos_x": float(f.pos_x), "pos_y": float(f.pos_y),
             "width": float(f.width), "height": float(f.height), "required": bool(f.required),
@@ -459,6 +462,7 @@ class EsignScaleService:
                 source_type=data.get("__source_type") or "bulk",
                 source_id=uuid.UUID(data["__source_id"]) if data.get("__source_id") else job.id,
                 template_version_id=version.id,
+                template_id=version.template_id,
                 title=(data.get("envelope_title") or snap.get("title") or "Untitled envelope")[:255],
                 message=data.get("message") or snap.get("message"), status=EsignEnvelopeStatus.DRAFT,
                 signing_type=EsignSigningType(snap.get("signing_type", "sequential")),
@@ -475,13 +479,26 @@ class EsignScaleService:
                     original_filename=d["original_filename"], gcs_object_name=object_name, original_sha256=d["sha256"],
                     page_count=d["page_count"], file_size_bytes=d["file_size_bytes"])
                 db.add(doc); doc_map[d["id"]] = doc
+            roles = normalize_template_roles(snap.get("recipient_roles", []))
             recipients: list[EsignRecipient] = []
-            for role in snap.get("recipient_roles", []):
+            recipients_by_role_id: dict[str, EsignRecipient] = {}
+            for role in roles:
                 base = _slug(str(role.get("label") or role.get("role") or "recipient"))
                 recipient = EsignRecipient(id=uuid.uuid4(), envelope_id=env.id,
                     name=data[f"{base}_name"], email=data[f"{base}_email"], role=EsignRecipientRole(role.get("role", "signer")),
-                    routing_order=int(role.get("routing_order", 1)), role_label=role.get("label"), private_message=role.get("private_message"))
-                db.add(recipient); recipients.append(recipient)
+                    routing_order=int(role.get("routing_order", 1)), role_label=role.get("label"),
+                    private_message=role.get("private_message"), host_name=role.get("host_name"),
+                    host_email=(str(role.get("host_email") or "").strip().lower() or None),
+                    allow_reassignment=bool(role.get("allow_reassignment", False)),
+                    template_role_id=uuid.UUID(role["id"]))
+                db.add(recipient); recipients.append(recipient); recipients_by_role_id[role["id"]] = recipient
+            db.flush()
+            for role in roles:
+                recipient = recipients_by_role_id[role["id"]]
+                manager = recipients_by_role_id.get(str(role.get("managed_by_role_id")))
+                witness_for = recipients_by_role_id.get(str(role.get("witness_for_role_id")))
+                recipient.managed_by_recipient_id = manager.id if manager else None
+                recipient.witness_for_recipient_id = witness_for.id if witness_for else None
             db.flush()
             id_map = {f["id"]: str(uuid.uuid4()) for f in snap.get("fields", [])}
             fields: list[EsignField] = []
@@ -489,8 +506,12 @@ class EsignScaleService:
                 props = remap_property_references(f.get("properties") or {}, id_map)
                 label = props.get("data_label")
                 if label and label in data and "sender_prefill" in props: props["sender_prefill"] = data[label]
+                role_id = str(f.get("recipient_role_id") or roles[int(f["recipient_index"])]["id"])
+                recipient = recipients_by_role_id.get(role_id)
+                if recipient is None:
+                    recipient = recipients[int(f["recipient_index"])]
                 field = EsignField(id=uuid.UUID(id_map[f["id"]]), envelope_id=env.id,
-                    document_id=doc_map[f["template_document_id"]].id, recipient_id=recipients[f["recipient_index"]].id,
+                    document_id=doc_map[f["template_document_id"]].id, recipient_id=recipient.id,
                     field_type=EsignFieldType(f["field_type"]), page_number=f["page_number"], pos_x=f["pos_x"], pos_y=f["pos_y"],
                     width=f["width"], height=f["height"], required=f["required"], label=f.get("label"), properties=props)
                 db.add(field); fields.append(field)
@@ -670,7 +691,8 @@ class EsignScaleService:
                 EsignPowerFormSubmission.powerform_id == row.id).order_by(EsignPowerFormSubmission.created_at.desc()).all()
             return [{"id": str(item.id), "status": item.status, "initiating_email": item.initiating_email,
                 "envelope_id": str(item.envelope_id) if item.envelope_id else None,
-                "verified_at": item.verified_at, "created_at": item.created_at} for item in submissions]
+                "verified_at": item.verified_at, "created_at": item.created_at,
+                "attempt_count": item.attempt_count, "last_error": item.last_error} for item in submissions]
         finally: db.close()
 
     def public_powerform(self, token: str) -> dict[str, Any]:
@@ -683,17 +705,94 @@ class EsignScaleService:
             return {"name": row.name, "instructions": row.instructions, "roles": prompts, "fields": row.public_fields or []}
         finally: db.close()
 
+    @staticmethod
+    def _validate_powerform_input(form: EsignPowerForm, version: EsignTemplateVersion, data: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+        if not bool(data.get("consent")):
+            raise EsignError("Electronic signature consent is required")
+        roles = version.snapshot.get("recipient_roles", [])
+        configured = {int(item["recipient_index"]): item for item in (form.role_config or [])}
+        supplied_list = data.get("recipients") or []
+        supplied: dict[int, dict[str, str]] = {}
+        for item in supplied_list:
+            try:
+                index = int(item.get("recipient_index", -1))
+            except (TypeError, ValueError):
+                raise EsignError("Recipient role index is invalid")
+            if index in supplied:
+                raise EsignError("Each visitor recipient role must be supplied exactly once")
+            supplied[index] = item
+        visitor_indices = {index for index, item in configured.items() if item.get("identity_source") == "visitor"}
+        if set(supplied) != visitor_indices:
+            raise EsignError("Every visitor recipient identity must be supplied exactly once")
+        emails: list[str] = []
+        normalized_recipients: list[dict[str, Any]] = []
+        initiating_email = ""
+        for index, _role in enumerate(roles):
+            config = configured.get(index)
+            if config is None:
+                raise EsignError("PowerForm recipient configuration is incomplete")
+            identity = supplied[index] if index in visitor_indices else config
+            name = str(identity.get("name") or "").strip()
+            email = str(identity.get("email") or "").strip().lower()
+            if not name or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+                raise EsignError(f"A valid name and email are required for recipient role {index + 1}")
+            emails.append(email)
+            normalized_recipients.append({"recipient_index": index, "name": name, "email": email})
+            if config.get("initiating_signer"):
+                initiating_email = email
+        if len(emails) != len(set(emails)):
+            raise EsignError("Recipient emails must be unique")
+        if not initiating_email:
+            raise EsignError("The initiating signer is not configured")
+
+        fields = data.get("fields") or {}
+        if set(fields) - set(form.public_fields or []):
+            raise EsignError("The submission contains an unsupported public field")
+        public_definitions = {
+            str((field.get("properties") or {}).get("data_label")): field
+            for field in version.snapshot.get("fields", [])
+            if (field.get("properties") or {}).get("data_label") in (form.public_fields or [])
+        }
+        normalized_fields: dict[str, str] = {}
+        for label in form.public_fields or []:
+            value = str(fields.get(label, "")).strip()
+            field = public_definitions.get(label) or {}
+            props = field.get("properties") or {}
+            text_rule = props.get("text_validation") or {}
+            if text_rule.get("max_length") and len(value) > int(text_rule["max_length"]):
+                raise EsignError(f"{label} is too long")
+            if text_rule.get("regex") and value and re.fullmatch(str(text_rule["regex"]), value) is None:
+                raise EsignError(f"{label} has an invalid format")
+            if field.get("field_type") == "number" and value:
+                try:
+                    number = float(value)
+                except ValueError:
+                    raise EsignError(f"{label} must be a number")
+                rule = props.get("number_validation") or {}
+                if rule.get("minimum") is not None and number < float(rule["minimum"]):
+                    raise EsignError(f"{label} is below its minimum")
+                if rule.get("maximum") is not None and number > float(rule["maximum"]):
+                    raise EsignError(f"{label} exceeds its maximum")
+            if field.get("field_type") == "date" and value:
+                try:
+                    datetime.fromisoformat(value)
+                except ValueError:
+                    raise EsignError(f"{label} must be an ISO-8601 date")
+            if field.get("field_type") == "dropdown" and value not in {str(option.get("value")) for option in props.get("options", [])}:
+                raise EsignError(f"{label} must be one of the configured options")
+            normalized_fields[label] = value
+        return initiating_email, {"recipients": normalized_recipients, "fields": normalized_fields, "consent": True}
+
     def request_powerform_verification(self, token: str, data: dict[str, Any], meta: EsignRequestMeta) -> tuple[str, str]:
         db = self._get_session()
         try:
-            row = self._active_powerform(db, token); initiating = next(c for c in row.role_config if c.get("initiating_signer"))
-            identity = next((r for r in data.get("recipients", []) if int(r.get("recipient_index", -1)) == int(initiating["recipient_index"])), None)
-            email = str((identity or {}).get("email") or "").strip().lower()
-            if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email): raise EsignError("A valid initiating signer email is required")
+            row = self._active_powerform(db, token)
+            version = db.query(EsignTemplateVersion).filter(EsignTemplateVersion.id == row.template_version_id).first()
+            email, normalized = self._validate_powerform_input(row, version, data)
             verification = secrets.token_urlsafe(32)
-            submission = EsignPowerFormSubmission(id=uuid.uuid4(), powerform_id=row.id, normalized_input=data,
+            submission = EsignPowerFormSubmission(id=uuid.uuid4(), powerform_id=row.id, normalized_input=normalized,
                 initiating_email=email, verification_token_sha256=hashlib.sha256(verification.encode()).hexdigest(),
-                verification_expires_at=datetime.now(timezone.utc) + timedelta(minutes=15), consent=bool(data.get("consent")),
+                verification_expires_at=datetime.now(timezone.utc) + timedelta(minutes=15), consent=True,
                 ip_address=meta.ip_address, user_agent=meta.user_agent)
             db.add(submission); db.commit()
             return email, verification
@@ -711,13 +810,37 @@ class EsignScaleService:
             digest = hashlib.sha256(token.encode()).hexdigest(); now = datetime.now(timezone.utc)
             submission = db.query(EsignPowerFormSubmission).filter(
                 EsignPowerFormSubmission.verification_token_sha256 == digest).with_for_update().first()
-            if not submission or submission.consumed_at or submission.verification_expires_at <= now:
+            retry_deadline = (submission.verification_expires_at + timedelta(hours=24)) if submission else None
+            if (not submission or submission.consumed_at
+                    or (submission.verification_expires_at <= now and submission.status != "failed")
+                    or (submission.status == "failed" and retry_deadline <= now)):
                 raise EsignNotFound("Verification link is invalid or expired")
+            idempotency_key = hashlib.sha256(f"powerform:{submission.id}".encode()).hexdigest()
+            if submission.status == "materializing":
+                stale_row = db.query(EsignBulkRow).filter(
+                    EsignBulkRow.idempotency_key == idempotency_key
+                ).first()
+                if (not stale_row or not stale_row.updated_at
+                        or stale_row.updated_at > now - timedelta(minutes=15)):
+                    raise EsignConflict("This verification is already being processed")
+                stale_row.status = "failed"
+                stale_row.error_code = "materialization_timeout"
+                stale_row.error_message = "Previous PowerForm materialization attempt timed out"
+                submission.status = "failed"
+                submission.last_error = stale_row.error_message
             form = db.query(EsignPowerForm).filter(EsignPowerForm.id == submission.powerform_id).with_for_update().first()
             if not form or form.state != "active" or (form.starts_at and form.starts_at > now) or (form.ends_at and form.ends_at <= now):
                 raise EsignNotFound("This form is unavailable")
             if form.submission_cap is not None and form.submission_count >= form.submission_cap:
                 raise EsignConflict("This form has reached its submission limit")
+            if form.submission_cap is not None:
+                reservations = db.query(func.count(EsignPowerFormSubmission.id)).filter(
+                    EsignPowerFormSubmission.powerform_id == form.id,
+                    EsignPowerFormSubmission.status == "materializing",
+                    EsignPowerFormSubmission.id != submission.id,
+                ).scalar() or 0
+                if form.submission_count + int(reservations) >= form.submission_cap:
+                    raise EsignConflict("This form has reached its submission limit")
             if not submission.consent: raise EsignError("Electronic signature consent is required")
             form_brand_id = form.brand_id
             version = db.query(EsignTemplateVersion).filter(EsignTemplateVersion.id == form.template_version_id).first()
@@ -733,14 +856,21 @@ class EsignScaleService:
                 data[f"{base}_name"] = str((identity or {}).get("name") or "").strip()
                 data[f"{base}_email"] = str((identity or {}).get("email") or "").strip().lower()
             for label in form.public_fields or []: data[label] = str(submission.normalized_input.get("fields", {}).get(label, ""))
-            job = EsignBulkJob(id=uuid.uuid4(), firm_id=form.firm_id, user_id=form.user_id,
-                template_version_id=version.id, status="processing", kind="powerform", total_rows=1, valid_rows=1, invalid_rows=0, confirmed_at=now)
-            db.add(job); db.flush()
-            row = EsignBulkRow(id=uuid.uuid4(), job_id=job.id, row_number=1,
-                idempotency_key=hashlib.sha256(f"powerform:{submission.id}".encode()).hexdigest(),
-                normalized_input=data, status="processing", attempts=1)
-            db.add(row); form.submission_count += 1; submission.verified_at = now; submission.consumed_at = now
-            submission.status = "verified"; row_id = row.id; submission_id = submission.id
+            row = db.query(EsignBulkRow).filter(EsignBulkRow.idempotency_key == idempotency_key).first()
+            if row is None:
+                job = EsignBulkJob(id=uuid.uuid4(), firm_id=form.firm_id, user_id=form.user_id,
+                    template_version_id=version.id, status="processing", kind="powerform", total_rows=1, valid_rows=1, invalid_rows=0, confirmed_at=now)
+                db.add(job); db.flush()
+                row = EsignBulkRow(id=uuid.uuid4(), job_id=job.id, row_number=1,
+                    idempotency_key=idempotency_key, normalized_input=data, status="processing", attempts=1)
+                db.add(row)
+            else:
+                if row.status in ("failed", "processing"):
+                    row.status = "processing"; row.error_code = None; row.error_message = None; row.attempts += 1
+                elif not row.envelope_id or row.status not in ("sent", "materialized"):
+                    raise EsignConflict("This verification is already being processed")
+            submission.status = "materializing"; submission.attempt_count += 1; submission.last_error = None
+            row_id = row.id; submission_id = submission.id
             db.commit()
         except Exception: db.rollback(); raise
         finally: db.close()
@@ -749,18 +879,44 @@ class EsignScaleService:
         db = self._get_session()
         try:
             row = db.query(EsignBulkRow).filter(EsignBulkRow.id == row_id).first()
-            submission = db.query(EsignPowerFormSubmission).filter(EsignPowerFormSubmission.id == submission_id).first()
+            submission = db.query(EsignPowerFormSubmission).filter(EsignPowerFormSubmission.id == submission_id).with_for_update().first()
             if not row or not row.envelope_id or row.status == "failed":
-                if submission: submission.status = "failed"; db.commit()
+                if submission:
+                    submission.status = "failed"
+                    submission.last_error = row.error_message if row else "PowerForm materialization failed"
+                    db.commit()
                 raise EsignError(row.error_message if row else "PowerForm materialization failed")
+            form = db.query(EsignPowerForm).filter(EsignPowerForm.id == submission.powerform_id).with_for_update().first()
+            if form.submission_cap is not None and form.submission_count >= form.submission_cap:
+                submission.status = "failed"; submission.last_error = "Submission limit reached during finalization"; db.commit()
+                raise EsignConflict("This form has reached its submission limit")
             env = db.query(EsignEnvelope).options(joinedload(EsignEnvelope.recipients)).filter(EsignEnvelope.id == row.envelope_id).first()
             env.source_type = "powerform"; env.source_id = submission.powerform_id
             if form_brand_id: env.brand_id = form_brand_id
-            submission.envelope_id = env.id; submission.status = "submitted"
+            form.submission_count += 1
+            submission.verified_at = datetime.now(timezone.utc); submission.consumed_at = submission.verified_at
+            submission.envelope_id = env.id; submission.status = "submitted"; submission.last_error = None
             recipient = next(r for r in env.recipients or [] if r.email == submission.initiating_email)
             from services.esign.recipient_service import esign_recipient_service
             invitation = esign_recipient_service._issue_invitation(db, env, recipient)
             db.commit(); return {"envelope_id": str(env.id), "invitation_token": invitation.invitation_token}
+        except Exception as exc:
+            db.rollback()
+            recovery = self._get_session()
+            try:
+                submission = recovery.query(EsignPowerFormSubmission).filter(
+                    EsignPowerFormSubmission.id == submission_id
+                ).with_for_update().first()
+                if submission and not submission.consumed_at:
+                    submission.status = "failed"
+                    submission.last_error = str(exc)[:4000]
+                    recovery.commit()
+            except Exception:
+                recovery.rollback()
+                logger.exception("Could not record failed PowerForm submission %s", submission_id)
+            finally:
+                recovery.close()
+            raise
         finally: db.close()
 
     def report_summary(self, user_id: str, start: datetime, end: datetime, source: Optional[str] = None,

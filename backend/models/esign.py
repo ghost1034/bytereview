@@ -264,6 +264,7 @@ class EsignRecipientResponse(BaseModel):
     routing_order: int
     status: str
     role_label: Optional[str] = None
+    template_role_id: Optional[str] = None
     private_message: Optional[str] = None
     managed_by_recipient_id: Optional[str] = None
     witness_for_recipient_id: Optional[str] = None
@@ -342,7 +343,11 @@ class EsignEnvelopeResponse(BaseModel):
     firm_id: Optional[str] = None
     source_type: Literal["manual", "bulk", "powerform"] = "manual"
     source_id: Optional[str] = None
+    template_id: Optional[str] = None
     template_version_id: Optional[str] = None
+    sealing_state: Literal["not_ready", "queued", "dispatching", "dispatched", "processing", "retry", "terminal", "completed"] = "not_ready"
+    sealing_last_error: Optional[str] = None
+    email_delivery_summary: dict[str, int] = Field(default_factory=dict)
     scheduled_at: Optional[datetime] = None
     schedule_timezone: Optional[str] = None
     send_error_code: Optional[str] = None
@@ -536,6 +541,8 @@ class EsignSubmitRequest(BaseModel):
     expected_routing_version: int = Field(ge=1)
     signature: EsignSignatureInput
     field_values: list[EsignFieldValueInput] = Field(default_factory=list)
+    occupation: Optional[str] = Field(default=None, max_length=255)
+    address: Optional[str] = Field(default=None, max_length=2_000)
 
 
 class EsignProgressRequest(BaseModel):
@@ -653,8 +660,7 @@ class EsignGuestSessionResponse(BaseModel):
 
 
 class EsignGuestSubmitRequest(EsignSubmitRequest):
-    occupation: Optional[str] = Field(default=None, max_length=255)
-    address: Optional[str] = Field(default=None, max_length=2_000)
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -682,12 +688,15 @@ class EsignVerifyResponse(BaseModel):
 
 
 class EsignTemplateRoleInput(BaseModel):
+    id: Optional[str] = None
     label: str
     role: EsignRecipientRoleName = "signer"
     routing_order: int = Field(default=1, ge=1)
     private_message: Optional[str] = Field(default=None, max_length=4_000)
     managed_by_recipient_index: Optional[int] = Field(default=None, ge=0)
     witness_for_recipient_index: Optional[int] = Field(default=None, ge=0)
+    managed_by_role_id: Optional[str] = None
+    witness_for_role_id: Optional[str] = None
     host_name: Optional[str] = Field(default=None, max_length=255)
     host_email: Optional[EmailStr] = None
     allow_reassignment: bool = False
@@ -697,6 +706,7 @@ class EsignTemplateFieldInput(BaseModel):
     id: Optional[str] = None
     template_document_id: str
     recipient_index: int = Field(ge=0)
+    recipient_role_id: Optional[str] = None
     field_type: str
     page_number: int = Field(ge=0)
     pos_x: float = Field(ge=0, le=1)
@@ -741,6 +751,7 @@ class EsignTemplateFieldResponse(BaseModel):
     id: str
     template_document_id: str
     recipient_index: int
+    recipient_role_id: Optional[str] = None
     field_type: str
     page_number: int
     pos_x: float
@@ -937,6 +948,7 @@ class EsignPowerFormListResponse(BaseModel):
 class EsignPowerFormVerificationRequest(BaseModel):
     recipients: list[dict[str, str]]
     fields: dict[str, str] = Field(default_factory=dict)
+    consent: bool
     consent: bool
 
 

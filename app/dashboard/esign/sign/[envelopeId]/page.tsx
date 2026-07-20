@@ -24,6 +24,8 @@ import {
 } from '@/components/esign/sign/SignatureAdoptionModal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
@@ -72,6 +74,8 @@ export default function SigningCeremonyPage() {
   const [guestLink, setGuestLink] = React.useState<string | null>(null)
   const [witnessName, setWitnessName] = React.useState('')
   const [witnessEmail, setWitnessEmail] = React.useState('')
+  const [witnessOccupation, setWitnessOccupation] = React.useState('')
+  const [witnessAddress, setWitnessAddress] = React.useState('')
   const [replacementName, setReplacementName] = React.useState('')
   const [replacementEmail, setReplacementEmail] = React.useState('')
   const [reassignmentReason, setReassignmentReason] = React.useState('')
@@ -376,7 +380,8 @@ export default function SigningCeremonyPage() {
     return isFieldRequired(field, logicFields, displayValues, visibility)
   }).length
   const completedCount = Math.max(0, totalRequired - incompleteFields.length)
-  const canFinish = !!adopted && incompleteFields.length === 0
+  const witnessEvidenceComplete = session.recipient_role !== 'witness' || (!!witnessOccupation.trim() && !!witnessAddress.trim())
+  const canFinish = !!adopted && incompleteFields.length === 0 && witnessEvidenceComplete
 
   const goToNextField = () => {
     setGuideStarted(true)
@@ -452,6 +457,8 @@ export default function SigningCeremonyPage() {
           initials_image_data_url: adopted.initialsImageDataUrl,
         },
         field_values: submittedFields,
+        occupation: session.recipient_role === 'witness' ? witnessOccupation.trim() : undefined,
+        address: session.recipient_role === 'witness' ? witnessAddress.trim() : undefined,
       })
       setCeremonyState('submitted')
       if (result.sealing_enqueued) {
@@ -566,6 +573,12 @@ export default function SigningCeremonyPage() {
         <p className="rounded-lg border border-primary/20 bg-primary-soft p-4 text-sm">
           <span className="font-medium">Private message:</span> {session.private_message}
         </p>
+      )}
+      {session.recipient_role === 'witness' && (
+        <section className="grid gap-3 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2">
+          <div><Label htmlFor="witness-occupation">Occupation</Label><Input id="witness-occupation" value={witnessOccupation} onChange={(event) => setWitnessOccupation(event.target.value)} /></div>
+          <div><Label htmlFor="witness-address">Address</Label><Textarea id="witness-address" value={witnessAddress} onChange={(event) => setWitnessAddress(event.target.value)} /></div>
+        </section>
       )}
       {(session.available_actions ?? []).includes('configure_witness') && (
         <section className="space-y-3 rounded-lg border border-border bg-surface p-4">

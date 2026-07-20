@@ -12,7 +12,7 @@ import types
 import unittest
 import uuid
 from pathlib import Path
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -147,32 +147,29 @@ class CompletionEmailAccessTests(unittest.IsolatedAsyncioTestCase):
             recipients=[account_recipient, guest_recipient],
         )
         db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None
         invitation = NS(guest_url="https://cpaautomation.ai/esign/guest?token=completed")
-        sent = AsyncMock()
+        queued = MagicMock()
 
         with (
-            patch.object(esign_signing_service, "_get_session", return_value=db),
-            patch.object(esign_signing_service, "_load_envelope_any", return_value=envelope),
             patch.object(esign_signing_service, "_sender_email", return_value=""),
-            patch.object(esign_signing_service, "_send_content", sent),
+            patch("services.esign.signing_service.esign_outbox_service.queue_email", queued),
             patch("services.esign.signing_service.recipient_has_account", side_effect=[True, False]),
             patch(
                 "services.esign.recipient_service.esign_recipient_service._issue_invitation",
                 return_value=invitation,
             ) as issue,
         ):
-            await esign_signing_service.send_completion_emails(envelope_id)
+            esign_signing_service.queue_completion_emails(db, envelope)
 
-        self.assertEqual([call.args[0] for call in sent.await_args_list], [
-            "guest@example.com",
+        self.assertEqual([call.kwargs["to_email"] for call in queued.call_args_list], [
             "user@example.com",
+            "guest@example.com",
         ])
-        contents = {call.args[0]: call.args[1].text for call in sent.await_args_list}
+        contents = {call.kwargs["to_email"]: call.kwargs["content"].text for call in queued.call_args_list}
         self.assertIn(invitation.guest_url, contents["guest@example.com"])
         self.assertIn(f"/dashboard/esign/sign/{envelope_id}", contents["user@example.com"])
         issue.assert_called_once_with(db, envelope, guest_recipient, purpose="completed_copy")
-        db.commit.assert_called_once_with()
-        db.close.assert_called_once_with()
 
 
 class SignaturePayloadTests(unittest.TestCase):

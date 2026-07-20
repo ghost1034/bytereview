@@ -93,6 +93,7 @@ from services.esign.scale_service import esign_scale_service
 from services.esign.email_templates import EmailContent, _shell
 from services.esign.admin_service import esign_admin_service
 from services.esign.url_service import app_base_url
+from services.esign.outbox_service import esign_outbox_service
 
 logger = logging.getLogger(__name__)
 
@@ -387,6 +388,7 @@ async def update_template(
             recipient_roles=payload.recipient_roles,
             fields=payload.fields,
             brand_id=payload.brand_id,
+            brand_id_supplied="brand_id" in payload.model_fields_set,
         )
     except Exception as exc:
         _raise_http(exc)
@@ -549,7 +551,10 @@ async def request_powerform_verification(public_token: str, payload: EsignPowerF
             html=_shell(heading="Verify your email", body_paragraphs=["Use this single-use link within 15 minutes to begin signing."],
                 button_label="Verify and continue", button_url=url),
             text=f"Verify your email to begin signing. This link expires in 15 minutes:\n\n{url}")
-        await esign_signing_service._send_content(email, content)
+        await esign_outbox_service.queue_external_email(
+            kind="powerform_verification", to_email=email, content=content,
+            idempotency_key=f"powerform-verification:{hashlib.sha256(verification.encode()).hexdigest()}",
+        )
         return {"message": "If the request can be accepted, a verification email will arrive shortly."}
     except Exception as exc:
         # Public response is deliberately generic; details stay server-side.
@@ -674,6 +679,36 @@ async def retry_failed_send(envelope_id: str, request: Request, token: dict = De
         return await esign_scale_service.retry_failed_send(_uid(token), _email(token), envelope_id,
             extract_request_meta(request, token))
     except Exception as exc: _raise_http(exc)
+
+
+@router.post("/envelopes/{envelope_id}/retry-sealing")
+async def retry_envelope_sealing(envelope_id: str, token: dict = Depends(verify_firebase_token)):
+    try:
+        work_id = esign_outbox_service.retry_seal(_uid(token), envelope_id)
+        await esign_outbox_service.dispatch_seal(work_id)
+        return {"status": "queued", "work_item_id": work_id}
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.get("/envelopes/{envelope_id}/email-deliveries")
+async def list_envelope_email_deliveries(envelope_id: str, token: dict = Depends(verify_firebase_token)):
+    try:
+        return {"deliveries": esign_outbox_service.list_emails(_uid(token), envelope_id)}
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.post("/envelopes/{envelope_id}/email-deliveries/{delivery_id}/resend")
+async def resend_envelope_email(
+    envelope_id: str, delivery_id: str, token: dict = Depends(verify_firebase_token),
+):
+    try:
+        delivery = esign_outbox_service.retry_email(_uid(token), envelope_id, delivery_id)
+        await esign_outbox_service.deliver_due_emails(envelope_id=envelope_id)
+        return delivery
+    except Exception as exc:
+        _raise_http(exc)
 
 
 @router.get("/envelopes", response_model=EsignEnvelopeListResponse)
@@ -1146,6 +1181,8 @@ async def submit_signature(
             signature=payload.signature,
             field_values=payload.field_values,
             expected_routing_version=payload.expected_routing_version,
+            occupation=payload.occupation,
+            address=payload.address,
             meta=extract_request_meta(request, token),
         )
     except Exception as exc:

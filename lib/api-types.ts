@@ -7601,8 +7601,18 @@ export interface components {
             source_type: "manual" | "bulk" | "powerform";
             /** Source Id */
             source_id?: string | null;
+            /** Template Id */
+            template_id?: string | null;
             /** Template Version Id */
             template_version_id?: string | null;
+            /** Sealing State */
+            sealing_state: "not_ready" | "queued" | "dispatching" | "dispatched" | "processing" | "retry" | "terminal" | "completed";
+            /** Sealing Last Error */
+            sealing_last_error?: string | null;
+            /** Email Delivery Summary */
+            email_delivery_summary?: {
+                [key: string]: number;
+            };
             /** Scheduled At */
             scheduled_at?: string | null;
             /** Schedule Timezone */
@@ -8193,6 +8203,8 @@ export interface components {
             routing_order: number;
             /** Role Label */
             role_label?: string | null;
+            /** Template Role Id */
+            template_role_id?: string | null;
             /** Private Message */
             private_message?: string | null;
             /** Managed By Recipient Id */
@@ -8455,6 +8467,10 @@ export interface components {
             signature: components["schemas"]["EsignSignatureInput"];
             /** Field Values */
             field_values?: components["schemas"]["EsignFieldValueInput"][];
+            /** Occupation */
+            occupation?: string | null;
+            /** Address */
+            address?: string | null;
         };
         /** EsignSubmitResponse */
         EsignSubmitResponse: {
@@ -8493,6 +8509,8 @@ export interface components {
             template_document_id: string;
             /** Recipient Index */
             recipient_index: number;
+            /** Recipient Role Id */
+            recipient_role_id?: string | null;
             /** Field Type */
             field_type: string;
             /** Page Number */
@@ -8522,6 +8540,8 @@ export interface components {
             template_document_id: string;
             /** Recipient Index */
             recipient_index: number;
+            /** Recipient Role Id */
+            recipient_role_id?: string | null;
             /** Field Type */
             field_type: string;
             /** Page Number */
@@ -8591,6 +8611,8 @@ export interface components {
         };
         /** EsignTemplateRoleInput */
         EsignTemplateRoleInput: {
+            /** Id */
+            id?: string | null;
             /** Label */
             label: string;
             /**
@@ -8610,6 +8632,10 @@ export interface components {
             managed_by_recipient_index?: number | null;
             /** Witness For Recipient Index */
             witness_for_recipient_index?: number | null;
+            /** Managed By Role Id */
+            managed_by_role_id?: string | null;
+            /** Witness For Role Id */
+            witness_for_role_id?: string | null;
             /** Host Name */
             host_name?: string | null;
             /** Host Email */

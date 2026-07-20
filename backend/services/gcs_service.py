@@ -478,6 +478,19 @@ class GCSService:
             logger.error(f"Failed to delete {gcs_object_name}: {e}")
             raise
 
+    async def list_objects(self, prefix: str) -> list[dict]:
+        """List object names and timestamps for bounded maintenance sweeps."""
+        if not self.is_available():
+            return []
+
+        def _list() -> list[dict]:
+            return [
+                {"name": blob.name, "updated": blob.updated or blob.time_created}
+                for blob in self.bucket.list_blobs(prefix=prefix)
+            ]
+
+        return await asyncio.to_thread(_list)
+
     def _get_content_type(self, filename: str) -> str:
         """Get content type based on file extension"""
         try:

@@ -49,7 +49,8 @@ import {
   useVoidEnvelope,
 } from '@/hooks/useEnvelopes'
 import { apiClient } from '@/lib/api'
-import { useQuery } from '@tanstack/react-query'
+import { cn } from '@/lib/utils'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 function formatDateTime(value?: string | null) {
   if (!value) return '—'
@@ -121,6 +122,7 @@ export default function EnvelopeDetailPage() {
   const envelopeId = params?.envelopeId
   const router = useRouter()
   const { toast } = useToast()
+  const queryClient = useQueryClient()
 
   const envelopeQuery = useEnvelope(envelopeId)
   const auditQuery = useEnvelopeAudit(envelopeId)
@@ -136,6 +138,11 @@ export default function EnvelopeDetailPage() {
   const accessQuery = useQuery({
     queryKey: ['esign', 'envelope', envelopeId, 'access'],
     queryFn: () => apiClient.getEsignEnvelopeAccess(envelopeId!),
+    enabled: !!envelopeId,
+  })
+  const deliveryQuery = useQuery({
+    queryKey: ['esign', 'envelope', envelopeId, 'email-deliveries'],
+    queryFn: () => apiClient.request<{ deliveries: Array<{ id: string; kind: string; to_email: string; state: string; attempt_count: number; last_error?: string | null; created_at: string; delivered_at?: string | null }> }>(`/api/esign/envelopes/${envelopeId}/email-deliveries`),
     enabled: !!envelopeId,
   })
 
@@ -277,12 +284,21 @@ export default function EnvelopeDetailPage() {
         </p>
       )}
 
+      {['queued', 'dispatching', 'dispatched', 'processing', 'retry', 'terminal'].includes(envelope.sealing_state) && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-warning/30 bg-warning-soft p-4 text-sm">
+          <Loader2 className={cn('size-4', !['retry', 'terminal'].includes(envelope.sealing_state) && 'animate-spin')} />
+          <div className="min-w-0 flex-1"><p className="font-medium">Digital sealing: {envelope.sealing_state.replace(/_/g, ' ')}</p>{envelope.sealing_last_error && <p className="truncate text-xs text-foreground-muted">{envelope.sealing_last_error}</p>}</div>
+          {envelope.available_actions?.includes('retry_sealing') && <Button size="sm" variant="outline" onClick={async () => { try { await apiClient.request(`/api/esign/envelopes/${envelope.id}/retry-sealing`, { method: 'POST' }); await envelopeQuery.refetch(); toast({ title: 'Sealing retry queued' }) } catch (error) { toast({ title: 'Could not retry sealing', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}>Retry sealing</Button>}
+        </div>
+      )}
+
       <Tabs defaultValue="summary" className="space-y-4">
         <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-none border-b border-border bg-transparent p-0">
           <TabsTrigger value="summary" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">Summary</TabsTrigger>
           <TabsTrigger value="recipients" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">Recipients</TabsTrigger>
           <TabsTrigger value="documents" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">Documents</TabsTrigger>
           <TabsTrigger value="access" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">Access</TabsTrigger>
+          <TabsTrigger value="delivery" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">Delivery</TabsTrigger>
           <TabsTrigger value="history" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">History</TabsTrigger>
         </TabsList>
         <TabsContent value="summary">
@@ -358,6 +374,13 @@ export default function EnvelopeDetailPage() {
               ))}
           </ol>
         </section>
+        </TabsContent>
+
+        <TabsContent value="delivery">
+          <section className="space-y-3 rounded-lg border border-border bg-surface p-5">
+            <div><h2 className="text-base font-semibold">Email delivery</h2><p className="text-xs text-foreground-muted">Invitation and lifecycle emails retry independently from envelope state.</p></div>
+            {(deliveryQuery.data?.deliveries ?? []).length ? <div className="divide-y divide-border rounded-md border border-border">{deliveryQuery.data!.deliveries.map((delivery) => <div key={delivery.id} className="flex flex-wrap items-center gap-3 p-3 text-sm"><div className="min-w-0 flex-1"><p className="truncate font-medium">{delivery.to_email}</p><p className="text-xs text-foreground-muted">{delivery.kind.replace(/_/g, ' ')} · {delivery.state} · {delivery.attempt_count} attempt{delivery.attempt_count === 1 ? '' : 's'}</p>{delivery.last_error && <p className="truncate text-xs text-destructive">{delivery.last_error}</p>}</div>{['retry', 'terminal'].includes(delivery.state) && <Button size="sm" variant="outline" onClick={async () => { try { await apiClient.request(`/api/esign/envelopes/${envelope.id}/email-deliveries/${delivery.id}/resend`, { method: 'POST' }); await queryClient.invalidateQueries({ queryKey: ['esign', 'envelope', envelopeId] }); toast({ title: 'Email resend queued' }) } catch (error) { toast({ title: 'Could not resend email', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}>Resend</Button>}</div>)}</div> : <p className="rounded-md border border-dashed border-border p-5 text-sm text-foreground-muted">No email deliveries have been queued for this envelope.</p>}
+          </section>
         </TabsContent>
 
         {/* Documents + hashes */}

@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session, joinedload
 from core.database import db_config
 from models.db_models import (
     EsignConsentRecord,
+    EsignEmailDelivery,
     EsignEnvelope,
     EsignEnvelopeStatus,
     EsignFirmSettings,
@@ -70,6 +71,7 @@ from services.esign.envelope_service import (
     sha256_hex,
 )
 from services.esign.authorization_service import esign_authorization_service
+from services.esign.outbox_service import esign_outbox_service
 from services.esign.field_logic import (
     FieldLogicError,
     format_date_value,
@@ -161,12 +163,35 @@ class EsignSigningService:
         return db_config.get_session()
 
     @staticmethod
-    def _revoke_guest_access(db: Session, envelope_id) -> None:
+    def _queue_emails(
+        db: Session, envelope: EsignEnvelope, emails: list[tuple[str, EmailContent]],
+        *, kind: str, key: Optional[str] = None,
+    ) -> None:
+        batch = key or uuid.uuid4().hex
+        for index, (to_email, content) in enumerate(emails):
+            if not to_email:
+                continue
+            esign_outbox_service.queue_email(
+                db, envelope=envelope, kind=kind, to_email=to_email, content=content,
+                idempotency_key=f"{kind}:{envelope.id}:{batch}:{index}",
+            )
+
+    @staticmethod
+    def _revoke_guest_access(
+        db: Session, envelope_id, *, invitation_purpose: Optional[str] = None,
+    ) -> None:
         now = datetime.now(timezone.utc)
-        db.query(EsignGuestInvitation).filter(
+        invitation_query = db.query(EsignGuestInvitation).filter(
             EsignGuestInvitation.envelope_id == envelope_id,
             EsignGuestInvitation.revoked_at.is_(None),
-        ).update({EsignGuestInvitation.revoked_at: now}, synchronize_session=False)
+        )
+        if invitation_purpose is not None:
+            invitation_query = invitation_query.filter(
+                EsignGuestInvitation.purpose == invitation_purpose
+            )
+        invitation_query.update(
+            {EsignGuestInvitation.revoked_at: now}, synchronize_session=False
+        )
         db.query(EsignGuestSession).filter(
             EsignGuestSession.envelope_id == envelope_id,
             EsignGuestSession.revoked_at.is_(None),
@@ -470,6 +495,7 @@ class EsignSigningService:
                     "cc_notified": [c.email for c in cc_tranche],
                 },
             )
+            self._queue_emails(db, envelope, emails, kind="invitation", key=f"send:{envelope.routing_version}")
             db.commit()
             db.refresh(envelope)
             response = esign_envelope_service._serialize_envelope(envelope)
@@ -479,9 +505,7 @@ class EsignSigningService:
         finally:
             db.close()
 
-        # Best-effort emails after commit — a mail failure must not undo the send.
-        for to_email, content in emails:
-            await self._send_content(to_email, content)
+        await esign_outbox_service.deliver_due_emails(envelope_id=envelope_id)
         return response
 
     # ------------------------------------------------------------------
@@ -624,9 +648,6 @@ class EsignSigningService:
                     f"This envelope is no longer available for signing (status: {envelope.status.value})"
                 )
 
-            if recipient.role == EsignRecipientRole.WITNESS and not recipient_id:
-                raise PermissionError("Witnesses must use their secure guest invitation")
-
             if recipient.role == EsignRecipientRole.CC:
                 # Copy recipients get a read-only view of the documents — no
                 # consent gate, no fields, no signing turn.
@@ -728,12 +749,14 @@ class EsignSigningService:
                             actor_user_id=user_id, actor_email=user_email, recipient_id=recipient.id,
                             meta=meta, details={"from_routing_order": old_order, "to_routing_order": new_order},
                         )
+            certified_seal_work_id = None
+            if recipient.role == EsignRecipientRole.CERTIFIED_DELIVERY and not incomplete_blocking(envelope.recipients or []):
+                certified_seal_work_id = str(esign_outbox_service.ensure_seal_work(db, envelope).id)
             db.commit()
             db.refresh(envelope)
             db.refresh(recipient)
-            if recipient.role == EsignRecipientRole.CERTIFIED_DELIVERY and not incomplete_blocking(envelope.recipients or []):
-                from services.cloud_run_task_service import cloud_run_task_service
-                await cloud_run_task_service.enqueue_envelope_seal_task(str(envelope.id))
+            if certified_seal_work_id:
+                await esign_outbox_service.dispatch_seal(certified_seal_work_id)
             elif recipient.role == EsignRecipientRole.CERTIFIED_DELIVERY:
                 await self.notify_current_recipients(str(envelope.id))
 
@@ -847,7 +870,7 @@ class EsignSigningService:
             envelope = self._load_envelope_any(db, envelope_id)
             assert_routing_version(envelope, expected_routing_version)
             recipient = self._resolve_recipient(envelope, user_email, recipient_id)
-            if recipient.role not in SIGNATURE_ROLES or (not recipient_id and recipient.role != EsignRecipientRole.SIGNER):
+            if recipient.role not in SIGNATURE_ROLES or (not recipient_id and recipient.role not in (EsignRecipientRole.SIGNER, EsignRecipientRole.WITNESS)):
                 raise PermissionError("Electronic-record consent is not available for this role")
             self._backfill_recipient_user(recipient, user_id)
             if not self._is_recipients_turn(envelope, recipient):
@@ -926,7 +949,7 @@ class EsignSigningService:
             envelope = self._load_envelope_any(db, envelope_id)
             assert_routing_version(envelope, expected_routing_version)
             recipient = self._resolve_recipient(envelope, user_email, recipient_id)
-            if recipient.role not in SIGNATURE_ROLES or (not recipient_id and recipient.role != EsignRecipientRole.SIGNER):
+            if recipient.role not in SIGNATURE_ROLES or (not recipient_id and recipient.role not in (EsignRecipientRole.SIGNER, EsignRecipientRole.WITNESS)):
                 raise PermissionError("Signing progress is not available for this role")
             self._backfill_recipient_user(recipient, user_id)
             if envelope.status not in ACTIVE_ENVELOPE_STATUSES:
@@ -1027,7 +1050,7 @@ class EsignSigningService:
         try:
             envelope = self._load_envelope_any(db, envelope_id)
             recipient = self._resolve_recipient(envelope, user_email, recipient_id)
-            if recipient.role not in SIGNATURE_ROLES or (not recipient_id and recipient.role != EsignRecipientRole.SIGNER):
+            if recipient.role not in SIGNATURE_ROLES or (not recipient_id and recipient.role not in (EsignRecipientRole.SIGNER, EsignRecipientRole.WITNESS)):
                 raise PermissionError("Attachments are not available for this role")
             self._backfill_recipient_user(recipient, user_id)
             if not self._is_recipients_turn(envelope, recipient):
@@ -1096,7 +1119,7 @@ class EsignSigningService:
         try:
             envelope = self._load_envelope_any(db, envelope_id)
             recipient = self._resolve_recipient(envelope, user_email, recipient_id)
-            if recipient.role not in SIGNATURE_ROLES or (not recipient_id and recipient.role != EsignRecipientRole.SIGNER):
+            if recipient.role not in SIGNATURE_ROLES or (not recipient_id and recipient.role not in (EsignRecipientRole.SIGNER, EsignRecipientRole.WITNESS)):
                 raise PermissionError("Attachments are not available for this role")
             self._backfill_recipient_user(recipient, user_id)
             if not self._is_recipients_turn(envelope, recipient):
@@ -1185,7 +1208,9 @@ class EsignSigningService:
             initials_image_bytes = self._decode_signature_image(signature.initials_image_data_url)
 
         sealing_enqueued = False
+        sealing_work_id: Optional[str] = None
         emails: list[tuple[str, EmailContent]] = []
+        uploaded_objects: list[str] = []
         db = self._get_session()
         try:
             # Serialize concurrent submits on the same envelope (two final
@@ -1195,7 +1220,7 @@ class EsignSigningService:
             envelope = self._load_envelope_any(db, envelope_id)
             assert_routing_version(envelope, expected_routing_version)
             recipient = self._resolve_recipient(envelope, user_email, recipient_id)
-            if recipient.role not in SIGNATURE_ROLES or (not recipient_id and recipient.role != EsignRecipientRole.SIGNER):
+            if recipient.role not in SIGNATURE_ROLES or (not recipient_id and recipient.role not in (EsignRecipientRole.SIGNER, EsignRecipientRole.WITNESS)):
                 raise PermissionError("Signature submission is not available for this role")
             self._backfill_recipient_user(recipient, user_id)
 
@@ -1223,7 +1248,6 @@ class EsignSigningService:
                 image_object_name = (
                     f"esign/{envelope.user_id}/{envelope.id}/signatures/{recipient.id}_{uuid.uuid4().hex[:8]}.png"
                 )
-                await self.storage.upload_file_content(image_bytes, image_object_name)
                 image_sha = sha256_hex(image_bytes)
 
             # Adopted initials: explicit text wins; otherwise derive from the
@@ -1241,7 +1265,6 @@ class EsignSigningService:
                     f"esign/{envelope.user_id}/{envelope.id}/signatures/"
                     f"{recipient.id}_{uuid.uuid4().hex[:8]}_initials.png"
                 )
-                await self.storage.upload_file_content(initials_image_bytes, initials_object_name)
                 initials_sha = sha256_hex(initials_image_bytes)
 
             signature_record = EsignSignatureRecord(
@@ -1398,6 +1421,15 @@ class EsignSigningService:
                 ) and not field.value:
                     raise EsignError(f"Required field '{label}' is missing a value")
 
+            # Only touch object storage after every envelope, consent, routing,
+            # field, conditional, and witness-evidence validation has passed.
+            if image_bytes is not None and image_object_name:
+                await self.storage.upload_file_content(image_bytes, image_object_name)
+                uploaded_objects.append(image_object_name)
+            if initials_image_bytes is not None and initials_object_name:
+                await self.storage.upload_file_content(initials_image_bytes, initials_object_name)
+                uploaded_objects.append(initials_object_name)
+
             recipient.status = EsignRecipientStatus.SIGNED
             recipient.signed_at = now
             recipient.action_completed_at = now
@@ -1439,6 +1471,7 @@ class EsignSigningService:
                 )
             if not unsigned:
                 sealing_enqueued = True
+                sealing_work_id = str(esign_outbox_service.ensure_seal_work(db, envelope).id)
             elif next_order is not None:
                 for r in unsigned:
                     if is_eligible(envelope, r) and r.status == EsignRecipientStatus.PENDING:
@@ -1490,6 +1523,10 @@ class EsignSigningService:
                     )
                 )
 
+            self._queue_emails(
+                db, envelope, emails, kind="routing_notification",
+                key=f"signed:{recipient.id}:{envelope.routing_version}",
+            )
             db.commit()
             envelope_status_value = (
                 envelope.status.value if hasattr(envelope.status, "value") else str(envelope.status)
@@ -1501,17 +1538,22 @@ class EsignSigningService:
                 envelope_id, sorted(submission_types), exc_info=True,
             )
             db.rollback()
+            for object_name in uploaded_objects:
+                try:
+                    await self.storage.delete_file(object_name)
+                except Exception:
+                    logger.warning("Could not compensate failed signature upload %s", object_name, exc_info=True)
             raise
         finally:
             db.close()
 
         if sealing_enqueued:
-            from services.cloud_run_task_service import cloud_run_task_service
+            # The durable row was committed with the final signature. Dispatch
+            # failure is recorded for maintenance reconciliation and does not
+            # strand an otherwise valid signature submission.
+            await esign_outbox_service.dispatch_seal(sealing_work_id)
 
-            await cloud_run_task_service.enqueue_envelope_seal_task(env_id)
-
-        for to_email, content in emails:
-            await self._send_content(to_email, content)
+        await esign_outbox_service.deliver_due_emails(envelope_id=env_id)
 
         return EsignSubmitResponse(
             envelope_status=envelope_status_value,
@@ -1581,6 +1623,7 @@ class EsignSigningService:
                 if sender_email and other.email == sender_email.lower():
                     continue
                 emails.append((other.email, content))
+            self._queue_emails(db, envelope, emails, kind="declined", key=f"declined:{recipient.id}")
             db.commit()
         except Exception:
             db.rollback()
@@ -1588,8 +1631,7 @@ class EsignSigningService:
         finally:
             db.close()
 
-        for to_email, item in emails:
-            await self._send_content(to_email, item)
+        await esign_outbox_service.deliver_due_emails(envelope_id=envelope_id)
         return EsignSubmitResponse(
             envelope_status=EsignEnvelopeStatus.DECLINED.value,
             recipient_status=EsignRecipientStatus.DECLINED.value,
@@ -1631,19 +1673,18 @@ class EsignSigningService:
                 meta=meta,
                 details={"reason": reason},
             )
+            content = email_templates.voided(sender_name=sender_name, title=envelope.title, reason=reason)
+            self._queue_emails(db, envelope, [(email, content) for email in notified], kind="voided", key=f"voided:{envelope.id}")
             db.commit()
             db.refresh(envelope)
             response = esign_envelope_service._serialize_envelope(envelope)
-            envelope_title = envelope.title
         except Exception:
             db.rollback()
             raise
         finally:
             db.close()
 
-        content = email_templates.voided(sender_name=sender_name, title=envelope_title, reason=reason)
-        for email in notified:
-            await self._send_content(email, content)
+        await esign_outbox_service.deliver_due_emails(envelope_id=envelope_id)
         return response
 
     async def send_reminders(
@@ -1681,6 +1722,10 @@ class EsignSigningService:
                 )
                 for t in targets
             ]
+            self._queue_emails(
+                db, envelope, reminder_emails, kind="reminder",
+                key=f"manual-reminder:{int(envelope.last_reminder_at.timestamp())}",
+            )
             db.commit()
         except Exception:
             db.rollback()
@@ -1688,8 +1733,7 @@ class EsignSigningService:
         finally:
             db.close()
 
-        for email, content in reminder_emails:
-            await self._send_content(email, content)
+        await esign_outbox_service.deliver_due_emails(envelope_id=envelope_id)
         return {"reminded": [email for email, _ in reminder_emails]}
 
     async def notify_reassigned_recipient(self, envelope_id: str, recipient_id: str) -> None:
@@ -1711,13 +1755,14 @@ class EsignSigningService:
                 message=envelope.message, url=url, expires_at=envelope.expires_at,
             )
             email = recipient.email
+            self._queue_emails(db, envelope, [(email, content)], kind="invitation", key=f"reassigned:{recipient.id}:{envelope.routing_version}")
             db.commit()
         except Exception:
             db.rollback()
             raise
         finally:
             db.close()
-        await self._send_content(email, content)
+        await esign_outbox_service.deliver_due_emails(envelope_id=envelope_id)
 
     async def notify_current_recipients(self, envelope_id: str) -> None:
         """Notify recipients activated by a non-signature routing step."""
@@ -1748,14 +1793,17 @@ class EsignSigningService:
                         message=envelope.message, url=self.recipient_signing_url(db, envelope, cc),
                         expires_at=envelope.expires_at,
                     )))
+            self._queue_emails(
+                db, envelope, pending, kind="invitation",
+                key=f"routing:{envelope.routing_version}:{envelope.current_routing_order}",
+            )
             db.commit()
         except Exception:
             db.rollback()
             raise
         finally:
             db.close()
-        for email, content in pending:
-            await self._send_content(email, content)
+        await esign_outbox_service.deliver_due_emails(envelope_id=envelope_id)
 
     def current_tranche_pending_signers(self, envelope: EsignEnvelope) -> list[EsignRecipient]:
         signers = [
@@ -1777,55 +1825,70 @@ class EsignSigningService:
 
         from services.email_service import email_service
 
-        try:
-            await asyncio.to_thread(
-                email_service.send_html_email,
-                to_email,
-                content.subject,
-                content.html,
-                content.text,
+        await asyncio.to_thread(
+            email_service.send_html_email,
+            to_email,
+            content.subject,
+            content.html,
+            content.text,
+        )
+
+    def queue_completion_emails(self, db: Session, envelope: EsignEnvelope) -> None:
+        """Queue completion notices in the same transaction as completion."""
+        sender_email = self._sender_email(db, envelope)
+        from services.esign.recipient_service import esign_recipient_service
+        # Re-running this idempotent method must not revoke the completed-copy
+        # bearer links already persisted in queued delivery bodies.
+        self._revoke_guest_access(db, envelope.id, invitation_purpose="ceremony")
+        for recipient in list(envelope.recipients or []):
+            email = self.recipient_notification_email(recipient)
+            if not email:
+                continue
+            email = email.strip().lower()
+            if sender_email and email == sender_email.strip().lower():
+                continue
+            idempotency_key = f"completion:{envelope.id}:{email}"
+            if db.query(EsignEmailDelivery.id).filter(
+                EsignEmailDelivery.idempotency_key == idempotency_key
+            ).first():
+                continue
+            if recipient_has_account(db, recipient):
+                url = signing_url(envelope.id)
+            else:
+                invitation = esign_recipient_service._issue_invitation(
+                    db, envelope, recipient, purpose="completed_copy",
+                )
+                url = invitation.guest_url
+            esign_outbox_service.queue_email(
+                db, envelope=envelope, kind="completion", to_email=email,
+                content=email_templates.completed(title=envelope.title, url=url, is_sender=False),
+                idempotency_key=idempotency_key,
             )
-        except Exception:
-            logger.exception("Failed to send esign email to %s", to_email)
+        if sender_email:
+            email = sender_email.strip().lower()
+            esign_outbox_service.queue_email(
+                db, envelope=envelope, kind="completion", to_email=email,
+                content=email_templates.completed(
+                    title=envelope.title,
+                    url=self.sender_envelope_url(envelope.id),
+                    is_sender=True,
+                ),
+                idempotency_key=f"completion:{envelope.id}:{email}",
+            )
 
     async def send_completion_emails(self, envelope_id: str) -> None:
-        """Called by the sealing worker after an envelope completes."""
+        """Compatibility entrypoint: durably queue then attempt completion notices."""
         db = self._get_session()
         try:
             envelope = self._load_envelope_any(db, envelope_id)
-            sender_email = self._sender_email(db, envelope)
-            recipients = list(envelope.recipients or [])
-            envelope_title = envelope.title
-            recipient_targets: list[tuple[str, str]] = []
-            from services.esign.recipient_service import esign_recipient_service
-            self._revoke_guest_access(db, envelope.id)
-            for recipient in recipients:
-                email = self.recipient_notification_email(recipient)
-                if email:
-                    if recipient_has_account(db, recipient):
-                        recipient_targets.append((email, signing_url(envelope_id)))
-                    else:
-                        invitation = esign_recipient_service._issue_invitation(
-                            db, envelope, recipient, purpose="completed_copy",
-                        )
-                        recipient_targets.append((email, invitation.guest_url))
+            self.queue_completion_emails(db, envelope)
             db.commit()
+        except Exception:
+            db.rollback()
+            raise
         finally:
             db.close()
-
-        # The sender views the envelope on their dashboard detail page; recipients
-        # are not the envelope owner, so they view it via the signer-facing page.
-        sender_url = self.sender_envelope_url(envelope_id)
-        targets: dict[str, tuple[str, bool]] = {
-            email: (url, False) for email, url in recipient_targets
-        }
-        if sender_email:
-            targets[sender_email.lower()] = (sender_url, True)
-        for email, (url, is_sender) in sorted(targets.items()):
-            await self._send_content(
-                email,
-                email_templates.completed(title=envelope_title, url=url, is_sender=is_sender),
-            )
+        await esign_outbox_service.deliver_due_emails(envelope_id=envelope_id)
 
 
 esign_signing_service = EsignSigningService()

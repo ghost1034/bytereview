@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import {
   DndContext,
   KeyboardSensor,
@@ -100,11 +100,10 @@ export default function EnvelopePreparePage() {
   const params = useParams<{ envelopeId: string }>()
   const envelopeId = params.envelopeId
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { toast } = useToast()
   const envelopeQuery = useDraftEnvelope(envelopeId)
   const envelope = envelopeQuery.data
-  const templateId = searchParams.get('template') ?? undefined
+  const templateId = envelope?.template_id ?? undefined
   const templateQuery = useEsignTemplate(templateId)
   const template = templateQuery.data
   const templateRoles = React.useMemo(
@@ -166,8 +165,8 @@ export default function EnvelopePreparePage() {
           signing_type: signingType,
           allow_reassignment: allowReassignment,
           date_format: dateFormat as 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | 'MMM D, YYYY',
-          reminder_interval_hours: reminderHours ? Number(reminderHours) : undefined,
-          expires_at: expiresAt ? new Date(`${expiresAt}T23:59:59`).toISOString() : undefined,
+          reminder_interval_hours: reminderHours ? Number(reminderHours) : null,
+          expires_at: expiresAt ? new Date(`${expiresAt}T23:59:59`).toISOString() : null,
         })
         lastMetadata.current = snapshot
         setSaveState('saved')
@@ -225,8 +224,7 @@ export default function EnvelopePreparePage() {
 
   const continueToFields = async () => {
     if (!await saveRecipients(rows)) return
-    const query = searchParams.toString()
-    router.push(`/dashboard/esign/${envelopeId}/fields${query ? `?${query}` : ''}`)
+    router.push(`/dashboard/esign/${envelopeId}/fields`)
   }
 
   const inspectWidgets = async (documentId: string) => {

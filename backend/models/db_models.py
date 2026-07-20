@@ -1263,6 +1263,7 @@ class EsignEnvelope(Base):
     firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="RESTRICT"), nullable=True)
     source_type = Column(String(20), nullable=False, default="manual", server_default="manual")
     source_id = Column(UUID(as_uuid=True), nullable=True)
+    template_id = Column(UUID(as_uuid=True), ForeignKey("esign_templates.id", ondelete="SET NULL"), nullable=True)
     template_version_id = Column(UUID(as_uuid=True), ForeignKey("esign_template_versions.id", ondelete="SET NULL"), nullable=True)
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=True)
@@ -1296,6 +1297,11 @@ class EsignEnvelope(Base):
     sealed_gcs_object_name = Column(Text, nullable=True)
     sealed_sha256 = Column(String(64), nullable=True)
     certificate_gcs_object_name = Column(Text, nullable=True)
+    # Completion is a durable state machine. An envelope remains in progress
+    # until its sealed object has been uploaded and the seal worker commits.
+    sealing_state = Column(String(24), nullable=False, default="not_ready", server_default="not_ready")
+    sealing_last_error = Column(Text, nullable=True)
+    sealing_started_at = Column(TIMESTAMP(timezone=True), nullable=True)
     sent_at = Column(TIMESTAMP(timezone=True), nullable=True)
     completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
     voided_at = Column(TIMESTAMP(timezone=True), nullable=True)
@@ -1330,6 +1336,8 @@ class EsignEnvelope(Base):
         order_by="EsignEvent.created_at",
     )
     grants = relationship("EsignEnvelopeGrant", back_populates="envelope", cascade="all, delete-orphan")
+    email_deliveries = relationship("EsignEmailDelivery", cascade="all, delete-orphan")
+    work_items = relationship("EsignWorkItem", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("ix_esign_envelopes_user_created", "user_id", "created_at"),
@@ -1376,6 +1384,7 @@ class EsignRecipient(Base):
     )
     routing_order = Column(Integer, nullable=False, default=1)
     role_label = Column(String(255), nullable=True)
+    template_role_id = Column(UUID(as_uuid=True), nullable=True)
     private_message = Column(Text, nullable=True)
     managed_by_recipient_id = Column(
         UUID(as_uuid=True), ForeignKey("esign_recipients.id", ondelete="RESTRICT"), nullable=True
@@ -1415,6 +1424,7 @@ class EsignRecipient(Base):
             postgresql_where=text("email IS NOT NULL"),
         ),
         Index("ix_esign_recipients_email", "email"),
+        Index("ix_esign_recipients_template_role", "envelope_id", "template_role_id"),
     )
 
 
@@ -1680,6 +1690,9 @@ class EsignTemplateField(Base):
     template_id = Column(UUID(as_uuid=True), ForeignKey("esign_templates.id", ondelete="CASCADE"), nullable=False)
     template_document_id = Column(UUID(as_uuid=True), ForeignKey("esign_template_documents.id", ondelete="CASCADE"), nullable=False)
     recipient_index = Column(Integer, nullable=False)
+    # Stable role binding. recipient_index remains as a read-time compatibility
+    # fallback for legacy mutable templates and immutable published snapshots.
+    recipient_role_id = Column(UUID(as_uuid=True), nullable=True)
     field_type = Column(_esign_enum(EsignFieldType, "esign_field_type"), nullable=False)
     page_number = Column(Integer, nullable=False)  # 0-based page index
     pos_x = Column(Numeric(12, 10), nullable=False)
@@ -1706,6 +1719,7 @@ class EsignTemplateField(Base):
         CheckConstraint("height > 0 AND height <= 1", name="ck_esign_template_fields_height"),
         CheckConstraint("page_number >= 0", name="ck_esign_template_fields_page_number"),
         CheckConstraint("recipient_index >= 0", name="ck_esign_template_fields_recipient_index"),
+        Index("ix_esign_template_fields_role", "template_id", "recipient_role_id"),
     )
 
 
@@ -1816,9 +1830,64 @@ class EsignPowerFormSubmission(Base):
     consent = Column(Boolean, nullable=False, server_default=expression.false())
     ip_address = Column(String(64), nullable=True)
     user_agent = Column(Text, nullable=True)
+    attempt_count = Column(Integer, nullable=False, server_default="0")
+    last_error = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     __table_args__ = (Index("ix_esign_powerform_submissions_form", "powerform_id", "created_at"),)
+
+
+class EsignWorkItem(Base):
+    """Transactional outbox item for durable envelope lifecycle work."""
+    __tablename__ = "esign_work_items"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=True)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="CASCADE"), nullable=False)
+    kind = Column(String(32), nullable=False)
+    idempotency_key = Column(String(255), nullable=False, unique=True)
+    state = Column(String(24), nullable=False, default="queued", server_default="queued")
+    attempt_count = Column(Integer, nullable=False, default=0, server_default="0")
+    next_attempt_at = Column(TIMESTAMP(timezone=True), nullable=False, default=func.now(), server_default=func.now())
+    claimed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    last_error = Column(Text, nullable=True)
+    payload = Column(MutableDict.as_mutable(JSONB), nullable=False, default=dict, server_default=expression.text("'{}'::jsonb"))
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("envelope_id", "kind", name="uq_esign_work_items_envelope_kind"),
+        Index("ix_esign_work_items_due", "state", "next_attempt_at"),
+    )
+
+
+class EsignEmailDelivery(Base):
+    """Durable, independently retryable outbound email delivery."""
+    __tablename__ = "esign_email_deliveries"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=True)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="CASCADE"), nullable=True)
+    recipient_id = Column(UUID(as_uuid=True), nullable=True)
+    kind = Column(String(48), nullable=False)
+    to_email = Column(String(255), nullable=False)
+    subject = Column(Text, nullable=False)
+    html_body = Column(Text, nullable=False)
+    text_body = Column(Text, nullable=False)
+    idempotency_key = Column(String(255), nullable=False, unique=True)
+    state = Column(String(24), nullable=False, default="queued", server_default="queued")
+    attempt_count = Column(Integer, nullable=False, default=0, server_default="0")
+    next_attempt_at = Column(TIMESTAMP(timezone=True), nullable=False, default=func.now(), server_default=func.now())
+    last_error = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    delivered_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_esign_email_deliveries_due", "state", "next_attempt_at"),
+        Index("ix_esign_email_deliveries_envelope", "envelope_id", "created_at"),
+    )
 
 
 class AnalyticsComment(Base):

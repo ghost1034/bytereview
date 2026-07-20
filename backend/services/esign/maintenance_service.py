@@ -19,10 +19,12 @@ from models.db_models import (
     EsignEnvelope,
     EsignEnvelopeStatus,
     EsignEventType,
+    EsignSignatureRecord,
 )
 from services.esign import audit_service, email_templates
 from services.esign.email_templates import EmailContent
 from services.esign.signing_service import esign_signing_service
+from services.esign.outbox_service import esign_outbox_service
 
 logger = logging.getLogger(__name__)
 
@@ -43,14 +45,49 @@ class EsignMaintenanceService:
         from services.esign.webhook_service import esign_webhook_service
         bulk_rows = await esign_scale_service.process_queued_rows()
         scheduled = await esign_scale_service.dispatch_due()
+        seal_tasks = await esign_outbox_service.dispatch_due_seals()
         webhook_tasks = await self._enqueue_due_webhooks()
         webhook_retention_eligible = esign_webhook_service.cleanup_retention() if datetime.now(timezone.utc).hour == 3 else 0
         expired = await self._expire_envelopes()
         warned = await self._send_expiration_warnings()
         reminded = await self._send_due_reminders()
+        email_deliveries = await esign_outbox_service.deliver_due_emails()
+        orphan_signatures = await self._cleanup_orphan_signature_objects() if datetime.now(timezone.utc).hour == 4 else 0
         return {"bulk_rows": bulk_rows, "scheduled_dispatched": scheduled, "webhook_tasks": webhook_tasks,
                 "webhook_retention_deleted": webhook_retention_eligible,
+                "seal_tasks": seal_tasks, "email_deliveries": email_deliveries,
+                "orphan_signatures_deleted": orphan_signatures,
                 "expired": expired, "expiration_warnings": warned, "reminders_sent": reminded}
+
+    async def _cleanup_orphan_signature_objects(self) -> int:
+        """Delete old signature PNGs that have no committed evidence row."""
+        storage = esign_signing_service.storage
+        objects = await storage.list_objects("esign/")
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+        candidates = {
+            item["name"] for item in objects
+            if "/signatures/" in item["name"] and item.get("updated") and item["updated"] < cutoff
+        }
+        if not candidates:
+            return 0
+        db = self._get_session()
+        try:
+            referenced = {
+                value for row in db.query(
+                    EsignSignatureRecord.image_gcs_object_name,
+                    EsignSignatureRecord.initials_image_gcs_object_name,
+                ).all() for value in row if value
+            }
+        finally:
+            db.close()
+        deleted = 0
+        for object_name in sorted(candidates - referenced):
+            try:
+                await storage.delete_file(object_name)
+                deleted += 1
+            except Exception:
+                logger.exception("Could not delete orphan signature object %s", object_name)
+        return deleted
 
     async def _enqueue_due_webhooks(self) -> int:
         from services.cloud_run_task_service import cloud_run_task_service
@@ -102,6 +139,10 @@ class EsignMaintenanceService:
                             ),
                         )
                     )
+                esign_signing_service._queue_emails(
+                    db, envelope, notifications[-1:] if sender_email else [],
+                    kind="expiration", key=f"expired:{envelope.id}",
+                )
             db.commit()
             count = len(envelopes)
         except Exception:
@@ -111,8 +152,6 @@ class EsignMaintenanceService:
         finally:
             db.close()
 
-        for sender_email, content in notifications:
-            await esign_signing_service._send_content(sender_email, content)
         return count
 
     async def _send_expiration_warnings(self) -> int:
@@ -136,6 +175,7 @@ class EsignMaintenanceService:
             )
             warned = 0
             for envelope in envelopes:
+                envelope_notifications: list[tuple[str, EmailContent]] = []
                 targets = esign_signing_service.current_tranche_pending_signers(envelope)
                 envelope.expiration_warning_sent_at = now
                 sender_email = envelope.user.email if envelope.user else None
@@ -149,7 +189,7 @@ class EsignMaintenanceService:
                     },
                 )
                 for target in targets:
-                    notifications.append(
+                    envelope_notifications.append(
                         (
                             esign_signing_service.recipient_notification_email(target),
                             email_templates.expiration_warning(
@@ -162,7 +202,7 @@ class EsignMaintenanceService:
                         )
                     )
                 if sender_email:
-                    notifications.append(
+                    envelope_notifications.append(
                         (
                             sender_email,
                             email_templates.expiration_warning(
@@ -175,6 +215,11 @@ class EsignMaintenanceService:
                             ),
                         )
                     )
+                notifications.extend(envelope_notifications)
+                esign_signing_service._queue_emails(
+                    db, envelope, envelope_notifications,
+                    kind="expiration_warning", key=f"warning:{envelope.id}",
+                )
                 warned += 1
             db.commit()
         except Exception:
@@ -184,8 +229,6 @@ class EsignMaintenanceService:
         finally:
             db.close()
 
-        for email, content in notifications:
-            await esign_signing_service._send_content(email, content)
         return warned
 
     async def _send_due_reminders(self) -> int:
@@ -203,6 +246,7 @@ class EsignMaintenanceService:
                 .all()
             )
             for envelope in envelopes:
+                envelope_reminders: list[tuple[str, EmailContent]] = []
                 interval = int(envelope.reminder_interval_hours or 0)
                 if interval <= 0:
                     continue
@@ -221,7 +265,7 @@ class EsignMaintenanceService:
                     details={"recipients": [esign_signing_service.recipient_notification_email(t) for t in targets], "manual": False},
                 )
                 for target in targets:
-                    reminders.append(
+                    envelope_reminders.append(
                         (
                             esign_signing_service.recipient_notification_email(target),
                             email_templates.signature_request(
@@ -235,6 +279,11 @@ class EsignMaintenanceService:
                             ),
                         )
                     )
+                reminders.extend(envelope_reminders)
+                esign_signing_service._queue_emails(
+                    db, envelope, envelope_reminders, kind="reminder",
+                    key=f"reminder:{envelope.id}:{int(now.timestamp())}",
+                )
             db.commit()
         except Exception:
             db.rollback()
@@ -243,8 +292,6 @@ class EsignMaintenanceService:
         finally:
             db.close()
 
-        for email, content in reminders:
-            await esign_signing_service._send_content(email, content)
         return len(reminders)
 
 
