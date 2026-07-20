@@ -272,16 +272,24 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   const clipboard = React.useRef<EditorField[]>([])
   const containerRef = React.useRef<HTMLDivElement>(null)
   const activeDocument = documents.find((doc) => doc.id === activeDocumentId) ?? documents[0]
+  const activeDocumentUrl = activeDocument?.url
+  const resolvedActiveDocumentId = activeDocument?.id
   const participantIndexById = React.useMemo(() => new Map(participants.map((participant, index) => [participant.id, index])), [participants])
 
+  // Parent pages derive `documents` inline. Watch stable values so field edits
+  // do not turn new object references into unnecessary PDF reloads.
   React.useEffect(() => {
-    if (!activeDocument) return
+    if (!activeDocumentUrl) {
+      setPdf(null)
+      setLoadError(null)
+      return
+    }
     let cancelled = false
     setPdf(null); setLoadError(null)
-    openPdfFromUrl(activeDocument.url).then((doc) => { if (!cancelled) setPdf(doc) })
+    openPdfFromUrl(activeDocumentUrl).then((doc) => { if (!cancelled) setPdf(doc) })
       .catch((error) => { if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Failed to load PDF') })
     return () => { cancelled = true }
-  }, [activeDocument])
+  }, [activeDocumentUrl, resolvedActiveDocumentId])
 
   React.useEffect(() => {
     if (!focusFieldId) return
