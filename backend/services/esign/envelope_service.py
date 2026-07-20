@@ -361,8 +361,6 @@ class EsignEnvelopeService:
         meta: EsignRequestMeta,
         brand_id: Optional[str] = None,
     ) -> EsignEnvelopeResponse:
-        if not files and not template_id:
-            raise EsignError("Provide at least one PDF or a template_id")
         if files and template_id:
             raise EsignError("Provide either PDFs or a template_id, not both")
 

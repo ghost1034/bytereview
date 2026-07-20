@@ -3,10 +3,9 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, FileText, Loader2, X } from 'lucide-react'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Dropzone } from '@/components/ui/dropzone'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/ui/page-header'
@@ -34,18 +33,8 @@ export default function NewEnvelopePage() {
   const [expiresInDays, setExpiresInDays] = React.useState('30')
   const [reminderHours, setReminderHours] = React.useState('72')
   const [templateId, setTemplateId] = React.useState<string>(searchParams?.get('template') ?? 'none')
-  const [files, setFiles] = React.useState<File[]>([])
 
   const usingTemplate = templateId !== 'none'
-  const canCreate = usingTemplate || files.length > 0
-
-  const addFiles = (incoming: File[]) => {
-    const pdfs = incoming.filter((f) => f.name.toLowerCase().endsWith('.pdf'))
-    if (pdfs.length !== incoming.length) {
-      toast({ title: 'Only PDF files are supported', variant: 'destructive' })
-    }
-    setFiles((prev) => [...prev, ...pdfs])
-  }
 
   const handleCreate = async () => {
     try {
@@ -56,7 +45,6 @@ export default function NewEnvelopePage() {
         expiresInDays: expiresInDays ? Number(expiresInDays) : undefined,
         reminderIntervalHours: reminderHours ? Number(reminderHours) : undefined,
         templateId: usingTemplate ? templateId : undefined,
-        files: usingTemplate ? undefined : files,
       })
       const envelopeId = result.envelope.id
       router.push(
@@ -78,7 +66,7 @@ export default function NewEnvelopePage() {
       <PageHeader
         eyebrow="E-Signature"
         title="New envelope"
-        description="Upload the PDFs to be signed, or start from a saved template."
+        description="Set up the envelope, or start from a saved template. You’ll add PDFs on the preparation screen."
         actions={
           <Button variant="ghost" asChild>
             <Link href="/dashboard/esign">
@@ -119,7 +107,7 @@ export default function NewEnvelopePage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">No template — upload PDFs</SelectItem>
+                <SelectItem value="none">No template — add PDFs next</SelectItem>
                 {templatesQuery.data!.templates.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.name}
@@ -127,39 +115,6 @@ export default function NewEnvelopePage() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-        )}
-
-        {!usingTemplate && (
-          <div className="space-y-2">
-            <Label>Documents</Label>
-            <Dropzone
-              onFiles={addFiles}
-              accept="application/pdf,.pdf"
-              title="Drop PDFs here or click to upload"
-              description="Documents are signed in the order listed."
-            />
-            {files.length > 0 && (
-              <ul className="divide-y divide-border rounded-md border border-border">
-                {files.map((file, index) => (
-                  <li key={`${file.name}-${index}`} className="flex items-center gap-2 px-3 py-2 text-sm">
-                    <FileText className="size-4 shrink-0 text-foreground-muted" />
-                    <span className="min-w-0 flex-1 truncate">{file.name}</span>
-                    <span className="text-xs text-foreground-subtle">
-                      {(file.size / (1024 * 1024)).toFixed(1)} MB
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setFiles((prev) => prev.filter((_, i) => i !== index))}
-                      className="text-foreground-muted hover:text-destructive"
-                      aria-label={`Remove ${file.name}`}
-                    >
-                      <X className="size-4" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
         )}
 
@@ -204,9 +159,9 @@ export default function NewEnvelopePage() {
           <Button variant="outline" asChild>
             <Link href="/dashboard/esign">Cancel</Link>
           </Button>
-          <Button onClick={handleCreate} disabled={!canCreate || createEnvelope.isPending}>
+          <Button onClick={handleCreate} disabled={createEnvelope.isPending}>
             {createEnvelope.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-            Create & prepare
+            Continue to prepare
           </Button>
         </div>
       </div>
