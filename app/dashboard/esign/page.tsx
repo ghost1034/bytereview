@@ -51,13 +51,15 @@ import { cn } from '@/lib/utils'
 
 const PAGE_SIZE = 20
 
-type QuickView = 'all' | 'inbox' | 'draft' | 'active' | 'completed' | 'declined' | 'voided' | 'expired'
+type QuickView = 'all' | 'inbox' | 'draft' | 'scheduled' | 'send_failed' | 'active' | 'completed' | 'declined' | 'voided' | 'expired'
 type SortBy = 'updated_at' | 'created_at' | 'sent_at' | 'completed_at' | 'title'
 
 const QUICK_VIEWS: { id: QuickView; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'inbox', label: 'Awaiting my signature' },
   { id: 'draft', label: 'Drafts' },
+  { id: 'scheduled', label: 'Scheduled' },
+  { id: 'send_failed', label: 'Send failed' },
   { id: 'active', label: 'Sent / In progress' },
   { id: 'completed', label: 'Completed' },
   { id: 'declined', label: 'Declined' },
@@ -82,6 +84,7 @@ export default function EsignManagePage() {
   const sortBy = (searchParams.get('sort_by') as SortBy | null) ?? 'updated_at'
   const sortDir = searchParams.get('sort_dir') === 'asc' ? 'asc' : 'desc'
   const query = searchParams.get('q') ?? ''
+  const source = searchParams.get('source') as 'manual' | 'bulk' | 'powerform' | null
   const [search, setSearch] = React.useState(query)
   const [deleteTarget, setDeleteTarget] = React.useState<{ id: string; title: string } | null>(null)
 
@@ -110,6 +113,7 @@ export default function EsignManagePage() {
     q: query || undefined,
     sortBy,
     sortDir,
+    sourceType: source ?? undefined,
   })
   const inboxQuery = useEsignInbox({ q: query || undefined, state: 'pending' })
   const deleteEnvelope = useDeleteEnvelope()
@@ -174,7 +178,7 @@ export default function EsignManagePage() {
               />
             </div>
             {view !== 'inbox' && (
-              <Select value={`${sortBy}:${sortDir}`} onValueChange={(value) => {
+              <><Select value={source ?? 'all'} onValueChange={(value) => setParams({ source: value === 'all' ? null : value, offset: null })}><SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All sources</SelectItem><SelectItem value="manual">Manual</SelectItem><SelectItem value="bulk">Bulk</SelectItem><SelectItem value="powerform">PowerForm</SelectItem></SelectContent></Select><Select value={`${sortBy}:${sortDir}`} onValueChange={(value) => {
                 const [nextSort, nextDir] = value.split(':')
                 setParams({ sort_by: nextSort, sort_dir: nextDir, offset: null })
               }}>
@@ -186,7 +190,7 @@ export default function EsignManagePage() {
                   <SelectItem value="sent_at:desc">Recently sent</SelectItem>
                   <SelectItem value="completed_at:desc">Recently completed</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select></>
             )}
           </div>
 

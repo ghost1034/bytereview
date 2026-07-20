@@ -63,6 +63,7 @@ from services.esign import audit_service
 from services.esign.audit_service import EsignRequestMeta
 from services.esign.field_logic import FieldLogicError, remap_property_references, validate_field_graph
 from services.gcs_service import get_storage_service
+from services.analytics.firm_scope import require_firm_id
 
 logger = logging.getLogger(__name__)
 
@@ -223,6 +224,14 @@ class EsignEnvelopeService:
             sent_at=envelope.sent_at,
             completed_at=envelope.completed_at,
             voided_at=envelope.voided_at,
+            firm_id=str(envelope.firm_id) if getattr(envelope, "firm_id", None) else None,
+            source_type=getattr(envelope, "source_type", None) or "manual",
+            source_id=str(envelope.source_id) if getattr(envelope, "source_id", None) else None,
+            template_version_id=str(envelope.template_version_id) if getattr(envelope, "template_version_id", None) else None,
+            scheduled_at=getattr(envelope, "scheduled_at", None),
+            schedule_timezone=getattr(envelope, "schedule_timezone", None),
+            send_error_code=getattr(envelope, "send_error_code", None),
+            send_error_message=getattr(envelope, "send_error_message", None),
             created_at=envelope.created_at,
             updated_at=envelope.updated_at,
             documents=[self._serialize_document(d) for d in (envelope.documents or [])],
@@ -326,6 +335,7 @@ class EsignEnvelopeService:
             envelope = EsignEnvelope(
                 id=uuid.uuid4(),
                 user_id=user_id,
+                firm_id=require_firm_id(db, user_id),
                 title=(title or "Untitled envelope").strip()[:255],
                 message=message,
                 status=EsignEnvelopeStatus.DRAFT,
@@ -844,6 +854,8 @@ class EsignEnvelopeService:
     def list_envelopes(
         self, user_id: str, *, limit: int = 25, offset: int = 0,
         status: Optional[str] = None, q: Optional[str] = None,
+        source_type: Optional[str] = None, source_id: Optional[str] = None,
+        template_version_id: Optional[str] = None,
         sort_by: str = "updated_at", sort_dir: str = "desc",
     ) -> EsignEnvelopeListResponse:
         db = self._get_session()
@@ -872,6 +884,16 @@ class EsignEnvelopeService:
                         raise EsignError(f"Invalid status filter: {status}")
             if q and q.strip():
                 query = query.filter(EsignEnvelope.title.ilike(f"%{q.strip()}%"))
+            if source_type:
+                if source_type not in ("manual", "bulk", "powerform"):
+                    raise EsignError("Invalid source filter")
+                query = query.filter(EsignEnvelope.source_type == source_type)
+            if source_id:
+                try: query = query.filter(EsignEnvelope.source_id == uuid.UUID(source_id))
+                except ValueError: raise EsignError("Invalid source record filter")
+            if template_version_id:
+                try: query = query.filter(EsignEnvelope.template_version_id == uuid.UUID(template_version_id))
+                except ValueError: raise EsignError("Invalid template version filter")
             total = query.count()
             sort_columns = {
                 "updated_at": EsignEnvelope.updated_at,
@@ -915,6 +937,11 @@ class EsignEnvelopeService:
                         expires_at=env.expires_at,
                         sent_at=env.sent_at,
                         completed_at=env.completed_at,
+                        source_type=getattr(env, "source_type", None) or "manual",
+                        source_id=str(env.source_id) if getattr(env, "source_id", None) else None,
+                        template_version_id=str(env.template_version_id) if getattr(env, "template_version_id", None) else None,
+                        scheduled_at=getattr(env, "scheduled_at", None),
+                        schedule_timezone=getattr(env, "schedule_timezone", None),
                         created_at=env.created_at,
                         updated_at=env.updated_at,
                     )
@@ -1091,6 +1118,8 @@ class EsignEnvelopeService:
             ],
             created_at=template.created_at,
             updated_at=template.updated_at,
+            firm_id=str(template.firm_id) if getattr(template, "firm_id", None) else None,
+            latest_published_version=max((v.version for v in getattr(template, "versions", []) or []), default=None),
         )
 
     async def create_template(
@@ -1117,6 +1146,7 @@ class EsignEnvelopeService:
             template = EsignTemplate(
                 id=uuid.uuid4(),
                 user_id=user_id,
+                firm_id=require_firm_id(db, user_id),
                 name=name.strip()[:255],
                 description=description,
                 title=title,
@@ -1598,6 +1628,7 @@ class EsignEnvelopeService:
             template = EsignTemplate(
                 id=uuid.uuid4(),
                 user_id=user_id,
+                firm_id=envelope.firm_id or require_firm_id(db, user_id),
                 name=name.strip()[:255],
                 description=description,
                 title=envelope.title,

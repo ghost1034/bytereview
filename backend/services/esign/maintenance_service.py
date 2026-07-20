@@ -22,7 +22,7 @@ from models.db_models import (
 )
 from services.esign import audit_service, email_templates
 from services.esign.email_templates import EmailContent
-from services.esign.signing_service import esign_signing_service, signing_url
+from services.esign.signing_service import esign_signing_service
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +37,16 @@ class EsignMaintenanceService:
         return db_config.get_session()
 
     async def run(self) -> dict[str, Any]:
+        # Minute-level deployments invoke this same idempotent worker. The
+        # bounded claims make duplicate Cloud Scheduler/Tasks delivery safe.
+        from services.esign.scale_service import esign_scale_service
+        bulk_rows = await esign_scale_service.process_queued_rows()
+        scheduled = await esign_scale_service.dispatch_due()
         expired = await self._expire_envelopes()
         warned = await self._send_expiration_warnings()
         reminded = await self._send_due_reminders()
-        return {"expired": expired, "expiration_warnings": warned, "reminders_sent": reminded}
+        return {"bulk_rows": bulk_rows, "scheduled_dispatched": scheduled,
+                "expired": expired, "expiration_warnings": warned, "reminders_sent": reminded}
 
     async def _expire_envelopes(self) -> int:
         now = datetime.now(timezone.utc)
@@ -129,7 +135,7 @@ class EsignMaintenanceService:
                             email_templates.expiration_warning(
                                 recipient_name=esign_signing_service.recipient_notification_name(target),
                                 title=envelope.title,
-                                url=signing_url(envelope.id),
+                                url=esign_signing_service.recipient_signing_url(db, envelope, target),
                                 expires_at=envelope.expires_at,
                                 is_sender=False,
                             ),
@@ -203,7 +209,7 @@ class EsignMaintenanceService:
                                 sender_name=sender_name,
                                 title=envelope.title,
                                 message=None,
-                                url=signing_url(envelope.id),
+                                url=esign_signing_service.recipient_signing_url(db, envelope, target),
                                 expires_at=envelope.expires_at,
                                 reminder=True,
                             ),

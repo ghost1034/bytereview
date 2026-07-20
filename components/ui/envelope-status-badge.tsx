@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils'
 
 export type EnvelopeStatus =
   | 'draft'
+  | 'scheduled'
+  | 'send_failed'
   | 'sent'
   | 'in_progress'
   | 'completed'
@@ -40,6 +42,8 @@ const STATUS_META: Record<
   { label: string; tone: NonNullable<VariantProps<typeof badgeVariants>['tone']>; pulse?: boolean }
 > = {
   draft: { label: 'Draft', tone: 'neutral' },
+  scheduled: { label: 'Scheduled', tone: 'info' },
+  send_failed: { label: 'Send failed', tone: 'destructive' },
   sent: { label: 'Sent', tone: 'info' },
   in_progress: { label: 'In progress', tone: 'info', pulse: true },
   completed: { label: 'Completed', tone: 'success' },

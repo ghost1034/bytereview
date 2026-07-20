@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, Cookie, Depends, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, ValidationError
 
 from dependencies.auth import verify_firebase_token
@@ -60,6 +62,17 @@ from models.esign import (
     EsignTemplateUpdateRequest,
     EsignVerifyResponse,
     EsignVoidRequest,
+    EsignTemplateVersionListResponse,
+    EsignTemplateVersionResponse,
+    EsignScheduleRequest,
+    EsignBulkJobResponse,
+    EsignBulkJobListResponse,
+    EsignPowerFormCreateRequest,
+    EsignPowerFormResponse,
+    EsignPowerFormListResponse,
+    EsignPowerFormVerificationRequest,
+    EsignPowerFormVerificationExchange,
+    EsignReportSummary,
 )
 from services.esign.audit_service import extract_request_meta
 from services.esign.envelope_service import (
@@ -72,6 +85,8 @@ from services.esign.signing_service import esign_signing_service
 from services.esign.recipient_service import esign_recipient_service
 from services.esign.verification_service import esign_verification_service
 from services.rate_limit import rate_limiter
+from services.esign.scale_service import esign_scale_service
+from services.esign.email_templates import EmailContent, _shell
 
 logger = logging.getLogger(__name__)
 
@@ -207,6 +222,207 @@ async def delete_template(template_id: str, token: dict = Depends(verify_firebas
         _raise_http(exc)
 
 
+@router.post("/templates/{template_id}/versions", response_model=EsignTemplateVersionResponse)
+async def publish_template_version(template_id: str, token: dict = Depends(verify_firebase_token)):
+    try:
+        return await esign_scale_service.publish_template(_uid(token), template_id)
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.get("/templates/{template_id}/versions", response_model=EsignTemplateVersionListResponse)
+async def list_template_versions(template_id: str, token: dict = Depends(verify_firebase_token)):
+    try:
+        return EsignTemplateVersionListResponse(versions=esign_scale_service.list_versions(_uid(token), template_id))
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.get("/template-versions/{version_id}/bulk-sample.csv", response_class=PlainTextResponse)
+async def download_bulk_sample(version_id: str, token: dict = Depends(verify_firebase_token)):
+    try:
+        return PlainTextResponse(esign_scale_service.sample_csv(_uid(token), version_id), media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="bulk-send-sample.csv"'})
+    except Exception as exc:
+        _raise_http(exc)
+
+
+# ---------------------------------------------------------------------------
+# Bulk sends
+# ---------------------------------------------------------------------------
+
+
+@router.post("/bulk-jobs", response_model=EsignBulkJobResponse)
+async def create_bulk_job(
+    template_version_id: str = Form(...), file: UploadFile = File(...),
+    default_schedule_at: datetime | None = Form(default=None),
+    default_schedule_timezone: str | None = Form(default=None),
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return esign_scale_service.create_bulk_job(_uid(token), template_version_id, await file.read(),
+            default_schedule_at, default_schedule_timezone)
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.get("/bulk-jobs", response_model=EsignBulkJobListResponse)
+async def list_bulk_jobs(token: dict = Depends(verify_firebase_token)):
+    return EsignBulkJobListResponse(jobs=esign_scale_service.list_bulk_jobs(_uid(token)))
+
+
+@router.get("/bulk-jobs/{job_id}", response_model=EsignBulkJobResponse)
+async def get_bulk_job(job_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return esign_scale_service.get_bulk_job(_uid(token), job_id)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/bulk-jobs/{job_id}/confirm", response_model=EsignBulkJobResponse)
+async def confirm_bulk_job(job_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return esign_scale_service.confirm_bulk_job(_uid(token), job_id)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/bulk-jobs/{job_id}/cancel", response_model=EsignBulkJobResponse)
+async def cancel_bulk_job(job_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return esign_scale_service.cancel_bulk_job(_uid(token), job_id)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/bulk-jobs/{job_id}/retry", response_model=EsignBulkJobResponse)
+async def retry_bulk_job(job_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return esign_scale_service.retry_bulk_job(_uid(token), job_id)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/bulk-jobs/{job_id}/errors.csv", response_class=PlainTextResponse)
+async def bulk_error_csv(job_id: str, token: dict = Depends(verify_firebase_token)):
+    try:
+        return PlainTextResponse(esign_scale_service.error_csv(_uid(token), job_id), media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="bulk-send-errors.csv"'})
+    except Exception as exc: _raise_http(exc)
+
+
+# ---------------------------------------------------------------------------
+# PowerForms
+# ---------------------------------------------------------------------------
+
+
+@router.post("/powerforms", response_model=EsignPowerFormResponse)
+async def create_powerform(payload: EsignPowerFormCreateRequest, token: dict = Depends(verify_firebase_token)):
+    try: return esign_scale_service.create_powerform(_uid(token), payload)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/powerforms", response_model=EsignPowerFormListResponse)
+async def list_powerforms(token: dict = Depends(verify_firebase_token)):
+    return EsignPowerFormListResponse(powerforms=esign_scale_service.list_powerforms(_uid(token)))
+
+
+@router.post("/powerforms/{form_id}/state/{state}", response_model=EsignPowerFormResponse)
+async def set_powerform_state(form_id: str, state: Literal["active", "paused", "revoked"], token: dict = Depends(verify_firebase_token)):
+    try: return esign_scale_service.powerform_state(_uid(token), form_id, state)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/powerforms/{form_id}/rotate", response_model=EsignPowerFormResponse)
+async def rotate_powerform(form_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return esign_scale_service.rotate_powerform(_uid(token), form_id)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/powerforms/{form_id}/upgrade/{version_id}", response_model=EsignPowerFormResponse)
+async def upgrade_powerform(form_id: str, version_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return esign_scale_service.upgrade_powerform(_uid(token), form_id, version_id)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/powerforms/{form_id}/submissions")
+async def list_powerform_submissions(form_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return {"submissions": esign_scale_service.list_powerform_submissions(_uid(token), form_id)}
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/public/powerforms/{public_token}")
+async def public_powerform_config(public_token: str, request: Request):
+    _enforce_guest_rate_limit(request, "powerform_config", limit=60, window_seconds=60)
+    try: return esign_scale_service.public_powerform(public_token)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/public/powerforms/{public_token}/verification")
+async def request_powerform_verification(public_token: str, payload: EsignPowerFormVerificationRequest, request: Request):
+    _enforce_guest_rate_limit(request, "powerform_verify", limit=10, window_seconds=900)
+    try:
+        import hashlib
+        link_key = hashlib.sha256(public_token.encode()).hexdigest()[:24]
+        if not rate_limiter.check("esign_powerform_link", link_key, limit=50, window_seconds=900):
+            raise PermissionError("Too many verification requests")
+        for identity in payload.recipients:
+            email = str(identity.get("email") or "").strip().lower()
+            if email and not rate_limiter.check("esign_powerform_email", email, limit=5, window_seconds=900):
+                raise PermissionError("Too many verification requests")
+        email, verification = esign_scale_service.request_powerform_verification(
+            public_token, payload.model_dump(mode="json"), extract_request_meta(request, None))
+        base = __import__("os").getenv("ESIGN_APP_BASE_URL", "http://localhost:3000").rstrip("/")
+        url = f"{base}/esign/guest?powerform_token={verification}"
+        content = EmailContent(subject="Verify your email to start signing",
+            html=_shell(heading="Verify your email", body_paragraphs=["Use this single-use link within 15 minutes to begin signing."],
+                button_label="Verify and continue", button_url=url),
+            text=f"Verify your email to begin signing. This link expires in 15 minutes:\n\n{url}")
+        await esign_signing_service._send_content(email, content)
+        return {"message": "If the request can be accepted, a verification email will arrive shortly."}
+    except Exception as exc:
+        # Public response is deliberately generic; details stay server-side.
+        logger.info("PowerForm verification request rejected: %s", exc)
+        return {"message": "If the request can be accepted, a verification email will arrive shortly."}
+
+
+@router.post("/public/powerforms/verification/exchange")
+async def exchange_powerform_verification(payload: EsignPowerFormVerificationExchange, request: Request):
+    _enforce_guest_rate_limit(request, "powerform_exchange", limit=20, window_seconds=900)
+    try: return await esign_scale_service.exchange_powerform_verification(payload.token)
+    except Exception as exc: _raise_http(exc)
+
+
+# ---------------------------------------------------------------------------
+# Reports
+# ---------------------------------------------------------------------------
+
+
+@router.get("/reports/summary", response_model=EsignReportSummary)
+async def report_summary(
+    start: str = Query(...), end: str = Query(...), source: str | None = Query(default=None),
+    status: str | None = Query(default=None), template_version_id: str | None = Query(default=None),
+    sender_user_id: str | None = Query(default=None), source_id: str | None = Query(default=None),
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return esign_scale_service.report_summary(_uid(token), datetime.fromisoformat(start.replace("Z", "+00:00")),
+            datetime.fromisoformat(end.replace("Z", "+00:00")), source, status, template_version_id,
+            sender_user_id, source_id)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/reports/time-series")
+async def report_time_series(start: str = Query(...), end: str = Query(...), source: str | None = Query(default=None),
+                             token: dict = Depends(verify_firebase_token)):
+    try:
+        return {"points": esign_scale_service.report_time_series(_uid(token),
+            datetime.fromisoformat(start.replace("Z", "+00:00")), datetime.fromisoformat(end.replace("Z", "+00:00")), source)}
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/reports/details.csv", response_class=PlainTextResponse)
+async def report_details_csv(start: str = Query(...), end: str = Query(...), token: dict = Depends(verify_firebase_token)):
+    try:
+        content = esign_scale_service.report_csv(_uid(token), datetime.fromisoformat(start.replace("Z", "+00:00")),
+            datetime.fromisoformat(end.replace("Z", "+00:00")))
+        return PlainTextResponse(content, media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="esign-report-details.csv"'})
+    except Exception as exc: _raise_http(exc)
+
+
 @router.get(
     "/templates/{template_id}/documents/{document_id}/download",
     response_model=EsignDownloadResponse,
@@ -257,12 +473,37 @@ async def create_envelope(
         _raise_http(exc)
 
 
+@router.post("/envelopes/{envelope_id}/schedule", response_model=EsignEnvelopeResponse)
+async def schedule_envelope(
+    envelope_id: str, payload: EsignScheduleRequest, token: dict = Depends(verify_firebase_token),
+):
+    try: return esign_scale_service.schedule(_uid(token), envelope_id, payload.schedule_at, payload.schedule_timezone)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/envelopes/{envelope_id}/unschedule", response_model=EsignEnvelopeResponse)
+async def unschedule_envelope(envelope_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return esign_scale_service.unschedule(_uid(token), envelope_id)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/envelopes/{envelope_id}/retry-send", response_model=EsignEnvelopeResponse)
+async def retry_failed_send(envelope_id: str, request: Request, token: dict = Depends(verify_firebase_token)):
+    try:
+        return await esign_scale_service.retry_failed_send(_uid(token), _email(token), envelope_id,
+            extract_request_meta(request, token))
+    except Exception as exc: _raise_http(exc)
+
+
 @router.get("/envelopes", response_model=EsignEnvelopeListResponse)
 async def list_envelopes(
     token: dict = Depends(verify_firebase_token),
     limit: int = Query(default=25, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     status: str | None = Query(default=None),
+    source_type: Literal["manual", "bulk", "powerform"] | None = Query(default=None),
+    source_id: str | None = Query(default=None),
+    template_version_id: str | None = Query(default=None),
     q: str | None = Query(default=None, max_length=255),
     sort_by: Literal["updated_at", "created_at", "sent_at", "completed_at", "title"] = Query(default="updated_at"),
     sort_dir: Literal["asc", "desc"] = Query(default="desc"),
@@ -270,6 +511,7 @@ async def list_envelopes(
     try:
         return esign_envelope_service.list_envelopes(
             _uid(token), limit=limit, offset=offset, status=status, q=q,
+            source_type=source_type, source_id=source_id, template_version_id=template_version_id,
             sort_by=sort_by, sort_dir=sort_dir,
         )
     except Exception as exc:

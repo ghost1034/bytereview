@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { Loader2, Send } from 'lucide-react'
+import { Loader2, Send, UploadCloud } from 'lucide-react'
 
 import {
   PdfFieldEditor,
@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import { useEsignTemplate, useUpdateEsignTemplate } from '@/hooks/useEnvelopes'
+import { usePublishTemplate } from '@/hooks/useEsignScale'
 import { apiClient, type EsignTemplateFieldInput } from '@/lib/api'
 
 /**
@@ -31,6 +32,7 @@ export default function EsignTemplateEditPage() {
 
   const templateQuery = useEsignTemplate(templateId)
   const updateTemplate = useUpdateEsignTemplate(templateId!)
+  const publishTemplate = usePublishTemplate()
   const template = templateQuery.data
 
   const [editorFields, setEditorFields] = React.useState<EditorField[]>([])
@@ -132,7 +134,7 @@ export default function EsignTemplateEditPage() {
   }
 
   return (
-    <ComposerShell title={template.name} stage="fields" saveState={saveState} onClose={() => router.push('/dashboard/esign/templates')} primary={<Button onClick={async () => { await handleSave(); router.push(`/dashboard/esign/new?template=${template.id}`) }}><Send className="mr-1.5 size-4" /> Use template</Button>}>
+    <ComposerShell title={template.name} stage="fields" saveState={saveState} onClose={() => router.push('/dashboard/esign/templates')} primary={<div className="flex gap-2"><Button variant="outline" disabled={publishTemplate.isPending} onClick={async () => { try { await handleSave(); const version = await publishTemplate.mutateAsync(template.id); toast({ title: `Version ${version.version} published`, description: 'Bulk jobs and PowerForms can now pin this immutable version.' }) } catch (error) { toast({ title: 'Publish failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><UploadCloud className="mr-1.5 size-4" /> Publish</Button><Button onClick={async () => { await handleSave(); router.push(`/dashboard/esign/new?template=${template.id}`) }}><Send className="mr-1.5 size-4" /> Use template</Button></div>}>
       <div className="p-3 sm:p-4">
       {documentUrlsQuery.isLoading || !documentUrlsQuery.data ? (
         <div className="flex items-center justify-center rounded-lg border border-border bg-surface py-16 text-foreground-muted">

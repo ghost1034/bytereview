@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import {
   ArrowLeft,
   BellRing,
+  CalendarClock,
   CheckCircle2,
   Circle,
   Download,
@@ -43,6 +44,7 @@ import {
   useEnvelope,
   useEnvelopeAudit,
   useRemindEnvelope,
+  useUnscheduleEnvelope,
   useVoidEnvelope,
 } from '@/hooks/useEnvelopes'
 import { apiClient } from '@/lib/api'
@@ -122,6 +124,7 @@ export default function EnvelopeDetailPage() {
   const auditQuery = useEnvelopeAudit(envelopeId)
   const remind = useRemindEnvelope(envelopeId!)
   const voidEnvelope = useVoidEnvelope(envelopeId!)
+  const unschedule = useUnscheduleEnvelope(envelopeId!)
 
   const [voidOpen, setVoidOpen] = React.useState(false)
   const [voidReason, setVoidReason] = React.useState('')
@@ -182,6 +185,7 @@ export default function EnvelopeDetailPage() {
             {envelope.expires_at && isActive && (
               <span>· expires {formatDateTime(envelope.expires_at)}</span>
             )}
+            {envelope.scheduled_at && <span>Scheduled {formatDateTime(envelope.scheduled_at)} · {envelope.schedule_timezone}</span>}
           </span>
         }
         actions={
@@ -227,6 +231,7 @@ export default function EnvelopeDetailPage() {
                 </Button>
               </>
             )}
+            {envelope.status === 'scheduled' && <Button variant="outline" disabled={unschedule.isPending} onClick={async () => { try { await unschedule.mutateAsync(); toast({ title: 'Envelope returned to draft' }); router.push(`/dashboard/esign/${envelope.id}/prepare`) } catch (error) { toast({ title: 'Could not unschedule', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><CalendarClock className="mr-1.5 size-4" /> Unschedule & edit</Button>}
           </div>
         }
       />

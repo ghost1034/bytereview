@@ -29,6 +29,7 @@ async function guestRequest<T>(path: string, options: RequestInit = {}): Promise
 export default function GuestSigningPage() {
   const search = useSearchParams()
   const invitation = search.get('token')
+  const powerFormVerification = search.get('powerform_token')
   const [csrf, setCsrf] = React.useState<string | null>(null)
   const [session, setSession] = React.useState<GuestSession | null>(null)
   const [typedName, setTypedName] = React.useState('')
@@ -43,13 +44,23 @@ export default function GuestSigningPage() {
     setError(null)
     try {
       let csrfToken = sessionStorage.getItem('esign_guest_csrf')
-      if (invitation) {
+      let invitationToken = invitation
+      if (powerFormVerification) {
+        const response = await fetch('/api/esign/public/powerforms/verification/exchange', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: powerFormVerification }),
+        })
+        const body = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(body.detail ?? 'PowerForm verification failed')
+        invitationToken = body.invitation_token
+      }
+      if (invitationToken) {
         const exchanged = await guestRequest<{ csrf_token: string }>('/exchange', {
-          method: 'POST', body: JSON.stringify({ invitation_token: invitation }),
+          method: 'POST', body: JSON.stringify({ invitation_token: invitationToken }),
         })
         csrfToken = exchanged.csrf_token
         sessionStorage.setItem('esign_guest_csrf', csrfToken)
-        window.history.replaceState({}, '', '/dashboard/esign/guest')
+        window.history.replaceState({}, '', '/esign/guest')
       }
       const current = await guestRequest<GuestSession>('/session')
       setCsrf(csrfToken)
@@ -58,7 +69,7 @@ export default function GuestSigningPage() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Guest invitation could not be opened')
     } finally { setBusy(false) }
-  }, [invitation])
+  }, [invitation, powerFormVerification])
 
   React.useEffect(() => { void load() }, [load])
 

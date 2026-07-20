@@ -1134,6 +1134,8 @@ class ChronaTimelineCard(Base):
 
 class EsignEnvelopeStatus(str, enum.Enum):
     DRAFT = "draft"
+    SCHEDULED = "scheduled"
+    SEND_FAILED = "send_failed"
     SENT = "sent"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -1222,6 +1224,9 @@ class EsignEventType(str, enum.Enum):
     GUEST_INVITATION_EXCHANGED = "guest_invitation_exchanged"
     GUEST_CONSENT_GIVEN = "guest_consent_given"
     ROUTING_ADVANCED = "routing_advanced"
+    SCHEDULED = "scheduled"
+    UNSCHEDULED = "unscheduled"
+    SEND_FAILED = "send_failed"
 
 
 def _esign_enum(enum_cls, type_name: str):
@@ -1251,6 +1256,10 @@ class EsignEnvelope(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(String(128), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="RESTRICT"), nullable=True)
+    source_type = Column(String(20), nullable=False, default="manual", server_default="manual")
+    source_id = Column(UUID(as_uuid=True), nullable=True)
+    template_version_id = Column(UUID(as_uuid=True), ForeignKey("esign_template_versions.id", ondelete="SET NULL"), nullable=True)
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=True)
     status = Column(
@@ -1282,6 +1291,11 @@ class EsignEnvelope(Base):
     sent_at = Column(TIMESTAMP(timezone=True), nullable=True)
     completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
     voided_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    scheduled_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    schedule_timezone = Column(String(64), nullable=True)
+    schedule_claimed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    send_error_code = Column(String(64), nullable=True)
+    send_error_message = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
@@ -1307,6 +1321,9 @@ class EsignEnvelope(Base):
 
     __table_args__ = (
         Index("ix_esign_envelopes_user_created", "user_id", "created_at"),
+        Index("ix_esign_envelopes_firm_sent", "firm_id", "sent_at"),
+        Index("ix_esign_envelopes_firm_status_source", "firm_id", "status", "source_type"),
+        Index("ix_esign_envelopes_schedule_due", "status", "scheduled_at"),
     )
 
 
@@ -1586,6 +1603,7 @@ class EsignTemplate(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     title = Column(String(255), nullable=True)  # default envelope title
@@ -1609,6 +1627,7 @@ class EsignTemplate(Base):
         order_by="EsignTemplateDocument.display_order",
     )
     fields = relationship("EsignTemplateField", back_populates="template", cascade="all, delete-orphan")
+    versions = relationship("EsignTemplateVersion", back_populates="template", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("ix_esign_templates_user", "user_id"),
@@ -1667,6 +1686,117 @@ class EsignTemplateField(Base):
         CheckConstraint("page_number >= 0", name="ck_esign_template_fields_page_number"),
         CheckConstraint("recipient_index >= 0", name="ck_esign_template_fields_recipient_index"),
     )
+
+
+class EsignTemplateVersion(Base):
+    """Immutable published snapshot used by every scaled-send workflow."""
+    __tablename__ = "esign_template_versions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    template_id = Column(UUID(as_uuid=True), ForeignKey("esign_templates.id", ondelete="CASCADE"), nullable=False)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    version = Column(Integer, nullable=False)
+    snapshot = Column(JSONB, nullable=False)
+    published_by_user_id = Column(String(128), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    published_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    template = relationship("EsignTemplate", back_populates="versions")
+    __table_args__ = (
+        Index("uq_esign_template_versions_number", "template_id", "version", unique=True),
+        Index("ix_esign_template_versions_firm", "firm_id", "published_at"),
+    )
+
+
+class EsignBulkJob(Base):
+    __tablename__ = "esign_bulk_jobs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    template_version_id = Column(UUID(as_uuid=True), ForeignKey("esign_template_versions.id", ondelete="RESTRICT"), nullable=False)
+    status = Column(String(32), nullable=False, server_default="validating")
+    kind = Column(String(20), nullable=False, default="bulk", server_default="bulk")
+    default_schedule_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    default_schedule_timezone = Column(String(64), nullable=True)
+    total_rows = Column(Integer, nullable=False, server_default="0")
+    valid_rows = Column(Integer, nullable=False, server_default="0")
+    invalid_rows = Column(Integer, nullable=False, server_default="0")
+    processed_rows = Column(Integer, nullable=False, server_default="0")
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    confirmed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    rows = relationship("EsignBulkRow", back_populates="job", cascade="all, delete-orphan")
+    __table_args__ = (Index("ix_esign_bulk_jobs_firm_created", "firm_id", "created_at"),)
+
+
+class EsignBulkRow(Base):
+    __tablename__ = "esign_bulk_rows"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("esign_bulk_jobs.id", ondelete="CASCADE"), nullable=False)
+    row_number = Column(Integer, nullable=False)
+    idempotency_key = Column(String(64), nullable=False, unique=True)
+    normalized_input = Column(JSONB, nullable=False)
+    status = Column(String(32), nullable=False)
+    attempts = Column(Integer, nullable=False, server_default="0")
+    error_code = Column(String(64), nullable=True)
+    error_message = Column(Text, nullable=True)
+    scheduled_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    schedule_timezone = Column(String(64), nullable=True)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="SET NULL"), nullable=True, unique=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    job = relationship("EsignBulkJob", back_populates="rows")
+    __table_args__ = (
+        Index("uq_esign_bulk_rows_job_row", "job_id", "row_number", unique=True),
+        Index("ix_esign_bulk_rows_job_status", "job_id", "status"),
+    )
+
+
+class EsignPowerForm(Base):
+    __tablename__ = "esign_powerforms"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    firm_id = Column(UUID(as_uuid=True), ForeignKey("firms.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    template_version_id = Column(UUID(as_uuid=True), ForeignKey("esign_template_versions.id", ondelete="RESTRICT"), nullable=False)
+    name = Column(String(255), nullable=False)
+    public_token_sha256 = Column(String(64), nullable=False, unique=True)
+    state = Column(String(20), nullable=False, server_default="active")
+    starts_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    ends_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    submission_cap = Column(Integer, nullable=True)
+    submission_count = Column(Integer, nullable=False, server_default="0")
+    role_config = Column(JSONB, nullable=False)
+    public_fields = Column(JSONB, nullable=False, server_default=expression.text("'[]'::jsonb"))
+    instructions = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (Index("ix_esign_powerforms_firm", "firm_id", "created_at"),)
+
+
+class EsignPowerFormSubmission(Base):
+    __tablename__ = "esign_powerform_submissions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    powerform_id = Column(UUID(as_uuid=True), ForeignKey("esign_powerforms.id", ondelete="RESTRICT"), nullable=False)
+    status = Column(String(24), nullable=False, server_default="pending_verification")
+    normalized_input = Column(JSONB, nullable=False)
+    initiating_email = Column(String(255), nullable=False)
+    verification_token_sha256 = Column(String(64), nullable=False, unique=True)
+    verification_expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    verified_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    consumed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="SET NULL"), nullable=True, unique=True)
+    consent = Column(Boolean, nullable=False, server_default=expression.false())
+    ip_address = Column(String(64), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (Index("ix_esign_powerform_submissions_form", "powerform_id", "created_at"),)
 
 
 class AnalyticsComment(Base):

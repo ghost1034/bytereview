@@ -2227,6 +2227,9 @@ export class ApiClient {
     limit?: number
     offset?: number
     status?: string
+    sourceType?: 'manual' | 'bulk' | 'powerform'
+    sourceId?: string
+    templateVersionId?: string
     q?: string
     sortBy?: 'updated_at' | 'created_at' | 'sent_at' | 'completed_at' | 'title'
     sortDir?: 'asc' | 'desc'
@@ -2236,6 +2239,9 @@ export class ApiClient {
       offset: String(params.offset ?? 0),
     })
     if (params.status) searchParams.set('status', params.status)
+    if (params.sourceType) searchParams.set('source_type', params.sourceType)
+    if (params.sourceId) searchParams.set('source_id', params.sourceId)
+    if (params.templateVersionId) searchParams.set('template_version_id', params.templateVersionId)
     if (params.q) searchParams.set('q', params.q)
     if (params.sortBy) searchParams.set('sort_by', params.sortBy)
     if (params.sortDir) searchParams.set('sort_dir', params.sortDir)
@@ -2517,6 +2523,99 @@ export class ApiClient {
     return this.request(`/api/esign/templates/${templateId}/documents/${documentId}/download`)
   }
 
+  async publishEsignTemplate(templateId: string): Promise<EsignTemplateVersionResponse> {
+    return this.request(`/api/esign/templates/${templateId}/versions`, { method: 'POST', body: '{}' })
+  }
+
+  async listEsignTemplateVersions(templateId: string): Promise<EsignTemplateVersionListResponse> {
+    return this.request(`/api/esign/templates/${templateId}/versions`)
+  }
+
+  async downloadEsignBulkSample(versionId: string): Promise<Blob> {
+    const token = await this.getAuthToken()
+    const response = await fetch(`${this.baseURL}/api/esign/template-versions/${versionId}/bulk-sample.csv`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!response.ok) throw new ApiError(response.status, 'Could not download the CSV sample')
+    return response.blob()
+  }
+
+  async downloadEsignBulkErrors(jobId: string): Promise<Blob> {
+    const token = await this.getAuthToken()
+    const response = await fetch(`${this.baseURL}/api/esign/bulk-jobs/${jobId}/errors.csv`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!response.ok) throw new ApiError(response.status, 'Could not download row errors')
+    return response.blob()
+  }
+
+  async createEsignBulkJob(templateVersionId: string, file: File, defaultSchedule?: { at: string; timezone: string }): Promise<EsignBulkJobResponse> {
+    const form = new FormData()
+    form.append('template_version_id', templateVersionId)
+    form.append('file', file)
+    if (defaultSchedule) { form.append('default_schedule_at', defaultSchedule.at); form.append('default_schedule_timezone', defaultSchedule.timezone) }
+    return this.requestMultipart('/api/esign/bulk-jobs', form)
+  }
+
+  async listEsignBulkJobs(): Promise<EsignBulkJobListResponse> {
+    return this.request('/api/esign/bulk-jobs')
+  }
+
+  async getEsignBulkJob(jobId: string): Promise<EsignBulkJobResponse> {
+    return this.request(`/api/esign/bulk-jobs/${jobId}`)
+  }
+
+  async confirmEsignBulkJob(jobId: string): Promise<EsignBulkJobResponse> {
+    return this.request(`/api/esign/bulk-jobs/${jobId}/confirm`, { method: 'POST', body: '{}' })
+  }
+
+  async cancelEsignBulkJob(jobId: string): Promise<EsignBulkJobResponse> {
+    return this.request(`/api/esign/bulk-jobs/${jobId}/cancel`, { method: 'POST', body: '{}' })
+  }
+
+  async retryEsignBulkJob(jobId: string): Promise<EsignBulkJobResponse> {
+    return this.request(`/api/esign/bulk-jobs/${jobId}/retry`, { method: 'POST', body: '{}' })
+  }
+
+  async createEsignPowerForm(payload: EsignPowerFormCreateRequest): Promise<EsignPowerFormResponse> {
+    return this.request('/api/esign/powerforms', { method: 'POST', body: JSON.stringify(payload) })
+  }
+
+  async listEsignPowerForms(): Promise<EsignPowerFormListResponse> {
+    return this.request('/api/esign/powerforms')
+  }
+
+  async setEsignPowerFormState(id: string, state: 'active' | 'paused' | 'revoked'): Promise<EsignPowerFormResponse> {
+    return this.request(`/api/esign/powerforms/${id}/state/${state}`, { method: 'POST', body: '{}' })
+  }
+
+  async rotateEsignPowerForm(id: string): Promise<EsignPowerFormResponse> {
+    return this.request(`/api/esign/powerforms/${id}/rotate`, { method: 'POST', body: '{}' })
+  }
+
+  async getEsignReportSummary(params: { start: string; end: string; source?: string; status?: string; templateVersionId?: string }): Promise<EsignReportSummary> {
+    const query = new URLSearchParams({ start: params.start, end: params.end })
+    if (params.source) query.set('source', params.source)
+    if (params.status) query.set('status', params.status)
+    if (params.templateVersionId) query.set('template_version_id', params.templateVersionId)
+    return this.request(`/api/esign/reports/summary?${query}`)
+  }
+
+  async downloadEsignReportDetails(start: string, end: string): Promise<Blob> {
+    const token = await this.getAuthToken(); const query = new URLSearchParams({ start, end })
+    const response = await fetch(`${this.baseURL}/api/esign/reports/details.csv?${query}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    if (!response.ok) throw new ApiError(response.status, 'Could not export report details')
+    return response.blob()
+  }
+
+  async scheduleEsignEnvelope(envelopeId: string, payload: EsignScheduleRequest): Promise<EsignEnvelopeResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/schedule`, { method: 'POST', body: JSON.stringify(payload) })
+  }
+
+  async unscheduleEsignEnvelope(envelopeId: string): Promise<EsignEnvelopeResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/unschedule`, { method: 'POST', body: '{}' })
+  }
+
 }
 
 export interface AnalyticsStreamUsage {
@@ -2595,6 +2694,15 @@ export type EsignTemplateListResponse = apiComponents['schemas']['EsignTemplateL
 export type EsignTemplateRoleInput = apiComponents['schemas']['EsignTemplateRoleInput']
 export type EsignTemplateUpdateRequest = apiComponents['schemas']['EsignTemplateUpdateRequest']
 export type EsignTemplateFieldInput = apiComponents['schemas']['EsignTemplateFieldInput']
+export type EsignTemplateVersionResponse = apiComponents['schemas']['EsignTemplateVersionResponse']
+export type EsignTemplateVersionListResponse = apiComponents['schemas']['EsignTemplateVersionListResponse']
+export type EsignBulkJobResponse = apiComponents['schemas']['EsignBulkJobResponse']
+export type EsignBulkJobListResponse = apiComponents['schemas']['EsignBulkJobListResponse']
+export type EsignPowerFormCreateRequest = apiComponents['schemas']['EsignPowerFormCreateRequest']
+export type EsignPowerFormResponse = apiComponents['schemas']['EsignPowerFormResponse']
+export type EsignPowerFormListResponse = apiComponents['schemas']['EsignPowerFormListResponse']
+export type EsignReportSummary = apiComponents['schemas']['EsignReportSummary']
+export type EsignScheduleRequest = apiComponents['schemas']['EsignScheduleRequest']
 
 export const apiClient = new ApiClient()
 

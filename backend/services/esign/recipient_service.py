@@ -533,7 +533,7 @@ class EsignRecipientService:
         ))
         return EsignGuestInvitationResponse(
             invitation_token=token,
-            guest_url=f"/dashboard/esign/guest?token={token}",
+            guest_url=f"/esign/guest?token={token}",
             expires_at=expires_at,
         )
 

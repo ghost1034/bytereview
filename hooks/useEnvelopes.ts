@@ -12,6 +12,7 @@ import type {
   EsignEnvelopeUpdateRequest,
   EsignFieldInput,
   EsignRecipientInput,
+  EsignScheduleRequest,
   EsignSubmitRequest,
   EsignTemplateRoleInput,
   EsignTemplateUpdateRequest,
@@ -23,6 +24,9 @@ export interface EsignEnvelopeListParams {
   limit?: number
   offset?: number
   status?: string
+  sourceType?: 'manual' | 'bulk' | 'powerform'
+  sourceId?: string
+  templateVersionId?: string
   q?: string
   sortBy?: 'updated_at' | 'created_at' | 'sent_at' | 'completed_at' | 'title'
   sortDir?: 'asc' | 'desc'
@@ -181,6 +185,19 @@ export function useSendEnvelope(envelopeId: string) {
     mutationFn: () => apiClient.sendEsignEnvelope(envelopeId),
     onSuccess: () => invalidate(envelopeId),
   })
+}
+
+export function useScheduleEnvelope(envelopeId: string) {
+  const invalidate = useInvalidateEnvelope()
+  return useMutation({
+    mutationFn: (payload: EsignScheduleRequest) => apiClient.scheduleEsignEnvelope(envelopeId, payload),
+    onSuccess: () => invalidate(envelopeId),
+  })
+}
+
+export function useUnscheduleEnvelope(envelopeId: string) {
+  const invalidate = useInvalidateEnvelope()
+  return useMutation({ mutationFn: () => apiClient.unscheduleEsignEnvelope(envelopeId), onSuccess: () => invalidate(envelopeId) })
 }
 
 export function useVoidEnvelope(envelopeId: string) {

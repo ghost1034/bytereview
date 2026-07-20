@@ -1678,6 +1678,332 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/esign/templates/{template_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Template Versions */
+        get: operations["list_template_versions_api_esign_templates__template_id__versions_get"];
+        put?: never;
+        /** Publish Template Version */
+        post: operations["publish_template_version_api_esign_templates__template_id__versions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/template-versions/{version_id}/bulk-sample.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download Bulk Sample */
+        get: operations["download_bulk_sample_api_esign_template_versions__version_id__bulk_sample_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/bulk-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Bulk Jobs */
+        get: operations["list_bulk_jobs_api_esign_bulk_jobs_get"];
+        put?: never;
+        /** Create Bulk Job */
+        post: operations["create_bulk_job_api_esign_bulk_jobs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/bulk-jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Bulk Job */
+        get: operations["get_bulk_job_api_esign_bulk_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/bulk-jobs/{job_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Bulk Job */
+        post: operations["confirm_bulk_job_api_esign_bulk_jobs__job_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/bulk-jobs/{job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Bulk Job */
+        post: operations["cancel_bulk_job_api_esign_bulk_jobs__job_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/bulk-jobs/{job_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Bulk Job */
+        post: operations["retry_bulk_job_api_esign_bulk_jobs__job_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/bulk-jobs/{job_id}/errors.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Bulk Error Csv */
+        get: operations["bulk_error_csv_api_esign_bulk_jobs__job_id__errors_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/powerforms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Powerforms */
+        get: operations["list_powerforms_api_esign_powerforms_get"];
+        put?: never;
+        /** Create Powerform */
+        post: operations["create_powerform_api_esign_powerforms_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/powerforms/{form_id}/state/{state}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set Powerform State */
+        post: operations["set_powerform_state_api_esign_powerforms__form_id__state__state__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/powerforms/{form_id}/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate Powerform */
+        post: operations["rotate_powerform_api_esign_powerforms__form_id__rotate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/powerforms/{form_id}/upgrade/{version_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upgrade Powerform */
+        post: operations["upgrade_powerform_api_esign_powerforms__form_id__upgrade__version_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/powerforms/{form_id}/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Powerform Submissions */
+        get: operations["list_powerform_submissions_api_esign_powerforms__form_id__submissions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/public/powerforms/{public_token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public Powerform Config */
+        get: operations["public_powerform_config_api_esign_public_powerforms__public_token__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/public/powerforms/{public_token}/verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Powerform Verification */
+        post: operations["request_powerform_verification_api_esign_public_powerforms__public_token__verification_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/public/powerforms/verification/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Exchange Powerform Verification */
+        post: operations["exchange_powerform_verification_api_esign_public_powerforms_verification_exchange_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/reports/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Report Summary */
+        get: operations["report_summary_api_esign_reports_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/reports/time-series": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Report Time Series */
+        get: operations["report_time_series_api_esign_reports_time_series_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/reports/details.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Report Details Csv */
+        get: operations["report_details_csv_api_esign_reports_details_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/esign/templates/{template_id}/documents/{document_id}/download": {
         parameters: {
             query?: never;
@@ -1707,6 +2033,57 @@ export interface paths {
         put?: never;
         /** Create Envelope */
         post: operations["create_envelope_api_esign_envelopes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/envelopes/{envelope_id}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Schedule Envelope */
+        post: operations["schedule_envelope_api_esign_envelopes__envelope_id__schedule_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/envelopes/{envelope_id}/unschedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Unschedule Envelope */
+        post: operations["unschedule_envelope_api_esign_envelopes__envelope_id__unschedule_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/envelopes/{envelope_id}/retry-send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Failed Send */
+        post: operations["retry_failed_send_api_esign_envelopes__envelope_id__retry_send_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5252,6 +5629,17 @@ export interface components {
             /** Files */
             files: string[];
         };
+        /** Body_create_bulk_job_api_esign_bulk_jobs_post */
+        Body_create_bulk_job_api_esign_bulk_jobs_post: {
+            /** Template Version Id */
+            template_version_id: string;
+            /** File */
+            file: string;
+            /** Default Schedule At */
+            default_schedule_at?: string | null;
+            /** Default Schedule Timezone */
+            default_schedule_timezone?: string | null;
+        };
         /** Body_create_envelope_api_esign_envelopes_post */
         Body_create_envelope_api_esign_envelopes_post: {
             /** Title */
@@ -6203,6 +6591,67 @@ export interface components {
             /** Recipient Changes */
             recipient_changes?: components["schemas"]["EsignRecipientChangeResponse"][];
         };
+        /** EsignBulkJobListResponse */
+        EsignBulkJobListResponse: {
+            /** Jobs */
+            jobs: components["schemas"]["EsignBulkJobResponse"][];
+        };
+        /** EsignBulkJobResponse */
+        EsignBulkJobResponse: {
+            /** Id */
+            id: string;
+            /** Template Version Id */
+            template_version_id: string;
+            /** Status */
+            status: string;
+            /** Total Rows */
+            total_rows: number;
+            /** Valid Rows */
+            valid_rows: number;
+            /** Invalid Rows */
+            invalid_rows: number;
+            /** Processed Rows */
+            processed_rows: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Confirmed At */
+            confirmed_at?: string | null;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Rows */
+            rows?: components["schemas"]["EsignBulkRowResponse"][];
+        };
+        /** EsignBulkRowResponse */
+        EsignBulkRowResponse: {
+            /** Id */
+            id: string;
+            /** Row Number */
+            row_number: number;
+            /** Status */
+            status: string;
+            /** Normalized Input */
+            normalized_input: {
+                [key: string]: unknown;
+            };
+            /**
+             * Attempts
+             * @default 0
+             */
+            attempts: number;
+            /** Error Code */
+            error_code?: string | null;
+            /** Error Message */
+            error_message?: string | null;
+            /** Scheduled At */
+            scheduled_at?: string | null;
+            /** Schedule Timezone */
+            schedule_timezone?: string | null;
+            /** Envelope Id */
+            envelope_id?: string | null;
+        };
         /** EsignConsentRequest */
         EsignConsentRequest: {
             /** Expected Routing Version */
@@ -6322,6 +6771,20 @@ export interface components {
             /** Completed At */
             completed_at?: string | null;
             /**
+             * Source Type
+             * @default manual
+             * @enum {string}
+             */
+            source_type: "manual" | "bulk" | "powerform";
+            /** Source Id */
+            source_id?: string | null;
+            /** Template Version Id */
+            template_version_id?: string | null;
+            /** Scheduled At */
+            scheduled_at?: string | null;
+            /** Schedule Timezone */
+            schedule_timezone?: string | null;
+            /**
              * Created At
              * Format: date-time
              */
@@ -6413,6 +6876,26 @@ export interface components {
             completed_at?: string | null;
             /** Voided At */
             voided_at?: string | null;
+            /** Firm Id */
+            firm_id?: string | null;
+            /**
+             * Source Type
+             * @default manual
+             * @enum {string}
+             */
+            source_type: "manual" | "bulk" | "powerform";
+            /** Source Id */
+            source_id?: string | null;
+            /** Template Version Id */
+            template_version_id?: string | null;
+            /** Scheduled At */
+            scheduled_at?: string | null;
+            /** Schedule Timezone */
+            schedule_timezone?: string | null;
+            /** Send Error Code */
+            send_error_code?: string | null;
+            /** Send Error Message */
+            send_error_message?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -6793,6 +7276,106 @@ export interface components {
             /** Data Label */
             data_label?: string | null;
         };
+        /** EsignPowerFormCreateRequest */
+        EsignPowerFormCreateRequest: {
+            /** Name */
+            name: string;
+            /** Template Version Id */
+            template_version_id: string;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Submission Cap */
+            submission_cap?: number | null;
+            /** Role Config */
+            role_config: components["schemas"]["EsignPowerFormRoleConfig"][];
+            /** Public Fields */
+            public_fields?: string[];
+            /** Instructions */
+            instructions?: string | null;
+        };
+        /** EsignPowerFormListResponse */
+        EsignPowerFormListResponse: {
+            /** Powerforms */
+            powerforms: components["schemas"]["EsignPowerFormResponse"][];
+        };
+        /** EsignPowerFormResponse */
+        EsignPowerFormResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Template Version Id */
+            template_version_id: string;
+            /** State */
+            state: string;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Submission Cap */
+            submission_cap?: number | null;
+            /** Submission Count */
+            submission_count: number;
+            /** Role Config */
+            role_config: {
+                [key: string]: unknown;
+            }[];
+            /** Public Fields */
+            public_fields: string[];
+            /** Instructions */
+            instructions?: string | null;
+            /** Public Url */
+            public_url?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** EsignPowerFormRoleConfig */
+        EsignPowerFormRoleConfig: {
+            /** Recipient Index */
+            recipient_index: number;
+            /**
+             * Identity Source
+             * @enum {string}
+             */
+            identity_source: "visitor" | "preset";
+            /**
+             * Initiating Signer
+             * @default false
+             */
+            initiating_signer: boolean;
+            /** Name */
+            name?: string | null;
+            /** Email */
+            email?: string | null;
+        };
+        /** EsignPowerFormVerificationExchange */
+        EsignPowerFormVerificationExchange: {
+            /** Token */
+            token: string;
+        };
+        /** EsignPowerFormVerificationRequest */
+        EsignPowerFormVerificationRequest: {
+            /** Recipients */
+            recipients: {
+                [key: string]: string;
+            }[];
+            /** Fields */
+            fields?: {
+                [key: string]: string;
+            };
+            /** Consent */
+            consent: boolean;
+        };
         /**
          * EsignProgressRequest
          * @description Finish Later: in-progress text/checkbox entries saved mid-ceremony.
@@ -6938,6 +7521,37 @@ export interface components {
         EsignRecipientsReplaceRequest: {
             /** Recipients */
             recipients: components["schemas"]["EsignRecipientInput"][];
+        };
+        /** EsignReportSummary */
+        EsignReportSummary: {
+            /** Volume */
+            volume: number;
+            /** Completed */
+            completed: number;
+            /** Completion Rate */
+            completion_rate: number;
+            /** Median Completion Hours */
+            median_completion_hours?: number | null;
+            /** P90 Completion Hours */
+            p90_completion_hours?: number | null;
+            /** Aging */
+            aging: {
+                [key: string]: number;
+            };
+            /** Exceptions */
+            exceptions: {
+                [key: string]: number;
+            };
+        };
+        /** EsignScheduleRequest */
+        EsignScheduleRequest: {
+            /**
+             * Schedule At
+             * Format: date-time
+             */
+            schedule_at: string;
+            /** Schedule Timezone */
+            schedule_timezone: string;
         };
         /** EsignSignatureInput */
         EsignSignatureInput: {
@@ -7189,6 +7803,10 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Firm Id */
+            firm_id?: string | null;
+            /** Latest Published Version */
+            latest_published_version?: number | null;
         };
         /** EsignTemplateRoleInput */
         EsignTemplateRoleInput: {
@@ -7239,6 +7857,27 @@ export interface components {
             recipient_roles?: components["schemas"]["EsignTemplateRoleInput"][] | null;
             /** Fields */
             fields?: components["schemas"]["EsignTemplateFieldInput"][] | null;
+        };
+        /** EsignTemplateVersionListResponse */
+        EsignTemplateVersionListResponse: {
+            /** Versions */
+            versions: components["schemas"]["EsignTemplateVersionResponse"][];
+        };
+        /** EsignTemplateVersionResponse */
+        EsignTemplateVersionResponse: {
+            /** Id */
+            id: string;
+            /** Template Id */
+            template_id: string;
+            /** Version */
+            version: number;
+            /**
+             * Published At
+             * Format: date-time
+             */
+            published_at: string;
+            /** Published By User Id */
+            published_by_user_id: string;
         };
         /** EsignVerifyResponse */
         EsignVerifyResponse: {
@@ -13288,6 +13927,687 @@ export interface operations {
             };
         };
     };
+    list_template_versions_api_esign_templates__template_id__versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignTemplateVersionListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_template_version_api_esign_templates__template_id__versions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignTemplateVersionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_bulk_sample_api_esign_template_versions__version_id__bulk_sample_csv_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_bulk_jobs_api_esign_bulk_jobs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignBulkJobListResponse"];
+                };
+            };
+        };
+    };
+    create_bulk_job_api_esign_bulk_jobs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_create_bulk_job_api_esign_bulk_jobs_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignBulkJobResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_bulk_job_api_esign_bulk_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignBulkJobResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_bulk_job_api_esign_bulk_jobs__job_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignBulkJobResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_bulk_job_api_esign_bulk_jobs__job_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignBulkJobResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_bulk_job_api_esign_bulk_jobs__job_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignBulkJobResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_error_csv_api_esign_bulk_jobs__job_id__errors_csv_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_powerforms_api_esign_powerforms_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignPowerFormListResponse"];
+                };
+            };
+        };
+    };
+    create_powerform_api_esign_powerforms_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignPowerFormCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignPowerFormResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_powerform_state_api_esign_powerforms__form_id__state__state__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                form_id: string;
+                state: "active" | "paused" | "revoked";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignPowerFormResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_powerform_api_esign_powerforms__form_id__rotate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignPowerFormResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upgrade_powerform_api_esign_powerforms__form_id__upgrade__version_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                form_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignPowerFormResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_powerform_submissions_api_esign_powerforms__form_id__submissions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_powerform_config_api_esign_public_powerforms__public_token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                public_token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_powerform_verification_api_esign_public_powerforms__public_token__verification_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                public_token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignPowerFormVerificationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    exchange_powerform_verification_api_esign_public_powerforms_verification_exchange_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignPowerFormVerificationExchange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_summary_api_esign_reports_summary_get: {
+        parameters: {
+            query: {
+                start: string;
+                end: string;
+                source?: string | null;
+                status?: string | null;
+                template_version_id?: string | null;
+                sender_user_id?: string | null;
+                source_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignReportSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_time_series_api_esign_reports_time_series_get: {
+        parameters: {
+            query: {
+                start: string;
+                end: string;
+                source?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_details_csv_api_esign_reports_details_csv_get: {
+        parameters: {
+            query: {
+                start: string;
+                end: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     download_template_document_api_esign_templates__template_id__documents__document_id__download_get: {
         parameters: {
             query?: never;
@@ -13326,6 +14646,9 @@ export interface operations {
                 limit?: number;
                 offset?: number;
                 status?: string | null;
+                source_type?: ("manual" | "bulk" | "powerform") | null;
+                source_id?: string | null;
+                template_version_id?: string | null;
                 q?: string | null;
                 sort_by?: "updated_at" | "created_at" | "sent_at" | "completed_at" | "title";
                 sort_dir?: "asc" | "desc";
@@ -13376,6 +14699,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EsignEnvelopeCreateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    schedule_envelope_api_esign_envelopes__envelope_id__schedule_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignScheduleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignEnvelopeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unschedule_envelope_api_esign_envelopes__envelope_id__unschedule_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignEnvelopeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_failed_send_api_esign_envelopes__envelope_id__retry_send_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignEnvelopeResponse"];
                 };
             };
             /** @description Validation Error */

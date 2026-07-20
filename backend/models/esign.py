@@ -337,6 +337,14 @@ class EsignEnvelopeResponse(BaseModel):
     sent_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     voided_at: Optional[datetime] = None
+    firm_id: Optional[str] = None
+    source_type: Literal["manual", "bulk", "powerform"] = "manual"
+    source_id: Optional[str] = None
+    template_version_id: Optional[str] = None
+    scheduled_at: Optional[datetime] = None
+    schedule_timezone: Optional[str] = None
+    send_error_code: Optional[str] = None
+    send_error_message: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     documents: list[EsignDocumentResponse]
@@ -356,6 +364,11 @@ class EsignEnvelopeListItem(BaseModel):
     expires_at: Optional[datetime] = None
     sent_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    source_type: Literal["manual", "bulk", "powerform"] = "manual"
+    source_id: Optional[str] = None
+    template_version_id: Optional[str] = None
+    scheduled_at: Optional[datetime] = None
+    schedule_timezone: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -791,6 +804,8 @@ class EsignTemplateResponse(BaseModel):
     fields: list[EsignTemplateFieldResponse]
     created_at: datetime
     updated_at: datetime
+    firm_id: Optional[str] = None
+    latest_published_version: Optional[int] = None
 
 
 class EsignTemplateListResponse(BaseModel):
@@ -800,3 +815,116 @@ class EsignTemplateListResponse(BaseModel):
 class EsignEnvelopeCreateResponse(BaseModel):
     envelope: EsignEnvelopeResponse
     message: str = "Envelope created"
+
+
+# ---------------------------------------------------------------------------
+# Sending at scale
+# ---------------------------------------------------------------------------
+
+
+class EsignTemplateVersionResponse(BaseModel):
+    id: str
+    template_id: str
+    version: int
+    published_at: datetime
+    published_by_user_id: str
+
+
+class EsignTemplateVersionListResponse(BaseModel):
+    versions: list[EsignTemplateVersionResponse]
+
+
+class EsignScheduleRequest(BaseModel):
+    schedule_at: datetime
+    schedule_timezone: str = Field(min_length=1, max_length=64)
+
+
+class EsignBulkRowResponse(BaseModel):
+    id: str
+    row_number: int
+    status: str
+    normalized_input: dict[str, Any]
+    attempts: int = 0
+    error_code: Optional[str] = None
+    error_message: Optional[str] = None
+    scheduled_at: Optional[datetime] = None
+    schedule_timezone: Optional[str] = None
+    envelope_id: Optional[str] = None
+
+
+class EsignBulkJobResponse(BaseModel):
+    id: str
+    template_version_id: str
+    status: str
+    total_rows: int
+    valid_rows: int
+    invalid_rows: int
+    processed_rows: int
+    created_at: datetime
+    confirmed_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    rows: list[EsignBulkRowResponse] = Field(default_factory=list)
+
+
+class EsignBulkJobListResponse(BaseModel):
+    jobs: list[EsignBulkJobResponse]
+
+
+class EsignPowerFormRoleConfig(BaseModel):
+    recipient_index: int = Field(ge=0)
+    identity_source: Literal["visitor", "preset"]
+    initiating_signer: bool = False
+    name: Optional[str] = Field(default=None, max_length=255)
+    email: Optional[EmailStr] = None
+
+
+class EsignPowerFormCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    template_version_id: str
+    starts_at: Optional[datetime] = None
+    ends_at: Optional[datetime] = None
+    submission_cap: Optional[int] = Field(default=None, ge=1)
+    role_config: list[EsignPowerFormRoleConfig]
+    public_fields: list[str] = Field(default_factory=list)
+    instructions: Optional[str] = Field(default=None, max_length=10_000)
+
+
+class EsignPowerFormResponse(BaseModel):
+    id: str
+    name: str
+    template_version_id: str
+    state: str
+    starts_at: Optional[datetime] = None
+    ends_at: Optional[datetime] = None
+    submission_cap: Optional[int] = None
+    submission_count: int
+    role_config: list[dict[str, Any]]
+    public_fields: list[str]
+    instructions: Optional[str] = None
+    public_url: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class EsignPowerFormListResponse(BaseModel):
+    powerforms: list[EsignPowerFormResponse]
+
+
+class EsignPowerFormVerificationRequest(BaseModel):
+    recipients: list[dict[str, str]]
+    fields: dict[str, str] = Field(default_factory=dict)
+    consent: bool
+
+
+class EsignPowerFormVerificationExchange(BaseModel):
+    token: str = Field(min_length=20, max_length=500)
+
+
+class EsignReportSummary(BaseModel):
+    volume: int
+    completed: int
+    completion_rate: float
+    median_completion_hours: Optional[float] = None
+    p90_completion_hours: Optional[float] = None
+    aging: dict[str, int]
+    exceptions: dict[str, int]

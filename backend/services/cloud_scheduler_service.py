@@ -93,8 +93,8 @@ class CloudSchedulerService:
             },
             {
                 "name": "esign-maintenance",
-                "description": "Expire overdue e-sign envelopes and send signer reminders",
-                "schedule": "20 * * * *",  # Hourly at :20
+                "description": "Dispatch scheduled e-sign sends and run idempotent maintenance",
+                "schedule": "* * * * *",  # Scheduled sends normally dispatch within two minutes
                 "timezone": "UTC",
                 "task_type": "run_esign_maintenance"
             }

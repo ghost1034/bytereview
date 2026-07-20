@@ -13,6 +13,7 @@ import copy
 import hashlib
 import logging
 import os
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -31,6 +32,7 @@ from models.db_models import (
     EsignFieldType,
     EsignGuestInvitation,
     EsignGuestSession,
+    EsignPowerForm,
     EsignRecipient,
     EsignRecipientRole,
     EsignRecipientStatus,
@@ -231,6 +233,26 @@ class EsignSigningService:
     # Send
     # ------------------------------------------------------------------
 
+    def recipient_signing_url(self, db: Session, envelope: EsignEnvelope, recipient: EsignRecipient) -> str:
+        """Return an account URL or issue a fresh guest link for PowerForm visitors."""
+        if getattr(envelope, "source_type", None) != "powerform" or not getattr(envelope, "source_id", None):
+            return signing_url(envelope.id)
+        form = db.query(EsignPowerForm).filter(EsignPowerForm.id == envelope.source_id).first()
+        preset_emails = {str(item.get("email") or "").lower() for item in (form.role_config if form else [])
+            if item.get("identity_source") == "preset"}
+        if (recipient.email or "").lower() in preset_emails:
+            return signing_url(envelope.id)
+        now = datetime.now(timezone.utc)
+        db.query(EsignGuestInvitation).filter(EsignGuestInvitation.recipient_id == recipient.id,
+            EsignGuestInvitation.exchanged_at.is_(None), EsignGuestInvitation.revoked_at.is_(None)).update(
+                {EsignGuestInvitation.revoked_at: now}, synchronize_session=False)
+        token = secrets.token_urlsafe(32)
+        expiry = min(now + timedelta(days=7), envelope.expires_at) if envelope.expires_at else now + timedelta(days=7)
+        db.add(EsignGuestInvitation(id=uuid.uuid4(), envelope_id=envelope.id, recipient_id=recipient.id,
+            token_sha256=hashlib.sha256(token.encode()).hexdigest(), routing_version=envelope.routing_version,
+            expires_at=expiry))
+        return f"{_app_base_url()}/esign/guest?token={token}"
+
     def _cc_recipients_due(
         self, envelope: EsignEnvelope, active_order: int
     ) -> list[EsignRecipient]:
@@ -342,7 +364,6 @@ class EsignSigningService:
                 tranche = [r for r in blocking if int(r.routing_order) == first_order and is_eligible(envelope, r)]
             cc_tranche = self._cc_recipients_due(envelope, first_order)
             sender_name = self._sender_name(envelope) or user_email
-            url = signing_url(envelope.id)
             for signer in tranche:
                 target_email = signer.host_email if signer.role == EsignRecipientRole.IN_PERSON_SIGNER else signer.email
                 if not target_email:
@@ -356,7 +377,7 @@ class EsignSigningService:
                             sender_name=sender_name,
                             title=envelope.title,
                             message=envelope.message,
-                            url=url,
+                            url=self.recipient_signing_url(db, envelope, signer),
                             expires_at=envelope.expires_at,
                         ),
                     )
@@ -371,7 +392,7 @@ class EsignSigningService:
                             sender_name=sender_name,
                             title=envelope.title,
                             message=envelope.message,
-                            url=url,
+                            url=signing_url(envelope.id),
                             expires_at=envelope.expires_at,
                         ),
                     )
@@ -1350,7 +1371,7 @@ class EsignSigningService:
                                     sender_name=sender_name,
                                     title=envelope.title,
                                     message=envelope.message,
-                                    url=url,
+                                    url=self.recipient_signing_url(db, envelope, r),
                                     expires_at=envelope.expires_at,
                                 ),
                             )
@@ -1560,7 +1581,6 @@ class EsignSigningService:
                 details={"recipients": [self.recipient_notification_email(t) for t in targets], "manual": True},
             )
             sender_name = self._sender_name(envelope) or user_email
-            url = signing_url(envelope.id)
             reminder_emails = [
                 (
                     self.recipient_notification_email(t),
@@ -1569,7 +1589,7 @@ class EsignSigningService:
                         sender_name=sender_name,
                         title=envelope.title,
                         message=envelope.message,
-                        url=url,
+                        url=self.recipient_signing_url(db, envelope, t),
                         expires_at=envelope.expires_at,
                         reminder=True,
                     ),

@@ -10,6 +10,9 @@ import { cn } from '@/lib/utils'
 const items = [
   { href: '/dashboard/esign', label: 'Envelopes' },
   { href: '/dashboard/esign/templates', label: 'Templates' },
+  { href: '/dashboard/esign/bulk', label: 'Bulk sends' },
+  { href: '/dashboard/esign/powerforms', label: 'PowerForms' },
+  { href: '/dashboard/esign/reports', label: 'Reports' },
   { href: '/dashboard/esign/verify', label: 'Verify' },
 ]
 
