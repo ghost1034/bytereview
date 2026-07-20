@@ -2196,10 +2196,10 @@ export class ApiClient {
   // E-Signature endpoints
   // ==========================================================================
 
-  private async requestMultipart<T>(path: string, formData: FormData): Promise<T> {
+  private async requestMultipart<T>(path: string, formData: FormData, method: 'POST' | 'PUT' = 'POST'): Promise<T> {
     const token = await this.getAuthToken()
     const response = await fetch(`${this.baseURL}${path}`, {
-      method: 'POST',
+      method,
       headers: {
         ...(token && { Authorization: `Bearer ${token}` }),
       },
@@ -2396,20 +2396,35 @@ export class ApiClient {
   async replaceEsignRecipients(
     envelopeId: string,
     recipients: EsignRecipientInput[],
-    templateId?: string
+    templateId?: string,
+    expectedRevision?: number,
   ): Promise<EsignEnvelopeResponse> {
     const query = templateId ? `?template_id=${encodeURIComponent(templateId)}` : ''
     return this.request(`/api/esign/envelopes/${envelopeId}/recipients${query}`, {
       method: 'PUT',
-      body: JSON.stringify({ recipients }),
+      body: JSON.stringify({ recipients, expected_revision: expectedRevision }),
     })
   }
 
-  async replaceEsignFields(envelopeId: string, fields: EsignFieldInput[]): Promise<EsignEnvelopeResponse> {
+  async replaceEsignFields(envelopeId: string, fields: EsignFieldInput[], expectedRevision?: number): Promise<EsignEnvelopeResponse> {
     return this.request(`/api/esign/envelopes/${envelopeId}/fields`, {
       method: 'PUT',
-      body: JSON.stringify({ fields }),
+      body: JSON.stringify({ fields, expected_revision: expectedRevision }),
     })
+  }
+
+  async correctEsignFields(envelopeId: string, payload: { fields: EsignFieldInput[]; reason: string; expected_routing_version: number }): Promise<EsignEnvelopeResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/corrections/fields`, {
+      method: 'PUT', body: JSON.stringify(payload),
+    })
+  }
+
+  async replaceActiveEsignDocument(envelopeId: string, documentId: string, file: File, reason: string, expectedRoutingVersion: number): Promise<EsignEnvelopeResponse> {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('reason', reason)
+    form.append('expected_routing_version', String(expectedRoutingVersion))
+    return this.requestMultipart(`/api/esign/envelopes/${envelopeId}/corrections/documents/${documentId}`, form, 'PUT')
   }
 
   async searchEsignAnchors(
@@ -2438,6 +2453,17 @@ export class ApiClient {
     return this.request(`/api/esign/envelopes/${envelopeId}/void`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
+    })
+  }
+
+  async cloneAndVoidEsignEnvelope(
+    envelopeId: string,
+    reason: string,
+    expectedRoutingVersion: number,
+  ): Promise<{ original: EsignEnvelopeResponse; clone: EsignEnvelopeResponse }> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/clone-and-void`, {
+      method: 'POST',
+      body: JSON.stringify({ reason, expected_routing_version: expectedRoutingVersion }),
     })
   }
 
@@ -2620,8 +2646,9 @@ export class ApiClient {
     return this.request(`/api/esign/templates/${templateId}/documents/${documentId}/download`)
   }
 
-  async publishEsignTemplate(templateId: string): Promise<EsignTemplateVersionResponse> {
-    return this.request(`/api/esign/templates/${templateId}/versions`, { method: 'POST', body: '{}' })
+  async publishEsignTemplate(templateId: string, expectedRevision?: number): Promise<EsignTemplateVersionResponse> {
+    const query = expectedRevision ? `?expected_revision=${expectedRevision}` : ''
+    return this.request(`/api/esign/templates/${templateId}/versions${query}`, { method: 'POST', body: '{}' })
   }
 
   async listEsignTemplateVersions(templateId: string): Promise<EsignTemplateVersionListResponse> {

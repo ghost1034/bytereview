@@ -432,13 +432,18 @@ def validate_field_value(field: Any, value: Any, *, date_format: str = "MM/DD/YY
             raise FieldLogicError(f"Field '{_get(field, 'label') or field_type}' has too many decimal places")
         return text
     if field_type == "date" and text:
-        parsed = parse_date_value(text, date_format)
+        # Persist dates in one unambiguous form. Parsing the configured
+        # display format remains a compatibility path for older drafts.
+        try:
+            parsed = date.fromisoformat(text)
+        except ValueError:
+            parsed = parse_date_value(text, date_format)
         rules = props.get("date_validation") or {}
         if rules.get("minimum") and parsed < date.fromisoformat(str(rules["minimum"])):
             raise FieldLogicError(f"Field '{_get(field, 'label') or field_type}' is before its minimum")
         if rules.get("maximum") and parsed > date.fromisoformat(str(rules["maximum"])):
             raise FieldLogicError(f"Field '{_get(field, 'label') or field_type}' is after its maximum")
-        return format_date_value(parsed, date_format)
+        return parsed.isoformat()
     if field_type == "dropdown" and text:
         allowed = {str(item.get("value")) for item in props.get("options", [])}
         if text not in allowed:
@@ -464,7 +469,9 @@ def format_date_value(value: date | datetime, date_format: str) -> str:
     return result.replace(" 0", " ") if date_format == "MMM D, YYYY" else result
 
 
-def resolve_display_value(field: Any, value: Any, *, recipient: Any = None) -> str:
+def resolve_display_value(
+    field: Any, value: Any, *, recipient: Any = None, date_format: str = "MM/DD/YYYY",
+) -> str:
     """Canonical display used by signer overlays and PDF flattening."""
     props = _props(field)
     field_type = _type(field)
@@ -473,6 +480,11 @@ def resolve_display_value(field: Any, value: Any, *, recipient: Any = None) -> s
         for option in props.get("options", []):
             if str(option.get("value")) == text:
                 return str(option.get("label", text))
+    if field_type in {"date", "date_signed"} and text:
+        try:
+            return format_date_value(date.fromisoformat(text), date_format)
+        except ValueError:
+            return text
     if field_type == "note":
         return str(props.get("sender_prefill") or text)
     if field_type in {"first_name", "last_name", "full_name", "email"} and recipient is not None:

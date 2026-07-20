@@ -62,6 +62,8 @@ from services.esign.signing_service import (
     recipient_has_account,
 )
 from services.esign.url_service import app_base_url
+from services.esign import email_templates
+from services.esign.outbox_service import esign_outbox_service
 from services.gcs_service import get_storage_service
 
 GUEST_IDLE_MINUTES = 30
@@ -93,6 +95,7 @@ def recipient_snapshot(recipient) -> dict:
         "routing_order": int(recipient.routing_order),
         "managed_by_recipient_id": str(recipient.managed_by_recipient_id) if recipient.managed_by_recipient_id else None,
         "witness_for_recipient_id": str(recipient.witness_for_recipient_id) if recipient.witness_for_recipient_id else None,
+        "witness_mode": getattr(recipient, "witness_mode", None),
         "host_name": recipient.host_name,
         "host_email": recipient.host_email,
         "allow_reassignment": bool(recipient.allow_reassignment),
@@ -289,6 +292,8 @@ class EsignRecipientService:
                 has_fields = any(str(field.recipient_id) == str(recipient.id) for field in envelope.fields or [])
                 if has_fields and new_role not in SIGNATURE_ROLES:
                     raise EsignError("This role conversion would orphan fields; void and recreate the envelope")
+                if not has_fields and new_role in SIGNATURE_ROLES and old_role not in SIGNATURE_ROLES:
+                    raise EsignError("Converting this recipient to a signature role requires a clone with field placement")
                 if added and new_role in SIGNATURE_ROLES:
                     raise EsignError("Adding a signature role requires fields; void and recreate the envelope")
                 recipient.name = item.name.strip() if item.name else None
@@ -299,6 +304,7 @@ class EsignRecipientService:
                 recipient.private_message = item.private_message
                 recipient.managed_by_recipient_id = uuid.UUID(item.managed_by_recipient_id) if item.managed_by_recipient_id else None
                 recipient.witness_for_recipient_id = uuid.UUID(item.witness_for_recipient_id) if item.witness_for_recipient_id else None
+                recipient.witness_mode = item.witness_mode if item.role == EsignRecipientRole.WITNESS.value else None
                 recipient.host_name = item.host_name
                 recipient.host_email = _normalize_email(str(item.host_email)) if item.host_email else None
                 recipient.allow_reassignment = item.allow_reassignment
@@ -586,16 +592,29 @@ class EsignRecipientService:
                 raise EsignConflict("No outstanding witness is linked to this signer")
             before = recipient_snapshot(witness)
             witness.name = payload.name.strip()
-            witness.email = _normalize_email(str(payload.email)) if payload.email else None
+            witness.witness_mode = payload.mode
+            witness.email = _normalize_email(str(payload.email)) if payload.mode == "remote" and payload.email else None
             self._reset_identity_evidence(witness)
             witness.routing_order = signer.routing_order
             envelope.routing_version = int(envelope.routing_version) + 1
             self._record_change(db, envelope, witness.id, envelope.routing_version, "witness_configured", user_id, user_email, "Signer confirmed witness", before, recipient_snapshot(witness))
             invitation = self._issue_invitation(db, envelope, witness)
+            if payload.mode == "remote" and witness.email:
+                esign_outbox_service.queue_email(
+                    db, envelope=envelope, kind="witness_invitation",
+                    to_email=witness.email, recipient_id=witness.id,
+                    idempotency_key=f"witness:{envelope.id}:{witness.id}:{envelope.routing_version}",
+                    content=email_templates.signature_request(
+                        recipient_name=witness.name, sender_name=user_email,
+                        title=envelope.title,
+                        message="You were selected as a remote witness. Complete the witness ceremony after the signer finishes.",
+                        url=invitation.guest_url, expires_at=envelope.expires_at,
+                    ),
+                )
             audit_service.record_event(
                 db, envelope_id=envelope.id, event_type=EsignEventType.WITNESS_CONFIGURED,
                 actor_user_id=user_id, actor_email=user_email, recipient_id=witness.id, meta=meta,
-                details={"signer_recipient_id": str(signer.id), "routing_version": envelope.routing_version},
+                details={"signer_recipient_id": str(signer.id), "routing_version": envelope.routing_version, "witness_mode": payload.mode, "durable_invitation_queued": payload.mode == "remote"},
             )
             db.commit()
             return invitation

@@ -82,7 +82,9 @@ def test_recipient_updates_preserve_identity_and_do_not_delete_fields():
     assert recipient.email == "new@example.com"
     assert recipient.name == "New Name"
     assert recipient.routing_order == 3
-    db.query.assert_not_called()
+    # The envelope row is locked for optimistic revision protection; no
+    # destructive field query is issued for an in-place identity update.
+    assert db.query.call_count == 1
     db.commit.assert_called_once()
 
 

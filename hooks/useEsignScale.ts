@@ -16,7 +16,7 @@ export function useTemplateVersions(templateId?: string) {
 export function usePublishTemplate() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (templateId: string) => apiClient.publishEsignTemplate(templateId),
+    mutationFn: ({ templateId, expectedRevision }: { templateId: string; expectedRevision: number }) => apiClient.publishEsignTemplate(templateId, expectedRevision),
     onSuccess: (version) => {
       queryClient.invalidateQueries({ queryKey: ['esign', 'template-versions', version.template_id] })
       queryClient.invalidateQueries({ queryKey: ['esign', 'templates'] })

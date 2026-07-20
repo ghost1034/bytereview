@@ -79,6 +79,7 @@ export function SigningDocumentViewer({
             textAlign: field.properties?.appearance?.alignment ?? undefined,
           }
           const activeRing = field.id === activeFieldId ? 'ring-2 ring-warning ring-offset-1' : ''
+          const tooltip = field.properties?.tooltip ?? field.label ?? undefined
 
           if (['signature', 'initials', 'stamp'].includes(field.field_type)) {
             const complete = !!adopted && fieldValues[field.id] === 'true'
@@ -88,7 +89,7 @@ export function SigningDocumentViewer({
               : adopted?.signatureType !== 'typed' ? adopted?.imageDataUrl : undefined
             return <button key={field.id} id={`esign-field-${field.id}`} type="button" onClick={() => onFieldClick(field)}
               className={cn('absolute flex items-center justify-center overflow-hidden rounded-sm border text-xs font-medium transition-colors', complete ? 'border-success bg-white' : 'animate-none border-2', activeRing)}
-              style={{ ...style, ...(complete ? {} : { borderColor: color.border, backgroundColor: color.bg, color: color.text }) }}>
+              title={tooltip} style={{ ...style, ...(complete ? {} : { borderColor: color.border, backgroundColor: color.bg, color: color.text }) }}>
               {complete ? imageUrl
                 // eslint-disable-next-line @next/next/no-img-element
                 ? <img src={imageUrl} alt={isInitials ? 'Your initials' : 'Your signature'} className="max-h-full max-w-full object-contain" />
@@ -97,11 +98,18 @@ export function SigningDocumentViewer({
             </button>
           }
           if (field.field_type === 'date_signed') {
-            return <div key={field.id} id={`esign-field-${field.id}`} className={cn('absolute flex items-center overflow-hidden rounded-sm border px-1 text-xs', adopted ? 'border-success bg-surface text-foreground' : 'border-border bg-surface-muted text-foreground-muted')} style={style} title={adopted ? 'Date signed' : 'Filled automatically when you adopt your signature'}>{formatDateSigned(new Date(), dateFormat)}</div>
+            return <div key={field.id} id={`esign-field-${field.id}`} className={cn('absolute flex items-center overflow-hidden rounded-sm border px-1 text-xs', adopted ? 'border-success bg-surface text-foreground' : 'border-border bg-surface-muted text-foreground-muted')} style={style} title={tooltip ?? (adopted ? 'Date signed' : 'Filled automatically when you adopt your signature')}>{formatDateSigned(new Date(), dateFormat)}</div>
+          }
+          if (field.properties?.read_only && ['checkbox', 'radio', 'dropdown'].includes(field.field_type)) {
+            const raw = fieldValues[field.id] ?? field.properties.sender_prefill ?? ''
+            const display = field.field_type === 'dropdown'
+              ? field.properties.options?.find((option) => option.value === raw)?.label ?? raw
+              : raw === 'true' ? (field.field_type === 'checkbox' ? 'X' : '●') : ''
+            return <div key={field.id} id={`esign-field-${field.id}`} title={tooltip} className="absolute flex items-center justify-center overflow-hidden rounded-sm border bg-surface-muted px-1 text-xs text-foreground" style={style}>{display}</div>
           }
           if (field.field_type === 'checkbox') {
             const checked = fieldValues[field.id] === 'true'
-            return <button key={field.id} id={`esign-field-${field.id}`} type="button" onClick={() => onTextChange(field.id, checked ? 'false' : 'true')} className={cn('absolute flex items-center justify-center rounded-sm border text-sm font-bold', checked ? 'border-success bg-surface text-foreground' : 'border-2', activeRing)} style={{ ...style, ...(checked ? {} : { borderColor: color.border, backgroundColor: color.bg }) }}>{checked ? 'X' : ''}</button>
+            return <button key={field.id} id={`esign-field-${field.id}`} title={tooltip} type="button" onClick={() => onTextChange(field.id, checked ? 'false' : 'true')} className={cn('absolute flex items-center justify-center rounded-sm border text-sm font-bold', checked ? 'border-success bg-surface text-foreground' : 'border-2', activeRing)} style={{ ...style, ...(checked ? {} : { borderColor: color.border, backgroundColor: color.bg }) }}>{checked ? 'X' : ''}</button>
           }
           if (field.field_type === 'radio') {
             const selected = fieldValues[field.id] === 'true'
@@ -111,19 +119,19 @@ export function SigningDocumentViewer({
             }} className={cn('absolute flex items-center justify-center rounded-full border-2', activeRing)} style={{ ...style, borderColor: color.border, backgroundColor: 'white' }}>{selected && <span className="size-2/3 rounded-full" style={{ backgroundColor: color.border }} />}</button>
           }
           if (field.field_type === 'dropdown') {
-            return <select key={field.id} id={`esign-field-${field.id}`} value={fieldValues[field.id] ?? ''} onChange={(event) => onTextChange(field.id, event.target.value)} className={cn('absolute rounded-sm border-2 bg-surface px-1 text-xs text-foreground', activeRing)} style={{ ...style, borderColor: color.border }}><option value="">Select…</option>{(field.properties?.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+            return <select key={field.id} id={`esign-field-${field.id}`} title={tooltip} value={fieldValues[field.id] ?? ''} onChange={(event) => onTextChange(field.id, event.target.value)} className={cn('absolute rounded-sm border-2 bg-surface px-1 text-xs text-foreground', activeRing)} style={{ ...style, borderColor: color.border }}><option value="">Select…</option>{(field.properties?.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
           }
           if (field.field_type === 'attachment') {
             const attachment = attachments.find((item) => item.field_id === field.id)
             return <div key={field.id} id={`esign-field-${field.id}`} className={cn('absolute flex items-center gap-1 overflow-hidden rounded-sm border-2 bg-surface px-1 text-[10px] text-foreground', activeRing)} style={{ ...style, borderColor: color.border }}>
               {attachment ? <><Paperclip className="size-3 shrink-0" /><span className="truncate">{attachment.original_filename}</span><button type="button" className="ml-auto" onClick={() => onAttachmentDelete(attachment.id)} aria-label="Remove attachment"><Trash2 className="size-3" /></button></>
-                : <label className="flex h-full w-full cursor-pointer items-center justify-center gap-1"><Paperclip className="size-3" /> Attach file<input type="file" className="hidden" accept="application/pdf,image/png,image/jpeg" onChange={(event) => { const file = event.target.files?.[0]; if (file) onAttachmentUpload(field.id, file) }} /></label>}
+                : <label title={tooltip} className="flex h-full w-full cursor-pointer items-center justify-center gap-1"><Paperclip className="size-3" /> Attach file<input type="file" className="hidden" accept={(field.properties?.allowed_types ?? ['application/pdf', 'image/png', 'image/jpeg']).join(',')} onChange={(event) => { const file = event.target.files?.[0]; if (file) onAttachmentUpload(field.id, file) }} /></label>}
             </div>
           }
           if (field.field_type === 'formula') return <div key={field.id} id={`esign-field-${field.id}`} className="absolute flex items-center overflow-hidden rounded-sm border bg-surface px-1 text-xs text-foreground" style={style}>{fieldValues[field.id] ?? ''}</div>
           if (field.field_type === 'auto_fill' && field.properties?.auto_source !== 'company') return <div key={field.id} id={`esign-field-${field.id}`} className="absolute flex items-center overflow-hidden rounded-sm border bg-surface-muted px-1 text-xs text-foreground" style={style}>{fieldValues[field.id] ?? ''}</div>
           if (field.field_type === 'note' || field.properties?.read_only || ['first_name', 'last_name', 'full_name', 'email'].includes(field.field_type)) return <div key={field.id} id={`esign-field-${field.id}`} className="absolute flex items-center overflow-hidden rounded-sm border bg-surface-muted px-1 text-xs text-foreground" style={style}>{fieldValues[field.id] ?? field.properties?.sender_prefill ?? ''}</div>
-          return <input key={field.id} id={`esign-field-${field.id}`} type={field.field_type === 'date' ? 'text' : field.field_type === 'number' ? 'number' : 'text'} value={fieldValues[field.id] ?? ''} onChange={(event) => onTextChange(field.id, event.target.value)} placeholder={field.label || 'Text'} className={cn('absolute rounded-sm border-2 bg-surface px-1 text-xs text-foreground focus:outline-none', activeRing)} style={{ ...style, borderColor: color.border }} />
+          return <input key={field.id} id={`esign-field-${field.id}`} title={tooltip} type={field.field_type === 'date' ? 'date' : field.field_type === 'number' ? 'number' : 'text'} min={field.field_type === 'date' ? field.properties?.date_validation?.minimum ?? undefined : field.field_type === 'number' && field.properties?.number_validation?.minimum != null ? String(field.properties.number_validation.minimum) : undefined} max={field.field_type === 'date' ? field.properties?.date_validation?.maximum ?? undefined : field.field_type === 'number' && field.properties?.number_validation?.maximum != null ? String(field.properties.number_validation.maximum) : undefined} step={field.field_type === 'number' && field.properties?.number_validation?.decimal_places != null ? String(10 ** -field.properties.number_validation.decimal_places) : undefined} value={fieldValues[field.id] ?? ''} onChange={(event) => onTextChange(field.id, event.target.value)} placeholder={field.label || 'Text'} className={cn('absolute rounded-sm border-2 bg-surface px-1 text-xs text-foreground focus:outline-none', activeRing)} style={{ ...style, borderColor: color.border }} />
         })}
       </div>} />
     </div>)}

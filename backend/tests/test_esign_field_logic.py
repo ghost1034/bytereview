@@ -75,3 +75,6 @@ def test_same_recipient_dependencies_shared_values_and_validation():
     assert validate_field_value(number, "4.25") == "4.25"
     with pytest.raises(FieldLogicError, match="maximum"):
         validate_field_value(number, "11")
+    date_field = {"field_type": "date", "label": "Effective date", "properties": {}}
+    assert validate_field_value(date_field, "07/20/2026", date_format="MM/DD/YYYY") == "2026-07-20"
+    assert validate_field_value(date_field, "2026-07-20", date_format="DD/MM/YYYY") == "2026-07-20"

@@ -202,9 +202,10 @@ class SignaturePayloadTests(unittest.TestCase):
 
         from services.esign.signing_service import format_date_signed
 
-        # No zero-padding — must mirror formatDateSigned in dateSigned.ts.
-        self.assertEqual(format_date_signed(datetime(2026, 7, 4)), "7/4/2026")
-        self.assertEqual(format_date_signed(datetime(2026, 11, 23)), "11/23/2026")
+        # Stored field values are canonical; presentation applies the
+        # envelope's selected display format.
+        self.assertEqual(format_date_signed(datetime(2026, 7, 4)), "2026-07-04")
+        self.assertEqual(format_date_signed(datetime(2026, 11, 23)), "2026-11-23")
 
 
 class AttachmentValidationTests(unittest.IsolatedAsyncioTestCase):

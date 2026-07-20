@@ -48,6 +48,9 @@ export default function EnvelopeFieldsPage() {
   const [templateName, setTemplateName] = React.useState('')
   const [scheduleAt, setScheduleAt] = React.useState('')
   const lastSaved = React.useRef('')
+  const queuedSnapshot = React.useRef('')
+  const draftRevision = React.useRef(1)
+  const saveQueue = React.useRef<Promise<boolean>>(Promise.resolve(true))
 
   React.useEffect(() => {
     if (!envelope || hydrated) return
@@ -67,6 +70,7 @@ export default function EnvelopeFieldsPage() {
     }))
     setEditorFields(initial)
     lastSaved.current = JSON.stringify(initial)
+    draftRevision.current = envelope.draft_revision
     setHydrated(true)
   }, [envelope, hydrated])
 
@@ -88,17 +92,26 @@ export default function EnvelopeFieldsPage() {
   const saveNow = React.useCallback(async () => {
     const snapshot = JSON.stringify(editorFields)
     if (snapshot === lastSaved.current) return true
-    setSaveState('saving')
-    try {
-      await replaceFields.mutateAsync(payload(editorFields))
-      lastSaved.current = snapshot
-      setSaveState('saved')
-      return true
-    } catch (error) {
-      setSaveState('error')
-      toast({ title: 'Fields were not saved', description: error instanceof Error ? error.message : 'Try again before sending.', variant: 'destructive' })
-      return false
-    }
+    if (snapshot === queuedSnapshot.current) return saveQueue.current
+    queuedSnapshot.current = snapshot
+    const fields = editorFields.map((field) => ({ ...field, properties: structuredClone(field.properties ?? {}) }))
+    const operation = saveQueue.current.catch(() => false).then(async () => {
+      if (snapshot === lastSaved.current) return true
+      setSaveState('saving')
+      try {
+        const saved = await replaceFields.mutateAsync({ fields: payload(fields), expectedRevision: draftRevision.current })
+        draftRevision.current = saved.draft_revision
+        lastSaved.current = snapshot
+        if (queuedSnapshot.current === snapshot) setSaveState('saved')
+        return true
+      } catch (error) {
+        setSaveState('error')
+        toast({ title: 'Fields were not saved', description: error instanceof Error ? error.message : 'Try again before sending.', variant: 'destructive' })
+        return false
+      }
+    })
+    saveQueue.current = operation
+    return operation
   }, [editorFields, payload, replaceFields, toast])
 
   React.useEffect(() => {
@@ -119,7 +132,7 @@ export default function EnvelopeFieldsPage() {
   })
 
   const signers = envelope?.recipients.filter((recipient) => ['signer', 'witness', 'in_person_signer'].includes(recipient.role)) ?? []
-  const issues = collectFieldIssues(editorFields, signers.map((recipient) => recipient.id))
+  const issues = collectFieldIssues(editorFields, signers.map((recipient) => ({ id: recipient.id, label: recipient.name || recipient.role_label || recipient.role.replace(/_/g, ' ') })))
   const openReview = async () => { if (await saveNow()) setReviewOpen(true) }
   const handleSend = async () => {
     if (issues.length || !await saveNow()) return
@@ -139,7 +152,7 @@ export default function EnvelopeFieldsPage() {
       {!envelope || documentUrlsQuery.isLoading || !documentUrlsQuery.data ? (
         <div className="flex h-full items-center justify-center text-sm text-foreground-muted"><Loader2 className="mr-2 size-4 animate-spin" /> Preparing documents…</div>
       ) : signers.length === 0 ? (
-        <div className="mx-auto mt-12 max-w-md rounded-xl border border-warning/30 bg-warning-soft p-6 text-sm">Return to Prepare and add at least one signer before placing fields.</div>
+        <div className="mx-auto mt-12 max-w-md rounded-xl border border-success/30 bg-success-soft p-6 text-sm">This envelope has no signature recipients, so no fields are required. Choose Review &amp; send to verify the approval or delivery routing.</div>
       ) : (
         <div className="h-full p-3 sm:p-4">
           <PdfFieldEditor
@@ -159,7 +172,7 @@ export default function EnvelopeFieldsPage() {
           <SheetHeader><SheetTitle>Review & send</SheetTitle><SheetDescription>Confirm the envelope and resolve any issues before sending.</SheetDescription></SheetHeader>
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto py-4">
             <section><h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-subtle">Documents</h3><ul className="mt-2 space-y-1 text-sm">{envelope?.documents.map((document) => <li key={document.id}>{document.original_filename} · {document.page_count} page{document.page_count === 1 ? '' : 's'}</li>)}</ul></section>
-            <section><h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-subtle">Recipients & routing</h3><ol className="mt-2 space-y-2 text-sm">{envelope?.recipients.map((recipient) => <li key={recipient.id}><span className="font-medium">{recipient.routing_order}. {recipient.name}</span><span className="block text-xs text-foreground-muted">{recipient.email} · {recipient.role === 'cc' ? 'Receives a copy' : 'Signer'}</span></li>)}</ol></section>
+            <section><h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-subtle">Recipients & routing</h3><ol className="mt-2 space-y-2 text-sm">{envelope?.recipients.map((recipient) => <li key={recipient.id}><span className="font-medium">{recipient.routing_order}. {recipient.name || recipient.role_label || 'Unresolved recipient'}</span><span className="block text-xs text-foreground-muted">{recipient.email || recipient.host_email || 'Identity resolved during routing'} · {recipient.role === 'cc' ? 'Receives a copy' : recipient.role.replace(/_/g, ' ')}</span></li>)}</ol></section>
             <section><h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-subtle">Message & delivery</h3><p className="mt-2 whitespace-pre-wrap text-sm text-foreground-muted">{envelope?.message || 'No message'}</p><p className="mt-2 text-xs text-foreground-muted">{envelope?.signing_type === 'sequential' ? 'Recipients sign in order' : 'Recipients may sign in any order'}{envelope?.expires_at ? ` · Expires ${new Date(envelope.expires_at).toLocaleDateString()}` : ''}{envelope?.reminder_interval_hours ? ` · Reminders every ${envelope.reminder_interval_hours} hours` : ''}</p></section>
             <section className="rounded-lg border border-border p-3"><div className="flex items-center gap-2">{issues.length ? <AlertCircle className="size-4 text-warning" /> : <CheckCircle2 className="size-4 text-success" />}<h3 className="text-sm font-semibold">{issues.length ? `${issues.length} issue${issues.length === 1 ? '' : 's'} to fix` : 'Ready to send'}</h3></div>{issues.length > 0 && <ul className="mt-2 space-y-1">{issues.map((issue) => <li key={issue.id}><button type="button" className="text-left text-sm text-warning underline-offset-2 hover:underline" onClick={() => { if (issue.fieldId) { setFocusFieldId(issue.fieldId); setReviewOpen(false) } }}>{issue.message}</button></li>)}</ul>}</section>
             <section className="space-y-2 border-t border-border pt-4"><Label htmlFor="review-template-name">Save as template</Label><div className="flex gap-2"><Input id="review-template-name" value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name" /><Button variant="outline" disabled={!templateName.trim() || saveAsTemplate.isPending} onClick={async () => { try { await saveAsTemplate.mutateAsync({ name: templateName.trim() }); toast({ title: 'Template saved' }); setTemplateName('') } catch (error) { toast({ title: 'Could not save template', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><Save className="mr-1.5 size-4" /> Save</Button></div></section>

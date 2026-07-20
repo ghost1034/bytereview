@@ -81,6 +81,21 @@ MAX_RECIPIENTS = int(os.getenv("ESIGN_MAX_RECIPIENTS", "20"))
 DOWNLOAD_URL_MINUTES = int(os.getenv("ESIGN_DOWNLOAD_URL_MINUTES", "15"))
 DEFAULT_EXPIRES_DAYS = int(os.getenv("ESIGN_DEFAULT_EXPIRES_DAYS", "30"))
 
+
+def _lock_draft_revision(db: Session, row: Any, expected_revision: Optional[int]) -> None:
+    """Lock a mutable draft and reject stale full-replacement writes."""
+    model = EsignTemplate if isinstance(row, EsignTemplate) else EsignEnvelope
+    db.query(model).filter(model.id == row.id).with_for_update().populate_existing().one()
+    actual = int(getattr(row, "draft_revision", 1) or 1)
+    if expected_revision is not None and int(expected_revision) != actual:
+        raise EsignConflict(
+            f"Draft changed while this page was open (expected revision {expected_revision}, current revision {actual})"
+        )
+
+
+def _bump_draft_revision(row: Any) -> None:
+    row.draft_revision = int(getattr(row, "draft_revision", 1) or 1) + 1
+
 # ESIGN/UETA consent-to-electronic-records disclosure. Snapshotted onto every
 # envelope at creation so consent records always reference the exact text the
 # signer saw, even if this default changes later.
@@ -235,6 +250,7 @@ class EsignEnvelopeService:
             private_message=getattr(recipient, "private_message", None),
             managed_by_recipient_id=str(recipient.managed_by_recipient_id) if getattr(recipient, "managed_by_recipient_id", None) else None,
             witness_for_recipient_id=str(recipient.witness_for_recipient_id) if getattr(recipient, "witness_for_recipient_id", None) else None,
+            witness_mode=getattr(recipient, "witness_mode", None),
             host_name=getattr(recipient, "host_name", None),
             host_email=getattr(recipient, "host_email", None),
             allow_reassignment=bool(getattr(recipient, "allow_reassignment", False)),
@@ -283,6 +299,7 @@ class EsignEnvelopeService:
             date_format=getattr(envelope, "date_format", None) or "MM/DD/YYYY",
             current_routing_order=envelope.current_routing_order,
             routing_version=int(getattr(envelope, "routing_version", 1) or 1),
+            draft_revision=int(getattr(envelope, "draft_revision", 1) or 1),
             allow_reassignment=bool(getattr(envelope, "allow_reassignment", False)),
             consent_disclosure_text=envelope.consent_disclosure_text,
             recipient_access_mode=getattr(envelope, "recipient_access_mode", "account"),
@@ -578,6 +595,7 @@ class EsignEnvelopeService:
                 role_label=role.get("label"), private_message=role.get("private_message"),
                 host_name=role.get("host_name"),
                 host_email=_normalize_email(role.get("host_email")) or None,
+                witness_mode=role.get("witness_mode") if role.get("role") == "witness" else None,
                 allow_reassignment=bool(role.get("allow_reassignment", False)),
                 template_role_id=uuid.UUID(role["id"]),
                 status=EsignRecipientStatus.PENDING,
@@ -659,6 +677,7 @@ class EsignEnvelopeService:
         try:
             envelope = self._load_envelope(db, user_id, envelope_id)
             self._require_draft(envelope)
+            _lock_draft_revision(db, envelope, None)
 
             existing = envelope.documents or []
             if len(existing) + len(files) > MAX_DOCUMENTS_PER_ENVELOPE:
@@ -684,6 +703,7 @@ class EsignEnvelopeService:
                         file_size_bytes=len(content),
                     )
                 )
+            _bump_draft_revision(envelope)
             db.commit()
             db.expire(envelope, ["documents"])
             db.refresh(envelope)
@@ -701,6 +721,7 @@ class EsignEnvelopeService:
         try:
             envelope = self._load_envelope(db, user_id, envelope_id)
             self._require_draft(envelope)
+            _lock_draft_revision(db, envelope, None)
 
             document = next(
                 (d for d in envelope.documents or [] if str(d.id) == str(document_id)), None
@@ -717,6 +738,7 @@ class EsignEnvelopeService:
             db.query(EsignField).filter(EsignField.document_id == document.id).delete()
             gcs_object_name = document.gcs_object_name
             db.delete(document)
+            _bump_draft_revision(envelope)
             db.commit()
 
             try:
@@ -742,6 +764,7 @@ class EsignEnvelopeService:
         try:
             envelope = self._load_envelope(db, user_id, envelope_id)
             self._require_draft(envelope)
+            _lock_draft_revision(db, envelope, None)
             current = {str(document.id): document for document in envelope.documents or []}
             if len(document_ids) != len(current) or len(set(document_ids)) != len(document_ids):
                 raise EsignError("document_ids must contain every current document exactly once")
@@ -749,6 +772,7 @@ class EsignEnvelopeService:
                 raise EsignError("document_ids must contain every current document exactly once")
             for display_order, document_id in enumerate(document_ids):
                 current[document_id].display_order = display_order
+            _bump_draft_revision(envelope)
             db.commit()
             db.expire(envelope, ["documents"])
             db.refresh(envelope)
@@ -809,6 +833,7 @@ class EsignEnvelopeService:
         try:
             envelope = self._load_envelope(db, user_id, envelope_id)
             self._require_draft(envelope)
+            _lock_draft_revision(db, envelope, payload.expected_revision)
             supplied = payload.model_fields_set
             if "title" in supplied and payload.title is not None:
                 envelope.title = payload.title.strip()[:255] or envelope.title
@@ -837,6 +862,7 @@ class EsignEnvelopeService:
                     ).first()
                     if not brand: raise EsignNotFound("Brand not found")
                     envelope.brand_id = brand.id
+            _bump_draft_revision(envelope)
             db.commit()
             db.refresh(envelope)
             return self._serialize_envelope(envelope)
@@ -848,7 +874,7 @@ class EsignEnvelopeService:
 
     def replace_recipients(
         self, user_id: str, envelope_id: str, recipients: list[EsignRecipientInput],
-        template_id: Optional[str] = None,
+        template_id: Optional[str] = None, expected_revision: Optional[int] = None,
     ) -> EsignEnvelopeResponse:
         if not recipients:
             raise EsignError("At least one recipient is required")
@@ -870,6 +896,7 @@ class EsignEnvelopeService:
         try:
             envelope = self._load_envelope(db, user_id, envelope_id)
             self._require_draft(envelope)
+            _lock_draft_revision(db, envelope, expected_revision)
 
             existing = {str(recipient.id): recipient for recipient in envelope.recipients or []}
             existing_by_email = {
@@ -908,6 +935,7 @@ class EsignEnvelopeService:
                 recipient.private_message = r.private_message
                 recipient.managed_by_recipient_id = uuid.UUID(r.managed_by_recipient_id) if r.managed_by_recipient_id else None
                 recipient.witness_for_recipient_id = uuid.UUID(r.witness_for_recipient_id) if r.witness_for_recipient_id else None
+                recipient.witness_mode = r.witness_mode if r.role == EsignRecipientRole.WITNESS.value else None
                 recipient.host_name = r.host_name
                 recipient.host_email = _normalize_email(r.host_email) or None
                 recipient.allow_reassignment = r.allow_reassignment
@@ -948,6 +976,7 @@ class EsignEnvelopeService:
                 self.instantiate_template_fields(db, envelope, template)
                 db.expire(envelope, ["fields"])
 
+            _bump_draft_revision(envelope)
             db.commit()
             db.refresh(envelope)
             return self._serialize_envelope(envelope)
@@ -958,12 +987,14 @@ class EsignEnvelopeService:
             db.close()
 
     def replace_fields(
-        self, user_id: str, envelope_id: str, fields: list[EsignFieldInput]
+        self, user_id: str, envelope_id: str, fields: list[EsignFieldInput],
+        expected_revision: Optional[int] = None,
     ) -> EsignEnvelopeResponse:
         db = self._get_session()
         try:
             envelope = self._load_envelope(db, user_id, envelope_id)
             self._require_draft(envelope)
+            _lock_draft_revision(db, envelope, expected_revision)
 
             doc_ids = {str(d.id): d for d in envelope.documents or []}
             recipient_ids = {str(r.id): r for r in envelope.recipients or []}
@@ -1024,12 +1055,298 @@ class EsignEnvelopeService:
             db.query(EsignField).filter(EsignField.envelope_id == envelope.id).delete()
             db.flush()
             db.add_all(pending)
+            _bump_draft_revision(envelope)
             db.commit()
             db.expire(envelope, ["fields"])
             db.refresh(envelope)
             return self._serialize_envelope(envelope)
         except Exception:
             db.rollback()
+            raise
+        finally:
+            db.close()
+
+    async def correct_fields(
+        self, *, user_id: str, user_email: str, envelope_id: str,
+        fields: list[EsignFieldInput], reason: str, expected_routing_version: int,
+        meta: EsignRequestMeta,
+    ) -> EsignEnvelopeResponse:
+        """Replace fields only for recipients whose action is still incomplete."""
+        from models.db_models import EsignGuestInvitation, EsignGuestSession
+        from services.esign.routing_engine import assert_routing_version
+        from services.esign.signing_service import ACTIVE_ENVELOPE_STATUSES, esign_signing_service
+
+        db = self._get_session()
+        affected_recipient_ids: set[uuid.UUID] = set()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            db.query(EsignEnvelope).filter(EsignEnvelope.id == envelope.id).with_for_update().one()
+            if envelope.status not in ACTIVE_ENVELOPE_STATUSES:
+                raise EsignConflict("Fields can only be corrected on an active envelope")
+            assert_routing_version(envelope, expected_routing_version)
+            recipients = {str(item.id): item for item in envelope.recipients or []}
+            incomplete = {key: item for key, item in recipients.items() if item.action_completed_at is None}
+            if not incomplete:
+                raise EsignConflict("No incomplete recipient fields remain")
+            documents = {str(item.id): item for item in envelope.documents or []}
+            preserved = [field for field in envelope.fields or [] if str(field.recipient_id) not in incomplete]
+            pending: list[EsignField] = list(preserved)
+            seen_ids = {field.id for field in preserved}
+            for item in fields:
+                document = documents.get(str(item.document_id))
+                recipient = incomplete.get(str(item.recipient_id))
+                if document is None:
+                    raise EsignError(f"Unknown document_id: {item.document_id}")
+                if recipient is None:
+                    raise EsignConflict("Completed recipient fields are immutable")
+                if recipient.role not in (EsignRecipientRole.SIGNER, EsignRecipientRole.WITNESS, EsignRecipientRole.IN_PERSON_SIGNER):
+                    raise EsignError("Fields require a signature recipient role")
+                if item.field_type not in {field_type.value for field_type in EsignFieldType}:
+                    raise EsignError(f"Invalid field type: {item.field_type}")
+                if item.page_number >= int(document.page_count or 0):
+                    raise EsignError(f"Field page exceeds '{document.original_filename}'")
+                if item.pos_x + item.width > 1.0001 or item.pos_y + item.height > 1.0001:
+                    raise EsignError("Field extends beyond the page bounds")
+                field_id = uuid.UUID(str(item.id)) if item.id else uuid.uuid4()
+                if field_id in seen_ids:
+                    raise EsignError(f"Duplicate field id: {field_id}")
+                seen_ids.add(field_id)
+                affected_recipient_ids.add(recipient.id)
+                pending.append(EsignField(
+                    id=field_id, envelope_id=envelope.id, document_id=document.id,
+                    recipient_id=recipient.id, field_type=EsignFieldType(item.field_type),
+                    page_number=item.page_number, pos_x=item.pos_x, pos_y=item.pos_y,
+                    width=item.width, height=item.height, required=item.required,
+                    label=item.label, properties=item.properties.model_dump(exclude_none=True),
+                ))
+            validate_field_graph(pending)
+            db.query(EsignField).filter(
+                EsignField.envelope_id == envelope.id,
+                EsignField.recipient_id.in_([item.id for item in incomplete.values()]),
+            ).delete(synchronize_session=False)
+            db.flush()
+            db.add_all([field for field in pending if field not in preserved])
+            now = datetime.now(timezone.utc)
+            affected = list(affected_recipient_ids or {item.id for item in incomplete.values()})
+            db.query(EsignGuestInvitation).filter(EsignGuestInvitation.recipient_id.in_(affected), EsignGuestInvitation.revoked_at.is_(None)).update({EsignGuestInvitation.revoked_at: now}, synchronize_session=False)
+            db.query(EsignGuestSession).filter(EsignGuestSession.recipient_id.in_(affected), EsignGuestSession.revoked_at.is_(None)).update({EsignGuestSession.revoked_at: now}, synchronize_session=False)
+            for recipient_id in affected:
+                incomplete[str(recipient_id)].identity_changed_at = now
+            envelope.routing_version = int(envelope.routing_version) + 1
+            audit_service.record_event(
+                db, envelope_id=envelope.id, event_type=EsignEventType.CORRECTED,
+                actor_user_id=user_id, actor_email=user_email, meta=meta,
+                details={"reason": reason, "correction_type": "fields", "routing_version": envelope.routing_version, "affected_recipient_ids": [str(item) for item in affected]},
+            )
+            db.commit()
+            db.expire(envelope, ["fields", "recipients"])
+            db.refresh(envelope)
+            response = self._serialize_envelope(envelope)
+        except FieldLogicError as exc:
+            db.rollback()
+            raise EsignError(str(exc)) from exc
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+        await esign_signing_service.notify_current_recipients(envelope_id)
+        return response
+
+    async def replace_active_document(
+        self, *, user_id: str, user_email: str, envelope_id: str, document_id: str,
+        filename: str, content: bytes, reason: str, expected_routing_version: int,
+        meta: EsignRequestMeta,
+    ) -> EsignEnvelopeResponse:
+        """Replace an original only before any recipient has completed."""
+        from models.db_models import EsignGuestInvitation, EsignGuestSession
+        from services.esign.routing_engine import assert_routing_version
+        from services.esign.signing_service import ACTIVE_ENVELOPE_STATUSES, esign_signing_service
+
+        if len(content) > MAX_DOCUMENT_BYTES:
+            raise EsignError("Replacement PDF exceeds the document size limit")
+        page_count = _validate_pdf(content, filename)
+        db = self._get_session()
+        new_object: Optional[str] = None
+        old_object: Optional[str] = None
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            db.query(EsignEnvelope).filter(EsignEnvelope.id == envelope.id).with_for_update().one()
+            if envelope.status not in ACTIVE_ENVELOPE_STATUSES:
+                raise EsignConflict("Documents can only be corrected on an active envelope")
+            assert_routing_version(envelope, expected_routing_version)
+            if any(recipient.action_completed_at is not None for recipient in envelope.recipients or []):
+                raise EsignConflict("A recipient has completed; clone and void the envelope instead")
+            document = next((item for item in envelope.documents or [] if str(item.id) == str(document_id)), None)
+            if document is None:
+                raise EsignNotFound("Document not found")
+            if any(str(field.document_id) == str(document.id) and int(field.page_number) >= page_count for field in envelope.fields or []):
+                raise EsignError("Replacement PDF has fewer pages than existing field placements")
+            new_object = f"esign/{user_id}/{envelope.id}/original/{uuid.uuid4()}_{os.path.basename(filename)}"
+            await self.storage.upload_file_content(content, new_object)
+            old_object = document.gcs_object_name
+            previous_sha256 = document.original_sha256
+            document.gcs_object_name = new_object
+            document.original_filename = os.path.basename(filename)
+            document.original_sha256 = sha256_hex(content)
+            document.page_count = page_count
+            document.file_size_bytes = len(content)
+            document.flattened_gcs_object_name = None
+            document.flattened_sha256 = None
+            now = datetime.now(timezone.utc)
+            recipient_ids = [item.id for item in envelope.recipients or [] if item.action_completed_at is None]
+            db.query(EsignGuestInvitation).filter(EsignGuestInvitation.recipient_id.in_(recipient_ids), EsignGuestInvitation.revoked_at.is_(None)).update({EsignGuestInvitation.revoked_at: now}, synchronize_session=False)
+            db.query(EsignGuestSession).filter(EsignGuestSession.recipient_id.in_(recipient_ids), EsignGuestSession.revoked_at.is_(None)).update({EsignGuestSession.revoked_at: now}, synchronize_session=False)
+            for recipient in envelope.recipients or []:
+                recipient.identity_changed_at = now
+            envelope.routing_version = int(envelope.routing_version) + 1
+            audit_service.record_event(
+                db, envelope_id=envelope.id, event_type=EsignEventType.CORRECTED,
+                actor_user_id=user_id, actor_email=user_email, meta=meta,
+                details={"reason": reason, "correction_type": "document", "document_id": str(document.id), "previous_sha256": previous_sha256, "replacement_sha256": sha256_hex(content), "routing_version": envelope.routing_version},
+            )
+            db.commit()
+            db.refresh(envelope)
+            response = self._serialize_envelope(envelope)
+        except Exception:
+            db.rollback()
+            if new_object:
+                try: await self.storage.delete_file(new_object)
+                except Exception: logger.warning("Could not clean up failed replacement object %s", new_object)
+            raise
+        finally:
+            db.close()
+        if old_object:
+            try: await self.storage.delete_file(old_object)
+            except Exception: logger.warning("Could not remove superseded document object %s", old_object)
+        await esign_signing_service.notify_current_recipients(envelope_id)
+        return response
+
+    async def clone_for_correction(
+        self, *, user_id: str, user_email: str, envelope_id: str,
+        reason: str, expected_routing_version: int, meta: EsignRequestMeta,
+    ) -> EsignEnvelopeResponse:
+        """Create an editable draft from an active envelope with immutable evidence.
+
+        This is the correction escape hatch after any recipient has completed.
+        The caller voids the source only after this draft commits successfully.
+        """
+        from services.esign.routing_engine import assert_routing_version
+        from services.esign.signing_service import ACTIVE_ENVELOPE_STATUSES
+
+        db = self._get_session()
+        created_objects: list[str] = []
+        try:
+            source = self._load_envelope(db, user_id, envelope_id)
+            db.query(EsignEnvelope).filter(EsignEnvelope.id == source.id).with_for_update().populate_existing().one()
+            if source.status not in ACTIVE_ENVELOPE_STATUSES:
+                raise EsignConflict("Only an active envelope can be cloned for correction")
+            assert_routing_version(source, expected_routing_version)
+            if not any(recipient.action_completed_at is not None for recipient in source.recipients or []):
+                raise EsignConflict("Clone-and-void is available after a recipient has completed")
+
+            clone = EsignEnvelope(
+                id=uuid.uuid4(), user_id=user_id, firm_id=source.firm_id,
+                source_type="manual", source_id=source.id,
+                title=source.title, message=source.message,
+                status=EsignEnvelopeStatus.DRAFT, signing_type=source.signing_type,
+                date_format=source.date_format, allow_reassignment=source.allow_reassignment,
+                recipient_access_mode=source.recipient_access_mode,
+                consent_disclosure_text=source.consent_disclosure_text,
+                expires_at=source.expires_at,
+                reminder_interval_hours=source.reminder_interval_hours,
+                brand_id=source.brand_id,
+            )
+            db.add(clone)
+            db.flush()
+
+            document_id_map: dict[str, uuid.UUID] = {}
+            for document in source.documents or []:
+                cloned_document_id = uuid.uuid4()
+                object_name = (
+                    f"esign/{user_id}/{clone.id}/original/"
+                    f"{uuid.uuid4()}_{os.path.basename(document.original_filename)}"
+                )
+                await self.storage.copy_object(document.gcs_object_name, object_name)
+                created_objects.append(object_name)
+                document_id_map[str(document.id)] = cloned_document_id
+                db.add(EsignDocument(
+                    id=cloned_document_id, envelope_id=clone.id,
+                    display_order=document.display_order,
+                    original_filename=document.original_filename,
+                    gcs_object_name=object_name,
+                    original_sha256=document.original_sha256,
+                    page_count=document.page_count,
+                    file_size_bytes=document.file_size_bytes,
+                ))
+
+            recipient_id_map = {
+                str(recipient.id): uuid.uuid4() for recipient in source.recipients or []
+            }
+            cloned_recipients: list[EsignRecipient] = []
+            for recipient in source.recipients or []:
+                cloned_recipient = EsignRecipient(
+                    id=recipient_id_map[str(recipient.id)], envelope_id=clone.id,
+                    email=recipient.email, name=recipient.name, role=recipient.role,
+                    routing_order=recipient.routing_order, role_label=recipient.role_label,
+                    template_role_id=recipient.template_role_id,
+                    private_message=recipient.private_message,
+                    witness_mode=recipient.witness_mode,
+                    host_name=recipient.host_name, host_email=recipient.host_email,
+                    allow_reassignment=recipient.allow_reassignment,
+                    status=EsignRecipientStatus.PENDING,
+                )
+                db.add(cloned_recipient)
+                cloned_recipients.append(cloned_recipient)
+            db.flush()
+            for source_recipient, cloned_recipient in zip(source.recipients or [], cloned_recipients):
+                cloned_recipient.managed_by_recipient_id = recipient_id_map.get(str(source_recipient.managed_by_recipient_id))
+                cloned_recipient.witness_for_recipient_id = recipient_id_map.get(str(source_recipient.witness_for_recipient_id))
+
+            field_id_map = {str(field.id): str(uuid.uuid4()) for field in source.fields or []}
+            cloned_fields: list[EsignField] = []
+            for field in source.fields or []:
+                cloned_fields.append(EsignField(
+                    id=uuid.UUID(field_id_map[str(field.id)]), envelope_id=clone.id,
+                    document_id=document_id_map[str(field.document_id)],
+                    recipient_id=recipient_id_map[str(field.recipient_id)],
+                    field_type=field.field_type, page_number=field.page_number,
+                    pos_x=field.pos_x, pos_y=field.pos_y,
+                    width=field.width, height=field.height,
+                    required=field.required, label=field.label,
+                    properties=remap_property_references(field.properties, field_id_map),
+                ))
+            validate_field_graph(cloned_fields)
+            db.add_all(cloned_fields)
+            audit_service.record_event(
+                db, envelope_id=clone.id, event_type=EsignEventType.CREATED,
+                actor_user_id=user_id, actor_email=user_email, meta=meta,
+                details={
+                    "cloned_from_envelope_id": str(source.id),
+                    "correction_reason": reason,
+                    "source_routing_version": int(source.routing_version),
+                },
+            )
+            db.flush()
+            db.refresh(clone)
+            response = self._serialize_envelope(clone)
+            db.commit()
+            return response
+        except FieldLogicError as exc:
+            db.rollback()
+            for object_name in created_objects:
+                try:
+                    await self.storage.delete_file(object_name)
+                except Exception:
+                    logger.warning("Could not clean up failed correction clone object %s", object_name)
+            raise EsignError(str(exc)) from exc
+        except Exception:
+            db.rollback()
+            for object_name in created_objects:
+                try:
+                    await self.storage.delete_file(object_name)
+                except Exception:
+                    logger.warning("Could not clean up failed correction clone object %s", object_name)
             raise
         finally:
             db.close()
@@ -1303,6 +1620,7 @@ class EsignEnvelopeService:
             message=template.message,
             signing_type=template.signing_type.value if hasattr(template.signing_type, "value") else str(template.signing_type),
             date_format=getattr(template, "date_format", None) or "MM/DD/YYYY",
+            draft_revision=int(getattr(template, "draft_revision", 1) or 1),
             recipient_roles=roles,
             documents=[
                 EsignTemplateDocumentResponse(
@@ -1430,10 +1748,12 @@ class EsignEnvelopeService:
         fields: Optional[list[EsignTemplateFieldInput]] = None,
         brand_id: Optional[str] = None,
         brand_id_supplied: bool = False,
+        expected_revision: Optional[int] = None,
     ) -> EsignTemplateResponse:
         db = self._get_session()
         try:
             template = self._load_template(db, user_id, template_id)
+            _lock_draft_revision(db, template, expected_revision)
             if name is not None:
                 template.name = name.strip()[:255] or template.name
             if description is not None:
@@ -1521,6 +1841,7 @@ class EsignEnvelopeService:
                 db.query(EsignTemplateField).filter(EsignTemplateField.template_id == template.id).delete()
                 db.flush()
                 db.add_all(pending)
+            _bump_draft_revision(template)
             db.commit()
             db.expire(template, ["fields"])
             db.refresh(template)
@@ -1642,17 +1963,25 @@ class EsignEnvelopeService:
         envelope_id: str,
         document_id: str,
         mappings: list[EsignPdfWidgetMapping],
+        *,
+        confirm_unsupported_flatten: bool = False,
     ) -> EsignEnvelopeResponse:
         db = self._get_session()
         try:
             envelope = self._load_envelope(db, user_id, envelope_id)
             self._require_draft(envelope)
+            _lock_draft_revision(db, envelope, None)
             document = next((item for item in envelope.documents or [] if str(item.id) == str(document_id)), None)
             if document is None:
                 raise EsignNotFound("Document not found")
-            recipients = {str(item.id) for item in envelope.recipients or []}
+            recipients = {str(item.id): item for item in envelope.recipients or []}
             content = await asyncio.to_thread(self.storage.bucket.blob(document.gcs_object_name).download_as_bytes)
             widgets = {item.widget_id: item for item in self._pdf_widget_rows(content, str(document.id))}
+            unsupported = [item for item in widgets.values() if not item.supported]
+            if unsupported and not confirm_unsupported_flatten:
+                raise EsignError(
+                    "Confirm that unsupported PDF widgets may be flattened before converting fields"
+                )
             pending = list(envelope.fields or [])
             converted_ids = {
                 str((field.properties or {}).get("acroform_widget_id"))
@@ -1662,8 +1991,11 @@ class EsignEnvelopeService:
                 widget = widgets.get(mapping.widget_id)
                 if widget is None or not widget.supported:
                     raise EsignError(f"PDF widget '{mapping.widget_id}' is missing or unsupported")
-                if str(mapping.recipient_id) not in recipients:
+                recipient = recipients.get(str(mapping.recipient_id))
+                if recipient is None:
                     raise EsignError("Converted PDF field has an unknown recipient")
+                if recipient.role not in (EsignRecipientRole.SIGNER, EsignRecipientRole.WITNESS, EsignRecipientRole.IN_PERSON_SIGNER):
+                    raise EsignError("Converted PDF fields require a signing recipient role")
                 if mapping.widget_id in converted_ids:
                     raise EsignConflict(f"PDF widget '{widget.name}' has already been converted")
                 props: dict[str, Any] = {
@@ -1694,6 +2026,7 @@ class EsignEnvelopeService:
                 ))
             validate_field_graph(pending)
             db.add_all(pending[len(envelope.fields or []):])
+            _bump_draft_revision(envelope)
             db.commit()
             db.expire(envelope, ["fields"])
             db.refresh(envelope)
@@ -1887,6 +2220,7 @@ class EsignEnvelopeService:
                     "private_message": r.private_message,
                     "managed_by_role_id": role_id_by_recipient_id.get(str(r.managed_by_recipient_id)),
                     "witness_for_role_id": role_id_by_recipient_id.get(str(r.witness_for_recipient_id)),
+                    "witness_mode": getattr(r, "witness_mode", None),
                     "host_name": r.host_name,
                     "host_email": r.host_email,
                     "allow_reassignment": bool(r.allow_reassignment),

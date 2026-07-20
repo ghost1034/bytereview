@@ -2452,6 +2452,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/esign/envelopes/{envelope_id}/retry-sealing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Envelope Sealing */
+        post: operations["retry_envelope_sealing_api_esign_envelopes__envelope_id__retry_sealing_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/envelopes/{envelope_id}/email-deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Envelope Email Deliveries */
+        get: operations["list_envelope_email_deliveries_api_esign_envelopes__envelope_id__email_deliveries_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/envelopes/{envelope_id}/email-deliveries/{delivery_id}/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resend Envelope Email */
+        post: operations["resend_envelope_email_api_esign_envelopes__envelope_id__email_deliveries__delivery_id__resend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/esign/envelopes/{envelope_id}": {
         parameters: {
             query?: never;
@@ -2676,6 +2727,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/esign/envelopes/{envelope_id}/corrections/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Correct Fields */
+        put: operations["correct_fields_api_esign_envelopes__envelope_id__corrections_fields_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/envelopes/{envelope_id}/corrections/documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace Active Document */
+        put: operations["replace_active_document_api_esign_envelopes__envelope_id__corrections_documents__document_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/esign/envelopes/{envelope_id}/fields": {
         parameters: {
             query?: never;
@@ -2738,6 +2823,26 @@ export interface paths {
         put?: never;
         /** Void Envelope */
         post: operations["void_envelope_api_esign_envelopes__envelope_id__void_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/envelopes/{envelope_id}/clone-and-void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clone And Void Envelope
+         * @description Clone immutable evidence to a draft, then void the active source.
+         */
+        post: operations["clone_and_void_envelope_api_esign_envelopes__envelope_id__clone_and_void_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6309,6 +6414,15 @@ export interface components {
             /** Files */
             files: string[];
         };
+        /** Body_replace_active_document_api_esign_envelopes__envelope_id__corrections_documents__document_id__put */
+        Body_replace_active_document_api_esign_envelopes__envelope_id__corrections_documents__document_id__put: {
+            /** File */
+            file: string;
+            /** Reason */
+            reason: string;
+            /** Expected Routing Version */
+            expected_routing_version: number;
+        };
         /** Body_upload_esign_brand_asset_api_esign_admin_brand_assets_post */
         Body_upload_esign_brand_asset_api_esign_admin_brand_assets_post: {
             /** File */
@@ -7304,6 +7418,18 @@ export interface components {
             /** Envelope Id */
             envelope_id?: string | null;
         };
+        /** EsignCloneAndVoidRequest */
+        EsignCloneAndVoidRequest: {
+            /** Reason */
+            reason: string;
+            /** Expected Routing Version */
+            expected_routing_version: number;
+        };
+        /** EsignCloneAndVoidResponse */
+        EsignCloneAndVoidResponse: {
+            original: components["schemas"]["EsignEnvelopeResponse"];
+            clone: components["schemas"]["EsignEnvelopeResponse"];
+        };
         /** EsignConsentRequest */
         EsignConsentRequest: {
             /** Expected Routing Version */
@@ -7553,6 +7679,11 @@ export interface components {
              */
             routing_version: number;
             /**
+             * Draft Revision
+             * @default 1
+             */
+            draft_revision: number;
+            /**
              * Allow Reassignment
              * @default false
              */
@@ -7605,7 +7736,11 @@ export interface components {
             template_id?: string | null;
             /** Template Version Id */
             template_version_id?: string | null;
-            /** Sealing State */
+            /**
+             * Sealing State
+             * @default not_ready
+             * @enum {string}
+             */
             sealing_state: "not_ready" | "queued" | "dispatching" | "dispatched" | "processing" | "retry" | "terminal" | "completed";
             /** Sealing Last Error */
             sealing_last_error?: string | null;
@@ -7658,6 +7793,8 @@ export interface components {
         };
         /** EsignEnvelopeUpdateRequest */
         EsignEnvelopeUpdateRequest: {
+            /** Expected Revision */
+            expected_revision?: number | null;
             /** Title */
             title?: string | null;
             /** Message */
@@ -7702,6 +7839,15 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** EsignFieldCorrectionRequest */
+        EsignFieldCorrectionRequest: {
+            /** Fields */
+            fields: components["schemas"]["EsignFieldInput"][];
+            /** Reason */
+            reason: string;
+            /** Expected Routing Version */
+            expected_routing_version: number;
         };
         /** EsignFieldInput */
         EsignFieldInput: {
@@ -7815,6 +7961,8 @@ export interface components {
         EsignFieldsReplaceRequest: {
             /** Fields */
             fields: components["schemas"]["EsignFieldInput"][];
+            /** Expected Revision */
+            expected_revision?: number | null;
         };
         /** EsignGuestExchangeRequest */
         EsignGuestExchangeRequest: {
@@ -7980,6 +8128,11 @@ export interface components {
         EsignPdfWidgetConversionRequest: {
             /** Mappings */
             mappings: components["schemas"]["EsignPdfWidgetMapping"][];
+            /**
+             * Confirm Unsupported Flatten
+             * @default false
+             */
+            confirm_unsupported_flatten: boolean;
         };
         /** EsignPdfWidgetInspectionResponse */
         EsignPdfWidgetInspectionResponse: {
@@ -8203,14 +8356,14 @@ export interface components {
             routing_order: number;
             /** Role Label */
             role_label?: string | null;
-            /** Template Role Id */
-            template_role_id?: string | null;
             /** Private Message */
             private_message?: string | null;
             /** Managed By Recipient Id */
             managed_by_recipient_id?: string | null;
             /** Witness For Recipient Id */
             witness_for_recipient_id?: string | null;
+            /** Witness Mode */
+            witness_mode?: ("remote" | "in_person") | null;
             /** Host Name */
             host_name?: string | null;
             /** Host Email */
@@ -8237,12 +8390,16 @@ export interface components {
             status: string;
             /** Role Label */
             role_label?: string | null;
+            /** Template Role Id */
+            template_role_id?: string | null;
             /** Private Message */
             private_message?: string | null;
             /** Managed By Recipient Id */
             managed_by_recipient_id?: string | null;
             /** Witness For Recipient Id */
             witness_for_recipient_id?: string | null;
+            /** Witness Mode */
+            witness_mode?: ("remote" | "in_person") | null;
             /** Host Name */
             host_name?: string | null;
             /** Host Email */
@@ -8269,6 +8426,8 @@ export interface components {
         EsignRecipientsReplaceRequest: {
             /** Recipients */
             recipients: components["schemas"]["EsignRecipientInput"][];
+            /** Expected Revision */
+            expected_revision?: number | null;
         };
         /** EsignReportSummary */
         EsignReportSummary: {
@@ -8584,6 +8743,11 @@ export interface components {
              * @default MM/DD/YYYY
              */
             date_format: string;
+            /**
+             * Draft Revision
+             * @default 1
+             */
+            draft_revision: number;
             /** Recipient Roles */
             recipient_roles: {
                 [key: string]: unknown;
@@ -8636,6 +8800,8 @@ export interface components {
             managed_by_role_id?: string | null;
             /** Witness For Role Id */
             witness_for_role_id?: string | null;
+            /** Witness Mode */
+            witness_mode?: ("remote" | "in_person") | null;
             /** Host Name */
             host_name?: string | null;
             /** Host Email */
@@ -8648,6 +8814,8 @@ export interface components {
         };
         /** EsignTemplateUpdateRequest */
         EsignTemplateUpdateRequest: {
+            /** Expected Revision */
+            expected_revision?: number | null;
             /** Name */
             name?: string | null;
             /** Description */
@@ -8751,6 +8919,12 @@ export interface components {
             name: string;
             /** Email */
             email?: string | null;
+            /**
+             * Mode
+             * @default remote
+             * @enum {string}
+             */
+            mode: "remote" | "in_person";
         };
         /** ExecuteActionRequest */
         ExecuteActionRequest: {
@@ -15524,7 +15698,9 @@ export interface operations {
     };
     publish_template_version_api_esign_templates__template_id__versions_post: {
         parameters: {
-            query?: never;
+            query?: {
+                expected_revision?: number | null;
+            };
             header?: never;
             path: {
                 template_id: string;
@@ -16375,6 +16551,100 @@ export interface operations {
             };
         };
     };
+    retry_envelope_sealing_api_esign_envelopes__envelope_id__retry_sealing_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_envelope_email_deliveries_api_esign_envelopes__envelope_id__email_deliveries_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resend_envelope_email_api_esign_envelopes__envelope_id__email_deliveries__delivery_id__resend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+                delivery_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_envelope_api_esign_envelopes__envelope_id__get: {
         parameters: {
             query?: never;
@@ -16913,6 +17183,77 @@ export interface operations {
             };
         };
     };
+    correct_fields_api_esign_envelopes__envelope_id__corrections_fields_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignFieldCorrectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignEnvelopeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replace_active_document_api_esign_envelopes__envelope_id__corrections_documents__document_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_replace_active_document_api_esign_envelopes__envelope_id__corrections_documents__document_id__put"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignEnvelopeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     replace_fields_api_esign_envelopes__envelope_id__fields_put: {
         parameters: {
             query?: never;
@@ -17036,6 +17377,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EsignEnvelopeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clone_and_void_envelope_api_esign_envelopes__envelope_id__clone_and_void_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignCloneAndVoidRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignCloneAndVoidResponse"];
                 };
             };
             /** @description Validation Error */

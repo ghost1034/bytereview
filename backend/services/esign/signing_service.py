@@ -74,7 +74,6 @@ from services.esign.authorization_service import esign_authorization_service
 from services.esign.outbox_service import esign_outbox_service
 from services.esign.field_logic import (
     FieldLogicError,
-    format_date_value,
     resolve_required,
     resolve_visibility,
     synchronize_shared_values,
@@ -101,12 +100,9 @@ ALLOWED_TYPED_FONTS = {"dancing-script", "caveat", "great-vibes", "homemade-appl
 
 ACTIVE_ENVELOPE_STATUSES = (EsignEnvelopeStatus.SENT, EsignEnvelopeStatus.IN_PROGRESS)
 
-# Must match formatDateSigned in components/esign/sign/dateSigned.ts — the
-# signer sees this exact stamp in the ceremony before submitting.
 def format_date_signed(dt: datetime, date_format: Optional[str] = None) -> str:
-    # No format argument is the legacy API behavior. Envelopes always pass
-    # their snapshotted format explicitly.
-    return format_date_value(dt, date_format) if date_format else f"{dt.month}/{dt.day}/{dt.year}"
+    """Canonical storage value; ceremony and sealing apply display format."""
+    return dt.date().isoformat()
 
 # Most recent completed envelopes to keep in a signer's inbox.
 COMPLETED_INBOX_LIMIT = int(os.getenv("ESIGN_COMPLETED_INBOX_LIMIT", "25"))
@@ -975,6 +971,7 @@ class EsignSigningService:
                     field.field_type == EsignFieldType.AUTO_FILL
                     and (field.properties or {}).get("auto_source") == "company"
                 )
+                editable = editable and not bool((field.properties or {}).get("read_only"))
                 if not editable:
                     continue
                 if str(field.id) not in values_by_field:
@@ -1058,6 +1055,13 @@ class EsignSigningService:
             field = next((f for f in envelope.fields or [] if str(f.id) == str(field_id)), None)
             if not field or field.recipient_id != recipient.id or field.field_type != EsignFieldType.ATTACHMENT:
                 raise EsignError("Attachment field not found")
+            allowed_types = set((field.properties or {}).get("allowed_types") or [
+                "application/pdf", "image/png", "image/jpeg",
+            ])
+            if normalized_type not in allowed_types:
+                raise EsignError(
+                    f"This attachment field does not allow {normalized_type} files"
+                )
 
             existing = (
                 db.query(EsignSignerAttachment)
@@ -1307,7 +1311,15 @@ class EsignSigningService:
             for field in my_fields:
                 field.draft_value = None
                 provided = values_by_field.get(str(field.id))
-                if field.field_type in (EsignFieldType.SIGNATURE, EsignFieldType.INITIALS, EsignFieldType.STAMP):
+                if (field.properties or {}).get("read_only"):
+                    try:
+                        field.value = validate_field_value(
+                            field, provided,
+                            date_format=getattr(envelope, "date_format", None) or "MM/DD/YYYY",
+                        )
+                    except FieldLogicError as exc:
+                        raise EsignError(str(exc)) from exc
+                elif field.field_type in (EsignFieldType.SIGNATURE, EsignFieldType.INITIALS, EsignFieldType.STAMP):
                     submission = submissions.get(str(field.id))
                     # Missing completed is the expand-first compatibility path
                     # for clients deployed before per-instance completion.

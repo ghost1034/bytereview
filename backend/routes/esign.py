@@ -22,6 +22,8 @@ from models.esign import (
     EsignConsentResponse,
     EsignConsentRequest,
     EsignCorrectionRequest,
+    EsignCloneAndVoidRequest,
+    EsignCloneAndVoidResponse,
     EsignDeclineRequest,
     EsignDownloadResponse,
     EsignDocumentOrderRequest,
@@ -30,6 +32,7 @@ from models.esign import (
     EsignEnvelopeResponse,
     EsignEnvelopeUpdateRequest,
     EsignFieldsReplaceRequest,
+    EsignFieldCorrectionRequest,
     EsignInboxResponse,
     EsignProgressRequest,
     EsignProgressResponse,
@@ -389,6 +392,7 @@ async def update_template(
             fields=payload.fields,
             brand_id=payload.brand_id,
             brand_id_supplied="brand_id" in payload.model_fields_set,
+            expected_revision=payload.expected_revision,
         )
     except Exception as exc:
         _raise_http(exc)
@@ -404,9 +408,15 @@ async def delete_template(template_id: str, token: dict = Depends(verify_firebas
 
 
 @router.post("/templates/{template_id}/versions", response_model=EsignTemplateVersionResponse)
-async def publish_template_version(template_id: str, token: dict = Depends(verify_firebase_token)):
+async def publish_template_version(
+    template_id: str,
+    expected_revision: int | None = Query(default=None, ge=1),
+    token: dict = Depends(verify_firebase_token),
+):
     try:
-        return await esign_scale_service.publish_template(_uid(token), template_id)
+        return await esign_scale_service.publish_template(
+            _uid(token), template_id, expected_revision=expected_revision
+        )
     except Exception as exc:
         _raise_http(exc)
 
@@ -874,7 +884,8 @@ async def convert_pdf_widgets(
 ):
     try:
         return await esign_envelope_service.convert_pdf_widgets(
-            _uid(token), envelope_id, document_id, payload.mappings
+            _uid(token), envelope_id, document_id, payload.mappings,
+            confirm_unsupported_flatten=payload.confirm_unsupported_flatten,
         )
     except Exception as exc:
         _raise_http(exc)
@@ -891,7 +902,8 @@ async def replace_recipients(
     template's fields onto the new recipients (send-from-template flow)."""
     try:
         return esign_envelope_service.replace_recipients(
-            _uid(token), envelope_id, payload.recipients, template_id=template_id
+            _uid(token), envelope_id, payload.recipients, template_id=template_id,
+            expected_revision=payload.expected_revision,
         )
     except Exception as exc:
         _raise_http(exc)
@@ -911,6 +923,44 @@ async def correct_recipients(
         _raise_http(exc)
 
 
+@router.put("/envelopes/{envelope_id}/corrections/fields", response_model=EsignEnvelopeResponse)
+async def correct_fields(
+    envelope_id: str, payload: EsignFieldCorrectionRequest, request: Request,
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return await esign_envelope_service.correct_fields(
+            user_id=_uid(token), user_email=_email(token), envelope_id=envelope_id,
+            fields=payload.fields, reason=payload.reason,
+            expected_routing_version=payload.expected_routing_version,
+            meta=extract_request_meta(request, token),
+        )
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.put(
+    "/envelopes/{envelope_id}/corrections/documents/{document_id}",
+    response_model=EsignEnvelopeResponse,
+)
+async def replace_active_document(
+    envelope_id: str, document_id: str, request: Request,
+    file: UploadFile = File(...), reason: str = Form(...),
+    expected_routing_version: int = Form(...),
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return await esign_envelope_service.replace_active_document(
+            user_id=_uid(token), user_email=_email(token), envelope_id=envelope_id,
+            document_id=document_id, filename=file.filename or "replacement.pdf",
+            content=await file.read(), reason=reason,
+            expected_routing_version=expected_routing_version,
+            meta=extract_request_meta(request, token),
+        )
+    except Exception as exc:
+        _raise_http(exc)
+
+
 @router.put("/envelopes/{envelope_id}/fields", response_model=EsignEnvelopeResponse)
 async def replace_fields(
     envelope_id: str,
@@ -918,7 +968,10 @@ async def replace_fields(
     token: dict = Depends(verify_firebase_token),
 ):
     try:
-        return esign_envelope_service.replace_fields(_uid(token), envelope_id, payload.fields)
+        return esign_envelope_service.replace_fields(
+            _uid(token), envelope_id, payload.fields,
+            expected_revision=payload.expected_revision,
+        )
     except Exception as exc:
         _raise_http(exc)
 
@@ -970,6 +1023,42 @@ async def void_envelope(
             meta=extract_request_meta(request, token),
         )
     except Exception as exc:
+        _raise_http(exc)
+
+
+@router.post(
+    "/envelopes/{envelope_id}/clone-and-void",
+    response_model=EsignCloneAndVoidResponse,
+)
+async def clone_and_void_envelope(
+    envelope_id: str,
+    payload: EsignCloneAndVoidRequest,
+    request: Request,
+    token: dict = Depends(verify_firebase_token),
+):
+    """Clone immutable evidence to a draft, then void the active source."""
+    clone = None
+    try:
+        meta = extract_request_meta(request, token)
+        clone = await esign_envelope_service.clone_for_correction(
+            user_id=_uid(token), user_email=_email(token), envelope_id=envelope_id,
+            reason=payload.reason,
+            expected_routing_version=payload.expected_routing_version,
+            meta=meta,
+        )
+        original = await esign_signing_service.void_envelope(
+            user_id=_uid(token), user_email=_email(token), envelope_id=envelope_id,
+            reason=payload.reason, meta=meta,
+        )
+        return EsignCloneAndVoidResponse(original=original, clone=clone)
+    except Exception as exc:
+        # If the source changed between clone and void, remove the unexposed
+        # draft so the operation retains all-or-nothing behavior for callers.
+        if clone is not None:
+            try:
+                await esign_envelope_service.delete_envelope(_uid(token), clone.id)
+            except Exception:
+                logger.exception("Could not compensate failed clone-and-void draft %s", clone.id)
         _raise_http(exc)
 
 

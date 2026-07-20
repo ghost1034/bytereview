@@ -104,6 +104,7 @@ const FIELD_TYPES: Array<{ type: EditorFieldType; label: string; icon: React.Com
   { type: 'company', label: 'Company', icon: UserRound },
   { type: 'title', label: 'Title', icon: UserRound },
   { type: 'note', label: 'Note', icon: Type },
+  { type: 'auto_fill', label: 'Auto-fill', icon: UserRound },
   { type: 'checkbox', label: 'Checkbox', icon: CheckSquare },
   { type: 'radio', label: 'Radio group', icon: CircleDot },
   { type: 'dropdown', label: 'Dropdown', icon: ListChecks },
@@ -153,6 +154,8 @@ function PropertiesPanel({ field, fields, update, remove }: {
   const properties = field.properties ?? {}
   const setProperties = (patch: Partial<EditorFieldProperties>) => update({ properties: { ...properties, ...patch } })
   const conditional = properties.conditional
+  const conditionalCandidates = fields.filter((item) => item.id !== field.id && item.participantId === field.participantId && !['signature', 'initials', 'stamp', 'attachment', 'formula', 'note'].includes(item.fieldType))
+  const conditionalParent = conditionalCandidates.find((item) => item.id === conditional?.parent_field_id)
   const [formulaError, setFormulaError] = React.useState('')
   return <div className="space-y-2 rounded-md border border-border bg-surface p-3 text-sm">
     <p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">Field properties</p>
@@ -171,18 +174,19 @@ function PropertiesPanel({ field, fields, update, remove }: {
     {!['signature', 'initials', 'stamp', 'date_signed', 'formula'].includes(field.fieldType) && <label className="flex gap-2">
       <input type="checkbox" checked={properties.read_only ?? false} onChange={(event) => setProperties({ read_only: event.target.checked })} /> Read only
     </label>}
-    {(properties.read_only || field.fieldType === 'note') && <input className="w-full rounded border border-border bg-background px-2 py-1" value={properties.sender_prefill ?? ''}
+    {(properties.read_only || field.fieldType === 'note') && <input type={field.fieldType === 'date' ? 'date' : 'text'} className="w-full rounded border border-border bg-background px-2 py-1" value={properties.sender_prefill ?? ''}
       onChange={(event) => setProperties({ sender_prefill: event.target.value })} placeholder="Sender prefill" />}
-    {['text', 'number', 'date', 'company', 'title'].includes(field.fieldType) && <details>
+    {['text', 'number', 'date', 'company', 'title', 'dropdown', 'checkbox'].includes(field.fieldType) && <details>
       <summary className="cursor-pointer text-xs font-medium">Validation & appearance</summary>
       <div className="mt-2 space-y-2">
         <div className="grid grid-cols-2 gap-2"><input type="number" min={1} className="rounded border border-border bg-background px-2 py-1" value={properties.text_validation?.max_length ?? ''}
           onChange={(event) => setProperties({ text_validation: { ...properties.text_validation, max_length: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Max length" />
         <input className="rounded border border-border bg-background px-2 py-1" value={properties.text_validation?.regex ?? ''}
           onChange={(event) => setProperties({ text_validation: { ...properties.text_validation, regex: event.target.value || undefined } })} placeholder="Regex" /></div>
-        {field.fieldType === 'number' && <div className="grid grid-cols-2 gap-2"><input type="number" className="rounded border border-border bg-background px-2 py-1" value={properties.number_validation?.minimum ?? ''} onChange={(event) => setProperties({ number_validation: { ...properties.number_validation, minimum: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Minimum" /><input type="number" className="rounded border border-border bg-background px-2 py-1" value={properties.number_validation?.maximum ?? ''} onChange={(event) => setProperties({ number_validation: { ...properties.number_validation, maximum: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Maximum" /></div>}
+        {field.fieldType === 'number' && <><div className="grid grid-cols-2 gap-2"><input type="number" className="rounded border border-border bg-background px-2 py-1" value={properties.number_validation?.minimum ?? ''} onChange={(event) => setProperties({ number_validation: { ...properties.number_validation, minimum: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Minimum" /><input type="number" className="rounded border border-border bg-background px-2 py-1" value={properties.number_validation?.maximum ?? ''} onChange={(event) => setProperties({ number_validation: { ...properties.number_validation, maximum: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Maximum" /></div><div className="grid grid-cols-2 gap-2"><input type="number" min={0} max={10} className="rounded border border-border bg-background px-2 py-1" value={properties.number_validation?.decimal_places ?? ''} onChange={(event) => setProperties({ number_validation: { ...properties.number_validation, decimal_places: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Decimal places" /><label className="flex items-center gap-2"><input type="checkbox" checked={properties.number_validation?.allow_negative ?? true} onChange={(event) => setProperties({ number_validation: { ...properties.number_validation, allow_negative: event.target.checked } })} /> Allow negative</label></div></>}
         {field.fieldType === 'date' && <div className="grid grid-cols-2 gap-2"><input type="date" className="rounded border border-border bg-background px-2 py-1" value={properties.date_validation?.minimum ?? ''} onChange={(event) => setProperties({ date_validation: { ...properties.date_validation, minimum: event.target.value || undefined } })} /><input type="date" className="rounded border border-border bg-background px-2 py-1" value={properties.date_validation?.maximum ?? ''} onChange={(event) => setProperties({ date_validation: { ...properties.date_validation, maximum: event.target.value || undefined } })} /></div>}
-        <div className="grid grid-cols-2 gap-2"><input type="number" min={4} max={144} className="rounded border border-border bg-background px-2 py-1" value={properties.appearance?.font_size ?? ''} onChange={(event) => setProperties({ appearance: { ...properties.appearance, font_size: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Font size" /><input type="color" className="h-8 w-full rounded border border-border bg-background" value={properties.appearance?.color ?? '#000000'} onChange={(event) => setProperties({ appearance: { ...properties.appearance, color: event.target.value } })} /></div>
+        {['checkbox', 'dropdown'].includes(field.fieldType) && <div className="grid grid-cols-2 gap-2"><input type="number" min={0} className="rounded border border-border bg-background px-2 py-1" value={properties.selection_validation?.minimum_selected ?? ''} onChange={(event) => setProperties({ selection_validation: { ...properties.selection_validation, minimum_selected: Number(event.target.value) || 0 } })} placeholder="Minimum selected" /><input type="number" min={1} className="rounded border border-border bg-background px-2 py-1" value={properties.selection_validation?.maximum_selected ?? ''} onChange={(event) => setProperties({ selection_validation: { ...properties.selection_validation, maximum_selected: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Maximum selected" /></div>}
+        <div className="grid grid-cols-2 gap-2"><select className="rounded border border-border bg-background px-2 py-1" value={properties.appearance?.font ?? 'Helvetica'} onChange={(event) => setProperties({ appearance: { ...properties.appearance, font: event.target.value } })}><option>Helvetica</option><option>Times</option><option>Courier</option></select><input type="number" min={4} max={144} className="rounded border border-border bg-background px-2 py-1" value={properties.appearance?.font_size ?? ''} onChange={(event) => setProperties({ appearance: { ...properties.appearance, font_size: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Font size" /></div><input type="color" className="h-8 w-full rounded border border-border bg-background" value={properties.appearance?.color ?? '#000000'} onChange={(event) => setProperties({ appearance: { ...properties.appearance, color: event.target.value } })} />
         <select className="w-full rounded border border-border bg-background px-2 py-1" value={properties.appearance?.alignment ?? 'left'} onChange={(event) => setProperties({ appearance: { ...properties.appearance, alignment: event.target.value as 'left' | 'center' | 'right' } })}><option value="left">Left align</option><option value="center">Center align</option><option value="right">Right align</option></select>
         <div className="flex gap-3"><label><input type="checkbox" checked={properties.appearance?.bold ?? false} onChange={(event) => setProperties({ appearance: { ...properties.appearance, bold: event.target.checked } })} /> Bold</label><label><input type="checkbox" checked={properties.appearance?.italic ?? false} onChange={(event) => setProperties({ appearance: { ...properties.appearance, italic: event.target.checked } })} /> Italic</label><label><input type="checkbox" checked={properties.appearance?.underline ?? false} onChange={(event) => setProperties({ appearance: { ...properties.appearance, underline: event.target.checked } })} /> Underline</label></div>
       </div>
@@ -205,6 +209,9 @@ function PropertiesPanel({ field, fields, update, remove }: {
       <input className="w-full rounded border border-border bg-background px-2 py-1" value={properties.option_value ?? ''}
         onChange={(event) => setProperties({ option_value: event.target.value })} placeholder="Option value" />
     </>}
+    {field.fieldType === 'attachment' && <fieldset className="space-y-1"><legend className="text-xs font-medium">Allowed file types</legend>{[
+      ['application/pdf', 'PDF'], ['image/png', 'PNG'], ['image/jpeg', 'JPG'],
+    ].map(([mime, label]) => <label key={mime} className="mr-3 inline-flex items-center gap-1"><input type="checkbox" checked={(properties.allowed_types ?? []).includes(mime)} onChange={(event) => setProperties({ allowed_types: event.target.checked ? [...new Set([...(properties.allowed_types ?? []), mime])] : (properties.allowed_types ?? []).filter((item) => item !== mime) })} /> {label}</label>)}</fieldset>}
     {field.fieldType === 'formula' && <label className="block">Expression
       <input className="mt-1 w-full rounded border border-border bg-background px-2 py-1 font-mono" value={properties.formula?.expression ?? ''}
         onChange={(event) => setProperties({ formula: { decimal_places: properties.formula?.decimal_places ?? 2, expression: event.target.value } })}
@@ -221,9 +228,10 @@ function PropertiesPanel({ field, fields, update, remove }: {
     </label>}
     <label className="block">Conditional behavior
       <select className="mt-1 w-full rounded border border-border bg-background px-2 py-1"
+        disabled={conditionalCandidates.length === 0}
         value={conditional ? conditional.action : 'none'} onChange={(event) => {
           if (event.target.value === 'none') setProperties({ conditional: undefined })
-          else setProperties({ conditional: { parent_field_id: fields.find((item) => item.id !== field.id && item.participantId === field.participantId)?.id ?? '', operator: 'not_empty', values: [], action: event.target.value as 'show' | 'require' } })
+          else setProperties({ conditional: { parent_field_id: conditionalCandidates[0].id, operator: 'not_empty', values: [], action: event.target.value as 'show' | 'require' } })
         }}>
         <option value="none">Always visible</option><option value="show">Show when…</option><option value="require">Require when…</option>
       </select>
@@ -231,12 +239,12 @@ function PropertiesPanel({ field, fields, update, remove }: {
     {conditional && <>
       <select className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.parent_field_id}
         onChange={(event) => setProperties({ conditional: { ...conditional, parent_field_id: event.target.value } })}>
-        {fields.filter((item) => item.id !== field.id && item.participantId === field.participantId && !['signature', 'initials', 'stamp', 'attachment', 'formula'].includes(item.fieldType)).map((item) => <option key={item.id} value={item.id}>{item.label || SHORT[item.fieldType]}</option>)}
+        {conditionalCandidates.map((item) => <option key={item.id} value={item.id}>{item.label || SHORT[item.fieldType]}</option>)}
       </select>
       <select className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.operator}
         onChange={(event) => setProperties({ conditional: { ...conditional, operator: event.target.value as NonNullable<EditorFieldProperties['conditional']>['operator'] } })}>
         <option value="not_empty">Is not empty</option><option value="equals">Equals</option><option value="not_equals">Does not equal</option>
-        <option value="any_of">Any of</option><option value="checked">Checked</option><option value="unchecked">Unchecked</option>
+        <option value="any_of">Any of</option>{['checkbox', 'radio'].includes(conditionalParent?.fieldType ?? '') && <><option value="checked">Checked</option><option value="unchecked">Unchecked</option></>}
       </select>
       {!['not_empty', 'checked', 'unchecked'].includes(conditional.operator) && <input className="w-full rounded border border-border bg-background px-2 py-1"
         value={(conditional.values ?? []).join(', ')} onChange={(event) => setProperties({ conditional: { ...conditional, values: event.target.value.split(',').map((v) => v.trim()).filter(Boolean) } })} placeholder="Value(s), comma separated" />}

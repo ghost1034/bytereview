@@ -1281,6 +1281,10 @@ class EsignEnvelope(Base):
     date_format = Column(String(32), nullable=False, default="MM/DD/YYYY", server_default="MM/DD/YYYY")
     current_routing_order = Column(Integer, nullable=True)  # set when sent
     routing_version = Column(Integer, nullable=False, default=1, server_default="1")
+    # Optimistic concurrency token for mutable draft authoring. This is
+    # intentionally separate from routing_version, which protects sent
+    # ceremony actions and recipient evidence.
+    draft_revision = Column(Integer, nullable=False, default=1, server_default="1")
     allow_reassignment = Column(Boolean, nullable=False, default=False, server_default=expression.false())
     # Access policy is snapshotted per envelope so already-sent envelopes keep
     # their original account-authenticated ceremony after email-link signing
@@ -1392,6 +1396,7 @@ class EsignRecipient(Base):
     witness_for_recipient_id = Column(
         UUID(as_uuid=True), ForeignKey("esign_recipients.id", ondelete="RESTRICT"), nullable=True
     )
+    witness_mode = Column(String(16), nullable=True)
     host_name = Column(String(255), nullable=True)
     host_email = Column(String(255), nullable=True)
     host_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
@@ -1645,6 +1650,7 @@ class EsignTemplate(Base):
         server_default=EsignSigningType.SEQUENTIAL.value,
     )
     date_format = Column(String(32), nullable=False, default="MM/DD/YYYY", server_default="MM/DD/YYYY")
+    draft_revision = Column(Integer, nullable=False, default=1, server_default="1")
     # Ordered list of recipient roles: [{"label": "Client", "role": "signer", "routing_order": 1}, ...]
     recipient_roles = Column(JSONB, nullable=False, default=list, server_default=expression.text("'[]'::jsonb"))
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())

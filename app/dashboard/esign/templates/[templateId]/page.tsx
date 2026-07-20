@@ -39,6 +39,9 @@ export default function EsignTemplateEditPage() {
   const [hydratedFor, setHydratedFor] = React.useState<string | null>(null)
   const [saveState, setSaveState] = React.useState<ComposerSaveState>('idle')
   const lastSaved = React.useRef('')
+  const queuedSnapshot = React.useRef('')
+  const draftRevision = React.useRef(1)
+  const saveQueue = React.useRef<Promise<boolean>>(Promise.resolve(true))
 
   React.useEffect(() => {
     if (!template || hydratedFor === template.id) return
@@ -58,6 +61,7 @@ export default function EsignTemplateEditPage() {
       }))
     setEditorFields(initial)
     lastSaved.current = JSON.stringify(initial)
+    draftRevision.current = template.draft_revision
     setHydratedFor(template.id)
   }, [template, hydratedFor])
 
@@ -85,11 +89,18 @@ export default function EsignTemplateEditPage() {
   )
 
   const handleSave = async () => {
-    if (!template) return
-    setSaveState('saving')
-    try {
-      await updateTemplate.mutateAsync({
-        fields: editorFields.map((f) => {
+    if (!template) return false
+    const snapshot = JSON.stringify(editorFields)
+    if (snapshot === lastSaved.current) return true
+    if (snapshot === queuedSnapshot.current) return saveQueue.current
+    queuedSnapshot.current = snapshot
+    const fields = editorFields.map((field) => ({ ...field, properties: structuredClone(field.properties ?? {}) }))
+    const operation = saveQueue.current.catch(() => false).then(async () => {
+      setSaveState('saving')
+      try {
+        const saved = await updateTemplate.mutateAsync({
+        expected_revision: draftRevision.current,
+        fields: fields.map((f) => {
           const roleIndex = (template.recipient_roles as { id?: string }[])
             .findIndex((role) => role.id === f.participantId)
           const legacyIndex = Number.parseInt(f.participantId, 10)
@@ -109,17 +120,23 @@ export default function EsignTemplateEditPage() {
             properties: f.properties as EsignTemplateFieldInput['properties'],
           }
         }),
-      })
-      lastSaved.current = JSON.stringify(editorFields)
-      setSaveState('saved')
-    } catch (error) {
-      setSaveState('error')
-      toast({
-        title: 'Failed to save template',
-        description: error instanceof Error ? error.message : undefined,
-        variant: 'destructive',
-      })
-    }
+        })
+        draftRevision.current = saved.draft_revision
+        lastSaved.current = snapshot
+        if (queuedSnapshot.current === snapshot) setSaveState('saved')
+        return true
+      } catch (error) {
+        setSaveState('error')
+        toast({
+          title: 'Failed to save template',
+          description: error instanceof Error ? error.message : undefined,
+          variant: 'destructive',
+        })
+        return false
+      }
+    })
+    saveQueue.current = operation
+    return operation
   }
 
   React.useEffect(() => {
@@ -140,7 +157,7 @@ export default function EsignTemplateEditPage() {
   }
 
   return (
-    <ComposerShell title={template.name} stage="fields" saveState={saveState} onClose={() => router.push('/dashboard/esign/templates')} primary={<div className="flex gap-2"><Button variant="outline" disabled={publishTemplate.isPending} onClick={async () => { try { await handleSave(); const version = await publishTemplate.mutateAsync(template.id); toast({ title: `Version ${version.version} published`, description: 'Bulk jobs and PowerForms can now pin this immutable version.' }) } catch (error) { toast({ title: 'Publish failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><UploadCloud className="mr-1.5 size-4" /> Publish</Button><Button onClick={async () => { await handleSave(); router.push(`/dashboard/esign/new?template=${template.id}`) }}><Send className="mr-1.5 size-4" /> Use template</Button></div>}>
+    <ComposerShell title={template.name} stage="fields" saveState={saveState} onClose={() => router.push('/dashboard/esign/templates')} primary={<div className="flex gap-2"><Button variant="outline" disabled={publishTemplate.isPending} onClick={async () => { try { if (!await handleSave()) return; const version = await publishTemplate.mutateAsync({ templateId: template.id, expectedRevision: draftRevision.current }); toast({ title: `Version ${version.version} published`, description: 'Bulk jobs and PowerForms can now pin this immutable version.' }) } catch (error) { toast({ title: 'Publish failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><UploadCloud className="mr-1.5 size-4" /> Publish</Button><Button onClick={async () => { if (await handleSave()) router.push(`/dashboard/esign/new?template=${template.id}`) }}><Send className="mr-1.5 size-4" /> Use template</Button></div>}>
       <div className="p-3 sm:p-4">
       {documentUrlsQuery.isLoading || !documentUrlsQuery.data ? (
         <div className="flex items-center justify-center rounded-lg border border-border bg-surface py-16 text-foreground-muted">

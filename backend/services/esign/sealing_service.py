@@ -182,6 +182,7 @@ def _stamp_field(
     signature_record: Optional[EsignSignatureRecord],
     image_bytes: Optional[bytes],
     attachment: Optional[EsignSignerAttachment] = None,
+    date_format: str = "MM/DD/YYYY",
 ) -> None:
     box = _display_box(page, float(field.pos_x), float(field.pos_y), float(field.width), float(field.height))
     rotate = page.rotation
@@ -230,7 +231,9 @@ def _stamp_field(
                 max_fontsize=display_height * 0.55,
             )
     else:
-        display_value = resolve_display_value(field, field.value, recipient=recipient)
+        display_value = resolve_display_value(
+            field, field.value, recipient=recipient, date_format=date_format
+        )
         if display_value:
             properties = getattr(field, "properties", None) or {}
             appearance = dict(properties.get("appearance") or {})
@@ -269,6 +272,7 @@ class EsignSealingService:
         recipients_by_id: dict[str, EsignRecipient],
         signature_records_by_id: dict[str, EsignSignatureRecord],
         attachments_by_id: Optional[dict[str, EsignSignerAttachment]] = None,
+        date_format: str = "MM/DD/YYYY",
     ) -> bytes:
         """Download the original PDF and stamp all field values in one pass."""
         import asyncio
@@ -319,7 +323,10 @@ class EsignSealingService:
                             )
                         image_bytes = image_cache[object_name]
                 attachment = (attachments_by_id or {}).get(str(field.value)) if field.value else None
-                _stamp_field(page, field, recipient, signature_record, image_bytes, attachment)
+                _stamp_field(
+                    page, field, recipient, signature_record, image_bytes,
+                    attachment, date_format,
+                )
             return pdf.tobytes(deflate=True, garbage=3)
 
     def _download_bytes(self, object_name: str) -> bytes:
@@ -428,7 +435,9 @@ class EsignSealingService:
             flattened_hashes: dict[str, str] = {}
             for document in documents:
                 flat_bytes = await self._flatten_document(
-                    document, fields, recipients_by_id, signature_records_by_id, attachments_by_id
+                    document, fields, recipients_by_id, signature_records_by_id,
+                    attachments_by_id,
+                    getattr(envelope, "date_format", None) or "MM/DD/YYYY",
                 )
                 digest = sha256_hex(flat_bytes)
                 object_name = f"esign/{envelope.user_id}/{envelope.id}/flattened/{document.id}.pdf"

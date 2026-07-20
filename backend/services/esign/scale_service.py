@@ -59,6 +59,7 @@ from services.esign.envelope_service import (
     EsignConflict,
     EsignError,
     EsignNotFound,
+    _lock_draft_revision,
     esign_envelope_service,
     normalize_template_roles,
 )
@@ -263,10 +264,13 @@ class EsignScaleService:
             created_at=row.created_at, updated_at=row.updated_at,
             brand_id=str(row.brand_id) if getattr(row, "brand_id", None) else None)
 
-    async def publish_template(self, user_id: str, template_id: str) -> EsignTemplateVersionResponse:
+    async def publish_template(
+        self, user_id: str, template_id: str, *, expected_revision: Optional[int] = None,
+    ) -> EsignTemplateVersionResponse:
         db = self._get_session()
         try:
             template = esign_envelope_service._load_template(db, user_id, template_id)
+            _lock_draft_revision(db, template, expected_revision)
             firm_id = require_firm_id(db, user_id)
             checked_rules: set[str] = set()
             for field in template.fields or []:

@@ -45,7 +45,7 @@ import {
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
-import { useDeleteEnvelope, useEnvelopes, useEsignInbox } from '@/hooks/useEnvelopes'
+import { useDeleteEnvelope, useEnvelopes, useEsignContext, useEsignInbox } from '@/hooks/useEnvelopes'
 import { apiClient } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -86,6 +86,9 @@ export default function EsignManagePage() {
   const query = searchParams.get('q') ?? ''
   const source = searchParams.get('source') as 'manual' | 'bulk' | 'powerform' | null
   const scope = (searchParams.get('scope') as 'mine' | 'shared' | 'firm' | null) ?? 'mine'
+  const esignContext = useEsignContext()
+  const canViewFirm = !!esignContext.data && (esignContext.data.profile.admin_override || esignContext.data.administrative_capabilities.view_firm_envelopes)
+  const effectiveScope = scope === 'firm' && !canViewFirm ? 'mine' : scope
   const [search, setSearch] = React.useState(query)
   const [deleteTarget, setDeleteTarget] = React.useState<{ id: string; title: string } | null>(null)
 
@@ -115,7 +118,7 @@ export default function EsignManagePage() {
     sortBy,
     sortDir,
     sourceType: source ?? undefined,
-    scope,
+    scope: effectiveScope,
   })
   const inboxQuery = useEsignInbox({ q: query || undefined, state: 'pending' })
   const deleteEnvelope = useDeleteEnvelope()
@@ -180,7 +183,7 @@ export default function EsignManagePage() {
               />
             </div>
             {view !== 'inbox' && (
-              <><Select value={scope} onValueChange={(value) => setParams({ scope: value === 'mine' ? null : value, offset: null })}><SelectTrigger className="w-full sm:w-32"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="mine">My envelopes</SelectItem><SelectItem value="shared">Shared</SelectItem><SelectItem value="firm">Firm-wide</SelectItem></SelectContent></Select><Select value={source ?? 'all'} onValueChange={(value) => setParams({ source: value === 'all' ? null : value, offset: null })}><SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All sources</SelectItem><SelectItem value="manual">Manual</SelectItem><SelectItem value="bulk">Bulk</SelectItem><SelectItem value="powerform">PowerForm</SelectItem></SelectContent></Select><Select value={`${sortBy}:${sortDir}`} onValueChange={(value) => {
+              <><Select value={effectiveScope} onValueChange={(value) => setParams({ scope: value === 'mine' ? null : value, offset: null })}><SelectTrigger className="w-full sm:w-32"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="mine">My envelopes</SelectItem><SelectItem value="shared">Shared</SelectItem>{canViewFirm && <SelectItem value="firm">Firm-wide</SelectItem>}</SelectContent></Select><Select value={source ?? 'all'} onValueChange={(value) => setParams({ source: value === 'all' ? null : value, offset: null })}><SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All sources</SelectItem><SelectItem value="manual">Manual</SelectItem><SelectItem value="bulk">Bulk</SelectItem><SelectItem value="powerform">PowerForm</SelectItem></SelectContent></Select><Select value={`${sortBy}:${sortDir}`} onValueChange={(value) => {
                 const [nextSort, nextDir] = value.split(':')
                 setParams({ sort_by: nextSort, sort_dir: nextDir, offset: null })
               }}>

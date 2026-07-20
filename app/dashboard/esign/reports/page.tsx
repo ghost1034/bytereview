@@ -5,6 +5,8 @@ import { AlertTriangle, CheckCircle2, Clock3, Download, Send } from 'lucide-reac
 import { apiClient } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { useEsignReport } from '@/hooks/useEsignScale'
+import { useEsignContext } from '@/hooks/useEnvelopes'
+import { hasEsignAccess } from '@/lib/esign/access'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -17,8 +19,10 @@ function dayEnd(value: string) { return new Date(`${value}T23:59:59.999`).toISOS
 export default function EsignReportsPage() {
   const [start, setStart] = React.useState(() => isoStart(29)); const [end, setEnd] = React.useState(() => isoStart(0)); const [source, setSource] = React.useState('all')
   const report = useEsignReport({ start: dayStart(start), end: dayEnd(end), source: source === 'all' ? undefined : source })
+  const context = useEsignContext()
+  const canExport = hasEsignAccess(context.data, { capability: 'exports' })
   const data = report.data
-  return <div className="space-y-6"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-sm font-medium text-primary">Firm analytics</p><h1 className="text-2xl font-semibold">E‑Signature reports</h1><p className="mt-1 text-sm text-foreground-muted">Sent-cohort completion, active-envelope aging, and operational exceptions.</p></div><Button variant="outline" onClick={async () => { const blob = await apiClient.downloadEsignReportDetails(dayStart(start), dayEnd(end)); const href = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = href; link.download = 'esign-report-details.csv'; link.click(); URL.revokeObjectURL(href) }}><Download className="mr-2 size-4" /> Export details</Button></div>
+  return <div className="space-y-6"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-sm font-medium text-primary">Firm analytics</p><h1 className="text-2xl font-semibold">E‑Signature reports</h1><p className="mt-1 text-sm text-foreground-muted">Sent-cohort completion, active-envelope aging, and operational exceptions.</p></div>{canExport && <Button variant="outline" onClick={async () => { const blob = await apiClient.downloadEsignReportDetails(dayStart(start), dayEnd(end)); const href = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = href; link.download = 'esign-report-details.csv'; link.click(); URL.revokeObjectURL(href) }}><Download className="mr-2 size-4" /> Export details</Button>}</div>
     <section className="flex flex-wrap gap-4 rounded-xl border border-border bg-surface p-4 shadow-sm"><div><Label htmlFor="report-start">From</Label><Input id="report-start" type="date" value={start} onChange={e => setStart(e.target.value)} /></div><div><Label htmlFor="report-end">Through</Label><Input id="report-end" type="date" value={end} onChange={e => setEnd(e.target.value)} /></div><div className="min-w-44"><Label>Source</Label><Select value={source} onValueChange={setSource}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All sources</SelectItem><SelectItem value="manual">Manual</SelectItem><SelectItem value="bulk">Bulk</SelectItem><SelectItem value="powerform">PowerForm</SelectItem></SelectContent></Select></div></section>
     {report.isLoading ? <div className="grid gap-4 md:grid-cols-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton className="h-28" key={i} />)}</div> : data ? <>
       <div className="grid gap-4 md:grid-cols-4">{[

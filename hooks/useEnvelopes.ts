@@ -208,8 +208,8 @@ export function useReorderDocuments(envelopeId: string) {
 export function useReplaceRecipients(envelopeId: string) {
   const invalidate = useInvalidateEnvelope()
   return useMutation({
-    mutationFn: ({ recipients, templateId }: { recipients: EsignRecipientInput[]; templateId?: string }) =>
-      apiClient.replaceEsignRecipients(envelopeId, recipients, templateId),
+    mutationFn: ({ recipients, templateId, expectedRevision }: { recipients: EsignRecipientInput[]; templateId?: string; expectedRevision?: number }) =>
+      apiClient.replaceEsignRecipients(envelopeId, recipients, templateId, expectedRevision),
     onSuccess: () => invalidate(envelopeId),
   })
 }
@@ -217,7 +217,7 @@ export function useReplaceRecipients(envelopeId: string) {
 export function useReplaceFields(envelopeId: string) {
   const invalidate = useInvalidateEnvelope()
   return useMutation({
-    mutationFn: (fields: EsignFieldInput[]) => apiClient.replaceEsignFields(envelopeId, fields),
+    mutationFn: ({ fields, expectedRevision }: { fields: EsignFieldInput[]; expectedRevision?: number }) => apiClient.replaceEsignFields(envelopeId, fields, expectedRevision),
     onSuccess: () => invalidate(envelopeId),
   })
 }

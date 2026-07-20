@@ -45,7 +45,9 @@ class AutoFillProps(BaseModel):
 
 
 class AttachmentProps(BaseModel):
-    allowed_types: list[str] = Field(default_factory=lambda: ["application/pdf", "image/png", "image/jpeg"])
+    allowed_types: list[Literal["application/pdf", "image/png", "image/jpeg"]] = Field(
+        default_factory=lambda: ["application/pdf", "image/png", "image/jpeg"], min_length=1
+    )
 
 
 class AnchorProps(BaseModel):
@@ -179,6 +181,11 @@ def _validated_properties(field_type: str, value: Any) -> EsignFieldProperties:
         props.update(AutoFillProps.model_validate(props).model_dump())
     elif field_type == "attachment":
         props.update(AttachmentProps.model_validate(props).model_dump())
+    if field_type == "date" and props.get("sender_prefill"):
+        try:
+            date.fromisoformat(str(props["sender_prefill"]))
+        except ValueError as exc:
+            raise ValueError("date sender_prefill must use YYYY-MM-DD") from exc
     return EsignFieldProperties.model_validate(props)
 
 
@@ -232,6 +239,7 @@ class EsignRecipientInput(BaseModel):
     private_message: Optional[str] = Field(default=None, max_length=4_000)
     managed_by_recipient_id: Optional[str] = None
     witness_for_recipient_id: Optional[str] = None
+    witness_mode: Optional[Literal["remote", "in_person"]] = None
     host_name: Optional[str] = Field(default=None, max_length=255)
     host_email: Optional[EmailStr] = None
     allow_reassignment: bool = False
@@ -241,8 +249,13 @@ class EsignRecipientInput(BaseModel):
         if self.role in ("agent", "editor", "approver", "certified_delivery", "signer", "cc"):
             if not self.name or not self.email:
                 raise ValueError(f"{self.role} recipients require a name and email")
-        if self.role == "witness" and not self.witness_for_recipient_id:
-            raise ValueError("witness recipients must identify the signer they witness")
+        if self.role == "witness":
+            if not self.witness_for_recipient_id:
+                raise ValueError("witness recipients must identify the signer they witness")
+            mode = self.witness_mode or ("remote" if self.email else "in_person")
+            self.witness_mode = mode
+            if mode == "remote" and (not self.name or not self.email):
+                raise ValueError("remote witnesses require a name and email")
         if self.role == "in_person_signer" and (not self.host_name or not self.host_email):
             raise ValueError("in-person signers require host name and email")
         if self.role in ("witness", "in_person_signer"):
@@ -268,6 +281,7 @@ class EsignRecipientResponse(BaseModel):
     private_message: Optional[str] = None
     managed_by_recipient_id: Optional[str] = None
     witness_for_recipient_id: Optional[str] = None
+    witness_mode: Optional[Literal["remote", "in_person"]] = None
     host_name: Optional[str] = None
     host_email: Optional[str] = None
     allow_reassignment: bool = False
@@ -296,6 +310,7 @@ class EsignDocumentResponse(BaseModel):
 
 
 class EsignEnvelopeUpdateRequest(BaseModel):
+    expected_revision: Optional[int] = Field(default=None, ge=1)
     title: Optional[str] = None
     message: Optional[str] = None
     signing_type: Optional[str] = None  # sequential | parallel
@@ -308,14 +323,20 @@ class EsignEnvelopeUpdateRequest(BaseModel):
 
 class EsignRecipientsReplaceRequest(BaseModel):
     recipients: list[EsignRecipientInput]
+    expected_revision: Optional[int] = Field(default=None, ge=1)
 
 
 class EsignFieldsReplaceRequest(BaseModel):
     fields: list[EsignFieldInput]
+    expected_revision: Optional[int] = Field(default=None, ge=1)
 
 
 class EsignVoidRequest(BaseModel):
     reason: str = Field(min_length=1, max_length=2000)
+
+
+class EsignCloneAndVoidRequest(EsignVoidRequest):
+    expected_routing_version: int = Field(ge=1)
 
 
 class EsignEnvelopeResponse(BaseModel):
@@ -327,6 +348,7 @@ class EsignEnvelopeResponse(BaseModel):
     date_format: str = "MM/DD/YYYY"
     current_routing_order: Optional[int] = None
     routing_version: int = 1
+    draft_revision: int = 1
     allow_reassignment: bool = False
     recipient_access_mode: Literal["account", "email_link"] = "email_link"
     consent_disclosure_text: Optional[str] = None
@@ -595,6 +617,12 @@ class EsignCorrectionRequest(BaseModel):
     expected_routing_version: int = Field(ge=1)
 
 
+class EsignFieldCorrectionRequest(BaseModel):
+    fields: list[EsignFieldInput]
+    reason: str = Field(min_length=1, max_length=2_000)
+    expected_routing_version: int = Field(ge=1)
+
+
 class EsignReassignRequest(BaseModel):
     replacement_name: str = Field(min_length=1, max_length=255)
     replacement_email: EmailStr
@@ -620,6 +648,13 @@ class EsignManagedRecipientsResponse(BaseModel):
 class EsignWitnessRequest(EsignVersionedActionRequest):
     name: str = Field(min_length=1, max_length=255)
     email: Optional[EmailStr] = None
+    mode: Literal["remote", "in_person"] = "remote"
+
+    @model_validator(mode="after")
+    def remote_requires_email(self):
+        if self.mode == "remote" and self.email is None:
+            raise ValueError("Remote witnesses require an email")
+        return self
 
 
 class EsignInPersonStartRequest(EsignVersionedActionRequest):
@@ -697,6 +732,7 @@ class EsignTemplateRoleInput(BaseModel):
     witness_for_recipient_index: Optional[int] = Field(default=None, ge=0)
     managed_by_role_id: Optional[str] = None
     witness_for_role_id: Optional[str] = None
+    witness_mode: Optional[Literal["remote", "in_person"]] = None
     host_name: Optional[str] = Field(default=None, max_length=255)
     host_email: Optional[EmailStr] = None
     allow_reassignment: bool = False
@@ -726,6 +762,7 @@ class EsignTemplateFieldInput(BaseModel):
 
 
 class EsignTemplateUpdateRequest(BaseModel):
+    expected_revision: Optional[int] = Field(default=None, ge=1)
     name: Optional[str] = None
     description: Optional[str] = None
     title: Optional[str] = None
@@ -821,6 +858,7 @@ class EsignPdfWidgetMapping(BaseModel):
 
 class EsignPdfWidgetConversionRequest(BaseModel):
     mappings: list[EsignPdfWidgetMapping]
+    confirm_unsupported_flatten: bool = False
 
 
 class EsignTemplateResponse(BaseModel):
@@ -831,6 +869,7 @@ class EsignTemplateResponse(BaseModel):
     message: Optional[str] = None
     signing_type: str
     date_format: str = "MM/DD/YYYY"
+    draft_revision: int = 1
     recipient_roles: list[dict[str, Any]]
     documents: list[EsignTemplateDocumentResponse]
     fields: list[EsignTemplateFieldResponse]
@@ -848,6 +887,11 @@ class EsignTemplateListResponse(BaseModel):
 class EsignEnvelopeCreateResponse(BaseModel):
     envelope: EsignEnvelopeResponse
     message: str = "Envelope created"
+
+
+class EsignCloneAndVoidResponse(BaseModel):
+    original: EsignEnvelopeResponse
+    clone: EsignEnvelopeResponse
 
 
 # ---------------------------------------------------------------------------

@@ -7,6 +7,7 @@ import { CircleHelp, FileCheck2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useEsignContext } from '@/hooks/useEnvelopes'
+import { hasEsignAccess } from '@/lib/esign/access'
 
 const items: { href: string; label: string; feature?: string; capability?: string }[] = [
   { href: '/dashboard/esign', label: 'Envelopes' },
@@ -20,9 +21,8 @@ const items: { href: string; label: string; feature?: string; capability?: strin
 export function EsignWorkspaceNav() {
   const pathname = usePathname() ?? ''
   const context = useEsignContext()
-  const allowedItems = items.filter((item) => !context.data || context.data.profile.admin_override ||
-    (!item.feature || context.data.features[item.feature]) && (!item.capability || context.data.profile.capabilities[item.capability]))
-  const visibleItems = context.data?.profile.admin_override
+  const allowedItems = items.filter((item) => !context.data || hasEsignAccess(context.data, item))
+  const visibleItems = context.data && hasEsignAccess(context.data, { administrative: 'manage_settings' })
     ? [...allowedItems, { href: '/dashboard/esign/admin', label: 'Admin' }]
     : allowedItems
   const immersive =

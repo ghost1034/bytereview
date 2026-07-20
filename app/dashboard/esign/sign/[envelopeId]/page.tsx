@@ -25,6 +25,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
@@ -74,6 +75,7 @@ export default function SigningCeremonyPage() {
   const [guestLink, setGuestLink] = React.useState<string | null>(null)
   const [witnessName, setWitnessName] = React.useState('')
   const [witnessEmail, setWitnessEmail] = React.useState('')
+  const [witnessMode, setWitnessMode] = React.useState<'remote' | 'in_person'>('remote')
   const [witnessOccupation, setWitnessOccupation] = React.useState('')
   const [witnessAddress, setWitnessAddress] = React.useState('')
   const [replacementName, setReplacementName] = React.useState('')
@@ -133,7 +135,7 @@ export default function SigningCeremonyPage() {
       if (source === 'recipient_name') automatic[field.id] = session.recipient_name
       else if (source === 'recipient_email') automatic[field.id] = session.recipient_email
       else if (source === 'company') automatic[field.id] = session.recipient_company ?? ''
-      else if (source === 'date_sent' && session.sent_at) automatic[field.id] = formatDateSigned(new Date(session.sent_at), session.date_format)
+      else if (source === 'date_sent' && session.sent_at) automatic[field.id] = new Date(session.sent_at).toISOString().slice(0, 10)
     }
     setFieldValues((previous) => ({ ...automatic, ...previous }))
   }, [session])
@@ -583,9 +585,9 @@ export default function SigningCeremonyPage() {
       {(session.available_actions ?? []).includes('configure_witness') && (
         <section className="space-y-3 rounded-lg border border-border bg-surface p-4">
           <div><h2 className="font-semibold">Confirm your witness</h2><p className="text-sm text-foreground-muted">The witness signs after you through an audited guest invitation.</p></div>
-          <div className="grid gap-2 sm:grid-cols-2"><Input placeholder="Witness full name" value={witnessName} onChange={(event) => setWitnessName(event.target.value)} /><Input type="email" placeholder="Witness email (optional)" value={witnessEmail} onChange={(event) => setWitnessEmail(event.target.value)} /></div>
-          <Button variant="outline" disabled={roleBusy || !witnessName.trim()} onClick={async () => { setRoleBusy(true); try { const invitation = await apiClient.configureEsignWitness(session.envelope_id, { name: witnessName.trim(), email: witnessEmail.trim() || null, expected_routing_version: session.routing_version }); setGuestLink(invitation.guest_url); await sessionQuery.refetch(); toast({ title: 'Witness confirmed', description: 'The secure invitation is ready for the witness after you finish.' }) } catch (error) { toast({ title: 'Witness could not be configured', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } finally { setRoleBusy(false) } }}>Confirm witness</Button>
-          {guestLink && <p className="break-all rounded bg-surface-muted p-2 text-xs text-foreground-muted">Guest invitation: {guestLink}</p>}
+          <div className="grid gap-2 sm:grid-cols-2"><Select value={witnessMode} onValueChange={(value) => setWitnessMode(value as 'remote' | 'in_person')}><SelectTrigger aria-label="Witness mode"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="remote">Remote witness</SelectItem><SelectItem value="in_person">In person on this device</SelectItem></SelectContent></Select><Input placeholder="Witness full name" value={witnessName} onChange={(event) => setWitnessName(event.target.value)} />{witnessMode === 'remote' && <Input className="sm:col-span-2" type="email" placeholder="Witness email (required)" value={witnessEmail} onChange={(event) => setWitnessEmail(event.target.value)} />}</div>
+          <Button variant="outline" disabled={roleBusy || !witnessName.trim() || (witnessMode === 'remote' && !witnessEmail.trim())} onClick={async () => { setRoleBusy(true); try { const invitation = await apiClient.configureEsignWitness(session.envelope_id, { name: witnessName.trim(), email: witnessMode === 'remote' ? witnessEmail.trim() : null, mode: witnessMode, expected_routing_version: session.routing_version }); setGuestLink(witnessMode === 'in_person' ? invitation.guest_url : null); await sessionQuery.refetch(); toast({ title: 'Witness confirmed', description: witnessMode === 'remote' ? 'A durable invitation was queued for the witness email.' : 'The audited in-person handoff is ready.' }) } catch (error) { toast({ title: 'Witness could not be configured', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } finally { setRoleBusy(false) } }}>Confirm witness</Button>
+          {guestLink && witnessMode === 'in_person' && <p className="break-all rounded bg-surface-muted p-2 text-xs text-foreground-muted">Audited in-person handoff: {guestLink}</p>}
         </section>
       )}
       {(session.available_actions ?? []).includes('reassign') && (

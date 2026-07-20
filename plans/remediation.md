@@ -8,26 +8,6 @@ Current baseline: production frontend build, TypeScript check, and 9 targeted E-
 
 ## Remediation Findings
 
-### P0 — Record integrity and signing blockers
-
-1. Template drafts lose template context when resumed. Creating from a template initially copies documents but relies on a URL query parameter to later instantiate roles and fields. Persist template provenance and atomically copy documents, recipients, and fields during envelope creation; make direct URLs, refreshes, and Manage-page resume independent of query parameters.
-
-2. Template fields use fragile recipient indexes. Sorting or equal routing orders can assign fields to the wrong role. Give template roles immutable IDs and reference those IDs from fields and advanced-recipient relationships. Support legacy index-based snapshots through a compatibility adapter.
-
-3. Final signatures can be committed without a sealing job. A Cloud Tasks enqueue failure leaves all recipients complete but the envelope permanently unsealed. Add a transactional durable work-item/outbox record, a sealing state, idempotent workers, retry/backoff, reconciliation scans, and sender/admin retry controls. Mark completed only after the sealed object is durable.
-
-4. Email failures are silently treated as success. Invitation, reminder, expiration, and completion email exceptions are swallowed after recipient/envelope state changes. Queue email deliveries transactionally, track queued/delivered/terminal-failure states separately, retry idempotently, and expose delivery diagnostics and resend actions.
-
-5. Authenticated witnesses cannot submit. The backend requires witness occupation and address, but the authenticated request and page cannot supply them. Add witness evidence to the common submit contract and authenticated ceremony, with the same conditional validation used by guests.
-
-6. Signature uploads can become orphaned. Images are uploaded before all submission validation completes and are not deleted on rollback. Run non-storage validation first, compensate for uploaded objects on failure, and add scheduled orphan cleanup.
-
-7. Expiration, reminder, and brand settings cannot be cleared. Empty UI values become omitted fields, while the backend treats None as “unchanged.” Implement true PATCH semantics using explicitly supplied nullable fields; send null for clears and validate future expiration dates.
-
-8. PowerForm tokens and submission caps are consumed before successful materialization. A transient failure permanently consumes the link and quota. Validate all visitor identities and public fields before issuing verification, then finalize token consumption and submission count only after durable envelope creation. Make failed submissions retryable and observable.
-
-9. Advanced recipient metadata is dropped during cloning and scale sends. Save-as-template, Bulk Send, and PowerForms omit manager/witness links, host data, reassignment permission, and some branding/message settings. Preserve the complete role configuration and recreate relationships through a two-pass stable-role-ID mapping.
-
 ### P1 — Ceremony, editor, and correction completeness
 
 10. Configured date formats disagree between client and server. Use ISO YYYY-MM-DD as the canonical value, render and parse using the envelope’s selected format, and replace free-text date entry with a date-aware control.
@@ -50,7 +30,7 @@ Current baseline: production frontend build, TypeScript check, and 9 targeted E-
 
 19. Feature and permission gating is inconsistent. Advanced recipients use a build-time environment flag while the backend uses firm capabilities; firm scope and exports can also be displayed to unauthorized users. Replace scattered checks with the runtime E-Sign context, centralized route/action guards, and a single backend capability matrix.
 
-### P1 — Scale and management workflows
+### P2 — Scale and management workflows
 
 20. Bulk Send recovery is incomplete. Add job detail, live progress, per-row envelope links, original-row error exports, corrected-file re-upload, and strict idempotent confirm/cancel/retry transitions. Cancelling must remove or explicitly retain unsent draft artifacts according to one documented policy.
 
@@ -66,7 +46,7 @@ Current baseline: production frontend build, TypeScript check, and 9 targeted E-
 
 26. The admin control plane is mostly read-only. Complete permission-profile create/clone/update/assignment; brand asset upload/edit/activation; all firm signing, reminder, date, reassignment, and feature settings; webhook edit/disable/test/secret rotation/attempts; custody remediation; and audit filtering/export. Show webhook secrets in a one-time modal rather than a transient toast.
 
-### P2 — Security, compliance, and maintainability
+### P3 — Security, compliance, and maintainability
 
 27. Guest cookies fail on local HTTP. Make the Secure attribute environment/HTTPS-aware while keeping it mandatory in production; test cookie path, SameSite, expiry, and local development behavior.
 
